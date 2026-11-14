@@ -442,6 +442,14 @@ test_passes_finding_naming_a_game_build_by_sha() {
   expect 0
 }
 
+test_passes_header_values_in_code_quotes() {
+  new_repo
+  note docs/raw-sources/p.md '- **Source:** `gh api`' '- **Saved:** 2026-11-13' "- **Game build:** \`$build_sha\` (SHA-256)"
+  finding docs/findings/format.md "- **Game build:** \`$build_sha\`"
+  run_check fast
+  expect 0
+}
+
 test_blocks_finding_without_game_build() {
   new_repo
   finding docs/findings/format.md ""
