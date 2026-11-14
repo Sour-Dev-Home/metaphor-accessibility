@@ -1,6 +1,5 @@
-# Copy to .claude/pii-patterns.txt (git-ignored) and put one private string per line: your real name, email,
-# phone number, local user folder. The security-reviewer agent searches committed files for each one.
+# Copy to .claude/pii-patterns.txt (git-ignored) and put one private string per line: your real name, email, phone
+# number, user name. scripts/check.sh and the security-reviewer agent match each one as a fixed string, ignoring case.
+# Generic user folders (C:\Users\<name>, /home/<name>) are already caught by the check's general patterns.
 your-real-name
 your-email@example.com
-C:\Users\
-C:/Users/

@@ -22,3 +22,14 @@ Git Bash on Windows. Turn on the committed git hooks once per clone:
 ```sh
 git config core.hooksPath .githooks
 ```
+
+The checks block game content and personal information. For the second, copy `.claude/pii-patterns.example.txt` to
+`.claude/pii-patterns.txt` (git-ignored) and list your own private strings. CI checks general patterns on every push and pull
+request, and the private list on pushes to `main`, from a repository secret. To set it, a maintainer runs:
+
+```sh
+gh secret set PII_PATTERNS < .claude/pii-patterns.txt
+```
+
+Pushes to `main` fail until the secret is set. The check never prints a matching line or pattern, because CI logs are
+public.

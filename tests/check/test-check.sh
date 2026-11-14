@@ -2,6 +2,7 @@
 # Black-box tests for scripts/check.sh: each test plants content in a temporary git repo, runs the check there and
 # asserts the exit code and the message.
 set -uo pipefail
+unset PII_PATTERNS REQUIRE_PRIVATE_PATTERNS # tests set these per run
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 CHECK="$ROOT/scripts/check.sh"
@@ -187,6 +188,127 @@ test_judges_staged_content_not_working_tree() {
   printf 'small now' > big.bin
   run_check fast
   expect 1 "big.bin" "larger than"
+}
+
+test_blocks_private_pattern_with_trailing_backslash() {
+  new_repo
+  mkdir -p .claude
+  printf '# private\nD:\\Games\\Secret\\\n' > .claude/pii-patterns.txt
+  printf 'see D:\\Games\\Secret\\save for details\n' > notes.md
+  git add notes.md
+  run_check fast
+  expect 1 "personal information" "notes.md:1" "private pattern"
+}
+
+test_warns_when_private_patterns_are_missing() {
+  new_repo
+  printf 'hello\n' > notes.md
+  git add notes.md
+  run_check fast
+  expect 0 "warning" "no private patterns" ".claude/pii-patterns.txt"
+}
+
+test_reads_private_patterns_from_environment() {
+  new_repo
+  printf 'contact jane-q-public for access\n' > notes.md
+  git add notes.md
+  PII_PATTERNS=$'# from a secret\r\njane-q-public\r\n' run_check fast
+  expect 1 "personal information" "notes.md:1" "private pattern"
+}
+
+test_fails_when_required_private_patterns_are_missing() {
+  new_repo
+  printf 'hello\n' > notes.md
+  git add notes.md
+  REQUIRE_PRIVATE_PATTERNS=1 run_check fast
+  expect 2 "no private patterns"
+}
+
+# Planted personal information is assembled at run time, so this file never holds it and passes its own scan.
+users="Use""rs"
+home="ho""me"
+at="@"
+
+test_blocks_windows_user_path() {
+  new_repo
+  printf 'ok\nbuilt in C:\\%s\\alice\\src\n' "$users" > build.md
+  git add build.md
+  run_check fast
+  expect 1 "personal information" "build.md:2" "local user path"
+}
+
+test_blocks_unix_home_and_mac_user_paths() {
+  new_repo
+  printf 'cd /%s/alice/mods\n' "$home" > a.sh
+  printf 'open /%s/alice/Desktop\n' "$users" > b.sh
+  git add a.sh b.sh
+  run_check fast
+  expect 1 "a.sh:1" "b.sh:1" "local user path"
+}
+
+test_blocks_git_bash_and_wsl_user_paths() {
+  new_repo
+  printf 'cd /c/%s/alice/mods\n' "$users" > a.sh
+  printf 'cd /mnt/c/%s/alice/mods\n' "$users" > b.sh
+  git add a.sh b.sh
+  run_check fast
+  expect 1 "a.sh:1" "b.sh:1" "local user path"
+}
+
+test_passes_ssh_remotes_and_retina_image_names() {
+  new_repo
+  printf 'clone git%sgithub.com:owner/repo.git\nuse icon%s2x.png\n' "$at" "$at" > notes.md
+  git add notes.md
+  run_check fast
+  expect 0
+}
+
+test_trims_whitespace_around_private_patterns() {
+  new_repo
+  mkdir -p .claude
+  printf '  jane-q-public  \n' > .claude/pii-patterns.txt
+  printf 'signed, jane-q-public.\n' > notes.md
+  git add notes.md
+  run_check fast
+  expect 1 "notes.md:1" "private pattern"
+}
+
+test_blocks_email_address() {
+  new_repo
+  printf 'mail alice.smith%sgmail.com\n' "$at" > notes.md
+  git add notes.md
+  run_check fast
+  expect 1 "personal information" "notes.md:1" "email address"
+}
+
+test_passes_placeholders_and_example_addresses() {
+  new_repo
+  printf 'no paths like C:\\%s\\... or C:/%s/ here\n' "$users" "$users" > a.md
+  printf 'write to you%sexample.com, bot%sexample.invalid or 1+me%susers.noreply.github.com\n' "$at" "$at" "$at" > b.md
+  printf 'see https://api.github.com/users/octocat\n' > c.md
+  git add a.md b.md c.md
+  run_check fast
+  expect 0
+}
+
+test_blocks_private_pattern_in_file_name() {
+  new_repo
+  mkdir -p .claude
+  printf 'jane-q-public\n' > .claude/pii-patterns.txt
+  printf 'nothing personal\n' > Jane-Q-Public-notes.md
+  git add Jane-Q-Public-notes.md
+  run_check fast
+  expect 1 "personal information" "Jane-Q-Public-notes.md: file name matches a private pattern"
+}
+
+test_ignores_blank_lines_in_private_patterns() {
+  new_repo
+  mkdir -p .claude
+  printf 'jane-q-public\n\n   \n' > .claude/pii-patterns.txt
+  printf 'nothing personal\n' > notes.md
+  git add notes.md
+  run_check fast
+  expect 0
 }
 
 for current in $(declare -F | awk '{print $3}' | grep '^test_'); do

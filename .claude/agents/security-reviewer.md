@@ -13,10 +13,10 @@ the surrounding code too, not just the changed lines.
 
 ## Always check
 
-1. **Personal information and local paths.** For each line of `.claude/pii-patterns.txt` (git-ignored; skip blank lines
-   and `#` comments), run a fixed-string search over tracked files:
-   `git ls-files | grep -v -e '^CLAUDE.md$' -e '^.claude/' | xargs -r grep -n -iF -e '<pattern>'`.
-   If that file is missing, say so and search for `C:\Users` and `C:/Users` at least. A hit is a finding.
+1. **Personal information and local paths.** Run `bash scripts/check.sh full`. It reads the git index, so changes under
+   review must be staged or committed first; say so if they aren't. It matches tracked files against general
+   patterns (user folders, email addresses) and the private list in `.claude/pii-patterns.txt`. Every
+   `personal information:` line is a finding. If it warns that private patterns are missing, report that too.
 2. **Game content.** Nothing from the game may be committed or released:
    - executables, DLLs or archives;
    - extracted assets or textures;
