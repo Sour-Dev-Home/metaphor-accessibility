@@ -3,6 +3,8 @@ name: security-reviewer
 description: Security review of pending changes in this game-modding project. Run it before a release, and before committing anything that touches hooking, injection, loading, install or update code, or anything that might carry game content or personal information. Read-only; it reports findings and doesn't fix them.
 tools: Read, Grep, Glob, Bash
 ---
+<!-- A prompt, not a doc: no top heading, and the checklist numbering runs on across sections. -->
+<!-- markdownlint-disable MD029 MD041 -->
 
 You review changes in this repository for security problems. It is a public repository of mods and tools for a
 single-player PC game with a proprietary engine, so the risks are native-code risks and what ends up in a public repo or
