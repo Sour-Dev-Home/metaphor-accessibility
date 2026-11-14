@@ -16,8 +16,20 @@ Metaphor: ReFantazio is a trademark of its owners. This project is unofficial an
 
 ## Checks
 
-`scripts/check.sh fast` checks staged files; `scripts/check.sh full` checks every tracked file, as CI does. It runs in
-Git Bash on Windows. Turn on the committed git hooks once per clone:
+One command runs every check, locally (Git Bash on Windows) and in CI:
+
+| Stage | Runs | Where |
+|---|---|---|
+| `scripts/check.sh fast` | repo rules on staged files | pre-commit hook |
+| `scripts/check.sh rules` | repo rules on every tracked file | CI on Ubuntu |
+| `scripts/check.sh full` | repo rules, then the .NET build, `Unit` tests and formatting | CI on Windows |
+
+`full` needs the .NET SDK pinned in `global.json`. CI then packages the build it tested (`scripts/package-mod.sh`) and
+keeps it as a workflow artifact with its SHA-256. It also rebuilds the mod in a second checkout at another path on the
+same runner and checks the bytes match. A local package won't match CI's hash, because CI-only build settings remove
+machine paths; the CI artifact is the one that counts.
+
+Turn on the committed git hooks once per clone:
 
 ```sh
 git config core.hooksPath .githooks

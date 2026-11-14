@@ -121,23 +121,32 @@ test_blocks_small_file_whose_hash_is_listed() {
   expect 1 "game content" "readme-snippet.txt" "hash"
 }
 
-test_full_stage_blocks_committed_content_that_skipped_the_hook() {
+test_rules_stage_blocks_committed_content_that_skipped_the_hook() {
   new_repo
   mkdir -p extracted
   printf 'x' > extracted/model.bin
   git add -f extracted/model.bin
   git commit -q -m "sneak in" --no-verify
-  run_check full
+  run_check rules
   expect 1 "game content" "extracted/model.bin"
 }
 
-test_full_stage_passes_clean_repo() {
+test_rules_stage_passes_clean_repo() {
+  new_repo
+  printf '# notes\n' > notes.md
+  git add notes.md
+  git commit -q -m "notes" --no-verify
+  run_check rules
+  expect 0
+}
+
+test_full_stage_fails_closed_without_a_solution() {
   new_repo
   printf '# notes\n' > notes.md
   git add notes.md
   git commit -q -m "notes" --no-verify
   run_check full
-  expect 0
+  expect 2 "Metaphor.sln"
 }
 
 test_rejects_unknown_stage() {
@@ -148,7 +157,7 @@ test_rejects_unknown_stage() {
 
 test_fails_closed_outside_a_git_repo() {
   mkdir -p "$WORK/not-a-repo" && cd "$WORK/not-a-repo" || exit 2
-  run_check full
+  run_check rules
   expect 2 "could not list files"
 }
 
@@ -185,7 +194,7 @@ test_skips_submodule_entries() {
   git update-index --add --cacheinfo 160000,1111111111111111111111111111111111111111,vendor/lib
   run_check fast
   expect 0
-  run_check full
+  run_check rules
   expect 0
 }
 

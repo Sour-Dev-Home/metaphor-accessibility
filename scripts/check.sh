@@ -1,11 +1,13 @@
 #!/usr/bin/env bash
 # The one check command. Local hooks and CI both run it, so their checks never drift apart.
 #
-#   scripts/check.sh fast   repo rules on staged files (the pre-commit hook)
-#   scripts/check.sh full   repo rules on every tracked file (CI)
+#   scripts/check.sh fast    repo rules on staged files (the pre-commit hook)
+#   scripts/check.sh rules   repo rules on every tracked file (CI on Ubuntu)
+#   scripts/check.sh full    repo rules, then build, Unit tests and formatting (CI on Windows)
 #
 # Rules judge the staged blobs in the index, not the working tree, so they see exactly what would be committed.
-# Exit 0 when every rule passes, 1 when a rule fails, 2 on a usage error or when git fails.
+# Every step runs even after a failure, so one run shows every problem.
+# Exit 0 when everything passes, 1 when something fails, 2 on a usage error or when a tool is missing or fails to run.
 set -uo pipefail
 
 die() {
@@ -13,21 +15,27 @@ die() {
   exit 2
 }
 
+stage="${1:-}"
 # list_entries prints "<mode> <blob> <stage>\t<path>\0" for each file to check, in `git ls-files -s -z` form.
-case "${1:-}" in
+case "$stage" in
   fast)
     list_entries() {
       git diff --cached --name-only --diff-filter=ACMR -z |
         xargs -0 -r git --literal-pathspecs ls-files -s -z --
     } ;;
-  full) list_entries() { git ls-files -s -z; } ;;
-  *) echo "usage: scripts/check.sh fast|full" >&2; exit 2 ;;
+  rules | full) list_entries() { git ls-files -s -z; } ;;
+  *) echo "usage: scripts/check.sh fast|rules|full" >&2; exit 2 ;;
 esac
 
 tmp="$(mktemp -d)" || die "could not create a temporary folder"
 trap 'rm -rf "$tmp"' EXIT
 list_entries > "$tmp/entries" || die "could not list files (is this a git repository?)"
 root="$(git rev-parse --show-toplevel)" || die "could not find the repository root"
+solution="$root/Metaphor.sln"
+if [ "$stage" = full ]; then
+  [ -f "$solution" ] || die "full stage needs $(basename "$solution") at the repository root"
+  command -v dotnet > /dev/null || die "full stage needs the .NET SDK (dotnet) on PATH"
+fi
 
 # Policy, not a measurement: our code and notes have no reason to exceed this, so anything bigger needs a look.
 max_bytes=$((1024 * 1024))
@@ -138,5 +146,14 @@ while IFS= read -r -d '' entry; do
     scan_lines "$path" "matches a private pattern" "" -iF -f "$tmp/private"
   fi
 done < "$tmp/entries"
+
+# The .NET part of the full stage. Tests and formatting still run after a failed build, so one run shows everything.
+if [ "$stage" = full ]; then
+  export DOTNET_CLI_TELEMETRY_OPTOUT=1 DOTNET_NOLOGO=1
+  dotnet build "$solution" -c Release -v q || report "build: failed, see the errors above"
+  dotnet test "$solution" -c Release --no-build -v q --filter Category=Unit || report "tests: Unit tests failed"
+  dotnet format whitespace "$solution" --verify-no-changes ||
+    report "format: files need formatting (run: dotnet format whitespace Metaphor.sln)"
+fi
 
 [ "$failures" -eq 0 ]

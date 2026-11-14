@@ -1,0 +1,13 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- The thin hook layer: wires the core into the game. The only project allowed unsafe code (ADR 0003). -->
+  <PropertyGroup>
+    <TargetFramework>net9.0-windows</TargetFramework>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Metaphor.Core\Metaphor.Core.csproj" />
+  </ItemGroup>
+
+</Project>

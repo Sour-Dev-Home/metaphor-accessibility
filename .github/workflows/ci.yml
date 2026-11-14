@@ -15,8 +15,10 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-      - name: Test the check command
-        run: bash tests/check/test-check.sh
+      - name: Test the check scripts
+        run: |
+          bash tests/check/test-check.sh
+          bash tests/scripts/test-tree-hash.sh
       - name: Check every tracked file
         env:
           # The private list reaches pushes to this repository's main only, never a pull request, so a fork's code
@@ -27,4 +29,53 @@ jobs:
           REQUIRE_PRIVATE_PATTERNS: >-
             ${{ github.repository == 'Sour-Dev-Home/metaphor-refantazio' && github.event_name == 'push'
             && github.ref == 'refs/heads/main' && '1' || '' }}
+        run: bash scripts/check.sh rules
+
+  build:
+    runs-on: windows-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
+        with:
+          global-json-file: global.json
+          cache: true
+          cache-dependency-path: '**/packages.lock.json'
+      # Private patterns run in repo-rules only, so the secret reaches one job; this job warns that they're missing.
+      - name: Check, build, test and verify formatting
         run: bash scripts/check.sh full
+      # Build once: package the Release build that the step above built and tested.
+      - name: Package the tested build
+        id: package
+        run: |
+          sha="$(bash scripts/package-mod.sh --no-build artifacts/mod)"
+          if ! grep -aq "+$GITHUB_SHA" artifacts/mod/Metaphor.Hooks.dll ||
+            grep -aq "+$GITHUB_SHA-dirty" artifacts/mod/Metaphor.Hooks.dll; then
+            echo "::error::The packaged mod doesn't name commit $GITHUB_SHA as a clean build"
+            exit 1
+          fi
+          echo "sha=$sha" >> "$GITHUB_OUTPUT"
+          echo "Packaged mod SHA-256: $sha (commit $GITHUB_SHA)"
+          echo "Packaged mod SHA-256: \`$sha\` (commit \`$GITHUB_SHA\`)" >> "$GITHUB_STEP_SUMMARY"
+      # Reproducible build: a fresh checkout at another path, built from scratch, must give the same bytes.
+      - name: Rebuild in a second checkout and compare
+        env:
+          FIRST_SHA: ${{ steps.package.outputs.sha }}
+        run: |
+          git worktree add --detach "$RUNNER_TEMP/rebuild" HEAD
+          second="$(bash "$RUNNER_TEMP/rebuild/scripts/package-mod.sh" "$RUNNER_TEMP/rebuild-out")"
+          if [ "$second" != "$FIRST_SHA" ]; then
+            echo "::error::Rebuild differs: $FIRST_SHA then $second"
+            exit 1
+          fi
+          echo "A rebuild in a second checkout at another path matches." >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: mod-${{ github.sha }}
+          path: artifacts/mod
+          if-no-files-found: error

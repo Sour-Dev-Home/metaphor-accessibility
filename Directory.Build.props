@@ -1,0 +1,30 @@
+<Project>
+  <!-- Shared by every project. Quality settings live here so no project can opt out by accident. -->
+  <PropertyGroup>
+    <LangVersion>13.0</LangVersion>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+
+    <!-- Warnings are errors everywhere, tests included. The analyzer level is pinned so an SDK upgrade can't add rules
+         silently; raising it is a deliberate change. -->
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <AnalysisLevel>9.0-recommended</AnalysisLevel>
+    <EnforceCodeStyleInBuild>true</EnforceCodeStyleInBuild>
+    <!-- Needed for IDE0005 (unused usings) to run in the build; XML doc comments themselves stay optional. -->
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <NoWarn>$(NoWarn);CS1591</NoWarn>
+
+    <!-- Only the mod project may use unsafe code (ADR 0003). -->
+    <AllowUnsafeBlocks>false</AllowUnsafeBlocks>
+
+    <!-- Reproducible builds: same commit, same bytes. ContinuousIntegrationBuild drops machine-specific paths, and is
+         on in CI only, so a local package's hash won't match CI's. The CI artifact is the one that counts. -->
+    <Deterministic>true</Deterministic>
+    <ContinuousIntegrationBuild Condition="'$(GITHUB_ACTIONS)' == 'true'">true</ContinuousIntegrationBuild>
+
+    <!-- Package versions are pinned centrally and locked, so restores can't drift between machines. -->
+    <ManagePackageVersionsCentrally>true</ManagePackageVersionsCentrally>
+    <RestorePackagesWithLockFile>true</RestorePackagesWithLockFile>
+    <RestoreLockedMode Condition="'$(GITHUB_ACTIONS)' == 'true'">true</RestoreLockedMode>
+  </PropertyGroup>
+</Project>

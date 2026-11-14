@@ -1,0 +1,16 @@
+<Project>
+  <!-- Source Link already appends the commit SHA to the informational version. This appends "-dirty" (read back by
+       SourceRevision.cs) when the working tree has changes, so a local experiment can never pass as a build of that
+       commit. Any non-ignored change counts, new files included, because new source files end up in the build. If git
+       can't run, the build continues without the marker and says so. -->
+  <Target Name="MarkUncommittedChanges" AfterTargets="InitializeSourceControlInformation"
+          Condition="'$(SourceRevisionId)' != ''">
+    <Exec Command="git status --porcelain" ConsoleToMSBuild="true" StandardOutputImportance="low"
+          WorkingDirectory="$(MSBuildThisFileDirectory)" ContinueOnError="WarnAndContinue">
+      <Output TaskParameter="ConsoleOutput" PropertyName="_UncommittedChanges" />
+    </Exec>
+    <PropertyGroup Condition="'$(_UncommittedChanges)' != ''">
+      <SourceRevisionId>$(SourceRevisionId)-dirty</SourceRevisionId>
+    </PropertyGroup>
+  </Target>
+</Project>
