@@ -14,6 +14,13 @@ This project is single-player modding only. It doesn't touch online features, DR
 
 Metaphor: ReFantazio is a trademark of its owners. This project is unofficial and not affiliated with them.
 
+To contribute, start with [CONTRIBUTING.md](CONTRIBUTING.md).
+
+## License
+
+Code is under [GPL-3.0](LICENSE). Docs (the Markdown files, including everything in `docs/`) are under
+[CC BY 4.0](docs/LICENSE), except `docs/raw-sources/`, which holds copies of other people's work under their own terms.
+
 ## Checks
 
 One command runs every check, locally (Git Bash on Windows) and in CI:

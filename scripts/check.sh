@@ -209,7 +209,7 @@ while IFS= read -r -d '' entry; do
     grep -Fxq "$hash" <<<"$known_hashes" && report_game_content "$path" "hash matches a known game file"
   fi
 
-  # Notes cite their sources and pin their game build (CLAUDE.md ground rules 1 and 2).
+  # Notes cite their sources and pin their game build (AGENTS.md ground rules 1 and 2).
   case "$path" in
     docs/raw-sources/README.md | docs/findings/README.md) ;;
     docs/raw-sources/*.md)

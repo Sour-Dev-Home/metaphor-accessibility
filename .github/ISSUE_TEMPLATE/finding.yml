@@ -1,0 +1,45 @@
+name: Finding
+description: Something you found out about the game or its engine (a file format, a struct, a function).
+labels: [needs-triage]
+body:
+  - type: markdown
+    attributes:
+      value: >-
+        A finding becomes a note in docs/findings/. Methods follow ADR 0002
+        (docs/adr/0002-analysis-methods-under-denuvo.md): nothing that bypasses, dumps or patches the game's protection.
+  - type: textarea
+    id: claim
+    attributes:
+      label: Claim
+      description: What's true, in one or two sentences.
+    validations:
+      required: true
+  - type: textarea
+    id: evidence
+    attributes:
+      label: Evidence
+      description: >-
+        A source (link or saved copy) or reproducible steps: the tool and its version, and what you did. A short quoted
+        snippet is fine; whole game files or decompiled functions aren't.
+    validations:
+      required: true
+  - type: dropdown
+    id: method
+    attributes:
+      label: Method
+      description: How you found it, from the table in ADR 0002.
+      options:
+        - Reading an open-source mod that already hooks this game
+        - A Reloaded-II mod reading memory or hooking functions
+        - Opening the shipped executable in a disassembler as-is
+        - A debugger attached with no help
+        - Something else (describe it under Evidence)
+    validations:
+      required: true
+  - type: input
+    id: game-build
+    attributes:
+      label: Game build
+      description: The SHA-256 of the game's executable you checked it on (in PowerShell, Get-FileHash METAPHOR.exe).
+    validations:
+      required: true

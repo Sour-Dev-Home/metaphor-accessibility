@@ -1,0 +1,32 @@
+name: Accessibility feedback
+description: Something in the game or the mod that you can't reach, hear or understand, or a way it could work better.
+labels: [needs-triage]
+body:
+  - type: textarea
+    id: what
+    attributes:
+      label: What you were trying to do
+      description: For example, choose a skill in battle, read a shop's prices, or install the mod.
+    validations:
+      required: true
+  - type: textarea
+    id: problem
+    attributes:
+      label: What got in the way
+      description: What was said, what wasn't said, or what you couldn't do.
+    validations:
+      required: true
+  - type: textarea
+    id: wish
+    attributes:
+      label: What would help
+  - type: input
+    id: setup
+    attributes:
+      label: Your setup
+      description: Screen reader and version (for example NVDA 2025.3), and anything else you use, such as a braille display.
+  - type: input
+    id: versions
+    attributes:
+      label: Mod version and game version
+      description: If you know them. It's fine to leave this empty.
