@@ -102,6 +102,17 @@ scan_lines() {
   done <<<"$matches"
 }
 
+# check_header PATH KIND LABEL VALUE-RE [HINT]: report when the current blob's header (the lines before its first "## "
+# heading) has no "- **LABEL:** value" line whose value matches VALUE-RE. The label matches as a word in any case, plural
+# or inside longer wording ("Date saved:", "Game build(s) the sources mention:"), with the colon inside or after the
+# bold. HINT describes the value in the message.
+check_header() {
+  local path="$1" kind="$2" label="$3" value_re="$4" hint="${5:-}"
+  sed '/^## /,$d' "$tmp/blob" |
+    grep -qiE "^- \*\*([^*]* )?${label}s?([^*a-z][^*]*)?(:\*\*|\*\*:)[[:space:]]*${value_re}" ||
+    report "$kind: $path: header has no $label line${hint:+ $hint}"
+}
+
 while IFS= read -r -d '' entry; do
   meta="${entry%%$'\t'*}"
   path="${entry#*$'\t'}"
@@ -133,6 +144,20 @@ while IFS= read -r -d '' entry; do
     hash="$(sha256sum < "$tmp/blob" | cut -d' ' -f1)" || die "could not hash $path"
     grep -Fxq "$hash" <<<"$known_hashes" && report_game_content "$path" "hash matches a known game file"
   fi
+
+  # Notes cite their sources and pin their game build (CLAUDE.md ground rules 1 and 2).
+  case "$path" in
+    docs/raw-sources/README.md | docs/findings/README.md) ;;
+    docs/raw-sources/*.md)
+      check_header "$path" "raw source" Source '[[:alnum:]<]'
+      check_header "$path" "raw source" Saved '[0-9]{4}-[0-9]{2}-[0-9]{2}([^0-9a-z]|$)' "with a YYYY-MM-DD date"
+      check_header "$path" "raw source" "Game build" '[[:alnum:]]' ;;
+    # A finding names its game build by the executable's SHA-256 (GLOSSARY.md).
+    docs/findings/*.md)
+      check_header "$path" finding "Game build" '[0-9a-f]{64}([^0-9a-f]|$)' "naming the executable's SHA-256" ;;
+    docs/raw-sources/*) report "raw source: $path: not a .md file" ;;
+    docs/findings/*) report "finding: $path: not a .md file" ;;
+  esac
 
   scan_lines "$path" "local user path" "" -E "$user_path_re"
   scan_lines "$path" "email address" "$not_email_re" -iE "$email_re"

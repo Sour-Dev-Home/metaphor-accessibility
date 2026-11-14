@@ -29,6 +29,20 @@ run_check() {
   code=$?
 }
 
+# expect_absent TEXT...: the last run's output contains none of TEXT.
+expect_absent() {
+  local text ok=1
+  for text in "$@"; do
+    [[ "$out" == *"$text"* ]] && ok=0
+  done
+  if [ "$ok" -eq 1 ]; then
+    passed=$((passed + 1))
+  else
+    failed=$((failed + 1))
+    printf 'FAIL %s\n  want none of: %s\n  got output:\n%s\n' "$current" "$*" "$(sed 's/^/    /' <<<"$out")"
+  fi
+}
+
 # expect CODE [TEXT...]: the last run exited with CODE and its output contains every TEXT.
 expect() {
   local want="$1" ok=1 text
@@ -324,6 +338,160 @@ test_ignores_blank_lines_in_private_patterns() {
   printf 'jane-q-public\n\n   \n' > .claude/pii-patterns.txt
   printf 'nothing personal\n' > notes.md
   git add notes.md
+  run_check fast
+  expect 0
+}
+
+# raw_source PATH [skip-source|skip-saved|skip-build]: stage a raw source with the three header lines the existing
+# sources use, leaving out one when asked.
+raw_source() {
+  local path="$1" skip="${2:-}"
+  mkdir -p "$(dirname "$path")"
+  {
+    printf '# A saved page\n\n'
+    [ "$skip" = skip-source ] || printf -- '- **Source:** <https://example.org/page>\n'
+    [ "$skip" = skip-saved ] || printf -- '- **Saved:** 2026-11-13.\n'
+    [ "$skip" = skip-build ] || printf -- '- **Game build:** none; this is about tooling.\n'
+    printf '\n## Findings\n\n- Something.\n'
+  } > "$path"
+  git add "$path"
+}
+
+test_passes_raw_source_with_full_header() {
+  new_repo
+  raw_source docs/raw-sources/page-2026-11-13.md
+  run_check fast
+  expect 0
+}
+
+test_blocks_raw_source_without_source() {
+  new_repo
+  raw_source docs/raw-sources/page-2026-11-13.md skip-source
+  run_check fast
+  expect 1 "raw source: docs/raw-sources/page-2026-11-13.md: header has no Source line"
+  expect_absent "no Saved line" "no Game build line"
+}
+
+test_blocks_raw_source_without_saved_date() {
+  new_repo
+  raw_source docs/raw-sources/page-2026-11-13.md skip-saved
+  run_check fast
+  expect 1 "raw source: docs/raw-sources/page-2026-11-13.md: header has no Saved line"
+  expect_absent "no Source line" "no Game build line"
+}
+
+test_blocks_raw_source_with_saved_line_but_no_date() {
+  new_repo
+  mkdir -p docs/raw-sources
+  printf '# Page\n\n- **Source:** a tool\n- **Saved:** last week\n- **Game build:** none\n' > docs/raw-sources/p.md
+  git add docs/raw-sources/p.md
+  run_check fast
+  expect 1 "raw source: docs/raw-sources/p.md: header has no Saved line"
+}
+
+test_passes_raw_source_with_reworded_labels() {
+  new_repo
+  mkdir -p docs/raw-sources
+  printf '# Page\n\n- **Source:** a tool\n- **Date saved:** 2026-11-13\n- **Game build(s) the sources mention:** PC\n' \
+    > docs/raw-sources/p.md
+  git add docs/raw-sources/p.md
+  run_check fast
+  expect 0
+}
+
+test_blocks_raw_source_without_game_build() {
+  new_repo
+  raw_source docs/raw-sources/page-2026-11-13.md skip-build
+  run_check fast
+  expect 1 "raw source: docs/raw-sources/page-2026-11-13.md: header has no Game build line"
+  expect_absent "no Source line" "no Saved line"
+}
+
+test_ignores_header_lines_below_the_first_section() {
+  new_repo
+  mkdir -p docs/raw-sources
+  printf '# Page\n\n- **Source:** a tool\n- **Saved:** 2026-11-13\n\n## Notes\n\n- **Game build:** none\n' \
+    > docs/raw-sources/p.md
+  git add docs/raw-sources/p.md
+  run_check fast
+  expect 1 "raw source: docs/raw-sources/p.md: header has no Game build line"
+}
+
+test_passes_raw_sources_readme_without_header() {
+  new_repo
+  mkdir -p docs/raw-sources
+  printf '# Raw sources\n\nSaved copies.\n' > docs/raw-sources/README.md
+  git add docs/raw-sources/README.md
+  run_check fast
+  expect 0
+}
+
+# finding PATH BUILD-LINE: stage a finding note whose header holds BUILD-LINE (empty for none).
+finding() {
+  mkdir -p "$(dirname "$1")"
+  printf '# Something about a format\n\n%s\n\n## Evidence\n\n- A capture.\n' "$2" > "$1"
+  git add "$1"
+}
+
+build_sha="$(printf 'a%.0s' {1..64})"
+
+test_passes_finding_naming_a_game_build_by_sha() {
+  new_repo
+  finding docs/findings/format.md "- **Game build:** $build_sha (Steam build 123)"
+  run_check fast
+  expect 0
+}
+
+test_blocks_finding_without_game_build() {
+  new_repo
+  finding docs/findings/format.md ""
+  run_check fast
+  expect 1 "finding: docs/findings/format.md: header has no Game build line"
+}
+
+test_blocks_finding_whose_game_build_is_not_a_sha() {
+  new_repo
+  finding docs/findings/format.md "- **Game build:** latest"
+  run_check fast
+  expect 1 "finding: docs/findings/format.md: header has no Game build line"
+}
+
+# note PATH LINES...: stage a note whose header is the given lines, followed by one section.
+note() {
+  local path="$1"
+  shift
+  mkdir -p "$(dirname "$path")"
+  { printf '# A note\n\n'; printf '%s\n' "$@"; printf '\n## Section\n\n- Text.\n'; } > "$path"
+  git add "$path"
+}
+
+test_blocks_raw_source_whose_values_are_blank_or_junk() {
+  new_repo
+  note docs/raw-sources/p.md $'- **Source:**\t' '- **Saved:** 2026-11-13x' '- **Game build:** -'
+  run_check fast
+  expect 1 "header has no Source line" "header has no Saved line with a YYYY-MM-DD date" "header has no Game build line"
+}
+
+test_passes_raw_source_with_colon_outside_bold_and_plural_label() {
+  new_repo
+  note docs/raw-sources/p.md '- **Sources**: a tool' '- **Saved**: 2026-11-13' '- **Game build**: none'
+  run_check fast
+  expect 0
+}
+
+test_blocks_non_markdown_files_in_note_folders() {
+  new_repo
+  mkdir -p docs/raw-sources docs/findings
+  printf 'capture\n' > docs/raw-sources/capture.txt
+  printf 'note\n' > docs/findings/NOTE.MD
+  git add docs
+  run_check fast
+  expect 1 "raw source: docs/raw-sources/capture.txt: not a .md file" "finding: docs/findings/NOTE.MD: not a .md file"
+}
+
+test_passes_findings_readme_without_game_build() {
+  new_repo
+  note docs/findings/README.md '- **Owner:** nobody'
   run_check fast
   expect 0
 }
