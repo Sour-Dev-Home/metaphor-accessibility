@@ -39,8 +39,14 @@ bash scripts/check.sh full
 ```
 
 `fast` checks the staged files, so with nothing staged it passes at once. `full` checks every tracked file, then builds,
-runs the `Unit` tests and checks formatting. Both end with exit code 0 when everything passes. [README.md](README.md#checks)
-lists every stage.
+runs the `Unit` and `RoundTrip` tests and checks formatting. Both end with exit code 0 when everything passes.
+[README.md](README.md#checks) lists every stage.
+
+`RoundTrip` tests check our format code against real game files, so they need game data and are skipped without it (CI
+never has any, per [ADR 0001](docs/adr/0001-ci-never-sees-game-content.md)). To run them, point `METAPHOR_GAME_DATA` at
+your extracted files, or put them in the git-ignored `extracted/` folder. If the variable is set, `extracted/` isn't
+checked. Put the [game build](GLOSSARY.md) on the first line of `game-build.txt` in that folder; the tests show it in
+their names.
 
 If you change docs, also install the docs tools (Node.js is needed for the Markdown lint) and run their stage:
 
