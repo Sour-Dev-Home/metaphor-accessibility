@@ -45,3 +45,20 @@ gh secret set PII_PATTERNS < .claude/pii-patterns.txt
 
 Pushes to `main` fail until the secret is set. The check never prints a matching line or pattern, because CI logs are
 public.
+
+## Branch rules
+
+All changes reach `main` through pull requests. The `main` ruleset, exported in `.github/rulesets/main.json`, requires
+the `repo-rules` and `build` CI checks to pass on an up-to-date branch, resolved review threads, and blocks force-pushes
+and deletion. Repository admins can bypass it; GitHub logs each bypass in the ruleset's insights. No approving review
+is required, because a sole maintainer can't approve their own PR. `.github/CODEOWNERS` marks the hook layer, CI and
+scripts, so review requests reach the owner once there are other contributors.
+
+The export is the source of truth. After editing it, a maintainer applies it (find the id with
+`gh api repos/{owner}/{repo}/rulesets`):
+
+```sh
+gh api -X PUT repos/{owner}/{repo}/rulesets/<id> --input .github/rulesets/main.json
+```
+
+`tests/scripts/test-repo-config.sh` checks that each required check names a CI job and each CODEOWNERS path exists.
