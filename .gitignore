@@ -5,6 +5,14 @@ dumps/
 captures/
 *.cpk
 *.pak
+# The content-blocker script is the real guard; these only catch the obvious cases.
+*.exe
+*.dll
+*.asi
+*.dmp
+*.mdmp
+*.log
+Logs/
 
 # Disassembler and decompiler databases hold decompiled game code.
 *.gpr
@@ -17,6 +25,10 @@ captures/
 *.id1
 *.id2
 *.bndb
+# x64dbg databases and Ghidra project locks.
+*.dd64
+*.lock
+*.lock~
 
 # Build output.
 build/
@@ -25,8 +37,27 @@ bin/
 obj/
 dist/
 *.pdb
+artifacts/
+*.nupkg
+TestResults/
+*.trx
+coverage*/
+StrykerOutput/
 
-# Local-only files.
+# IDE files.
+.vs/
+.idea/
+*.user
+*.suo
+*.DotSettings.user
+
+# Local-only files and secrets.
 .env
+.env.*
+!.env.example
+*.pfx
+*.pem
+*.key
+secrets.json
 .claude/settings.local.json
 .claude/pii-patterns.txt
