@@ -13,3 +13,12 @@ Status: just started. Nothing here is usable yet.
 This project is single-player modding only. It doesn't touch online features, DRM or anti-tamper protection.
 
 Metaphor: ReFantazio is a trademark of its owners. This project is unofficial and not affiliated with them.
+
+## Checks
+
+`scripts/check.sh fast` checks staged files; `scripts/check.sh full` checks every tracked file, as CI does. It runs in
+Git Bash on Windows. Turn on the committed git hooks once per clone:
+
+```sh
+git config core.hooksPath .githooks
+```

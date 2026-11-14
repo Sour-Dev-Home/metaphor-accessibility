@@ -1,8 +1,8 @@
 # Game content never enters the repository (CLAUDE.md rule 4).
-game/
-extracted/
-dumps/
-captures/
+/game/
+/extracted/
+/dumps/
+/captures/
 *.cpk
 *.pak
 # The content-blocker script is the real guard; these only catch the obvious cases.

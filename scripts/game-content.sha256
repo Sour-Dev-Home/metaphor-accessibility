@@ -1,0 +1,2 @@
+# SHA-256 of known game files small enough to slip past the size rule; scripts/check.sh blocks any file whose hash is
+# listed. One per line: the hash, then a label naming the file and its game build. A hash is not game content.
