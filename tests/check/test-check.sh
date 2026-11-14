@@ -554,7 +554,27 @@ test_passes_git_generated_subjects() {
   done
 }
 
+test_passes_subject_followed_only_by_trailers() {
+  new_repo
+  check_message 'feat: pair work\n\nCo-Authored-By: a <a@example.com>\nCo-Authored-By: b <b@example.com>\nCo-Authored-By: c <c@example.com>\nCo-Authored-By: d <d@example.com>\nCo-Authored-By: e <e@example.com>\nSigned-off-by: f <f@example.com>\n'
+  expect 0
+}
+
+test_blocks_empty_message() {
+  new_repo
+  check_message '# only a comment\n\n'
+  expect 1 "commit message: message is empty"
+  expect_absent "type prefix"
+}
+
+test_ignores_trailing_spaces_and_crlf_line_endings() {
+  new_repo
+  check_message "fix: $(printf 'x%.0s' {1..67})   \r\n\r\nWhy.\r\n" # 72 characters before the spaces
+  expect 0
+}
+
 test_commits_stage_names_each_bad_commit_in_the_range() {
+  local base bad
   new_repo
   git commit -q --allow-empty -m 'not typed, but before the range'
   base="$(git rev-parse HEAD)"
@@ -567,6 +587,7 @@ test_commits_stage_names_each_bad_commit_in_the_range() {
 }
 
 test_commits_stage_passes_a_clean_range_and_skips_merges() {
+  local base
   new_repo
   git commit -q --allow-empty -m 'chore: start'
   base="$(git rev-parse HEAD)"

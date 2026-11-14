@@ -8,7 +8,8 @@
 #   scripts/check.sh commits BASE..HEAD  every non-merge commit message in a range (CI on pull requests)
 #
 # A commit message has a typed subject of at most 72 characters ("feat: ...", "fix(check): ..."), then optionally a blank
-# line and a body of at most 5 lines. A final paragraph of trailers (Co-Authored-By: ...) doesn't count.
+# line and a body of at most 5 lines. A final paragraph of trailers (Co-Authored-By: ...) doesn't count. Subjects git
+# writes itself (Revert "...", fixup!) pass.
 #
 # Rules judge the staged blobs in the index, not the working tree, so they see exactly what would be committed.
 # Every step runs even after a failure, so one run shows every problem.
@@ -29,31 +30,45 @@ report() {
 
 # check_message WHO: check the commit message on stdin against the agreed shape, reporting as WHO. Comment lines and
 # everything below git's scissors line are dropped first, because the commit-msg hook sees the message before git does.
+max_subject_chars=72
+max_body_lines=5
+
 check_message() {
-  local who="$1" message subject body last length lines
-  message="$(sed -e '/^# -* >8 -*$/,$d' -e '/^#/d')" # $(...) also drops trailing blank lines
+  local label="$1" message subject body last length lines
+  # Like git: drop CR, trailing spaces, comment lines and everything below the scissors line. $(...) also drops
+  # trailing blank lines.
+  message="$(sed -e 's/\r$//' -e 's/[[:space:]]*$//' -e '/^# -* >8 -*$/,$d' -e '/^#/d')"
+  message="${message#"${message%%[!$'\n']*}"}" # leading blank lines
+  if [ -z "$message" ]; then
+    report "$label: message is empty"
+    return
+  fi
   subject="${message%%$'\n'*}"
   body=""
   [ "$message" = "$subject" ] || body="${message#*$'\n'}"
 
-  # Git writes these subjects itself (git revert, git commit --fixup); PRs are squash-merged, so they never reach main.
+  # Git writes these subjects itself (git revert, git commit --fixup), so they pass whole; PRs are squash-merged, so
+  # they never reach main.
   if ! [[ "$subject" =~ ^(Revert\ \"|fixup!\ |squash!\ |amend!\ ) ]]; then
     [[ "$subject" =~ ^(feat|fix|docs|test|refactor|perf|build|ci|chore|style|revert)(\([^\)]+\))?!?:\ [^[:space:]] ]] ||
-      report "$who: subject needs a type prefix, such as \"feat: \" or \"fix(check): \""
+      report "$label: subject needs a type prefix, such as \"feat: \" or \"fix(check): \""
     length="$(printf '%s' "$subject" | LC_ALL=C.UTF-8 wc -m)"
     length="${length//[[:space:]]/}"
-    [ "$length" -le 72 ] || report "$who: subject is $length characters; the limit is 72"
+    [ "$length" -le "$max_subject_chars" ] ||
+      report "$label: subject is $length characters; the limit is $max_subject_chars"
   fi
 
   [ -z "$body" ] && return
-  [ -z "${body%%$'\n'*}" ] || report "$who: leave a blank line after the subject"
-  # A final paragraph made only of "Key: value" lines holds trailers (Co-Authored-By:, Signed-off-by:), which don't count.
+  [ -z "${body%%$'\n'*}" ] || report "$label: leave a blank line after the subject"
+  # The last paragraph holds trailers (Co-Authored-By:, Signed-off-by:) when every line is "Key: value", as git reads
+  # them. They don't count, even when they are the whole body.
+  body="${body#$'\n'}"
   last="${body##*$'\n\n'}"
-  if [ "$last" != "$body" ] && ! grep -qvE '^[A-Za-z][A-Za-z0-9-]*: ' <<<"$last"; then
-    body="${body%$'\n\n'*}"
+  if ! grep -qvE '^[A-Za-z][A-Za-z0-9-]*: ' <<<"$last"; then
+    [ "$last" = "$body" ] && body="" || body="${body%$'\n\n'*}"
   fi
   lines="$(grep -c '[^[:space:]]' <<<"$body")"
-  [ "$lines" -le 5 ] || report "$who: body has $lines lines; the limit is 5"
+  [ "$lines" -le "$max_body_lines" ] || report "$label: body has $lines lines; the limit is $max_body_lines"
 }
 
 tmp="$(mktemp -d)" || die "could not create a temporary folder"
