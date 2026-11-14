@@ -1,5 +1,5 @@
 ---
-status: proposed
+status: accepted
 ---
 
 # Every feature speaks through one announcer, and dev builds keep a transcript
