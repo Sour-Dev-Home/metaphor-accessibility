@@ -31,7 +31,8 @@ This is a public repository.
 ## Layout
 
 - `docs/raw-sources/`: saved copies of the sources the notes rely on. Add to it; never edit what's there.
-- The rest of the docs layout (glossary, decisions, issues) is set up by `/setup-matt-pocock-skills`.
+- `docs/agents/`: how the agent skills find issues, triage labels and domain docs (see `## Agent skills` below).
+- `GLOSSARY.md` and `docs/adr/`: domain glossary and decision records, created by `/domain-modeling` when first needed.
 
 ## Claude Code setup
 
@@ -39,3 +40,17 @@ This project runs with its own config directory, so the owner's other projects' 
 here. Start it with `.\claude.ps1` from the repository root, not `claude`. The only plugin is Matt Pocock's skills
 (`mattpocock-skills`). The one custom agent is `security-reviewer` (`.claude/agents/`): run it before a release, and before
 any commit that touches hooking, injection, loading, install or update code.
+
+## Agent skills
+
+### Issue tracker
+
+Issues live in GitHub Issues on `Sour-Dev-Home/metaphor-refantazio`, managed with the `gh` CLI. See `docs/agents/issue-tracker.md`.
+
+### Triage labels
+
+Uses the five default triage labels: `needs-triage`, `needs-info`, `ready-for-agent`, `ready-for-human`, `wontfix`. See `docs/agents/triage-labels.md`.
+
+### Domain docs
+
+Single-context: one `GLOSSARY.md` and `docs/adr/` at the repo root. See `docs/agents/domain.md`.
