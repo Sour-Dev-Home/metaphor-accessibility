@@ -4,6 +4,12 @@
 #   scripts/check.sh fast    repo rules on staged files (the pre-commit hook)
 #   scripts/check.sh rules   repo rules on every tracked file (CI on Ubuntu)
 #   scripts/check.sh full    repo rules, then build, Unit tests and formatting (CI on Windows)
+#   scripts/check.sh commit-msg FILE     one commit message (the commit-msg hook)
+#   scripts/check.sh commits BASE..HEAD  every non-merge commit message in a range (CI on pull requests)
+#
+# A commit message has a typed subject of at most 72 characters ("feat: ...", "fix(check): ..."), then optionally a blank
+# line and a body of at most 5 lines. A final paragraph of trailers (Co-Authored-By: ...) doesn't count. Subjects git
+# writes itself (Revert "...", fixup!) pass.
 #
 # Rules judge the staged blobs in the index, not the working tree, so they see exactly what would be committed.
 # Every step runs even after a failure, so one run shows every problem.
@@ -15,6 +21,59 @@ die() {
   exit 2
 }
 
+failures=0
+
+report() {
+  echo "$1"
+  failures=$((failures + 1))
+}
+
+# check_message WHO: check the commit message on stdin against the agreed shape, reporting as WHO. Comment lines and
+# everything below git's scissors line are dropped first, because the commit-msg hook sees the message before git does.
+max_subject_chars=72
+max_body_lines=5
+
+check_message() {
+  local label="$1" message subject body last length lines
+  # Like git: drop CR, trailing spaces, comment lines and everything below the scissors line. $(...) also drops
+  # trailing blank lines.
+  message="$(sed -e 's/\r$//' -e 's/[[:space:]]*$//' -e '/^# -* >8 -*$/,$d' -e '/^#/d')"
+  message="${message#"${message%%[!$'\n']*}"}" # leading blank lines
+  if [ -z "$message" ]; then
+    report "$label: message is empty"
+    return
+  fi
+  subject="${message%%$'\n'*}"
+  body=""
+  [ "$message" = "$subject" ] || body="${message#*$'\n'}"
+
+  # Git writes these subjects itself (git revert, git commit --fixup), so they pass whole; PRs are squash-merged, so
+  # they never reach main.
+  if ! [[ "$subject" =~ ^(Revert\ \"|fixup!\ |squash!\ |amend!\ ) ]]; then
+    [[ "$subject" =~ ^(feat|fix|docs|test|refactor|perf|build|ci|chore|style|revert)(\([^\)]+\))?!?:\ [^[:space:]] ]] ||
+      report "$label: subject needs a type prefix, such as \"feat: \" or \"fix(check): \""
+    length="$(printf '%s' "$subject" | LC_ALL=C.UTF-8 wc -m)"
+    length="${length//[[:space:]]/}"
+    [ "$length" -le "$max_subject_chars" ] ||
+      report "$label: subject is $length characters; the limit is $max_subject_chars"
+  fi
+
+  [ -z "$body" ] && return
+  [ -z "${body%%$'\n'*}" ] || report "$label: leave a blank line after the subject"
+  # The last paragraph holds trailers (Co-Authored-By:, Signed-off-by:) when every line is "Key: value", as git reads
+  # them. They don't count, even when they are the whole body.
+  body="${body#$'\n'}"
+  last="${body##*$'\n\n'}"
+  if ! grep -qvE '^[A-Za-z][A-Za-z0-9-]*: ' <<<"$last"; then
+    [ "$last" = "$body" ] && body="" || body="${body%$'\n\n'*}"
+  fi
+  lines="$(grep -c '[^[:space:]]' <<<"$body")"
+  [ "$lines" -le "$max_body_lines" ] || report "$label: body has $lines lines; the limit is $max_body_lines"
+}
+
+tmp="$(mktemp -d)" || die "could not create a temporary folder"
+trap 'rm -rf "$tmp"' EXIT
+
 stage="${1:-}"
 # list_entries prints "<mode> <blob> <stage>\t<path>\0" for each file to check, in `git ls-files -s -z` form.
 case "$stage" in
@@ -24,11 +83,23 @@ case "$stage" in
         xargs -0 -r git --literal-pathspecs ls-files -s -z --
     } ;;
   rules | full) list_entries() { git ls-files -s -z; } ;;
-  *) echo "usage: scripts/check.sh fast|rules|full" >&2; exit 2 ;;
+  commit-msg)
+    [ -f "${2:-}" ] || die "commit-msg stage needs the message file"
+    check_message "commit message" < "$2"
+    [ "$failures" -eq 0 ]
+    exit ;;
+  commits)
+    # Merge commits are skipped: git writes their messages, and PRs are squash-merged.
+    shas="$(git rev-list --no-merges "${2:-}" --)" || die "could not list the commits in ${2:-}"
+    for sha in $shas; do
+      git log -1 --format=%B "$sha" > "$tmp/message" || die "could not read commit $sha"
+      check_message "commit $(git rev-parse --short "$sha")" < "$tmp/message"
+    done
+    [ "$failures" -eq 0 ]
+    exit ;;
+  *) echo "usage: scripts/check.sh fast|rules|full | commit-msg FILE | commits BASE..HEAD" >&2; exit 2 ;;
 esac
 
-tmp="$(mktemp -d)" || die "could not create a temporary folder"
-trap 'rm -rf "$tmp"' EXIT
 list_entries > "$tmp/entries" || die "could not list files (is this a git repository?)"
 root="$(git rev-parse --show-toplevel)" || die "could not find the repository root"
 solution="$root/Metaphor.sln"
@@ -60,13 +131,6 @@ if [ ! -s "$tmp/private" ]; then
   echo "warning: no private patterns, so personal information is checked against general patterns only." \
     "Copy .claude/pii-patterns.example.txt to .claude/pii-patterns.txt and fill it in." >&2
 fi
-
-failures=0
-
-report() {
-  echo "$1"
-  failures=$((failures + 1))
-}
 
 report_game_content() {
   report "game content: $1: $2"

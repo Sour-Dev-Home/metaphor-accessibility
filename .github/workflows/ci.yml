@@ -15,6 +15,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
+          fetch-depth: 0 # the commit-message step needs the PR's commits, not just the merge result
       - name: Test the check scripts
         run: |
           bash tests/check/test-check.sh
@@ -31,6 +32,12 @@ jobs:
             ${{ github.repository == 'Sour-Dev-Home/metaphor-refantazio' && github.event_name == 'push'
             && github.ref == 'refs/heads/main' && '1' || '' }}
         run: bash scripts/check.sh rules
+      - name: Check the pull request's commit messages
+        if: github.event_name == 'pull_request'
+        env:
+          BASE: ${{ github.event.pull_request.base.sha }}
+          HEAD: ${{ github.event.pull_request.head.sha }}
+        run: bash scripts/check.sh commits "$BASE..$HEAD"
 
   build:
     runs-on: windows-latest

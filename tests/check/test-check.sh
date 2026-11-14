@@ -496,6 +496,116 @@ test_passes_findings_readme_without_game_build() {
   expect 0
 }
 
+# check_message TEXT: run the commit-msg stage on a message file holding TEXT (printf escapes allowed).
+check_message() {
+  local file="$WORK/message-$RANDOM"
+  printf "$1" > "$file"
+  run_check commit-msg "$file"
+}
+
+test_passes_typed_subject_with_body_and_trailers() {
+  new_repo
+  check_message 'feat(check): block bad commit messages\n\nWhy it matters, in two lines\nat most five.\n\nCo-Authored-By: Someone <someone@example.com>\nSigned-off-by: Someone <someone@example.com>\n'
+  expect 0
+}
+
+test_blocks_subject_without_type_prefix() {
+  new_repo
+  check_message 'Add a thing\n'
+  expect 1 "commit message: subject needs a type prefix"
+}
+
+test_blocks_subject_over_72_characters() {
+  new_repo
+  check_message "feat: $(printf 'x%.0s' {1..67})\n" # 73 characters
+  expect 1 "commit message: subject is 73 characters; the limit is 72"
+}
+
+test_counts_subject_length_in_characters_not_bytes() {
+  new_repo
+  check_message "docs: $(printf 'é%.0s' {1..66})\n" # 72 characters, 138 bytes
+  expect 0
+}
+
+test_blocks_body_over_five_lines() {
+  new_repo
+  check_message 'fix: a bug\n\none\ntwo\n\nthree\nfour\nfive\nsix\n\nCo-Authored-By: Someone <someone@example.com>\n'
+  expect 1 "commit message: body has 6 lines; the limit is 5"
+}
+
+test_blocks_body_without_blank_line_after_subject() {
+  new_repo
+  check_message 'fix: a bug\nno blank line\n'
+  expect 1 "commit message: leave a blank line after the subject"
+}
+
+test_ignores_comment_lines_and_text_below_the_scissors() {
+  new_repo
+  check_message 'fix: a bug\n\nWhy.\n# Please enter the commit message\n# a\n# b\n# c\n# d\n# ------------------------ >8 ------------------------\ndiff --git a/x b/x\n1\n2\n3\n4\n5\n6\n'
+  expect 0
+}
+
+test_passes_git_generated_subjects() {
+  local subject
+  for subject in 'Revert "feat: a thing"' 'fixup! feat: a thing' 'squash! fix: b' 'amend! docs: c'; do
+    new_repo
+    check_message "$subject\n"
+    expect 0
+  done
+}
+
+test_passes_subject_followed_only_by_trailers() {
+  new_repo
+  check_message 'feat: pair work\n\nCo-Authored-By: a <a@example.com>\nCo-Authored-By: b <b@example.com>\nCo-Authored-By: c <c@example.com>\nCo-Authored-By: d <d@example.com>\nCo-Authored-By: e <e@example.com>\nSigned-off-by: f <f@example.com>\n'
+  expect 0
+}
+
+test_blocks_empty_message() {
+  new_repo
+  check_message '# only a comment\n\n'
+  expect 1 "commit message: message is empty"
+  expect_absent "type prefix"
+}
+
+test_ignores_trailing_spaces_and_crlf_line_endings() {
+  new_repo
+  check_message "fix: $(printf 'x%.0s' {1..67})   \r\n\r\nWhy.\r\n" # 72 characters before the spaces
+  expect 0
+}
+
+test_commits_stage_names_each_bad_commit_in_the_range() {
+  local base bad
+  new_repo
+  git commit -q --allow-empty -m 'not typed, but before the range'
+  base="$(git rev-parse HEAD)"
+  git commit -q --allow-empty -m 'feat: a good one'
+  git commit -q --allow-empty -m 'a bad one'
+  bad="$(git rev-parse --short HEAD)"
+  run_check commits "$base..HEAD"
+  expect 1 "commit $bad: subject needs a type prefix"
+  expect_absent "before the range" "good one"
+}
+
+test_commits_stage_passes_a_clean_range_and_skips_merges() {
+  local base
+  new_repo
+  git commit -q --allow-empty -m 'chore: start'
+  base="$(git rev-parse HEAD)"
+  git switch -q -c side
+  git commit -q --allow-empty -m 'feat: on a branch'
+  git switch -q -
+  git merge -q --no-ff --no-edit side # "Merge branch 'side'" has no type prefix
+  run_check commits "$base..HEAD"
+  expect 0
+}
+
+test_commits_stage_fails_closed_on_a_bad_range() {
+  new_repo
+  git commit -q --allow-empty -m 'chore: start'
+  run_check commits "nope..HEAD"
+  expect 2 "could not list the commits in nope..HEAD"
+}
+
 for current in $(declare -F | awk '{print $3}' | grep '^test_'); do
   "$current"
   cd "$WORK" || exit 2
