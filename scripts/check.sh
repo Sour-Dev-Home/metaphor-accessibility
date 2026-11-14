@@ -102,6 +102,15 @@ scan_lines() {
   done <<<"$matches"
 }
 
+# check_header PATH KIND LABEL VALUE-RE [WANT]: report when the current blob's header (the lines before its first "## "
+# heading) has no "- **...LABEL...:** VALUE" line. The label matches as a word in any case, inside longer wording too
+# ("Date saved:", "Game build(s) the sources mention:"). WANT describes the value in the message.
+check_header() {
+  local path="$1" kind="$2" label="$3" value="$4" want="${5:-}"
+  sed '/^## /,$d' "$tmp/blob" | grep -qiE "^- \*\*([^*]* )?${label}([^*a-z][^*]*)?:\*\* *${value}" ||
+    report "$kind: $path: header has no $label line${want:+ $want}"
+}
+
 while IFS= read -r -d '' entry; do
   meta="${entry%%$'\t'*}"
   path="${entry#*$'\t'}"
@@ -133,6 +142,19 @@ while IFS= read -r -d '' entry; do
     hash="$(sha256sum < "$tmp/blob" | cut -d' ' -f1)" || die "could not hash $path"
     grep -Fxq "$hash" <<<"$known_hashes" && report_game_content "$path" "hash matches a known game file"
   fi
+
+  # Notes cite their sources and pin their game build (CLAUDE.md ground rules 1 and 2).
+  case "$path" in
+    docs/raw-sources/README.md) ;;
+    docs/raw-sources/*.md)
+      check_header "$path" "raw source" Source '[^ ]'
+      check_header "$path" "raw source" Saved '[0-9]{4}-[0-9]{2}-[0-9]{2}'
+      check_header "$path" "raw source" "Game build" '[^ ]' ;;
+    docs/findings/README.md) ;;
+    # A finding names its game build by the executable's SHA-256 (GLOSSARY.md).
+    docs/findings/*.md)
+      check_header "$path" finding "Game build" '[0-9A-Fa-f]{64}([^0-9A-Fa-f]|$)' "naming the executable's SHA-256" ;;
+  esac
 
   scan_lines "$path" "local user path" "" -E "$user_path_re"
   scan_lines "$path" "email address" "$not_email_re" -iE "$email_re"

@@ -35,6 +35,9 @@ Turn on the committed git hooks once per clone:
 git config core.hooksPath .githooks
 ```
 
+The checks also fail a raw source without its header ([`docs/raw-sources/`](docs/raw-sources/README.md)) and a
+finding without its game build ([`docs/findings/`](docs/findings/README.md)).
+
 The checks block game content and personal information. For the second, copy `.claude/pii-patterns.example.txt` to
 `.claude/pii-patterns.txt` (git-ignored) and list your own private strings. CI checks general patterns on every push and pull
 request, and the private list on pushes to `main`, from a repository secret. To set it, a maintainer runs:
