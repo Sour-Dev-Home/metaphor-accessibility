@@ -15,6 +15,9 @@ internal static class Rules
     /// <summary>Each feature is its own assembly under this prefix.</summary>
     public const string FeaturePrefix = "Metaphor.Features.";
 
+    /// <summary>The attribute that marks a hook and names its game builds.</summary>
+    public const string GameHookAttribute = "Metaphor.Hooks.GameHookAttribute";
+
     /// <summary>Assemblies allowed to use networking, each with the ADR that approved it. None so far.</summary>
     private static readonly Dictionary<string, string> NetworkingExceptions = [];
 
@@ -147,6 +150,30 @@ internal static class Rules
                 .Where(reference => reference.Name.StartsWith(FeaturePrefix, StringComparison.Ordinal))
                 .Select(reference => $"{name} depends on another feature, {reference.Name}")]
             : [];
+    }
+
+    /// <summary>
+    /// Each hook (a type marked <c>[GameHook]</c>) names at least one game build, and only builds from the known-builds
+    /// list, so it can't patch a build nobody has checked (AGENTS.md ground rule 2).
+    /// </summary>
+    public static IReadOnlyList<string> HooksNameKnownBuilds(AssemblyDefinition assembly, IReadOnlySet<string> knownBuilds)
+    {
+        ArgumentNullException.ThrowIfNull(knownBuilds);
+
+        var name = assembly.Name.Name;
+        return [.. Types(assembly).SelectMany(type => type.CustomAttributes
+            .Where(attribute => attribute.AttributeType.FullName == GameHookAttribute)
+            .SelectMany(attribute =>
+            {
+                var builds = attribute.ConstructorArguments is [{ Value: CustomAttributeArgument[] values }]
+                    ? values.Select(value => value.Value as string).ToList()
+                    : [];
+                return builds.Count == 0
+                    ? [$"{name} hook {type.FullName} names no game build"]
+                    : builds
+                        .Where(build => build is null || !knownBuilds.Contains(build))
+                        .Select(build => $"{name} hook {type.FullName} names unknown game build {build}");
+            }))];
     }
 
     private static bool IsHookLayer(AssemblyDefinition assembly) => assembly.Name.Name == HookLayer;
