@@ -45,3 +45,21 @@ gh secret set PII_PATTERNS < .claude/pii-patterns.txt
 
 Pushes to `main` fail until the secret is set. The check never prints a matching line or pattern, because CI logs are
 public.
+
+## Branch rules
+
+All changes reach `main` through pull requests that pass CI. The ruleset is exported in
+[`.github/rulesets/main.json`](.github/rulesets/main.json), which is the source of truth. It requires no approving
+review, because a sole maintainer can't approve their own PR. Admins can bypass it, and GitHub logs each bypass in the
+ruleset's insights. [`.github/CODEOWNERS`](.github/CODEOWNERS) marks the code that needs the owner's review.
+
+The private personal-information list only reaches pushes to `main`, so a PR's checks don't run it, and a match shows
+up after the merge.
+
+A maintainer applies the export with `POST` the first time, then `PUT` to the id that `gh api
+repos/{owner}/{repo}/rulesets` lists:
+
+```sh
+gh api -X POST repos/{owner}/{repo}/rulesets --input .github/rulesets/main.json
+gh api -X PUT repos/{owner}/{repo}/rulesets/<id> --input .github/rulesets/main.json
+```
