@@ -43,6 +43,9 @@ while IFS= read -r job; do
   [ -n "$job" ] || continue
   check "CodeQL job '$job' is a required check" grep -qxF -- "$job" <<<"$contexts"
 done <<<"$codeql_jobs"
+# Running isn't enough: a new high or critical CodeQL security alert blocks the merge.
+check "the ruleset blocks merges on high or critical CodeQL security alerts" \
+  bash -c 'tr -d "[:space:]" <"$1" | grep -qE "\"type\":\"code_scanning\",\"parameters\":\{\"code_scanning_tools\":\[\{\"tool\":\"CodeQL\",[^}]*\"security_alerts_threshold\":\"(high_or_higher|medium_or_higher|all)\""' _ "$RULESET"
 
 # Third-party actions are pinned to a full commit, because a tag can be moved to other code. Local actions are exempt.
 WORKFLOWS="$ROOT/.github/workflows"

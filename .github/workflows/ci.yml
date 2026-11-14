@@ -90,8 +90,8 @@ jobs:
           path: artifacts/mod
           if-no-files-found: error
 
-  # Runs beside build, so it gates merges without slowing the commit stage. A vulnerable package fails the job; CodeQL
-  # alerts show in code scanning and don't fail it.
+  # Runs beside build, so it gates merges without slowing the commit stage. A vulnerable package fails the job; a new
+  # high or critical CodeQL security alert blocks the merge through the ruleset's code-scanning rule.
   security:
     runs-on: windows-latest
     timeout-minutes: 15
