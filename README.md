@@ -23,6 +23,8 @@ One command runs every check, locally (Git Bash on Windows) and in CI:
 | `scripts/check.sh fast` | repo rules on staged files | pre-commit hook |
 | `scripts/check.sh rules` | repo rules on every tracked file | CI on Ubuntu |
 | `scripts/check.sh full` | repo rules, then the .NET build, `Unit` tests and formatting | CI on Windows |
+| `scripts/check.sh commit-msg FILE` | one commit message's shape (see the script's header) | commit-msg hook |
+| `scripts/check.sh commits BASE..HEAD` | the same, for each commit in a pull request | CI on Ubuntu |
 
 `full` needs the .NET SDK pinned in `global.json`. CI then packages the build it tested (`scripts/package-mod.sh`) and
 keeps it as a workflow artifact with its SHA-256. It also rebuilds the mod in a second checkout at another path on the
