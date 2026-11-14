@@ -12,7 +12,8 @@ change; a hook can name the build once it has been checked on it.
 
 2. Find Steam's build ID: the `buildid` value in `steamapps/appmanifest_2679460.acf` in the Steam library that holds the
    game.
-3. Note the version the game shows, if you can see it. Leave `gameVersion` out when you can't.
+3. Leave `gameVersion` out unless you've found where the game shows its version. It isn't on the title screen; where it
+   is shown is [NEEDS VERIFICATION].
 4. Add an entry to the list:
 
    ```json
