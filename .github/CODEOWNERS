@@ -1,5 +1,4 @@
-# Code that touches the game, runs in CI or runs on contributors' machines. Paths are literal, from the repo root;
-# tests/scripts/test-repo-config.sh checks that each one exists.
+# Code that touches the game, runs in CI or runs on contributors' machines. Use literal paths from the repo root.
 /src/Metaphor.Hooks/ @SourE-dev
 /.github/ @SourE-dev
 /scripts/ @SourE-dev

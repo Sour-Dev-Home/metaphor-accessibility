@@ -48,17 +48,18 @@ public.
 
 ## Branch rules
 
-All changes reach `main` through pull requests. The `main` ruleset, exported in `.github/rulesets/main.json`, requires
-the `repo-rules` and `build` CI checks to pass on an up-to-date branch, resolved review threads, and blocks force-pushes
-and deletion. Repository admins can bypass it; GitHub logs each bypass in the ruleset's insights. No approving review
-is required, because a sole maintainer can't approve their own PR. `.github/CODEOWNERS` marks the hook layer, CI and
-scripts, so review requests reach the owner once there are other contributors.
+All changes reach `main` through pull requests that pass CI. The ruleset is exported in
+[`.github/rulesets/main.json`](.github/rulesets/main.json), which is the source of truth. It requires no approving
+review, because a sole maintainer can't approve their own PR. Admins can bypass it, and GitHub logs each bypass in the
+ruleset's insights. [`.github/CODEOWNERS`](.github/CODEOWNERS) marks the code that needs the owner's review.
 
-The export is the source of truth. After editing it, a maintainer applies it (find the id with
-`gh api repos/{owner}/{repo}/rulesets`):
+The private personal-information list only reaches pushes to `main`, so a PR's checks don't run it, and a match shows
+up after the merge.
+
+A maintainer applies the export with `POST` the first time, then `PUT` to the id that `gh api
+repos/{owner}/{repo}/rulesets` lists:
 
 ```sh
+gh api -X POST repos/{owner}/{repo}/rulesets --input .github/rulesets/main.json
 gh api -X PUT repos/{owner}/{repo}/rulesets/<id> --input .github/rulesets/main.json
 ```
-
-`tests/scripts/test-repo-config.sh` checks that each required check names a CI job and each CODEOWNERS path exists.
