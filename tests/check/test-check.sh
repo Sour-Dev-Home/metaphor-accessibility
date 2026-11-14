@@ -65,6 +65,14 @@ test_blocks_every_game_extension_even_uppercase() {
   done
 }
 
+test_names_build_output_for_our_own_dll() {
+  new_repo
+  printf 'x' > Mod.dll
+  git add -f Mod.dll
+  run_check fast
+  expect 1 "Mod.dll" "game content or build output" "executable extension"
+}
+
 test_passes_ordinary_source() {
   new_repo
   printf 'class Mod {}\n' > Mod.cs
