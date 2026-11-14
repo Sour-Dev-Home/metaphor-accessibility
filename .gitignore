@@ -1,0 +1,32 @@
+# Game content never enters the repository (CLAUDE.md rule 4).
+game/
+extracted/
+dumps/
+captures/
+*.cpk
+*.pak
+
+# Disassembler and decompiler databases hold decompiled game code.
+*.gpr
+*.rep/
+*.idb
+*.i64
+*.til
+*.nam
+*.id0
+*.id1
+*.id2
+*.bndb
+
+# Build output.
+build/
+out/
+bin/
+obj/
+dist/
+*.pdb
+
+# Local-only files.
+.env
+.claude/settings.local.json
+.claude/pii-patterns.txt

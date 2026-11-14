@@ -1,0 +1,6 @@
+# Copy to .claude/pii-patterns.txt (git-ignored) and put one private string per line: your real name, email,
+# phone number, local user folder. The security-reviewer agent searches committed files for each one.
+your-real-name
+your-email@example.com
+C:\Users\
+C:/Users/
