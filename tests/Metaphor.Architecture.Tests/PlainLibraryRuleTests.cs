@@ -19,7 +19,7 @@ public sealed class PlainLibraryRuleTests
     [Fact]
     public void TheHookLayerMayReferenceTheLoader()
     {
-        var assembly = Plant.Compile("Metaphor.Hooks", UsesLoader, references: Loader);
+        var assembly = Plant.Compile(Rules.HookLayer, UsesLoader, references: Loader);
 
         Assert.Empty(Rules.NoLoaderOrWindows(assembly));
     }
@@ -40,6 +40,17 @@ public sealed class PlainLibraryRuleTests
             "Metaphor.Features.Planted", "[assembly: System.Runtime.Versioning.SupportedOSPlatform(\"windows\")]");
 
         Assert.Contains(Rules.NoLoaderOrWindows(assembly), v => v.Contains("windows"));
+    }
+
+    [Fact]
+    public void AWindowsOnlyMethodIsAViolation()
+    {
+        // The attribute silences the compiler's platform check (CA1416) for calls inside the method.
+        var assembly = Plant.Compile(
+            "Metaphor.Core",
+            "public static class C { [System.Runtime.Versioning.SupportedOSPlatform(\"windows\")] public static void M() { } }");
+
+        Assert.Contains(Rules.NoLoaderOrWindows(assembly), v => v.Contains("C::M()"));
     }
 
     [Fact]

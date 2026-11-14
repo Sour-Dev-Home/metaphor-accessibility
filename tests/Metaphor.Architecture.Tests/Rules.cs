@@ -1,3 +1,4 @@
+using System.Globalization;
 using Mono.Cecil;
 
 namespace Metaphor.Architecture.Tests;
@@ -8,18 +9,52 @@ namespace Metaphor.Architecture.Tests;
 /// </summary>
 internal static class Rules
 {
+    /// <summary>The one assembly allowed to touch the game, the loader, Windows and raw memory.</summary>
+    public const string HookLayer = "Metaphor.Hooks";
+
+    /// <summary>Each feature is its own assembly under this prefix.</summary>
+    public const string FeaturePrefix = "Metaphor.Features.";
+
     /// <summary>Assemblies allowed to use networking, each with the ADR that approved it. None so far.</summary>
     private static readonly Dictionary<string, string> NetworkingExceptions = [];
 
+    /// <summary>Assemblies allowed to load native libraries themselves, each with the ADR that approved it. None so far.</summary>
+    private static readonly Dictionary<string, string> NativeLoadingExceptions = [];
+
+    /// <summary>APIs that read or write memory by address, bypassing the runtime's checks.</summary>
+    private static readonly HashSet<string> RawMemoryTypes =
+    [
+        "System.IO.UnmanagedMemoryAccessor",
+        "System.IO.UnmanagedMemoryStream",
+        "System.Runtime.CompilerServices.Unsafe",
+        "System.Runtime.InteropServices.CollectionsMarshal",
+        "System.Runtime.InteropServices.GCHandle",
+        "System.Runtime.InteropServices.Marshal",
+        "System.Runtime.InteropServices.MemoryMarshal",
+        "System.Runtime.InteropServices.NativeMemory",
+        "System.Runtime.InteropServices.SafeBuffer",
+    ];
+
+    /// <summary>Runtime APIs that load a native library or let code choose where one is loaded from.</summary>
+    private static readonly HashSet<string> NativeLoadingMembers =
+    [
+        "System.Runtime.InteropServices.NativeLibrary::Load",
+        "System.Runtime.InteropServices.NativeLibrary::TryLoad",
+        "System.Runtime.InteropServices.NativeLibrary::SetDllImportResolver",
+        "System.Runtime.Loader.AssemblyLoadContext::LoadUnmanagedDll",
+        "System.Runtime.Loader.AssemblyLoadContext::LoadUnmanagedDllFromPath",
+        "System.Runtime.Loader.AssemblyLoadContext::add_ResolvingUnmanagedDll",
+    ];
+
+    private const int System32SearchPath = 0x800; // DllImportSearchPath.System32
+
+    /// <summary>No assembly uses networking without an ADR-approved exception.</summary>
     public static IReadOnlyList<string> NoNetworking(AssemblyDefinition assembly) =>
         NetworkingExceptions.ContainsKey(assembly.Name.Name)
             ? []
             : [.. ExternalTypes(assembly)
                 .Where(type => IsInNamespace(type, "System.Net"))
                 .Select(type => $"{assembly.Name.Name} uses networking type {type.FullName}")];
-
-    /// <summary>The one assembly allowed to touch the game, the loader, Windows and raw memory.</summary>
-    public const string HookLayer = "Metaphor.Hooks";
 
     /// <summary>Plain libraries reference neither the loader (Reloaded-II) nor anything Windows-only.</summary>
     public static IReadOnlyList<string> NoLoaderOrWindows(AssemblyDefinition assembly)
@@ -37,26 +72,16 @@ internal static class Rules
             .Where(type => IsInNamespace(type, "Microsoft.Win32"))
             .Select(type => $"{name} uses Windows-only type {type.FullName}");
         var platform = TargetsWindows(assembly) ? [$"{name} targets windows"] : Array.Empty<string>();
-        return [.. loader, .. windowsTypes, .. platform];
+        var windowsMembers = Members(assembly)
+            .Where(member => member.CustomAttributes.Any(IsWindowsPlatform))
+            .Select(member => $"{name} marks {member.FullName} Windows-only");
+        return [.. loader, .. windowsTypes, .. platform, .. windowsMembers];
     }
 
     /// <summary>True when the assembly declares Windows as its target or supported platform, as net9.0-windows does.</summary>
-    public static bool TargetsWindows(AssemblyDefinition assembly) =>
-        assembly.CustomAttributes.Any(attribute =>
-            attribute.AttributeType.FullName is "System.Runtime.Versioning.TargetPlatformAttribute"
-                or "System.Runtime.Versioning.SupportedOSPlatformAttribute"
-            && attribute.ConstructorArguments is [{ Value: string platform }]
-            && platform.StartsWith("windows", StringComparison.OrdinalIgnoreCase));
+    public static bool TargetsWindows(AssemblyDefinition assembly) => assembly.CustomAttributes.Any(IsWindowsPlatform);
 
-    /// <summary>APIs that read or write memory by address, bypassing the runtime's checks.</summary>
-    private static readonly HashSet<string> RawMemoryTypes =
-    [
-        "System.Runtime.InteropServices.Marshal",
-        "System.Runtime.InteropServices.NativeMemory",
-        "System.Runtime.CompilerServices.Unsafe",
-    ];
-
-    /// <summary>Only the hook layer uses pointers, raw-memory APIs or native calls (P/Invoke).</summary>
+    /// <summary>Only the hook layer allows unsafe code or uses pointers, raw-memory APIs or native calls (P/Invoke).</summary>
     public static IReadOnlyList<string> NoRawMemoryOutsideHooks(AssemblyDefinition assembly)
     {
         if (IsHookLayer(assembly))
@@ -64,27 +89,25 @@ internal static class Rules
             return [];
         }
         var name = assembly.Name.Name;
+        // The compiler marks every module built with unsafe code allowed, which catches pointers that never reach a
+        // parameter, local or field.
+        var unsafeCode = assembly.Modules
+            .Where(module => module.CustomAttributes.Any(a =>
+                a.AttributeType.FullName == "System.Security.UnverifiableCodeAttribute"))
+            .Select(module => $"{name} allows unsafe code in {module.Name}");
         var apis = ExternalTypes(assembly)
             .Where(type => RawMemoryTypes.Contains(type.FullName))
             .Select(type => $"{name} uses raw-memory API {type.FullName}");
         var pointers = Methods(assembly)
             .Where(method => SignatureAndLocals(method).Any(ContainsPointer))
             .Select(method => $"{name} uses a pointer in {method.FullName}");
-        var fields = assembly.Modules
-            .SelectMany(module => module.GetTypes())
+        var fields = Types(assembly)
             .SelectMany(type => type.Fields)
             .Where(field => ContainsPointer(field.FieldType))
-            .Select(field => $"{name} uses a pointer in {field.FullName}");
-        var pinvokes = Methods(assembly)
-            .Where(method => method.IsPInvokeImpl)
-            .Select(method => $"{name} declares native call {method.FullName}");
-        return [.. apis, .. pointers, .. fields, .. pinvokes];
+            .Select(field => $"{name} uses a pointer in field {field.FullName}");
+        var nativeCalls = NativeCalls(assembly).Select(method => $"{name} declares native call {method.FullName}");
+        return [.. unsafeCode, .. apis, .. pointers, .. fields, .. nativeCalls];
     }
-
-    /// <summary>Assemblies allowed to load native libraries themselves, each with the ADR that approved it. None so far.</summary>
-    private static readonly Dictionary<string, string> NativeLoadingExceptions = [];
-
-    private const int System32SearchPath = 0x800; // DllImportSearchPath.System32
 
     /// <summary>
     /// Native calls search System32 only, so a DLL planted next to the game can't stand in for a system one. Loading any
@@ -93,29 +116,26 @@ internal static class Rules
     public static IReadOnlyList<string> NativeLibrariesLoadSafely(AssemblyDefinition assembly)
     {
         var name = assembly.Name.Name;
-        if (NativeLoadingExceptions.ContainsKey(name))
-        {
-            return [];
-        }
-        var loads = assembly.Modules
-            .SelectMany(module => module.GetMemberReferences())
-            .Where(member => member.DeclaringType.FullName == "System.Runtime.InteropServices.NativeLibrary"
-                && member.Name is "Load" or "TryLoad")
-            .Select(member => $"{name} calls {member.DeclaringType.FullName}::{member.Name}");
-        var nativeCalls = Methods(assembly).Where(method => method.IsPInvokeImpl).ToList();
-        var loadLibrary = nativeCalls
-            .Where(method => method.PInvokeInfo.EntryPoint.StartsWith("LoadLibrary", StringComparison.Ordinal)
-                || method.PInvokeInfo.EntryPoint == "LdrLoadDll")
-            .Select(method => $"{name} loads a library through native call {method.FullName}");
+        var nativeCalls = NativeCalls(assembly).ToList();
         var assemblyWide = SearchPaths(assembly.CustomAttributes);
         var unrestricted = nativeCalls
             .Where(method => (SearchPaths(method.CustomAttributes) ?? assemblyWide) != System32SearchPath)
             .Select(method => $"{name} declares native call {method.FullName} without restricting its search to System32");
-        return [.. loads, .. loadLibrary, .. unrestricted];
+        if (NativeLoadingExceptions.ContainsKey(name))
+        {
+            return [.. unrestricted];
+        }
+        var loads = assembly.Modules
+            .SelectMany(module => module.GetMemberReferences())
+            .Select(member => $"{member.DeclaringType.FullName}::{member.Name}")
+            .Where(NativeLoadingMembers.Contains)
+            .Select(member => $"{name} calls {member}");
+        var loadLibrary = nativeCalls
+            .Where(method => method.PInvokeInfo.EntryPoint.StartsWith("LoadLibrary", StringComparison.Ordinal)
+                || method.PInvokeInfo.EntryPoint == "LdrLoadDll")
+            .Select(method => $"{name} loads a library through native call {method.FullName}");
+        return [.. unrestricted, .. loads, .. loadLibrary];
     }
-
-    /// <summary>Each feature is its own assembly under this prefix.</summary>
-    public const string FeaturePrefix = "Metaphor.Features.";
 
     /// <summary>A feature depends on interfaces in Core, never on another feature.</summary>
     public static IReadOnlyList<string> FeaturesAreIndependent(AssemblyDefinition assembly)
@@ -129,16 +149,34 @@ internal static class Rules
             : [];
     }
 
+    private static bool IsHookLayer(AssemblyDefinition assembly) => assembly.Name.Name == HookLayer;
+
+    private static bool IsWindowsPlatform(CustomAttribute attribute) =>
+        attribute.AttributeType.FullName is "System.Runtime.Versioning.TargetPlatformAttribute"
+            or "System.Runtime.Versioning.SupportedOSPlatformAttribute"
+        && attribute.ConstructorArguments is [{ Value: string platform }]
+        && platform.StartsWith("windows", StringComparison.OrdinalIgnoreCase);
+
     private static int? SearchPaths(IEnumerable<CustomAttribute> attributes) =>
         attributes
             .Where(attribute => attribute.AttributeType.FullName
                 == "System.Runtime.InteropServices.DefaultDllImportSearchPathsAttribute")
-            .Select(attribute => (int?)Convert.ToInt32(attribute.ConstructorArguments[0].Value,
-                System.Globalization.CultureInfo.InvariantCulture))
+            .Select(attribute => (int?)Convert.ToInt32(attribute.ConstructorArguments[0].Value, CultureInfo.InvariantCulture))
             .FirstOrDefault();
 
+    private static IEnumerable<TypeDefinition> Types(AssemblyDefinition assembly) =>
+        assembly.Modules.SelectMany(module => module.GetTypes());
+
     private static IEnumerable<MethodDefinition> Methods(AssemblyDefinition assembly) =>
-        assembly.Modules.SelectMany(module => module.GetTypes()).SelectMany(type => type.Methods);
+        Types(assembly).SelectMany(type => type.Methods);
+
+    private static IEnumerable<MethodDefinition> NativeCalls(AssemblyDefinition assembly) =>
+        Methods(assembly).Where(method => method.IsPInvokeImpl);
+
+    /// <summary>Every type and member the assembly defines, the things an attribute can be placed on.</summary>
+    private static IEnumerable<IMemberDefinition> Members(AssemblyDefinition assembly) =>
+        Types(assembly).SelectMany(type => (IEnumerable<IMemberDefinition>)
+            [type, .. type.Methods, .. type.Properties, .. type.Fields, .. type.Events]);
 
     private static IEnumerable<TypeReference> SignatureAndLocals(MethodDefinition method) =>
     [
@@ -155,8 +193,6 @@ internal static class Rules
         TypeSpecification specification => ContainsPointer(specification.ElementType),
         _ => false,
     };
-
-    private static bool IsHookLayer(AssemblyDefinition assembly) => assembly.Name.Name == HookLayer;
 
     /// <summary>Every type the assembly uses from another assembly: each one needs a row in the type reference table.</summary>
     private static IEnumerable<TypeReference> ExternalTypes(AssemblyDefinition assembly) =>

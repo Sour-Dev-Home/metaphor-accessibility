@@ -53,14 +53,34 @@ public sealed class NativeLoadingRuleTests
         Assert.Empty(Rules.NativeLibrariesLoadSafely(assembly));
     }
 
+    [Theory]
+    [InlineData("System.Runtime.InteropServices.NativeLibrary.Load(\"x.dll\")", "NativeLibrary::Load")]
+    [InlineData("System.Runtime.InteropServices.NativeLibrary.TryLoad(\"x.dll\", out _)", "NativeLibrary::TryLoad")]
+    [InlineData(
+        "System.Runtime.InteropServices.NativeLibrary.SetDllImportResolver(typeof(C).Assembly, (n, a, p) => 0)",
+        "NativeLibrary::SetDllImportResolver")]
+    public void LoadingThroughTheRuntimeIsAViolation(string statement, string api)
+    {
+        var assembly = Plant.Compile(Rules.HookLayer, $"public static class C {{ public static void M() {{ {statement}; }} }}");
+
+        Assert.Contains(Rules.NativeLibrariesLoadSafely(assembly), v => v.EndsWith(api, StringComparison.Ordinal));
+    }
+
     [Fact]
-    public void NativeLibraryLoadIsAViolation()
+    public void ALoadContextLoadingNativeLibrariesIsAViolation()
     {
         var assembly = Plant.Compile(
             Rules.HookLayer,
-            "public static class C { public static nint M() => System.Runtime.InteropServices.NativeLibrary.Load(\"x.dll\"); }");
+            """
+            public sealed class Context : System.Runtime.Loader.AssemblyLoadContext
+            {
+                protected override nint LoadUnmanagedDll(string name) => LoadUnmanagedDllFromPath(name);
+            }
+            """);
 
-        Assert.Contains(Rules.NativeLibrariesLoadSafely(assembly), v => v.Contains("NativeLibrary::Load"));
+        Assert.Contains(
+            Rules.NativeLibrariesLoadSafely(assembly),
+            v => v.EndsWith("AssemblyLoadContext::LoadUnmanagedDllFromPath", StringComparison.Ordinal));
     }
 
     [Fact]

@@ -17,7 +17,7 @@ public sealed class NetworkingRuleTests
     public void SocketsInTheHookLayerAreAViolation()
     {
         var assembly = Plant.Compile(
-            "Metaphor.Hooks",
+            Rules.HookLayer,
             """
             public static class C
             {
