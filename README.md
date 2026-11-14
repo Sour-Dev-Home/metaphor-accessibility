@@ -51,6 +51,15 @@ gh secret set PII_PATTERNS < .claude/pii-patterns.txt
 Pushes to `main` fail until the secret is set. The check never prints a matching line or pattern, because CI logs are
 public.
 
+## Supply chain
+
+Workflows use read-only tokens by default, and a job that writes asks for it itself. Every action is pinned to a
+commit. [Dependabot](.github/dependabot.yml) proposes NuGet and Actions updates weekly. CI's `security` job, which the
+ruleset requires, runs CodeQL and fails on any package with a known vulnerability. CodeQL alerts appear in the Security
+tab and on the PR; they don't fail the job.
+[Scorecard](.github/workflows/scorecard.yml) runs weekly as a report only; its results are in the Security tab.
+`tests/scripts/test-repo-config.sh` checks these rules.
+
 ## Branch rules
 
 All changes reach `main` through pull requests that pass CI. The ruleset is exported in

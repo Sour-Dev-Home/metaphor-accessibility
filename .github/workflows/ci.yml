@@ -32,8 +32,10 @@ jobs:
             ${{ github.repository == 'Sour-Dev-Home/metaphor-refantazio' && github.event_name == 'push'
             && github.ref == 'refs/heads/main' && '1' || '' }}
         run: bash scripts/check.sh rules
+      # Dependabot's commit bodies carry release notes past the body limit; its PRs get the maintainer's message on
+      # the squash merge.
       - name: Check the pull request's commit messages
-        if: github.event_name == 'pull_request'
+        if: github.event_name == 'pull_request' && github.event.pull_request.user.login != 'dependabot[bot]'
         env:
           BASE: ${{ github.event.pull_request.base.sha }}
           HEAD: ${{ github.event.pull_request.head.sha }}
@@ -87,3 +89,41 @@ jobs:
           name: mod-${{ github.sha }}
           path: artifacts/mod
           if-no-files-found: error
+
+  # Runs beside build, so it gates merges without slowing the commit stage. A vulnerable package fails the job; CodeQL
+  # alerts show in code scanning and don't fail it.
+  security:
+    runs-on: windows-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      security-events: write # upload CodeQL results to code scanning
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
+        with:
+          global-json-file: global.json
+          cache: true
+          cache-dependency-path: '**/packages.lock.json'
+      # The C# code and the workflows themselves. build-mode none reads the source without building it.
+      - uses: github/codeql-action/init@33d7b85da1a04171e211befe2c739303b9a4c066 # v4.39.3
+        with:
+          languages: csharp, actions
+          build-mode: none
+      - uses: github/codeql-action/analyze@33d7b85da1a04171e211befe2c739303b9a4c066 # v4.39.3
+      - name: Fail on vulnerable packages, transitive ones included
+        run: |
+          dotnet restore Metaphor.sln
+          report="$(dotnet list Metaphor.sln package --vulnerable --include-transitive --format json)"
+          echo "$report"
+          # A clean project lists only its path; one with vulnerable packages lists them under "frameworks", and
+          # errors land under "problems". Either one fails, so a format change fails closed.
+          if grep -qE '"(frameworks|problems)"' <<<"$report"; then
+            echo "::error::A package has a known vulnerability, or the audit failed; see the report above"
+            exit 1
+          fi
