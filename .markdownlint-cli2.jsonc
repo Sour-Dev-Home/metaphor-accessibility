@@ -1,0 +1,13 @@
+// markdownlint settings for `scripts/check.sh docs`, which passes the files to lint (every tracked Markdown file
+// outside docs/raw-sources/). Each finding is a warning.
+{
+  "config": {
+    "default": true,
+    // Prose wraps at 120 like the code (.editorconfig); tables and code blocks can't wrap.
+    "MD013": { "line_length": 120, "tables": false, "code_blocks": false },
+    // Repeated headings such as "Consequences" are normal across sections.
+    "MD024": { "siblings_only": true },
+    // Tables use the compact |---| separator row, which this rule's styles don't allow.
+    "MD060": false
+  }
+}

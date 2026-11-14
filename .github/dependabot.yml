@@ -13,6 +13,18 @@ updates:
       nuget:
         patterns: ["*"]
 
+  # The docs tools' lockfile. lychee and Vale are pinned in scripts/install-docs-tools.sh, which Dependabot can't read.
+  - package-ecosystem: "npm"
+    directory: "/tools/docs"
+    schedule:
+      interval: "weekly"
+    commit-message:
+      prefix: "ci"
+      include: "scope"
+    groups:
+      docs-tools:
+        patterns: ["*"]
+
   - package-ecosystem: "github-actions"
     directory: "/"
     schedule:
