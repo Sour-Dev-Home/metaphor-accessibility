@@ -35,7 +35,16 @@
         "strict_required_status_checks_policy": true,
         "required_status_checks": [
           { "context": "repo-rules", "integration_id": 15368 },
-          { "context": "build", "integration_id": 15368 }
+          { "context": "build", "integration_id": 15368 },
+          { "context": "security", "integration_id": 15368 }
+        ]
+      }
+    },
+    {
+      "type": "code_scanning",
+      "parameters": {
+        "code_scanning_tools": [
+          { "tool": "CodeQL", "alerts_threshold": "none", "security_alerts_threshold": "high_or_higher" }
         ]
       }
     }
