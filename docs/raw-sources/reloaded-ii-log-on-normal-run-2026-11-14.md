@@ -20,8 +20,11 @@
 ## Result
 
 - A normal run writes the log. The file `2026-11-14 18.38.08 ~ METAPHOR.txt` was created when the game started.
-- While the game ran it was 0 bytes: the writer buffers. After the normal quit it held 17 lines (1,211 bytes). The last
-  line is `[13:40:56] [Reloaded] ExitProcess Hook: Log End`, so the loader flushes from a hook on the game's exit.
+- While the game ran, the folder listing showed 0 bytes. That was the listing lagging, not the file: in a second run the
+  same day (see `reloaded-ii-clean-exit-2026-11-14.md`), reading the open file directly gave all 15 startup lines within
+  a second of launch, while a listing taken earlier had also shown 0 bytes. Read the file, not the listing.
+- After the normal quit it held 17 lines (1,211 bytes). The last line is
+  `[13:40:56] [Reloaded] ExitProcess Hook: Log End`, written by the loader's hook on the game's exit.
 - The file name uses UTC (18.38.08). The lines inside use local time (13:38:08).
 - The first run created `CrashDumps`, `Logs` (with an empty 22-byte `OldLogs.zip`), `ProfileOptimization` and
   `ReloadedII.json` under `%APPDATA%\Reloaded-Mod-Loader-II`. `CrashDumps` stayed empty.
