@@ -30,6 +30,8 @@ One command runs every check, locally (Git Bash on Windows) and in CI:
 | `scripts/check.sh fast` | repo rules on staged files | pre-commit hook |
 | `scripts/check.sh rules` | repo rules on every tracked file | CI on Ubuntu |
 | `scripts/check.sh full` | repo rules, then the .NET build, `Unit` tests and formatting | CI on Windows |
+| `scripts/check.sh docs` | broken relative links and anchors fail; Markdown lint, Vale and ADRs over 250 words warn | CI on Ubuntu |
+| `scripts/check.sh pr-body FILE` | warns when a PR description passes 300 words, not counting Evidence | CI on pull requests |
 | `scripts/check.sh commit-msg FILE` | one commit message's shape (see the script's header) | commit-msg hook |
 | `scripts/check.sh commits BASE..HEAD` | the same, for each commit in a pull request | CI on Ubuntu |
 
@@ -48,8 +50,8 @@ The checks also fail a raw source without its header ([`docs/raw-sources/`](docs
 finding without its game build ([`docs/findings/`](docs/findings/README.md)).
 
 The checks block game content and personal information. For the second, copy `.claude/pii-patterns.example.txt` to
-`.claude/pii-patterns.txt` (git-ignored) and list your own private strings. CI checks general patterns on every push and pull
-request, and the private list on pushes to `main`, from a repository secret. To set it, a maintainer runs:
+`.claude/pii-patterns.txt` (git-ignored) and list your own private strings. CI checks general patterns on every push
+and pull request, and the private list on pushes to `main`, from a repository secret. To set it, a maintainer runs:
 
 ```sh
 gh secret set PII_PATTERNS < .claude/pii-patterns.txt

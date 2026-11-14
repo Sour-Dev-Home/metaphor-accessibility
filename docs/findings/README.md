@@ -3,8 +3,8 @@
 One note per finding about the game or its engine: a file format, a struct layout, a function's behaviour. Claims follow
 the [ground rules](../../AGENTS.md#ground-rules) (cite or flag, pin to a game build).
 
-Each note's header, before its first `## ` heading, names the game build it was verified on by the executable's SHA-256
-(see **Game build** in [`GLOSSARY.md`](../../GLOSSARY.md)):
+Each note's header, the part before its first second-level heading, names the game build it was verified on by the
+executable's SHA-256 (see **Game build** in [`GLOSSARY.md`](../../GLOSSARY.md)):
 
 ```markdown
 - **Game build:** <SHA-256 of the executable> (Steam build <id>, version <shown in game>)

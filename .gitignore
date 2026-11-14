@@ -61,3 +61,7 @@ StrykerOutput/
 secrets.json
 .claude/settings.local.json
 .claude/pii-patterns.txt
+
+# Docs tools installed by scripts/install-docs-tools.sh.
+/.tools/
+node_modules/

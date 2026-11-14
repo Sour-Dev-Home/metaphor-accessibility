@@ -42,6 +42,17 @@ bash scripts/check.sh full
 runs the `Unit` tests and checks formatting. Both end with exit code 0 when everything passes. [README.md](README.md#checks)
 lists every stage.
 
+If you change docs, also install the docs tools (Node.js is needed for the Markdown lint) and run their stage:
+
+```sh
+bash scripts/install-docs-tools.sh
+bash scripts/check.sh docs
+```
+
+A broken link fails it; everything else is a warning. The check-script tests (`tests/check/test-check.sh`) need these
+tools too. To flag another filler word, add it to
+[`.vale/styles/Project/Filler.yml`](.vale/styles/Project/Filler.yml).
+
 ## 4. Make a change
 
 1. Pick an issue, or open one with a template. Issues labelled `ready-for-agent` or `ready-for-human` are ready to start.

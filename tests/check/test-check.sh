@@ -2,7 +2,7 @@
 # Black-box tests for scripts/check.sh: each test plants content in a temporary git repo, runs the check there and
 # asserts the exit code and the message.
 set -uo pipefail
-unset PII_PATTERNS REQUIRE_PRIVATE_PATTERNS # tests set these per run
+unset PII_PATTERNS REQUIRE_PRIVATE_PATTERNS REQUIRE_DOCS_TOOLS GITHUB_ACTIONS # tests set these per run
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 CHECK="$ROOT/scripts/check.sh"
@@ -612,6 +612,132 @@ test_commits_stage_fails_closed_on_a_bad_range() {
   git commit -q --allow-empty -m 'chore: start'
   run_check commits "nope..HEAD"
   expect 2 "could not list the commits in nope..HEAD"
+}
+
+# docs_repo: a new repo holding the real docs-check configs, with the installed docs tools on PATH.
+docs_repo() {
+  new_repo
+  cp "$ROOT/.vale.ini" "$ROOT/.markdownlint-cli2.jsonc" .
+  cp -r "$ROOT/.vale" .
+  PATH="$ROOT/.tools/bin:$ROOT/tools/docs/node_modules/.bin:$PATH"
+}
+
+test_docs_stage_fails_on_a_broken_relative_link() {
+  docs_repo
+  printf '# Notes\n\nSee [the guide](missing.md).\n' > notes.md
+  git add .
+  run_check docs
+  expect 1 "broken link" "notes.md"
+}
+
+test_docs_stage_fails_on_a_missing_anchor() {
+  docs_repo
+  printf '# Other\n\n## Real part\n' > other.md
+  printf '# Notes\n\nSee [it](other.md#no-such-part).\n' > notes.md
+  git add .
+  run_check docs
+  expect 1 "broken link" "notes.md:3" "other.md#no-such-part"
+}
+
+test_docs_stage_warns_on_a_filler_word() {
+  docs_repo
+  printf '# Notes\n\nThis is basically how the loader works.\n' > notes.md
+  git add .
+  run_check docs
+  expect 0 "warning: notes.md:3" "basically"
+}
+
+test_docs_stage_warns_on_a_markdown_lint_finding() {
+  docs_repo
+  printf '# Notes\n\n\n\nToo many blank lines above.\n' > notes.md
+  git add .
+  run_check docs
+  expect 0 "warning: notes.md:3" "MD012"
+}
+
+# words N: print N words of plain prose.
+words() { local i; for ((i = 0; i < $1; i++)); do printf 'word '; done; echo; }
+
+test_docs_stage_warns_on_an_adr_over_250_words() {
+  docs_repo
+  mkdir -p docs/adr
+  { echo '# Long decision'; echo; words 260; } > docs/adr/0009-long.md
+  git add .
+  run_check docs
+  expect 0 "warning: docs/adr/0009-long.md: 260 words" "250"
+}
+
+test_docs_stage_ignores_title_and_code_in_adr_word_count() {
+  docs_repo
+  mkdir -p docs/adr
+  { echo '# A title of several words here'; echo; words 240; echo; echo '```text'; words 50; echo '```'; } \
+    > docs/adr/0009-short.md
+  git add .
+  run_check docs
+  expect 0
+  expect_absent "0009-short.md: "
+}
+
+test_pr_body_stage_warns_over_300_words() {
+  docs_repo
+  { echo '## Summary'; words 310; } > "$WORK/body.md"
+  run_check pr-body "$WORK/body.md"
+  expect 0 "warning: PR description: 310 words" "300"
+}
+
+test_pr_body_stage_leaves_out_the_evidence_section() {
+  docs_repo
+  { echo '## Summary'; words 250; echo '## Evidence'; words 200; echo '## Merge Danger'; words 20; } > "$WORK/body.md"
+  run_check pr-body "$WORK/body.md"
+  expect 0
+  expect_absent "warning"
+}
+
+test_pr_body_stage_warns_on_a_filler_word() {
+  docs_repo
+  printf '## Summary\n\nThis basically adds a check.\n' > "$WORK/body.md"
+  run_check pr-body "$WORK/body.md"
+  expect 0 "warning: pr-description.md:3" "basically"
+}
+
+test_pr_body_stage_fails_closed_without_a_file() {
+  new_repo
+  run_check pr-body "$WORK/no-such-body.md"
+  expect 2 "pr-body stage needs"
+}
+
+# run_check_without_docs_tools ARGS...: run_check with a PATH that has git and the shell's basics but no docs tools.
+run_check_without_docs_tools() {
+  out="$(PATH="$(dirname "$(command -v git)"):/usr/bin:/bin" bash "$CHECK" "$@" 2>&1)"
+  code=$?
+}
+
+test_docs_stage_skips_missing_tools_with_a_warning() {
+  new_repo
+  printf '# Notes\n' > notes.md
+  git add .
+  run_check_without_docs_tools docs
+  expect 0 "warning: lychee is not installed" "warning: vale is not installed"
+}
+
+test_docs_stage_fails_closed_on_a_missing_tool_in_ci() {
+  new_repo
+  printf '# Notes\n' > notes.md
+  git add .
+  REQUIRE_DOCS_TOOLS=1 run_check_without_docs_tools docs
+  expect 2 "lychee is not installed, but REQUIRE_DOCS_TOOLS=1"
+}
+
+test_docs_stage_passes_good_links_and_skips_raw_sources() {
+  docs_repo
+  mkdir -p docs/raw-sources
+  printf '# Other\n\n## Real part\n' > other.md
+  printf '# Notes\n\nSee [it](other.md#real-part) and [here](#notes).\n' > notes.md
+  printf '# Saved page\n\n[Their link](/wiki/elsewhere.md)\n' > docs/raw-sources/page.md
+  git add .
+  run_check docs
+  expect 0
+  expect_absent "broken link"
 }
 
 for current in $(declare -F | awk '{print $3}' | grep '^test_'); do

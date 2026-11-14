@@ -4,6 +4,8 @@
 #   scripts/check.sh fast    repo rules on staged files (the pre-commit hook)
 #   scripts/check.sh rules   repo rules on every tracked file (CI on Ubuntu)
 #   scripts/check.sh full    repo rules, then build, Unit tests and formatting (CI on Windows)
+#   scripts/check.sh docs    broken links fail; Markdown lint, Vale and ADR length warn (CI on Ubuntu)
+#   scripts/check.sh pr-body FILE        warns when a PR description is too long (CI on pull requests)
 #   scripts/check.sh commit-msg FILE     one commit message (the commit-msg hook)
 #   scripts/check.sh commits BASE..HEAD  every non-merge commit message in a range (CI on pull requests)
 #
@@ -13,7 +15,8 @@
 #
 # Rules judge the staged blobs in the index, not the working tree, so they see exactly what would be committed.
 # Every step runs even after a failure, so one run shows every problem.
-# Exit 0 when everything passes, 1 when something fails, 2 on a usage error or when a tool is missing or fails to run.
+# Exit 0 when everything passes (warnings don't fail), 1 when something fails, 2 on a usage error or when a tool is
+# missing or fails to run. The docs stage skips a missing docs tool with a warning unless REQUIRE_DOCS_TOOLS=1 (CI).
 set -uo pipefail
 
 die() {
@@ -22,10 +25,150 @@ die() {
 }
 
 failures=0
+warnings=0
 
 report() {
   echo "$1"
   failures=$((failures + 1))
+}
+
+# warn MESSAGE [FILE [LINE]]: print a warning that doesn't fail the run. In GitHub Actions it also becomes an annotation
+# on the file, so it shows on the pull request.
+warn() {
+  local message="${1//\\//}" file="${2:-}" # Windows tools print backslashes
+  file="${file//\\//}"
+  echo "warning: $message"
+  warnings=$((warnings + 1))
+  if [ "${GITHUB_ACTIONS:-}" = true ]; then
+    # Workflow commands need % escaped everywhere, and , and : in properties too.
+    message="${message//%/%25}"
+    file="${file//%/%25}" && file="${file//,/%2C}" && file="${file//:/%3A}"
+    echo "::warning${file:+ file=$file}${3:+,line=$3}::$message"
+  fi
+  return 0
+}
+
+# find_tool NAME: print the path of a docs tool, looking first where scripts/install-docs-tools.sh puts it.
+find_tool() {
+  local candidate
+  for candidate in "$root/.tools/bin/$1" "$root/.tools/bin/$1.exe" "$root/tools/docs/node_modules/.bin/$1"; do
+    [ -x "$candidate" ] && { echo "$candidate"; return 0; }
+  done
+  command -v "$1"
+}
+
+# docs_stage: the docs checks, on the working tree's tracked Markdown files. A broken relative link or anchor fails the
+# run; lint, style and length findings are warnings. Missing tools are skipped with a warning, unless
+# REQUIRE_DOCS_TOOLS=1 (CI), where a missing tool must not pass quietly.
+docs_stage() {
+  root="$(git rev-parse --show-toplevel)" || die "could not find the repository root"
+  cd "$root" || die "could not enter $root"
+  local files=() file tool
+  # Left out: raw sources, which are saved copies of other people's pages linking to the original site; the code of
+  # conduct, which is upstream text kept verbatim; and CLAUDE.md, which is only an import line.
+  while IFS= read -r -d '' file; do files+=("$file"); done < <(
+    git ls-files -z -- '*.md' ':!:docs/raw-sources/**' ':!:CODE_OF_CONDUCT.md' ':!:CLAUDE.md'
+  )
+  [ "${#files[@]}" -gt 0 ] || return 0
+
+  if tool="$(find_tool lychee)"; then
+    check_links "$tool" "${files[@]}"
+  else
+    missing_tool lychee
+  fi
+  if tool="$(find_tool vale)"; then
+    check_style "$tool" "${files[@]}"
+  else
+    missing_tool vale
+  fi
+  if tool="$(find_tool markdownlint-cli2)"; then
+    check_lint "$tool" "${files[@]}"
+  else
+    missing_tool markdownlint-cli2
+  fi
+
+  # An ADR is one paragraph plus optional sections.
+  local count
+  for file in "${files[@]}"; do
+    case "$file" in
+      docs/adr/*.md)
+        count="$(prose_words < "$file")"
+        [ "$count" -le "$max_adr_words" ] ||
+          warn "$file: $count words; ADRs aim for at most $max_adr_words" "$file" ;;
+    esac
+  done
+}
+
+max_adr_words=250
+max_pr_words=300
+
+# prose_words: count the words on stdin, leaving out headings and fenced code blocks, which hold diagrams and sketches
+# rather than prose.
+prose_words() {
+  tr -d '\r' | awk '/^[[:space:]]*(```|~~~)/ { code = !code; next } !code && !/^#+ /' | wc -w |
+    tr -d '[:space:]'
+}
+
+# check_lint MARKDOWNLINT FILE...: warn on each markdownlint finding (settings in .markdownlint-cli2.jsonc).
+check_lint() {
+  local markdownlint="$1" output status line
+  shift
+  output="$("$markdownlint" -- "$@" 2>&1)"
+  status=$?
+  [ "$status" -le 1 ] || die "markdownlint failed to run: $output"
+  while IFS= read -r line; do
+    line="${line%$'\r'}"
+    # path:line[:column] severity rule/name description
+    [[ "$line" =~ ^([^:]+):([0-9]+)(:[0-9]+)?\ [a-z]+\ (MD[0-9]+.*)$ ]] || continue
+    warn "${BASH_REMATCH[1]}:${BASH_REMATCH[2]}: ${BASH_REMATCH[4]}" "${BASH_REMATCH[1]}" "${BASH_REMATCH[2]}"
+  done <<<"$output"
+}
+
+# check_style VALE FILE...: warn on each Vale finding, such as a word from .vale/styles/Project/Filler.yml.
+check_style() {
+  local vale="$1" output status line
+  shift
+  [ -f "$root/.vale.ini" ] || die "Vale needs .vale.ini at the repository root"
+  output="$("$vale" --config="$root/.vale.ini" --output=line --no-exit -- "$@" 2>&1)"
+  status=$?
+  [ "$status" -eq 0 ] || die "Vale failed to run: $output"
+  while IFS= read -r line; do
+    line="${line%$'\r'}"
+    # path:line:column:rule:message
+    [[ "$line" =~ ^([^:]+):([0-9]+):[0-9]+:[^:]+:(.*)$ ]] || continue
+    warn "${BASH_REMATCH[1]}:${BASH_REMATCH[2]}: ${BASH_REMATCH[3]}" "${BASH_REMATCH[1]}" "${BASH_REMATCH[2]}"
+  done <<<"$output"
+}
+
+# missing_tool NAME: skip a docs tool that isn't installed, or fail when CI requires it.
+missing_tool() {
+  [ "${REQUIRE_DOCS_TOOLS:-}" = 1 ] && die "$1 is not installed, but REQUIRE_DOCS_TOOLS=1 (run scripts/install-docs-tools.sh)"
+  warn "$1 is not installed, so its checks were skipped (run scripts/install-docs-tools.sh)"
+}
+
+# check_links LYCHEE FILE...: report each broken relative link or anchor. Offline, so outside sites can't fail the run.
+check_links() {
+  local lychee="$1" output status line current="" target where found=0
+  shift
+  output="$("$lychee" --offline --include-fragments --no-progress -- "$@" 2>&1)"
+  status=$?
+  [ "$status" -eq 0 ] && return 0
+  [ "$status" -eq 2 ] || die "lychee failed to run: $output"
+  while IFS= read -r line; do
+    line="${line%$'\r'}"
+    if [[ "$line" =~ ^\[(.+)\]:$ ]]; then
+      current="${BASH_REMATCH[1]}"
+    elif [[ "$line" =~ ^\[ERROR\]\ (.+)\ \(at\ ([0-9]+):[0-9]+\)\ \|\ (.*)$ ]]; then
+      target="${BASH_REMATCH[1]#file://}"
+      target="${target#/}"
+      target="${target#"${root#/}"/}"
+      where="${BASH_REMATCH[2]}"
+      report "broken link: $current:$where: $target (${BASH_REMATCH[3]})"
+      found=1
+    fi
+  done <<<"$output"
+  # lychee found something this parser can't read (its output format changed): fail rather than pass quietly.
+  [ "$found" -eq 1 ] || die "lychee reported broken links in a format this script can't read: $output"
 }
 
 # check_message WHO: check the commit message on stdin against the agreed shape, reporting as WHO. Comment lines and
@@ -97,7 +240,28 @@ case "$stage" in
     done
     [ "$failures" -eq 0 ]
     exit ;;
-  *) echo "usage: scripts/check.sh fast|rules|full | commit-msg FILE | commits BASE..HEAD" >&2; exit 2 ;;
+  pr-body)
+    [ -f "${2:-}" ] || die "pr-body stage needs the file holding the PR description"
+    # The Evidence section holds output and screenshots, so it doesn't count (the /pr template's sections).
+    count="$(awk '/^## / { evidence = ($0 ~ /^## +Evidence[[:space:]]*$/) } !evidence' "$2" | prose_words)"
+    [ "$count" -le "$max_pr_words" ] ||
+      warn "PR description: $count words outside Evidence; descriptions aim for at most $max_pr_words"
+    root="$(git rev-parse --show-toplevel)" || die "could not find the repository root"
+    if tool="$(find_tool vale)"; then
+      # A short relative name, so the warnings read "pr-description.md:LINE" on every platform.
+      cp "$2" "$tmp/pr-description.md" && cd "$tmp" || die "could not copy $2"
+      check_style "$tool" pr-description.md
+    else
+      missing_tool vale
+    fi
+    exit 0 ;;
+  docs)
+    docs_stage
+    [ "$warnings" -eq 0 ] || echo "$warnings warning(s); they don't fail the run"
+    [ "$failures" -eq 0 ]
+    exit ;;
+  *) echo "usage: scripts/check.sh fast|rules|full|docs | commit-msg FILE | commits BASE..HEAD | pr-body FILE" >&2
+     exit 2 ;;
 esac
 
 list_entries > "$tmp/entries" || die "could not list files (is this a git repository?)"

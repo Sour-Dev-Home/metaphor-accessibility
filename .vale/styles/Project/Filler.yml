@@ -1,0 +1,24 @@
+# Words and phrases that add length without meaning. To extend the list, add a line under `tokens` (matched as whole
+# words, ignoring case). A token that's sometimes right, like "just" in "just-in-time", stays off the list.
+extends: existence
+message: "Cut or replace '%s': it adds length, not meaning."
+level: warning
+ignorecase: true
+tokens:
+  - basically
+  - essentially
+  - actually
+  - really
+  - very
+  - simply
+  - obviously
+  - clearly
+  - of course
+  - needless to say
+  - it should be noted that
+  - in order to
+  - a number of
+  - utilize
+  - leverage
+  - seamless(?:ly)?
+  - robust

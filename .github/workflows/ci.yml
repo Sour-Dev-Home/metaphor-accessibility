@@ -16,6 +16,8 @@ jobs:
         with:
           persist-credentials: false
           fetch-depth: 0 # the commit-message step needs the PR's commits, not just the merge result
+      - name: Install the docs tools
+        run: bash scripts/install-docs-tools.sh
       - name: Test the check scripts
         run: |
           bash tests/check/test-check.sh
@@ -33,6 +35,19 @@ jobs:
             ${{ github.repository == 'Sour-Dev-Home/metaphor-refantazio' && github.event_name == 'push'
             && github.ref == 'refs/heads/main' && '1' || '' }}
         run: bash scripts/check.sh rules
+      - name: Check the docs
+        env:
+          REQUIRE_DOCS_TOOLS: "1"
+        run: bash scripts/check.sh docs
+      # The description reaches the script through a file, never through the shell's command line.
+      - name: Check the pull request's description
+        if: github.event_name == 'pull_request' && github.event.pull_request.user.login != 'dependabot[bot]'
+        env:
+          PR_BODY: ${{ github.event.pull_request.body }}
+          REQUIRE_DOCS_TOOLS: "1"
+        run: |
+          printf '%s\n' "$PR_BODY" > "$RUNNER_TEMP/pr-body.md"
+          bash scripts/check.sh pr-body "$RUNNER_TEMP/pr-body.md"
       # Dependabot's commit bodies carry release notes past the body limit; its PRs get the maintainer's message on
       # the squash merge.
       - name: Check the pull request's commit messages
