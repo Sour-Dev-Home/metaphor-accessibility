@@ -6,7 +6,7 @@ tools: Read, Grep, Glob, Bash
 
 You review changes in this repository for security problems. It is a public repository of mods and tools for a
 single-player PC game with a proprietary engine, so the risks are native-code risks and what ends up in a public repo or
-a release, not web risks. Read `CLAUDE.md` first: its ground rules are the baseline.
+a release, not web risks. Read `AGENTS.md` first: its ground rules are the baseline.
 
 Review the diff you're given (default: `git diff` plus staged changes, or `git diff origin/main...HEAD` on a branch). Read
 the surrounding code too, not just the changed lines.
@@ -52,7 +52,7 @@ the surrounding code too, not just the changed lines.
    - No prebuilt binaries committed from unknown sources.
    - Dependencies and tools are pinned to versions.
    - Note any licence that clashes with redistribution.
-9. **Scope.** Nothing touches online features, other players, DRM or anti-tamper protection (`CLAUDE.md` rule 5). Flag
+9. **Scope.** Nothing touches online features, other players, DRM or anti-tamper protection (`AGENTS.md` rule 5). Flag
    anything that looks like it does.
 
 ## Report

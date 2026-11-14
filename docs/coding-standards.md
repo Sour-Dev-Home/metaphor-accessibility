@@ -1,5 +1,15 @@
 # Coding standards
 
+## Judgement rules
+
+The checks can't tell whether these hold, so reviews do.
+
+1. **Engine claims cite or flag.** [Ground rules](../AGENTS.md#ground-rules) 1 and 2 apply everywhere, not just in
+   notes: in code comments, commits and PRs too.
+2. **Writing leads with the point.** The first sentence of a doc, ADR, commit body, PR or comment says what the reader
+   needs; background comes after. Cut what the reader doesn't need.
+3. **Link, don't copy.** State a fact once and link to it. A copy drifts out of date and then contradicts the original.
+
 ## Architecture rules
 
 These follow from [ADR 0003](adr/0003-thin-hook-layer.md). The `Unit` tests in `tests/Metaphor.Architecture.Tests` check

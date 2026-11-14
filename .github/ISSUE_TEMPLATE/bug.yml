@@ -1,0 +1,45 @@
+name: Bug
+description: The mod or a tool does something wrong.
+labels: [needs-triage]
+body:
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened, and what you expected
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+    validations:
+      required: true
+  - type: input
+    id: game-build
+    attributes:
+      label: Game build
+      description: >-
+        The SHA-256 of the game's executable (in PowerShell: Get-FileHash METAPHOR.exe), plus the version shown in the
+        game if you know it.
+    validations:
+      required: true
+  - type: input
+    id: mod-version
+    attributes:
+      label: Mod version
+      description: The release, or the commit if you built it yourself.
+  - type: textarea
+    id: loader-log
+    attributes:
+      label: Loader log
+      description: >-
+        The Reloaded-II log from the run where it happened, from %APPDATA%\Reloaded-Mod-Loader-II\Logs. Remove your user name and any paths from your own machine
+        before you paste it.
+      render: text
+  - type: checkboxes
+    id: content
+    attributes:
+      label: Before you submit
+      options:
+        - label: This report has no game content (files, extracted assets or decompiled code) and no personal information.
+          required: true
