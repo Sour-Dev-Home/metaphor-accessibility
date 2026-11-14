@@ -102,13 +102,15 @@ scan_lines() {
   done <<<"$matches"
 }
 
-# check_header PATH KIND LABEL VALUE-RE [WANT]: report when the current blob's header (the lines before its first "## "
-# heading) has no "- **...LABEL...:** VALUE" line. The label matches as a word in any case, inside longer wording too
-# ("Date saved:", "Game build(s) the sources mention:"). WANT describes the value in the message.
+# check_header PATH KIND LABEL VALUE-RE [HINT]: report when the current blob's header (the lines before its first "## "
+# heading) has no "- **LABEL:** value" line whose value matches VALUE-RE. The label matches as a word in any case, plural
+# or inside longer wording ("Date saved:", "Game build(s) the sources mention:"), with the colon inside or after the
+# bold. HINT describes the value in the message.
 check_header() {
-  local path="$1" kind="$2" label="$3" value="$4" want="${5:-}"
-  sed '/^## /,$d' "$tmp/blob" | grep -qiE "^- \*\*([^*]* )?${label}([^*a-z][^*]*)?:\*\* *${value}" ||
-    report "$kind: $path: header has no $label line${want:+ $want}"
+  local path="$1" kind="$2" label="$3" value_re="$4" hint="${5:-}"
+  sed '/^## /,$d' "$tmp/blob" |
+    grep -qiE "^- \*\*([^*]* )?${label}s?([^*a-z][^*]*)?(:\*\*|\*\*:)[[:space:]]*${value_re}" ||
+    report "$kind: $path: header has no $label line${hint:+ $hint}"
 }
 
 while IFS= read -r -d '' entry; do
@@ -145,15 +147,16 @@ while IFS= read -r -d '' entry; do
 
   # Notes cite their sources and pin their game build (CLAUDE.md ground rules 1 and 2).
   case "$path" in
-    docs/raw-sources/README.md) ;;
+    docs/raw-sources/README.md | docs/findings/README.md) ;;
     docs/raw-sources/*.md)
-      check_header "$path" "raw source" Source '[^ ]'
-      check_header "$path" "raw source" Saved '[0-9]{4}-[0-9]{2}-[0-9]{2}'
-      check_header "$path" "raw source" "Game build" '[^ ]' ;;
-    docs/findings/README.md) ;;
+      check_header "$path" "raw source" Source '[[:alnum:]<]'
+      check_header "$path" "raw source" Saved '[0-9]{4}-[0-9]{2}-[0-9]{2}([^0-9a-z]|$)' "with a YYYY-MM-DD date"
+      check_header "$path" "raw source" "Game build" '[[:alnum:]]' ;;
     # A finding names its game build by the executable's SHA-256 (GLOSSARY.md).
     docs/findings/*.md)
-      check_header "$path" finding "Game build" '[0-9A-Fa-f]{64}([^0-9A-Fa-f]|$)' "naming the executable's SHA-256" ;;
+      check_header "$path" finding "Game build" '[0-9a-f]{64}([^0-9a-f]|$)' "naming the executable's SHA-256" ;;
+    docs/raw-sources/*) report "raw source: $path: not a .md file" ;;
+    docs/findings/*) report "finding: $path: not a .md file" ;;
   esac
 
   scan_lines "$path" "local user path" "" -E "$user_path_re"
