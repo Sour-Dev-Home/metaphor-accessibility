@@ -1,0 +1,31 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+  <!-- Architecture rules from ADR 0003, checked on the built assemblies with Mono.Cecil. Roslyn compiles the snippets
+       that plant violations. -->
+  <PropertyGroup>
+    <TargetFramework>net9.0</TargetFramework>
+    <IsPackable>false</IsPackable>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="Microsoft.CodeAnalysis.CSharp" />
+    <PackageReference Include="Microsoft.NET.Test.Sdk" />
+    <PackageReference Include="Mono.Cecil" />
+    <PackageReference Include="xunit" />
+    <PackageReference Include="xunit.runner.visualstudio" />
+  </ItemGroup>
+  <ItemGroup>
+    <Using Include="Xunit" />
+  </ItemGroup>
+  <!-- Every project under src/ is scanned. They're copied next to the tests rather than referenced, because the hook
+       layer targets net9.0-windows and the tests stay on plain net9.0. -->
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\Metaphor.Core\Metaphor.Core.csproj" ReferenceOutputAssembly="false"
+                      OutputItemType="ScannedAssembly" />
+    <ProjectReference Include="..\..\src\Metaphor.Hooks\Metaphor.Hooks.csproj" ReferenceOutputAssembly="false"
+                      SkipGetTargetFrameworkProperties="true" OutputItemType="ScannedAssembly" />
+  </ItemGroup>
+  <Target Name="CopyScannedAssemblies" AfterTargets="ResolveProjectReferences">
+    <ItemGroup>
+      <None Include="@(ScannedAssembly)" Link="scanned/%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" />
+    </ItemGroup>
+  </Target>
+</Project>
