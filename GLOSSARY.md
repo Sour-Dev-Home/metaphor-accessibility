@@ -15,6 +15,16 @@ Reading a game file into our own model and writing it back out. A format counts 
 reproduces the original file byte for byte, unless that format has a written exemption.
 _Avoid_: re-pack, rebuild (when used to mean this check)
 
+**Announcement**:
+A piece of text a feature asks the screen reader to speak, such as a menu item's name when it gets focus. Sounds that
+carry meaning without words are audio cues, not announcements.
+_Avoid_: message, speech, TTS (when used to mean the text)
+
+**Transcript**:
+The ordered record of every announcement in one run of the game, kept in dev builds so what was said can be checked
+without listening.
+_Avoid_: speech log
+
 **Game content**:
 Anything that comes from the game: its executable, DLLs, archives, extracted assets, and decompiled or disassembled
 output. It never enters the repository or CI.
