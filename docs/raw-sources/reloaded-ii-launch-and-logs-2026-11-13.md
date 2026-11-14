@@ -33,7 +33,8 @@
   mods get it through `GetLogger()` (`B/source/Reloaded.Mod.Loader/Mods/LoaderAPI.cs#L65`), and `LogWriter` subscribes to its
   `OnWrite`/`OnWriteLine` (`LogWriter.cs#L37-L38`).
 - `LogWriter`'s comments call it a writer "used for storing crash logs" (`#L7`) that can flush "in the event of a crash"
-  (`#L25`). Whether a normal, crash-free run also writes the file: [NEEDS VERIFICATION].
+  (`#L25`). Whether a normal, crash-free run also writes the file: yes; see
+  [`reloaded-ii-log-on-normal-run-2026-11-14.md`](reloaded-ii-log-on-normal-run-2026-11-14.md).
 
 ## Loading without the GUI (ASI)
 
