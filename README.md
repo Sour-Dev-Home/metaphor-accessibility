@@ -29,7 +29,7 @@ One command runs every check, locally (Git Bash on Windows) and in CI:
 |---|---|---|
 | `scripts/check.sh fast` | repo rules on staged files | pre-commit hook |
 | `scripts/check.sh rules` | repo rules on every tracked file | CI on Ubuntu |
-| `scripts/check.sh full` | repo rules, then the .NET build, `Unit` and `RoundTrip` tests and formatting | CI on Windows |
+| `scripts/check.sh full` | repo rules, then the .NET build, `Unit` and `RoundTrip` tests, formatting and the smoke test's own tests (Pester 5+) | CI on Windows |
 | `scripts/check.sh docs` | broken relative links and anchors fail; Markdown lint, Vale and ADRs over 250 words warn | CI on Ubuntu |
 | `scripts/check.sh pr-body FILE` | warns when a PR description passes 300 words, not counting Evidence | CI on pull requests |
 | `scripts/check.sh commit-msg FILE` | one commit message's shape (see the script's header) | commit-msg hook |
