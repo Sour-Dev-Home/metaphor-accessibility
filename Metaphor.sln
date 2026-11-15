@@ -17,6 +17,10 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Metaphor.Architecture.Tests
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Metaphor.StandInGame", "tests\Metaphor.StandInGame\Metaphor.StandInGame.csproj", "{71E615A2-B587-484F-9EBF-D2B4AC503186}"
 EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "tools", "tools", "{07C2787E-EAC7-C090-1BA3-A61EC2A24D84}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Metaphor.SignatureCheck", "tools\Metaphor.SignatureCheck\Metaphor.SignatureCheck.csproj", "{F7BDF101-B001-4BD0-A962-4C3BE9AB7CC3}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -87,6 +91,18 @@ Global
 		{71E615A2-B587-484F-9EBF-D2B4AC503186}.Release|x64.Build.0 = Release|Any CPU
 		{71E615A2-B587-484F-9EBF-D2B4AC503186}.Release|x86.ActiveCfg = Release|Any CPU
 		{71E615A2-B587-484F-9EBF-D2B4AC503186}.Release|x86.Build.0 = Release|Any CPU
+		{F7BDF101-B001-4BD0-A962-4C3BE9AB7CC3}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{F7BDF101-B001-4BD0-A962-4C3BE9AB7CC3}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{F7BDF101-B001-4BD0-A962-4C3BE9AB7CC3}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{F7BDF101-B001-4BD0-A962-4C3BE9AB7CC3}.Debug|x64.Build.0 = Debug|Any CPU
+		{F7BDF101-B001-4BD0-A962-4C3BE9AB7CC3}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{F7BDF101-B001-4BD0-A962-4C3BE9AB7CC3}.Debug|x86.Build.0 = Debug|Any CPU
+		{F7BDF101-B001-4BD0-A962-4C3BE9AB7CC3}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{F7BDF101-B001-4BD0-A962-4C3BE9AB7CC3}.Release|Any CPU.Build.0 = Release|Any CPU
+		{F7BDF101-B001-4BD0-A962-4C3BE9AB7CC3}.Release|x64.ActiveCfg = Release|Any CPU
+		{F7BDF101-B001-4BD0-A962-4C3BE9AB7CC3}.Release|x64.Build.0 = Release|Any CPU
+		{F7BDF101-B001-4BD0-A962-4C3BE9AB7CC3}.Release|x86.ActiveCfg = Release|Any CPU
+		{F7BDF101-B001-4BD0-A962-4C3BE9AB7CC3}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -97,5 +113,6 @@ Global
 		{98F71D06-C0FF-42A3-B13C-6CC69E3932EA} = {827E0CD3-B72D-47B6-A68D-7590B98EB39B}
 		{7B47BBC2-9920-4603-96EF-22847E840785} = {0AB3BF05-4346-4AA6-1389-037BE0695223}
 		{71E615A2-B587-484F-9EBF-D2B4AC503186} = {0AB3BF05-4346-4AA6-1389-037BE0695223}
+		{F7BDF101-B001-4BD0-A962-4C3BE9AB7CC3} = {07C2787E-EAC7-C090-1BA3-A61EC2A24D84}
 	EndGlobalSection
 EndGlobal

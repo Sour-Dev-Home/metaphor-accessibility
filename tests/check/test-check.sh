@@ -163,6 +163,19 @@ test_full_stage_fails_closed_without_a_solution() {
   expect 2 "Metaphor.sln"
 }
 
+test_signatures_stage_fails_closed_without_a_game_exe() {
+  new_repo
+  out="$(unset METAPHOR_GAME_EXE; bash "$CHECK" signatures 2>&1)"
+  code=$?
+  expect 2 "METAPHOR_GAME_EXE"
+}
+
+test_signatures_stage_fails_closed_when_the_game_exe_is_missing() {
+  new_repo
+  METAPHOR_GAME_EXE="$WORK/no-such-game.exe" run_check signatures
+  expect 2 "no file at"
+}
+
 test_rejects_unknown_stage() {
   new_repo
   run_check fastest
