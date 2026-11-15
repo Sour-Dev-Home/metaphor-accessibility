@@ -1,4 +1,4 @@
-// Stands in for Reloaded-II's launcher and the game in the smoke test's own tests.
+// Stands in for Reloaded-II's launcher and the game in the smoke-test and deploy scripts' own tests.
 //
 //   Metaphor.StandInGame --launch <game exe>   acts as the launcher: finds the application whose AppLocation is that exe
 //                                              (as Reloaded-II's Startup.cs does), starts it, and exits.

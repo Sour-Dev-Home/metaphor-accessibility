@@ -3,7 +3,7 @@
 #
 #   scripts/check.sh fast    repo rules on staged files (the pre-commit hook)
 #   scripts/check.sh rules   repo rules on every tracked file (CI on Ubuntu)
-#   scripts/check.sh full    repo rules, build, Unit and RoundTrip tests, formatting, smoke-test tests (CI on Windows)
+#   scripts/check.sh full    repo rules, build, Unit and RoundTrip tests, formatting, smoke and deploy script tests (CI on Windows)
 #   scripts/check.sh docs    broken links fail; Markdown lint, Vale and ADR length warn (CI on Ubuntu)
 #   scripts/check.sh pr-body FILE        warns when a PR description is too long (CI on pull requests)
 #   scripts/check.sh commit-msg FILE     one commit message (the commit-msg hook)
@@ -408,10 +408,10 @@ if [ "$stage" = full ]; then
     report "tests: Unit or RoundTrip tests failed"
   dotnet format whitespace "$solution" --verify-no-changes ||
     report "format: files need formatting (run: dotnet format whitespace Metaphor.sln)"
-  # The smoke test's own tests, against the stand-in game (no game needed). Pester 5 or later.
+  # The smoke-test and deploy scripts' own tests, against the stand-in game (no game needed). Pester 5 or later.
   pwsh -NoProfile -Command \
     'Import-Module Pester -MinimumVersion 5.0; $r = Invoke-Pester tests/smoke -PassThru -Output Normal; exit $r.FailedCount' ||
-    report "tests: smoke-test tests failed (run: Invoke-Pester tests/smoke)"
+    report "tests: smoke or deploy script tests failed (run: Invoke-Pester tests/smoke)"
 fi
 
 [ "$failures" -eq 0 ]
