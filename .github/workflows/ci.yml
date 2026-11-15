@@ -24,6 +24,7 @@ jobs:
           bash tests/scripts/test-tree-hash.sh
           bash tests/scripts/test-repo-config.sh
           bash tests/scripts/test-policy-files.sh
+          bash tests/scripts/test-slow-survivors.sh
       - name: Check every tracked file
         env:
           # The private list reaches pushes to this repository's main only, never a pull request, so a fork's code

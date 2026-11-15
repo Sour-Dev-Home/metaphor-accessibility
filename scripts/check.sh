@@ -5,6 +5,7 @@
 #   scripts/check.sh rules   repo rules on every tracked file (CI on Ubuntu)
 #   scripts/check.sh full    repo rules, build, Unit and RoundTrip tests, formatting, smoke and deploy script tests (CI on Windows)
 #   scripts/check.sh docs    broken links fail; Markdown lint, Vale and ADR length warn (CI on Ubuntu)
+#   scripts/check.sh slow    mutation testing and a duplication report, report only (weekly CI on Windows)
 #   scripts/check.sh pr-body FILE        warns when a PR description is too long (CI on pull requests)
 #   scripts/check.sh commit-msg FILE     one commit message (the commit-msg hook)
 #   scripts/check.sh commits BASE..HEAD  every non-merge commit message in a range (CI on pull requests)
@@ -97,6 +98,38 @@ docs_stage() {
           warn "$file: $count words; ADRs aim for at most $max_adr_words" "$file" ;;
     esac
   done
+}
+
+# The slow suite (weekly in CI): Stryker.NET mutation testing of Metaphor.Core, and a jscpd duplication report, into
+# artifacts/slow/ (git-ignored). summary.md there has the mutation score per file, each surviving mutant, and the
+# duplication totals. Scores never fail it: a tool that can't run exits 2, after the summary says what's missing.
+slow_stage() {
+  local root out broken=""
+  root="$(git rev-parse --show-toplevel)" || die "could not find the repository root"
+  out="$root/artifacts/slow"
+  command -v dotnet > /dev/null || die "slow stage needs the .NET SDK (dotnet) on PATH"
+  command -v npm > /dev/null || die "slow stage needs npm on PATH"
+  rm -rf "$out" && mkdir -p "$out" || die "could not empty $out"
+
+  export DOTNET_CLI_TELEMETRY_OPTOUT=1 DOTNET_NOLOGO=1
+  (cd "$root" && dotnet tool restore -v q) || die "could not restore dotnet-stryker (.config/dotnet-tools.json)"
+  (cd "$root/tests/Metaphor.Core.Tests" && dotnet stryker --output "$out/stryker") || broken="$broken Stryker.NET"
+
+  npm ci --prefix "$root/tools/slow" --ignore-scripts --no-audit --no-fund --loglevel=error ||
+    die "could not install jscpd (tools/slow)"
+  (cd "$root" && tools/slow/node_modules/.bin/jscpd --config tools/slow/jscpd.json --output "$out/jscpd") ||
+    broken="$broken jscpd"
+
+  local reports="$out/stryker/reports"
+  {
+    [ -f "$reports/mutation-report.md" ] && cat "$reports/mutation-report.md" || echo "No mutation report."
+    echo
+    node "$root/tools/slow/survivors.mjs" "$reports/mutation-report.json" "$root" || echo "No list of surviving mutants."
+    echo
+    [ -f "$out/jscpd/jscpd-report.md" ] && cat "$out/jscpd/jscpd-report.md" || echo "No duplication report."
+  } > "$out/summary.md"
+  echo "slow suite reports: $out (summary.md)"
+  [ -z "$broken" ] || die "failed to run:$broken (see above)"
 }
 
 max_adr_words=250
@@ -260,7 +293,11 @@ case "$stage" in
     [ "$warnings" -eq 0 ] || echo "$warnings warning(s); they don't fail the run"
     [ "$failures" -eq 0 ]
     exit ;;
-  *) echo "usage: scripts/check.sh fast|rules|full|docs | commit-msg FILE | commits BASE..HEAD | pr-body FILE" >&2
+  slow)
+    slow_stage
+    [ "$failures" -eq 0 ]
+    exit ;;
+  *) echo "usage: scripts/check.sh fast|rules|full|docs|slow | commit-msg FILE | commits BASE..HEAD | pr-body FILE" >&2
      exit 2 ;;
 esac
 

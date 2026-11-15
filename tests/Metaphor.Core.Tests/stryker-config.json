@@ -1,0 +1,6 @@
+{
+  "stryker-config": {
+    "test-case-filter": "Category=Unit",
+    "reporters": [ "html", "json", "markdown", "progress" ]
+  }
+}

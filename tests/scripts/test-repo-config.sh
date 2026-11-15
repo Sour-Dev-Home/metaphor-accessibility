@@ -62,6 +62,13 @@ for workflow in "$WORKFLOWS"/*.yml "$WORKFLOWS"/*.yaml; do
   done < <(sed -nE "s/^[[:space:]]*(-[[:space:]]+)?uses:[[:space:]]*['\"]?([^'\" #]+).*/\2/p" "$workflow")
 done
 
+# The slow suite reports and never gates: it runs on a schedule or by hand, never on a push or pull request, so it
+# can't become a check a merge waits for.
+SLOW="$WORKFLOWS/slow.yml"
+check "slow.yml exists" [ -f "$SLOW" ]
+slow_triggers="$(awk '/^on:/ { on = 1; next } on && /^[^[:space:]#]/ { on = 0 } on && /^  [a-z_]+:/ { print $1 }' "$SLOW")"
+check "slow.yml runs weekly and on demand" [ "$(sort <<<"$slow_triggers" | tr '\n' ' ')" = "schedule: workflow_dispatch: " ]
+
 # Dependabot keeps the pins moving: NuGet packages and Actions, each checked weekly.
 DEPENDABOT="$ROOT/.github/dependabot.yml"
 check "dependabot.yml exists" [ -f "$DEPENDABOT" ]
