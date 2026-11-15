@@ -12,6 +12,10 @@ updates:
     groups:
       nuget:
         patterns: ["*"]
+    # Stryker.NET 5.x needs the .NET 10 SDK; global.json pins 9 (docs/raw-sources/slow-suite-tools-2026-11-15.md).
+    ignore:
+      - dependency-name: "dotnet-stryker"
+        versions: [">=5.0.0"]
 
   # The docs tools' lockfile. lychee and Vale are pinned in scripts/install-docs-tools.sh, which Dependabot can't read.
   - package-ecosystem: "npm"
@@ -23,6 +27,18 @@ updates:
       include: "scope"
     groups:
       docs-tools:
+        patterns: ["*"]
+
+  # The slow suite's jscpd lockfile. Stryker.NET is in .config/dotnet-tools.json, for the nuget entry above.
+  - package-ecosystem: "npm"
+    directory: "/tools/slow"
+    schedule:
+      interval: "weekly"
+    commit-message:
+      prefix: "ci"
+      include: "scope"
+    groups:
+      slow-tools:
         patterns: ["*"]
 
   - package-ecosystem: "github-actions"
