@@ -23,9 +23,9 @@ pwsh scripts/deploy-dev.ps1
 #>
 [CmdletBinding()]
 param(
-    # The game executable. Defaults to METAPHOR_GAME_EXE.
+    # The game executable. Defaults to METAPHOR_GAME_EXE, then to the game as registered in Reloaded-II.
     [string] $GameExe = $env:METAPHOR_GAME_EXE,
-    # Reloaded-II's launcher (Reloaded-II.exe). Defaults to METAPHOR_RELOADED_EXE.
+    # Reloaded-II's launcher (Reloaded-II.exe). Defaults to METAPHOR_RELOADED_EXE, then to LauncherPath in ReloadedII.json.
     [string] $LauncherExe = $env:METAPHOR_RELOADED_EXE,
     # The mod project. Its build output must hold a ModConfig.json.
     [string] $Project = (Join-Path $PSScriptRoot '../src/Metaphor.Hooks'),
@@ -52,9 +52,12 @@ trap {
     exit $(if ($launched) { 1 } else { 2 })
 }
 
-if (-not $GameExe -or -not (Test-Path -LiteralPath $GameExe)) { Stop-Start 'set -GameExe or METAPHOR_GAME_EXE to the game executable' }
-if (-not $LauncherExe -or -not (Test-Path -LiteralPath $LauncherExe)) { Stop-Start 'set -LauncherExe or METAPHOR_RELOADED_EXE to Reloaded-II.exe' }
 if (-not (Test-Path -LiteralPath $ReloadedConfig)) { Stop-Start "no Reloaded-II config at $ReloadedConfig" }
+$loader = Read-Json $ReloadedConfig
+$paths = Resolve-LoaderPaths $loader $GameExe $LauncherExe
+$GameExe, $LauncherExe = $paths.GameExe, $paths.LauncherExe
+if (-not $GameExe -or -not (Test-Path -LiteralPath $GameExe)) { Stop-Start 'no game executable: register the game in Reloaded-II, or set -GameExe or METAPHOR_GAME_EXE' }
+if (-not $LauncherExe -or -not (Test-Path -LiteralPath $LauncherExe)) { Stop-Start 'no Reloaded-II.exe: open Reloaded-II once, or set -LauncherExe or METAPHOR_RELOADED_EXE' }
 # Relative to the PowerShell location, as Test-Path read them, not the process's working folder.
 $gameFull = $PSCmdlet.GetUnresolvedProviderPathFromPSPath($GameExe)
 $launcherFull = $PSCmdlet.GetUnresolvedProviderPathFromPSPath($LauncherExe)
@@ -67,7 +70,6 @@ $gameBuild = Get-GameBuild $gameFull $KnownBuilds
 if (-not $gameBuild.Known) { Stop-Start "unknown game build $($gameBuild.Sha256) (add it: docs/contributors/how-to/add-a-game-build.md)" }
 Write-Host "game build $($gameBuild.Sha256) (Steam build $($gameBuild.Known.steamBuildId))"
 
-$loader = Read-Json $ReloadedConfig
 $application = Find-Application $loader $gameFull
 if (-not $application) { Stop-Start "the game isn't registered in Reloaded-II; add $gameFull as an application first" }
 

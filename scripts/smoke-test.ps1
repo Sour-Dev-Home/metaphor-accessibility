@@ -21,9 +21,9 @@ pwsh scripts/smoke-test.ps1 -ModFolders <built test mod folder>
 #>
 [CmdletBinding()]
 param(
-    # The game executable. Defaults to METAPHOR_GAME_EXE.
+    # The game executable. Defaults to METAPHOR_GAME_EXE, then to the game as registered in Reloaded-II.
     [string] $GameExe = $env:METAPHOR_GAME_EXE,
-    # Reloaded-II's launcher (Reloaded-II.exe). Defaults to METAPHOR_RELOADED_EXE.
+    # Reloaded-II's launcher (Reloaded-II.exe). Defaults to METAPHOR_RELOADED_EXE, then to LauncherPath in ReloadedII.json.
     [string] $LauncherExe = $env:METAPHOR_RELOADED_EXE,
     # The folders of the mods to test, each holding a ModConfig.json.
     [Parameter(Mandatory)] [string[]] $ModFolders,
@@ -62,11 +62,15 @@ if (Test-Path -LiteralPath $backup) {
     Write-Host "restored $ReloadedConfig from an interrupted run (Reloaded-II settings changed since then are discarded)"
 }
 
-if (-not $GameExe -or -not (Test-Path -LiteralPath $GameExe)) { Stop-Start 'set -GameExe or METAPHOR_GAME_EXE to the game executable' }
-if (-not $LauncherExe -or -not (Test-Path -LiteralPath $LauncherExe)) { Stop-Start 'set -LauncherExe or METAPHOR_RELOADED_EXE to Reloaded-II.exe' }
 if (-not (Test-Path -LiteralPath $ReloadedConfig)) { Stop-Start "no Reloaded-II config at $ReloadedConfig" }
-$gameFull = [IO.Path]::GetFullPath($GameExe)
-$launcherFull = [IO.Path]::GetFullPath($LauncherExe)
+$loader = Read-Json $ReloadedConfig
+$paths = Resolve-LoaderPaths $loader $GameExe $LauncherExe
+$GameExe, $LauncherExe = $paths.GameExe, $paths.LauncherExe
+if (-not $GameExe -or -not (Test-Path -LiteralPath $GameExe)) { Stop-Start 'no game executable: register the game in Reloaded-II, or set -GameExe or METAPHOR_GAME_EXE' }
+if (-not $LauncherExe -or -not (Test-Path -LiteralPath $LauncherExe)) { Stop-Start 'no Reloaded-II.exe: open Reloaded-II once, or set -LauncherExe or METAPHOR_RELOADED_EXE' }
+# Relative to the PowerShell location, as Test-Path read them, not the process's working folder.
+$gameFull = $PSCmdlet.GetUnresolvedProviderPathFromPSPath($GameExe)
+$launcherFull = $PSCmdlet.GetUnresolvedProviderPathFromPSPath($LauncherExe)
 # The test ends the game by killing it, and a running launcher can save over the swapped config.
 if (Get-Game $gameFull) { Stop-Start 'the game is already running; close it first' }
 if (Get-Game $launcherFull) { Stop-Start 'Reloaded-II is already running; close it first' }
@@ -85,7 +89,6 @@ $mods = foreach ($folder in $ModFolders) {
 $duplicate = $mods | Group-Object Id | Where-Object Count -GT 1 | Select-Object -First 1
 if ($duplicate) { Stop-Start "two test mods have the mod ID $($duplicate.Name)" }
 
-$loader = Read-Json $ReloadedConfig
 $application = Find-Application $loader $gameFull
 if (-not $application) { Stop-Start "the game isn't registered in Reloaded-II; add $gameFull as an application first" }
 
