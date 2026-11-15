@@ -35,9 +35,8 @@ param(
 
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
+Import-Module (Join-Path $PSScriptRoot 'ReloadedDev.psm1') -Force
 
-$StatusFileName = 'mod-status.json' # Metaphor.Core.ModStatusFile.FileName
-$PollMilliseconds = 500
 $ProfileFolders = [ordered]@{
     ApplicationConfigDirectory = 'Apps'
     ModConfigDirectory         = 'Mods'
@@ -49,25 +48,6 @@ $ProfileFolders = [ordered]@{
 function Stop-Start([string] $Message) {
     Write-Host "smoke test can't start: $Message"
     exit 2
-}
-
-function Read-Json([string] $Path) { Get-Content -Raw -LiteralPath $Path | ConvertFrom-Json }
-
-function Write-Json([string] $Path, $Value) {
-    New-Item -ItemType Directory -Force (Split-Path $Path) | Out-Null
-    $Value | ConvertTo-Json -Depth 20 | Set-Content -LiteralPath $Path -Encoding utf8NoBOM
-}
-
-# As Reloaded-II's ApplicationConfig.GetAbsoluteAppLocation: a relative AppLocation is relative to its AppConfig.json.
-function Resolve-AppLocation([string] $ConfigFile, [string] $Location) {
-    $folder = Split-Path $ConfigFile
-    if (-not [IO.Path]::IsPathRooted($Location)) { $Location = Join-Path $folder $Location }
-    elseif ([IO.Path]::GetPathRoot($Location) -eq '\') { $Location = Join-Path ([IO.Path]::GetPathRoot($folder)) $Location.TrimStart('\') }
-    [IO.Path]::GetFullPath($Location)
-}
-
-function Get-Game([string] $Path) {
-    Get-Process -ErrorAction SilentlyContinue | Where-Object { $_.Path -eq $Path }
 }
 
 # Each undo runs on its own, so one failure doesn't skip the rest.
@@ -92,10 +72,10 @@ if (Get-Game $gameFull) { Stop-Start 'the game is already running; close it firs
 if (Get-Game $launcherFull) { Stop-Start 'Reloaded-II is already running; close it first' }
 
 # 1. The game build.
-$build = (Get-FileHash -LiteralPath $gameFull -Algorithm SHA256).Hash.ToLowerInvariant()
-$known = @(Read-Json $KnownBuilds) | Where-Object sha256 -EQ $build
-if (-not $known) { Stop-Start "unknown game build $build (add it: docs/contributors/how-to/add-a-game-build.md)" }
-Write-Host "game build $build (Steam build $($known.steamBuildId))"
+$gameBuild = Get-GameBuild $gameFull $KnownBuilds
+$build = $gameBuild.Sha256
+if (-not $gameBuild.Known) { Stop-Start "unknown game build $build (add it: docs/contributors/how-to/add-a-game-build.md)" }
+Write-Host "game build $build (Steam build $($gameBuild.Known.steamBuildId))"
 
 $mods = foreach ($folder in $ModFolders) {
     $modConfig = Join-Path $folder 'ModConfig.json'
@@ -106,9 +86,7 @@ $duplicate = $mods | Group-Object Id | Where-Object Count -GT 1 | Select-Object 
 if ($duplicate) { Stop-Start "two test mods have the mod ID $($duplicate.Name)" }
 
 $loader = Read-Json $ReloadedConfig
-$application = Get-ChildItem -LiteralPath $loader.ApplicationConfigDirectory -Filter AppConfig.json -Recurse -Depth 1 |
-    Where-Object { (Resolve-AppLocation $_.FullName (Read-Json $_.FullName).AppLocation) -ceq $gameFull } |
-    Select-Object -First 1
+$application = Find-Application $loader $gameFull
 if (-not $application) { Stop-Start "the game isn't registered in Reloaded-II; add $gameFull as an application first" }
 
 $smokeProfile = Join-Path ([IO.Path]::GetTempPath()) "metaphor-smoke-$([guid]::NewGuid())"
@@ -140,36 +118,7 @@ try {
     if (-not $launcher.WaitForExit($TimeoutSeconds * 1000)) { Write-Host 'the launcher did not exit'; $failed = $true }
 
     # 4. Wait for every status file, or the game exiting, or the timeout.
-    $missedPolls = 0
-    do {
-        $pending = @($mods | Where-Object { -not (Test-Path -LiteralPath (Join-Path $_.Folder $StatusFileName)) })
-        if ($pending.Count -eq 0) { break }
-        $missedPolls = if (Get-Game $gameFull) { 0 } else { $missedPolls + 1 }
-        if ($missedPolls -ge 2) { Write-Host 'the game exited before every test mod reported'; $failed = $true; break }
-        Start-Sleep -Milliseconds $PollMilliseconds
-    } while ((Get-Date) -lt $deadline)
-
-    foreach ($mod in $mods) {
-        $file = Join-Path $mod.Folder $StatusFileName
-        if (-not (Test-Path -LiteralPath $file)) {
-            Write-Host "$($mod.Id): no status within $TimeoutSeconds s"
-            $failed = $true
-            continue
-        }
-        $status = Read-Json $file
-        if ($status.modId -ne $mod.Id) {
-            Write-Host "$($mod.Id): status file names another mod, $($status.modId)"
-            $failed = $true
-        }
-        elseif ($status.state -eq 'ready') {
-            Write-Host "$($mod.Id): ready on $($status.gameBuildSha256), hooks $($status.hooksLoaded)/$($status.hooksExpected)"
-            if ($status.hooksLoaded -ne $status.hooksExpected -or $status.gameBuildSha256 -ne $build) { $failed = $true }
-        }
-        else {
-            Write-Host "$($mod.Id): $($status.state) on $($status.gameBuildSha256) ($($status.reason))"
-            $failed = $true
-        }
-    }
+    if (-not (Wait-ModStatus $mods $gameFull $build $deadline $TimeoutSeconds)) { $failed = $true }
 }
 finally {
     # 5. Close the game (closing its window only asks "Exit game?"), then put everything back.
