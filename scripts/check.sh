@@ -3,7 +3,7 @@
 #
 #   scripts/check.sh fast    repo rules on staged files (the pre-commit hook)
 #   scripts/check.sh rules   repo rules on every tracked file (CI on Ubuntu)
-#   scripts/check.sh full    repo rules, then build, Unit tests and formatting (CI on Windows)
+#   scripts/check.sh full    repo rules, then build, Unit and RoundTrip tests and formatting (CI on Windows)
 #   scripts/check.sh docs    broken links fail; Markdown lint, Vale and ADR length warn (CI on Ubuntu)
 #   scripts/check.sh pr-body FILE        warns when a PR description is too long (CI on pull requests)
 #   scripts/check.sh commit-msg FILE     one commit message (the commit-msg hook)
@@ -404,7 +404,8 @@ done < "$tmp/entries"
 if [ "$stage" = full ]; then
   export DOTNET_CLI_TELEMETRY_OPTOUT=1 DOTNET_NOLOGO=1
   dotnet build "$solution" -c Release -v q || report "build: failed, see the errors above"
-  dotnet test "$solution" -c Release --no-build -v q --filter Category=Unit || report "tests: Unit tests failed"
+  dotnet test "$solution" -c Release --no-build -v q --filter "Category=Unit|Category=RoundTrip" ||
+    report "tests: Unit or RoundTrip tests failed"
   dotnet format whitespace "$solution" --verify-no-changes ||
     report "format: files need formatting (run: dotnet format whitespace Metaphor.sln)"
 fi
