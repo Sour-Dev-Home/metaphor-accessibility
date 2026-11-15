@@ -6,6 +6,7 @@
 #   scripts/check.sh full    repo rules, build, Unit and RoundTrip tests, formatting, smoke and deploy script tests (CI on Windows)
 #   scripts/check.sh docs    broken links fail; Markdown lint, Vale and ADR length warn (CI on Ubuntu)
 #   scripts/check.sh slow    mutation testing and a duplication report, report only (weekly CI on Windows)
+#   scripts/check.sh signatures [EXE]    each hook signature matches exactly once in the game exe (local, before a hook PR)
 #   scripts/check.sh pr-body FILE        warns when a PR description is too long (CI on pull requests)
 #   scripts/check.sh commit-msg FILE     one commit message (the commit-msg hook)
 #   scripts/check.sh commits BASE..HEAD  every non-merge commit message in a range (CI on pull requests)
@@ -130,6 +131,26 @@ slow_stage() {
   } > "$out/summary.md"
   echo "slow suite reports: $out (summary.md)"
   [ -z "$broken" ] || die "failed to run:$broken (see above)"
+}
+
+# The offline signature check (stage 4 in issue #1, local only): each signature in src/Metaphor.Core/hook-signatures.json must
+# match exactly once in the game exe on disk. The exe is the argument, or METAPHOR_GAME_EXE. Nothing is launched.
+signatures_stage() {
+  local exe="${1:-${METAPHOR_GAME_EXE:-}}" root
+  [ -n "$exe" ] || die "signatures stage needs the game exe: pass it, or set METAPHOR_GAME_EXE"
+  [ -f "$exe" ] || die "no file at $exe"
+  root="$(git rev-parse --show-toplevel)" || die "could not find the repository root"
+  command -v dotnet > /dev/null || die "signatures stage needs the .NET SDK (dotnet) on PATH"
+  export DOTNET_CLI_TELEMETRY_OPTOUT=1 DOTNET_NOLOGO=1
+  # Built first, so a build failure can't be mistaken for the tool's exit 1.
+  dotnet build "$root/tools/Metaphor.SignatureCheck" -c Release -v q --nologo > /dev/null ||
+    die "could not build tools/Metaphor.SignatureCheck (run: dotnet build tools/Metaphor.SignatureCheck)"
+  dotnet run --project "$root/tools/Metaphor.SignatureCheck" -c Release --no-build -- "$exe"
+  case $? in
+    0) ;;
+    1) report "signatures: a signature doesn't match exactly once (see above)" ;;
+    *) die "the signature check could not run (see above)" ;;
+  esac
 }
 
 max_adr_words=250
@@ -297,7 +318,11 @@ case "$stage" in
     slow_stage
     [ "$failures" -eq 0 ]
     exit ;;
-  *) echo "usage: scripts/check.sh fast|rules|full|docs|slow | commit-msg FILE | commits BASE..HEAD | pr-body FILE" >&2
+  signatures)
+    signatures_stage "${2:-}"
+    [ "$failures" -eq 0 ]
+    exit ;;
+  *) echo "usage: scripts/check.sh fast|rules|full|docs|slow | signatures [EXE] | commit-msg FILE | commits BASE..HEAD | pr-body FILE" >&2
      exit 2 ;;
 esac
 

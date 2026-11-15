@@ -72,6 +72,7 @@ public static class KnownGameBuilds
         return [.. Parse(reader.ReadToEnd())];
     }
 
-    private static bool IsSha256(string? value) =>
+    /// <summary>Whether <paramref name="value"/> has the shape of a game build's identifier: lowercase hex SHA-256.</summary>
+    internal static bool IsSha256(string? value) =>
         value is { Length: Sha256HexLength } && value.All(c => char.IsAsciiDigit(c) || c is >= 'a' and <= 'f');
 }
