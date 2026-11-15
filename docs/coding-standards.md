@@ -28,5 +28,9 @@ each rule on every assembly built from `src/`. Each test plants a violation to p
    it by full path. The exception doesn't lift the System32 rule.
 5. **Features are independent.** Each feature is its own project named `Metaphor.Features.<Name>`. It may depend on
    interfaces in `Metaphor.Core` but never on another feature.
+6. **Hooks name known builds.** Each hook is a class marked `[GameHook(...)]` that names the game builds it was checked
+   on, each listed in `src/Metaphor.Core/known-game-builds.json`. This records which builds a hook supports; checking
+   the running build before patching ([ground rule 2](../AGENTS.md#ground-rules)) is the hook loader's job.
+   [Adding a build](contributors/how-to/add-a-game-build.md) is a one-file change.
 
 A new project under `src/` must be added to the architecture test project, and a test fails until it is.

@@ -1,0 +1,7 @@
+[
+  {
+    "sha256": "548ddc955c176867f062c44f94c03dd9ac33caefb278a5ac388e792aedf09504",
+    "steamBuildId": 18330018,
+    "evidence": "2026-11-14: sha256sum (GNU coreutils) 8.32, from Git for Windows, of METAPHOR.exe, 339689352 bytes; buildid from Steam's steamapps/appmanifest_2679460.acf"
+  }
+]
