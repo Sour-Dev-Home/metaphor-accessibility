@@ -14,10 +14,13 @@ BeforeAll {
     }
 
     # Runs the deploy in its own process, so its exit code is real.
-    function Invoke-Deploy([string] $Behaviour = 'ready', [string[]] $KnownBuild = @($script:build), [string] $Project = $script:modProject) {
+    # -FromConfig passes no game or launcher path, so the script must find both in Reloaded-II's config.
+    function Invoke-Deploy([string] $Behaviour = 'ready', [string[]] $KnownBuild = @($script:build),
+        [string] $Project = $script:modProject, [switch] $FromConfig) {
         Write-Json $script:known @($KnownBuild | ForEach-Object { @{ sha256 = $_; steamBuildId = 1; evidence = 'test' } })
         $env:METAPHOR_STANDIN_BEHAVIOUR = $Behaviour
-        $output = & pwsh -NoProfile -File $script -GameExe $script:gameExe -LauncherExe $script:launcher `
+        $paths = if ($FromConfig) { @() } else { @('-GameExe', $script:gameExe, '-LauncherExe', $script:launcher) }
+        $output = & pwsh -NoProfile -File $script @paths `
             -Project $Project -ReloadedConfig $script:config -KnownBuilds $script:known -TimeoutSeconds 5 2>&1
         [pscustomobject]@{ ExitCode = $LASTEXITCODE; Output = ($output -join "`n") }
     }
@@ -47,6 +50,7 @@ Describe 'deploy-dev.ps1' {
                 ModUserConfigDirectory     = Join-Path $reloaded 'User/Mods'
                 MiscConfigDirectory        = Join-Path $reloaded 'User/Misc'
                 PluginConfigDirectory      = Join-Path $reloaded 'Plugins'
+                LauncherPath               = $script:launcher
             })
         $script:appConfig = Join-Path $reloaded 'Apps/metaphor.exe/AppConfig.json'
         Write-Json $script:appConfig ([ordered]@{
@@ -95,6 +99,15 @@ Describe 'deploy-dev.ps1' {
         Join-Path $folder $config.ModDll | Should -Exist
         Join-Path $folder 'Reloaded.Mod.Interfaces.dll' | Should -Not -Exist
         Get-EnabledMods | Should -Contain 'metaphor.accessibility'
+    }
+
+    It 'finds the launcher and the game in Reloaded-II''s config when no path is given' {
+        Remove-Item Env:METAPHOR_GAME_EXE, Env:METAPHOR_RELOADED_EXE -ErrorAction SilentlyContinue
+
+        $result = Invoke-Deploy -FromConfig
+
+        $result.ExitCode | Should -Be 0
+        $result.Output | Should -Match ([regex]::Escape("metaphor.dev: ready on $script:build"))
     }
 
     It 'keeps the mods the user already enabled, and a backup of their app config' {

@@ -39,7 +39,7 @@ public sealed class ModEntryPoint : IMod
             var modLoader = (IModLoader)loader;
             var folder = modLoader.GetDirectoryForModId(config.ModId);
             // The mod runs inside the game, so this process's exe is the game executable whose hash identifies the
-            // build. That it is the same file the known-builds hashes were taken from is [NEEDS VERIFICATION] in-game.
+            // build (seen in docs/raw-sources/mod-entry-point-first-run-2026-11-15.md).
             var status = ModStartup.CheckAndReport(
                 config.ModId, Environment.ProcessPath ?? "", folder, () => KnownGameBuilds.All, HooksExpected());
             ((ILogger)modLoader.GetLogger()).WriteLine(

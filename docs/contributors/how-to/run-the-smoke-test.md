@@ -16,10 +16,11 @@ You need the game registered as an application in Reloaded-II, and the game buil
 4. From the repository root, in PowerShell 7:
 
    ```powershell
-   $env:METAPHOR_GAME_EXE = '<game folder>\METAPHOR.exe'
-   $env:METAPHOR_RELOADED_EXE = '<Reloaded-II folder>\Reloaded-II.exe'
    pwsh scripts/smoke-test.ps1 -ModFolders <test mod folder>, <another>
    ```
+
+   It finds the launcher and the game in Reloaded-II's config, as
+   [deploying a dev build](deploy-a-dev-build.md) does, and takes the same overrides.
 
 It ends with `smoke test passed` (exit code 0) when every test mod is ready with all its hooks, and
 `smoke test FAILED` (exit code 1) otherwise. Exit code 2 means it couldn't start, and says why. The game is closed by
