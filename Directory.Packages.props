@@ -1,6 +1,7 @@
 <Project>
   <!-- Every package version, pinned. Upgrades are deliberate changes to this file. -->
   <ItemGroup>
+    <PackageVersion Include="CsCheck" Version="4.9.1" />
     <PackageVersion Include="Microsoft.CodeAnalysis.CSharp" Version="4.14.0" />
     <PackageVersion Include="Microsoft.NET.Test.Sdk" Version="17.12.0" />
     <PackageVersion Include="Mono.Cecil" Version="0.11.6" />
