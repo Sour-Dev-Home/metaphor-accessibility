@@ -123,6 +123,37 @@ public sealed class SignatureCheckTests : IDisposable
     }
 
     [Fact]
+    public void ChecksProbesLikeSignaturesWithoutABuildNote()
+    {
+        var exe = StandInExe(0x10, 0x20, 0x20);
+        using var output = new StringWriter();
+
+        var exitCode = SignatureCheck.RunProbes(
+            exe, [new SignatureProbe("once", "10", "s"), new SignatureProbe("twice", "20", "s")], [], output);
+
+        Assert.Equal(1, exitCode);
+        Assert.Contains($"ok   once: 1 match at 0x0{Environment.NewLine}", output.ToString(), StringComparison.Ordinal);
+        Assert.Contains("FAIL twice: 2 matches, at 0x1, 0x2", output.ToString(), StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void GivesEachMatchsAddressInMemoryWhenTheFileIsAPortableExecutable()
+    {
+        // A real PE file: this build's Metaphor.Core.dll. Its CLI header records where the metadata, which starts with
+        // "BSJB", lands in memory, independently of the section table the check reads.
+        var dll = typeof(SignatureCheck).Assembly.Location;
+        using (var stream = File.OpenRead(dll))
+        {
+            var metadataRva = new System.Reflection.PortableExecutable.PEHeaders(stream).CorHeader!.MetadataDirectory.RelativeVirtualAddress;
+            using var output = new StringWriter();
+
+            SignatureCheck.RunProbes(dll, [new SignatureProbe("metadata", "42 53 4A 42 01 00 01 00", "s")], [], output);
+
+            Assert.Contains($"(rva 0x{metadataRva:x})", output.ToString(), StringComparison.Ordinal);
+        }
+    }
+
+    [Fact]
     public void PassesAndSaysSoWhenThereAreNoSignatures()
     {
         var exe = StandInExe(0x10);

@@ -59,6 +59,9 @@ foreach (var modConfig in Directory.EnumerateFiles(Folder(root, "ModConfigDirect
         "otherbuild" => ModStatus.Ready(modId, new string('1', 64), hooksLoaded: 1, hooksExpected: 1),
         _ => ModStatus.Ready(modId, build, hooksLoaded: 1, hooksExpected: 1),
     });
+    // As the real mod does after its status, when deploy-dev.ps1 -ScanSignatures asked; its own file stands in for memory.
+    var bytes = File.ReadAllBytes(self);
+    SignatureScan.ScanIfRequested(folder, build, () => new ModuleMemory(bytes.Length, [new MemoryRun(0, bytes)], 0, 0));
 }
 
 Thread.Sleep(Timeout.Infinite);

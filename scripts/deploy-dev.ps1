@@ -8,7 +8,8 @@ with it.
 2. Builds the mod project (dotnet publish) into a temporary folder. Nothing in Reloaded-II is touched if this fails.
 3. Replaces the mod's folder in Reloaded-II's mods folder (named by its mod ID) with the new build.
 4. Adds the mod to the game's EnabledMods, keeping the mods already enabled.
-5. Launches with the user's own Reloaded-II (--launch) and waits for the mod's mod-status.json.
+5. Launches with the user's own Reloaded-II (--launch) and waits for the mod's mod-status.json. With -ScanSignatures,
+   the mod also scans the running game for other mods' signatures (issue #21), and this prints its report.
 
 The game is left running. Folder locations come from ReloadedII.json, never from fixed paths.
 
@@ -33,7 +34,9 @@ param(
     # Reloaded-II's root config, at a fixed AppData path the loader doesn't let us move.
     [string] $ReloadedConfig = (Join-Path ([Environment]::GetFolderPath('ApplicationData')) 'Reloaded-Mod-Loader-II/ReloadedII.json'),
     [string] $KnownBuilds = (Join-Path $PSScriptRoot '../src/Metaphor.Core/known-game-builds.json'),
-    [int] $TimeoutSeconds = 120
+    [int] $TimeoutSeconds = 120,
+    # Ask the mod to scan the running game's memory for signature-probes.json (issue #21) and print its report.
+    [switch] $ScanSignatures
 )
 
 Set-StrictMode -Version Latest
@@ -103,6 +106,12 @@ try {
         Remove-Item -LiteralPath $folder -Recurse -Force
     }
     Copy-Item -LiteralPath $staging $folder -Recurse
+    # Metaphor.Core.SignatureScan.RequestFileName: the mod scans once when it's there, then deletes it. The probes stay
+    # dev tooling; they're never part of the mod's build.
+    if ($ScanSignatures) {
+        Copy-Item -LiteralPath (Join-Path $PSScriptRoot '../tools/Metaphor.SignatureCheck/signature-probes.json') `
+            (Join-Path $folder 'signature-probes.json')
+    }
     Write-Host "deployed $modId to $folder"
 
     # 4. Enable it, keeping the user's other mods. The old file stays beside it as a backup, and the new one is swapped in
@@ -118,6 +127,11 @@ try {
         Move-Item -LiteralPath "$appFile.deploy-new" $appFile -Force
         Write-Host "enabled $modId for $($application.Directory.Name) (previous config: $appFile.deploy-backup)"
     }
+    $others = @($enabled | Where-Object { $_ -ne $modId })
+    if ($ScanSignatures -and $others) {
+        # A mod that hooks first, such as CriFs V2 Hook, rewrites the start of the functions the probes look for.
+        Write-Warning "other enabled mods: $($others -join ', '). Their hooks can change the bytes scanned; disable them in Reloaded-II for a clean comparison."
+    }
 }
 finally {
     if (Test-Path -LiteralPath $staging) { Remove-Item -LiteralPath $staging -Recurse -Force }
@@ -130,5 +144,13 @@ $launcher = Start-Process -FilePath $launcherFull -ArgumentList '--launch', "`"$
 if (-not $launcher.WaitForExit($TimeoutSeconds * 1000)) { Write-Host 'the launcher did not exit'; exit 1 }
 $mods = @([pscustomobject]@{ Id = $modId; Folder = $folder })
 if (-not (Wait-ModStatus $mods $gameFull $gameBuild.Sha256 $deadline $TimeoutSeconds)) { Write-Host 'deploy FAILED'; exit 1 }
+if ($ScanSignatures) {
+    # The mod writes Metaphor.Core.SignatureScan.ReportFileName after its status file.
+    $report = Join-Path $folder 'signature-scan.json'
+    while (-not (Test-Path -LiteralPath $report) -and (Get-Date) -lt $deadline) { Start-Sleep -Milliseconds 200 }
+    if (-not (Test-Path -LiteralPath $report)) { Write-Host "no signature scan report within $TimeoutSeconds s"; exit 1 }
+    Write-Host "signature scan report ($report):"
+    Get-Content -Raw -LiteralPath $report | Write-Host
+}
 Write-Host 'deployed and running'
 exit 0

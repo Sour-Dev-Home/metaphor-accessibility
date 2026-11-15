@@ -16,11 +16,12 @@ BeforeAll {
     # Runs the deploy in its own process, so its exit code is real.
     # -FromConfig passes no game or launcher path, so the script must find both in Reloaded-II's config.
     function Invoke-Deploy([string] $Behaviour = 'ready', [string[]] $KnownBuild = @($script:build),
-        [string] $Project = $script:modProject, [switch] $FromConfig) {
+        [string] $Project = $script:modProject, [switch] $FromConfig, [switch] $ScanSignatures) {
         Write-Json $script:known @($KnownBuild | ForEach-Object { @{ sha256 = $_; steamBuildId = 1; evidence = 'test' } })
         $env:METAPHOR_STANDIN_BEHAVIOUR = $Behaviour
         $paths = if ($FromConfig) { @() } else { @('-GameExe', $script:gameExe, '-LauncherExe', $script:launcher) }
-        $output = & pwsh -NoProfile -File $script @paths `
+        $scan = @(if ($ScanSignatures) { '-ScanSignatures' })
+        $output = & pwsh -NoProfile -File $script @paths @scan `
             -Project $Project -ReloadedConfig $script:config -KnownBuilds $script:known -TimeoutSeconds 5 2>&1
         [pscustomobject]@{ ExitCode = $LASTEXITCODE; Output = ($output -join "`n") }
     }
@@ -128,6 +129,29 @@ Describe 'deploy-dev.ps1' {
         $script:deployed | Should -Not -Exist
         Get-EnabledMods | Should -Be @('user.mod')
         Get-Game | Should -BeNullOrEmpty
+    }
+
+    It 'asks for no signature scan by default' {
+        Invoke-Deploy | Out-Null
+
+        Join-Path $script:deployed 'signature-probes.json' | Should -Not -Exist
+        Join-Path $script:deployed 'signature-scan.json' | Should -Not -Exist
+    }
+
+    It 'with -ScanSignatures, has the mod scan once and prints its report' {
+        $result = Invoke-Deploy -ScanSignatures
+
+        $result.ExitCode | Should -Be 0
+        $result.Output | Should -Match '"gameBuildSha256": "[0-9a-f]{64}"'
+        $result.Output | Should -Match 'CriFs_InitializeLibrary'
+        # The mod consumed the request, so the next launch won't scan again.
+        Join-Path $script:deployed 'signature-probes.json' | Should -Not -Exist
+    }
+
+    It 'with -ScanSignatures, names the other enabled mods, whose hooks can change the bytes scanned' {
+        $result = Invoke-Deploy -ScanSignatures
+
+        $result.Output | Should -Match 'other enabled mods: user\.mod'
     }
 
     It 'replaces an earlier deploy with the new build' {

@@ -50,9 +50,6 @@ public static class ModStatusFile
     {
         ArgumentNullException.ThrowIfNull(status);
 
-        var path = Path.Combine(modFolder, FileName);
-        var temporary = path + ".tmp";
-        File.WriteAllText(temporary, JsonSerializer.Serialize(status, Options));
-        File.Move(temporary, path, overwrite: true);
+        AtomicFile.WriteAllText(Path.Combine(modFolder, FileName), JsonSerializer.Serialize(status, Options));
     }
 }
