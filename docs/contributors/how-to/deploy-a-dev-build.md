@@ -27,9 +27,11 @@ What it changes in your Reloaded-II setup, and nothing else:
   load order (`SortedMods`) isn't touched; whether the loader needs the mod listed there too is
   [NEEDS VERIFICATION]. The previous file is kept beside it as `AppConfig.json.deploy-backup`.
 
-`-Project` builds another mod project, and `-Configuration Release` a Release build. The build output must hold a
-`ModConfig.json`. The hook layer (`src/Metaphor.Hooks`, the default) doesn't have one yet, so for now pass a project
-that does.
+By default it builds the mod (`src/Metaphor.Hooks`, mod ID `metaphor.accessibility`). `-Project` builds another mod
+project, whose build output must hold a `ModConfig.json`, and `-Configuration Release` a Release build.
+
+The mod has no hooks yet, so a working deploy prints `ready on <game build>, hooks 0/0`. The mod also writes a line
+naming its commit and the game build to Reloaded-II's logger. Where that line shows up is [NEEDS VERIFICATION].
 
 The script's own tests run against a stand-in launcher and game, with no game needed:
 

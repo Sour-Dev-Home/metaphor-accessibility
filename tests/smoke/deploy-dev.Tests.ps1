@@ -14,11 +14,11 @@ BeforeAll {
     }
 
     # Runs the deploy in its own process, so its exit code is real.
-    function Invoke-Deploy([string] $Behaviour = 'ready', [string[]] $KnownBuild = @($script:build)) {
+    function Invoke-Deploy([string] $Behaviour = 'ready', [string[]] $KnownBuild = @($script:build), [string] $Project = $script:modProject) {
         Write-Json $script:known @($KnownBuild | ForEach-Object { @{ sha256 = $_; steamBuildId = 1; evidence = 'test' } })
         $env:METAPHOR_STANDIN_BEHAVIOUR = $Behaviour
         $output = & pwsh -NoProfile -File $script -GameExe $script:gameExe -LauncherExe $script:launcher `
-            -Project $script:modProject -ReloadedConfig $script:config -KnownBuilds $script:known -TimeoutSeconds 5 2>&1
+            -Project $Project -ReloadedConfig $script:config -KnownBuilds $script:known -TimeoutSeconds 5 2>&1
         [pscustomobject]@{ ExitCode = $LASTEXITCODE; Output = ($output -join "`n") }
     }
 
@@ -84,6 +84,17 @@ Describe 'deploy-dev.ps1' {
         Join-Path $script:deployed 'Metaphor.DevMod.dll' | Should -Exist
         Get-EnabledMods | Should -Contain 'metaphor.dev'
         Get-Game | Should -Not -BeNullOrEmpty
+    }
+
+    It 'deploys the real mod: its ModConfig.json names a DLL that is there, and the loader-supplied one is not' {
+        $result = Invoke-Deploy -Project (Join-Path $repo 'src/Metaphor.Hooks')
+
+        $result.ExitCode | Should -Be 0
+        $folder = Join-Path $script:mods 'metaphor.accessibility'
+        $config = Get-Content -Raw (Join-Path $folder 'ModConfig.json') | ConvertFrom-Json
+        Join-Path $folder $config.ModDll | Should -Exist
+        Join-Path $folder 'Reloaded.Mod.Interfaces.dll' | Should -Not -Exist
+        Get-EnabledMods | Should -Contain 'metaphor.accessibility'
     }
 
     It 'keeps the mods the user already enabled, and a backup of their app config' {

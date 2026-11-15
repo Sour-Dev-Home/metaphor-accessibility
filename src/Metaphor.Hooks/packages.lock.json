@@ -2,6 +2,12 @@
   "version": 2,
   "dependencies": {
     "net9.0-windows7.0": {
+      "Reloaded.Mod.Interfaces": {
+        "type": "Direct",
+        "requested": "[2.4.0, )",
+        "resolved": "2.4.0",
+        "contentHash": "HKQu7M0MyToKU4NK5Ula29MXSNeHz01ZzMK9BWD+xqJCITemAPdMW+w60Swln3ceGCU/ZooFSKtn4I8rcSA9AQ=="
+      },
       "metaphor.core": {
         "type": "Project"
       }
