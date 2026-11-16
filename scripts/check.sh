@@ -10,12 +10,16 @@
 #   scripts/check.sh slow    mutation testing and a duplication report, report only (weekly CI on Windows)
 #   scripts/check.sh signatures [EXE]    each hook signature matches exactly once in the game exe (local, before a hook PR)
 #   scripts/check.sh pr-body FILE        warns when a PR description is too long (CI on pull requests)
-#   scripts/check.sh commit-msg FILE     one commit message (the commit-msg hook)
-#   scripts/check.sh commits BASE..HEAD  every non-merge commit message in a range (CI on pull requests)
+#   scripts/check.sh commit-msg FILE     one commit message, plus its security-review trailer (the commit-msg hook)
+#   scripts/check.sh commits BASE..HEAD  every non-merge commit message and security-review trailer in a range (CI on PRs)
 #
 # A commit message has a typed subject of at most 72 characters ("feat: ...", "fix(check): ..."), then optionally a blank
 # line and a body of at most 5 lines. A final paragraph of trailers (Co-Authored-By: ...) doesn't count. Subjects git
 # writes itself (Revert "...", fixup!) pass.
+#
+# A commit touching the security-review scope (scripts/security-stamp.sh) needs the security-reviewer agent's stamp
+# matching the staged scope; the commit-msg hook then appends "Security-Review: <hash>". SECURITY_REVIEW_SKIP="<reason>"
+# lets it through and records "Security-Review-Skipped: <reason>" instead.
 #
 # Rules judge the staged blobs in the index, not the working tree, so they see exactly what would be committed.
 # Every step runs even after a failure, so one run shows every problem.
@@ -311,6 +315,69 @@ check_message() {
   [ "$lines" -le "$max_body_lines" ] || report "$label: body has $lines lines; the limit is $max_body_lines"
 }
 
+# The security review's stamp script answers for the repository in the current folder.
+stamp_script="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/security-stamp.sh"
+
+# in_scope [COMMIT]: exit 0 when the staged changes (or COMMIT) touch the security-review scope, 1 when they don't.
+in_scope() {
+  bash "$stamp_script" touches "$@"
+  case $? in
+    0) return 0 ;;
+    1) return 1 ;;
+    *) die "could not tell whether ${1:-the commit} touches the security-review scope" ;;
+  esac
+}
+
+# skipping: exit 0 when SECURITY_REVIEW_SKIP gives a reason (not just spaces).
+skipping() {
+  local reason="${SECURITY_REVIEW_SKIP:-}"
+  [ -n "${reason//[[:space:]]/}" ]
+}
+
+# review_gate: a staged change to the scope needs a stamp matching it, unless SECURITY_REVIEW_SKIP gives a reason.
+# Exit 0 when the commit may go ahead.
+review_gate() {
+  skipping && return 0
+  bash "$stamp_script" stamped
+  case $? in
+    0) return 0 ;;
+    1) report "security review: the staged hook or deploy code has no matching stamp. Run the security-reviewer agent \
+(it stamps when it finds nothing critical or important), or set SECURITY_REVIEW_SKIP=\"<reason>\" (maintainer only)"
+       return 1 ;;
+    *) die "could not check the security-review stamp" ;;
+  esac
+}
+
+# review_trailer FILE: on a commit touching the scope, replace any Security-Review trailers in the message FILE with the
+# one this commit earns.
+review_trailer() {
+  local file="$1" trailer
+  in_scope || return 0
+  review_gate || return 0
+  if skipping; then
+    trailer="Security-Review-Skipped: ${SECURITY_REVIEW_SKIP//[$'\r\n']/ }"
+  else
+    trailer="Security-Review: $(bash "$stamp_script" hash)" || die "could not hash the security-review scope"
+  fi
+  grep -viE '^Security-Review(-Skipped)?:' "$file" > "$tmp/message"
+  [ $? -le 1 ] || die "could not read $file"
+  git interpret-trailers --trailer "$trailer" < "$tmp/message" > "$file" || die "could not add the trailer to $file"
+}
+
+# check_review_trailer SHA: a commit touching the scope carries "Security-Review: <its scope hash>" or a
+# Security-Review-Skipped trailer with a reason.
+check_review_trailer() {
+  local sha="$1" want reviewed skipped
+  in_scope "$sha" || return 0
+  want="$(bash "$stamp_script" hash "$sha")" || die "could not hash the security-review scope of $sha"
+  reviewed="$(git log -1 --format='%(trailers:key=Security-Review,valueonly)' "$sha")" || die "could not read $sha"
+  skipped="$(git log -1 --format='%(trailers:key=Security-Review-Skipped,valueonly)' "$sha")" || die "could not read $sha"
+  grep -qxF "$want" <<<"$reviewed" && return 0
+  [ -n "${skipped//[[:space:]]/}" ] && return 0
+  report "commit $(git rev-parse --short "$sha"): touches the security-review scope without a Security-Review trailer \
+matching its content, or a Security-Review-Skipped one"
+}
+
 stage="${1:-}"
 # Stages with a budget from issue #1 print their duration on exit, and a warning when over budget (stage-timing.sh).
 started="$(date +%s)" timing_script="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/stage-timing.sh"
@@ -341,6 +408,7 @@ case "$stage" in
   rules | full) list_entries() { git ls-files -s -z; } ;;
   commit-msg)
     [ -f "${2:-}" ] || die "commit-msg stage needs the message file"
+    review_trailer "$2"
     check_message "commit message" < "$2"
     [ "$failures" -eq 0 ]
     exit ;;
@@ -350,6 +418,7 @@ case "$stage" in
     for sha in $shas; do
       git log -1 --format=%B "$sha" > "$tmp/message" || die "could not read commit $sha"
       check_message "commit $(git rev-parse --short "$sha")" < "$tmp/message"
+      check_review_trailer "$sha"
     done
     [ "$failures" -eq 0 ]
     exit ;;
@@ -554,6 +623,10 @@ if [ "$stage" = pre-commit ]; then
     else
       warn "hook signatures changed: set METAPHOR_GAME_EXE to check them against the game, or run: scripts/check.sh signatures EXE"
     fi
+  fi
+  if in_scope; then
+    review_gate && skipping &&
+      echo "security review: skipped (${SECURITY_REVIEW_SKIP}); the commit records the reason"
   fi
 fi
 

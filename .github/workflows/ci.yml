@@ -31,10 +31,10 @@ jobs:
           # The private list reaches pushes to this repository's main only, never a pull request, so a fork's code
           # can't read it, and a fork's own main isn't required to have it.
           PII_PATTERNS: >-
-            ${{ github.repository == 'Sour-Dev-Home/metaphor-refantazio' && github.event_name == 'push'
+            ${{ github.repository == 'Sour-Dev-Home/metaphor-accessibility' && github.event_name == 'push'
             && github.ref == 'refs/heads/main' && secrets.PII_PATTERNS || '' }}
           REQUIRE_PRIVATE_PATTERNS: >-
-            ${{ github.repository == 'Sour-Dev-Home/metaphor-refantazio' && github.event_name == 'push'
+            ${{ github.repository == 'Sour-Dev-Home/metaphor-accessibility' && github.event_name == 'push'
             && github.ref == 'refs/heads/main' && '1' || '' }}
         run: bash scripts/check.sh rules
       - name: Check the docs
@@ -51,8 +51,8 @@ jobs:
           printf '%s\n' "$PR_BODY" > "$RUNNER_TEMP/pr-body.md"
           bash scripts/check.sh pr-body "$RUNNER_TEMP/pr-body.md"
       # Dependabot's commit bodies carry release notes past the body limit; its PRs get the maintainer's message on
-      # the squash merge.
-      - name: Check the pull request's commit messages
+      # the squash merge. Each commit touching the security-review scope needs its Security-Review trailer (#71).
+      - name: Check the pull request's commit messages and review trailers
         if: github.event_name == 'pull_request' && github.event.pull_request.user.login != 'dependabot[bot]'
         env:
           BASE: ${{ github.event.pull_request.base.sha }}
