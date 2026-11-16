@@ -57,11 +57,92 @@ internal static unsafe class ModuleMemoryReader
 
     /// <summary>Copies <paramref name="buffer"/>.Length bytes from <paramref name="rva"/> past <paramref name="moduleBase"/>
     /// through <c>ReadProcessMemory</c>, which fails instead of faulting; false unless every byte arrived.</summary>
-    public static bool ReadAt(nint moduleBase, long rva, Span<byte> buffer)
+    public static bool ReadAt(nint moduleBase, long rva, Span<byte> buffer) => Copy(moduleBase + (nint)rva, buffer);
+
+    /// <summary>The main module's base address.</summary>
+    public static nint MainModuleBase()
+    {
+        using var process = Process.GetCurrentProcess();
+        return process.MainModule?.BaseAddress ?? throw new InvalidOperationException("the game process has no main module");
+    }
+
+    // The readers below are for hooks reading through pointers the game hands them. They all copy through
+    // ReadProcessMemory, because .NET can't catch the access violation a bad pointer would cause: a failed copy gives
+    // null instead.
+
+    /// <summary>Reads one pointer-sized value at <paramref name="address"/>, or null when it can't be read.</summary>
+    public static nint? ReadPointer(nint address)
+    {
+        nint value = 0;
+        return ReadProcessMemory(CurrentProcess, address, (byte*)&value, (nuint)sizeof(nint), out var read) &&
+            read == (nuint)sizeof(nint)
+            ? value
+            : null;
+    }
+
+    /// <summary>Reads one 32-bit value at <paramref name="address"/>, or null when it can't be read.</summary>
+    public static int? ReadInt32(nint address)
+    {
+        var value = 0;
+        return ReadProcessMemory(CurrentProcess, address, (byte*)&value, sizeof(int), out var read) && read == sizeof(int)
+            ? value
+            : null;
+    }
+
+    /// <summary>Reads a NUL-terminated ANSI string at <paramref name="address"/>, up to <paramref name="maxBytes"/>,
+    /// in small pieces so a string near the end of readable memory still reads; null when its start can't be read.</summary>
+    public static string? ReadAnsiString(nint address, int maxBytes = 512)
+    {
+        const int Piece = 32;
+        var bytes = new byte[maxBytes];
+        var length = 0;
+        while (length < maxBytes)
+        {
+            var piece = bytes.AsSpan(length, Math.Min(Piece, maxBytes - length));
+            if (!Copy(address + length, piece))
+            {
+                // The next piece crosses into unreadable memory; finish byte by byte up to the terminator.
+                piece = bytes.AsSpan(length, 1);
+                if (!Copy(address + length, piece))
+                {
+                    return length == 0 ? null : System.Text.Encoding.Latin1.GetString(bytes, 0, length);
+                }
+            }
+            var end = piece.IndexOf((byte)0);
+            if (end >= 0)
+            {
+                length += end;
+                break;
+            }
+            length += piece.Length;
+        }
+        return System.Text.Encoding.Latin1.GetString(bytes, 0, length);
+    }
+
+    /// <summary>Reads <paramref name="length"/> bytes at <paramref name="address"/> as UTF-8, or null when the length
+    /// is negative or over <paramref name="maxBytes"/>, or the bytes can't all be read.</summary>
+    public static string? ReadUtf8(nint address, int length, int maxBytes = 16 << 20)
+    {
+        if (length < 0 || length > maxBytes)
+        {
+            return null;
+        }
+        var bytes = new byte[length];
+        for (var offset = 0; offset < length; offset += ChunkBytes)
+        {
+            if (!Copy(address + offset, bytes.AsSpan(offset, Math.Min(ChunkBytes, length - offset))))
+            {
+                return null;
+            }
+        }
+        return System.Text.Encoding.UTF8.GetString(bytes);
+    }
+
+    private static bool Copy(nint address, Span<byte> buffer)
     {
         fixed (byte* target = buffer)
         {
-            return ReadProcessMemory(CurrentProcess, moduleBase + (nint)rva, target, (nuint)buffer.Length, out var read) &&
+            return ReadProcessMemory(CurrentProcess, address, target, (nuint)buffer.Length, out var read) &&
                 read == (nuint)buffer.Length;
         }
     }

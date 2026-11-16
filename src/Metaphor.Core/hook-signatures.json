@@ -1,1 +1,38 @@
-[]
+[
+  {
+    "name": "CompileMsgFile",
+    "pattern": "48 89 5C 24 ?? 48 89 4C 24 ?? 55 56 57 41 54 41 55 41 56 41 57 48 8D 6C 24 ?? 48 81 EC E0 00 00 00 45 8B E1",
+    "gameBuilds": ["548ddc955c176867f062c44f94c03dd9ac33caefb278a5ac388e792aedf09504"],
+    "evidence": "MF.Toolkit MessageService.cs at b1f876da (docs/raw-sources/game-text-hooks-community-2026-11-15.md); one match, same place on disk and in memory, on this build (docs/raw-sources/mf-toolkit-message-signatures-2026-11-15.md)"
+  },
+  {
+    "name": "GetMessageByLabelIndex",
+    "pattern": "48 89 5C 24 ?? 48 89 74 24 ?? 48 89 7C 24 ?? 55 41 56 41 57 48 8B EC 48 81 EC 80 00 00 00 49 8B F1",
+    "gameBuilds": ["548ddc955c176867f062c44f94c03dd9ac33caefb278a5ac388e792aedf09504"],
+    "evidence": "MF.Toolkit MessageService.cs at b1f876da (docs/raw-sources/game-text-hooks-community-2026-11-15.md); one match, same place on disk and in memory, on this build (docs/raw-sources/mf-toolkit-message-signatures-2026-11-15.md)"
+  },
+  {
+    "name": "sq_newclosure",
+    "pattern": "48 89 5C 24 ?? 48 89 6C 24 ?? 48 89 74 24 ?? 57 48 83 EC 30 49 8B F8 48 8B F1",
+    "gameBuilds": ["548ddc955c176867f062c44f94c03dd9ac33caefb278a5ac388e792aedf09504"],
+    "evidence": "MF.Toolkit SquirrelPatterns.cs at b1f876da; one match on disk on this build (docs/raw-sources/mf-toolkit-squirrel-registration-2026-11-16.md)"
+  },
+  {
+    "name": "sq_gettop",
+    "pattern": "48 8B 41 48 48 2B 41 50 C3",
+    "gameBuilds": ["548ddc955c176867f062c44f94c03dd9ac33caefb278a5ac388e792aedf09504"],
+    "evidence": "MF.Toolkit SquirrelPatterns.cs at b1f876da; one match on disk on this build (docs/raw-sources/mf-toolkit-squirrel-registration-2026-11-16.md)"
+  },
+  {
+    "name": "sq_getstring",
+    "pattern": "48 89 5C 24 ?? 48 89 74 24 ?? 57 48 83 EC 20 4C 89 C3 48 89 CF",
+    "gameBuilds": ["548ddc955c176867f062c44f94c03dd9ac33caefb278a5ac388e792aedf09504"],
+    "evidence": "MF.Toolkit SquirrelPatterns.cs at b1f876da; one match on disk on this build (docs/raw-sources/mf-toolkit-squirrel-registration-2026-11-16.md)"
+  },
+  {
+    "name": "sq_getuserdata",
+    "pattern": "48 89 5C 24 ?? 48 89 74 24 ?? 57 48 83 EC 20 49 8B D9 49 8B F8 48 8B F1",
+    "gameBuilds": ["548ddc955c176867f062c44f94c03dd9ac33caefb278a5ac388e792aedf09504"],
+    "evidence": "MF.Toolkit SquirrelPatterns.cs at b1f876da; one match on disk on this build (docs/raw-sources/mf-toolkit-squirrel-registration-2026-11-16.md)"
+  }
+]

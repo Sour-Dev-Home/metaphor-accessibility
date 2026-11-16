@@ -28,6 +28,26 @@ public sealed class ModEntryPoint : IMod
         return announcer;
     }
 
+#if DEBUG
+    /// <summary>#55's message log, fresh each run, readable while the game writes it. Null when it can't be opened.</summary>
+    [SuppressMessage("Design", "CA1031", Justification = "A spike log must never stop the mod.")]
+    [SuppressMessage("Reliability", "CA2000", Justification = "Lives as long as the game process.")]
+    private static MessageLog? OpenMessageLog(string folder)
+    {
+        try
+        {
+            var stream = new FileStream(
+                Path.Combine(folder, MessageLog.FileName), FileMode.Create, FileAccess.Write, FileShare.Read);
+            var started = System.Diagnostics.Process.GetCurrentProcess().StartTime;
+            return new MessageLog(new StreamWriter(stream), () => (long)(DateTime.Now - started).TotalMilliseconds);
+        }
+        catch (Exception)
+        {
+            return null;
+        }
+    }
+#endif
+
     public Action Disposing => () => { };
 
     [SuppressMessage("Design", "CA1031", Justification = "An exception here would reach the game through the loader.")]
@@ -42,6 +62,9 @@ public sealed class ModEntryPoint : IMod
             var logger = (ILogger)modLoader.GetLogger();
             // Speech first, so a hook that fires at once already has a voice.
             Announcer = StartSpeech(folder, config.ModId, logger);
+#if DEBUG
+            MessageListening.Log = OpenMessageLog(folder);
+#endif
             // The mod runs inside the game, so this process's exe is the game executable whose hash identifies the
             // build (seen in docs/raw-sources/mod-entry-point-first-run-2026-11-15.md). Hooks go in only on a known
             // build, through the loader (#39).

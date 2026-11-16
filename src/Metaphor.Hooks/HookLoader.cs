@@ -13,9 +13,13 @@ internal interface IGameHook
     /// <summary>The name of its signature in <c>hook-signatures.json</c>.</summary>
     string SignatureName { get; }
 
+    /// <summary>The signatures of game functions it calls, by name. None for most hooks.</summary>
+    IReadOnlyList<string> Calls => [];
+
     /// <summary>Hooks the function at <paramref name="address"/>. Called at most once, only when the running game
-    /// build is one the hook's <c>[GameHook]</c> names and its signature matched exactly once.</summary>
-    void Install(IReloadedHooks hooks, nint address);
+    /// build is one the hook's <c>[GameHook]</c> names, and its signature and each of <see cref="Calls"/> matched
+    /// exactly once; <paramref name="calls"/> has the address of each of those.</summary>
+    void Install(IReloadedHooks hooks, nint address, IReadOnlyDictionary<string, nint> calls);
 }
 
 /// <summary>The only way a hook goes into the game (#39, ground rule 2). <see cref="HookPlanner"/> decides from the
@@ -24,9 +28,21 @@ internal interface IGameHook
 /// any other way.</summary>
 internal static class HookLoader
 {
-    /// <summary>Every <c>[GameHook]</c> type in the mod, whether or not it can be created.</summary>
+    /// <summary>Every hook handed to the game, kept alive until the process ends. Only the loader's thread adds to it.</summary>
+    private static readonly List<IGameHook> Installed = [];
+
+    private static bool IsDevBuild =>
+#if DEBUG
+        true;
+#else
+        false;
+#endif
+
+    /// <summary>Every <c>[GameHook]</c> type this build installs, whether or not it can be created: development-only
+    /// hooks are left out of Release builds, which players get.</summary>
     public static IReadOnlyList<Type> HookTypes() =>
-        [.. LoadableTypes().Where(type => type.IsDefined(typeof(GameHookAttribute), inherit: false))];
+        [.. LoadableTypes().Where(type =>
+            type.GetCustomAttribute<GameHookAttribute>(inherit: false) is { } hook && (IsDevBuild || !hook.DevOnly))];
 
     /// <summary>Installs the hooks approved for <paramref name="runningBuild"/> and returns how many went in. Writes
     /// one line per hook to <paramref name="log"/>.</summary>
@@ -63,7 +79,7 @@ internal static class HookLoader
                 Log($"hook {type.Name} skipped: it isn't an IGameHook");
                 continue;
             }
-            hooks.Add((new HookSpec(type.Name, builds, hook.SignatureName), hook));
+            hooks.Add((new HookSpec(type.Name, builds, hook.SignatureName, hook.Calls), hook));
         }
 
         var (moduleBase, regions) = hooks.Any(h => h.Hook is not null) ? ModuleMemoryReader.MainModuleRegions() : (0, []);
@@ -84,9 +100,16 @@ internal static class HookLoader
                 // As the template gets it (docs/raw-sources/reloaded-ii-shared-hooks-library-2026-11-15.md).
                 throw new InvalidOperationException("Reloaded-II gave no IReloadedHooks controller (reloaded.sharedlib.hooks)");
             }
+            // Referenced for the life of the game, before it goes live: the game calls back into the hook's managed
+            // delegate, and a collected delegate makes .NET fail-fast the whole process (seen on the first in-game
+            // run of #55's listening hooks: APPCRASH in coreclr.dll, 0x80131623, seconds after loading). Kept even if
+            // installing fails, since it may have gone live before failing.
+            Installed.Add(hook);
             try
             {
-                hook.Install(reloadedHooks!, moduleBase + (nint)decision.Rva!.Value);
+                hook.Install(
+                    reloadedHooks!, moduleBase + (nint)decision.Rva!.Value,
+                    decision.Calls.ToDictionary(call => call.Key, call => moduleBase + (nint)call.Value));
             }
             catch (Exception e)
             {

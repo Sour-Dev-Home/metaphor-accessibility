@@ -73,6 +73,50 @@ public sealed class HookPlannerTests
     }
 
     [Fact]
+    public void GivesAHookTheAddressesOfTheGameFunctionsItCalls()
+    {
+        var getTop = new HookSignature("sq_gettop", "48 8B 41 48", [Build], "e");
+        var hook = new HookSpec("registrations", [Build], "show-line", ["sq_gettop"]);
+        IReadOnlyList<HookSignature>? asked = null;
+
+        var decision = Assert.Single(HookPlanner.Plan(Build, [hook], [ShowLine, getTop], wanted =>
+        {
+            asked = wanted;
+            return new(new Dictionary<string, IReadOnlyList<long>> { ["show-line"] = [0x10], ["sq_gettop"] = [0x20] }, true);
+        }));
+
+        Assert.True(decision.Install);
+        Assert.Equal(0x10, decision.Rva);
+        Assert.Equal(0x20, decision.Calls["sq_gettop"]);
+        Assert.Equal([ShowLine, getTop], asked);
+    }
+
+    [Theory]
+    [InlineData(new long[0], "signature sq_gettop matched nowhere")]
+    [InlineData(new long[] { 1, 2, 3 }, "signature sq_gettop matched 3 times")]
+    public void RefusesAHookWhenAFunctionItCallsIsNotFoundExactlyOnce(long[] rvas, string whyNot)
+    {
+        var getTop = new HookSignature("sq_gettop", "48 8B 41 48", [Build], "e");
+        var hook = new HookSpec("registrations", [Build], "show-line", ["sq_gettop"]);
+
+        var decision = Assert.Single(HookPlanner.Plan(Build, [hook], [ShowLine, getTop], _ =>
+            new(new Dictionary<string, IReadOnlyList<long>> { ["show-line"] = [0x10], ["sq_gettop"] = rvas }, true)));
+
+        Assert.False(decision.Install);
+        Assert.Equal(whyNot, decision.WhyNot);
+    }
+
+    [Fact]
+    public void RefusesAHookThatCallsASignatureMissingFromTheFile()
+    {
+        var hook = new HookSpec("registrations", [Build], "show-line", ["sq_gettop"]);
+
+        var decision = Assert.Single(HookPlanner.Plan(Build, [hook], [ShowLine], Found(("show-line", [0x10]))));
+
+        Assert.Equal("no signature sq_gettop in hook-signatures.json", decision.WhyNot);
+    }
+
+    [Fact]
     public void RefusesEveryHookWhenTheScanCouldNotReadEverything()
     {
         // A copy of the signature may sit in the part that couldn't be read, so one match isn't proof of one.
