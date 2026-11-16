@@ -15,6 +15,25 @@
   <ItemGroup>
     <!-- What Reloaded-II reads to load the mod. Its ModDll must name this project's assembly. -->
     <Content Include="ModConfig.json" CopyToOutputDirectory="Always" />
+    <!-- The pinned Prism release (ADR 0005): scripts/fetch-prism.ps1 fetches by it, and the mod checks prism.dll by it. -->
+    <EmbeddedResource Include="prism.json" LogicalName="Metaphor.Hooks.prism.json" />
   </ItemGroup>
+
+  <!-- Every publish (the package, deploy-dev) fetches the pinned prism.dll and its licences and ships them; plain builds
+       and tests don't download anything. -->
+  <Target Name="FetchPrism" AfterTargets="ComputeResolvedFilesToPublishList">
+    <Exec Command="pwsh -NoProfile -NonInteractive -File &quot;$(MSBuildThisFileDirectory)../../scripts/fetch-prism.ps1&quot;" />
+    <PropertyGroup>
+      <PrismFolder>$(MSBuildThisFileDirectory)../../artifacts/native/prism/</PrismFolder>
+    </PropertyGroup>
+    <ItemGroup>
+      <PrismLicense Include="$(PrismFolder)LICENSES/**/*" />
+      <ResolvedFileToPublish Include="$(PrismFolder)prism.dll" RelativePath="prism.dll"
+                             CopyToPublishDirectory="PreserveNewest" />
+      <ResolvedFileToPublish Include="@(PrismLicense)"
+                             RelativePath="licenses/prism/%(PrismLicense.RecursiveDir)%(PrismLicense.Filename)%(PrismLicense.Extension)"
+                             CopyToPublishDirectory="PreserveNewest" />
+    </ItemGroup>
+  </Target>
 
 </Project>

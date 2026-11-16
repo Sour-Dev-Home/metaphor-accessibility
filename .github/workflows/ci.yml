@@ -77,8 +77,11 @@ jobs:
       - name: Check, build, test and verify formatting
         run: bash scripts/check.sh full
       # Build once: package the Release build that the step above built and tested.
+      # Publishing fetches the pinned prism.dll (ADR 0005, scripts/fetch-prism.ps1); both checkouts share one download.
       - name: Package the tested build
         id: package
+        env:
+          PRISM_CACHE: ${{ runner.temp }}/prism-cache
         run: |
           sha="$(bash scripts/package-mod.sh --no-build artifacts/mod)"
           if ! grep -aq "+$GITHUB_SHA" artifacts/mod/Metaphor.Hooks.dll ||
@@ -93,6 +96,7 @@ jobs:
       - name: Rebuild in a second checkout and compare
         env:
           FIRST_SHA: ${{ steps.package.outputs.sha }}
+          PRISM_CACHE: ${{ runner.temp }}/prism-cache
         run: |
           git worktree add --detach "$RUNNER_TEMP/rebuild" HEAD
           second="$(bash "$RUNNER_TEMP/rebuild/scripts/package-mod.sh" "$RUNNER_TEMP/rebuild-out")"

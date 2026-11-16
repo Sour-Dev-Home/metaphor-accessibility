@@ -21,8 +21,24 @@ internal static class Rules
     /// <summary>Assemblies allowed to use networking, each with the ADR that approved it. None so far.</summary>
     private static readonly Dictionary<string, string> NetworkingExceptions = [];
 
-    /// <summary>Assemblies allowed to load native libraries themselves, each with the ADR that approved it. None so far.</summary>
-    private static readonly Dictionary<string, string> NativeLoadingExceptions = [];
+    /// <summary>Assemblies allowed to load native libraries themselves, each with the ADR that approved it.</summary>
+    private static readonly Dictionary<string, string> NativeLoadingExceptions = new()
+    {
+        // prism.dll, by full path from the mod's folder after its SHA-256 is checked.
+        [HookLayer] = "ADR 0005",
+    };
+
+    /// <summary>Prism exports that let Prism choose or probe backends itself (ADR 0005).</summary>
+    private static readonly string[] PrismOwnChoiceExports =
+        ["prism_registry_create_best", "prism_registry_acquire_best", "prism_availability"];
+
+    /// <summary>Prism backends that load a DLL by bare name, by their IDs in prism.h v0.18.3 (ADR 0005).</summary>
+    private static readonly Dictionary<long, string> BareNamePrismBackends = new()
+    {
+        [unchecked((long)0x3D93C56C9E7F2A2EUL)] = "ZDSR",
+        [unchecked((long)0x344B951962E3B835UL)] = "PC-Talker",
+        [unchecked((long)0x285ABA1C16F3300FUL)] = "Boy PC Reader",
+    };
 
     /// <summary>APIs that read or write memory by address, bypassing the runtime's checks.</summary>
     private static readonly HashSet<string> RawMemoryTypes =
@@ -190,6 +206,27 @@ internal static class Rules
                 == "System.Runtime.InteropServices.DefaultDllImportSearchPathsAttribute")
             .Select(attribute => (int?)Convert.ToInt32(attribute.ConstructorArguments[0].Value, CultureInfo.InvariantCulture))
             .FirstOrDefault();
+
+    /// <summary>
+    /// No assembly names Prism's own backend choice or availability poll, or a backend that loads a DLL by bare name, so
+    /// the mod only ever creates backends from its fixed list (ADR 0005).
+    /// </summary>
+    public static IReadOnlyList<string> PrismBackendsOnlyFromTheList(AssemblyDefinition assembly)
+    {
+        var name = assembly.Name.Name;
+        return [.. Methods(assembly)
+            .Where(method => method.HasBody)
+            .SelectMany(method => method.Body.Instructions.Select(instruction => (method, instruction.Operand)))
+            .Select(use => use.Operand switch
+            {
+                string text when PrismOwnChoiceExports.Any(export => text.StartsWith(export, StringComparison.Ordinal)) =>
+                    $"{name} names Prism's {text} in {use.method.FullName}",
+                long id when BareNamePrismBackends.TryGetValue(id, out var reader) =>
+                    $"{name} names Prism's {reader} backend in {use.method.FullName}",
+                _ => null,
+            })
+            .OfType<string>()];
+    }
 
     private static IEnumerable<TypeDefinition> Types(AssemblyDefinition assembly) =>
         assembly.Modules.SelectMany(module => module.GetTypes());

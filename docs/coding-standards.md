@@ -25,12 +25,16 @@ each rule on every assembly built from `src/`. Each test plants a violation to p
 4. **Native libraries load safely.** Each native call restricts its DLL search to exactly System32
    (`[DefaultDllImportSearchPaths(DllImportSearchPath.System32)]`, on the method or the assembly). Loading a library
    any other way (`NativeLibrary.Load`, a DLL import resolver, `LoadLibrary`) needs an ADR-approved exception that loads
-   it by full path. The exception doesn't lift the System32 rule.
+   it by full path. The exception doesn't lift the System32 rule. The one exception so far: the hook layer loads
+   `prism.dll` (ADR 0005).
 5. **Features are independent.** Each feature is its own project named `Metaphor.Features.<Name>`. It may depend on
    interfaces in `Metaphor.Core` but never on another feature.
 6. **Hooks name known builds.** Each hook is a class marked `[GameHook(...)]` that names the game builds it was checked
    on, each listed in `src/Metaphor.Core/known-game-builds.json`. This records which builds a hook supports; checking
    the running build before patching ([ground rule 2](../AGENTS.md#ground-rules)) is the hook loader's job.
    [Adding a build](contributors/how-to/add-a-game-build.md) is a one-file change.
+7. **Prism backends come from the fixed list.** No assembly names Prism's own backend choice
+   (`prism_registry_create_best`, `acquire_best`), its availability poll, or the ZDSR, PC-Talker and Boy PC Reader
+   backends, which load a DLL by bare name (ADR 0005).
 
 A new project under `src/` must be added to the architecture test project, and a test fails until it is.

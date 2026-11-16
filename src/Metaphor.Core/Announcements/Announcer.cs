@@ -13,6 +13,15 @@ public interface IAnnouncer
     void Announce(Announcement announcement);
 }
 
+/// <summary>An announcer that says nothing: what features speak through when no speech backend could start, so they
+/// never need to check.</summary>
+public sealed class SilentAnnouncer : IAnnouncer
+{
+    public void Announce(Announcement announcement)
+    {
+    }
+}
+
 /// <summary>An announcer that only remembers what it was asked to say, in order: for tests.</summary>
 public sealed class RecordingAnnouncer : IAnnouncer
 {
