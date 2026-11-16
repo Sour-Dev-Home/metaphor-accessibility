@@ -1,6 +1,7 @@
 using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
 using System.Text;
+using Metaphor.Core.Messages;
 
 namespace Metaphor.Core;
 
@@ -9,17 +10,21 @@ namespace Metaphor.Core;
 /// screen. Debug builds only; it holds game text, so it stays in the local mod folder and is never committed. Safe to
 /// call from any game thread, and never throws.</summary>
 public sealed class MessageLog(TextWriter writer, Func<long> millisecondsSinceStart)
+    : IMessageFileObserver, ILineRequestObserver
 {
     /// <summary>The log's file name in the mod's folder.</summary>
     public const string FileName = "message-log.txt";
 
+    /// <summary>The function a <see cref="LineRequested"/> came from, as its record names it (#86).</summary>
+    private const string LineRequestFunction = "MsgRequestByName";
+
     private readonly object gate = new();
 
     /// <summary>A message file the game compiled: the number it gave it, its path, and its source text.</summary>
-    public void Compiled(long id, string path, string source) => Write(() =>
+    public void Observe(MessageFileCompiled file) => Write(() =>
     {
-        source ??= "";
-        var record = new StringBuilder(Line($"{millisecondsSinceStart()} ms compile id={id} path={path} chars={source.Length}"));
+        var source = file.Source ?? "";
+        var record = new StringBuilder(Line($"{millisecondsSinceStart()} ms compile id={file.Id} path={file.Path} chars={source.Length}"));
         foreach (var line in source.ReplaceLineEndings("\n").Split('\n'))
         {
             record.Append("  | ").Append(line).AppendLine();
@@ -41,6 +46,10 @@ public sealed class MessageLog(TextWriter writer, Func<long> millisecondsSinceSt
     /// listening hook formatted it.</summary>
     public void Requested(string function, string arguments) =>
         Write(() => Line($"{millisecondsSinceStart()} ms request via={function} {arguments}"));
+
+    /// <summary>A line the game asked for by label, with its kind.</summary>
+    public void Observe(LineRequested line) => Write(() =>
+        Line($"{millisecondsSinceStart()} ms request via={LineRequestFunction} kind={line.Kind} text=\"{LogText.Escaped(line.Label)}\""));
 
     private static string Line(FormattableString text) =>
         text.ToString(CultureInfo.InvariantCulture) + Environment.NewLine;

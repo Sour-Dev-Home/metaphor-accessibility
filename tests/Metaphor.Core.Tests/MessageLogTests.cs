@@ -1,3 +1,5 @@
+using Metaphor.Core.Messages;
+
 namespace Metaphor.Core.Tests;
 
 /// <summary>The #55 spike's message log: what the listening hooks saw, in order, for reading after a play session.
@@ -16,7 +18,7 @@ public sealed class MessageLogTests
     {
         var (log, text) = NewLog();
 
-        log.Compiled(id: 7, path: "event/e100.msg", source: "@line_1\n<NS>Ada<NE>The bridge is out.");
+        log.Observe(new MessageFileCompiled(Path: "event/e100.msg", Id: 7, Source: "@line_1\n<NS>Ada<NE>The bridge is out."));
 
         Assert.Equal(
             """
@@ -64,11 +66,34 @@ public sealed class MessageLogTests
     }
 
     [Fact]
+    public void RecordsALineTheGameRequestedByName()
+    {
+        var (log, text) = NewLog(now: 4200);
+
+        log.Observe(new LineRequested(Kind: 0, Label: "MES_a"));
+
+        Assert.Equal(
+            $"4200 ms request via=MsgRequestByName kind=0 text=\"MES_a\"{Environment.NewLine}", text.ToString());
+    }
+
+    [Fact]
+    public void ARequestedLabelStaysOnOneLine()
+    {
+        var (log, text) = NewLog(now: 1);
+
+        log.Observe(new LineRequested(2, "a\"b\\c\nd"));
+
+        Assert.Equal(
+            $"1 ms request via=MsgRequestByName kind=2 text=\"a\\x22b\\x5cc\\x0ad\"{Environment.NewLine}", text.ToString());
+    }
+
+    [Fact]
     public void NeverThrowsEvenOnValuesItCannotRecord()
     {
         var (log, text) = NewLog();
 
-        log.Compiled(1, null!, null!);
+        log.Observe(new MessageFileCompiled(null!, 1, null!));
+        log.Observe((LineRequested)null!);
         log.Registered(null!, 0, viaUserdata: false);
 
         Assert.Contains(" compile id=1 ", text.ToString(), StringComparison.Ordinal);
@@ -79,7 +104,7 @@ public sealed class MessageLogTests
     {
         var log = new MessageLog(new FailingWriter(), () => 0);
 
-        log.Compiled(1, "a.msg", "x");
+        log.Observe(new MessageFileCompiled("a.msg", 1, "x"));
         log.LookedUp(1, 0);
     }
 
@@ -88,7 +113,7 @@ public sealed class MessageLogTests
     {
         var (log, text) = NewLog();
 
-        Parallel.For(0, 200, i => log.Compiled(i, "f.msg", "one\ntwo"));
+        Parallel.For(0, 200, i => log.Observe(new MessageFileCompiled("f.msg", i, "one\ntwo")));
 
         var lines = text.ToString().Split(Environment.NewLine, StringSplitOptions.RemoveEmptyEntries);
         Assert.Equal(600, lines.Length);

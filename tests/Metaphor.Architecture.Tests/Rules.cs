@@ -584,6 +584,72 @@ internal static class Rules
             !type.FullName.Contains('<', StringComparison.Ordinal) &&
             !field.Name.Contains('<', StringComparison.Ordinal));
 
+    /// <summary>The record every hook's constructor takes.</summary>
+    public const string HookServices = "Metaphor.Hooks.HookServices";
+
+    /// <summary>
+    /// #85, rule 12: hooks get their dependencies through the constructor. In the hook layer, no static field is
+    /// writable after startup (each is <c>readonly</c> or <c>const</c>) and no static property has a setter, so there
+    /// is no "set this before hooks install" to get wrong; and every <c>[GameHook]</c> type has a public constructor
+    /// taking only <c>HookServices</c>, which the loader calls. Compiler-made types (lambda caches) are skipped.
+    /// </summary>
+    public static IReadOnlyList<string> HooksGetDependenciesThroughConstructor(AssemblyDefinition assembly)
+    {
+        if (!IsHookLayer(assembly))
+        {
+            return [];
+        }
+        var name = assembly.Name.Name;
+        var types = Types(assembly).Where(type => !type.FullName.Contains('<', StringComparison.Ordinal)).ToList();
+        var fields = types.SelectMany(type => type.Fields
+            .Where(field => field.IsStatic && !field.IsInitOnly && !field.IsLiteral)
+            .Select(field => $"{name} type {type.FullName} has mutable static field {field.Name} (rule 12)"));
+        var setters = types.SelectMany(type => type.Properties
+            .Where(property => property.SetMethod is { IsStatic: true })
+            .Select(property => $"{name} type {type.FullName} has static setter {property.Name} (rule 12)"));
+        var constructors = types
+            .Where(type => type.CustomAttributes.Any(attribute => attribute.AttributeType.FullName == GameHookAttribute))
+            .Where(type => !type.Methods.Any(method => method.IsConstructor && !method.IsStatic && method.IsPublic &&
+                method.Parameters is [{ ParameterType.FullName: HookServices }]))
+            .Select(type => $"{name} hook {type.FullName} has no public constructor taking only {HookServices} (rule 12)");
+        return [.. fields, .. setters, .. constructors];
+    }
+
+    /// <summary>
+    /// #86, rule 13: one hook per game function. No two <c>[GameHook]</c> types return the same
+    /// <c>SignatureName</c>, read from the constant string its getter returns; a getter that returns anything but a
+    /// constant can't be checked, so it is a violation too.
+    /// </summary>
+    public static IReadOnlyList<string> OneHookPerFunction(AssemblyDefinition assembly)
+    {
+        var name = assembly.Name.Name;
+        var hooks = Types(assembly)
+            .Where(type => type.CustomAttributes.Any(attribute => attribute.AttributeType.FullName == GameHookAttribute))
+            .Select(type => (Type: type.FullName, Signature: ConstantSignatureName(type)))
+            .ToList();
+        var notConstant = hooks
+            .Where(hook => hook.Signature is null)
+            .Select(hook => $"{name} hook {hook.Type} has no constant SignatureName (rule 13)");
+        var shared = hooks
+            .Where(hook => hook.Signature is not null)
+            .GroupBy(hook => hook.Signature, StringComparer.Ordinal)
+            .Where(group => group.Count() > 1)
+            .Select(group => $"{name} hooks {string.Join(", ", group.Select(hook => hook.Type).Order(StringComparer.Ordinal))} all hook {group.Key} (rule 13)");
+        return [.. notConstant, .. shared];
+    }
+
+    /// <summary>The string a hook's <c>SignatureName</c> getter returns, when its body is just <c>ldstr; ret</c>.</summary>
+    private static string? ConstantSignatureName(TypeDefinition type)
+    {
+        var getter = type.Properties.FirstOrDefault(property => property.Name == "SignatureName")?.GetMethod;
+        var code = getter is { HasBody: true }
+            ? getter.Body.Instructions.Where(i => i.OpCode.Code != Mono.Cecil.Cil.Code.Nop).ToList()
+            : [];
+        return code is [{ OpCode.Code: Mono.Cecil.Cil.Code.Ldstr, Operand: string value }, { OpCode.Code: Mono.Cecil.Cil.Code.Ret }]
+            ? value
+            : null;
+    }
+
     private static IEnumerable<TypeDefinition> Types(AssemblyDefinition assembly) =>
         assembly.Modules.SelectMany(module => module.GetTypes());
 

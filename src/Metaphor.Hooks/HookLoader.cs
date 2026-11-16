@@ -7,7 +7,8 @@ using Reloaded.Mod.Interfaces;
 namespace Metaphor.Hooks;
 
 /// <summary>What every hook is: a <c>[GameHook]</c> class that names its signature and installs itself at the address
-/// the loader found (#39). It needs a public parameterless constructor.</summary>
+/// the loader found (#39). It needs a public constructor taking only <see cref="HookServices"/>, which is how it gets
+/// everything it uses (architecture rule 12).</summary>
 internal interface IGameHook
 {
     /// <summary>The name of its signature in <c>hook-signatures.json</c>.</summary>
@@ -44,13 +45,14 @@ internal static class HookLoader
         [.. LoadableTypes().Where(type =>
             type.GetCustomAttribute<GameHookAttribute>(inherit: false) is { } hook && (IsDevBuild || !hook.DevOnly))];
 
-    /// <summary>Installs the hooks approved for <paramref name="runningBuild"/> and returns how many went in. Writes
-    /// one line per hook to <paramref name="log"/>.</summary>
+    /// <summary>Installs the hooks approved for <paramref name="runningBuild"/> and returns how many went in. Each hook
+    /// is created with <paramref name="services"/>. Writes one line per hook to <paramref name="log"/>.</summary>
     /// <exception cref="InvalidOperationException">A hook should go in, but Reloaded-II gave no hooks controller.</exception>
     [SuppressMessage("Design", "CA1031", Justification = "One hook failing must not stop the others or reach the game.")]
-    public static int Install(string runningBuild, IModLoader loader, Action<string> log)
+    public static int Install(string runningBuild, IModLoader loader, HookServices services, Action<string> log)
     {
         ArgumentNullException.ThrowIfNull(loader);
+        ArgumentNullException.ThrowIfNull(services);
         ArgumentNullException.ThrowIfNull(log);
         // A logging failure must not make the count, or the status, disagree with what's in the game.
         void Log(string line)
@@ -74,7 +76,12 @@ internal static class HookLoader
                 hooks.Add((new HookSpec(type.Name, builds, ""), null));
                 continue;
             }
-            if (Activator.CreateInstance(type) is not IGameHook hook)
+            if (type.GetConstructor([typeof(HookServices)]) is null)
+            {
+                Log($"hook {type.Name} skipped: it has no public constructor taking HookServices");
+                continue;
+            }
+            if (Activator.CreateInstance(type, services) is not IGameHook hook)
             {
                 Log($"hook {type.Name} skipped: it isn't an IGameHook");
                 continue;

@@ -37,6 +37,16 @@ public sealed class MessageLibraryTests
     }
 
     [Fact]
+    public void ObservingACompiledFileAddsItsMessages()
+    {
+        var library = new MessageLibrary();
+
+        library.Observe(new MessageFileCompiled("event/test.msg", 3, Scene));
+
+        Assert.Equal(new GameMessage("MES_test_000_01", null, "The wind picks up."), library.Find("MES_test_000_01"));
+    }
+
+    [Fact]
     public void AMessageWithoutANameHasNoSpeaker()
     {
         var library = new MessageLibrary();

@@ -48,5 +48,13 @@ each rule on every assembly built from `src/`. Each test plants a violation to p
     pointer from the game causes; the reader fails instead.
 11. **A hook is stored before it is activated.** `Activate` is called only through the field that holds the hook. The
     game can call the hook at once, and an unreferenced hook can be collected while the game still calls it.
+12. **Hooks get their dependencies through the constructor.** Every `[GameHook]` type has a public constructor taking
+    `HookServices`, which the loader calls. The hook layer keeps no mutable static state: static fields are `readonly`
+    or `const`, and no static property has a setter, so no rule like "set this before hooks install" is left to
+    comments. A `readonly` static may still hold a mutable object, so the only such static allowed is the loader's list
+    of installed hooks, which keeps them alive.
+13. **One hook per game function.** No two `[GameHook]` types return the same `SignatureName`, which each returns as
+    a constant. A hook decodes each call once and hands the event to observers (`MessageEvents`), so two consumers of
+    one function never decode it twice or depend on install order.
 
 A new project under `src/` must be added to the architecture test project, and a test fails until it is.
