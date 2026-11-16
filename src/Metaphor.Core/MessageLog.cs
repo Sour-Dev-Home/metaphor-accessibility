@@ -10,7 +10,7 @@ namespace Metaphor.Core;
 /// screen. Debug builds only; it holds game text, so it stays in the local mod folder and is never committed. Safe to
 /// call from any game thread, and never throws.</summary>
 public sealed class MessageLog(TextWriter writer, Func<long> millisecondsSinceStart)
-    : IMessageFileObserver, ILineRequestObserver
+    : IMessageFileObserver, ILineRequestObserver, IChoiceRequestObserver
 {
     /// <summary>The log's file name in the mod's folder.</summary>
     public const string FileName = "message-log.txt";
@@ -47,12 +47,10 @@ public sealed class MessageLog(TextWriter writer, Func<long> millisecondsSinceSt
     public void Requested(string function, string arguments) =>
         Write(() => Line($"{millisecondsSinceStart()} ms request via={function} {arguments}"));
 
-    /// <summary>A choice the game's scripts opened (#82, #93): the select request's kind, its two pointer arguments
-    /// read as C strings (null when unreadable; that they are the prompt's and the choice's labels is the lead to
-    /// confirm), its 32-bit fourth argument, its options block as the hook formatted it, and its 16-bit sixth.</summary>
-    public void SelectRequested(int kind, string? first, string? second, int fourth, string options, int sixth) =>
-        Write(() => Line(
-            $"{millisecondsSinceStart()} ms select kind={kind} first={Quoted(first)} second={Quoted(second)} fourth={fourth} {options} sixth=0x{sixth:x4}"));
+    /// <summary>A choice the game's scripts opened (#82): the select request's kind, the prompt's label as
+    /// <c>first</c> and the choice's label as <c>second</c> (docs/raw-sources/spike-session-1-2026-11-16.md).</summary>
+    public void Observe(ChoiceRequested choice) => Write(() => Line(
+        $"{millisecondsSinceStart()} ms select kind={choice.Kind} first={Quoted(choice.PromptLabel)} second={Quoted(choice.ChoiceLabel)}"));
 
     /// <summary>The selection the game's scripts read back (#93): the value the selected-ID function returned, as 32
     /// bits.</summary>
