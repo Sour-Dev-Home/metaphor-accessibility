@@ -15,25 +15,21 @@ the surrounding code too, not just the changed lines.
 
 ## Always check
 
-1. **Personal information and local paths.** Run `bash scripts/check.sh full`. It reads the git index, so changes under
-   review must be staged or committed first; say so if they aren't. It matches tracked files against general
-   patterns (user folders, email addresses) and the private list in `.claude/pii-patterns.txt`. Every
-   `personal information:` line is a finding. If it warns that private patterns are missing, report that too.
-2. **Game content.** Nothing from the game may be committed or released:
-   - executables, DLLs or archives;
-   - extracted assets or textures;
-   - decompiled output beyond a short explanatory snippet in a note;
-   - disassembler databases.
-
-   Check `git diff --stat` for binaries and large files, and check new files' extensions. Check that release or packaging
-   scripts can't sweep in files from `game/`, `extracted/` or `dumps/`.
+1. **Run the checks.** Run `bash scripts/check.sh full`. It reads the git index, so changes under review must be staged
+   or committed first; say so if they aren't. Every `personal information:`, `game content` or failed architecture
+   test line is a finding. If it warns that private patterns are missing, report that too.
+2. **Game content.** Nothing from the game may be committed or released (`AGENTS.md` rule 4). The checks catch game
+   files by folder, extension, size and known hash; look for what they can't see: decompiled output beyond a short
+   explanatory snippet in a note, assets renamed or converted, and release or packaging scripts that could sweep in
+   files from `game/`, `extracted/` or `dumps/`.
 3. **Secrets.** No tokens or keys in committed files or CI workflows. `.env` is git-ignored.
 
 ## Native-code risks
 
 4. **Patching safely.**
    - A hook or patch must check the game build or the byte signature before writing, and do nothing on a mismatch.
-     Writing at a stale offset corrupts memory or saves.
+     Writing at a stale offset corrupts memory or saves. Architecture rules 6 and 8 (`docs/coding-standards.md`) route
+     every patch through the hook loader's check, so review changes to the loader itself.
    - Restored memory protection must be the original protection.
    - Trampolines must be sized correctly.
 5. **Trusting game data.** Lengths, counts and offsets read from game files or memory are untrusted input.
@@ -43,6 +39,7 @@ the surrounding code too, not just the changed lines.
    - Parsers for archive or asset formats are where malformed files cause crashes or worse.
 6. **Loading code.**
    - DLL search-order hijacking: load by full path from a known directory, never from the current directory or `PATH`.
+     Architecture rule 4 enforces this for .NET code; review its exception list and native or script code.
    - Don't load or run anything downloaded without checking its hash or signature.
    - No unauthenticated auto-update.
 7. **Install and file writes.**
