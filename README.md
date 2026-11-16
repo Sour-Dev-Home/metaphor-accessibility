@@ -21,6 +21,11 @@ To contribute, start with [CONTRIBUTING.md](CONTRIBUTING.md).
 Code is under [GPL-3.0](LICENSE). Docs (the Markdown files, including everything in `docs/`) are under
 [CC BY 4.0](docs/LICENSE), except `docs/raw-sources/`, which holds copies of other people's work under their own terms.
 
+- `src/Metaphor.Hooks/SquirrelRegistrationListener.cs` follows a technique from MF.Toolkit (AGPL-3.0), credited in the
+  file. It's a development-only hook that never ships in a release.
+- The mod package ships third-party libraries under their own licences, each in `licenses/` with where its source is
+  ([ADR 0005](docs/adr/0005-prism-speech-backend.md), [ADR 0006](docs/adr/0006-hooks-through-reloaded-shared-hooks.md)).
+
 ## Checks
 
 One command runs every check, locally (Git Bash on Windows) and in CI:
