@@ -1,5 +1,4 @@
 using System.Diagnostics.CodeAnalysis;
-using System.Reflection;
 using Metaphor.Core;
 using Metaphor.Core.Announcements;
 using Reloaded.Mod.Interfaces;
@@ -12,22 +11,6 @@ namespace Metaphor.Hooks;
 /// <see cref="ModStartup"/>, and nothing here may throw into the game.</summary>
 public sealed class ModEntryPoint : IMod
 {
-    /// <summary>How many hooks the mod has: its <see cref="GameHookAttribute"/> classes. Counts the types that did load
-    /// if some didn't, so a broken type can't stop the mod reporting.</summary>
-    private static int HooksExpected()
-    {
-        Type?[] types;
-        try
-        {
-            types = typeof(ModEntryPoint).Assembly.GetTypes();
-        }
-        catch (ReflectionTypeLoadException e)
-        {
-            types = e.Types;
-        }
-        return types.Count(type => type?.IsDefined(typeof(GameHookAttribute), inherit: false) == true);
-    }
-
     /// <summary>What every feature speaks through (ADR 0004): Prism when it started, silence otherwise, and in Debug
     /// builds the transcript in front of either.</summary>
     internal static IAnnouncer Announcer { get; private set; } = new SilentAnnouncer();
@@ -56,16 +39,18 @@ public sealed class ModEntryPoint : IMod
             ArgumentNullException.ThrowIfNull(config);
             var modLoader = (IModLoader)loader;
             var folder = modLoader.GetDirectoryForModId(config.ModId);
-            // The mod runs inside the game, so this process's exe is the game executable whose hash identifies the
-            // build (seen in docs/raw-sources/mod-entry-point-first-run-2026-11-15.md).
-            var status = ModStartup.CheckAndReport(
-                config.ModId, Environment.ProcessPath ?? "", folder, () => KnownGameBuilds.All, HooksExpected());
             var logger = (ILogger)modLoader.GetLogger();
-            logger.WriteLine(
-                $"[{config.ModId}] build {ModBuild.Revision.CommitSha}{(ModBuild.Revision.HasUncommittedChanges ? "-dirty" : "")}: {status.State} on game build {status.GameBuildSha256}" +
-                (status.Reason is null ? "" : $" ({status.Reason})"));
-
+            // Speech first, so a hook that fires at once already has a voice.
             Announcer = StartSpeech(folder, config.ModId, logger);
+            // The mod runs inside the game, so this process's exe is the game executable whose hash identifies the
+            // build (seen in docs/raw-sources/mod-entry-point-first-run-2026-11-15.md). Hooks go in only on a known
+            // build, through the loader (#39).
+            var status = ModStartup.CheckAndReport(
+                config.ModId, Environment.ProcessPath ?? "", folder, () => KnownGameBuilds.All, HookLoader.HookTypes().Count,
+                build => HookLoader.Install(build, modLoader, line => logger.WriteLine($"[{config.ModId}] {line}")));
+            logger.WriteLine(
+                $"[{config.ModId}] build {ModBuild.Revision.CommitSha}{(ModBuild.Revision.HasUncommittedChanges ? "-dirty" : "")}: {status.State} on game build {status.GameBuildSha256}, hooks {status.HooksLoaded}/{status.HooksExpected}" +
+                (status.Reason is null ? "" : $" ({status.Reason})"));
 #if DEBUG
             // The by-ear check (#54): with a screen reader running, this is the first thing the mod says.
             Announcer.Announce(new Announcement($"Metaphor accessibility mod {status.State.ToString().ToLowerInvariant()}.", Interrupt: true));

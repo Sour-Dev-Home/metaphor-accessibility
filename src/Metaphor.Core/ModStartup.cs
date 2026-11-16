@@ -14,11 +14,18 @@ public static class ModStartup
     /// into <paramref name="modFolder"/>'s status file. Never throws: Reloaded-II rethrows a mod's start exception
     /// (docs/raw-sources/reloaded-ii-mod-entry-point-2026-11-15.md), so any failure becomes a refusal instead.</summary>
     /// <returns>The status, which the caller should log: writing it to the folder is best effort.</returns>
+    /// <remarks><c>installHooks</c> installs the hooks for the running game build and returns how many it installed
+    /// (#39). It's called only when the build is known (ground rule 2).</remarks>
     [SuppressMessage("Design", "CA1031", Justification = "Any failure must refuse rather than reach the game.")]
     public static ModStatus CheckAndReport(
-        string modId, string gameExe, string modFolder, Func<IReadOnlyList<GameBuild>> knownBuilds, int hooksExpected)
+        string modId, string gameExe, string modFolder, Func<IReadOnlyList<GameBuild>> knownBuilds, int hooksExpected,
+        Func<string, int>? installHooks = null)
     {
         var status = Check(modId, gameExe, knownBuilds, hooksExpected);
+        if (status.State == ModState.Ready && installHooks is not null)
+        {
+            status = InstallHooks(status, installHooks);
+        }
         try
         {
             ModStatusFile.Write(modFolder, status);
@@ -28,6 +35,21 @@ public static class ModStartup
             // Nothing else to tell the smoke test with; the caller logs the returned status.
         }
         return status;
+    }
+
+    [SuppressMessage("Design", "CA1031", Justification = "Any failure must refuse rather than reach the game.")]
+    private static ModStatus InstallHooks(ModStatus ready, Func<string, int> installHooks)
+    {
+        try
+        {
+            return ready with { HooksLoaded = installHooks(ready.GameBuildSha256) };
+        }
+        catch (Exception e)
+        {
+            // Only our own errors keep their message; others, such as IO errors, can name local paths.
+            var why = e is InvalidOperationException or InvalidDataException ? $"{e.GetType().Name}: {e.Message}" : e.GetType().Name;
+            return ModStatus.Refused(ready.ModId, ready.GameBuildSha256, ready.HooksExpected, $"hook loader failed: {why}");
+        }
     }
 
     [SuppressMessage("Design", "CA1031", Justification = "Any failure must refuse rather than reach the game.")]

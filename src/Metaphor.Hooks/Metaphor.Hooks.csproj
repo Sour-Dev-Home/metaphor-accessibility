@@ -10,6 +10,9 @@
     <ProjectReference Include="..\Metaphor.Core\Metaphor.Core.csproj" />
     <!-- Compile against it only: Reloaded-II supplies it at run time, as in the official template. -->
     <PackageReference Include="Reloaded.Mod.Interfaces" ExcludeAssets="runtime" />
+    <!-- Not compile-only, as in the template: its interface DLLs ship with the mod (ADR 0006), with their licence. -->
+    <PackageReference Include="Reloaded.SharedLib.Hooks" GeneratePathProperty="true" />
+    <PackageReference Include="Reloaded.Hooks.Definitions" GeneratePathProperty="true" />
   </ItemGroup>
 
   <ItemGroup>
@@ -17,6 +20,17 @@
     <Content Include="ModConfig.json" CopyToOutputDirectory="Always" />
     <!-- The pinned Prism release (ADR 0005): scripts/fetch-prism.ps1 fetches by it, and the mod checks prism.dll by it. -->
     <EmbeddedResource Include="prism.json" LogicalName="Metaphor.Hooks.prism.json" />
+    <!-- The mod's own licence (GPL-3.0), which LGPL-3.0 builds on; Reloaded.Hooks' licences (both packages, LGPL-3.0)
+         and where its source is (ADR 0006). -->
+    <None Include="../../LICENSE" Link="LICENSE" CopyToOutputDirectory="PreserveNewest"
+          CopyToPublishDirectory="PreserveNewest" />
+    <None Include="$(PkgReloaded_SharedLib_Hooks)/LICENSE" Link="licenses/reloaded-hooks/Reloaded.SharedLib.Hooks-LICENSE"
+          CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+    <None Include="$(PkgReloaded_Hooks_Definitions)/LICENSE.md"
+          Link="licenses/reloaded-hooks/Reloaded.Hooks.Definitions-LICENSE.md"
+          CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+    <None Include="licenses/reloaded-hooks/SOURCE.md" CopyToOutputDirectory="PreserveNewest"
+          CopyToPublishDirectory="PreserveNewest" />
   </ItemGroup>
 
   <!-- Every publish (the package, deploy-dev) fetches the pinned prism.dll and its licences and ships them; plain builds
