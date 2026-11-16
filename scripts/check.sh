@@ -240,7 +240,7 @@ check_style() {
   local vale="$1" config="$root/tools/docs/.vale.ini" output status line
   shift
   [ -f "$config" ] || die "Vale needs tools/docs/.vale.ini"
-  output="$("$vale" --config="$config"--output=line --no-exit -- "$@" 2>&1)"
+  output="$("$vale" --config="$config" --output=line --no-exit -- "$@" 2>&1)"
   status=$?
   [ "$status" -eq 0 ] || die "Vale failed to run: $output"
   while IFS= read -r line; do
