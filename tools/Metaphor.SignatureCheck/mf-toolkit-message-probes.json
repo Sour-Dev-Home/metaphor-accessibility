@@ -1,0 +1,8 @@
+[
+  { "name": "CreateMsgFromString", "pattern": "40 53 48 83 EC 30 41 80 79 ?? 00", "source": "docs/raw-sources/game-text-hooks-community-2026-11-15.md" },
+  { "name": "GetItemNameMsg_Caller", "pattern": "48 83 EC 28 8B 01 FF C8", "source": "docs/raw-sources/game-text-hooks-community-2026-11-15.md" },
+  { "name": "GetItemEffectMsg_Caller", "pattern": "44 89 44 24 ?? 55 53 56 57 41 54 41 55 41 56 41 57 48 8B EC 48 83 EC 38 4C 8B F9", "source": "docs/raw-sources/game-text-hooks-community-2026-11-15.md" },
+  { "name": "GetItemDescriptionMsg", "pattern": "48 89 5C 24 ?? 57 48 83 EC 20 48 89 CB 48 89 D7 8B 09 E8", "source": "docs/raw-sources/game-text-hooks-community-2026-11-15.md" },
+  { "name": "CompileMsgFile", "pattern": "48 89 5C 24 ?? 48 89 4C 24 ?? 55 56 57 41 54 41 55 41 56 41 57 48 8D 6C 24 ?? 48 81 EC E0 00 00 00 45 8B E1", "source": "docs/raw-sources/game-text-hooks-community-2026-11-15.md" },
+  { "name": "GetMessageByLabelIndex", "pattern": "48 89 5C 24 ?? 48 89 74 24 ?? 48 89 7C 24 ?? 55 41 56 41 57 48 8B EC 48 81 EC 80 00 00 00 49 8B F1", "source": "docs/raw-sources/game-text-hooks-community-2026-11-15.md" }
+]
