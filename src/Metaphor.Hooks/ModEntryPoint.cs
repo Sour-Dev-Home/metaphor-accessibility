@@ -62,6 +62,7 @@ public sealed class ModEntryPoint : IMod
             var logger = (ILogger)modLoader.GetLogger();
             // Speech first, so a hook that fires at once already has a voice.
             Announcer = StartSpeech(folder, config.ModId, logger);
+            SpokenDialogue.Lines = SpokenDialogue.Speaking(Announcer);
 #if DEBUG
             MessageListening.Log = OpenMessageLog(folder);
 #endif

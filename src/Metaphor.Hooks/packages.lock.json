@@ -25,6 +25,12 @@
       },
       "metaphor.core": {
         "type": "Project"
+      },
+      "metaphor.features.dialogue": {
+        "type": "Project",
+        "dependencies": {
+          "Metaphor.Core": "[1.0.0, )"
+        }
       }
     }
   }
