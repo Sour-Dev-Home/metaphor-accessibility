@@ -8,8 +8,8 @@ namespace Metaphor.Hooks;
 
 // Issue #55's spike, last step: development-only hooks on the inner functions every MsgRequest… script function calls,
 // to see which one a spoken event line goes through and what it is passed. They pass every call through unchanged.
-// The by-pointer request (MsgRequestByName) is logged by DialogueLineHook's log observer (#86). The functions, their arguments and the names (ours) are in
-// docs/raw-sources/msg-request-functions-2026-11-16.md.
+// The by-pointer request (MsgRequestByName) is logged by DialogueLineHook's log observer (#86). The functions, their
+// arguments and the names (ours) are in docs/raw-sources/msg-request-functions-2026-11-16.md.
 //
 // Delegate shapes: every integer or pointer is pointer-sized, which is right whichever width the game reads. The
 // float's width is unverified, so it is declared double: a double argument travels through as the register's low 64
@@ -34,7 +34,7 @@ internal static class MsgRequestListening
 
     /// <summary>The pointer argument, as a C string if it reads as one. That it is a string is unverified.</summary>
     public static string Text(nint pointer) =>
-        ModuleMemoryReader.ReadAnsiString(pointer) is { } text ? $"text=\"{MessageLog.Escaped(text)}\"" : "text=(unreadable)";
+        ModuleMemoryReader.ReadAnsiString(pointer) is { } text ? $"text=\"{LogText.Escaped(text)}\"" : "text=(unreadable)";
 
     /// <summary>The 12-byte options block the script wrappers build, as hex.</summary>
     public static string Options(nint options) =>

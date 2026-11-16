@@ -11,8 +11,8 @@ namespace Metaphor.Hooks;
 /// <see cref="ModStartup"/>, and nothing here may throw into the game.</summary>
 public sealed class ModEntryPoint : IMod
 {
-    /// <summary>What every feature speaks through (ADR 0004): Prism when it started, silence otherwise, and in Debug
-    /// builds the transcript in front of either.</summary>
+    /// <summary>Starts the announcer every feature speaks through (ADR 0004): Prism when it starts, silence otherwise,
+    /// and in Debug builds the transcript in front of either.</summary>
     private static IAnnouncer StartSpeech(string folder, string modId, ILogger logger)
     {
         var (speech, whyNot) = PrismSpeech.TryStart(folder);

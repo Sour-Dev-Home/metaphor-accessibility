@@ -49,12 +49,7 @@ public sealed class MessageLog(TextWriter writer, Func<long> millisecondsSinceSt
 
     /// <summary>A line the game asked for by label, with its kind.</summary>
     public void Observe(LineRequested line) => Write(() =>
-        Line($"{millisecondsSinceStart()} ms request via={LineRequestFunction} kind={line.Kind} text=\"{Escaped(line.Label)}\""));
-
-    /// <summary>Text from the game kept on one log line: control characters, quotes and backslashes become
-    /// <c>\xNN</c>.</summary>
-    public static string Escaped(string text) => string.Concat((text ?? "").Select(c =>
-        c < ' ' || c is '"' or '\\' ? string.Create(CultureInfo.InvariantCulture, $"\\x{(int)c:x2}") : c.ToString()));
+        Line($"{millisecondsSinceStart()} ms request via={LineRequestFunction} kind={line.Kind} text=\"{LogText.Escaped(line.Label)}\""));
 
     private static string Line(FormattableString text) =>
         text.ToString(CultureInfo.InvariantCulture) + Environment.NewLine;

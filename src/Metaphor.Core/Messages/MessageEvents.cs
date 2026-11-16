@@ -3,7 +3,7 @@ using System.Diagnostics.CodeAnalysis;
 namespace Metaphor.Core.Messages;
 
 /// <summary>A message file the game compiled: its path, the number the game gave it, and its source text.</summary>
-public sealed record MessageFileCompiled(string Path, long Id, string Source);
+public sealed record MessageFileCompiled(string Path, int Id, string Source);
 
 /// <summary>A line the game's scripts asked for by label, and the kind of request it came with.</summary>
 public sealed record LineRequested(int Kind, string Label);
