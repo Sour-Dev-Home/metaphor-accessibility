@@ -94,8 +94,8 @@ touching it needs a review stamp:
 `Security-Review-Skipped: <reason>`, which CI accepts. Agents are denied it.
 
 **Deny rules.** [`.claude/settings.json`](.claude/settings.json) denies Claude Code every force push, printing
-`.claude/pii-patterns.txt` (the Read tool, `cat`, `type`, `Get-Content`, `head`, `tail`, `less`) and setting
-`SECURITY_REVIEW_SKIP`. `scripts/check.sh` and a `grep -F -f` over the patterns file stay allowed. The maintainer's
+`.claude/pii-patterns.txt` (the Read tool, `cat`, `type`, `Get-Content`, `head`, `tail`, `less`), setting
+`SECURITY_REVIEW_SKIP`, and skipping the git hooks with `--no-verify` (or `git commit -n`). `scripts/check.sh` and a `grep -F -f` over the patterns file stay allowed. The maintainer's
 private `~/.claude-metaphor/settings.json` also denies edits and common shell writes inside the game's install folder
 and its save folder.
 

@@ -24,7 +24,13 @@
       "PowerShell(less *pii-patterns.txt*)",
       "Bash(*SECURITY_REVIEW_SKIP=*)",
       "Bash(export SECURITY_REVIEW_SKIP*)",
-      "PowerShell(*SECURITY_REVIEW_SKIP*)"
+      "PowerShell(*SECURITY_REVIEW_SKIP*)",
+      "Bash(git *--no-verify*)",
+      "Bash(git commit -n*)",
+      "Bash(git commit * -n*)",
+      "PowerShell(git *--no-verify*)",
+      "PowerShell(git commit -n*)",
+      "PowerShell(git commit * -n*)"
     ]
   },
   "enabledPlugins": {
