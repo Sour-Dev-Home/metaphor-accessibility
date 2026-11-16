@@ -26,4 +26,3 @@ public sealed class PinnedFileWindowsTests : IDisposable
         Assert.Throws<IOException>(() => File.WriteAllBytes(path, [9]));
     }
 }
-// timing probe
