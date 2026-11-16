@@ -48,6 +48,7 @@
         "required_status_checks": [
           { "context": "repo-rules", "integration_id": 15368 },
           { "context": "build", "integration_id": 15368 },
+          { "context": "scripts", "integration_id": 15368 },
           { "context": "security", "integration_id": 15368 }
         ]
       }

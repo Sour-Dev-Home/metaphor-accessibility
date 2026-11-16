@@ -5,7 +5,7 @@
 #   scripts/check.sh pre-commit   fast, then formatting, docs and signatures when their files are staged (the hook)
 #   scripts/check.sh pre-push     build, Unit and RoundTrip tests when pushed commits change code (the hook; refs on stdin)
 #   scripts/check.sh rules   repo rules on every tracked file (CI on Ubuntu)
-#   scripts/check.sh full    repo rules, build, Unit and RoundTrip tests, formatting, smoke and deploy script tests (CI on Windows)
+#   scripts/check.sh full    repo rules, build, Unit and RoundTrip tests, formatting, smoke and deploy script tests (CI: Windows in the merge queue, Linux on PRs)
 #   scripts/check.sh docs    broken links fail; Markdown lint, Vale and ADR length warn (CI on Ubuntu)
 #   scripts/check.sh slow    mutation testing and a duplication report, report only (weekly CI on Windows)
 #   scripts/check.sh signatures [EXE]    each hook signature matches exactly once in the game exe (local, before a hook PR)
@@ -26,6 +26,15 @@
 # Exit 0 when everything passes (warnings don't fail), 1 when something fails, 2 on a usage error or when a tool is
 # missing or fails to run. The docs stage skips a missing docs tool with a warning unless REQUIRE_DOCS_TOOLS=1 (CI).
 set -uo pipefail
+
+# The test categories to run. WindowsOnly tests pin down Windows behaviour (the mod only runs there), so they run on
+# Windows alone; on Linux (the pull-request build in CI) they are left out.
+test_filter() {
+  case "$(uname -s)" in
+    MINGW* | MSYS* | CYGWIN*) echo "Category=Unit|Category=RoundTrip|Category=WindowsOnly" ;;
+    *) echo "Category=Unit|Category=RoundTrip" ;;
+  esac
+}
 
 die() {
   echo "check: $*" >&2
@@ -193,7 +202,7 @@ pre_push_stage() {
   export DOTNET_CLI_TELEMETRY_OPTOUT=1 DOTNET_NOLOGO=1
   # Tests run only after a good build: --no-build would otherwise test the last good build and pass.
   if dotnet build "$solution" -c Release -v q --nologo; then
-    dotnet test "$solution" -c Release --no-build -v q --filter "Category=Unit|Category=RoundTrip" ||
+    dotnet test "$solution" -c Release --no-build -v q --filter "$(test_filter)" ||
       report "tests: Unit or RoundTrip tests failed"
   else
     report "build: failed, see the errors above"
@@ -634,14 +643,17 @@ fi
 if [ "$stage" = full ]; then
   export DOTNET_CLI_TELEMETRY_OPTOUT=1 DOTNET_NOLOGO=1
   dotnet build "$solution" -c Release -v q || report "build: failed, see the errors above"
-  dotnet test "$solution" -c Release --no-build -v q --filter "Category=Unit|Category=RoundTrip" ||
+  dotnet test "$solution" -c Release --no-build -v q --filter "$(test_filter)" ||
     report "tests: Unit or RoundTrip tests failed"
   dotnet format whitespace "$solution" --verify-no-changes ||
     report "format: files need formatting (run: dotnet format whitespace Metaphor.sln)"
   # The smoke-test and deploy scripts' own tests, against the stand-in game (no game needed). Pester 5 or later.
-  pwsh -NoProfile -Command \
-    'Import-Module Pester -MinimumVersion 5.0; $r = Invoke-Pester tests/smoke -PassThru -Output Normal; exit $r.FailedCount' ||
-    report "tests: smoke or deploy script tests failed (run: Invoke-Pester tests/smoke)"
+  # CI sets SKIP_SCRIPT_TESTS=1 because its own `scripts` job runs them in parallel.
+  if [ -z "${SKIP_SCRIPT_TESTS:-}" ]; then
+    pwsh -NoProfile -Command \
+      'Import-Module Pester -MinimumVersion 5.0; $r = Invoke-Pester tests/smoke -PassThru -Output Normal; exit $r.FailedCount' ||
+      report "tests: smoke or deploy script tests failed (run: Invoke-Pester tests/smoke)"
+  fi
 fi
 
 [ "$failures" -eq 0 ]

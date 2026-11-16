@@ -51,6 +51,11 @@ bash scripts/check.sh full
 runs the `Unit` and `RoundTrip` tests and checks formatting. Both end with exit code 0 when everything passes.
 [README.md](README.md#checks) lists every stage.
 
+CI runs `full` on Linux for a pull request (faster; tests marked `WindowsOnly` and the Pester script tests are left to
+Windows, and a docs-only change skips the .NET work), and the whole Windows gate in the merge queue. A pull request that
+passes can still fail in the queue; run `full` on Windows locally before you push a change near Windows behaviour. Mark a
+test that only holds on Windows with `[Trait("Category", "WindowsOnly")]` instead of `Unit`.
+
 `RoundTrip` tests check our format code against real game files, so they need game data and are skipped without it (CI
 never has any, per [ADR 0001](docs/adr/0001-ci-never-sees-game-content.md)). To run them, point `METAPHOR_GAME_DATA` at
 your extracted files, or put them in the git-ignored `extracted/` folder. If the variable is set, `extracted/` isn't
