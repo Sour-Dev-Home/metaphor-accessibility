@@ -48,9 +48,9 @@ It takes about as long as a smoke test, and:
    the exe's headers, its address relative to the module (`rva`);
 3. runs the [smoke test](run-the-smoke-test.md) with only that mod enabled, so no other mod's hooks (CriFs V2 Hook
    rewrites the start of the functions probed) change the bytes. The mod copies the game's main module once,
-   when Reloaded-II starts it, scans it and deletes the probes file. It only reads memory (ADR 0002): it skips pages
-   that aren't committed and readable, and copies the rest through `ReadProcessMemory`, which fails instead of
-   faulting. The smoke test collects the report, closes the game and restores your Reloaded-II config;
+   when Reloaded-II starts it and before it installs its own hooks, scans it and deletes the probes file. It only
+   reads memory (ADR 0002): it skips pages that aren't committed and readable, and copies the rest through
+   `ReadProcessMemory`, which fails instead of faulting. The smoke test collects the report, closes the game and restores your Reloaded-II config;
 4. writes a raw-source draft to `artifacts/signature-spike/`: the game build, the steps, a table comparing each probe
    on disk and in memory (`same place`, `both once, different places`, `absent from both` or `differs`), and both raw
    outputs.
