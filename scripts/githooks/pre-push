@@ -1,4 +1,4 @@
 #!/usr/bin/env bash
 # The Release build and the Unit and RoundTrip tests, when the pushed commits change code. Git passes the pushed refs on
-# stdin. Turn on with: git config core.hooksPath .githooks
+# stdin. Turn on with: git config core.hooksPath scripts/githooks
 exec bash "$(git rev-parse --show-toplevel)/scripts/check.sh" pre-push
