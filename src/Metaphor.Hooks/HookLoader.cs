@@ -13,9 +13,13 @@ internal interface IGameHook
     /// <summary>The name of its signature in <c>hook-signatures.json</c>.</summary>
     string SignatureName { get; }
 
+    /// <summary>The signatures of game functions it calls, by name. None for most hooks.</summary>
+    IReadOnlyList<string> Calls => [];
+
     /// <summary>Hooks the function at <paramref name="address"/>. Called at most once, only when the running game
-    /// build is one the hook's <c>[GameHook]</c> names and its signature matched exactly once.</summary>
-    void Install(IReloadedHooks hooks, nint address);
+    /// build is one the hook's <c>[GameHook]</c> names, and its signature and each of <see cref="Calls"/> matched
+    /// exactly once; <paramref name="calls"/> has the address of each of those.</summary>
+    void Install(IReloadedHooks hooks, nint address, IReadOnlyDictionary<string, nint> calls);
 }
 
 /// <summary>The only way a hook goes into the game (#39, ground rule 2). <see cref="HookPlanner"/> decides from the
@@ -75,7 +79,7 @@ internal static class HookLoader
                 Log($"hook {type.Name} skipped: it isn't an IGameHook");
                 continue;
             }
-            hooks.Add((new HookSpec(type.Name, builds, hook.SignatureName), hook));
+            hooks.Add((new HookSpec(type.Name, builds, hook.SignatureName, hook.Calls), hook));
         }
 
         var (moduleBase, regions) = hooks.Any(h => h.Hook is not null) ? ModuleMemoryReader.MainModuleRegions() : (0, []);
@@ -103,7 +107,9 @@ internal static class HookLoader
             Installed.Add(hook);
             try
             {
-                hook.Install(reloadedHooks!, moduleBase + (nint)decision.Rva!.Value);
+                hook.Install(
+                    reloadedHooks!, moduleBase + (nint)decision.Rva!.Value,
+                    decision.Calls.ToDictionary(call => call.Key, call => moduleBase + (nint)call.Value));
             }
             catch (Exception e)
             {

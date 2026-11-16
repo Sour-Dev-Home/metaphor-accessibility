@@ -16,32 +16,40 @@ public sealed class MessageLog(TextWriter writer, Func<long> millisecondsSinceSt
     private readonly object gate = new();
 
     /// <summary>A message file the game compiled: the number it gave it, its path, and its source text.</summary>
-    public void Compiled(long id, string path, string source)
+    public void Compiled(long id, string path, string source) => Write(() =>
     {
-        ArgumentNullException.ThrowIfNull(source);
+        source ??= "";
         var record = new StringBuilder(Line($"{millisecondsSinceStart()} ms compile id={id} path={path} chars={source.Length}"));
         foreach (var line in source.ReplaceLineEndings("\n").Split('\n'))
         {
             record.Append("  | ").Append(line).AppendLine();
         }
-        Write(record.ToString());
-    }
+        return record.ToString();
+    });
 
     /// <summary>A message the game looked up, by message number and label index.</summary>
     public void LookedUp(long messageId, int labelIndex) =>
-        Write(Line($"{millisecondsSinceStart()} ms lookup id={messageId} label={labelIndex}"));
+        Write(() => Line($"{millisecondsSinceStart()} ms lookup id={messageId} label={labelIndex}"));
+
+    /// <summary>A function the game registered for its scripts: its script name, and where the native function is in
+    /// the game module. <paramref name="viaUserdata"/> says the address came from the userdata the game pushed (a game
+    /// function behind a shared trampoline) and not from the registered function itself.</summary>
+    public void Registered(string name, long rva, bool viaUserdata) =>
+        Write(() => Line($"{millisecondsSinceStart()} ms register name={name} rva=0x{rva:x} {(viaUserdata ? "userdata" : "direct")}"));
 
     private static string Line(FormattableString text) =>
         text.ToString(CultureInfo.InvariantCulture) + Environment.NewLine;
 
+    /// <summary>Builds and writes one record under the lock. Building it is inside the try too, so nothing a caller
+    /// passes can make this throw.</summary>
     [SuppressMessage("Design", "CA1031", Justification = "A spike log must never reach the game.")]
-    private void Write(string record)
+    private void Write(Func<string> record)
     {
         lock (gate)
         {
             try
             {
-                writer.Write(record);
+                writer.Write(record());
                 writer.Flush();
             }
             catch (Exception)

@@ -39,6 +39,31 @@ public sealed class MessageLogTests
     }
 
     [Fact]
+    public void RecordsAScriptFunctionTheGameRegistered()
+    {
+        var (log, text) = NewLog(now: 900);
+
+        log.Registered(name: "MSG_WND_OPEN", rva: 0x1a2b3c, viaUserdata: true);
+        log.Registered(name: "print", rva: 0x99, viaUserdata: false);
+
+        Assert.Equal(
+            $"900 ms register name=MSG_WND_OPEN rva=0x1a2b3c userdata{Environment.NewLine}" +
+            $"900 ms register name=print rva=0x99 direct{Environment.NewLine}",
+            text.ToString());
+    }
+
+    [Fact]
+    public void NeverThrowsEvenOnValuesItCannotRecord()
+    {
+        var (log, text) = NewLog();
+
+        log.Compiled(1, null!, null!);
+        log.Registered(null!, 0, viaUserdata: false);
+
+        Assert.Contains(" compile id=1 ", text.ToString(), StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void KeepsWritingAfterTheWriterFails()
     {
         var log = new MessageLog(new FailingWriter(), () => 0);

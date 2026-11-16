@@ -1,5 +1,4 @@
 using System.Diagnostics.CodeAnalysis;
-using System.Runtime.InteropServices;
 using Metaphor.Core;
 using Reloaded.Hooks.Definitions;
 // Both packages name an IReloadedHooks; the loader's controller is this one (as the template aliases it).
@@ -32,7 +31,7 @@ internal sealed class CompileMsgFileListener : IGameHook
 
     public string SignatureName => "CompileMsgFile";
 
-    public void Install(IReloadedHooks hooks, nint address)
+    public void Install(IReloadedHooks hooks, nint address, IReadOnlyDictionary<string, nint> calls)
     {
         // Stored before it goes live: the game may call it the moment it's activated.
         hook = hooks.CreateHook(callback, address);
@@ -44,9 +43,13 @@ internal sealed class CompileMsgFileListener : IGameHook
     {
         try
         {
-            // MF.Toolkit reads the path as ANSI; the source's encoding is [NEEDS VERIFICATION], read as UTF-8 here.
+            // MF.Toolkit reads the path as ANSI; the source read as UTF-8 gave readable English on build 548ddc95
+            // (docs/raw-sources/message-listening-run-2026-11-16.md). Both go through ReadProcessMemory: a bad pointer
+            // from the game must not fault here.
             MessageListening.Log?.Compiled(
-                param4, Marshal.PtrToStringAnsi(msgFile) ?? "", Marshal.PtrToStringUTF8(msgSrc, msgSrcLength));
+                param4,
+                ModuleMemoryReader.ReadAnsiString(msgFile) ?? "(unreadable path)",
+                ModuleMemoryReader.ReadUtf8(msgSrc, msgSrcLength) ?? "(unreadable source)");
         }
         catch (Exception)
         {
@@ -70,7 +73,7 @@ internal sealed unsafe class GetMessageByLabelIndexListener : IGameHook
 
     public string SignatureName => "GetMessageByLabelIndex";
 
-    public void Install(IReloadedHooks hooks, nint address)
+    public void Install(IReloadedHooks hooks, nint address, IReadOnlyDictionary<string, nint> calls)
     {
         // Stored before it goes live: the game may call it the moment it's activated.
         hook = hooks.CreateHook(callback, address);
@@ -82,7 +85,8 @@ internal sealed unsafe class GetMessageByLabelIndexListener : IGameHook
     {
         try
         {
-            MessageListening.Log?.LookedUp(msgId is null ? -1 : *msgId, labelIdx);
+            // This hook has never fired in the game, so what a real caller passes is unverified: read it safely.
+            MessageListening.Log?.LookedUp(ModuleMemoryReader.ReadInt32((nint)msgId) ?? -1, labelIdx);
         }
         catch (Exception)
         {

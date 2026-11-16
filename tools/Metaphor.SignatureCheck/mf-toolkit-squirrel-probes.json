@@ -1,0 +1,6 @@
+[
+  { "name": "sq_newclosure", "pattern": "48 89 5C 24 ?? 48 89 6C 24 ?? 48 89 74 24 ?? 57 48 83 EC 30 49 8B F8 48 8B F1", "source": "docs/raw-sources/mf-toolkit-squirrel-registration-2026-11-16.md" },
+  { "name": "sq_gettop", "pattern": "48 8B 41 48 48 2B 41 50 C3", "source": "docs/raw-sources/mf-toolkit-squirrel-registration-2026-11-16.md" },
+  { "name": "sq_getstring", "pattern": "48 89 5C 24 ?? 48 89 74 24 ?? 57 48 83 EC 20 4C 89 C3 48 89 CF", "source": "docs/raw-sources/mf-toolkit-squirrel-registration-2026-11-16.md" },
+  { "name": "sq_getuserdata", "pattern": "48 89 5C 24 ?? 48 89 74 24 ?? 57 48 83 EC 20 49 8B D9 49 8B F8 48 8B F1", "source": "docs/raw-sources/mf-toolkit-squirrel-registration-2026-11-16.md" }
+]
