@@ -76,6 +76,11 @@ public sealed class MessageLog(TextWriter writer, Func<long> millisecondsSinceSt
     public void PlayerNameSeen(string function, PlayerNameSighting sighting) =>
         Write(() => Line($"{millisecondsSinceStart()} ms player-name via={function} {sighting}"));
 
+    /// <summary>A pad's or the keyboard's state as the game read it, when it changed (#58): the source and the state as
+    /// the listening hook formatted it. Bit masks only, no game text.</summary>
+    public void InputChanged(string source, string state) =>
+        Write(() => Line($"{millisecondsSinceStart()} ms input {source} {state}"));
+
     /// <summary>A line the game asked for by label, with its kind.</summary>
     public void Observe(LineRequested line) => Write(() =>
         Line($"{millisecondsSinceStart()} ms request via={LineRequestFunction} kind={line.Kind} text=\"{LogText.Escaped(line.Label)}\""));

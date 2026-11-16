@@ -5,8 +5,11 @@
 // Usage: Metaphor.SignatureCheck <game exe>
 //        Metaphor.SignatureCheck --probes <game exe> [probes file]
 //        Metaphor.SignatureCheck --bytes <game exe> <rva> <length>
+//        Metaphor.SignatureCheck --imports <game exe> [name filter]
+// With --imports, lists the exe's imports and the instructions that read each import slot (issue #58; ExeImports).
 // Exit 0 when every signature matches exactly once, 1 when one doesn't, 2 on a usage error or an unreadable file.
 // --bytes exits 0 when it printed the bytes, 1 when the file doesn't hold them, 2 on a usage error.
+// --imports exits 0 when it printed imports, 1 when the filter matched none, 2 on a usage error or a file that isn't PE.
 
 using Metaphor.Core;
 
@@ -28,6 +31,16 @@ if (args is ["--bytes", var bytesExe, var rvaText, var lengthText])
     return ExeBytes.Run(bytesExe, rva.Value, (int)length.Value, KnownGameBuilds.All, Console.Out);
 }
 
+if (args is ["--imports", var importsExe, .. var rest] && rest.Length <= 1)
+{
+    if (!File.Exists(importsExe))
+    {
+        Console.Error.WriteLine($"no file named {Path.GetFileName(importsExe)} there");
+        return 2;
+    }
+    return ExeImports.Run(importsExe, rest.FirstOrDefault(), KnownGameBuilds.All, Console.Out);
+}
+
 var defaultProbes = Path.Combine(AppContext.BaseDirectory, "signature-probes.json");
 var (gameExe, probesFile) = args switch
 {
@@ -38,7 +51,7 @@ var (gameExe, probesFile) = args switch
 };
 if (gameExe is null)
 {
-    Console.Error.WriteLine("usage: Metaphor.SignatureCheck [--probes] <game exe> [probes file], or --bytes <game exe> <rva> <length>");
+    Console.Error.WriteLine("usage: Metaphor.SignatureCheck [--probes] <game exe> [probes file], --bytes <game exe> <rva> <length>, or --imports <game exe> [name filter]");
     return 2;
 }
 foreach (var file in new[] { gameExe, probesFile })

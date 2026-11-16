@@ -145,6 +145,16 @@ public sealed class MessageLogTests
     }
 
     [Fact]
+    public void RecordsAnInputChange()
+    {
+        var (log, text) = NewLog(now: 9);
+
+        log.InputChanged("pad0", "buttons=0x0010 returned=1");
+
+        Assert.Equal($"9 ms input pad0 buttons=0x0010 returned=1{Environment.NewLine}", text.ToString());
+    }
+
+    [Fact]
     public void ARequestedLabelStaysOnOneLine()
     {
         var (log, text) = NewLog(now: 1);

@@ -31,9 +31,7 @@ public static class ExeBytes
             return 2;
         }
         var bytes = File.ReadAllBytes(gameExe);
-        var sha = Convert.ToHexStringLower(SHA256.HashData(bytes));
-        var known = knownBuilds.FirstOrDefault(build => build.Sha256 == sha);
-        output.WriteLine($"game build {sha} ({(known is null ? "not a known build" : Invariant($"Steam build {known.SteamBuildId}"))})");
+        WriteBuild(bytes, knownBuilds, output);
         var headers = HeadersOrNone(bytes);
         if (headers is null)
         {
@@ -77,6 +75,14 @@ public static class ExeBytes
             output.WriteLine(Invariant($"0x{at:x}  {text} ({section})"));
         }
         return 0;
+    }
+
+    /// <summary>Writes the line naming the game build: the exe's SHA-256 and, when known, its Steam build.</summary>
+    internal static void WriteBuild(byte[] bytes, IReadOnlyList<GameBuild> knownBuilds, TextWriter output)
+    {
+        var sha = Convert.ToHexStringLower(SHA256.HashData(bytes));
+        var known = knownBuilds.FirstOrDefault(build => build.Sha256 == sha);
+        output.WriteLine($"game build {sha} ({(known is null ? "not a known build" : Invariant($"Steam build {known.SteamBuildId}"))})");
     }
 
     /// <summary>A number as the tool's arguments take it: hex after <c>0x</c>, otherwise decimal. Null for anything
@@ -124,7 +130,7 @@ public static class ExeBytes
 
     /// <summary>Where <paramref name="rva"/> is: its section's name (or "the headers"), its file offset, and the rva
     /// where that section's bytes in the file end. Null when it's in neither.</summary>
-    private static (string Where, long FileOffset, long InFileUntil)? Place(PEHeaders headers, long rva)
+    internal static (string Where, long FileOffset, long InFileUntil)? Place(PEHeaders headers, long rva)
     {
         var headerSize = headers.PEHeader!.SizeOfHeaders;
         if (rva >= 0 && rva < headerSize)
@@ -142,7 +148,7 @@ public static class ExeBytes
         return null;
     }
 
-    private static string? SectionName(PEHeaders headers, long rva) =>
+    internal static string? SectionName(PEHeaders headers, long rva) =>
         headers.SectionHeaders.Where(section => Holds(section, rva)).Select(section => section.Name).FirstOrDefault();
 
     private static bool Holds(SectionHeader section, long rva) =>
@@ -154,7 +160,7 @@ public static class ExeBytes
 
     /// <summary>The PE headers, or null when the file isn't a PE image.</summary>
     [SuppressMessage("Design", "CA1031", Justification = "A file that isn't a PE image is reported, not thrown.")]
-    private static PEHeaders? HeadersOrNone(byte[] bytes)
+    internal static PEHeaders? HeadersOrNone(byte[] bytes)
     {
         try
         {
