@@ -8,4 +8,8 @@ public sealed class GameHookAttribute(params string[] gameBuilds) : Attribute
 {
     /// <summary>The supported game builds' SHA-256 identifiers.</summary>
     public IReadOnlyList<string> GameBuilds { get; } = gameBuilds;
+
+    /// <summary>A hook for development only, such as a spike's listening hook: the loader installs it in Debug builds
+    /// and never in Release, which players get. It's still compiled and checked like any other hook.</summary>
+    public bool DevOnly { get; init; }
 }

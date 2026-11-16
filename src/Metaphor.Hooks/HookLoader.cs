@@ -24,9 +24,18 @@ internal interface IGameHook
 /// any other way.</summary>
 internal static class HookLoader
 {
-    /// <summary>Every <c>[GameHook]</c> type in the mod, whether or not it can be created.</summary>
+    private static bool IsDevBuild =>
+#if DEBUG
+        true;
+#else
+        false;
+#endif
+
+    /// <summary>Every <c>[GameHook]</c> type this build installs, whether or not it can be created: development-only
+    /// hooks are left out of Release builds, which players get.</summary>
     public static IReadOnlyList<Type> HookTypes() =>
-        [.. LoadableTypes().Where(type => type.IsDefined(typeof(GameHookAttribute), inherit: false))];
+        [.. LoadableTypes().Where(type =>
+            type.GetCustomAttribute<GameHookAttribute>(inherit: false) is { } hook && (IsDevBuild || !hook.DevOnly))];
 
     /// <summary>Installs the hooks approved for <paramref name="runningBuild"/> and returns how many went in. Writes
     /// one line per hook to <paramref name="log"/>.</summary>
