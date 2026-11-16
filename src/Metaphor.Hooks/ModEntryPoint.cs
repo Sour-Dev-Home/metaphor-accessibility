@@ -1,6 +1,7 @@
 using System.Diagnostics.CodeAnalysis;
 using System.Reflection;
 using Metaphor.Core;
+using Metaphor.Core.Announcements;
 using Reloaded.Mod.Interfaces;
 using Reloaded.Mod.Interfaces.Internal;
 
@@ -27,6 +28,23 @@ public sealed class ModEntryPoint : IMod
         return types.Count(type => type?.IsDefined(typeof(GameHookAttribute), inherit: false) == true);
     }
 
+    /// <summary>What every feature speaks through (ADR 0004): Prism when it started, silence otherwise, and in Debug
+    /// builds the transcript in front of either.</summary>
+    internal static IAnnouncer Announcer { get; private set; } = new SilentAnnouncer();
+
+    private static IAnnouncer StartSpeech(string folder, string modId, ILogger logger)
+    {
+        var (speech, whyNot) = PrismSpeech.TryStart(folder);
+        logger.WriteLine(speech is null
+            ? $"[{modId}] speech unavailable: {whyNot}"
+            : $"[{modId}] speech: {speech.BackendName}");
+        IAnnouncer announcer = speech is null ? new SilentAnnouncer() : speech;
+#if DEBUG
+        announcer = new TranscriptAnnouncer(announcer, folder);
+#endif
+        return announcer;
+    }
+
     public Action Disposing => () => { };
 
     [SuppressMessage("Design", "CA1031", Justification = "An exception here would reach the game through the loader.")]
@@ -46,6 +64,12 @@ public sealed class ModEntryPoint : IMod
             logger.WriteLine(
                 $"[{config.ModId}] build {ModBuild.Revision.CommitSha}{(ModBuild.Revision.HasUncommittedChanges ? "-dirty" : "")}: {status.State} on game build {status.GameBuildSha256}" +
                 (status.Reason is null ? "" : $" ({status.Reason})"));
+
+            Announcer = StartSpeech(folder, config.ModId, logger);
+#if DEBUG
+            // The by-ear check (#54): with a screen reader running, this is the first thing the mod says.
+            Announcer.Announce(new Announcement($"Metaphor accessibility mod {status.State.ToString().ToLowerInvariant()}.", Interrupt: true));
+#endif
 
             // Issue #21's spike: runs once, only when scripts/signature-spike.ps1 put a probes file in the mod's folder.
             var scan = SignatureScan.ScanIfRequested(folder, status.GameBuildSha256, ModuleMemoryReader.ReadMainModule);

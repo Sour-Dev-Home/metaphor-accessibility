@@ -20,8 +20,9 @@ This is a public repository.
    what was checked in `docs/raw-sources/`.
 4. **Never commit game content.** That covers executables, DLLs, archives, extracted assets, decompiled output and
    disassembler databases. They live in the git-ignored folders listed in `.gitignore` (`game/`, `extracted/`,
-   `dumps/`, and so on). A short snippet quoted in a note to explain a finding is fine. Releases ship only our code and
-   our data.
+   `dumps/`, and so on). A short snippet quoted in a note to explain a finding is fine. Releases ship our code, our data,
+   and third-party libraries under GPL-3.0-compatible licences, each with its licence and a pinned version (ADR 0005);
+   never game content.
 5. **Single-player modding only.** Don't circumvent DRM or anti-tamper protection, and don't touch online features or
    other players. If a protection blocks a technique, stop, note it, and look for another approach.
 6. **No personal information or local paths in committed files.** That means no real name, email or phone number, and no

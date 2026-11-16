@@ -3,6 +3,9 @@ namespace Metaphor.Architecture.Tests;
 [Trait("Category", "Unit")]
 public sealed class NativeLoadingRuleTests
 {
+    // An assembly with no native-loading exception, unlike the hook layer (ADR 0005).
+    private const string NoException = "Metaphor.Core";
+
     private static string NativeCall(string attributes = "", string entryPoint = "GetTickCount", string assembly = "") =>
         $$"""
         using System.Runtime.InteropServices;
@@ -61,7 +64,7 @@ public sealed class NativeLoadingRuleTests
         "NativeLibrary::SetDllImportResolver")]
     public void LoadingThroughTheRuntimeIsAViolation(string statement, string api)
     {
-        var assembly = Plant.Compile(Rules.HookLayer, $"public static class C {{ public static void M() {{ {statement}; }} }}");
+        var assembly = Plant.Compile(NoException, $"public static class C {{ public static void M() {{ {statement}; }} }}");
 
         Assert.Contains(Rules.NativeLibrariesLoadSafely(assembly), v => v.EndsWith(api, StringComparison.Ordinal));
     }
@@ -70,7 +73,7 @@ public sealed class NativeLoadingRuleTests
     public void ALoadContextLoadingNativeLibrariesIsAViolation()
     {
         var assembly = Plant.Compile(
-            Rules.HookLayer,
+            NoException,
             """
             public sealed class Context : System.Runtime.Loader.AssemblyLoadContext
             {
@@ -87,10 +90,22 @@ public sealed class NativeLoadingRuleTests
     public void CallingLoadLibraryIsAViolation()
     {
         var assembly = Plant.Compile(
-            Rules.HookLayer,
+            NoException,
             NativeCall("[DefaultDllImportSearchPaths(DllImportSearchPath.System32)]", entryPoint: "LoadLibraryW"));
 
         Assert.Contains(Rules.NativeLibrariesLoadSafely(assembly), v => v.Contains("LoadLibraryW"));
+    }
+
+    [Fact]
+    public void TheHookLayerMayLoadALibraryThroughTheRuntimeUnderItsException()
+    {
+        // ADR 0005: prism.dll, by full path after its hash check. The exception covers only runtime loading; a DllImport
+        // in the hook layer still has to search System32 alone (the tests above).
+        var assembly = Plant.Compile(
+            Rules.HookLayer,
+            "public static class C { public static nint M(string path) => System.Runtime.InteropServices.NativeLibrary.Load(path); }");
+
+        Assert.Empty(Rules.NativeLibrariesLoadSafely(assembly));
     }
 
     [Theory]
