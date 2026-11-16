@@ -30,7 +30,8 @@ The hooks check each commit and push, running only what the change needs:
 
 - **Before a commit:** the repo rules on staged files, plus formatting, docs and hook signatures when those files are
   staged. Signatures need `METAPHOR_GAME_EXE` set to the game's exe; without it the hook says how to run them.
-- **On the commit message:** its shape.
+- **On the commit message:** its shape, and the security-review trailer when the commit touches hook or deploy code
+  ([below](#security-review-and-deny-rules)).
 - **Before a push:** the Release build and the `Unit` and `RoundTrip` tests, when the pushed commits change code. The
   first push after a pull builds from cold and takes longer.
 
@@ -76,6 +77,30 @@ tools too. To flag another filler word, add it to
    shape; the rules are in the header of [`scripts/check.sh`](scripts/check.sh).
 5. Open a pull request that says what changed and why. A PR that touches hooking, loading or injection includes
    in-game evidence on a named game build.
+
+## Security review and deny rules
+
+**Must-run review.** The security-review scope is `src/Metaphor.Hooks/` plus the five scripts listed in
+[`scripts/security-stamp.sh`](scripts/security-stamp.sh), which deploy, launch, package or fetch native code. A commit
+touching it needs a review stamp:
+
+1. Stage the change, then run the `security-reviewer` agent. When it finds nothing critical or important, its last step
+   runs `scripts/security-stamp.sh`, which hashes the staged scope into a stamp under `.git/`.
+2. Commit. The pre-commit hook refuses the commit unless the stamp matches the staged scope, so any edit after the
+   review needs a new one. The commit-msg hook appends `Security-Review: <hash>`.
+3. CI fails a pull request commit that touches the scope without a `Security-Review` trailer matching its content.
+
+**Override (maintainer only).** `SECURITY_REVIEW_SKIP="<reason>" git commit ...` lets the commit through and records
+`Security-Review-Skipped: <reason>`, which CI accepts. Agents are denied it.
+
+**Deny rules.** [`.claude/settings.json`](.claude/settings.json) denies Claude Code every force push, printing
+`.claude/pii-patterns.txt` (the Read tool, `cat`, `type`, `Get-Content`, `head`, `tail`, `less`) and setting
+`SECURITY_REVIEW_SKIP`. `scripts/check.sh` and a `grep -F -f` over the patterns file stay allowed. The maintainer's
+private `~/.claude-metaphor/settings.json` also denies edits and common shell writes inside the game's install folder
+and its save folder.
+
+These rules match the command text Claude Code sees, so another spelling of the same command can slip past them, and
+the stamp guards against a forgotten review, not a determined one. They are a strong guard, not a guarantee.
 
 ## Where things go
 

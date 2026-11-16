@@ -2,7 +2,7 @@
 # Black-box tests for scripts/check.sh: each test plants content in a temporary git repo, runs the check there and
 # asserts the exit code and the message.
 set -uo pipefail
-unset PII_PATTERNS REQUIRE_PRIVATE_PATTERNS REQUIRE_DOCS_TOOLS GITHUB_ACTIONS # tests set these per run
+unset PII_PATTERNS REQUIRE_PRIVATE_PATTERNS REQUIRE_DOCS_TOOLS GITHUB_ACTIONS SECURITY_REVIEW_SKIP # set per run
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 CHECK="$ROOT/scripts/check.sh"
@@ -869,6 +869,151 @@ test_pre_push_skips_a_deleted_branch() {
   run_pre_push "$ZERO" "$HEAD"
   expect 0
   expect_absent "Metaphor.sln"
+}
+
+# The must-run security review: real commits through hooks that run the check, as .githooks does.
+
+STAMP="$ROOT/scripts/security-stamp.sh"
+HOOKS="$WORK/hooks"
+mkdir -p "$HOOKS"
+printf '#!/usr/bin/env bash\nexec bash "%s" pre-commit\n' "$CHECK" > "$HOOKS/pre-commit"
+printf '#!/usr/bin/env bash\nexec bash "%s" commit-msg "$1"\n' "$CHECK" > "$HOOKS/commit-msg"
+chmod +x "$HOOKS/pre-commit" "$HOOKS/commit-msg"
+
+# review_repo: a repo using the hooks, with a first commit, then a staged change to scope file FILE (default: the hook
+# layer).
+review_repo() {
+  new_repo
+  git config core.hooksPath "$HOOKS"
+  printf 'first\n' > readme.txt
+  git add readme.txt && git commit -q --no-verify -m "docs: first"
+  stage_file "${1:-src/Metaphor.Hooks/Hooks/Speech.ps1}"
+}
+
+# stage_file FILE [TEXT]: write TEXT (default: a random line) to FILE and stage it.
+stage_file() {
+  mkdir -p "$(dirname "$1")"
+  printf '%s\n' "${2:-line $RANDOM}" > "$1"
+  git add "$1"
+}
+
+# commit SUBJECT: commit through the hooks, capturing the exit code and output.
+commit() {
+  out="$(git commit -q -m "$1" 2>&1)"
+  code=$?
+}
+
+# expect_message TEXT...: the last commit's message contains every TEXT.
+expect_message() {
+  out="$(git log -1 --format=%B)"
+  code=0
+  expect 0 "$@"
+}
+
+test_review_refuses_a_scope_commit_without_a_stamp() {
+  review_repo
+  commit "feat: unreviewed hook"
+  expect 1 "security review: the staged hook or deploy code has no matching stamp" "security-reviewer"
+}
+
+test_review_passes_a_stamped_scope_commit_and_adds_its_trailer() {
+  local hash
+  review_repo scripts/deploy-dev.ps1
+  bash "$STAMP" > /dev/null
+  hash="$(bash "$STAMP" hash)"
+  commit "feat: reviewed deploy script"
+  expect 0
+  expect_message "Security-Review: $hash"
+  [ "$(bash "$STAMP" hash HEAD)" = "$hash" ] || out="the committed scope hashes differently: $hash" code=1
+  expect 0
+}
+
+test_review_refuses_an_edit_after_stamping() {
+  review_repo
+  bash "$STAMP" > /dev/null
+  stage_file src/Metaphor.Hooks/Hooks/Speech.ps1 "changed after the review"
+  commit "feat: hook changed after review"
+  expect 1 "no matching stamp"
+}
+
+test_review_override_passes_and_records_its_reason() {
+  review_repo
+  out="$(SECURITY_REVIEW_SKIP="reviewer down, checked by hand" git commit -q -m "fix: urgent hook fix" 2>&1)"
+  code=$?
+  expect 0 "security review: skipped (reviewer down, checked by hand)"
+  expect_message "Security-Review-Skipped: reviewer down, checked by hand"
+  expect_absent "Security-Review: "
+}
+
+test_review_leaves_commits_outside_the_scope_alone() {
+  review_repo src/Metaphor.Hooks.Tests/SpeechTests.ps1 # a sibling folder, not the hook layer
+  stage_file scripts/check-other.sh
+  commit "test: outside the scope"
+  expect 0
+  expect_message "test: outside the scope"
+  expect_absent "Security-Review"
+}
+
+test_review_replaces_a_hand_written_trailer() {
+  review_repo
+  bash "$STAMP" > /dev/null
+  commit $'feat: reviewed hook\n\nSecurity-Review-Skipped: written by hand'
+  expect 0
+  expect_message "Security-Review: $(bash "$STAMP" hash HEAD)"
+  expect_absent "written by hand"
+  # The hook layer's folder counts: the hash differs from the first commit's, which has no scope files.
+  [ "$(bash "$STAMP" hash HEAD)" != "$(bash "$STAMP" hash HEAD~1)" ] || out="the hook layer wasn't hashed" code=1
+  expect 0
+}
+
+test_review_message_keeps_its_shape_with_the_trailer() {
+  review_repo
+  bash "$STAMP" > /dev/null
+  commit $'feat: reviewed hook\n\nWhy.\n\nCo-Authored-By: Someone <someone@example.com>'
+  expect 0
+  run_check commits HEAD~1..HEAD
+  expect 0
+}
+
+test_commits_stage_fails_a_scope_commit_without_a_review_trailer() {
+  local base
+  review_repo
+  base="$(git rev-parse HEAD)"
+  git commit -q --no-verify -m "feat: skipped the hooks"
+  run_check commits "$base..HEAD"
+  expect 1 "commit $(git rev-parse --short HEAD): touches the security-review scope without a Security-Review trailer"
+}
+
+test_commits_stage_fails_a_review_trailer_for_other_content() {
+  local base
+  review_repo
+  base="$(git rev-parse HEAD)"
+  git commit -q --no-verify -m $'feat: stale trailer\n\nSecurity-Review: 0000000000000000000000000000000000000000000000000000000000000000'
+  run_check commits "$base..HEAD"
+  expect 1 "touches the security-review scope without a Security-Review trailer"
+}
+
+test_commits_stage_passes_reviewed_skipped_and_unscoped_commits() {
+  local base
+  review_repo
+  base="$(git rev-parse HEAD)"
+  bash "$STAMP" > /dev/null
+  commit "feat: reviewed"
+  stage_file scripts/smoke-test.ps1
+  SECURITY_REVIEW_SKIP="by hand" git commit -q -m "fix: skipped" > /dev/null 2>&1
+  stage_file docs/notes.txt
+  commit "docs: unscoped"
+  run_check commits "$base..HEAD"
+  expect 0
+  [ "$(git rev-list --count "$base..HEAD")" -eq 3 ] || out="expected 3 commits" code=1
+  expect 0
+}
+
+test_stamp_script_rejects_unknown_arguments() {
+  new_repo
+  out="$(bash "$STAMP" nope 2>&1)"
+  code=$?
+  expect 2 "usage: scripts/security-stamp.sh"
 }
 
 for current in $(declare -F | awk '{print $3}' | grep '^test_'); do

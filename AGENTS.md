@@ -44,8 +44,10 @@ This is a public repository.
 
 This project runs with its own config directory, so the owner's other projects' settings, agents and plugins don't load
 here. Start it with `.\claude.ps1` from the repository root, not `claude`. The only plugin is Matt Pocock's skills
-(`mattpocock-skills`). The one custom agent is `security-reviewer` (`.claude/agents/`): run it before a release, and before
-any commit that touches hooking, injection, loading, install or update code.
+(`mattpocock-skills`). The one custom agent is `security-reviewer` (`.claude/agents/`): run it before a release, and on
+staged changes before any commit that touches hooking, injection, loading, install or update code. For the hook layer
+and its deploy scripts the pre-commit hook enforces this through the reviewer's stamp, and CI checks the trailer
+([`CONTRIBUTING.md`](CONTRIBUTING.md#security-review-and-deny-rules)). Never set `SECURITY_REVIEW_SKIP`.
 
 ## Agent skills
 

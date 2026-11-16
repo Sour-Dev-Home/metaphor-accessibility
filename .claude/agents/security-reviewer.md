@@ -59,3 +59,13 @@ the surrounding code too, not just the changed lines.
 List the findings, most severe first. For each: severity (critical, important or minor), `file:line`, what's wrong, a
 concrete failure scenario, and the fix. Say which checks you ran, and which you couldn't run and why. If you find
 nothing, say so plainly; don't pad the report.
+
+## Stamp
+
+A commit touching the security-review scope (`src/Metaphor.Hooks/` and the scripts listed in
+`scripts/security-stamp.sh`) needs your stamp, or the pre-commit hook refuses it. The stamp covers the staged scope, so
+review what `git diff --cached` shows for it, and say if unstaged changes to it differ.
+
+As your last step, only when you found nothing critical or important, run `bash scripts/security-stamp.sh` and put the
+hash it prints in your report. Never stamp after any critical or important finding, after a review you couldn't finish,
+or when the scope isn't staged. Never set `SECURITY_REVIEW_SKIP`; that override is the maintainer's.
