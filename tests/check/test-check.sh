@@ -753,6 +753,103 @@ test_docs_stage_passes_good_links_and_skips_raw_sources() {
   expect_absent "broken link"
 }
 
+# pre-commit: the repo rules, then each extra check only when its file types are staged (#78).
+
+test_pre_commit_still_runs_the_repo_rules() {
+  new_repo
+  printf 'not really an archive' > data.cpk
+  git add data.cpk
+  run_check pre-commit
+  expect 1 "game content" "data.cpk"
+}
+
+test_pre_commit_runs_the_docs_checks_when_markdown_is_staged() {
+  docs_repo
+  printf '# Notes\n\nSee [it](missing.md).\n' > notes.md
+  git add notes.md
+  run_check pre-commit
+  expect 1 "broken link" "notes.md"
+}
+
+test_pre_commit_blames_only_the_check_that_failed() {
+  docs_repo
+  printf 'not really an archive' > data.cpk
+  printf '# Notes\n\nFine.\n' > notes.md
+  git add .
+  run_check pre-commit
+  expect 1 "game content"
+  expect_absent "docs: see the problems above"
+}
+
+test_pre_commit_skips_the_docs_checks_when_no_markdown_is_staged() {
+  docs_repo
+  printf '# Notes\n\nSee [it](missing.md).\n' > notes.md
+  git add notes.md && git commit -q -m "docs: notes"
+  printf 'plain\n' > other.txt
+  git add other.txt
+  run_check pre-commit
+  expect 0
+  expect_absent "broken link"
+}
+
+test_pre_commit_says_how_to_check_changed_signatures_without_the_game() {
+  new_repo
+  mkdir -p src/Metaphor.Core
+  printf '[]\n' > src/Metaphor.Core/hook-signatures.json
+  git add .
+  out="$(env -u METAPHOR_GAME_EXE bash "$CHECK" pre-commit 2>&1)"
+  code=$?
+  expect 0 "hook signatures changed" "METAPHOR_GAME_EXE"
+}
+
+# pre-push: build and tests only when the pushed commits change code. Git passes the refs on stdin.
+
+ZERO=0000000000000000000000000000000000000000
+
+# push_repo FILE: a repo with a first commit, then a second adding FILE. Sets BASE and HEAD to the two commits.
+push_repo() {
+  new_repo
+  printf 'first\n' > readme.txt
+  git add . && git commit -q -m "docs: first"
+  BASE="$(git rev-parse HEAD)"
+  mkdir -p "$(dirname "$1")"
+  printf 'second\n' > "$1"
+  git add . && git commit -q -m "feat: second"
+  HEAD="$(git rev-parse HEAD)"
+}
+
+# run_pre_push LOCAL REMOTE: run the pre-push stage for one ref, as git would.
+run_pre_push() {
+  out="$(printf 'refs/heads/topic %s refs/heads/topic %s\n' "$1" "$2" | bash "$CHECK" pre-push 2>&1)"
+  code=$?
+}
+
+test_pre_push_skips_the_build_when_no_code_changed() {
+  push_repo docs/notes.md
+  run_pre_push "$HEAD" "$BASE"
+  expect 0 "no code changes"
+}
+
+test_pre_push_builds_when_code_changed() {
+  push_repo src/Menu.cs
+  run_pre_push "$HEAD" "$BASE"
+  expect 2 "pre-push stage needs Metaphor.sln"
+}
+
+test_pre_push_builds_when_it_cant_tell_what_changed() {
+  # A new branch with no origin/main to compare against.
+  push_repo docs/notes.md
+  run_pre_push "$HEAD" "$ZERO"
+  expect 2 "pre-push stage needs Metaphor.sln"
+}
+
+test_pre_push_skips_a_deleted_branch() {
+  push_repo src/Menu.cs
+  run_pre_push "$ZERO" "$HEAD"
+  expect 0
+  expect_absent "Metaphor.sln"
+}
+
 for current in $(declare -F | awk '{print $3}' | grep '^test_'); do
   "$current"
   cd "$WORK" || exit 2

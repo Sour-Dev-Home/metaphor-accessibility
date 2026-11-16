@@ -1,7 +1,9 @@
 #!/usr/bin/env bash
 # The one check command. Local hooks and CI both run it, so their checks never drift apart.
 #
-#   scripts/check.sh fast    repo rules on staged files (the pre-commit hook)
+#   scripts/check.sh fast    repo rules on staged files
+#   scripts/check.sh pre-commit   fast, then formatting, docs and signatures when their files are staged (the hook)
+#   scripts/check.sh pre-push     build, Unit and RoundTrip tests when pushed commits change code (the hook; refs on stdin)
 #   scripts/check.sh rules   repo rules on every tracked file (CI on Ubuntu)
 #   scripts/check.sh full    repo rules, build, Unit and RoundTrip tests, formatting, smoke and deploy script tests (CI on Windows)
 #   scripts/check.sh docs    broken links fail; Markdown lint, Vale and ADR length warn (CI on Ubuntu)
@@ -153,6 +155,47 @@ signatures_stage() {
   esac
 }
 
+# Files whose change can change the build or the tests' result.
+code_path_re='(\.(cs|csproj|props|targets|sln|json|editorconfig)|(^|/)global\.json)$'
+
+# The pre-push hook's stage. Git passes "<local ref> <local sha> <remote ref> <remote sha>" per pushed ref on stdin.
+# Builds and runs the Unit and RoundTrip tests unless every pushed commit leaves code alone. When it can't tell what
+# changed (a new branch with no origin/main to compare, or a remote commit not fetched), it builds.
+pre_push_stage() {
+  local zero=0000000000000000000000000000000000000000 local_ref local_sha remote_ref remote_sha base
+  local changed="" unknown=0 pushed=0 root solution
+  while read -r local_ref local_sha remote_ref remote_sha; do
+    [ -n "$local_sha" ] && [ "$local_sha" != "$zero" ] || continue # a deleted branch pushes nothing
+    pushed=1
+    base="$remote_sha"
+    if [ "$base" = "$zero" ]; then
+      base="$(git merge-base "$local_sha" origin/main 2> /dev/null)" || base=""
+    fi
+    if [ -z "$base" ] || ! git cat-file -e "$base^{commit}" 2> /dev/null; then
+      unknown=1
+      break
+    fi
+    changed+="$(git diff --name-only "$base" "$local_sha")"$'\n' || die "could not list the files changed in $local_ref"
+  done
+  [ "$pushed" -eq 1 ] || return 0
+  if [ "$unknown" -eq 0 ] && ! grep -qE "$code_path_re" <<< "$changed"; then
+    echo "pre-push: no code changes, so the build and tests were skipped"
+    return 0
+  fi
+  root="$(git rev-parse --show-toplevel)" || die "could not find the repository root"
+  solution="$root/Metaphor.sln"
+  [ -f "$solution" ] || die "pre-push stage needs $(basename "$solution") at the repository root"
+  command -v dotnet > /dev/null || die "pre-push stage needs the .NET SDK (dotnet) on PATH"
+  export DOTNET_CLI_TELEMETRY_OPTOUT=1 DOTNET_NOLOGO=1
+  # Tests run only after a good build: --no-build would otherwise test the last good build and pass.
+  if dotnet build "$solution" -c Release -v q --nologo; then
+    dotnet test "$solution" -c Release --no-build -v q --filter "Category=Unit|Category=RoundTrip" ||
+      report "tests: Unit or RoundTrip tests failed"
+  else
+    report "build: failed, see the errors above"
+  fi
+}
+
 max_adr_words=250
 max_pr_words=300
 
@@ -274,7 +317,7 @@ trap 'rm -rf "$tmp"' EXIT
 stage="${1:-}"
 # list_entries prints "<mode> <blob> <stage>\t<path>\0" for each file to check, in `git ls-files -s -z` form.
 case "$stage" in
-  fast)
+  fast | pre-commit)
     list_entries() {
       git diff --cached --name-only --diff-filter=ACMR -z |
         xargs -0 -r git --literal-pathspecs ls-files -s -z --
@@ -322,7 +365,11 @@ case "$stage" in
     signatures_stage "${2:-}"
     [ "$failures" -eq 0 ]
     exit ;;
-  *) echo "usage: scripts/check.sh fast|rules|full|docs|slow | signatures [EXE] | commit-msg FILE | commits BASE..HEAD | pr-body FILE" >&2
+  pre-push)
+    pre_push_stage
+    [ "$failures" -eq 0 ]
+    exit ;;
+  *) echo "usage: scripts/check.sh fast|pre-commit|pre-push|rules|full|docs|slow | signatures [EXE] | commit-msg FILE | commits BASE..HEAD | pr-body FILE" >&2
      exit 2 ;;
 esac
 
@@ -463,6 +510,36 @@ while IFS= read -r -d '' entry; do
     scan_lines "$path" "matches a private pattern" "" -iF -f "$tmp/private"
   fi
 done < "$tmp/entries"
+
+# The pre-commit hook's extra checks, each only when its files are staged, so a commit that doesn't touch them stays
+# instant. Formatting reads the working tree, not the index: close enough for a hook, and CI checks the commit itself.
+if [ "$stage" = pre-commit ]; then
+  git diff --cached --name-only --diff-filter=ACMR > "$tmp/staged" || die "could not list the staged files"
+  mapfile -t staged_cs < <(grep -E '\.cs$' "$tmp/staged")
+  if [ "${#staged_cs[@]}" -gt 0 ]; then
+    if [ ! -f "$solution" ]; then
+      warn "no $(basename "$solution") at the repository root, so formatting wasn't checked"
+    elif ! command -v dotnet > /dev/null; then
+      warn "dotnet isn't on PATH, so formatting wasn't checked (CI checks it)"
+    else
+      (cd "$root" && DOTNET_CLI_TELEMETRY_OPTOUT=1 DOTNET_NOLOGO=1 \
+        dotnet format whitespace "$solution" --verify-no-changes --include "${staged_cs[@]}") ||
+        report "format: files need formatting (run: dotnet format whitespace Metaphor.sln)"
+    fi
+  fi
+  if grep -qE '\.md$' "$tmp/staged"; then
+    # In a subshell, which starts its own count: docs_stage changes directory, and an earlier failure isn't a docs one.
+    (failures=0 && docs_stage && [ "$failures" -eq 0 ]) || report "docs: see the problems above"
+  fi
+  if grep -qxF src/Metaphor.Core/hook-signatures.json "$tmp/staged"; then
+    if [ -n "${METAPHOR_GAME_EXE:-}" ]; then
+      (failures=0 && signatures_stage "$METAPHOR_GAME_EXE" && [ "$failures" -eq 0 ]) ||
+        report "signatures: see the problems above"
+    else
+      warn "hook signatures changed: set METAPHOR_GAME_EXE to check them against the game, or run: scripts/check.sh signatures EXE"
+    fi
+  fi
+fi
 
 # The .NET part of the full stage. Tests and formatting still run after a failed build, so one run shows everything.
 if [ "$stage" = full ]; then
