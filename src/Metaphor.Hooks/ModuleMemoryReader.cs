@@ -4,7 +4,8 @@ using Metaphor.Core;
 
 namespace Metaphor.Hooks;
 
-/// <summary>Copies the running game's main module out for <see cref="SignatureScan"/>. Only reads: nothing is written,
+/// <summary>The hook layer's only native memory reads: the main module's readable regions, raw copies for
+/// <see cref="ChunkedScan"/>, and safe reads through pointers the game hands hooks. Only reads: nothing is written,
 /// patched or reprotected, which ADR 0002 allows ("Our own Reloaded-II mod reading the running game's memory").</summary>
 internal static unsafe class ModuleMemoryReader
 {
@@ -13,7 +14,6 @@ internal static unsafe class ModuleMemoryReader
     private const uint MemCommit = 0x1000;
     private const uint PageGuard = 0x100;
     private const uint ReadableProtections = 0x02 | 0x04 | 0x08 | 0x20 | 0x40 | 0x80; // READONLY .. EXECUTE_WRITECOPY
-    private const int ChunkBytes = 1 << 20;
 
     // GetCurrentProcess's pseudo-handle, so no real handle to the game is opened.
     // https://learn.microsoft.com/windows/win32/api/processthreadsapi/nf-processthreadsapi-getcurrentprocess
@@ -90,53 +90,16 @@ internal static unsafe class ModuleMemoryReader
     }
 
     /// <summary>Reads a NUL-terminated ANSI string at <paramref name="address"/>, up to <paramref name="maxBytes"/>,
-    /// in small pieces so a string near the end of readable memory still reads; null when its start can't be read.</summary>
-    public static string? ReadAnsiString(nint address, int maxBytes = 512)
-    {
-        const int Piece = 32;
-        var bytes = new byte[maxBytes];
-        var length = 0;
-        while (length < maxBytes)
-        {
-            var piece = bytes.AsSpan(length, Math.Min(Piece, maxBytes - length));
-            if (!Copy(address + length, piece))
-            {
-                // The next piece crosses into unreadable memory; finish byte by byte up to the terminator.
-                piece = bytes.AsSpan(length, 1);
-                if (!Copy(address + length, piece))
-                {
-                    return length == 0 ? null : System.Text.Encoding.Latin1.GetString(bytes, 0, length);
-                }
-            }
-            var end = piece.IndexOf((byte)0);
-            if (end >= 0)
-            {
-                length += end;
-                break;
-            }
-            length += piece.Length;
-        }
-        return System.Text.Encoding.Latin1.GetString(bytes, 0, length);
-    }
+    /// as <see cref="MemoryText.ReadAnsi"/> does; null when its start can't be read.</summary>
+    public static string? ReadAnsiString(nint address, int maxBytes = 512) => MemoryText.ReadAnsi(CopyAt, address, maxBytes);
 
-    /// <summary>Reads <paramref name="length"/> bytes at <paramref name="address"/> as UTF-8, or null when the length
-    /// is negative or over <paramref name="maxBytes"/>, or the bytes can't all be read.</summary>
-    public static string? ReadUtf8(nint address, int length, int maxBytes = 16 << 20)
-    {
-        if (length < 0 || length > maxBytes)
-        {
-            return null;
-        }
-        var bytes = new byte[length];
-        for (var offset = 0; offset < length; offset += ChunkBytes)
-        {
-            if (!Copy(address + offset, bytes.AsSpan(offset, Math.Min(ChunkBytes, length - offset))))
-            {
-                return null;
-            }
-        }
-        return System.Text.Encoding.UTF8.GetString(bytes);
-    }
+    /// <summary>Reads <paramref name="length"/> bytes at <paramref name="address"/> as UTF-8, as
+    /// <see cref="MemoryText.ReadUtf8"/> does; null when the length is negative or over <paramref name="maxBytes"/>, or
+    /// the bytes can't all be read.</summary>
+    public static string? ReadUtf8(nint address, int length, int maxBytes = 16 << 20) =>
+        MemoryText.ReadUtf8(CopyAt, address, length, maxBytes);
+
+    private static bool CopyAt(long address, Span<byte> buffer) => Copy((nint)address, buffer);
 
     private static bool Copy(nint address, Span<byte> buffer)
     {
@@ -144,50 +107,6 @@ internal static unsafe class ModuleMemoryReader
         {
             return ReadProcessMemory(CurrentProcess, address, target, (nuint)buffer.Length, out var read) &&
                 read == (nuint)buffer.Length;
-        }
-    }
-
-    /// <summary>Copies the main module's committed, readable pages, as runs where they touch. Reserved, guarded and
-    /// no-access pages are never read, and a chunk that fails to copy is skipped and counted.</summary>
-    public static ModuleMemory ReadMainModule()
-    {
-        using var process = Process.GetCurrentProcess();
-        var module = process.MainModule ?? throw new InvalidOperationException("the game process has no main module");
-        var sinceStart = (long)(DateTime.Now - process.StartTime).TotalMilliseconds;
-        var start = module.BaseAddress;
-
-        var runs = new List<MemoryRun>();
-        long unreadable = 0;
-        foreach (var (spanStart, spanLength) in ReadableSpans(start, start + module.ModuleMemorySize))
-        {
-            var bytes = new byte[spanLength];
-            var runFrom = 0;
-            for (var offset = 0; offset < spanLength; offset += ChunkBytes)
-            {
-                var size = Math.Min(ChunkBytes, spanLength - offset);
-                bool copied;
-                fixed (byte* target = &bytes[offset])
-                {
-                    copied = ReadProcessMemory(CurrentProcess, spanStart + offset, target, (nuint)size, out var read) &&
-                        read == (nuint)size;
-                }
-                if (!copied)
-                {
-                    AddRun(spanStart, bytes, runFrom, offset);
-                    unreadable += size;
-                    runFrom = offset + size;
-                }
-            }
-            AddRun(spanStart, bytes, runFrom, spanLength);
-        }
-        return new ModuleMemory(module.ModuleMemorySize, runs, unreadable, sinceStart);
-
-        void AddRun(nint spanStart, byte[] bytes, int from, int to)
-        {
-            if (to > from)
-            {
-                runs.Add(new MemoryRun(spanStart + from - start, bytes.AsMemory(from, to - from)));
-            }
         }
     }
 

@@ -1,6 +1,7 @@
 namespace Metaphor.Core.Tests;
 
-/// <summary>The in-game signature scan's logic, run on byte arrays that stand in for the game's readable memory.</summary>
+/// <summary>The in-game signature scan's logic, run over a read function on a byte array that stands in for the game's
+/// readable memory, as <see cref="ChunkedScanTests"/> does.</summary>
 [Trait("Category", "Unit")]
 public sealed class SignatureScanTests : IDisposable
 {
@@ -10,8 +11,6 @@ public sealed class SignatureScanTests : IDisposable
 
     public void Dispose() => Directory.Delete(modFolder, recursive: true);
 
-    private static SignatureProbe Probe(string name, string pattern) => new(name, pattern, "test");
-
     private string ReportPath => Path.Combine(modFolder, SignatureScan.ReportFileName);
 
     private string RequestPath => Path.Combine(modFolder, SignatureScan.RequestFileName);
@@ -19,14 +18,35 @@ public sealed class SignatureScanTests : IDisposable
     private void RequestScan(string probes = """[{ "name": "a", "pattern": "20", "source": "s" }]""") =>
         File.WriteAllText(RequestPath, probes);
 
-    private static ModuleMemory Module(params MemoryRun[] runs) => new(0x10_0000, runs, UnreadableBytes: 0x200, 1500);
+    private static string Probes(params (string Name, string Pattern)[] probes) =>
+        "[" + string.Join(",", probes.Select(p => $$"""{ "name": "{{p.Name}}", "pattern": "{{p.Pattern}}", "source": "s" }""")) + "]";
+
+    // `memory` read from RVA 0 over `regions`; reads that touch an `unreadable` RVA fail.
+    private static ScannedModule Module(
+        byte[] memory, IReadOnlyList<(long Rva, long Length)>? regions = null, params long[] unreadable) =>
+        new(0x10_0000, 1500, regions ?? [(0, memory.Length)], (rva, buffer) =>
+        {
+            var length = buffer.Length;
+            if (unreadable.Any(bad => bad >= rva && bad < rva + length))
+            {
+                return false;
+            }
+            memory.AsSpan((int)rva, buffer.Length).CopyTo(buffer);
+            return true;
+        });
+
+    private SignatureScanReport Scan(ScannedModule module, string probes)
+    {
+        RequestScan(probes);
+        return SignatureScan.ScanIfRequested(modFolder, Build, () => module)!;
+    }
 
     [Fact]
     public void DoesNothingUnlessAskedWithAProbesFile()
     {
         var read = false;
 
-        var report = SignatureScan.ScanIfRequested(modFolder, Build, () => { read = true; return Module(); });
+        var report = SignatureScan.ScanIfRequested(modFolder, Build, () => { read = true; return Module([]); });
 
         Assert.Null(report);
         Assert.False(read);
@@ -36,10 +56,11 @@ public sealed class SignatureScanTests : IDisposable
     [Fact]
     public void WritesWhatEachProbeFoundWhenAsked()
     {
+        var memory = new byte[0x1002];
+        memory[0x1001] = 0x20;
         RequestScan();
 
-        var report = SignatureScan.ScanIfRequested(
-            modFolder, Build, () => Module(new MemoryRun(0x1000, new byte[] { 0x10, 0x20 })));
+        var report = SignatureScan.ScanIfRequested(modFolder, Build, () => Module(memory, [(0x1000, 2)]));
 
         using var json = System.Text.Json.JsonDocument.Parse(File.ReadAllText(ReportPath));
         var root = json.RootElement;
@@ -47,7 +68,7 @@ public sealed class SignatureScanTests : IDisposable
         Assert.Equal(1500, root.GetProperty("millisecondsSinceGameStart").GetInt64());
         Assert.Equal(0x10_0000, root.GetProperty("moduleBytes").GetInt64());
         Assert.Equal(2, root.GetProperty("readableBytes").GetInt64());
-        Assert.Equal(0x200, root.GetProperty("unreadableBytes").GetInt64());
+        Assert.Equal(0, root.GetProperty("unreadableBytes").GetInt64());
         var probe = Assert.Single(root.GetProperty("probes").EnumerateArray());
         Assert.Equal("a", probe.GetProperty("name").GetString());
         Assert.Equal(1, probe.GetProperty("matches").GetInt32());
@@ -56,14 +77,24 @@ public sealed class SignatureScanTests : IDisposable
     }
 
     [Fact]
+    public void ReportsTheBytesThatFailedToRead()
+    {
+        // The whole region fits in one chunk, so one unreadable byte fails all four.
+        var report = Scan(Module(new byte[4], unreadable: 2), Probes(("a", "20")));
+
+        Assert.Equal(0, report.ReadableBytes);
+        Assert.Equal(4, report.UnreadableBytes);
+    }
+
+    [Fact]
     public void ScansOnlyOncePerRequest()
     {
         RequestScan();
 
-        SignatureScan.ScanIfRequested(modFolder, Build, () => Module());
+        SignatureScan.ScanIfRequested(modFolder, Build, () => Module([]));
 
         Assert.False(File.Exists(RequestPath));
-        Assert.Null(SignatureScan.ScanIfRequested(modFolder, Build, () => Module()));
+        Assert.Null(SignatureScan.ScanIfRequested(modFolder, Build, () => Module([])));
     }
 
     [Fact]
@@ -94,35 +125,22 @@ public sealed class SignatureScanTests : IDisposable
         RequestScan("""[{ "name": "a", "pattern": "zz", "source": "s" }]""");
         var read = false;
 
-        var report = SignatureScan.ScanIfRequested(modFolder, Build, () => { read = true; return Module(); });
+        var report = SignatureScan.ScanIfRequested(modFolder, Build, () => { read = true; return Module([]); });
 
         Assert.Contains("bad pattern", report!.Error, StringComparison.Ordinal);
         Assert.False(read);
     }
 
     [Fact]
-    public void ReportsEachMatchAsAnAddressRelativeToTheModule()
+    public void CountsMatchesInEveryRegionAndListsTheFirstFive()
     {
-        MemoryRun[] runs = [new(0x1000, new byte[] { 0x00, 0x48, 0x8B, 0x00 })];
+        var memory = new byte[0x9003];
+        memory.AsSpan(0x1000, 4).Fill(0xCC);
+        memory[0x9000] = memory[0x9002] = 0xCC;
 
-        var result = Assert.Single(SignatureScan.Scan(runs, [Probe("draw-text", "48 8B")]));
+        var result = Assert.Single(Scan(Module(memory, [(0x1000, 4), (0x9000, 3)]), Probes(("int3", "CC"))).Probes);
 
-        Assert.Equal("draw-text", result.Name);
-        Assert.Equal(1, result.Matches);
-        Assert.Equal([0x1001L], result.FirstRvas);
-    }
-
-    [Fact]
-    public void CountsMatchesInEveryRunAndListsTheFirstFive()
-    {
-        MemoryRun[] runs =
-        [
-            new(0x1000, new byte[] { 0xCC, 0xCC, 0xCC, 0xCC }),
-            new(0x9000, new byte[] { 0xCC, 0x00, 0xCC }),
-        ];
-
-        var result = Assert.Single(SignatureScan.Scan(runs, [Probe("int3", "CC")]));
-
+        Assert.Equal("int3", result.Name);
         Assert.Equal(6, result.Matches);
         Assert.Equal([0x1000L, 0x1001, 0x1002, 0x1003, 0x9000], result.FirstRvas);
     }
@@ -130,9 +148,7 @@ public sealed class SignatureScanTests : IDisposable
     [Fact]
     public void ReportsAProbeThatMatchesNowhere()
     {
-        MemoryRun[] runs = [new(0, new byte[] { 0x10, 0x20 })];
-
-        var results = SignatureScan.Scan(runs, [Probe("a", "20"), Probe("b", "30")]);
+        var results = Scan(Module([0x10, 0x20]), Probes(("a", "20"), ("b", "30"))).Probes;
 
         Assert.Equal(["a", "b"], results.Select(result => result.Name));
         Assert.Equal(0, results[1].Matches);

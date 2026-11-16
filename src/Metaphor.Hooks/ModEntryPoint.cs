@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using Metaphor.Core;
 using Metaphor.Core.Announcements;
@@ -81,7 +82,7 @@ public sealed class ModEntryPoint : IMod
 #endif
 
             // Issue #21's spike: runs once, only when scripts/signature-spike.ps1 put a probes file in the mod's folder.
-            var scan = SignatureScan.ScanIfRequested(folder, status.GameBuildSha256, ModuleMemoryReader.ReadMainModule);
+            var scan = SignatureScan.ScanIfRequested(folder, status.GameBuildSha256, OpenMainModuleForScan);
             if (scan is not null)
             {
                 logger.WriteLine(scan.Error is null
@@ -93,6 +94,18 @@ public sealed class ModEntryPoint : IMod
         {
             // ModStartup doesn't throw; this covers the loader API, whose failures we can't report anywhere.
         }
+    }
+
+    /// <summary>The game's main module for the signature scan, read a chunk at a time through
+    /// <see cref="ModuleMemoryReader"/> as the hook loader reads it.</summary>
+    private static ScannedModule OpenMainModuleForScan()
+    {
+        using var process = Process.GetCurrentProcess();
+        var sinceStart = (long)(DateTime.Now - process.StartTime).TotalMilliseconds;
+        var moduleBytes = process.MainModule?.ModuleMemorySize ??
+            throw new InvalidOperationException("the game process has no main module");
+        var (moduleBase, regions) = ModuleMemoryReader.MainModuleRegions();
+        return new(moduleBytes, sinceStart, regions, (rva, buffer) => ModuleMemoryReader.ReadAt(moduleBase, rva, buffer));
     }
 
     // No hooks are installed yet, so there is nothing to suspend or unload; false hides those launcher buttons.
