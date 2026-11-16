@@ -1,0 +1,76 @@
+name: Linux build spike (#20, temporary)
+
+on:
+  push:
+    branches: [20-linux-build-spike]
+
+permissions:
+  contents: read
+
+jobs:
+  linux:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-dotnet@0f4a354dd5547a28c70b7853dbd95d5b67886e73 # v6.1.0
+        with:
+          global-json-file: global.json
+      - name: Environment
+        run: |
+          head -4 /etc/os-release
+          echo "ImageOS=$ImageOS ImageVersion=$ImageVersion"
+          dotnet --version
+          pwsh --version
+      - name: "A - build the solution, no extra settings"
+        id: a
+        continue-on-error: true
+        run: dotnet build Metaphor.sln -c Release -v q --nologo
+      - name: "B - build the solution with EnableWindowsTargeting"
+        id: b
+        continue-on-error: true
+        run: dotnet build Metaphor.sln -c Release -v q --nologo -p:EnableWindowsTargeting=true
+      - name: "C - test the solution (Unit|RoundTrip) after B"
+        id: c
+        continue-on-error: true
+        run: dotnet test Metaphor.sln -c Release --no-build -v q --filter "Category=Unit|Category=RoundTrip"
+      - name: "D - each net9.0 project alone, no extra settings"
+        id: d
+        continue-on-error: true
+        run: |
+          git clean -fdxq
+          rc=0
+          for p in tests/Metaphor.Core.Tests tests/Metaphor.Features.Dialogue.Tests tests/Metaphor.Architecture.Tests; do
+            echo "== $p"
+            dotnet test "$p" -c Release -v q --nologo --filter "Category=Unit|Category=RoundTrip" || { echo "FAILED: $p"; rc=1; }
+          done
+          for p in tests/Metaphor.StandInGame tools/Metaphor.SignatureCheck; do
+            echo "== $p"
+            dotnet build "$p" -c Release -v q --nologo || { echo "FAILED: $p"; rc=1; }
+          done
+          exit $rc
+      - name: "E - package the mod with EnableWindowsTargeting"
+        id: e
+        continue-on-error: true
+        env:
+          EnableWindowsTargeting: "true"
+          PRISM_CACHE: ${{ runner.temp }}/prism-cache
+        run: |
+          git clean -fdxq
+          sha="$(bash scripts/package-mod.sh artifacts/mod)"
+          echo "Packaged mod SHA-256 on Linux: $sha (commit $GITHUB_SHA)"
+      - name: "F - format check with EnableWindowsTargeting"
+        id: f
+        continue-on-error: true
+        env:
+          EnableWindowsTargeting: "true"
+        run: dotnet format whitespace Metaphor.sln --verify-no-changes
+      - name: Outcomes
+        run: |
+          echo "A=${{ steps.a.outcome }} B=${{ steps.b.outcome }} C=${{ steps.c.outcome }}"
+          echo "D=${{ steps.d.outcome }} E=${{ steps.e.outcome }} F=${{ steps.f.outcome }}"
