@@ -7,8 +7,10 @@
 //
 // The real loader reads ReloadedII.json from a fixed AppData path; the stand-in reads the path from
 // METAPHOR_STANDIN_RELOADED_CONFIG. METAPHOR_STANDIN_BEHAVIOUR picks what the game does: ready (default), refuse,
-// partial (ready with 0 of 1 hooks), otherbuild (ready on another build), silent (writes nothing) or crash (exits at
-// once). Loader facts: docs/raw-sources/reloaded-ii-app-and-mod-config-2026-11-15.md.
+// partial (ready with 0 of 1 hooks), otherbuild (ready on another build), silent (writes nothing), crash (exits at
+// once) or exitlater (ready, then exits a second later). With METAPHOR_STANDIN_MESSAGE_LOG set to a file, each enabled
+// mod also gets a copy as its message-log.txt, held open for writing as the Debug mod holds its own (for listen.ps1).
+// Loader facts: docs/raw-sources/reloaded-ii-app-and-mod-config-2026-11-15.md.
 
 using System.Diagnostics;
 using System.Security.Cryptography;
@@ -53,6 +55,7 @@ var self = Environment.ProcessPath!;
 var application = FindApplication(root, self) ?? throw new InvalidOperationException($"no application for {self}");
 var enabled = application.GetProperty("EnabledMods").EnumerateArray().Select(id => id.GetString()).ToHashSet();
 var build = Convert.ToHexStringLower(SHA256.HashData(File.ReadAllBytes(self)));
+var openLogs = new List<FileStream>();
 
 foreach (var modConfig in Directory.EnumerateFiles(Folder(root, "ModConfigDirectory"), "ModConfig.json", SearchOption.AllDirectories))
 {
@@ -77,9 +80,23 @@ foreach (var modConfig in Directory.EnumerateFiles(Folder(root, "ModConfigDirect
         bytes.AsSpan((int)rva, buffer.Length).CopyTo(buffer);
         return true;
     }));
+    if (Environment.GetEnvironmentVariable("METAPHOR_STANDIN_MESSAGE_LOG") is { Length: > 0 } messageLog)
+    {
+        // Left open until the process ends, as ModEntryPoint.OpenMessageLog leaves the real one.
+        var log = new FileStream(Path.Combine(folder, MessageLog.FileName), FileMode.Create, FileAccess.Write, FileShare.Read);
+        log.Write(File.ReadAllBytes(messageLog));
+        log.Flush();
+        openLogs.Add(log);
+    }
 }
 
+if (behaviour == "exitlater")
+{
+    Thread.Sleep(1000);
+    return 4;
+}
 Thread.Sleep(Timeout.Infinite);
+GC.KeepAlive(openLogs);
 return 0;
 
 static string Folder(JsonElement root, string property) => root.GetProperty(property).GetString()!;
