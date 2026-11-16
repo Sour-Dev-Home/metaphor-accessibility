@@ -59,10 +59,18 @@ public sealed class MessageLog(TextWriter writer, Func<long> millisecondsSinceSt
     private static string Quoted(string? text) => text is null ? "(unreadable)" : $"\"{LogText.Escaped(text)}\"";
 
     /// <summary>A sound cue the game set on a CRI ADX2 player (#93, #103): the cue's number, the cue sheet and player
-    /// handles, and the calling code as a module offset (null when the stack walk didn't reach it), with where the call
-    /// before that return address went if it is a direct call. Numbers only, no game text.</summary>
-    public void CueSet(int cueId, long acb, long player, long? callerRva, long? callTargetRva) => Write(() =>
-        Line($"{millisecondsSinceStart()} ms cue id={cueId} acb=0x{acb:x} player=0x{player:x} caller={Rva(callerRva)} call={Rva(callTargetRva)}"));
+    /// handles, and the calling code (<see cref="CallerTrace"/>). Numbers only, no game text.</summary>
+    public void CueSet(int cueId, long acb, long player, CallerTrace caller) => Write(() =>
+        Line($"{millisecondsSinceStart()} ms cue id={cueId} acb=0x{acb:x} player=0x{player:x} {caller}"));
+
+    /// <summary>An input a menu's cursor manager handled (#93, second sitting). Numbers only, no game text.</summary>
+    public void CursorInputHandled(CursorInput input) =>
+        Write(() => Line($"{millisecondsSinceStart()} ms cursor {input}"));
+
+    /// <summary>A UI text pane drawn in a new state (#93, second sitting), with the text a probe found behind it, if any:
+    /// where it was (<c>pane+0x…</c> or <c>elem+0x…</c>) and the text. Game text, so this log stays local.</summary>
+    public void PaneDrawn(PaneDrawn pane, string? textAt, string? text) => Write(() =>
+        Line($"{millisecondsSinceStart()} ms pane {pane} text={(text is null ? "(none)" : $"{textAt} {Quoted(text)}")}"));
 
     /// <summary>A message the game resolved by key (#74, #106): which lookup ran, its arguments and its result, as the
     /// listening hook formatted them.</summary>
@@ -74,12 +82,14 @@ public sealed class MessageLog(TextWriter writer, Func<long> millisecondsSinceSt
     public void PlayerNameSeen(string function, PlayerNameSighting sighting) =>
         Write(() => Line($"{millisecondsSinceStart()} ms player-name via={function} {sighting}"));
 
+    /// <summary>A pad's or the keyboard's state as the game read it, when it changed (#58): the source and the state as
+    /// the listening hook formatted it. Bit masks only, no game text.</summary>
+    public void InputChanged(string source, string state) =>
+        Write(() => Line($"{millisecondsSinceStart()} ms input {source} {state}"));
+
     /// <summary>A line the game asked for by label, with its kind.</summary>
     public void Observe(LineRequested line) => Write(() =>
         Line($"{millisecondsSinceStart()} ms request via={LineRequestFunction} kind={line.Kind} text=\"{LogText.Escaped(line.Label)}\""));
-
-    private static string Rva(long? rva) =>
-        rva is { } value ? string.Create(CultureInfo.InvariantCulture, $"0x{value:x}") : "(unknown)";
 
     private static string Line(FormattableString text) =>
         text.ToString(CultureInfo.InvariantCulture) + Environment.NewLine;
