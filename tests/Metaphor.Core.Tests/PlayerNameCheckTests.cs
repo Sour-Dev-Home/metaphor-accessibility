@@ -40,3 +40,51 @@ public sealed class PlayerNameCheckTests
         Assert.DoesNotContain("Ardent", sighting.ToString(), StringComparison.Ordinal);
     }
 }
+
+/// <summary>Where a development run's typed name comes from: a file in the mod's folder, outside the repository.</summary>
+[Trait("Category", "Unit")]
+public sealed class PlayerNameFileTests : IDisposable
+{
+    private readonly string modFolder = Directory.CreateTempSubdirectory("metaphor-name-").FullName;
+
+    public void Dispose() => Directory.Delete(modFolder, recursive: true);
+
+    private void WriteNameFile(string contents) =>
+        File.WriteAllText(Path.Combine(modFolder, PlayerNameCheck.FileName), contents, new UTF8Encoding(true));
+
+    [Fact]
+    public void ReadsTheFilesFirstLineTrimmed()
+    {
+        WriteNameFile("  Ardent \r\nsecond line\r\n");
+
+        var check = PlayerNameCheck.FromModFolder(modFolder, fallback: "Other");
+
+        Assert.Equal(PlayerNameMatch.Exact, check.Compare("Ardent"u8));
+    }
+
+    [Fact]
+    public void WithoutTheFileUsesTheFallback() =>
+        Assert.Equal(PlayerNameMatch.Exact, PlayerNameCheck.FromModFolder(modFolder, fallback: "Other").Compare("Other"u8));
+
+    [Fact]
+    public void AnEmptyFileUsesTheFallback()
+    {
+        WriteNameFile(" \n");
+
+        Assert.Equal(PlayerNameMatch.Unset, PlayerNameCheck.FromModFolder(modFolder, fallback: null).Compare("Ardent"u8));
+    }
+
+    [Fact]
+    public void ReadsOnlyTheStartOfAHugeOneLineFile()
+    {
+        WriteNameFile("Ardent" + new string(' ', 300) + "tail");
+
+        Assert.Equal(PlayerNameMatch.Exact, PlayerNameCheck.FromModFolder(modFolder, fallback: null).Compare("Ardent"u8));
+    }
+
+    [Fact]
+    public void AMissingFolderIsUnset() =>
+        Assert.Equal(
+            PlayerNameMatch.Unset,
+            PlayerNameCheck.FromModFolder(Path.Combine(modFolder, "missing"), fallback: null).Compare("Ardent"u8));
+}
