@@ -48,9 +48,9 @@ It takes about as long as a smoke test, and:
    the exe's headers, its address relative to the module (`rva`);
 3. runs the [smoke test](run-the-smoke-test.md) with only that mod enabled, so no other mod's hooks (CriFs V2 Hook
    rewrites the start of the functions probed) change the bytes. The mod copies the game's main module once,
-   when Reloaded-II starts it, scans it and deletes the probes file. It only reads memory (ADR 0002): it skips pages
-   that aren't committed and readable, and copies the rest through `ReadProcessMemory`, which fails instead of
-   faulting. The smoke test collects the report, closes the game and restores your Reloaded-II config;
+   when Reloaded-II starts it and before it installs its own hooks, scans it and deletes the probes file. It only
+   reads memory (ADR 0002): it skips pages that aren't committed and readable, and copies the rest through
+   `ReadProcessMemory`, which fails instead of faulting. The smoke test collects the report, closes the game and restores your Reloaded-II config;
 4. writes a raw-source draft to `artifacts/signature-spike/`: the game build, the steps, a table comparing each probe
    on disk and in memory (`same place`, `both once, different places`, `absent from both` or `differs`), and both raw
    outputs.
@@ -63,6 +63,27 @@ MF.Toolkit's message signatures (#55; [result](../../raw-sources/mf-toolkit-mess
 
 The scan runs once, early: when Reloaded-II starts our mod. If the game changes its code later, this scan won't see
 it, so read a mismatch with the report's `millisecondsSinceGameStart` in mind.
+
+## Read the bytes at an address
+
+To see what is at an address in the module (an rva, as the script function list or a probe's `rva` gives it), read the
+exe on disk:
+
+```sh
+dotnet run --project tools/Metaphor.SignatureCheck -c Release -- --bytes "$METAPHOR_GAME_EXE" 0x90c820 64
+```
+
+The rva is hex after `0x`; the length is 1 to 4096 bytes, decimal or hex. The output names the game build, the
+section holding the rva and its file offset (mapped through the PE section table), the bytes 16 to a line, then the
+**candidate** call and jump targets among them, each with the section it lands in: `call` and `jmp` with a 32-bit
+offset (`E8`, `E9`), short `jmp` (`EB`), conditional jumps with a 32-bit offset (`jcc`, `0F 80`–`8F`), and `call` or
+`jmp` through a pointer (`FF 15`, `FF 25`, shown as `[address of the pointer]`). It doesn't disassemble: any byte can look
+like an opcode, so a candidate is real only if the instructions before it lead there. Targets outside every section
+are left out, and so are short conditional jumps, which are too common to be worth listing.
+
+It exits 0 when it printed the bytes, 1 when the file doesn't hold them (no section, or past the section's data in the
+file), and 2 on a usage error. The output holds no local path, so it can go into a raw source as it is; this is how
+[`msg-request-functions-2026-11-16.md`](../../raw-sources/msg-request-functions-2026-11-16.md) was read by hand.
 
 ## Limits
 

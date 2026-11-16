@@ -8,7 +8,8 @@ them, and writes a raw-source draft.
    (tools/Metaphor.SignatureCheck/signature-probes.json, CriFs V2 Hook's release patterns).
 2. Scans the exe on disk (tools/Metaphor.SignatureCheck --probes).
 3. Runs scripts/smoke-test.ps1 with only that mod enabled, so no other mod's hooks change the bytes, and collects the
-   mod's signature-scan.json. The smoke test closes the game and restores the Reloaded-II config.
+   mod's signature-scan.json, which the mod writes before it installs its own hooks. The smoke test closes the game
+   and restores the Reloaded-II config.
 4. Writes a draft to -OutFile: the game build, the steps, a side-by-side table and both raw outputs. Review it, then
    save it under docs/raw-sources/ and record the result on #21.
 

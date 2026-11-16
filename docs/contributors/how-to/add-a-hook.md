@@ -18,8 +18,9 @@ Cheapest first, and write down where each fact came from as you go:
 2. **What the game tells you at runtime.** Its script functions are known by name and address
    ([list](../../raw-sources/squirrel-script-functions-all-2026-11-16.md)). A development-only listening hook can log
    when a candidate fires (step 4, with `DevOnly = true`).
-3. **The exe in a disassembler, as-is** (ADR 0002). Never anything that defeats the protection; if a step would need
-   that, stop and note it.
+3. **The exe's bytes, as-is** (ADR 0002): read what is at an address with
+   [`--bytes`](check-hook-signatures.md#read-the-bytes-at-an-address), or open the exe in a disassembler. Never anything
+   that defeats the protection; if a step would need that, stop and note it.
 
 ## 2. Write and check its signature
 
@@ -66,7 +67,9 @@ check the points above.
 1. **Smoke test** ([how](run-the-smoke-test.md)): the status shows `hooks n/n` on the build. It closes the game within
    seconds, so it proves the hook installs, not what it does later.
 2. **A real run**: `pwsh scripts/deploy-dev.ps1` leaves the game running. Watch it for at least a minute before
-   playing; the first run of #55's hooks crashed seven seconds in. Then do what the feature needs: play the scene,
+   playing; the first run of #55's hooks crashed seven seconds in. A
+   [listening run](deploy-a-dev-build.md#listening-run) (`pwsh scripts/listen.ps1`) does that watch and summarises the
+   development log by record type. Then do what the feature needs: play the scene,
    listen with a screen reader (say so in advance if someone else is listening), read the transcript.
 3. If it crashed, Windows' Application event log names the faulting module and exception code; `coreclr.dll` with
    `0x80131623` is .NET failing fast, not the game.
