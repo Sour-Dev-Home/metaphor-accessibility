@@ -50,6 +50,30 @@ public sealed class ModStartupTests : IDisposable
         Assert.Equal(status, Read());
     }
 
+    // #92: the signature spike must see the game's own bytes, not the patches our hooks write.
+    [Fact]
+    public void WorkBeforeHooksRunsWithTheBuildBeforeAnyHookInstalls()
+    {
+        var calls = new List<string>();
+
+        ModStartup.CheckAndReport(
+            ModId, _gameExe, _folder.FullName, () => [Build(GameBuild)], hooksExpected: 1,
+            installHooks: _ => { calls.Add("install"); return 1; },
+            beforeHooks: build => calls.Add($"before {build}"));
+
+        Assert.Equal([$"before {GameBuild}", "install"], calls);
+    }
+
+    [Fact]
+    public void WhenWorkBeforeHooksFailsTheHooksStillInstall()
+    {
+        var status = ModStartup.CheckAndReport(
+            ModId, _gameExe, _folder.FullName, () => [Build(GameBuild)], hooksExpected: 1,
+            installHooks: _ => 1, beforeHooks: _ => throw new IOException("probe file locked"));
+
+        Assert.Equal(ModStatus.Ready(ModId, GameBuild, hooksLoaded: 1, hooksExpected: 1), status);
+    }
+
     [Fact]
     public void OnAnUnknownBuildNoHookIsInstalled()
     {

@@ -69,10 +69,11 @@ public sealed class ModEntryPoint : IMod
             var services = HookServices.Speaking(announcer, messageLog);
             // The mod runs inside the game, so this process's exe is the game executable whose hash identifies the
             // build (seen in docs/raw-sources/mod-entry-point-first-run-2026-11-15.md). Hooks go in only on a known
-            // build, through the loader (#39).
+            // build, through the loader (#39). Issue #21's spike scans first, so it reads the game's own bytes (#92).
             var status = ModStartup.CheckAndReport(
                 config.ModId, Environment.ProcessPath ?? "", folder, () => KnownGameBuilds.All, HookLoader.HookTypes().Count,
-                build => HookLoader.Install(build, modLoader, services, line => logger.WriteLine($"[{config.ModId}] {line}")));
+                build => HookLoader.Install(build, modLoader, services, line => logger.WriteLine($"[{config.ModId}] {line}")),
+                build => ScanIfRequested(folder, build, config.ModId, logger));
             logger.WriteLine(
                 $"[{config.ModId}] build {ModBuild.Revision.CommitSha}{(ModBuild.Revision.HasUncommittedChanges ? "-dirty" : "")}: {status.State} on game build {status.GameBuildSha256}, hooks {status.HooksLoaded}/{status.HooksExpected}" +
                 (status.Reason is null ? "" : $" ({status.Reason})"));
@@ -80,19 +81,23 @@ public sealed class ModEntryPoint : IMod
             // The by-ear check (#54): with a screen reader running, this is the first thing the mod says.
             announcer.Announce(new Announcement($"Metaphor accessibility mod {status.State.ToString().ToLowerInvariant()}.", Interrupt: true));
 #endif
-
-            // Issue #21's spike: runs once, only when scripts/signature-spike.ps1 put a probes file in the mod's folder.
-            var scan = SignatureScan.ScanIfRequested(folder, status.GameBuildSha256, OpenMainModuleForScan);
-            if (scan is not null)
-            {
-                logger.WriteLine(scan.Error is null
-                    ? $"[{config.ModId}] signature scan: {scan.Probes.Count(probe => probe.Matches == 1)} of {scan.Probes.Count} probes matched once; {scan.ReadableBytes} of {scan.ModuleBytes} bytes read, {scan.UnreadableBytes} failed; {scan.MillisecondsSinceGameStart} ms after start ({SignatureScan.ReportFileName})"
-                    : $"[{config.ModId}] signature scan failed: {scan.Error}");
-            }
         }
         catch (Exception)
         {
             // ModStartup doesn't throw; this covers the loader API, whose failures we can't report anywhere.
+        }
+    }
+
+    /// <summary>Issue #21's spike: runs once, only when scripts/signature-spike.ps1 put a probes file in the mod's
+    /// folder, and before any hook installs.</summary>
+    private static void ScanIfRequested(string folder, string build, string modId, ILogger logger)
+    {
+        var scan = SignatureScan.ScanIfRequested(folder, build, OpenMainModuleForScan);
+        if (scan is not null)
+        {
+            logger.WriteLine(scan.Error is null
+                ? $"[{modId}] signature scan: {scan.Probes.Count(probe => probe.Matches == 1)} of {scan.Probes.Count} probes matched once; {scan.ReadableBytes} of {scan.ModuleBytes} bytes read, {scan.UnreadableBytes} failed; {scan.MillisecondsSinceGameStart} ms after start ({SignatureScan.ReportFileName})"
+                : $"[{modId}] signature scan failed: {scan.Error}");
         }
     }
 

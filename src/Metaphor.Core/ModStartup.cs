@@ -15,13 +15,22 @@ public static class ModStartup
     /// (docs/raw-sources/reloaded-ii-mod-entry-point-2026-11-15.md), so any failure becomes a refusal instead.</summary>
     /// <returns>The status, which the caller should log: writing it to the folder is best effort.</returns>
     /// <remarks><c>installHooks</c> installs the hooks for the running game build and returns how many it installed
-    /// (#39). It's called only when the build is known (ground rule 2).</remarks>
+    /// (#39). It's called only when the build is known (ground rule 2). <c>beforeHooks</c> gets the game build before
+    /// any hook installs, so it sees the game's own code (the signature spike, #92).</remarks>
     [SuppressMessage("Design", "CA1031", Justification = "Any failure must refuse rather than reach the game.")]
     public static ModStatus CheckAndReport(
         string modId, string gameExe, string modFolder, Func<IReadOnlyList<GameBuild>> knownBuilds, int hooksExpected,
-        Func<string, int>? installHooks = null)
+        Func<string, int>? installHooks = null, Action<string>? beforeHooks = null)
     {
         var status = Check(modId, gameExe, knownBuilds, hooksExpected);
+        try
+        {
+            beforeHooks?.Invoke(status.GameBuildSha256);
+        }
+        catch (Exception)
+        {
+            // Work before the hooks is optional; it mustn't cost the mod its hooks or reach the game.
+        }
         if (status.State == ModState.Ready && installHooks is not null)
         {
             status = InstallHooks(status, installHooks);
