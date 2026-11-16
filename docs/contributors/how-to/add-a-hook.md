@@ -1,0 +1,82 @@
+# Add a hook
+
+From "the feature needs to know when the game does X" to a hook that is in the mod, pinned to a **game build**, and proven
+in the game. Each step ends in evidence: a raw source, a passing check, or a run. Work in an issue, one step at a time;
+the dialogue hook (#52, #55, #56) went this way.
+
+The rules behind it: [ground rules](../../../AGENTS.md#ground-rules) 1–5, [ADR 0002](../../adr/0002-analysis-methods-under-denuvo.md)
+(what analysis is allowed), [ADR 0003](../../adr/0003-thin-hook-layer.md) (only the hook layer touches the game) and
+[ADR 0006](../../adr/0006-hooks-through-reloaded-shared-hooks.md) (how hooks are installed).
+
+## 1. Find the function
+
+Cheapest first, and write down where each fact came from as you go:
+
+1. **Community mods' source.** Save what you use as a raw source, with the commit
+   ([example](../../raw-sources/game-text-hooks-community-2026-11-15.md)). Their signatures name no game build, so treat
+   them as leads until step 2.
+2. **What the game tells you at runtime.** Its script functions are known by name and address
+   ([list](../../raw-sources/squirrel-script-functions-all-2026-11-16.md)). A development-only listening hook can log
+   when a candidate fires (step 4, with `DevOnly = true`).
+3. **The exe in a disassembler, as-is** (ADR 0002). Never anything that defeats the protection; if a step would need
+   that, stop and note it.
+
+## 2. Write and check its signature
+
+A byte pattern with `??` wildcards that matches the function exactly once
+([format](check-hook-signatures.md#add-a-signature)).
+
+1. Put it in a probes file in `tools/Metaphor.SignatureCheck/` that cites the raw source, and check it on disk:
+   `dotnet run --project tools/Metaphor.SignatureCheck -c Release -- --probes "$METAPHOR_GAME_EXE" <probes file>`.
+2. Check it in the running game too: `pwsh scripts/signature-spike.ps1 -Probes <probes file>`
+   ([how](check-hook-signatures.md#compare-the-exe-on-disk-with-the-running-game)). Save the draft as a raw source.
+3. Copy it into `src/Metaphor.Core/hook-signatures.json` with the builds it was checked on and evidence pointing to
+   those raw sources. `HookSignaturesTests` checks the entry.
+
+## 3. Pin down how it's called
+
+From the source you used, or the disassembly: the arguments, their widths and the return value. Cite it in the hook's
+comments. Declare anything that is a register-sized value or a pointer as `nint`, even where a community mod used `int`:
+x64 leaves the upper half of a 32-bit argument's register undefined, and a hook that passes a value through must not
+hand the game garbage. Unknown widths are `[NEEDS VERIFICATION]` until the disassembly or a run settles them.
+
+## 4. Write the hook
+
+A class in `src/Metaphor.Hooks` ([example](../../../src/Metaphor.Hooks/MessageListeningHooks.cs)):
+
+- `[GameHook("<build SHA-256>")]`, and `DevOnly = true` for a spike: the loader installs it only in Debug builds.
+- Implements `IGameHook`: `SignatureName`, `Calls` for any game function it calls (each needs its own signature), and
+  `Install`. Only the loader installs hooks, after the build check and a full scan.
+- In `Install`, store the hook before activating it: the game can call it at once.
+- In the callback, catch every exception, read through pointers the game hands you only with `ModuleMemoryReader`
+  (an access violation can't be caught), and always call the original function unless changing behaviour is the point.
+- Keep the logic in a plain library (`Metaphor.Core` or a feature project) and unit-test it there with fakes; the hook
+  only adapts.
+
+`scripts/check.sh full` must pass. Its architecture rules fail a hook that names an unknown build, and any hook-layer code
+outside a `[GameHook]` that patches the game (rule 8).
+
+## 5. Prove it in the game
+
+1. **Smoke test** ([how](run-the-smoke-test.md)): the status shows `hooks n/n` on the build. It closes the game within
+   seconds, so it proves the hook installs, not what it does later.
+2. **A real run**: `pwsh scripts/deploy-dev.ps1` leaves the game running. Watch it for at least a minute before
+   playing; the first run of #55's hooks crashed seven seconds in. Then do what the feature needs: play the scene,
+   listen with a screen reader (say so in advance if someone else is listening), read the transcript.
+3. If it crashed, Windows' Application event log names the faulting module and exception code; `coreclr.dll` with
+   `0x80131623` is .NET failing fast, not the game.
+4. Save what the run showed as a raw source (method, game build, steps), and record it on the issue.
+
+## 6. Review and merge
+
+Run the `security-reviewer` agent before committing hook code, fix what it finds, and put the run's evidence in the PR
+(the `/pr` shape). A feature's hook ships only without `DevOnly`, after its own smoke test and run.
+
+## Traps already hit
+
+- **A hook object nobody references gets collected, and the game crashes.** The loader keeps installed hooks alive; don't
+  create hooks or callbacks outside it.
+- **`pwsh -File` splits a list argument into separate arguments**, which then bind to other parameters. Pass lists
+  through `pwsh -Command "& ./script.ps1 -Name a,b"`.
+- **An empty log isn't a broken hook.** The function may not have been called yet: run the game long enough, and reach
+  the moment the feature needs.
