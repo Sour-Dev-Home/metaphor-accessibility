@@ -1,29 +1,23 @@
-using System.Diagnostics.CodeAnalysis;
 using Metaphor.Core;
-using Reloaded.Hooks.Definitions;
-using IReloadedHooks = Reloaded.Hooks.ReloadedII.Interfaces.IReloadedHooks;
 
 namespace Metaphor.Hooks;
 
 /// <summary>Issue #55's spike: a development-only hook on <c>sq_newclosure</c> that logs every function the game
-/// registers for its Squirrel scripts, by script name and address, to find the one that shows a dialogue line. It
-/// passes every call through unchanged.
+/// registers for its Squirrel scripts, by script name and address, to find the one that shows a dialogue line. The
+/// loader's adapter passes every call through unchanged (#88).
 ///
 /// The technique (which stack slots hold the name and the userdata) and the signatures follow MF.Toolkit's
 /// <c>SquirrelService.NewClosure</c> (RyoTune/MF.Toolkit at b1f876da, AGPL-3.0;
 /// docs/raw-sources/mf-toolkit-squirrel-registration-2026-11-16.md).</summary>
 [GameHook(GameBuilds.Steam18330018, DevOnly = true)]
-internal sealed unsafe class SquirrelRegistrationListener : IGameHook
+internal sealed unsafe class SquirrelRegistrationListener : IGameHook, IObserves3
 {
-    // MF.Toolkit declares the integers below as int. They are pointer-sized here: sq_newclosure's own signature
-    // reads its third argument as 64 bits ("49 8B F8", mov rdi, r8), and Win64 leaves the upper half of a register
-    // undefined for a 32-bit argument, so passing a 32-bit value through could hand the game garbage. Pointer-sized is
-    // right whichever width the game reads.
-    private delegate void SqNewClosure(nint vm, nint func, nint freeVariables);
+    // sq_newclosure(vm, func, freeVariables) returns nothing. MF.Toolkit declares the integers as int. They are
+    // observed pointer-sized: sq_newclosure's own signature reads its third argument as 64 bits ("49 8B F8",
+    // mov rdi, r8), and Win64 leaves the upper half of a register undefined for a 32-bit argument, so passing a 32-bit
+    // value through could hand the game garbage. Pointer-sized is right whichever width the game reads.
 
-    private readonly SqNewClosure callback;
     private readonly MessageLog? log;
-    private IHook<SqNewClosure>? hook;
     private delegate* unmanaged<nint, nint> getTop;
     private delegate* unmanaged<nint, nint, nint*, nint> getString;
     private delegate* unmanaged<nint, nint, nint*, nint*, nint> getUserdata;
@@ -33,38 +27,27 @@ internal sealed unsafe class SquirrelRegistrationListener : IGameHook
     {
         ArgumentNullException.ThrowIfNull(services);
         log = services.Log;
-        callback = OnNewClosure;
     }
 
     public string SignatureName => "sq_newclosure";
 
     public IReadOnlyList<string> Calls => ["sq_gettop", "sq_getstring", "sq_getuserdata"];
 
-    public void Install(IReloadedHooks hooks, nint address, IReadOnlyDictionary<string, nint> calls)
+    public void UseCalls(IReadOnlyDictionary<string, nint> calls)
     {
+        ArgumentNullException.ThrowIfNull(calls);
         getTop = (delegate* unmanaged<nint, nint>)calls["sq_gettop"];
         getString = (delegate* unmanaged<nint, nint, nint*, nint>)calls["sq_getstring"];
         getUserdata = (delegate* unmanaged<nint, nint, nint*, nint*, nint>)calls["sq_getuserdata"];
         moduleBase = ModuleMemoryReader.MainModuleBase();
-        // Stored before it goes live: the game may call it the moment it's activated.
-        hook = hooks.CreateHook(callback, address);
-        hook.Activate();
     }
 
-    [SuppressMessage("Design", "CA1031", Justification = "An exception must never cross back into the game.")]
-    private void OnNewClosure(nint vm, nint func, nint freeVariables)
+    public void Observe(nint vm, nint func, nint freeVariables)
     {
-        try
+        if (log is not null)
         {
-            if (log is not null)
-            {
-                LogRegistration(log, vm, func);
-            }
+            LogRegistration(log, vm, func);
         }
-        catch (Exception)
-        {
-        }
-        hook!.OriginalFunction(vm, func, freeVariables);
     }
 
     /// <summary>The name is the string at the bottom of the script stack, and for a game function the native address

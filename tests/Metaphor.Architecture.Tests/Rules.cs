@@ -34,6 +34,7 @@ internal static class Rules
     {
         ["Metaphor.Hooks.HookLoader"] = "#39: the loader installs hooks",
         ["Metaphor.Hooks.IGameHook"] = "#39: what every hook implements",
+        ["Metaphor.Hooks.PassThrough"] = "#88: the loader's adapters hook each function for its hook",
         ["Metaphor.Hooks.PrismSpeech"] = "ADR 0005: calls prism.dll's exports through function pointers",
     };
 
@@ -558,7 +559,8 @@ internal static class Rules
         data.DeclaringType.FullName.StartsWith("<PrivateImplementationDetails>", StringComparison.Ordinal);
 
     /// <summary>
-    /// #69, rule 11: a hook is activated only through the field that holds it, so it was stored first. The game can
+    /// #69, rule 11: a hook is activated only through the field that holds it, so it was stored first. Since #88 only
+    /// the loader's adapters activate hooks (rule 14), so this checks them; it runs on every type all the same. The game can
     /// call the hook the moment it is active, and the callback reaches the original function through that field; and
     /// a hook nobody references can be collected while the game still calls it (#55's first run crashed this way).
     /// Checked as: the instruction before each <c>Activate</c> call loads a field the method's own type declares, and
@@ -636,6 +638,82 @@ internal static class Rules
             .Where(group => group.Count() > 1)
             .Select(group => $"{name} hooks {string.Join(", ", group.Select(hook => hook.Type).Order(StringComparer.Ordinal))} all hook {group.Key} (rule 13)");
         return [.. notConstant, .. shared];
+    }
+
+    /// <summary>The namespace and name prefix of the interfaces, one per parameter shape, a hook observes through.</summary>
+    public const string ShapePrefix = "Metaphor.Hooks.IObserves";
+
+    /// <summary>
+    /// #88, rule 14: hooks pass calls through the loader's adapters. A <c>[GameHook]</c> type implements exactly one
+    /// shape interface (<c>IObserves…</c>), and neither it nor code nested in it calls the hooking library at all
+    /// (<c>CreateHook</c>, <c>Activate</c>, <c>OriginalFunction</c>, …) or catches every exception (<c>catch
+    /// (Exception)</c> or a bare <c>catch</c>, filtered or not): the adapter for its shape does those, once for every
+    /// hook. Rule 11 then has only the adapters to check. A hook that lists <c>Calls</c> declares <c>UseCalls</c>,
+    /// explicitly implemented or not.
+    /// </summary>
+    public static IReadOnlyList<string> HooksPassThroughAdapters(AssemblyDefinition assembly)
+    {
+        var name = assembly.Name.Name;
+        var hooks = Types(assembly)
+            .Where(type => type.CustomAttributes.Any(attribute => attribute.AttributeType.FullName == GameHookAttribute))
+            .ToList();
+        var shapes = hooks.Select(type => (type, Count: type.Interfaces.Count(implemented =>
+                implemented.InterfaceType.FullName.StartsWith(ShapePrefix, StringComparison.Ordinal))))
+            .Where(hook => hook.Count != 1)
+            .Select(hook => $"{name} hook {hook.type.FullName} " +
+                (hook.Count == 0 ? "observes no shape" : "observes more than one shape") + " (rule 14)");
+        // A hook that lists Calls and keeps the empty default UseCalls would call through null function pointers.
+        // An explicit implementation is named after its interface (Metaphor.Hooks.IGameHook.UseCalls).
+        static bool Named(string member, string name) =>
+            member == name || member.EndsWith("." + name, StringComparison.Ordinal);
+        var calls = hooks
+            .Where(type => type.Properties.Any(property => Named(property.Name, "Calls")) &&
+                !type.Methods.Any(method => Named(method.Name, "UseCalls")))
+            .Select(type => $"{name} hook {type.FullName} lists Calls but has no UseCalls to take them (rule 14)");
+        var installs = Types(assembly).Where(IsInsideHook)
+            .SelectMany(type => type.Methods.Where(method => method.HasBody).SelectMany(method => InstallsOrGuards(method)
+                .Select(problem => $"{name} hook code {type.FullName} {problem} (in {method.Name}); the adapter " +
+                    "for its shape does that (rule 14)")));
+        return [.. shapes, .. calls, .. installs.Distinct()];
+    }
+
+    private static IEnumerable<string> InstallsOrGuards(MethodDefinition method)
+    {
+        foreach (var called in method.Body.Instructions.Select(instruction => instruction.Operand).OfType<MethodReference>()
+            .Where(called => called.DeclaringType.Namespace.StartsWith("Reloaded.Hooks", StringComparison.Ordinal))
+            .Select(called => called.Name).Distinct())
+        {
+            yield return $"calls {called}";
+        }
+        if (method.Body.ExceptionHandlers.Any(IsCatchAll))
+        {
+            yield return "catches every exception";
+        }
+    }
+
+    /// <summary>Whether <paramref name="handler"/> catches <c>System.Exception</c> or <c>object</c>, filtered or not.
+    /// A filtered catch (<c>catch (T) when …</c>) has no catch type; its filter block tests the type with
+    /// <c>isinst T</c> first, and has no such test when it catches everything.</summary>
+    private static bool IsCatchAll(Mono.Cecil.Cil.ExceptionHandler handler)
+    {
+        static bool Everything(TypeReference? type) => type?.FullName is null or "System.Exception" or "System.Object";
+        static bool FilterCatchesEverything(Mono.Cecil.Cil.Instruction? first) =>
+            first is not { OpCode.Code: Mono.Cecil.Cil.Code.Isinst, Operand: TypeReference tested } || Everything(tested);
+        return handler.HandlerType switch
+        {
+            Mono.Cecil.Cil.ExceptionHandlerType.Catch => Everything(handler.CatchType),
+            Mono.Cecil.Cil.ExceptionHandlerType.Filter => FilterCatchesEverything(FirstInstruction(handler.FilterStart)),
+            _ => false,
+        };
+
+        static Mono.Cecil.Cil.Instruction? FirstInstruction(Mono.Cecil.Cil.Instruction? start)
+        {
+            while (start is { OpCode.Code: Mono.Cecil.Cil.Code.Nop })
+            {
+                start = start.Next;
+            }
+            return start;
+        }
     }
 
     /// <summary>The string a hook's <c>SignatureName</c> getter returns, when its body is just <c>ldstr; ret</c>.</summary>

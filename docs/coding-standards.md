@@ -46,8 +46,10 @@ each rule on every assembly built from `src/`. Each test plants a violation to p
 10. **Game memory is read only through `ModuleMemoryReader`.** In the hook layer, no other type reads memory by
     address (`Marshal.PtrToString*`, `Marshal.Read*`, pointer loads). .NET can't catch the access violation a bad
     pointer from the game causes; the reader fails instead.
-11. **A hook is stored before it is activated.** `Activate` is called only through the field that holds the hook. The
-    game can call the hook at once, and an unreferenced hook can be collected while the game still calls it.
+11. **A hook is stored before it is activated.** The loader's adapters (rule 14) call `Activate` only through the field
+    that holds the hook, and the loader keeps every hook it installs referenced from before it goes in. The game can
+    call the hook at once, and a collected delegate the game still calls makes .NET fail-fast the whole process
+    (`docs/raw-sources/message-listening-run-2026-11-16.md`).
 12. **Hooks get their dependencies through the constructor.** Every `[GameHook]` type has a public constructor taking
     `HookServices`, which the loader calls. The hook layer keeps no mutable static state: static fields are `readonly`
     or `const`, and no static property has a setter, so no rule like "set this before hooks install" is left to
@@ -56,5 +58,11 @@ each rule on every assembly built from `src/`. Each test plants a violation to p
 13. **One hook per game function.** No two `[GameHook]` types return the same `SignatureName`, which each returns as
     a constant. A hook decodes each call once and hands the event to observers (`MessageEvents`), so two consumers of
     one function never decode it twice or depend on install order.
+14. **Hooks pass calls through the loader's adapters.** A `[GameHook]` type implements exactly one shape interface
+    (`IObserves3`, `IObserves4WithDouble`, …) and only decodes its arguments in `Observe`. The adapter for that shape
+    (`PassThrough`) creates, stores and activates the hook, guards `Observe` with a catch-all and always calls the
+    original, so no hook calls the hooking library or catches every exception itself. A hook that lists `Calls` takes
+    them in `UseCalls`. A hook that changes the game's behaviour is written the long way, which this rule's check must
+    first make an exception for; it still follows rules 8–11.
 
 A new project under `src/` must be added to the architecture test project, and a test fails until it is.

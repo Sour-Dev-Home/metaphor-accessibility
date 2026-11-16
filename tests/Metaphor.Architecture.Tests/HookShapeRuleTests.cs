@@ -175,10 +175,10 @@ public sealed class HookShapeRuleTests
     public void GameMemoryIsOnlyReadThroughTheReader(string name) =>
         Assert.Empty(Rules.GameMemoryIsReadSafely(Scanned.Load(name)));
 
-    // Rule 11: a hook is stored in a field before it is activated.
+    // Rule 11: an adapter stores its hook in a field before activating it. Hooks themselves may not activate (rule 14).
 
     private const string Hook = """
-        [Metaphor.Hooks.GameHook] public sealed class MenuHook
+        public sealed class MenuAdapter
         {
             private System.Action callback = () => { };
             private Reloaded.Hooks.Definitions.IHook<System.Action> hook;
@@ -200,7 +200,7 @@ public sealed class HookShapeRuleTests
         var assembly = HookLayer(Hook.Replace("INSTALL", install, StringComparison.Ordinal));
 
         var violation = Assert.Single(Rules.HooksAreStoredBeforeActivating(assembly));
-        Assert.Contains("MenuHook", violation, StringComparison.Ordinal);
+        Assert.Contains("MenuAdapter", violation, StringComparison.Ordinal);
         Assert.Contains("activates a hook before storing it in one of its own fields", violation, StringComparison.Ordinal);
     }
 

@@ -32,6 +32,18 @@ public sealed class ChunkedScanTests
     }
 
     [Fact]
+    public void CountsTheBytesReadAndTheBytesThatFailedOncePerChunk()
+    {
+        // Three regions of 10 and 3 and 4 bytes in chunks of 4; the chunk at 4 fails. The overlap isn't counted twice.
+        var memory = new byte[20];
+
+        var result = ChunkedScan.FindAll([(0, 10), (12, 3), (16, 4)], From(memory, unreadable: 5), [Signature("s", "AA BB")], 4);
+
+        Assert.Equal(13, result.ReadableBytes);
+        Assert.Equal(4, result.UnreadableBytes);
+    }
+
+    [Fact]
     public void FindsAMatchInsideOneChunk() =>
         Assert.Equal([2L], Find([0, 0, 0xAA, 0xBB, 0, 0, 0, 0], "AA BB", chunkBytes: 4));
 
