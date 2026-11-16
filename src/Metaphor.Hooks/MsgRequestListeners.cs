@@ -1,5 +1,6 @@
 using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
+using Metaphor.Core;
 using Reloaded.Hooks.Definitions;
 using IReloadedHooks = Reloaded.Hooks.ReloadedII.Interfaces.IReloadedHooks;
 
@@ -17,16 +18,14 @@ namespace Metaphor.Hooks;
 /// <summary>What the listeners share: formatting what a request was passed, read safely.</summary>
 internal static class MsgRequestListening
 {
-    public const string Build = "548ddc955c176867f062c44f94c03dd9ac33caefb278a5ac388e792aedf09504";
-
-    /// <summary>Logs one request. Nothing here may throw into the game, and every read through a pointer the game
-    /// passed goes through <c>ReadProcessMemory</c>.</summary>
+    /// <summary>Logs one request to <paramref name="log"/>, if there is one. Nothing here may throw into the game, and
+    /// every read through a pointer the game passed goes through <c>ReadProcessMemory</c>.</summary>
     [SuppressMessage("Design", "CA1031", Justification = "An exception must never cross back into the game.")]
-    public static void Log(string function, Func<string> arguments)
+    public static void Log(MessageLog? log, string function, Func<string> arguments)
     {
         try
         {
-            MessageListening.Log?.Requested(function, arguments());
+            log?.Requested(function, arguments());
         }
         catch (Exception)
         {
@@ -63,15 +62,21 @@ internal static class MsgRequestListening
 
 /// <summary>A request by pointer: what <c>MsgRequest</c>, <c>MsgRequestSystemMessage</c>, <c>MsgRequestSubtitles</c> and
 /// <c>MsgRequestNarration</c> call.</summary>
-[GameHook(MsgRequestListening.Build, DevOnly = true)]
+[GameHook(GameBuilds.Steam18330018, DevOnly = true)]
 internal sealed class MsgRequestByNameListener : IGameHook
 {
     private delegate nint Request(nint kind, nint text, nint options);
 
     private readonly Request callback;
+    private readonly MessageLog? log;
     private IHook<Request>? hook;
 
-    public MsgRequestByNameListener() => callback = OnRequest;
+    public MsgRequestByNameListener(HookServices services)
+    {
+        ArgumentNullException.ThrowIfNull(services);
+        log = services.Log;
+        callback = OnRequest;
+    }
 
     public string SignatureName => "MsgRequestByName";
 
@@ -84,22 +89,28 @@ internal sealed class MsgRequestByNameListener : IGameHook
 
     private nint OnRequest(nint kind, nint text, nint options)
     {
-        MsgRequestListening.Log(SignatureName, () =>
+        MsgRequestListening.Log(log, SignatureName, () =>
             $"{MsgRequestListening.Kind(kind)} {MsgRequestListening.Text(text)} {MsgRequestListening.Options(options)}");
         return hook!.OriginalFunction(kind, text, options);
     }
 }
 
 /// <summary>The byte-identical copy of the by-pointer request; who calls it is what this hook is here to find out.</summary>
-[GameHook(MsgRequestListening.Build, DevOnly = true)]
+[GameHook(GameBuilds.Steam18330018, DevOnly = true)]
 internal sealed class MsgRequestByNameTwinListener : IGameHook
 {
     private delegate nint Request(nint kind, nint text, nint options);
 
     private readonly Request callback;
+    private readonly MessageLog? log;
     private IHook<Request>? hook;
 
-    public MsgRequestByNameTwinListener() => callback = OnRequest;
+    public MsgRequestByNameTwinListener(HookServices services)
+    {
+        ArgumentNullException.ThrowIfNull(services);
+        log = services.Log;
+        callback = OnRequest;
+    }
 
     public string SignatureName => "MsgRequestByNameTwin";
 
@@ -111,22 +122,28 @@ internal sealed class MsgRequestByNameTwinListener : IGameHook
 
     private nint OnRequest(nint kind, nint text, nint options)
     {
-        MsgRequestListening.Log(SignatureName, () =>
+        MsgRequestListening.Log(log, SignatureName, () =>
             $"{MsgRequestListening.Kind(kind)} {MsgRequestListening.Text(text)} {MsgRequestListening.Options(options)}");
         return hook!.OriginalFunction(kind, text, options);
     }
 }
 
 /// <summary>A request by two numbers: what <c>MsgRequestID</c> and <c>MsgRequestSystemMessageID</c> call.</summary>
-[GameHook(MsgRequestListening.Build, DevOnly = true)]
+[GameHook(GameBuilds.Steam18330018, DevOnly = true)]
 internal sealed class MsgRequestByIdListener : IGameHook
 {
     private delegate nint Request(nint kind, nint first, nint second, nint options);
 
     private readonly Request callback;
+    private readonly MessageLog? log;
     private IHook<Request>? hook;
 
-    public MsgRequestByIdListener() => callback = OnRequest;
+    public MsgRequestByIdListener(HookServices services)
+    {
+        ArgumentNullException.ThrowIfNull(services);
+        log = services.Log;
+        callback = OnRequest;
+    }
 
     public string SignatureName => "MsgRequestById";
 
@@ -138,22 +155,28 @@ internal sealed class MsgRequestByIdListener : IGameHook
 
     private nint OnRequest(nint kind, nint first, nint second, nint options)
     {
-        MsgRequestListening.Log(SignatureName, () =>
+        MsgRequestListening.Log(log, SignatureName, () =>
             $"{MsgRequestListening.Kind(kind)} {MsgRequestListening.Numbers(first, second)} {MsgRequestListening.Options(options)}");
         return hook!.OriginalFunction(kind, first, second, options);
     }
 }
 
 /// <summary>A timed request by pointer: what <c>MsgRequestAuto</c> calls.</summary>
-[GameHook(MsgRequestListening.Build, DevOnly = true)]
+[GameHook(GameBuilds.Steam18330018, DevOnly = true)]
 internal sealed class MsgRequestByNameAutoListener : IGameHook
 {
     private delegate nint Request(nint kind, nint text, double time, nint options);
 
     private readonly Request callback;
+    private readonly MessageLog? log;
     private IHook<Request>? hook;
 
-    public MsgRequestByNameAutoListener() => callback = OnRequest;
+    public MsgRequestByNameAutoListener(HookServices services)
+    {
+        ArgumentNullException.ThrowIfNull(services);
+        log = services.Log;
+        callback = OnRequest;
+    }
 
     public string SignatureName => "MsgRequestByNameAuto";
 
@@ -165,22 +188,28 @@ internal sealed class MsgRequestByNameAutoListener : IGameHook
 
     private nint OnRequest(nint kind, nint text, double time, nint options)
     {
-        MsgRequestListening.Log(SignatureName, () =>
+        MsgRequestListening.Log(log, SignatureName, () =>
             $"{MsgRequestListening.Kind(kind)} {MsgRequestListening.Text(text)} {MsgRequestListening.Time(time)} {MsgRequestListening.Options(options)}");
         return hook!.OriginalFunction(kind, text, time, options);
     }
 }
 
 /// <summary>A timed request by two numbers: what <c>MsgRequestIDAuto</c> calls.</summary>
-[GameHook(MsgRequestListening.Build, DevOnly = true)]
+[GameHook(GameBuilds.Steam18330018, DevOnly = true)]
 internal sealed class MsgRequestByIdAutoListener : IGameHook
 {
     private delegate nint Request(nint kind, nint first, nint second, double time, nint options);
 
     private readonly Request callback;
+    private readonly MessageLog? log;
     private IHook<Request>? hook;
 
-    public MsgRequestByIdAutoListener() => callback = OnRequest;
+    public MsgRequestByIdAutoListener(HookServices services)
+    {
+        ArgumentNullException.ThrowIfNull(services);
+        log = services.Log;
+        callback = OnRequest;
+    }
 
     public string SignatureName => "MsgRequestByIdAuto";
 
@@ -192,7 +221,7 @@ internal sealed class MsgRequestByIdAutoListener : IGameHook
 
     private nint OnRequest(nint kind, nint first, nint second, double time, nint options)
     {
-        MsgRequestListening.Log(SignatureName, () =>
+        MsgRequestListening.Log(log, SignatureName, () =>
             $"{MsgRequestListening.Kind(kind)} {MsgRequestListening.Numbers(first, second)} {MsgRequestListening.Time(time)} {MsgRequestListening.Options(options)}");
         return hook!.OriginalFunction(kind, first, second, time, options);
     }

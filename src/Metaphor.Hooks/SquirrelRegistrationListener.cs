@@ -1,4 +1,5 @@
 using System.Diagnostics.CodeAnalysis;
+using Metaphor.Core;
 using Reloaded.Hooks.Definitions;
 using IReloadedHooks = Reloaded.Hooks.ReloadedII.Interfaces.IReloadedHooks;
 
@@ -11,7 +12,7 @@ namespace Metaphor.Hooks;
 /// The technique (which stack slots hold the name and the userdata) and the signatures follow MF.Toolkit's
 /// <c>SquirrelService.NewClosure</c> (RyoTune/MF.Toolkit at b1f876da, AGPL-3.0;
 /// docs/raw-sources/mf-toolkit-squirrel-registration-2026-11-16.md).</summary>
-[GameHook("548ddc955c176867f062c44f94c03dd9ac33caefb278a5ac388e792aedf09504", DevOnly = true)]
+[GameHook(GameBuilds.Steam18330018, DevOnly = true)]
 internal sealed unsafe class SquirrelRegistrationListener : IGameHook
 {
     // MF.Toolkit declares the integers below as int. They are pointer-sized here: sq_newclosure's own signature
@@ -21,13 +22,19 @@ internal sealed unsafe class SquirrelRegistrationListener : IGameHook
     private delegate void SqNewClosure(nint vm, nint func, nint freeVariables);
 
     private readonly SqNewClosure callback;
+    private readonly MessageLog? log;
     private IHook<SqNewClosure>? hook;
     private delegate* unmanaged<nint, nint> getTop;
     private delegate* unmanaged<nint, nint, nint*, nint> getString;
     private delegate* unmanaged<nint, nint, nint*, nint*, nint> getUserdata;
     private nint moduleBase;
 
-    public SquirrelRegistrationListener() => callback = OnNewClosure;
+    public SquirrelRegistrationListener(HookServices services)
+    {
+        ArgumentNullException.ThrowIfNull(services);
+        log = services.Log;
+        callback = OnNewClosure;
+    }
 
     public string SignatureName => "sq_newclosure";
 
@@ -49,7 +56,7 @@ internal sealed unsafe class SquirrelRegistrationListener : IGameHook
     {
         try
         {
-            if (MessageListening.Log is { } log)
+            if (log is not null)
             {
                 LogRegistration(log, vm, func);
             }
@@ -64,7 +71,7 @@ internal sealed unsafe class SquirrelRegistrationListener : IGameHook
     /// sits inside the userdata above it, with <paramref name="func"/> a shared trampoline. A Squirrel call succeeds
     /// when its 32-bit result is zero or more. Everything read through a pointer the game returned goes through
     /// <c>ReadProcessMemory</c>.</summary>
-    private void LogRegistration(Metaphor.Core.MessageLog log, nint vm, nint func)
+    private void LogRegistration(MessageLog log, nint vm, nint func)
     {
         var stackSize = (int)getTop(vm);
         nint name = 0;

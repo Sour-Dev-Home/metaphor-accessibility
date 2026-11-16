@@ -1,5 +1,4 @@
 using System.Diagnostics.CodeAnalysis;
-using Metaphor.Core.Announcements;
 using Metaphor.Core.Messages;
 using Metaphor.Features.Dialogue;
 using Reloaded.Hooks.Definitions;
@@ -9,37 +8,28 @@ using IReloadedHooks = Reloaded.Hooks.ReloadedII.Interfaces.IReloadedHooks;
 namespace Metaphor.Hooks;
 
 // Spoken story dialogue (#52, #56): one hook keeps each compiled message file's messages (MessageLibrary says why),
-// the other speaks the line the game asks for. Both pass every call through unchanged.
-
-/// <summary>What the two dialogue hooks share.</summary>
-internal static class SpokenDialogue
-{
-    public const string Build = "548ddc955c176867f062c44f94c03dd9ac33caefb278a5ac388e792aedf09504";
-
-    /// <summary>Every message the game has compiled since the mod loaded.</summary>
-    public static MessageLibrary Messages { get; } = new();
-
-    /// <summary>Where requested lines are spoken; set by the entry point once speech has started, before hooks are
-    /// installed. Nothing is said while it is null.</summary>
-    public static DialogueLines? Lines { get; set; }
-
-    public static DialogueLines Speaking(IAnnouncer announcer) =>
-        new(Messages, new DialogueAnnouncer(announcer, new TextCleaner(TextCleanerRules.None)));
-}
+// the other speaks the line the game asks for. Both pass every call through unchanged, and share HookServices'
+// message library.
 
 /// <summary>Keeps the messages of each message file the game compiles. Signature and delegate shape are MF.Toolkit's
 /// (docs/raw-sources/game-text-hooks-community-2026-11-15.md), checked on this build
 /// (docs/raw-sources/mf-toolkit-message-signatures-2026-11-15.md).</summary>
-[GameHook(SpokenDialogue.Build)]
+[GameHook(GameBuilds.Steam18330018)]
 internal sealed class MessageFileHook : IGameHook
 {
     // MF.Toolkit MessageService.cs line 37, pointer-sized (rule 9); only the length's low 32 bits are read.
     private delegate nint CompileMsgFile(nint msgSrc, nint msgSrcLength, nint msgFile, nint param4, nint param5);
 
     private readonly CompileMsgFile callback;
+    private readonly MessageLibrary messages;
     private IHook<CompileMsgFile>? hook;
 
-    public MessageFileHook() => callback = OnCompile;
+    public MessageFileHook(HookServices services)
+    {
+        ArgumentNullException.ThrowIfNull(services);
+        messages = services.Messages;
+        callback = OnCompile;
+    }
 
     public string SignatureName => "CompileMsgFile";
 
@@ -59,7 +49,7 @@ internal sealed class MessageFileHook : IGameHook
             // (docs/raw-sources/message-listening-run-2026-11-16.md).
             if (ModuleMemoryReader.ReadUtf8(msgSrc, (int)msgSrcLength) is { } source)
             {
-                SpokenDialogue.Messages.Compiled(source);
+                messages.Compiled(source);
             }
         }
         catch (Exception)
@@ -72,15 +62,21 @@ internal sealed class MessageFileHook : IGameHook
 /// <summary>Speaks each line the game asks for by label. The function, its arguments and the name (ours) are in
 /// docs/raw-sources/msg-request-functions-2026-11-16.md; that its pointer is the label is from
 /// docs/raw-sources/msg-request-run-2026-11-16.md.</summary>
-[GameHook(SpokenDialogue.Build)]
+[GameHook(GameBuilds.Steam18330018)]
 internal sealed class DialogueLineHook : IGameHook
 {
     private delegate nint Request(nint kind, nint label, nint options);
 
     private readonly Request callback;
+    private readonly DialogueLines lines;
     private IHook<Request>? hook;
 
-    public DialogueLineHook() => callback = OnRequest;
+    public DialogueLineHook(HookServices services)
+    {
+        ArgumentNullException.ThrowIfNull(services);
+        lines = services.Lines;
+        callback = OnRequest;
+    }
 
     public string SignatureName => "MsgRequestByName";
 
@@ -98,7 +94,7 @@ internal sealed class DialogueLineHook : IGameHook
         {
             // Only kind 0, the kind a spoken event line was seen with. Kinds 1 and 2 come from the system message,
             // subtitle and narration wrappers (msg-request-functions-2026-11-16.md); what they show is unverified.
-            if ((int)kind == 0 && SpokenDialogue.Lines is { } lines && ModuleMemoryReader.ReadAnsiString(label) is { } name)
+            if ((int)kind == 0 && ModuleMemoryReader.ReadAnsiString(label) is { } name)
             {
                 lines.Requested(name);
             }

@@ -584,6 +584,37 @@ internal static class Rules
             !type.FullName.Contains('<', StringComparison.Ordinal) &&
             !field.Name.Contains('<', StringComparison.Ordinal));
 
+    /// <summary>The record every hook's constructor takes.</summary>
+    public const string HookServices = "Metaphor.Hooks.HookServices";
+
+    /// <summary>
+    /// #85, rule 12: hooks get their dependencies through the constructor. In the hook layer, no static field is
+    /// writable after startup (each is <c>readonly</c> or <c>const</c>) and no static property has a setter, so there
+    /// is no "set this before hooks install" to get wrong; and every <c>[GameHook]</c> type has a public constructor
+    /// taking only <c>HookServices</c>, which the loader calls. Compiler-made types (lambda caches) are skipped.
+    /// </summary>
+    public static IReadOnlyList<string> HooksGetDependenciesThroughConstructor(AssemblyDefinition assembly)
+    {
+        if (!IsHookLayer(assembly))
+        {
+            return [];
+        }
+        var name = assembly.Name.Name;
+        var types = Types(assembly).Where(type => !type.FullName.Contains('<', StringComparison.Ordinal)).ToList();
+        var fields = types.SelectMany(type => type.Fields
+            .Where(field => field.IsStatic && !field.IsInitOnly && !field.IsLiteral)
+            .Select(field => $"{name} type {type.FullName} has mutable static field {field.Name} (rule 12)"));
+        var setters = types.SelectMany(type => type.Properties
+            .Where(property => property.SetMethod is { IsStatic: true })
+            .Select(property => $"{name} type {type.FullName} has static setter {property.Name} (rule 12)"));
+        var constructors = types
+            .Where(type => type.CustomAttributes.Any(attribute => attribute.AttributeType.FullName == GameHookAttribute))
+            .Where(type => !type.Methods.Any(method => method.IsConstructor && !method.IsStatic && method.IsPublic &&
+                method.Parameters is [{ ParameterType.FullName: HookServices }]))
+            .Select(type => $"{name} hook {type.FullName} has no public constructor taking only {HookServices} (rule 12)");
+        return [.. fields, .. setters, .. constructors];
+    }
+
     private static IEnumerable<TypeDefinition> Types(AssemblyDefinition assembly) =>
         assembly.Modules.SelectMany(module => module.GetTypes());
 
