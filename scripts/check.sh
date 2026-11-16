@@ -328,10 +328,16 @@ in_scope() {
   esac
 }
 
+# skipping: exit 0 when SECURITY_REVIEW_SKIP gives a reason (not just spaces).
+skipping() {
+  local reason="${SECURITY_REVIEW_SKIP:-}"
+  [ -n "${reason//[[:space:]]/}" ]
+}
+
 # review_gate: a staged change to the scope needs a stamp matching it, unless SECURITY_REVIEW_SKIP gives a reason.
 # Exit 0 when the commit may go ahead.
 review_gate() {
-  [ -n "${SECURITY_REVIEW_SKIP:-}" ] && return 0
+  skipping && return 0
   bash "$stamp_script" stamped
   case $? in
     0) return 0 ;;
@@ -348,7 +354,7 @@ review_trailer() {
   local file="$1" trailer
   in_scope || return 0
   review_gate || return 0
-  if [ -n "${SECURITY_REVIEW_SKIP:-}" ]; then
+  if skipping; then
     trailer="Security-Review-Skipped: ${SECURITY_REVIEW_SKIP//[$'\r\n']/ }"
   else
     trailer="Security-Review: $(bash "$stamp_script" hash)" || die "could not hash the security-review scope"
@@ -619,7 +625,7 @@ if [ "$stage" = pre-commit ]; then
     fi
   fi
   if in_scope; then
-    review_gate && [ -n "${SECURITY_REVIEW_SKIP:-}" ] &&
+    review_gate && skipping &&
       echo "security review: skipped (${SECURITY_REVIEW_SKIP}); the commit records the reason"
   fi
 fi

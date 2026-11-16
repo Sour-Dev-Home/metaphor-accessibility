@@ -99,8 +99,9 @@ touching it needs a review stamp:
 private `~/.claude-metaphor/settings.json` also denies edits and common shell writes inside the game's install folder
 and its save folder.
 
-These rules match the command text Claude Code sees, so another spelling of the same command can slip past them, and
-the stamp guards against a forgotten review, not a determined one. They are a strong guard, not a guarantee.
+These rules match the command text Claude Code sees, so another spelling of the same command can slip past them. The
+stamp guards against a forgotten review, not a determined one: anyone can run the stamp script, and CI checks the
+trailer, not that a review happened. They are a strong guard, not a guarantee.
 
 ## Where things go
 

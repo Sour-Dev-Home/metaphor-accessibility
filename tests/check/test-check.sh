@@ -945,6 +945,13 @@ test_review_override_passes_and_records_its_reason() {
   expect_absent "Security-Review: "
 }
 
+test_review_refuses_a_blank_override() {
+  review_repo
+  out="$(SECURITY_REVIEW_SKIP="  " git commit -q -m "fix: blank reason" 2>&1)"
+  code=$?
+  expect 1 "no matching stamp"
+}
+
 test_review_leaves_commits_outside_the_scope_alone() {
   review_repo src/Metaphor.Hooks.Tests/SpeechTests.ps1 # a sibling folder, not the hook layer
   stage_file scripts/check-other.sh

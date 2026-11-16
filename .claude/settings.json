@@ -1,14 +1,14 @@
 {
   "permissions": {
     "deny": [
-      "Bash(git push *--force*)",
-      "Bash(git push -f*)",
-      "Bash(git push * -f*)",
-      "Bash(git push * +*)",
-      "PowerShell(git push *--force*)",
-      "PowerShell(git push -f*)",
-      "PowerShell(git push * -f*)",
-      "PowerShell(git push * +*)",
+      "Bash(git *push *--force*)",
+      "Bash(git *push -f*)",
+      "Bash(git *push * -f*)",
+      "Bash(git *push * +*)",
+      "PowerShell(git *push *--force*)",
+      "PowerShell(git *push -f*)",
+      "PowerShell(git *push * -f*)",
+      "PowerShell(git *push * +*)",
       "Read(**/pii-patterns.txt)",
       "Bash(cat *pii-patterns.txt*)",
       "Bash(type *pii-patterns.txt*)",
