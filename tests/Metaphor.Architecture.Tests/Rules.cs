@@ -346,6 +346,244 @@ internal static class Rules
         }
     }
 
+    /// <summary>
+    /// #69, rule 9: a delegate declared in a hook passes only pointer-sized values (<c>nint</c>, <c>nuint</c>,
+    /// <c>long</c>, <c>ulong</c>, pointers) and <c>double</c>. Windows x64 leaves the upper half of a register undefined
+    /// for a 32-bit argument, so a narrower declaration can hand the game garbage when the hook passes the call on, and
+    /// the game's own width is often unverified. <c>double</c> carries the register's low 64 bits, which holds a
+    /// 32-bit float intact too (a callback reading it as a double gets garbage, which only matters for logging).
+    /// Checked: delegates declared in a hook, every delegate passed to <c>CreateHook</c>, and a hook's function-pointer
+    /// fields.
+    /// </summary>
+    public static IReadOnlyList<string> HookDelegatesArePointerSized(AssemblyDefinition assembly)
+    {
+        var name = assembly.Name.Name;
+        var delegates = Types(assembly)
+            .Where(type => type.BaseType?.FullName == "System.MulticastDelegate" && IsInsideHook(type))
+            .Cast<TypeReference>()
+            .Concat(Methods(assembly).Where(method => method.HasBody)
+                .SelectMany(method => method.Body.Instructions)
+                .Select(instruction => instruction.Operand)
+                .OfType<GenericInstanceMethod>()
+                .Where(called => called.Name == "CreateHook" &&
+                    called.DeclaringType.Namespace.StartsWith("Reloaded.Hooks", StringComparison.Ordinal))
+                .Select(called => called.GenericArguments[0]))
+            .DistinctBy(type => type.FullName);
+        var functionPointers = Types(assembly).Where(IsInsideHook)
+            .SelectMany(type => type.Fields
+                .Where(field => field.FieldType is FunctionPointerType)
+                .Select(field => (Owner: $"{type.FullName} field {field.Name}", Pointer: (FunctionPointerType)field.FieldType)));
+        return [.. delegates.SelectMany(DelegateProblems)
+            .Concat(functionPointers.SelectMany(pointer => NarrowValues(
+                pointer.Owner, pointer.Pointer.ReturnType, pointer.Pointer.Parameters.Select(
+                    (parameter, index) => ($"{index + 1}", parameter.ParameterType)))))
+            .Select(problem => $"{name} {problem}; declare it nint (rule 9)")];
+    }
+
+    private static readonly HashSet<string> PointerSizedTypes =
+        ["System.IntPtr", "System.UIntPtr", "System.Int64", "System.UInt64", "System.Double"];
+
+    private static IEnumerable<string> DelegateProblems(TypeReference @delegate)
+    {
+        // A library delegate (Func, Action): its type arguments are what the game sees.
+        if (@delegate is GenericInstanceType generic)
+        {
+            return generic.GenericArguments.Where(argument => !IsPointerSized(argument))
+                .Select(argument => $"delegate {generic.FullName} passes {argument.FullName}");
+        }
+        var invoke = @delegate.Resolve()?.Methods.FirstOrDefault(method => method.Name == "Invoke");
+        return invoke is null
+            ? [$"delegate {@delegate.FullName} can't be read"]
+            : NarrowValues($"delegate {@delegate.FullName}", invoke.ReturnType,
+                invoke.Parameters.Select(parameter => (parameter.Name, parameter.ParameterType)));
+    }
+
+    private static IEnumerable<string> NarrowValues(
+        string owner, TypeReference returnType, IEnumerable<(string Name, TypeReference Type)> parameters)
+    {
+        if (returnType.FullName != "System.Void" && !IsPointerSized(returnType))
+        {
+            yield return $"{owner} returns {returnType.FullName}";
+        }
+        foreach (var (parameter, type) in parameters.Where(parameter => !IsPointerSized(parameter.Type)))
+        {
+            yield return $"{owner} parameter {parameter} is {type.FullName}";
+        }
+    }
+
+    private static bool IsPointerSized(TypeReference type) =>
+        type is PointerType or FunctionPointerType || PointerSizedTypes.Contains(type.FullName);
+
+    private static bool IsInsideHook(TypeDefinition type)
+    {
+        for (var owner = type; owner is not null; owner = owner.DeclaringType)
+        {
+            if (owner.CustomAttributes.Any(attribute => attribute.AttributeType.FullName == GameHookAttribute))
+            {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /// <summary>Hook-layer types that may read memory by address themselves, each with why.</summary>
+    private static readonly Dictionary<string, string> MemoryReadingExceptions = new()
+    {
+        ["Metaphor.Hooks.ModuleMemoryReader"] = "#55: the safe readers, through ReadProcessMemory",
+    };
+
+    /// <summary>Members that read memory by address, and can fault where the game hands over a bad pointer.</summary>
+    private static readonly string[] MemoryReadingMembers =
+    [
+        "System.Runtime.InteropServices.Marshal::PtrToString",
+        "System.Runtime.InteropServices.Marshal::PtrToStructure",
+        "System.Runtime.InteropServices.Marshal::Read",
+        "System.Runtime.InteropServices.Marshal::Copy",
+        "System.Runtime.CompilerServices.Unsafe::Read",
+        "System.Runtime.CompilerServices.Unsafe::AsRef",
+        "System.Runtime.CompilerServices.Unsafe::Copy",
+        "System.Runtime.InteropServices.MemoryMarshal::",
+        "System.Threading.Volatile::Read",
+        "System.Buffer::MemoryCopy",
+    ];
+
+    /// <summary>IL that loads or copies through a pointer or a managed reference.</summary>
+    private static readonly HashSet<Mono.Cecil.Cil.Code> PointerReadingCodes =
+    [
+        Mono.Cecil.Cil.Code.Ldind_I, Mono.Cecil.Cil.Code.Ldind_I1, Mono.Cecil.Cil.Code.Ldind_I2,
+        Mono.Cecil.Cil.Code.Ldind_I4, Mono.Cecil.Cil.Code.Ldind_I8, Mono.Cecil.Cil.Code.Ldind_U1,
+        Mono.Cecil.Cil.Code.Ldind_U2, Mono.Cecil.Cil.Code.Ldind_U4, Mono.Cecil.Cil.Code.Ldind_R4,
+        Mono.Cecil.Cil.Code.Ldind_R8, Mono.Cecil.Cil.Code.Ldind_Ref, Mono.Cecil.Cil.Code.Ldobj,
+        Mono.Cecil.Cil.Code.Cpblk,
+    ];
+
+    /// <summary>
+    /// #69, rule 10: in the hook layer, only <c>ModuleMemoryReader</c> reads memory by address. A hook's callback gets
+    /// pointers from the game, and .NET can't catch the access violation a bad one causes; the reader copies through
+    /// <c>ReadProcessMemory</c>, which fails instead. Loads through managed references are flagged too, so the hook
+    /// layer avoids <c>ref</c> and <c>in</c> parameters outside the reader.
+    /// </summary>
+    public static IReadOnlyList<string> GameMemoryIsReadSafely(AssemblyDefinition assembly)
+    {
+        if (!IsHookLayer(assembly))
+        {
+            return [];
+        }
+        var name = assembly.Name.Name;
+        return [.. Types(assembly)
+            .Where(type => !IsMemoryReadingException(type))
+            .SelectMany(type => MemoryReads(type).Distinct().Select(use =>
+                $"{name} type {type.FullName} reads memory by address ({use}); use ModuleMemoryReader (rule 10)"))];
+    }
+
+    private static bool IsMemoryReadingException(TypeDefinition type)
+    {
+        for (var owner = type; owner is not null; owner = owner.DeclaringType)
+        {
+            if (MemoryReadingExceptions.ContainsKey(owner.FullName))
+            {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private static IEnumerable<string> MemoryReads(TypeDefinition type)
+    {
+        foreach (var method in type.Methods.Where(method => method.HasBody))
+        {
+            foreach (var instruction in method.Body.Instructions)
+            {
+                var code = instruction.OpCode.Code;
+                if (PointerReadingCodes.Contains(code))
+                {
+                    yield return instruction.OpCode.Name;
+                }
+                // p->Field: a field load whose object is a pointer.
+                if (code is Mono.Cecil.Cil.Code.Ldfld or Mono.Cecil.Cil.Code.Ldflda &&
+                    LoadsPointer(instruction.Previous, method))
+                {
+                    yield return $"{instruction.OpCode.Name} through a pointer";
+                }
+                if (instruction.Operand is not MethodReference called)
+                {
+                    continue;
+                }
+                var member = $"{called.DeclaringType.FullName}::{called.Name}";
+                if (MemoryReadingMembers.Any(reader => member.StartsWith(reader, StringComparison.Ordinal)))
+                {
+                    yield return member;
+                }
+                // Any library call that takes a pointer reads through it: new string(sbyte*),
+                // Encoding.GetString(byte*, int), new Span<T>(void*, int). A "text"u8 literal isn't game memory.
+                else if (called.DeclaringType.Scope is not ModuleDefinition &&
+                    called.Parameters.Any(parameter => parameter.ParameterType is PointerType) &&
+                    !IsUtf8Literal(instruction))
+                {
+                    yield return member;
+                }
+            }
+        }
+    }
+
+    private static bool LoadsPointer(Mono.Cecil.Cil.Instruction? previous, MethodDefinition method)
+    {
+        var variables = method.Body.Variables;
+        return previous?.OpCode.Code switch
+        {
+            Mono.Cecil.Cil.Code.Conv_I or Mono.Cecil.Cil.Code.Conv_U => true,
+            >= Mono.Cecil.Cil.Code.Ldarg_0 and <= Mono.Cecil.Cil.Code.Ldarg_3 =>
+                ArgumentType(method, previous.OpCode.Code - Mono.Cecil.Cil.Code.Ldarg_0) is PointerType,
+            Mono.Cecil.Cil.Code.Ldarg or Mono.Cecil.Cil.Code.Ldarg_S =>
+                ((ParameterDefinition)previous.Operand).ParameterType is PointerType,
+            >= Mono.Cecil.Cil.Code.Ldloc_0 and <= Mono.Cecil.Cil.Code.Ldloc_3 =>
+                variables[previous.OpCode.Code - Mono.Cecil.Cil.Code.Ldloc_0].VariableType is PointerType,
+            Mono.Cecil.Cil.Code.Ldloc or Mono.Cecil.Cil.Code.Ldloc_S =>
+                ((Mono.Cecil.Cil.VariableDefinition)previous.Operand).VariableType is PointerType,
+            Mono.Cecil.Cil.Code.Call or Mono.Cecil.Cil.Code.Callvirt =>
+                ((MethodReference)previous.Operand).ReturnType is PointerType,
+            _ => false,
+        };
+    }
+
+    private static TypeReference ArgumentType(MethodDefinition method, int index)
+    {
+        var parameter = method.HasThis ? index - 1 : index;
+        return parameter < 0 ? method.DeclaringType : method.Parameters[parameter].ParameterType;
+    }
+
+    /// <summary>The compiler's form of <c>"text"u8</c>: a span over its own static data.</summary>
+    private static bool IsUtf8Literal(Mono.Cecil.Cil.Instruction instruction) =>
+        instruction.Previous?.Previous is { OpCode.Code: Mono.Cecil.Cil.Code.Ldsflda, Operand: FieldReference data } &&
+        data.DeclaringType.FullName.StartsWith("<PrivateImplementationDetails>", StringComparison.Ordinal);
+
+    /// <summary>
+    /// #69, rule 11: a hook is activated only through the field that holds it, so it was stored first. The game can
+    /// call the hook the moment it is active, and the callback reaches the original function through that field; and
+    /// a hook nobody references can be collected while the game still calls it (#55's first run crashed this way).
+    /// Checked as: the instruction before each <c>Activate</c> call loads a field the method's own type declares, and
+    /// neither is compiler-made (a captured local becomes a field of a closure nothing keeps alive). So
+    /// <c>hook?.Activate()</c> and <c>(hook = ...).Activate()</c> are refused too; write <c>hook.Activate()</c>.
+    /// </summary>
+    public static IReadOnlyList<string> HooksAreStoredBeforeActivating(AssemblyDefinition assembly)
+    {
+        var name = assembly.Name.Name;
+        return [.. Types(assembly)
+            .SelectMany(type => type.Methods.Where(method => method.HasBody)
+                .Where(method => method.Body.Instructions.Any(instruction => ActivatesUnstoredHook(instruction, type)))
+                .Select(method => $"{name} type {type.FullName} activates a hook before storing it in one of its own " +
+                    $"fields (in {method.Name}) (rule 11)"))];
+    }
+
+    private static bool ActivatesUnstoredHook(Mono.Cecil.Cil.Instruction instruction, TypeDefinition type) =>
+        instruction.Operand is MethodReference { Name: "Activate" } called &&
+        called.DeclaringType.Namespace.StartsWith("Reloaded.Hooks", StringComparison.Ordinal) &&
+        !(instruction.Previous is
+        { OpCode.Code: Mono.Cecil.Cil.Code.Ldfld or Mono.Cecil.Cil.Code.Ldsfld, Operand: FieldReference field } &&
+            field.DeclaringType.FullName == type.FullName &&
+            !type.FullName.Contains('<', StringComparison.Ordinal) &&
+            !field.Name.Contains('<', StringComparison.Ordinal));
+
     private static IEnumerable<TypeDefinition> Types(AssemblyDefinition assembly) =>
         assembly.Modules.SelectMany(module => module.GetTypes());
 

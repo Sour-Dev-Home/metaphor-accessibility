@@ -36,9 +36,8 @@ A byte pattern with `??` wildcards that matches the function exactly once
 ## 3. Pin down how it's called
 
 From the source you used, or the disassembly: the arguments, their widths and the return value. Cite it in the hook's
-comments. Declare anything that is a register-sized value or a pointer as `nint`, even where a community mod used `int`:
-x64 leaves the upper half of a 32-bit argument's register undefined, and a hook that passes a value through must not
-hand the game garbage. Unknown widths are `[NEEDS VERIFICATION]` until the disassembly or a run settles them.
+comments. Unknown widths are `[NEEDS VERIFICATION]` until the disassembly or a run settles them. Declare integers
+`nint` whatever the width, even where a community mod used `int` (architecture rule 9).
 
 ## 4. Write the hook
 
@@ -47,14 +46,14 @@ A class in `src/Metaphor.Hooks` ([example](../../../src/Metaphor.Hooks/MessageLi
 - `[GameHook("<build SHA-256>")]`, and `DevOnly = true` for a spike: the loader installs it only in Debug builds.
 - Implements `IGameHook`: `SignatureName`, `Calls` for any game function it calls (each needs its own signature), and
   `Install`. Only the loader installs hooks, after the build check and a full scan.
-- In `Install`, store the hook before activating it: the game can call it at once.
-- In the callback, catch every exception, read through pointers the game hands you only with `ModuleMemoryReader`
-  (an access violation can't be caught), and always call the original function unless changing behaviour is the point.
+- In `Install`, store the hook in a field, then activate it (rule 11).
+- In the callback, catch every exception, read game memory only with `ModuleMemoryReader` (rule 10), and always call
+  the original function unless changing behaviour is the point.
 - Keep the logic in a plain library (`Metaphor.Core` or a feature project) and unit-test it there with fakes; the hook
   only adapts.
 
-`scripts/check.sh full` must pass. Its architecture rules fail a hook that names an unknown build, and any hook-layer code
-outside a `[GameHook]` that patches the game (rule 8).
+`scripts/check.sh full` must pass. Its [architecture rules](../../coding-standards.md#architecture-rules) 6 and 8–11
+check the points above.
 
 ## 5. Prove it in the game
 
