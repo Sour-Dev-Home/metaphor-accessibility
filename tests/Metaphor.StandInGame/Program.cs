@@ -38,6 +38,17 @@ if (behaviour == "crash")
     return 3;
 }
 
+// Reloaded-II loads its own reloaded.sharedlib.hooks mod before any other, and fails to start without it, so no mod
+// reports (docs/raw-sources/reloaded-ii-log-on-normal-run-2026-11-14.md; seen again in the first signature-spike run).
+var modsFolder = Folder(root, "ModConfigDirectory");
+var hasSharedHooks = Directory.EnumerateFiles(modsFolder, "ModConfig.json", SearchOption.AllDirectories)
+    .Any(file => JsonDocument.Parse(File.ReadAllText(file)).RootElement.GetProperty("ModId").GetString() == "reloaded.sharedlib.hooks");
+if (!hasSharedHooks)
+{
+    Console.Error.WriteLine("Failed to Load Reloaded Hooks Shared Lib Mod");
+    Thread.Sleep(Timeout.Infinite);
+}
+
 var self = Environment.ProcessPath!;
 var application = FindApplication(root, self) ?? throw new InvalidOperationException($"no application for {self}");
 var enabled = application.GetProperty("EnabledMods").EnumerateArray().Select(id => id.GetString()).ToHashSet();
@@ -59,6 +70,9 @@ foreach (var modConfig in Directory.EnumerateFiles(Folder(root, "ModConfigDirect
         "otherbuild" => ModStatus.Ready(modId, new string('1', 64), hooksLoaded: 1, hooksExpected: 1),
         _ => ModStatus.Ready(modId, build, hooksLoaded: 1, hooksExpected: 1),
     });
+    // As the real mod does after its status, when scripts/signature-spike.ps1 asked; its own file stands in for memory.
+    var bytes = File.ReadAllBytes(self);
+    SignatureScan.ScanIfRequested(folder, build, () => new ModuleMemory(bytes.Length, [new MemoryRun(0, bytes)], 0, 0));
 }
 
 Thread.Sleep(Timeout.Infinite);

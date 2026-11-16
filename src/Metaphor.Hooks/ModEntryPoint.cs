@@ -42,9 +42,19 @@ public sealed class ModEntryPoint : IMod
             // build (seen in docs/raw-sources/mod-entry-point-first-run-2026-11-15.md).
             var status = ModStartup.CheckAndReport(
                 config.ModId, Environment.ProcessPath ?? "", folder, () => KnownGameBuilds.All, HooksExpected());
-            ((ILogger)modLoader.GetLogger()).WriteLine(
+            var logger = (ILogger)modLoader.GetLogger();
+            logger.WriteLine(
                 $"[{config.ModId}] build {ModBuild.Revision.CommitSha}{(ModBuild.Revision.HasUncommittedChanges ? "-dirty" : "")}: {status.State} on game build {status.GameBuildSha256}" +
                 (status.Reason is null ? "" : $" ({status.Reason})"));
+
+            // Issue #21's spike: runs once, only when scripts/signature-spike.ps1 put a probes file in the mod's folder.
+            var scan = SignatureScan.ScanIfRequested(folder, status.GameBuildSha256, ModuleMemoryReader.ReadMainModule);
+            if (scan is not null)
+            {
+                logger.WriteLine(scan.Error is null
+                    ? $"[{config.ModId}] signature scan: {scan.Probes.Count(probe => probe.Matches == 1)} of {scan.Probes.Count} probes matched once; {scan.ReadableBytes} of {scan.ModuleBytes} bytes read, {scan.UnreadableBytes} failed; {scan.MillisecondsSinceGameStart} ms after start ({SignatureScan.ReportFileName})"
+                    : $"[{config.ModId}] signature scan failed: {scan.Error}");
+            }
         }
         catch (Exception)
         {

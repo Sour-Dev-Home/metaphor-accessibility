@@ -1,17 +1,33 @@
 // Checks that each hook signature in src/Metaphor.Core/hook-signatures.json matches exactly once in the game exe on
-// disk, without launching the game. Usage: Metaphor.SignatureCheck <game exe>
-// Exit 0 when every signature matches exactly once, 1 when one doesn't, 2 on a usage error or an unreadable exe.
+// disk, without launching the game. With --probes, checks other mods' signatures instead (issue #21): those in the given
+// probes file, or this folder's signature-probes.json, the same file scripts/signature-spike.ps1 sends to the mod.
+// Usage: Metaphor.SignatureCheck <game exe>
+//        Metaphor.SignatureCheck --probes <game exe> [probes file]
+// Exit 0 when every signature matches exactly once, 1 when one doesn't, 2 on a usage error or an unreadable file.
 
 using Metaphor.Core;
 
-if (args is not [var gameExe])
+var defaultProbes = Path.Combine(AppContext.BaseDirectory, "signature-probes.json");
+var (gameExe, probesFile) = args switch
 {
-    Console.Error.WriteLine("usage: Metaphor.SignatureCheck <game exe>");
+    [var exe] when !exe.StartsWith("--", StringComparison.Ordinal) => (exe, null),
+    ["--probes", var exe] => (exe, defaultProbes),
+    ["--probes", var exe, var file] => (exe, file),
+    _ => (null, null),
+};
+if (gameExe is null)
+{
+    Console.Error.WriteLine("usage: Metaphor.SignatureCheck [--probes] <game exe> [probes file]");
     return 2;
 }
-if (!File.Exists(gameExe))
+foreach (var file in new[] { gameExe, probesFile })
 {
-    Console.Error.WriteLine($"no file at {gameExe}");
-    return 2;
+    if (file is not null && !File.Exists(file))
+    {
+        Console.Error.WriteLine($"no file at {file}");
+        return 2;
+    }
 }
-return SignatureCheck.Run(gameExe, HookSignatures.All, KnownGameBuilds.All, Console.Out);
+return probesFile is null
+    ? SignatureCheck.Run(gameExe, HookSignatures.All, KnownGameBuilds.All, Console.Out)
+    : SignatureCheck.RunProbes(gameExe, SignatureProbes.Parse(File.ReadAllText(probesFile)), KnownGameBuilds.All, Console.Out);
