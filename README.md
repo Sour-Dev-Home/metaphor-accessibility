@@ -40,7 +40,7 @@ One command runs every check, locally (Git Bash on Windows) and in CI:
 | `scripts/check.sh pre-commit` | `fast`, then formatting for staged C#, `docs` when Markdown is staged, `signatures` when `hook-signatures.json` is staged and `METAPHOR_GAME_EXE` is set, and a matching security-review stamp when the security-review scope is staged ([CONTRIBUTING.md](CONTRIBUTING.md#security-review-and-deny-rules)) | pre-commit hook |
 | `scripts/check.sh pre-push` | the Release build, then `Unit` and `RoundTrip` tests, when the pushed commits change code (refs on stdin) | pre-push hook |
 | `scripts/check.sh rules` | repo rules on every tracked file | CI on Ubuntu |
-| `scripts/check.sh full` | repo rules, then the .NET build, `Unit` and `RoundTrip` tests, formatting and the smoke-test and deploy scripts' own tests (Pester 5+) | CI on Windows |
+| `scripts/check.sh full` | repo rules, then the .NET build, `Unit` and `RoundTrip` tests, formatting and the smoke-test and deploy scripts' own tests (Pester 5+) | CI: Linux on pull requests, Windows in the merge queue and on `main` (see below) |
 | `scripts/check.sh docs` | broken relative links and anchors fail; Markdown lint, Vale and ADRs over 250 words warn | CI on Ubuntu |
 | `scripts/check.sh slow` | Stryker.NET mutation testing of `Metaphor.Core` and a jscpd duplication report, into `artifacts/slow/`; reports only, fails only when a tool can't run | weekly CI on Windows (`slow.yml`, also run by hand); never gates a merge |
 | `scripts/check.sh signatures [EXE]` | each hook signature matches exactly once in the game exe on disk, no launch ([how-to](docs/contributors/how-to/check-hook-signatures.md)) | locally, before a hook PR |
@@ -48,10 +48,20 @@ One command runs every check, locally (Git Bash on Windows) and in CI:
 | `scripts/check.sh commit-msg FILE` | one commit message's shape (see the script's header); appends the `Security-Review` trailer to a commit touching the security-review scope | commit-msg hook |
 | `scripts/check.sh commits BASE..HEAD` | each commit's shape in a pull request, and a matching `Security-Review` or `Security-Review-Skipped` trailer on each one touching the scope | CI on Ubuntu |
 
-`full` needs the .NET SDK pinned in `global.json`. CI then packages the build it tested (`scripts/package-mod.sh`) and
-keeps it as a workflow artifact with its SHA-256. It also rebuilds the mod in a second checkout at another path on the
-same runner and checks the bytes match. A local package won't match CI's hash, because CI-only build settings remove
-machine paths; the CI artifact is the one that counts.
+`full` needs the .NET SDK pinned in `global.json`. CI runs it by two paths under the same required checks
+(`repo-rules`, `build`, `scripts`, `security`):
+
+- **Pull requests** do the .NET work on Linux: `build` runs `full` there, minus the tests marked `WindowsOnly` (the
+  `Category` trait; `check.sh` adds that category on Windows only). The Pester script tests run in the parallel
+  `scripts` job on Windows. Each job starts with a `git diff` check (`scripts/ci-changes.sh`) and finishes green at once
+  when nothing it covers changed: `build` skips when only `docs/` or Markdown changed, and `scripts` skips unless
+  `scripts/`, `tests/smoke/`, the stand-in game or the workflows changed. `repo-rules` and `security` (CodeQL) always run.
+- **The merge queue and pushes to `main`** run everything, skipping nothing: `build` on Windows runs `full`, then
+  packages the build it tested (`scripts/package-mod.sh`), keeps it as a workflow artifact with its SHA-256 and rebuilds
+  the mod in a second checkout at another path on the same runner to check the bytes match. Players' builds stay
+  Windows-built, because a Linux build isn't byte-identical
+  ([measurement](docs/raw-sources/linux-build-spike-2026-11-16.md)). A local package won't match CI's hash, because
+  CI-only build settings remove machine paths; the CI artifact is the one that counts.
 
 Each stage is timed against its budget from [#1](https://github.com/Sour-Dev-Home/metaphor-accessibility/issues/1)
 (`scripts/stage-timing.sh`). `fast` and `pre-commit` (stage 1, 10 s) and `signatures` (stage 4, 30 s) print a

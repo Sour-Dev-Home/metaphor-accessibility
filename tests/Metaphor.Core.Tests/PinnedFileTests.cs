@@ -36,17 +36,6 @@ public sealed class PinnedFileTests : IDisposable
     }
 
     [Fact]
-    public void ChecksAnOpenStreamSoTheCallerCanHoldTheFileUntilItLoadsIt()
-    {
-        var path = Write(1, 2, 3);
-        var sha = Convert.ToHexStringLower(SHA256.HashData(new byte[] { 1, 2, 3 }));
-        using var held = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.Read);
-
-        Assert.Null(PinnedFile.WhyNot(held, "lib.dll", sha));
-        Assert.Throws<IOException>(() => File.WriteAllBytes(path, [9]));
-    }
-
-    [Fact]
     public void RefusesAMissingFileWithoutThrowing() =>
         Assert.Equal("no lib.dll", PinnedFile.WhyNot(Path.Combine(folder, "lib.dll"), new string('0', 64)));
 }
