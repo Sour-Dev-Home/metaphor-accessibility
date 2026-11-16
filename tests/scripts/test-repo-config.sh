@@ -35,6 +35,14 @@ while IFS= read -r context; do
   check "required check '$context' is a CI job" grep -qxF -- "$context" <<<"$ci_jobs"
 done <<<"$contexts"
 
+# Every CI job that gates a merge is required, so a skipped or split job can't drop out of the ruleset (#100). The
+# change-detection step makes a skipped job report success, so a required check is never missing.
+for required in repo-rules build scripts security; do
+  check "'$required' is a required check" grep -qxF -- "$required" <<<"$contexts"
+done
+check "the build job runs on Linux for pull requests and on Windows otherwise" \
+  grep -qF "runs-on: \${{ github.event_name == 'pull_request' && 'ubuntu-latest' || 'windows-latest' }}" "$CI"
+
 # Security checks block merges: the CI job that runs the CodeQL analysis must be a required check.
 codeql_jobs="$(awk '/^  [A-Za-z0-9_-]+:[[:space:]]*$/ { job = $1; sub(":", "", job) }
   /uses:[[:space:]]*github\/codeql-action\/analyze@/ { print job }' <<<"$ci_jobs_section")"
