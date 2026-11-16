@@ -21,8 +21,9 @@ internal static class MessageListening
 [GameHook("548ddc955c176867f062c44f94c03dd9ac33caefb278a5ac388e792aedf09504", DevOnly = true)]
 internal sealed class CompileMsgFileListener : IGameHook
 {
-    // MF.Toolkit MessageService.cs line 37.
-    private delegate uint CompileMsgFile(nint msgSrc, int msgSrcLength, nint msgFile, int param4, byte param5);
+    // MF.Toolkit MessageService.cs line 37, which declares the length and param4 as int, param5 as byte and the return
+    // as uint. Pointer-sized here so the call passes through unchanged (rule 9); only the low bits are read for the log.
+    private delegate nint CompileMsgFile(nint msgSrc, nint msgSrcLength, nint msgFile, nint param4, nint param5);
 
     private readonly CompileMsgFile callback;
     private IHook<CompileMsgFile>? hook;
@@ -39,7 +40,7 @@ internal sealed class CompileMsgFileListener : IGameHook
     }
 
     [SuppressMessage("Design", "CA1031", Justification = "An exception must never cross back into the game.")]
-    private uint OnCompile(nint msgSrc, int msgSrcLength, nint msgFile, int param4, byte param5)
+    private nint OnCompile(nint msgSrc, nint msgSrcLength, nint msgFile, nint param4, nint param5)
     {
         try
         {
@@ -47,9 +48,9 @@ internal sealed class CompileMsgFileListener : IGameHook
             // (docs/raw-sources/message-listening-run-2026-11-16.md). Both go through ReadProcessMemory: a bad pointer
             // from the game must not fault here.
             MessageListening.Log?.Compiled(
-                param4,
+                (int)param4,
                 ModuleMemoryReader.ReadAnsiString(msgFile) ?? "(unreadable path)",
-                ModuleMemoryReader.ReadUtf8(msgSrc, msgSrcLength) ?? "(unreadable source)");
+                ModuleMemoryReader.ReadUtf8(msgSrc, (int)msgSrcLength) ?? "(unreadable source)");
         }
         catch (Exception)
         {
@@ -63,8 +64,9 @@ internal sealed class CompileMsgFileListener : IGameHook
 [GameHook("548ddc955c176867f062c44f94c03dd9ac33caefb278a5ac388e792aedf09504", DevOnly = true)]
 internal sealed unsafe class GetMessageByLabelIndexListener : IGameHook
 {
-    // MF.Toolkit MessageService.cs line 32, with its pointer types to MSG, MsgFlag and MsgConfigs kept opaque.
-    private delegate nint GetMessageByLabelIndex(int* msgId, int labelIdx, nint flags, nint configs);
+    // MF.Toolkit MessageService.cs line 32, with its pointer types to MSG, MsgFlag and MsgConfigs kept opaque, and its
+    // int label index pointer-sized (rule 9).
+    private delegate nint GetMessageByLabelIndex(int* msgId, nint labelIdx, nint flags, nint configs);
 
     private readonly GetMessageByLabelIndex callback;
     private IHook<GetMessageByLabelIndex>? hook;
@@ -81,12 +83,12 @@ internal sealed unsafe class GetMessageByLabelIndexListener : IGameHook
     }
 
     [SuppressMessage("Design", "CA1031", Justification = "An exception must never cross back into the game.")]
-    private nint OnLookup(int* msgId, int labelIdx, nint flags, nint configs)
+    private nint OnLookup(int* msgId, nint labelIdx, nint flags, nint configs)
     {
         try
         {
             // This hook has never fired in the game, so what a real caller passes is unverified: read it safely.
-            MessageListening.Log?.LookedUp(ModuleMemoryReader.ReadInt32((nint)msgId) ?? -1, labelIdx);
+            MessageListening.Log?.LookedUp(ModuleMemoryReader.ReadInt32((nint)msgId) ?? -1, (int)labelIdx);
         }
         catch (Exception)
         {

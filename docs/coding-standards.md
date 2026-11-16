@@ -40,5 +40,13 @@ each rule on every assembly built from `src/`. Each test plants a violation to p
 8. **Only hooks patch the game.** A hook-layer type that uses the hooking library (`Reloaded.Hooks`) or writes memory
    by address is marked `[GameHook]` itself (the attribute isn't inherited) or is one of the hook loader's own types, so
    no patch skips the loader's build check (ADR 0006).
+9. **Hook delegates are pointer-sized.** A delegate declared in a hook passes only `nint`, `nuint`, `long`, `ulong`,
+   pointers and `double`. Windows x64 leaves the upper half of a register undefined for a 32-bit argument, so a
+   narrower declaration can hand the game garbage when the hook passes the call on.
+10. **Game memory is read only through `ModuleMemoryReader`.** In the hook layer, no other type reads memory by
+    address (`Marshal.PtrToString*`, `Marshal.Read*`, pointer loads). .NET can't catch the access violation a bad
+    pointer from the game causes; the reader fails instead.
+11. **A hook is stored before it is activated.** `Activate` is called only through the field that holds the hook. The
+    game can call the hook at once, and an unreferenced hook can be collected while the game still calls it.
 
 A new project under `src/` must be added to the architecture test project, and a test fails until it is.
