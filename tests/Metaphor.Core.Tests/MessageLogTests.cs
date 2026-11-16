@@ -66,6 +66,20 @@ public sealed class MessageLogTests
     }
 
     [Fact]
+    public void RecordsASoundCueWithItsHandlesAndCaller()
+    {
+        var (log, text) = NewLog(now: 3300);
+
+        log.CueSet(cueId: 42, acb: 0x1f2e3d40, player: 0x2a00, callerRva: 0x12345, callTargetRva: 0x126438d0);
+        log.CueSet(cueId: -1, acb: 0, player: 0, callerRva: null, callTargetRva: null);
+
+        Assert.Equal(
+            $"3300 ms cue id=42 acb=0x1f2e3d40 player=0x2a00 caller=0x12345 call=0x126438d0{Environment.NewLine}" +
+            $"3300 ms cue id=-1 acb=0x0 player=0x0 caller=(unknown) call=(unknown){Environment.NewLine}",
+            text.ToString());
+    }
+
+    [Fact]
     public void RecordsALineTheGameRequestedByName()
     {
         var (log, text) = NewLog(now: 4200);

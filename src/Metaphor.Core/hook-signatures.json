@@ -64,5 +64,11 @@
     "pattern": "48 8B C4 48 89 58 08 48 89 70 10 48 89 78 18 55 41 54 41 55 41 56 41 57 48 8D A8 28 FF FF FF 48 81 EC B0 01 00 00",
     "gameBuilds": ["548ddc955c176867f062c44f94c03dd9ac33caefb278a5ac388e792aedf09504"],
     "evidence": "Our reading of the exe (docs/raw-sources/msg-request-functions-2026-11-16.md); one match on disk and in memory, same place (docs/raw-sources/msg-request-signature-spike-2026-11-16.md)"
+  },
+  {
+    "name": "criAtomExPlayer_SetCueId",
+    "pattern": "48 89 5C 24 ?? 48 89 6C 24 ?? 48 89 74 24 ?? 57 48 83 EC 20 49 63 F8 48 89 D6",
+    "gameBuilds": ["548ddc955c176867f062c44f94c03dd9ac33caefb278a5ac388e792aedf09504"],
+    "evidence": "Ryo Framework's Metaphor pattern (docs/raw-sources/ryo-cri-atom-patterns-2026-11-16.md); one match on disk at rva 0x126438d0, 2026-11-16 (tools/Metaphor.SignatureCheck/cri-atom-probes.json); not yet checked in memory"
   }
 ]

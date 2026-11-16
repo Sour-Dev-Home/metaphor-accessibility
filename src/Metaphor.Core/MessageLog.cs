@@ -47,9 +47,18 @@ public sealed class MessageLog(TextWriter writer, Func<long> millisecondsSinceSt
     public void Requested(string function, string arguments) =>
         Write(() => Line($"{millisecondsSinceStart()} ms request via={function} {arguments}"));
 
+    /// <summary>A sound cue the game set on a CRI ADX2 player (#93, #103): the cue's number, the cue sheet and player
+    /// handles, and the calling code as a module offset (null when the stack walk didn't reach it), with where the call
+    /// before that return address went if it is a direct call. Numbers only, no game text.</summary>
+    public void CueSet(int cueId, long acb, long player, long? callerRva, long? callTargetRva) => Write(() =>
+        Line($"{millisecondsSinceStart()} ms cue id={cueId} acb=0x{acb:x} player=0x{player:x} caller={Rva(callerRva)} call={Rva(callTargetRva)}"));
+
     /// <summary>A line the game asked for by label, with its kind.</summary>
     public void Observe(LineRequested line) => Write(() =>
         Line($"{millisecondsSinceStart()} ms request via={LineRequestFunction} kind={line.Kind} text=\"{LogText.Escaped(line.Label)}\""));
+
+    private static string Rva(long? rva) =>
+        rva is { } value ? string.Create(CultureInfo.InvariantCulture, $"0x{value:x}") : "(unknown)";
 
     private static string Line(FormattableString text) =>
         text.ToString(CultureInfo.InvariantCulture) + Environment.NewLine;
