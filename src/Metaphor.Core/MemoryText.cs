@@ -3,16 +3,20 @@ using System.Text;
 namespace Metaphor.Core;
 
 /// <summary>Reads strings out of the game's memory through a read function that fails instead of faulting, such as the
-/// hook layer's <c>ModuleMemoryReader</c>. The read function takes addresses here, not RVAs.</summary>
+/// hook layer's <c>ModuleMemoryReader</c>.</summary>
 public static class MemoryText
 {
+    /// <summary>Fills <paramref name="buffer"/> from the memory at <paramref name="address"/> (an address, not an
+    /// RVA); false, rather than a fault, when it can't all be read.</summary>
+    public delegate bool ReadAddress(long address, Span<byte> buffer);
+
     private const int AnsiPiece = 32;
     private const int Utf8Piece = 1 << 20;
 
     /// <summary>Reads a NUL-terminated string at <paramref name="address"/> as Latin-1, up to
     /// <paramref name="maxBytes"/>, in small pieces so a string near the end of readable memory still reads: what was
     /// read before unreadable memory is returned. Null when its first byte can't be read.</summary>
-    public static string? ReadAnsi(ChunkedScan.ReadAt read, long address, int maxBytes = 512)
+    public static string? ReadAnsi(ReadAddress read, long address, int maxBytes = 512)
     {
         ArgumentNullException.ThrowIfNull(read);
         ArgumentOutOfRangeException.ThrowIfNegative(maxBytes);
@@ -43,7 +47,7 @@ public static class MemoryText
 
     /// <summary>Reads <paramref name="length"/> bytes at <paramref name="address"/> as UTF-8, or null when the length
     /// is negative or over <paramref name="maxBytes"/>, or the bytes can't all be read.</summary>
-    public static string? ReadUtf8(ChunkedScan.ReadAt read, long address, int length, int maxBytes = 16 << 20)
+    public static string? ReadUtf8(ReadAddress read, long address, int length, int maxBytes = 16 << 20)
     {
         ArgumentNullException.ThrowIfNull(read);
         if (length < 0 || length > maxBytes)

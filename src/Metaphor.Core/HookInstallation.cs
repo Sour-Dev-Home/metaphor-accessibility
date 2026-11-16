@@ -8,10 +8,10 @@ namespace Metaphor.Core;
 public static class HookInstallation
 {
     /// <summary>Plans <paramref name="hooks"/> for <paramref name="runningBuild"/> as <see cref="HookPlanner.Plan"/>
-    /// does, then installs each approved hook with the function <paramref name="installer"/> returns. That is asked
-    /// for once, just before the first install, and never if nothing is approved; if it throws, so does this. A hook
-    /// is paired with <c>null</c> when it wasn't created, which only a hook for another build may be. Writes one line
-    /// per hook to <paramref name="log"/>. Returns how many went in, and every hook handed to the game, which the
+    /// does, then installs each approved hook with the function <paramref name="createInstaller"/> returns. That is
+    /// called once, just before the first install, and never if nothing is approved; if it throws, so does this. A
+    /// hook is paired with <c>null</c> when it wasn't created, which only a hook for another build may be. Writes one
+    /// line per hook to <paramref name="log"/>. Returns how many went in, and every hook handed to the game, which the
     /// caller keeps alive.</summary>
     [SuppressMessage("Design", "CA1031", Justification = "One hook failing must not stop the others or reach the game.")]
     public static (int Loaded, IReadOnlyList<THook> Kept) Run<THook>(
@@ -19,12 +19,12 @@ public static class HookInstallation
         IReadOnlyList<(HookSpec Spec, THook? Hook)> hooks,
         IReadOnlyList<HookSignature> signatures,
         Func<IReadOnlyList<HookSignature>, ScanResult> scan,
-        Func<Action<THook, HookDecision>> installer,
+        Func<Action<THook, HookDecision>> createInstaller,
         Action<string> log)
         where THook : class
     {
         ArgumentNullException.ThrowIfNull(hooks);
-        ArgumentNullException.ThrowIfNull(installer);
+        ArgumentNullException.ThrowIfNull(createInstaller);
         ArgumentNullException.ThrowIfNull(log);
 
         // A logging failure must not make the count, or the status, disagree with what's in the game.
@@ -50,11 +50,10 @@ public static class HookInstallation
                 Log($"hook {decision.Name} skipped: {decision.WhyNot}");
                 continue;
             }
-            install ??= installer();
-            // Referenced before it goes live: the game calls back into the hook's managed delegate, and a collected
-            // delegate makes .NET fail-fast the whole process (seen on the first in-game run of #55's listening hooks:
-            // APPCRASH in coreclr.dll, 0x80131623, seconds after loading). Kept even if installing fails, since it
-            // may have gone live before failing.
+            install ??= createInstaller();
+            // Referenced before it goes live: rule 11 in docs/coding-standards.md, and the coreclr fail-fast in
+            // docs/raw-sources/message-listening-run-2026-11-16.md. Kept even if installing fails, since it may have
+            // gone live before failing.
             kept.Add(hook);
             try
             {

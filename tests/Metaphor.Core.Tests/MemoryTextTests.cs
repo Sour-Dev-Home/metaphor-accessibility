@@ -6,7 +6,7 @@ namespace Metaphor.Core.Tests;
 [Trait("Category", "Unit")]
 public sealed class MemoryTextTests
 {
-    private static ChunkedScan.ReadAt From(byte[] memory, long readableUpTo = long.MaxValue) => (address, buffer) =>
+    private static MemoryText.ReadAddress From(byte[] memory, long readableUpTo = long.MaxValue) => (address, buffer) =>
     {
         if (address < 0 || address + buffer.Length > Math.Min(memory.Length, readableUpTo))
         {

@@ -77,9 +77,46 @@ public sealed class PassThroughRuleTests
     }
 
     [Theory]
+    // An explicit implementation is named after its interface (Metaphor.Hooks.IGameHook.Calls).
+    [InlineData("", false)]
+    [InlineData("void Metaphor.Hooks.IGameHook.UseCalls(System.Collections.Generic.IReadOnlyDictionary<string, nint> calls) { }", true)]
+    public void ExplicitlyImplementedCallsAndUseCallsAreMatched(string useCalls, bool passes)
+    {
+        var assembly = HookLayer($$"""
+            namespace Metaphor.Hooks
+            {
+                public interface IGameHook
+                {
+                    System.Collections.Generic.IReadOnlyList<string> Calls { get; }
+                    void UseCalls(System.Collections.Generic.IReadOnlyDictionary<string, nint> calls) { }
+                }
+            }
+            [Metaphor.Hooks.GameHook]
+            public sealed class MenuHook : Metaphor.Hooks.IGameHook, Metaphor.Hooks.IObserves3
+            {
+                System.Collections.Generic.IReadOnlyList<string> Metaphor.Hooks.IGameHook.Calls => ["menu_open"];
+                {{useCalls}}
+                public void Observe(nint a, nint b, nint c) { }
+            }
+            """);
+
+        var violations = Rules.HooksPassThroughAdapters(assembly);
+
+        if (passes)
+        {
+            Assert.Empty(violations);
+        }
+        else
+        {
+            Assert.Contains("MenuHook lists Calls but has no UseCalls", Assert.Single(violations), StringComparison.Ordinal);
+        }
+    }
+
+    [Theory]
     [InlineData("try { } catch (System.Exception) { }")]
     [InlineData("try { } catch { }")]
     [InlineData("try { } catch (System.Exception) when (a > 0) { }")]
+    [InlineData("try { } catch when (a > 0) { }")]
     // Code nested in a hook (a lambda's closure) belongs to it.
     [InlineData("System.Action go = () => { try { } catch (System.Exception) { } }; go();")]
     public void AHookWithItsOwnCatchAllIsAViolation(string body)
@@ -90,9 +127,11 @@ public sealed class PassThroughRuleTests
         Assert.Contains("catches every exception", violation, StringComparison.Ordinal);
     }
 
-    [Fact]
-    public void CatchingOneKindOfExceptionPasses() =>
-        Assert.Empty(Rules.HooksPassThroughAdapters(PlantedHook("try { } catch (System.FormatException) { }")));
+    [Theory]
+    [InlineData("try { } catch (System.FormatException) { }")]
+    [InlineData("try { } catch (System.FormatException) when (a > 0) { }")]
+    public void CatchingOneKindOfExceptionPasses(string body) =>
+        Assert.Empty(Rules.HooksPassThroughAdapters(PlantedHook(body)));
 
     [Theory]
     [InlineData("", "observes no shape")]

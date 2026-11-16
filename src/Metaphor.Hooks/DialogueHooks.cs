@@ -36,8 +36,9 @@ internal sealed class MessageFileHook : IGameHook, IObserves5
     }
 }
 
-/// <summary>Reports each line the game asks for by label. The function, its arguments and the name (ours) are in docs/raw-sources/msg-request-functions-2026-11-16.md; that its pointer is the label is
-/// from docs/raw-sources/msg-request-run-2026-11-16.md.</summary>
+/// <summary>Reports each line the game asks for by label. The function, its arguments and the name (ours) are in
+/// docs/raw-sources/msg-request-functions-2026-11-16.md; that its pointer is the label is from
+/// docs/raw-sources/msg-request-run-2026-11-16.md.</summary>
 [GameHook(GameBuilds.Steam18330018)]
 internal sealed class DialogueLineHook : IGameHook, IObserves3
 {

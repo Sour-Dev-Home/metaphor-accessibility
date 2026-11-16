@@ -9,9 +9,9 @@ namespace Metaphor.Hooks;
 // function with the adapter for that shape, which hands each call to Observe and then calls the original unchanged.
 // Every argument is pointer-sized (rule 9); a double travels in an xmm register and stays a double. Every adapter
 // returns rax, so a shape fits only a function returning an integer, a pointer or nothing: a float or double return
-// (xmm0) needs a shape of its own. That one shared
-// non-generic delegate per shape hooks a native function through Reloaded.Hooks is
-// docs/raw-sources/shared-delegate-hook-spike-2026-11-16.md.
+// (xmm0) needs a shape of its own. Evidence that one shared non-generic delegate per shape hooks a native function
+// through Reloaded.Hooks: docs/raw-sources/shared-delegate-hook-spike-2026-11-16.md and
+// docs/raw-sources/shared-delegate-hook-spike-shapes-2026-11-16.md.
 
 /// <summary>A hook on a function of three pointer-sized arguments. A function that returns nothing fits too: the
 /// adapter hands back whatever it left in rax, which its caller ignores.</summary>
@@ -46,7 +46,8 @@ internal interface IObserves5WithDouble
 
 /// <summary>The hook loader's pass-through adapters (#88): the code every hook used to repeat. Each keeps its callback
 /// in a field, creates the hook, stores it before activating it (rule 11), guards the observer with a catch-all, and
-/// always calls the original. The loader keeps each adapter alive, and with it the hook it serves.</summary>
+/// always calls the original. The loader keeps each adapter alive, and with it the hook it serves (rule 11 in
+/// docs/coding-standards.md says why).</summary>
 [SuppressMessage("Design", "CA1031", Justification = "An exception must never cross back into the game.")]
 internal abstract class PassThrough
 {
@@ -93,7 +94,7 @@ internal abstract class PassThrough
 
         private protected override void Activate(IReloadedHooks hooks, nint address)
         {
-            // Stored before it goes live: the game may call it the moment it's activated.
+            // Stored before it goes live (rule 11).
             hook = hooks.CreateHook(callback, address);
             hook.Activate();
         }

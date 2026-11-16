@@ -647,8 +647,9 @@ internal static class Rules
     /// #88, rule 14: hooks pass calls through the loader's adapters. A <c>[GameHook]</c> type implements exactly one
     /// shape interface (<c>IObserves…</c>), and neither it nor code nested in it calls the hooking library at all
     /// (<c>CreateHook</c>, <c>Activate</c>, <c>OriginalFunction</c>, …) or catches every exception (<c>catch
-    /// (Exception)</c>, a bare <c>catch</c>, or any filtered catch): the adapter for its shape does those, once for every
-    /// hook. Rule 11 then has only the adapters to check. A hook that lists <c>Calls</c> declares <c>UseCalls</c>.
+    /// (Exception)</c> or a bare <c>catch</c>, filtered or not): the adapter for its shape does those, once for every
+    /// hook. Rule 11 then has only the adapters to check. A hook that lists <c>Calls</c> declares <c>UseCalls</c>,
+    /// explicitly implemented or not.
     /// </summary>
     public static IReadOnlyList<string> HooksPassThroughAdapters(AssemblyDefinition assembly)
     {
@@ -662,9 +663,12 @@ internal static class Rules
             .Select(hook => $"{name} hook {hook.type.FullName} " +
                 (hook.Count == 0 ? "observes no shape" : "observes more than one shape") + " (rule 14)");
         // A hook that lists Calls and keeps the empty default UseCalls would call through null function pointers.
+        // An explicit implementation is named after its interface (Metaphor.Hooks.IGameHook.UseCalls).
+        static bool Named(string member, string name) =>
+            member == name || member.EndsWith("." + name, StringComparison.Ordinal);
         var calls = hooks
-            .Where(type => type.Properties.Any(property => property.Name == "Calls") &&
-                !type.Methods.Any(method => method.Name == "UseCalls"))
+            .Where(type => type.Properties.Any(property => Named(property.Name, "Calls")) &&
+                !type.Methods.Any(method => Named(method.Name, "UseCalls")))
             .Select(type => $"{name} hook {type.FullName} lists Calls but has no UseCalls to take them (rule 14)");
         var installs = Types(assembly).Where(IsInsideHook)
             .SelectMany(type => type.Methods.Where(method => method.HasBody).SelectMany(method => InstallsOrGuards(method)
@@ -681,13 +685,34 @@ internal static class Rules
         {
             yield return $"calls {called}";
         }
-        // A filtered catch (catch (Exception) when ...) is a handler of type Filter, with no catch type.
-        if (method.Body.ExceptionHandlers.Any(handler =>
-            handler.HandlerType == Mono.Cecil.Cil.ExceptionHandlerType.Filter ||
-            (handler.HandlerType == Mono.Cecil.Cil.ExceptionHandlerType.Catch &&
-                handler.CatchType?.FullName is "System.Exception" or "System.Object")))
+        if (method.Body.ExceptionHandlers.Any(IsCatchAll))
         {
             yield return "catches every exception";
+        }
+    }
+
+    /// <summary>Whether <paramref name="handler"/> catches <c>System.Exception</c> or <c>object</c>, filtered or not.
+    /// A filtered catch (<c>catch (T) when …</c>) has no catch type; its filter block tests the type with
+    /// <c>isinst T</c> first, and has no such test when it catches everything.</summary>
+    private static bool IsCatchAll(Mono.Cecil.Cil.ExceptionHandler handler)
+    {
+        static bool Everything(TypeReference? type) => type?.FullName is null or "System.Exception" or "System.Object";
+        static bool FilterCatchesEverything(Mono.Cecil.Cil.Instruction? first) =>
+            first is not { OpCode.Code: Mono.Cecil.Cil.Code.Isinst, Operand: TypeReference tested } || Everything(tested);
+        return handler.HandlerType switch
+        {
+            Mono.Cecil.Cil.ExceptionHandlerType.Catch => Everything(handler.CatchType),
+            Mono.Cecil.Cil.ExceptionHandlerType.Filter => FilterCatchesEverything(FirstInstruction(handler.FilterStart)),
+            _ => false,
+        };
+
+        static Mono.Cecil.Cil.Instruction? FirstInstruction(Mono.Cecil.Cil.Instruction? start)
+        {
+            while (start is { OpCode.Code: Mono.Cecil.Cil.Code.Nop })
+            {
+                start = start.Next;
+            }
+            return start;
         }
     }
 
