@@ -2,11 +2,26 @@
   "version": 2,
   "dependencies": {
     "net9.0-windows7.0": {
+      "Reloaded.Hooks.Definitions": {
+        "type": "Direct",
+        "requested": "[1.11.0, )",
+        "resolved": "1.11.0",
+        "contentHash": "/z0AwcCvVTQHlQ9SMMMBqKEIrm5t/yBFPylySW2Rnr7uRGV9jGfoACFe79KZKF976dhtkyy2xl0HIXz5hRUkng=="
+      },
       "Reloaded.Mod.Interfaces": {
         "type": "Direct",
         "requested": "[2.4.0, )",
         "resolved": "2.4.0",
         "contentHash": "HKQu7M0MyToKU4NK5Ula29MXSNeHz01ZzMK9BWD+xqJCITemAPdMW+w60Swln3ceGCU/ZooFSKtn4I8rcSA9AQ=="
+      },
+      "Reloaded.SharedLib.Hooks": {
+        "type": "Direct",
+        "requested": "[1.9.0, )",
+        "resolved": "1.9.0",
+        "contentHash": "AEDTDhCnYxJGuLrdZCZPoiqrdl/lW4XwA6bb5dntOvkyw4RBBm/gqoNlHS7RJS7k+kt36ES+UFZAtBeyusYtgw==",
+        "dependencies": {
+          "Reloaded.Hooks.Definitions": "1.11.0"
+        }
       },
       "metaphor.core": {
         "type": "Project"

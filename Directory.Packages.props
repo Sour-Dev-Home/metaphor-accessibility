@@ -7,6 +7,10 @@
     <PackageVersion Include="Mono.Cecil" Version="0.11.6" />
     <!-- The version the official mod template references (docs/raw-sources/reloaded-ii-mod-entry-point-2026-11-15.md). -->
     <PackageVersion Include="Reloaded.Mod.Interfaces" Version="2.4.0" />
+    <!-- Reloaded-II's shared hooks library, as the official template references it (ADR 0006). LGPL-3.0. -->
+    <PackageVersion Include="Reloaded.SharedLib.Hooks" Version="1.9.0" />
+    <!-- Its dependency, referenced directly only to ship its licence file (ADR 0006). LGPL-3.0. -->
+    <PackageVersion Include="Reloaded.Hooks.Definitions" Version="1.11.0" />
     <PackageVersion Include="xunit" Version="2.9.2" />
     <PackageVersion Include="xunit.runner.visualstudio" Version="2.8.2" />
   </ItemGroup>

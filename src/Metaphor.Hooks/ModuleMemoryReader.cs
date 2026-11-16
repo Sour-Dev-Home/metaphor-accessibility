@@ -44,6 +44,28 @@ internal static unsafe class ModuleMemoryReader
     [return: MarshalAs(UnmanagedType.Bool)]
     private static extern bool ReadProcessMemory(nint process, nint address, byte* buffer, nuint size, out nuint read);
 
+    /// <summary>The main module's base address and its committed, readable stretches as RVAs and lengths, for
+    /// <see cref="ChunkedScan"/> with <see cref="ReadAt"/> (#39). Nothing is copied here.</summary>
+    public static (nint Base, IReadOnlyList<(long Rva, long Length)> Regions) MainModuleRegions()
+    {
+        using var process = Process.GetCurrentProcess();
+        var module = process.MainModule ?? throw new InvalidOperationException("the game process has no main module");
+        var start = module.BaseAddress;
+        return (start, [.. ReadableSpans(start, start + module.ModuleMemorySize)
+            .Select(span => ((long)(span.Start - start), (long)span.Length))]);
+    }
+
+    /// <summary>Copies <paramref name="buffer"/>.Length bytes from <paramref name="rva"/> past <paramref name="moduleBase"/>
+    /// through <c>ReadProcessMemory</c>, which fails instead of faulting; false unless every byte arrived.</summary>
+    public static bool ReadAt(nint moduleBase, long rva, Span<byte> buffer)
+    {
+        fixed (byte* target = buffer)
+        {
+            return ReadProcessMemory(CurrentProcess, moduleBase + (nint)rva, target, (nuint)buffer.Length, out var read) &&
+                read == (nuint)buffer.Length;
+        }
+    }
+
     /// <summary>Copies the main module's committed, readable pages, as runs where they touch. Reserved, guarded and
     /// no-access pages are never read, and a chunk that fails to copy is skipped and counted.</summary>
     public static ModuleMemory ReadMainModule()

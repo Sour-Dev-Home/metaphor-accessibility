@@ -7,7 +7,7 @@
   "ModDll": "Metaphor.Hooks.dll",
   "IsLibrary": false,
   "IsUniversalMod": false,
-  "ModDependencies": [],
+  "ModDependencies": [ "reloaded.sharedlib.hooks" ],
   "OptionalDependencies": [],
   "SupportedAppId": [ "metaphor.exe" ],
   "ProjectUrl": "https://github.com/Sour-Dev-Home/metaphor-refantazio"

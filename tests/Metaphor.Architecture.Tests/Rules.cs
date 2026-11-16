@@ -28,6 +28,45 @@ internal static class Rules
         [HookLayer] = "ADR 0005",
     };
 
+    /// <summary>Hook-layer types besides hooks that may use the hooking API or write through pointers, each with why.
+    /// Only in the hook layer itself: the same name elsewhere is no exemption.</summary>
+    private static readonly Dictionary<string, string> PatchingExceptions = new()
+    {
+        ["Metaphor.Hooks.HookLoader"] = "#39: the loader installs hooks",
+        ["Metaphor.Hooks.IGameHook"] = "#39: what every hook implements",
+        ["Metaphor.Hooks.PrismSpeech"] = "ADR 0005: calls prism.dll's exports through function pointers",
+    };
+
+    /// <summary>Members that write memory by address.</summary>
+    private static readonly string[] MemoryWritingMembers =
+    [
+        "System.Runtime.InteropServices.Marshal::Write",
+        "System.Runtime.InteropServices.Marshal::Copy",
+        "System.Runtime.InteropServices.Marshal::StructureToPtr",
+        "System.Runtime.CompilerServices.Unsafe::Write",
+        "System.Runtime.CompilerServices.Unsafe::Copy",
+        "System.Runtime.CompilerServices.Unsafe::InitBlock",
+        "System.Runtime.InteropServices.NativeMemory::Copy",
+        "System.Runtime.InteropServices.NativeMemory::Fill",
+        "System.Runtime.InteropServices.NativeMemory::Clear",
+        "System.Buffer::MemoryCopy",
+    ];
+
+    /// <summary>Native functions that change memory protection, allocate executable memory, or write memory.</summary>
+    private static readonly string[] MemoryWritingEntryPoints =
+        ["VirtualProtect", "VirtualAlloc", "WriteProcessMemory", "NtProtectVirtualMemory", "NtWriteVirtualMemory"];
+
+    /// <summary>IL that writes through a pointer, copies or fills memory, or calls through a function pointer. Checked
+    /// in the hook layer only: pointers are banned everywhere else (rule 2). It also flags writes through managed
+    /// <c>ref</c>/<c>out</c> parameters, which the hook layer avoids outside hooks.</summary>
+    private static readonly HashSet<Mono.Cecil.Cil.Code> PointerWritingCodes =
+    [
+        Mono.Cecil.Cil.Code.Stind_I, Mono.Cecil.Cil.Code.Stind_I1, Mono.Cecil.Cil.Code.Stind_I2,
+        Mono.Cecil.Cil.Code.Stind_I4, Mono.Cecil.Cil.Code.Stind_I8, Mono.Cecil.Cil.Code.Stind_R4,
+        Mono.Cecil.Cil.Code.Stind_R8, Mono.Cecil.Cil.Code.Stind_Ref, Mono.Cecil.Cil.Code.Stobj,
+        Mono.Cecil.Cil.Code.Cpblk, Mono.Cecil.Cil.Code.Initblk, Mono.Cecil.Cil.Code.Calli,
+    ];
+
     /// <summary>Prism exports that let Prism choose or probe backends itself (ADR 0005).</summary>
     private static readonly string[] PrismOwnChoiceExports =
         ["prism_registry_create_best", "prism_registry_acquire_best", "prism_availability"];
@@ -226,6 +265,85 @@ internal static class Rules
                 _ => null,
             })
             .OfType<string>()];
+    }
+
+    /// <summary>
+    /// #39: a type that uses the hooking API (Reloaded.Hooks) or writes memory by address is a hook, marked
+    /// <c>[GameHook]</c> itself, or one of the hook loader's own types; so no patch skips the loader's build check. The
+    /// attribute isn't inherited, so a subclass needs its own. Code nested in a hook (lambdas, closures) belongs to it.
+    /// Reflection can't be seen this way; the security review covers it.
+    /// </summary>
+    public static IReadOnlyList<string> PatchingNeedsGameHook(AssemblyDefinition assembly)
+    {
+        var name = assembly.Name.Name;
+        var hookLayer = IsHookLayer(assembly);
+        return [.. Types(assembly)
+            .Where(type => !IsHookOrException(type, hookLayer))
+            .SelectMany(type => PatchingUses(type, hookLayer).Distinct().Select(use =>
+                $"{name} type {type.FullName} patches the game ({use}) without [GameHook]"))];
+    }
+
+    private static bool IsHookOrException(TypeDefinition type, bool hookLayer)
+    {
+        for (var owner = type; owner is not null; owner = owner.DeclaringType)
+        {
+            if ((hookLayer && PatchingExceptions.ContainsKey(owner.FullName)) ||
+                owner.CustomAttributes.Any(attribute => attribute.AttributeType.FullName == GameHookAttribute))
+            {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private static IEnumerable<string> PatchingUses(TypeDefinition type, bool hookLayer)
+    {
+        static bool IsHooking(TypeReference reference) =>
+            reference.Namespace.StartsWith("Reloaded.Hooks", StringComparison.Ordinal);
+
+        foreach (var field in type.Fields.Where(field => IsHooking(field.FieldType)))
+        {
+            yield return field.FieldType.FullName;
+        }
+        foreach (var method in type.Methods)
+        {
+            foreach (var used in SignatureAndLocals(method).Where(IsHooking))
+            {
+                yield return used.FullName;
+            }
+            if (method.PInvokeInfo is { } native &&
+                MemoryWritingEntryPoints.Any(entry => native.EntryPoint.StartsWith(entry, StringComparison.Ordinal)))
+            {
+                yield return native.EntryPoint;
+            }
+            if (!method.HasBody)
+            {
+                continue;
+            }
+            foreach (var instruction in method.Body.Instructions)
+            {
+                if (hookLayer && PointerWritingCodes.Contains(instruction.OpCode.Code))
+                {
+                    yield return instruction.OpCode.Name;
+                }
+                if (instruction.Operand is not MethodReference called)
+                {
+                    continue;
+                }
+                var member = $"{called.DeclaringType.FullName}::{called.Name}";
+                if (IsHooking(called.DeclaringType) ||
+                    MemoryWritingMembers.Any(writer => member.StartsWith(writer, StringComparison.Ordinal)))
+                {
+                    yield return member;
+                }
+                // A writable span over raw memory: new Span<T>(void*, int).
+                if (called.Name == ".ctor" && called.DeclaringType.Name == "Span`1" &&
+                    called.Parameters.FirstOrDefault()?.ParameterType is PointerType)
+                {
+                    yield return "Span<T>(void*, int)";
+                }
+            }
+        }
     }
 
     private static IEnumerable<TypeDefinition> Types(AssemblyDefinition assembly) =>

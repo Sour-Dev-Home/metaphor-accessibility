@@ -37,6 +37,43 @@ public sealed class ModStartupTests : IDisposable
     }
 
     [Fact]
+    public void OnAKnownBuildTheModInstallsItsHooksAndReportsHowManyLoaded()
+    {
+        string? askedFor = null;
+
+        var status = ModStartup.CheckAndReport(
+            ModId, _gameExe, _folder.FullName, () => [Build(GameBuild)], hooksExpected: 3,
+            installHooks: build => { askedFor = build; return 2; });
+
+        Assert.Equal(GameBuild, askedFor);
+        Assert.Equal(ModStatus.Ready(ModId, GameBuild, hooksLoaded: 2, hooksExpected: 3), status);
+        Assert.Equal(status, Read());
+    }
+
+    [Fact]
+    public void OnAnUnknownBuildNoHookIsInstalled()
+    {
+        var installed = false;
+
+        ModStartup.CheckAndReport(
+            ModId, _gameExe, _folder.FullName, () => [Build(new string('0', 64))], hooksExpected: 1,
+            installHooks: _ => { installed = true; return 1; });
+
+        Assert.False(installed);
+    }
+
+    [Fact]
+    public void WhenTheHookLoaderFailsTheModRefusesWithoutThrowing()
+    {
+        var status = ModStartup.CheckAndReport(
+            ModId, _gameExe, _folder.FullName, () => [Build(GameBuild)], hooksExpected: 1,
+            installHooks: _ => throw new InvalidOperationException("no hooks controller"));
+
+        Assert.Equal(ModState.Refused, status.State);
+        Assert.Equal("hook loader failed: InvalidOperationException: no hooks controller", status.Reason);
+    }
+
+    [Fact]
     public void OnAnUnknownBuildTheModRefuses()
     {
         ModStartup.CheckAndReport(ModId, _gameExe, _folder.FullName, () => [Build(new string('0', 64))], hooksExpected: 2);

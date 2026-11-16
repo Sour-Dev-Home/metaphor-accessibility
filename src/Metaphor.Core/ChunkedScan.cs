@@ -1,0 +1,57 @@
+namespace Metaphor.Core;
+
+/// <summary>What a signature scan found: every match of each signature by name, as RVAs in order, and whether every
+/// chunk could be read. When one couldn't, a "single" match may have a twin in the part that wasn't read.</summary>
+public sealed record ScanResult(IReadOnlyDictionary<string, IReadOnlyList<long>> Matches, bool Complete);
+
+/// <summary>Finds hook signatures in the running game a chunk at a time (#39), so the mod never holds a copy of the
+/// whole module. Each chunk is read with an overlap one byte shorter than the longest pattern, so a match that crosses
+/// a chunk edge is found, and each match is counted once: in the chunk where it starts.</summary>
+public static class ChunkedScan
+{
+    /// <summary>Copies <paramref name="buffer"/>.Length bytes from <paramref name="rva"/>; false when they can't all
+    /// be read, and then the chunk is skipped and the scan is incomplete.</summary>
+    public delegate bool ReadAt(long rva, Span<byte> buffer);
+
+    /// <summary>Every match of each of <paramref name="signatures"/> in <paramref name="regions"/> (readable stretches
+    /// of the module, as start RVA and length), read through <paramref name="read"/> <paramref name="chunkBytes"/> at a
+    /// time.</summary>
+    public static ScanResult FindAll(
+        IReadOnlyList<(long Rva, long Length)> regions, ReadAt read, IReadOnlyList<HookSignature> signatures,
+        int chunkBytes = 1 << 20)
+    {
+        ArgumentNullException.ThrowIfNull(regions);
+        ArgumentNullException.ThrowIfNull(read);
+        ArgumentNullException.ThrowIfNull(signatures);
+        ArgumentOutOfRangeException.ThrowIfLessThan(chunkBytes, 1);
+
+        var patterns = signatures.Select(signature => (signature.Name, Pattern: BytePattern.Parse(signature.Pattern))).ToList();
+        var found = patterns.ToDictionary(p => p.Name, _ => new List<long>());
+        var complete = true;
+        if (patterns.Count > 0)
+        {
+            var overlap = patterns.Max(p => p.Pattern.Length) - 1;
+            var buffer = new byte[chunkBytes + overlap];
+            foreach (var (start, length) in regions)
+            {
+                for (long offset = 0; offset < length; offset += chunkBytes)
+                {
+                    var own = (int)Math.Min(chunkBytes, length - offset);
+                    var size = (int)Math.Min(own + overlap, length - offset);
+                    var chunk = buffer.AsSpan(0, size);
+                    if (!read(start + offset, chunk))
+                    {
+                        complete = false;
+                        continue;
+                    }
+                    foreach (var (name, pattern) in patterns)
+                    {
+                        // Matches starting in the overlap belong to the next chunk, which finds them itself.
+                        found[name].AddRange(pattern.Matches(chunk).Where(at => at < own).Select(at => start + offset + at));
+                    }
+                }
+            }
+        }
+        return new(found.ToDictionary(pair => pair.Key, pair => (IReadOnlyList<long>)pair.Value), complete);
+    }
+}

@@ -31,6 +31,9 @@ public sealed class BytePattern
         anchor = [.. bytes.Skip(bestStart).Take(bestLength).Select(b => b!.Value)];
     }
 
+    /// <summary>How many bytes the pattern covers, wildcards included.</summary>
+    public int Length => bytes.Length;
+
     /// <summary>Parses hex bytes separated by whitespace, with <c>??</c> (or <c>?</c>) for any byte:
     /// <c>48 8B ?? 10</c>.</summary>
     /// <exception cref="FormatException">A token isn't a byte or a wildcard, or the pattern has no fixed byte.</exception>
