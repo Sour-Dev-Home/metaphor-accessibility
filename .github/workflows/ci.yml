@@ -51,8 +51,8 @@ jobs:
           printf '%s\n' "$PR_BODY" > "$RUNNER_TEMP/pr-body.md"
           bash scripts/check.sh pr-body "$RUNNER_TEMP/pr-body.md"
       # Dependabot's commit bodies carry release notes past the body limit; its PRs get the maintainer's message on
-      # the squash merge.
-      - name: Check the pull request's commit messages
+      # the squash merge. Each commit touching the security-review scope needs its Security-Review trailer (#71).
+      - name: Check the pull request's commit messages and review trailers
         if: github.event_name == 'pull_request' && github.event.pull_request.user.login != 'dependabot[bot]'
         env:
           BASE: ${{ github.event.pull_request.base.sha }}
