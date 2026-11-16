@@ -13,6 +13,9 @@ jobs:
   repo-rules:
     runs-on: ubuntu-latest
     timeout-minutes: 5
+    permissions:
+      contents: read
+      pull-requests: read # the commits stage reads the PR timeline (#127)
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -60,6 +63,12 @@ jobs:
         env:
           BASE: ${{ github.event.pull_request.base.sha }}
           HEAD: ${{ github.event.pull_request.head.sha }}
+          # An outside author's PR needs the security-reviewed label instead of a trailer (#127). The read-only
+          # token reads the PR timeline through `gh api`.
+          PR_AUTHOR_ASSOCIATION: ${{ github.event.pull_request.author_association }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          PR_UPDATED_AT: ${{ github.event.pull_request.updated_at }}
+          GH_TOKEN: ${{ github.token }}
         run: bash scripts/check.sh commits "$BASE..$HEAD"
 
   # Two paths under one check name (#100). On a pull request: the .NET work on Linux, which is fast, skipped when only
