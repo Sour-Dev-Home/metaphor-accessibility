@@ -4,17 +4,14 @@ using System.Text.Json;
 
 namespace Metaphor.Core;
 
-/// <summary>A stretch of the game's module that could be read, starting <paramref name="Rva"/> bytes after the
-/// module's base address.</summary>
-public sealed record MemoryRun(long Rva, ReadOnlyMemory<byte> Bytes);
-
-/// <summary>What the hook layer could read of the game's main module.</summary>
+/// <summary>The game's main module as the hook layer offers it to the scan, read a chunk at a time through
+/// <see cref="ChunkedScan"/>.</summary>
 /// <param name="ModuleBytes">The module's size in memory.</param>
-/// <param name="Runs">Copies of its readable stretches.</param>
-/// <param name="UnreadableBytes">Committed bytes that looked readable but failed to copy.</param>
-/// <param name="MillisecondsSinceGameStart">When it was read, measured from the game process's start.</param>
-public sealed record ModuleMemory(
-    long ModuleBytes, IReadOnlyList<MemoryRun> Runs, long UnreadableBytes, long MillisecondsSinceGameStart);
+/// <param name="MillisecondsSinceGameStart">When the scan started, measured from the game process's start.</param>
+/// <param name="Regions">Its committed, readable stretches, as start RVA and length.</param>
+/// <param name="Read">Copies bytes from an RVA; false when they can't all be read.</param>
+public sealed record ScannedModule(
+    long ModuleBytes, long MillisecondsSinceGameStart, IReadOnlyList<(long Rva, long Length)> Regions, ChunkedScan.ReadAt Read);
 
 /// <summary>What one probe found.</summary>
 /// <param name="Name">The probe's name.</param>
@@ -25,10 +22,10 @@ public sealed record ProbeResult(string Name, int Matches, IReadOnlyList<long> F
 /// <summary>The scan's result, written to <see cref="SignatureScan.ReportFileName"/>. The numbers are 0 when
 /// <see cref="Error"/> says the scan failed.</summary>
 /// <param name="GameBuildSha256">The game build scanned.</param>
-/// <param name="MillisecondsSinceGameStart">When the memory was read, measured from the game process's start.</param>
+/// <param name="MillisecondsSinceGameStart">When the scan started, measured from the game process's start.</param>
 /// <param name="ModuleBytes">The main module's size in memory.</param>
-/// <param name="ReadableBytes">How much of it was copied and scanned.</param>
-/// <param name="UnreadableBytes">Committed bytes that looked readable but failed to copy.</param>
+/// <param name="ReadableBytes">How much of it was read and scanned.</param>
+/// <param name="UnreadableBytes">Committed bytes that looked readable but failed to read.</param>
 /// <param name="ScanMilliseconds">How long the read and the scan took.</param>
 /// <param name="Probes">What each probe found.</param>
 /// <param name="Error">Why the scan failed, or null.</param>
@@ -52,12 +49,13 @@ public static class SignatureScan
     private static readonly JsonSerializerOptions Options = new(JsonSerializerDefaults.Web) { WriteIndented = true };
 
     /// <summary>When <paramref name="modFolder"/> holds <see cref="RequestFileName"/>, reads the probes from it, deletes
-    /// it, reads the module with <paramref name="readModule"/>, scans it and writes <see cref="ReportFileName"/>. Never
-    /// throws: it runs inside the game.</summary>
+    /// it, opens the module with <paramref name="openModule"/>, scans it a chunk at a time and writes
+    /// <see cref="ReportFileName"/>. Never throws: it runs inside the game.</summary>
     /// <returns>The report, for the caller to log, or null when no scan was asked for.</returns>
     [SuppressMessage("Design", "CA1031", Justification = "Any failure must be reported rather than reach the game.")]
-    public static SignatureScanReport? ScanIfRequested(string modFolder, string gameBuildSha256, Func<ModuleMemory> readModule)
+    public static SignatureScanReport? ScanIfRequested(string modFolder, string gameBuildSha256, Func<ScannedModule> openModule)
     {
+        ArgumentNullException.ThrowIfNull(openModule);
         var clock = Stopwatch.StartNew();
         SignatureScanReport report;
         try
@@ -69,10 +67,11 @@ public static class SignatureScan
             }
             var probes = SignatureProbes.Parse(File.ReadAllText(request));
             File.Delete(request);
-            var module = readModule();
-            report = new(gameBuildSha256, module.MillisecondsSinceGameStart, module.ModuleBytes,
-                module.Runs.Sum(run => (long)run.Bytes.Length), module.UnreadableBytes, clock.ElapsedMilliseconds,
-                Scan(module.Runs, probes), null);
+            var module = openModule();
+            var found = ChunkedScan.FindAll(module.Regions, module.Read, [.. probes.Select(probe => (probe.Name, probe.Pattern))]);
+            report = new(gameBuildSha256, module.MillisecondsSinceGameStart, module.ModuleBytes, found.ReadableBytes,
+                found.UnreadableBytes, clock.ElapsedMilliseconds,
+                [.. probes.Select(probe => Result(probe.Name, found.Matches[probe.Name]))], null);
         }
         catch (Exception e)
         {
@@ -93,16 +92,5 @@ public static class SignatureScan
         return report;
     }
 
-    /// <summary>Counts each probe's matches across <paramref name="runs"/>. A match can't span two runs.</summary>
-    public static IReadOnlyList<ProbeResult> Scan(IReadOnlyList<MemoryRun> runs, IReadOnlyList<SignatureProbe> probes)
-    {
-        ArgumentNullException.ThrowIfNull(runs);
-        ArgumentNullException.ThrowIfNull(probes);
-        return [.. probes.Select(probe =>
-        {
-            var pattern = BytePattern.Parse(probe.Pattern);
-            var rvas = runs.SelectMany(run => pattern.Matches(run.Bytes.Span).Select(offset => run.Rva + offset)).ToList();
-            return new ProbeResult(probe.Name, rvas.Count, [.. rvas.Take(RvasListed)]);
-        })];
-    }
+    private static ProbeResult Result(string name, IReadOnlyList<long> rvas) => new(name, rvas.Count, [.. rvas.Take(RvasListed)]);
 }

@@ -72,7 +72,11 @@ foreach (var modConfig in Directory.EnumerateFiles(Folder(root, "ModConfigDirect
     });
     // As the real mod does after its status, when scripts/signature-spike.ps1 asked; its own file stands in for memory.
     var bytes = File.ReadAllBytes(self);
-    SignatureScan.ScanIfRequested(folder, build, () => new ModuleMemory(bytes.Length, [new MemoryRun(0, bytes)], 0, 0));
+    SignatureScan.ScanIfRequested(folder, build, () => new ScannedModule(bytes.Length, 0, [(0, bytes.Length)], (rva, buffer) =>
+    {
+        bytes.AsSpan((int)rva, buffer.Length).CopyTo(buffer);
+        return true;
+    }));
 }
 
 Thread.Sleep(Timeout.Infinite);
