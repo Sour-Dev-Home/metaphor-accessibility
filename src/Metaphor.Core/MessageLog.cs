@@ -37,6 +37,11 @@ public sealed class MessageLog(TextWriter writer, Func<long> millisecondsSinceSt
     public void Registered(string name, long rva, bool viaUserdata) =>
         Write(() => Line($"{millisecondsSinceStart()} ms register name={name} rva=0x{rva:x} {(viaUserdata ? "userdata" : "direct")}"));
 
+    /// <summary>A message the game's scripts asked for: which request function ran, and what it was passed, as the
+    /// listening hook formatted it.</summary>
+    public void Requested(string function, string arguments) =>
+        Write(() => Line($"{millisecondsSinceStart()} ms request via={function} {arguments}"));
+
     private static string Line(FormattableString text) =>
         text.ToString(CultureInfo.InvariantCulture) + Environment.NewLine;
 
