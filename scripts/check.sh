@@ -398,8 +398,10 @@ scan_lines() {
 # bold. One opening quote before the value (`, ", ' or <) is skipped. HINT describes the value in the message.
 check_header() {
   local path="$1" kind="$2" label="$3" value_re="$4" hint="${5:-}"
-  sed '/^## /,$d' "$tmp/blob" |
-    grep -qiE "^- \*\*([^*]* )?${label}s?([^*a-z][^*]*)?(:\*\*|\*\*:)[[:space:]]*[\`\"'<]?${value_re}" ||
+  # Process substitution, not a pipe: grep -q stops at the first match, and under pipefail the write error that gives
+  # sed (on a long file with no "## " heading) would read as a missing line, at random.
+  grep -qiE "^- \*\*([^*]* )?${label}s?([^*a-z][^*]*)?(:\*\*|\*\*:)[[:space:]]*[\`\"'<]?${value_re}" \
+    < <(sed '/^## /,$d' "$tmp/blob") ||
     report "$kind: $path: header has no $label line${hint:+ $hint}"
 }
 
