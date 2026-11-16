@@ -37,7 +37,33 @@ The mod has no hooks yet, so a working deploy prints `ready on <game build>, hoo
 naming its commit and the game build to Reloaded-II's log for that run, the newest file in
 `%APPDATA%\Reloaded-Mod-Loader-II\Logs\`.
 
-The script's own tests run against a stand-in launcher and game, with no game needed:
+## Listening run
+
+`scripts/listen.ps1` deploys the Debug build the same way, lets the game run, and reports what the mod's development
+log saw, without printing any game text:
+
+```powershell
+pwsh scripts/listen.ps1 -Seconds 300 -Close
+```
+
+After the deploy it watches the game for `-Seconds` (default 120) and prints `the game is still running after <n> s`
+or `the game exited after <n> s`. `-Close` then kills the game, as the smoke test does, so a save in progress is lost: use it on a test save. Without
+it, the game is left running. Last, it counts
+the records in the mod's `message-log.txt` by type, and the requests by the function they came through:
+
+```text
+message log: 12 compile (840 source lines), 310 lookup, 5 register, 44 request
+requests by function: MsgRequestById 4, MsgRequestByName 40
+```
+
+The log itself holds game text, so it stays in the mod's folder and is never printed or committed. Local paths in the
+output are shortened (`<mods>`, `<game>`, `~` and so on), so it can go into an issue or a raw source as it is. It takes
+the deploy's parameters except `-Configuration`, and exits 0 when the game survived and the mod wrote its log, 1 when
+the game exited, the deploy failed or there's no log, and 2 when the deploy couldn't start.
+
+## The scripts' own tests
+
+The scripts' own tests run against a stand-in launcher and game, with no game needed:
 
 ```powershell
 Invoke-Pester tests/smoke
