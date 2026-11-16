@@ -2,6 +2,9 @@
 
 Mods, tools and reverse-engineering notes for Metaphor: ReFantazio on PC.
 
+> **Disclaimer:** this is a non-commercial, fan-made accessibility tool for blind and visually impaired players. It is
+> not affiliated with, endorsed by or sponsored by ATLUS or SEGA.
+
 Status: just started. Nothing here is usable yet.
 
 ## What's here, and what isn't
@@ -12,7 +15,8 @@ Status: just started. Nothing here is usable yet.
 
 This project is single-player modding only. It doesn't touch online features, DRM or anti-tamper protection.
 
-Metaphor: ReFantazio is a trademark of its owners. This project is unofficial and not affiliated with them.
+Metaphor: ReFantazio and related names are trademarks of their respective owners, used here only to say which game
+this tool works with.
 
 To contribute, start with [CONTRIBUTING.md](CONTRIBUTING.md).
 
