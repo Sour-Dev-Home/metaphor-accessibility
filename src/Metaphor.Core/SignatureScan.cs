@@ -40,7 +40,7 @@ public sealed record SignatureScanReport(
 /// reads the memory; this only searches it.</summary>
 public static class SignatureScan
 {
-    /// <summary>The probes file in the mod's folder that asks for one scan. <c>scripts/deploy-dev.ps1 -ScanSignatures</c>
+    /// <summary>The probes file in the mod's folder that asks for one scan. <c>scripts/signature-spike.ps1</c>
     /// copies it there; the scan deletes it, so the next launch doesn't scan again. The probes never ship in the mod.</summary>
     public const string RequestFileName = "signature-probes.json";
 
@@ -76,7 +76,9 @@ public static class SignatureScan
         }
         catch (Exception e)
         {
-            report = new(gameBuildSha256, 0, 0, 0, 0, clock.ElapsedMilliseconds, [], $"{e.GetType().Name}: {e.Message}");
+            // Only our own errors keep their message; others, such as IO errors, can name local paths.
+            var error = e is InvalidDataException or InvalidOperationException ? $"{e.GetType().Name}: {e.Message}" : e.GetType().Name;
+            report = new(gameBuildSha256, 0, 0, 0, 0, clock.ElapsedMilliseconds, [], error);
         }
 
         try

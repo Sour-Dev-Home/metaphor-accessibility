@@ -47,7 +47,7 @@ public sealed class ModEntryPoint : IMod
                 $"[{config.ModId}] build {ModBuild.Revision.CommitSha}{(ModBuild.Revision.HasUncommittedChanges ? "-dirty" : "")}: {status.State} on game build {status.GameBuildSha256}" +
                 (status.Reason is null ? "" : $" ({status.Reason})"));
 
-            // Issue #21's spike: runs once, only when deploy-dev.ps1 -ScanSignatures put a probes file in the mod's folder.
+            // Issue #21's spike: runs once, only when scripts/signature-spike.ps1 put a probes file in the mod's folder.
             var scan = SignatureScan.ScanIfRequested(folder, status.GameBuildSha256, ModuleMemoryReader.ReadMainModule);
             if (scan is not null)
             {

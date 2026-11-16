@@ -35,39 +35,34 @@ Issue #21 asks whether a signature found on disk is also in the code the game ru
 [`tools/Metaphor.SignatureCheck/signature-probes.json`](../../../tools/Metaphor.SignatureCheck/signature-probes.json)
 are CriFs V2 Hook's patterns for the release exe
 ([raw source](../../raw-sources/crifs-v2-hook-metaphor-patterns-2026-11-15.md)). They're dev tooling and never part of
-the mod's build. To compare them:
+the mod's build. With the game and Reloaded-II closed, run:
 
-1. In Reloaded-II, disable every mod for the game except ours. A mod that hooks first, such as CriFs V2 Hook or a mod
-   that depends on it, rewrites the start of the functions the probes look for. The deploy warns when other mods
-   are enabled.
-2. On disk:
+```sh
+pwsh scripts/signature-spike.ps1
+```
 
-   ```sh
-   dotnet run --project tools/Metaphor.SignatureCheck -c Release -- --probes "$METAPHOR_GAME_EXE"
-   ```
+It takes about as long as a smoke test, and:
 
-   Each single match gives its file offset and, from the exe's section table, its address relative to the module
-   (`rva`).
-3. In the running game, with the game closed first:
+1. builds the mod with the probes file in its folder, which asks it for one scan;
+2. scans the exe on disk (`tools/Metaphor.SignatureCheck --probes`), giving each single match's file offset and, from
+   the exe's headers, its address relative to the module (`rva`);
+3. runs the [smoke test](run-the-smoke-test.md) with only that mod enabled, so no other mod's hooks (CriFs V2 Hook
+   rewrites the start of the functions probed) change the bytes. The mod copies the game's main module once,
+   when Reloaded-II starts it, scans it and deletes the probes file. It only reads memory (ADR 0002): it skips pages
+   that aren't committed and readable, and copies the rest through `ReadProcessMemory`, which fails instead of
+   faulting. The smoke test collects the report, closes the game and restores your Reloaded-II config;
+4. writes a raw-source draft to `artifacts/signature-spike/`: the game build, the steps, a table comparing each probe
+   on disk and in memory (`same place`, `both once, different places`, `absent from both` or `differs`), and both raw
+   outputs.
 
-   ```sh
-   pwsh scripts/deploy-dev.ps1 -ScanSignatures
-   ```
-
-   This puts the probes file in the deployed mod's folder. The mod copies the game's main module once, when Reloaded-II
-   starts it, scans it, and deletes the probes file, so later launches don't scan. It only reads memory (ADR 0002): it
-   skips pages that aren't committed and readable, and copies the rest through `ReadProcessMemory`, which fails
-   instead of faulting. The script prints the report, `signature-scan.json`: each probe's match count and first
-   addresses relative to the module, the bytes read and the bytes that failed, and how long after the game's start
-   the copy was made.
-4. Compare each probe's count, and for single matches its `rva` on disk with its address in memory. Save both outputs,
-   with the game build and the enabled mods, as a raw source, and record the result on #21.
+Review the draft, save it under `docs/raw-sources/`, and record the result on #21.
 
 The scan runs once, early: when Reloaded-II starts our mod. If the game changes its code later, this scan won't see
 it, so read a mismatch with the report's `millisecondsSinceGameStart` in mind.
 
 ## Limits
 
-- The offsets are file offsets, not addresses in the running game.
+- The offsets are file offsets. The `rva` beside a single match is where the PE headers say it loads, which is only
+  where it is in the running game if that code isn't changed at load.
 - Whether code on disk matches the code the game runs under Denuvo is [NEEDS VERIFICATION], tracked in issue #21.
   Until then, a pass here doesn't prove the hook finds its function in the game.

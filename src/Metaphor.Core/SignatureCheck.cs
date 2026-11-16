@@ -1,4 +1,3 @@
-using System.Collections.Immutable;
 using System.Diagnostics.CodeAnalysis;
 using System.Reflection.PortableExecutable;
 using System.Security.Cryptography;
@@ -41,7 +40,7 @@ public static class SignatureCheck
         var bytes = File.ReadAllBytes(gameExe);
         var sha = Convert.ToHexStringLower(SHA256.HashData(bytes));
         var known = knownBuilds.FirstOrDefault(build => build.Sha256 == sha);
-        var sections = SectionsOrNone(bytes);
+        var headers = HeadersOrNone(bytes);
         output.WriteLine($"game build {sha} ({(known is null ? "not a known build" : $"Steam build {known.SteamBuildId}")})");
         var failed = 0;
         foreach (var signature in signatures)
@@ -58,7 +57,7 @@ public static class SignatureCheck
                     var unnamed = signature.GameBuilds is null || signature.GameBuilds.Contains(sha)
                         ? ""
                         : ", on a build it doesn't name yet";
-                    output.WriteLine($"ok   {signature.Name}: 1 match at 0x{matches[0]:x}{Rva(sections, matches[0])}{unnamed}");
+                    output.WriteLine($"ok   {signature.Name}: 1 match at 0x{matches[0]:x}{Rva(headers, matches[0])}{unnamed}");
                     break;
                 default:
                     var listed = string.Join(", ", matches.Take(OffsetsListed).Select(at => $"0x{at:x}"));
@@ -74,26 +73,36 @@ public static class SignatureCheck
         return failed == 0 ? 0 : 1;
     }
 
-    /// <summary>The section table, when the file is a PE image; otherwise empty, and no addresses are given.</summary>
+    /// <summary>The PE headers, when the file is a PE image; otherwise null, and no addresses are given.</summary>
     [SuppressMessage("Design", "CA1031", Justification = "A file that isn't a PE image just gets no addresses.")]
-    private static ImmutableArray<SectionHeader> SectionsOrNone(byte[] bytes)
+    private static PEHeaders? HeadersOrNone(byte[] bytes)
     {
         try
         {
             using var stream = new MemoryStream(bytes, writable: false);
-            return new PEHeaders(stream).SectionHeaders;
+            var headers = new PEHeaders(stream);
+            return headers.PEHeader is null ? null : headers;
         }
         catch (Exception)
         {
-            return [];
+            return null;
         }
     }
 
-    /// <summary>" (rva 0x…)": where a file offset lands in memory, relative to the image base, read from the section
-    /// that holds it (the PE format's raw data and virtual address fields). Empty outside every section.</summary>
-    private static string Rva(ImmutableArray<SectionHeader> sections, long fileOffset)
+    /// <summary>" (rva 0x…)": where a file offset lands in memory, relative to the image base. The headers load at the
+    /// image's start (SizeOfHeaders); the rest is read from the section that holds it (its raw data and virtual address
+    /// fields). Empty outside both, or for a file that isn't a PE image.</summary>
+    private static string Rva(PEHeaders? headers, long fileOffset)
     {
-        foreach (var section in sections)
+        if (headers is null)
+        {
+            return "";
+        }
+        if (fileOffset < headers.PEHeader!.SizeOfHeaders)
+        {
+            return $" (rva 0x{fileOffset:x})";
+        }
+        foreach (var section in headers.SectionHeaders)
         {
             var from = (long)section.PointerToRawData;
             if (fileOffset >= from && fileOffset < from + section.SizeOfRawData)

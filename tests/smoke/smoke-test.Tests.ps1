@@ -14,11 +14,12 @@ BeforeAll {
     }
 
     # Runs the smoke test in its own process, so its exit code and cleanup are real.
-    function Invoke-SmokeTest([string] $Behaviour = 'ready', [string[]] $KnownBuild = @($script:build)) {
+    function Invoke-SmokeTest([string] $Behaviour = 'ready', [string[]] $KnownBuild = @($script:build),
+        [string[]] $Extra = @()) {
         Write-Json $script:known @($KnownBuild | ForEach-Object { @{ sha256 = $_; steamBuildId = 1; evidence = 'test' } })
         $env:METAPHOR_STANDIN_BEHAVIOUR = $Behaviour
         $output = & pwsh -NoProfile -File $script -GameExe $script:gameExe -LauncherExe $script:launcher `
-            -ModFolders $script:testMod -ReloadedConfig $script:config -KnownBuilds $script:known -TimeoutSeconds 5 2>&1
+            -ModFolders $script:testMod -ReloadedConfig $script:config -KnownBuilds $script:known -TimeoutSeconds 5 @Extra 2>&1
         [pscustomobject]@{ ExitCode = $LASTEXITCODE; Output = ($output -join "`n") }
     }
 
@@ -86,6 +87,29 @@ Describe 'smoke-test.ps1' {
 
         $result.ExitCode | Should -Be 2
         $result.Output | Should -Match "unknown game build $script:build"
+        (Get-FileHash $script:config).Hash | Should -Be $script:configBefore.Hash
+        Get-Game | Should -BeNullOrEmpty
+    }
+
+    It 'collects the files a test mod writes after its status, before cleaning up' {
+        # A probes file asks the (stand-in) mod for a signature scan, which it writes after its status file.
+        Write-Json (Join-Path $script:testMod 'signature-probes.json') @(@{ name = 'p'; pattern = '4D 5A'; source = 's' })
+        $collected = Join-Path $TestDrive "collected-$([guid]::NewGuid())"
+
+        $result = Invoke-SmokeTest -Extra '-CollectFiles', 'signature-scan.json', '-CollectTo', $collected
+
+        $result.ExitCode | Should -Be 0
+        Join-Path $collected 'metaphor.smoke/signature-scan.json' | Should -Exist
+        (Get-FileHash $script:config).Hash | Should -Be $script:configBefore.Hash
+    }
+
+    It 'fails when a test mod never writes a file it should, and still cleans up' {
+        $collected = Join-Path $TestDrive "collected-$([guid]::NewGuid())"
+
+        $result = Invoke-SmokeTest -Extra '-CollectFiles', 'signature-scan.json', '-CollectTo', $collected
+
+        $result.ExitCode | Should -Be 1
+        $result.Output | Should -Match 'metaphor\.smoke: no signature-scan\.json'
         (Get-FileHash $script:config).Hash | Should -Be $script:configBefore.Hash
         Get-Game | Should -BeNullOrEmpty
     }

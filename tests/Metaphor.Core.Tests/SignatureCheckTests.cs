@@ -154,6 +154,17 @@ public sealed class SignatureCheckTests : IDisposable
     }
 
     [Fact]
+    public void TheHeadersOfAPortableExecutableLoadAtItsStart()
+    {
+        var dll = typeof(SignatureCheck).Assembly.Location;
+        using var output = new StringWriter();
+
+        SignatureCheck.RunProbes(dll, [new SignatureProbe("dos-header", "4D 5A 90 00", "s")], [], output);
+
+        Assert.Contains("ok   dos-header: 1 match at 0x0 (rva 0x0)", output.ToString(), StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void PassesAndSaysSoWhenThereAreNoSignatures()
     {
         var exe = StandInExe(0x10);

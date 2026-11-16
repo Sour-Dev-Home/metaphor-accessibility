@@ -78,6 +78,17 @@ public sealed class SignatureScanTests : IDisposable
     }
 
     [Fact]
+    public void LeavesOutMessagesThatCanHoldLocalPaths()
+    {
+        RequestScan();
+
+        var report = SignatureScan.ScanIfRequested(
+            modFolder, Build, () => throw new IOException(@"could not read D:\games\mods\x"));
+
+        Assert.Equal("IOException", report!.Error);
+    }
+
+    [Fact]
     public void ReportsABadProbesFileWithoutReadingMemory()
     {
         RequestScan("""[{ "name": "a", "pattern": "zz", "source": "s" }]""");

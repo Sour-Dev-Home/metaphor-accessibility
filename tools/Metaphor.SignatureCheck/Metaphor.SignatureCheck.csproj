@@ -9,7 +9,7 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <!-- The probes for issue #21, read with the probes option and sent to the mod by deploy-dev.ps1 -ScanSignatures. -->
+    <!-- The probes for issue #21, read with the probes option and sent to the mod by scripts/signature-spike.ps1. -->
     <None Include="signature-probes.json" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
