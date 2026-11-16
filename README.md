@@ -37,7 +37,7 @@ One command runs every check, locally (Git Bash on Windows) and in CI:
 | Stage | Runs | Where |
 |---|---|---|
 | `scripts/check.sh fast` | repo rules on staged files | by hand |
-| `scripts/check.sh pre-commit` | `fast`, then formatting for staged C#, `docs` when Markdown is staged, `signatures` when `hook-signatures.json` is staged and `METAPHOR_GAME_EXE` is set | pre-commit hook |
+| `scripts/check.sh pre-commit` | `fast`, then formatting for staged C#, `docs` when Markdown is staged, `signatures` when `hook-signatures.json` is staged and `METAPHOR_GAME_EXE` is set, and a matching security-review stamp when the security-review scope is staged ([CONTRIBUTING.md](CONTRIBUTING.md#security-review-and-deny-rules)) | pre-commit hook |
 | `scripts/check.sh pre-push` | the Release build, then `Unit` and `RoundTrip` tests, when the pushed commits change code (refs on stdin) | pre-push hook |
 | `scripts/check.sh rules` | repo rules on every tracked file | CI on Ubuntu |
 | `scripts/check.sh full` | repo rules, then the .NET build, `Unit` and `RoundTrip` tests, formatting and the smoke-test and deploy scripts' own tests (Pester 5+) | CI on Windows |
@@ -45,8 +45,8 @@ One command runs every check, locally (Git Bash on Windows) and in CI:
 | `scripts/check.sh slow` | Stryker.NET mutation testing of `Metaphor.Core` and a jscpd duplication report, into `artifacts/slow/`; reports only, fails only when a tool can't run | weekly CI on Windows (`slow.yml`, also run by hand); never gates a merge |
 | `scripts/check.sh signatures [EXE]` | each hook signature matches exactly once in the game exe on disk, no launch ([how-to](docs/contributors/how-to/check-hook-signatures.md)) | locally, before a hook PR |
 | `scripts/check.sh pr-body FILE` | warns when a PR description passes 300 words, not counting Evidence | CI on pull requests |
-| `scripts/check.sh commit-msg FILE` | one commit message's shape (see the script's header) | commit-msg hook |
-| `scripts/check.sh commits BASE..HEAD` | the same, for each commit in a pull request | CI on Ubuntu |
+| `scripts/check.sh commit-msg FILE` | one commit message's shape (see the script's header); appends the `Security-Review` trailer to a commit touching the security-review scope | commit-msg hook |
+| `scripts/check.sh commits BASE..HEAD` | each commit's shape in a pull request, and a matching `Security-Review` or `Security-Review-Skipped` trailer on each one touching the scope | CI on Ubuntu |
 
 `full` needs the .NET SDK pinned in `global.json`. CI then packages the build it tested (`scripts/package-mod.sh`) and
 keeps it as a workflow artifact with its SHA-256. It also rebuilds the mod in a second checkout at another path on the
