@@ -5,9 +5,11 @@ status file, then closes the game and puts the loader config back.
 
 .DESCRIPTION
 1. Hashes the game exe and refuses to run on a build missing from the known-builds list.
-2. Backs up ReloadedII.json, then points its folders at a throwaway profile holding only the test mods.
+2. Backs up ReloadedII.json, then points its folders at a throwaway profile holding only the test mods, plus a copy
+   of Reloaded-II's own reloaded.sharedlib.hooks, which the loader needs to start.
 3. Launches with the user's own Reloaded-II (--launch).
-4. Waits for each test mod's mod-status.json (ready or refused, the build, hooks loaded out of expected).
+4. Waits for each test mod's mod-status.json (ready or refused, the build, hooks loaded out of expected), then
+   collects any -CollectFiles.
 5. Closes the game and restores the config, including after a failure. A backup left by a killed run is restored first.
 
 Exit codes: 0 every test mod is ready with all its hooks; 1 a mod refused, timed out, or the game exited; 2 the test
@@ -30,7 +32,11 @@ param(
     # Reloaded-II's root config, at a fixed AppData path the loader doesn't let us move.
     [string] $ReloadedConfig = (Join-Path ([Environment]::GetFolderPath('ApplicationData')) 'Reloaded-Mod-Loader-II/ReloadedII.json'),
     [string] $KnownBuilds = (Join-Path $PSScriptRoot '../src/Metaphor.Core/known-game-builds.json'),
-    [int] $TimeoutSeconds = 120
+    [int] $TimeoutSeconds = 120,
+    # Files each test mod writes after its status file, such as signature-scan.json. The test waits for them (within
+    # the same timeout) and copies them to -CollectTo/<mod ID>/ before cleaning up; a missing one fails it.
+    [string[]] $CollectFiles = @(),
+    [string] $CollectTo
 )
 
 Set-StrictMode -Version Latest
@@ -88,9 +94,19 @@ $mods = foreach ($folder in $ModFolders) {
 }
 $duplicate = $mods | Group-Object Id | Where-Object Count -GT 1 | Select-Object -First 1
 if ($duplicate) { Stop-Start "two test mods have the mod ID $($duplicate.Name)" }
+# Its folder in the throwaway profile holds Reloaded-II's own copy (below).
+if ($mods.Id -contains 'reloaded.sharedlib.hooks') { Stop-Start 'a test mod has the mod ID reloaded.sharedlib.hooks, which is Reloaded-II''s own' }
 
 $application = Find-Application $loader $gameFull
 if (-not $application) { Stop-Start "the game isn't registered in Reloaded-II; add $gameFull as an application first" }
+if ($CollectFiles -and -not $CollectTo) { Stop-Start '-CollectFiles needs -CollectTo' }
+
+# The loader loads its own reloaded.sharedlib.hooks mod first and fails to start without it, even with no other mods
+# (docs/raw-sources/reloaded-ii-log-on-normal-run-2026-11-14.md), so the throwaway profile gets a copy, not enabled.
+$sharedHooks = Get-ChildItem -LiteralPath $loader.ModConfigDirectory -Filter 'ModConfig.json' -Recurse -Depth 1 -ErrorAction SilentlyContinue |
+    Where-Object { try { (Read-Json $_.FullName).ModId -eq 'reloaded.sharedlib.hooks' } catch { $false } } |
+    Select-Object -First 1
+if (-not $sharedHooks) { Stop-Start "Reloaded-II's own reloaded.sharedlib.hooks mod isn't in its mods folder; open Reloaded-II once so it downloads it" }
 
 $smokeProfile = Join-Path ([IO.Path]::GetTempPath()) "metaphor-smoke-$([guid]::NewGuid())"
 $failed = $false
@@ -105,6 +121,7 @@ try {
     $app.AppLocation = $gameFull
     $app.EnabledMods = @($mods.Id)
     Write-Json (Join-Path $smokeProfile "Apps/$($application.Directory.Name)/AppConfig.json") $app
+    Copy-Item -LiteralPath $sharedHooks.Directory.FullName -Destination (Join-Path $smokeProfile 'Mods/reloaded.sharedlib.hooks') -Recurse
     foreach ($mod in $mods) {
         # Named by mod ID, which is unique, so no two mods share a folder or a status file.
         $mod | Add-Member -NotePropertyName Folder -NotePropertyValue (Join-Path $smokeProfile "Mods/$($mod.Id)")
@@ -122,6 +139,23 @@ try {
 
     # 4. Wait for every status file, or the game exiting, or the timeout.
     if (-not (Wait-ModStatus $mods $gameFull $build $deadline $TimeoutSeconds)) { $failed = $true }
+
+    # Then for the files to collect, which the throwaway profile would lose.
+    if (-not $failed) {
+        foreach ($mod in $mods) {
+            foreach ($name in $CollectFiles) {
+                $file = Join-Path $mod.Folder $name
+                while (-not (Test-Path -LiteralPath $file) -and (Get-Date) -lt $deadline -and (Get-Game $gameFull)) {
+                    Start-Sleep -Milliseconds 200
+                }
+                if (-not (Test-Path -LiteralPath $file)) { Write-Host "$($mod.Id): no $name"; $failed = $true; continue }
+                $target = Join-Path $CollectTo $mod.Id
+                New-Item -ItemType Directory -Force $target | Out-Null
+                Copy-Item -LiteralPath $file -Destination $target
+                Write-Host "$($mod.Id): collected $name"
+            }
+        }
+    }
 }
 finally {
     # 5. Close the game (closing its window only asks "Exit game?"), then put everything back.

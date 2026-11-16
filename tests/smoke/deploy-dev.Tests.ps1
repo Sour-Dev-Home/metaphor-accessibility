@@ -57,6 +57,8 @@ Describe 'deploy-dev.ps1' {
                 AppId = 'metaphor.exe'; AppLocation = $script:gameExe; EnabledMods = @('user.mod')
             })
         Write-Json (Join-Path $script:mods 'user.mod/ModConfig.json') @{ ModId = 'user.mod' }
+        # Reloaded-II's own mod, which every install has and the loader needs to start.
+        Write-Json (Join-Path $script:mods 'reloaded.sharedlib.hooks/ModConfig.json') @{ ModId = 'reloaded.sharedlib.hooks' }
         $script:configBefore = Get-FileHash $script:config
 
         # A stand-in for the mod's source: a project whose build output holds a ModConfig.json.
