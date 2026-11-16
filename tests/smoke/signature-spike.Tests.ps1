@@ -89,6 +89,12 @@ Describe 'signature-spike.ps1' {
         Get-Content -Raw $script:draft | Should -Match ([regex]::Escape("- **Game build:** ``$script:build``"))
     }
 
+    It 'names the probes file it scanned for and where its probes came from' {
+        $draft = Get-Content -Raw $script:draft
+        $draft | Should -Match ([regex]::Escape('Probes: `probes.json`'))
+        $draft | Should -Match ([regex]::Escape('`docs/raw-sources/crifs-v2-hook-metaphor-patterns-2026-11-15.md`, `test`'))
+    }
+
     It 'compares each probe on disk and in memory' {
         $draft = Get-Content -Raw $script:draft
         $draft | Should -Match '\| `CriFs_InitializeLibrary` \| 0 \|  \| 0 \|  \| absent from both \|'

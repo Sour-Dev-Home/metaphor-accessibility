@@ -103,12 +103,14 @@ try {
         "| ``$($probe.name)`` | $(if ($d) { $d.Count } else { '?' }) | $(if ($d -and $d.Rva) { "0x$($d.Rva)" }) | $($probe.matches) | $memoryAt | $(Get-Verdict $d $probe) |"
     }
     $commit = git -C $PSScriptRoot rev-parse --short HEAD
+    # The file's name only, never its full path (ground rule 6), and where its probes came from.
+    $probeSources = (@(Get-Content -Raw -LiteralPath $Probes | ConvertFrom-Json) | ForEach-Object { $_.source } |
+        Select-Object -Unique | ForEach-Object { "``$_``" }) -join ', '
     $draft = @"
-# Signature scans of the game on disk and in memory (issue #21)
+# Signature scans of the game on disk and in memory
 
 - **Source:** a capture of one run of ``scripts/signature-spike.ps1`` at commit ``$commit``, on the maintainer's
-  machine. Probes: ``tools/Metaphor.SignatureCheck/signature-probes.json``
-  (``docs/raw-sources/crifs-v2-hook-metaphor-patterns-2026-11-15.md``).
+  machine. Probes: ``$(Split-Path -Leaf $Probes)`` ($probeSources).
 - **Saved:** $(Get-Date -Format yyyy-MM-dd).
 - **Game build:** ``$($report.gameBuildSha256)``.
 
