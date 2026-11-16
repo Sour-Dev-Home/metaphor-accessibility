@@ -1,4 +1,4 @@
-# metaphor-refantazio
+# metaphor-accessibility
 
 Mods, tools and reverse-engineering notes for Metaphor: ReFantazio on PC.
 
@@ -49,7 +49,7 @@ keeps it as a workflow artifact with its SHA-256. It also rebuilds the mod in a 
 same runner and checks the bytes match. A local package won't match CI's hash, because CI-only build settings remove
 machine paths; the CI artifact is the one that counts.
 
-Each stage is timed against its budget from [#1](https://github.com/Sour-Dev-Home/metaphor-refantazio/issues/1)
+Each stage is timed against its budget from [#1](https://github.com/Sour-Dev-Home/metaphor-accessibility/issues/1)
 (`scripts/stage-timing.sh`). `fast` and `pre-commit` (stage 1, 10 s) and `signatures` (stage 4, 30 s) print a
 `timing:` line when they finish. CI's `timing` job lists each job's duration on the run's summary page and times stage
 2 from the first job's start to the last one's finish (5 min); `slow.yml` lists stage 6's, which has no budget. A stage

@@ -20,8 +20,8 @@ On Windows:
 In Git Bash:
 
 ```sh
-git clone https://github.com/Sour-Dev-Home/metaphor-refantazio.git
-cd metaphor-refantazio
+git clone https://github.com/Sour-Dev-Home/metaphor-accessibility.git
+cd metaphor-accessibility
 git config core.hooksPath .githooks
 cp .claude/pii-patterns.example.txt .claude/pii-patterns.txt
 ```

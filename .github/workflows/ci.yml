@@ -31,10 +31,10 @@ jobs:
           # The private list reaches pushes to this repository's main only, never a pull request, so a fork's code
           # can't read it, and a fork's own main isn't required to have it.
           PII_PATTERNS: >-
-            ${{ github.repository == 'Sour-Dev-Home/metaphor-refantazio' && github.event_name == 'push'
+            ${{ github.repository == 'Sour-Dev-Home/metaphor-accessibility' && github.event_name == 'push'
             && github.ref == 'refs/heads/main' && secrets.PII_PATTERNS || '' }}
           REQUIRE_PRIVATE_PATTERNS: >-
-            ${{ github.repository == 'Sour-Dev-Home/metaphor-refantazio' && github.event_name == 'push'
+            ${{ github.repository == 'Sour-Dev-Home/metaphor-accessibility' && github.event_name == 'push'
             && github.ref == 'refs/heads/main' && '1' || '' }}
         run: bash scripts/check.sh rules
       - name: Check the docs
