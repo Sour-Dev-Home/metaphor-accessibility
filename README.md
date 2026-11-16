@@ -1,6 +1,9 @@
-# metaphor-refantazio
+# metaphor-accessibility
 
 Mods, tools and reverse-engineering notes for Metaphor: ReFantazio on PC.
+
+> **Disclaimer:** this is a non-commercial, fan-made accessibility tool for blind and visually impaired players. It is
+> not affiliated with, endorsed by or sponsored by ATLUS or SEGA.
 
 Status: just started. Nothing here is usable yet.
 
@@ -12,7 +15,8 @@ Status: just started. Nothing here is usable yet.
 
 This project is single-player modding only. It doesn't touch online features, DRM or anti-tamper protection.
 
-Metaphor: ReFantazio is a trademark of its owners. This project is unofficial and not affiliated with them.
+Metaphor: ReFantazio and related names are trademarks of their respective owners, used here only to say which game
+this tool works with.
 
 To contribute, start with [CONTRIBUTING.md](CONTRIBUTING.md).
 
@@ -49,7 +53,7 @@ keeps it as a workflow artifact with its SHA-256. It also rebuilds the mod in a 
 same runner and checks the bytes match. A local package won't match CI's hash, because CI-only build settings remove
 machine paths; the CI artifact is the one that counts.
 
-Each stage is timed against its budget from [#1](https://github.com/Sour-Dev-Home/metaphor-refantazio/issues/1)
+Each stage is timed against its budget from [#1](https://github.com/Sour-Dev-Home/metaphor-accessibility/issues/1)
 (`scripts/stage-timing.sh`). `fast` and `pre-commit` (stage 1, 10 s) and `signatures` (stage 4, 30 s) print a
 `timing:` line when they finish. CI's `timing` job lists each job's duration on the run's summary page and times stage
 2 from the first job's start to the last one's finish (5 min); `slow.yml` lists stage 6's, which has no budget. A stage

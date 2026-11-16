@@ -1,4 +1,4 @@
-# metaphor-refantazio
+# metaphor-accessibility
 
 Modding work on Metaphor: ReFantazio (PC). The game runs on a proprietary engine, so most of this project is reverse
 engineering: working out file formats, engine structures and functions, then writing mods and tools on top of them.
@@ -53,7 +53,7 @@ and its deploy scripts the pre-commit hook enforces this through the reviewer's 
 
 ### Issue tracker
 
-Issues live in GitHub Issues on `Sour-Dev-Home/metaphor-refantazio`, managed with the `gh` CLI. See `docs/agents/issue-tracker.md`.
+Issues live in GitHub Issues on `Sour-Dev-Home/metaphor-accessibility`, managed with the `gh` CLI. See `docs/agents/issue-tracker.md`.
 
 ### Triage labels
 

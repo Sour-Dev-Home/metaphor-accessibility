@@ -1,5 +1,5 @@
 blank_issues_enabled: false
 contact_links:
   - name: Security vulnerability
-    url: https://github.com/Sour-Dev-Home/metaphor-refantazio/security/advisories/new
+    url: https://github.com/Sour-Dev-Home/metaphor-accessibility/security/advisories/new
     about: Report it privately here, never in a public issue (see SECURITY.md).

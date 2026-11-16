@@ -1,7 +1,7 @@
 # Security policy
 
 Report a vulnerability privately through
-[GitHub's private vulnerability reporting](https://github.com/Sour-Dev-Home/metaphor-refantazio/security/advisories/new),
+[GitHub's private vulnerability reporting](https://github.com/Sour-Dev-Home/metaphor-accessibility/security/advisories/new),
 never in a public issue. Only the maintainers see the report.
 
 The mod's code is loaded into players' games, so anything that lets it run code it shouldn't, load a planted file, make
