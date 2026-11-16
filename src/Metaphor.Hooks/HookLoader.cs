@@ -44,18 +44,35 @@ internal static class HookLoader
         false;
 #endif
 
-    /// <summary>Every <c>[GameHook]</c> type this build installs, whether or not it can be created: development-only
-    /// hooks are left out of Release builds, which players get.</summary>
-    public static IReadOnlyList<Type> HookTypes() =>
-        [.. LoadableTypes().Where(type =>
-            type.GetCustomAttribute<GameHookAttribute>(inherit: false) is { } hook && (IsDevBuild || !hook.DevOnly))];
+    /// <summary>Every <c>[GameHook]</c> type, with whether this build includes it for the mod in
+    /// <paramref name="modFolder"/> (<see cref="HookOptIn"/>): development-only hooks are left out of Release builds,
+    /// which players get, and opt-in hooks unless their file is in the mod's folder. Decided once, so the count of
+    /// expected hooks and what <see cref="Install"/> tries always agree.</summary>
+    public static IReadOnlyList<(Type Type, GameHookAttribute Hook, HookInclusion Inclusion)> Candidates(string modFolder) =>
+        [.. LoadableTypes()
+            .Select(type => (Type: type, Hook: type.GetCustomAttribute<GameHookAttribute>(inherit: false)))
+            .Where(c => c.Hook is not null)
+            .Select(c => (c.Type, c.Hook!, HookOptIn.Decide(
+                c.Hook!.DevOnly, c.Hook.OptInFile, IsDevBuild, name => File.Exists(Path.Combine(modFolder, name)))))];
 
-    /// <summary>Installs the hooks approved for <paramref name="runningBuild"/> and returns how many went in. Each hook
-    /// is created with <paramref name="services"/>. Writes one line per hook to <paramref name="log"/>.</summary>
+    /// <summary>How many of <paramref name="candidates"/> are expected to go in: those included, whether or not they
+    /// can be created.</summary>
+    public static int Expected(IReadOnlyList<(Type Type, GameHookAttribute Hook, HookInclusion Inclusion)> candidates) =>
+        candidates.Count(c => c.Inclusion == HookInclusion.Included);
+
+    /// <summary>Installs the included <paramref name="candidates"/> approved for <paramref name="runningBuild"/> and
+    /// returns how many went in. Each hook is created with <paramref name="services"/>. Writes one line per hook to
+    /// <paramref name="log"/>, including each opt-in hook left out.</summary>
     /// <exception cref="InvalidOperationException">A hook should go in, but Reloaded-II gave no hooks controller.</exception>
     [SuppressMessage("Design", "CA1031", Justification = "A logging failure must not stop hooks going in.")]
-    public static int Install(string runningBuild, IModLoader loader, HookServices services, Action<string> log)
+    public static int Install(
+        string runningBuild,
+        IReadOnlyList<(Type Type, GameHookAttribute Hook, HookInclusion Inclusion)> candidates,
+        IModLoader loader,
+        HookServices services,
+        Action<string> log)
     {
+        ArgumentNullException.ThrowIfNull(candidates);
         ArgumentNullException.ThrowIfNull(loader);
         ArgumentNullException.ThrowIfNull(services);
         ArgumentNullException.ThrowIfNull(log);
@@ -73,9 +90,18 @@ internal static class HookLoader
 
         // The build check comes from the attribute first: a hook for another build isn't even created.
         var hooks = new List<(HookSpec Spec, PassThrough? Hook)>();
-        foreach (var type in HookTypes())
+        foreach (var (type, attribute, inclusion) in candidates)
         {
-            var builds = type.GetCustomAttribute<GameHookAttribute>()!.GameBuilds;
+            if (inclusion == HookInclusion.NotOptedIn)
+            {
+                Log($"hook {type.Name} skipped: opt-in, and {attribute.OptInFile} isn't in the mod's folder");
+                continue;
+            }
+            if (inclusion != HookInclusion.Included)
+            {
+                continue;
+            }
+            var builds = attribute.GameBuilds;
             if (!builds.Contains(runningBuild))
             {
                 hooks.Add((new HookSpec(type.Name, builds, ""), null));

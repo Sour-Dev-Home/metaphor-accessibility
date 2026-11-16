@@ -166,19 +166,21 @@ internal sealed class GetMessageBySerialListener : IGameHook, IObserves4WithResu
 }
 
 /// <summary>A string the game turns into a message at run time (#106): only its length, whether it is the name the
-/// maintainer typed, and where it was. Never its text: it may be the player's chosen name.</summary>
-[GameHook(GameBuilds.Steam18330018, DevOnly = true)]
+/// maintainer typed (<see cref="PlayerNameCheck.FileName"/>), and where it was. Never its text: it may be the player's
+/// chosen name. The first hook in the exe's <c>.text1</c> section, so it is off unless a run opts in.</summary>
+[GameHook(GameBuilds.Steam18330018, DevOnly = true, OptInFile = "opt-in-create-msg-from-string.txt")]
 internal sealed class CreateMsgFromStringListener : IGameHook, IObserves4WithResult
 {
     private readonly MessageLog? log;
     private readonly NameListening listening = NameListening.ForMainModule();
-    private readonly PlayerNameCheck playerName = PlayerNameCheck.FromEnvironment();
+    private readonly PlayerNameCheck playerName;
     private readonly RepeatGate repeats = NameListening.NewGate();
 
     public CreateMsgFromStringListener(HookServices services)
     {
         ArgumentNullException.ThrowIfNull(services);
         log = services.Log;
+        playerName = PlayerNameCheck.FromModFolder(services.ModFolder);
     }
 
     public string SignatureName => "CreateMsgFromString";

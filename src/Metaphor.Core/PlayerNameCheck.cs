@@ -1,3 +1,4 @@
+using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
 using System.Text;
 
@@ -35,8 +36,16 @@ public readonly record struct PlayerNameSighting(int Bytes, PlayerNameMatch Matc
 /// </summary>
 public sealed class PlayerNameCheck
 {
-    /// <summary>The environment variable a development run reads the typed name from.</summary>
+    /// <summary>The file in the mod's folder a development run reads the typed name from: its first line, trimmed. The
+    /// mod's folder is outside the repository, so the name is never committed.</summary>
+    public const string FileName = "spike-player-name.txt";
+
+    /// <summary>The environment variable read when <see cref="FileName"/> gives no name. Whether Reloaded-II passes it
+    /// on to the game is unverified.</summary>
     public const string EnvironmentVariable = "METAPHOR_SPIKE_PLAYER_NAME";
+
+    /// <summary>How much of <see cref="FileName"/> is read, at most.</summary>
+    private const int MaxNameChars = 256;
 
     private readonly byte[]? expected;
 
@@ -45,8 +54,30 @@ public sealed class PlayerNameCheck
     public PlayerNameCheck(string? typedName) =>
         expected = string.IsNullOrEmpty(typedName) ? null : Encoding.UTF8.GetBytes(typedName);
 
-    /// <summary>A check against the name in <see cref="EnvironmentVariable"/>, if the game process inherited one.</summary>
-    public static PlayerNameCheck FromEnvironment() => new(Environment.GetEnvironmentVariable(EnvironmentVariable));
+    /// <summary>A check against the name in <see cref="FileName"/> in <paramref name="modFolder"/>, or else in
+    /// <see cref="EnvironmentVariable"/>, if the game process inherited one.</summary>
+    public static PlayerNameCheck FromModFolder(string modFolder) =>
+        FromModFolder(modFolder, Environment.GetEnvironmentVariable(EnvironmentVariable));
+
+    /// <summary>A check against the first line of <see cref="FileName"/> in <paramref name="modFolder"/>, trimmed, or
+    /// against <paramref name="fallback"/> when the file is missing, unreadable or gives an empty name.</summary>
+    [SuppressMessage("Design", "CA1031", Justification = "A spike's name file must never stop the hook that reads it.")]
+    public static PlayerNameCheck FromModFolder(string modFolder, string? fallback)
+    {
+        string? typed = null;
+        try
+        {
+            using var reader = new StreamReader(Path.Combine(modFolder, FileName), Encoding.UTF8);
+            // A name is short: read a bounded block, never a whole file of any size, inside the game process.
+            var block = new char[MaxNameChars];
+            var text = new string(block, 0, reader.ReadBlock(block));
+            typed = text.Split('\n', 2)[0].Trim();
+        }
+        catch (Exception)
+        {
+        }
+        return new(string.IsNullOrEmpty(typed) ? fallback : typed);
+    }
 
     /// <summary>Compares <paramref name="text"/>, the bytes as the game holds them, with the typed name's UTF-8 bytes.
     /// That the game holds the name as UTF-8 is unverified.</summary>
