@@ -44,19 +44,21 @@ comments. Unknown widths are `[NEEDS VERIFICATION]` until the disassembly or a r
 A class in `src/Metaphor.Hooks` ([example](../../../src/Metaphor.Hooks/MessageListeningHooks.cs)):
 
 - `[GameHook(GameBuilds.<build>)]`, and `DevOnly = true` for a spike: the loader installs it only in Debug builds.
-- Implements `IGameHook`: `SignatureName`, `Calls` for any game function it calls (each needs its own signature), and
-  `Install`. Only the loader installs hooks, after the build check and a full scan.
+- Implements `IGameHook`: `SignatureName`, and `Calls` and `UseCalls` for any game function it calls (each needs its
+  own signature). Only the loader installs hooks, after the build check and a full scan.
+- Implements the one shape interface in [`PassThrough.cs`](../../../src/Metaphor.Hooks/PassThrough.cs) that matches its
+  arguments, such as `IObserves3`. The loader's adapter for that shape hooks the function, guards `Observe` and calls the
+  original (rule 14). The shapes fit functions that return an integer, a pointer or nothing; if none fits, add one
+  there.
 - A public constructor taking `HookServices`: it hands the hook everything it uses (rule 12). Keep what the hook needs
   in its own fields, not in statics.
-- In `Install`, store the hook in a field, then activate it (rule 11).
-- In the callback, catch every exception, read game memory only with `ModuleMemoryReader` (rule 10), and always call
-  the original function unless changing behaviour is the point.
+- In `Observe`, decode the arguments, reading game memory only with `ModuleMemoryReader` (rule 10).
 - Keep the logic in a plain library (`Metaphor.Core` or a feature project) and unit-test it there with fakes; the hook
   only adapts.
 - One hook per game function (rule 13). If the function already has a hook, add an observer behind it
   ([`MessageEvents`](../../../src/Metaphor.Core/Messages/MessageEvents.cs)) instead of a second hook.
 
-`scripts/check.sh full` must pass. Its [architecture rules](../../coding-standards.md#architecture-rules) 6 and 8–13
+`scripts/check.sh full` must pass. Its [architecture rules](../../coding-standards.md#architecture-rules) 6 and 8–14
 check the points above.
 
 ## 5. Prove it in the game

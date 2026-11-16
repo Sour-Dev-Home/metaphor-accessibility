@@ -6,9 +6,10 @@ using Reloaded.Mod.Interfaces;
 
 namespace Metaphor.Hooks;
 
-/// <summary>What every hook is: a <c>[GameHook]</c> class that names its signature and installs itself at the address
-/// the loader found (#39). It needs a public constructor taking only <see cref="HookServices"/>, which is how it gets
-/// everything it uses (architecture rule 12).</summary>
+/// <summary>What every hook is: a <c>[GameHook]</c> class that names its signature (#39) and observes each call through
+/// exactly one shape interface (<c>IObserves…</c>), whose <see cref="PassThrough"/> adapter the loader hooks the
+/// function with (#88, architecture rule 14). It needs a public constructor taking only <see cref="HookServices"/>,
+/// which is how it gets everything it uses (architecture rule 12).</summary>
 internal interface IGameHook
 {
     /// <summary>The name of its signature in <c>hook-signatures.json</c>.</summary>
@@ -17,10 +18,12 @@ internal interface IGameHook
     /// <summary>The signatures of game functions it calls, by name. None for most hooks.</summary>
     IReadOnlyList<string> Calls => [];
 
-    /// <summary>Hooks the function at <paramref name="address"/>. Called at most once, only when the running game
-    /// build is one the hook's <c>[GameHook]</c> names, and its signature and each of <see cref="Calls"/> matched
-    /// exactly once; <paramref name="calls"/> has the address of each of those.</summary>
-    void Install(IReloadedHooks hooks, nint address, IReadOnlyDictionary<string, nint> calls);
+    /// <summary>Hands the hook the address of each of <see cref="Calls"/>, just before its function is hooked. Called
+    /// at most once, only when the running game build is one the hook's <c>[GameHook]</c> names, and its signature and
+    /// each of <see cref="Calls"/> matched exactly once.</summary>
+    void UseCalls(IReadOnlyDictionary<string, nint> calls)
+    {
+    }
 }
 
 /// <summary>The only way a hook goes into the game (#39, ground rule 2). <see cref="HookPlanner"/> decides from the
@@ -30,8 +33,9 @@ internal interface IGameHook
 /// any other way.</summary>
 internal static class HookLoader
 {
-    /// <summary>Every hook handed to the game, kept alive until the process ends. Only the loader's thread adds to it.</summary>
-    private static readonly List<IGameHook> Installed = [];
+    /// <summary>Every hook handed to the game, with its adapter, kept alive until the process ends. Only the loader's
+    /// thread adds to it.</summary>
+    private static readonly List<PassThrough> Installed = [];
 
     private static bool IsDevBuild =>
 #if DEBUG
@@ -68,7 +72,7 @@ internal static class HookLoader
         }
 
         // The build check comes from the attribute first: a hook for another build isn't even created.
-        var hooks = new List<(HookSpec Spec, IGameHook? Hook)>();
+        var hooks = new List<(HookSpec Spec, PassThrough? Hook)>();
         foreach (var type in HookTypes())
         {
             var builds = type.GetCustomAttribute<GameHookAttribute>()!.GameBuilds;
@@ -87,7 +91,12 @@ internal static class HookLoader
                 Log($"hook {type.Name} skipped: it isn't an IGameHook");
                 continue;
             }
-            hooks.Add((new HookSpec(type.Name, builds, hook.SignatureName, hook.Calls), hook));
+            if (PassThrough.For(hook) is not { } adapter)
+            {
+                Log($"hook {type.Name} skipped: it observes no shape the loader has an adapter for");
+                continue;
+            }
+            hooks.Add((new HookSpec(type.Name, builds, hook.SignatureName, hook.Calls), adapter));
         }
 
         var (moduleBase, regions) = hooks.Any(h => h.Hook is not null) ? ModuleMemoryReader.MainModuleRegions() : (0, []);
@@ -100,15 +109,16 @@ internal static class HookLoader
         return loaded;
     }
 
-    /// <summary>Installs one approved hook through Reloaded-II's hooks controller, fetched now, once a hook should go in.</summary>
-    private static Action<IGameHook, HookDecision> ReloadedInstall(IModLoader loader, nint moduleBase)
+    /// <summary>Installs one approved hook, through its adapter, with Reloaded-II's hooks controller, fetched now, once a
+    /// hook should go in.</summary>
+    private static Action<PassThrough, HookDecision> ReloadedInstall(IModLoader loader, nint moduleBase)
     {
         if (!(loader.GetController<IReloadedHooks>()?.TryGetTarget(out var reloadedHooks) ?? false))
         {
             // As the template gets it (docs/raw-sources/reloaded-ii-shared-hooks-library-2026-11-15.md).
             throw new InvalidOperationException("Reloaded-II gave no IReloadedHooks controller (reloaded.sharedlib.hooks)");
         }
-        return (hook, decision) => hook.Install(
+        return (adapter, decision) => adapter.Install(
             reloadedHooks, moduleBase + (nint)decision.Rva!.Value,
             decision.Calls.ToDictionary(call => call.Key, call => moduleBase + (nint)call.Value));
     }
