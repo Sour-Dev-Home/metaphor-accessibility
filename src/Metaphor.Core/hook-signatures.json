@@ -64,5 +64,17 @@
     "pattern": "48 8B C4 48 89 58 08 48 89 70 10 48 89 78 18 55 41 54 41 55 41 56 41 57 48 8D A8 28 FF FF FF 48 81 EC B0 01 00 00",
     "gameBuilds": ["548ddc955c176867f062c44f94c03dd9ac33caefb278a5ac388e792aedf09504"],
     "evidence": "Our reading of the exe (docs/raw-sources/msg-request-functions-2026-11-16.md); one match on disk and in memory, same place (docs/raw-sources/msg-request-signature-spike-2026-11-16.md)"
+  },
+  {
+    "name": "MsgRequestSelectByName",
+    "pattern": "48 8B C4 48 89 58 08 48 89 70 10 48 89 78 18 55 41 54 41 55 41 56 41 57 48 8D A8 38 FF FF FF 48 81 EC A0 01 00 00 C5 F8 29 70 C8 C5 F8 29 78 B8 41 8B F9 49 8B F0 4C 8B F2 44 8B F9",
+    "gameBuilds": ["548ddc955c176867f062c44f94c03dd9ac33caefb278a5ac388e792aedf09504"],
+    "evidence": "Our reading of the exe: what MsgRequestSelect calls (docs/raw-sources/msg-select-functions-2026-11-16.md); one match on disk, not yet checked in memory"
+  },
+  {
+    "name": "MsgSelectedId",
+    "pattern": "48 83 EC 28 8B 81 00 02 00 00 83 F8 06 75 0B 8B 81 04 02 00 00 83 F8 06 74 16 83 F8 05 75 11 E8",
+    "gameBuilds": ["548ddc955c176867f062c44f94c03dd9ac33caefb278a5ac388e792aedf09504"],
+    "evidence": "Our reading of the exe: where MsgGetSelectedID's target jumps (docs/raw-sources/msg-select-functions-2026-11-16.md); one match on disk, not yet checked in memory"
   }
 ]

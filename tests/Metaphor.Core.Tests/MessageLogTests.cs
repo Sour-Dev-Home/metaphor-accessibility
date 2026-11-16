@@ -77,6 +77,38 @@ public sealed class MessageLogTests
     }
 
     [Fact]
+    public void RecordsAChoiceWithBothLabelsAndTheOtherArguments()
+    {
+        var (log, text) = NewLog(now: 4200);
+
+        log.SelectRequested(kind: 0, first: "MES_a", second: null, fourth: -1, options: "options=00+00", sixth: 0);
+
+        Assert.Equal(
+            $"4200 ms select kind=0 first=\"MES_a\" second=(unreadable) fourth=-1 options=00+00 sixth=0x0000{Environment.NewLine}",
+            text.ToString());
+    }
+
+    [Fact]
+    public void ASelectedLabelStaysOnOneLine()
+    {
+        var (log, text) = NewLog(now: 1);
+
+        log.SelectRequested(0, "a\"b\nc", "", 0, "", 0);
+
+        Assert.StartsWith("1 ms select kind=0 first=\"a\\x22b\\x0ac\" second=\"\" ", text.ToString(), StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void RecordsTheSelectedId()
+    {
+        var (log, text) = NewLog(now: 7);
+
+        log.SelectedId(-1);
+
+        Assert.Equal($"7 ms selected id=-1{Environment.NewLine}", text.ToString());
+    }
+
+    [Fact]
     public void ARequestedLabelStaysOnOneLine()
     {
         var (log, text) = NewLog(now: 1);

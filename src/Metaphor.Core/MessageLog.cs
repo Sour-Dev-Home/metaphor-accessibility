@@ -47,6 +47,19 @@ public sealed class MessageLog(TextWriter writer, Func<long> millisecondsSinceSt
     public void Requested(string function, string arguments) =>
         Write(() => Line($"{millisecondsSinceStart()} ms request via={function} {arguments}"));
 
+    /// <summary>A choice the game's scripts opened (#82, #93): the select request's kind, its two pointer arguments
+    /// read as C strings (null when unreadable; that they are the prompt's and the choice's labels is the lead to
+    /// confirm), its 32-bit fourth argument, its options block as the hook formatted it, and its 16-bit sixth.</summary>
+    public void SelectRequested(int kind, string? first, string? second, int fourth, string options, int sixth) =>
+        Write(() => Line(
+            $"{millisecondsSinceStart()} ms select kind={kind} first={Quoted(first)} second={Quoted(second)} fourth={fourth} {options} sixth=0x{sixth:x4}"));
+
+    /// <summary>The selection the game's scripts read back (#93): the value the selected-ID function returned, as 32
+    /// bits.</summary>
+    public void SelectedId(int id) => Write(() => Line($"{millisecondsSinceStart()} ms selected id={id}"));
+
+    private static string Quoted(string? text) => text is null ? "(unreadable)" : $"\"{LogText.Escaped(text)}\"";
+
     /// <summary>A line the game asked for by label, with its kind.</summary>
     public void Observe(LineRequested line) => Write(() =>
         Line($"{millisecondsSinceStart()} ms request via={LineRequestFunction} kind={line.Kind} text=\"{LogText.Escaped(line.Label)}\""));

@@ -32,6 +32,19 @@ internal interface IObserves5
     void Observe(nint first, nint second, nint third, nint fourth, nint fifth);
 }
 
+/// <summary>A hook on a function of six pointer-sized arguments (the last two on the stack).</summary>
+internal interface IObserves6
+{
+    void Observe(nint first, nint second, nint third, nint fourth, nint fifth, nint sixth);
+}
+
+/// <summary>A hook on a function of one pointer-sized argument that wants what it returned: observed after the
+/// original runs, with its <c>rax</c>.</summary>
+internal interface IObserves1WithResult
+{
+    void Observe(nint first, nint result);
+}
+
 /// <summary>A hook on a function of two pointer-sized arguments, a <c>double</c>, then one more.</summary>
 internal interface IObserves4WithDouble
 {
@@ -62,6 +75,8 @@ internal abstract class PassThrough
         IObserves3 observer => new Adapter3(hook, observer),
         IObserves4 observer => new Adapter4(hook, observer),
         IObserves5 observer => new Adapter5(hook, observer),
+        IObserves6 observer => new Adapter6(hook, observer),
+        IObserves1WithResult observer => new Adapter1WithResult(hook, observer),
         IObserves4WithDouble observer => new Adapter4WithDouble(hook, observer),
         IObserves5WithDouble observer => new Adapter5WithDouble(hook, observer),
         _ => null,
@@ -177,6 +192,76 @@ internal abstract class PassThrough
             {
             }
             return hook!.OriginalFunction(first, second, third, fourth, fifth);
+        }
+    }
+
+    private sealed class Adapter6 : PassThrough
+    {
+        private delegate nint Function(nint first, nint second, nint third, nint fourth, nint fifth, nint sixth);
+
+        private readonly IObserves6 observer;
+        private readonly Function callback;
+        private IHook<Function>? hook;
+
+        public Adapter6(IGameHook hook, IObserves6 observer)
+            : base(hook)
+        {
+            this.observer = observer;
+            callback = OnCall;
+        }
+
+        private protected override void Activate(IReloadedHooks hooks, nint address)
+        {
+            hook = hooks.CreateHook(callback, address);
+            hook.Activate();
+        }
+
+        private nint OnCall(nint first, nint second, nint third, nint fourth, nint fifth, nint sixth)
+        {
+            try
+            {
+                observer.Observe(first, second, third, fourth, fifth, sixth);
+            }
+            catch (Exception)
+            {
+            }
+            return hook!.OriginalFunction(first, second, third, fourth, fifth, sixth);
+        }
+    }
+
+    private sealed class Adapter1WithResult : PassThrough
+    {
+        private delegate nint Function(nint first);
+
+        private readonly IObserves1WithResult observer;
+        private readonly Function callback;
+        private IHook<Function>? hook;
+
+        public Adapter1WithResult(IGameHook hook, IObserves1WithResult observer)
+            : base(hook)
+        {
+            this.observer = observer;
+            callback = OnCall;
+        }
+
+        private protected override void Activate(IReloadedHooks hooks, nint address)
+        {
+            hook = hooks.CreateHook(callback, address);
+            hook.Activate();
+        }
+
+        private nint OnCall(nint first)
+        {
+            // The original runs first, so the observer sees what it returned; the game gets that value unchanged.
+            var result = hook!.OriginalFunction(first);
+            try
+            {
+                observer.Observe(first, result);
+            }
+            catch (Exception)
+            {
+            }
+            return result;
         }
     }
 
