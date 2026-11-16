@@ -64,5 +64,7 @@ it, so read a mismatch with the report's `millisecondsSinceGameStart` in mind.
 
 - The offsets are file offsets. The `rva` beside a single match is where the PE headers say it loads, which is only
   where it is in the running game if that code isn't changed at load.
-- Whether code on disk matches the code the game runs under Denuvo is [NEEDS VERIFICATION], tracked in issue #21.
-  Until then, a pass here doesn't prove the hook finds its function in the game.
+- On game build `548ddc95…` (Steam build 18330018), the code on disk matched the running game's: all 15 CriFs probes
+  matched once in each, at the same address, when our mod started
+  ([raw source](../../raw-sources/signature-spike-2026-11-15.md), issue #21). That was checked once, early in the run,
+  and only on that build: after a game update, run the spike again before trusting a pass here.

@@ -40,6 +40,8 @@ Describe 'signature-spike.ps1' {
                 AppId = 'metaphor.exe'; AppLocation = $script:gameExe; EnabledMods = @('user.mod')
             })
         Write-Json (Join-Path $reloaded 'Mods/user.mod/ModConfig.json') @{ ModId = 'user.mod' }
+        # Reloaded-II's own mod, which every install has and the loader needs to start.
+        Write-Json (Join-Path $reloaded 'Mods/reloaded.sharedlib.hooks/ModConfig.json') @{ ModId = 'reloaded.sharedlib.hooks' }
         $configBefore = Get-FileHash $config
         $known = Join-Path $root 'known-game-builds.json'
         Write-Json $known @(@{ sha256 = $script:build; steamBuildId = 1; evidence = 'test' })

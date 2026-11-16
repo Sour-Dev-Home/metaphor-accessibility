@@ -5,7 +5,8 @@ status file, then closes the game and puts the loader config back.
 
 .DESCRIPTION
 1. Hashes the game exe and refuses to run on a build missing from the known-builds list.
-2. Backs up ReloadedII.json, then points its folders at a throwaway profile holding only the test mods.
+2. Backs up ReloadedII.json, then points its folders at a throwaway profile holding only the test mods, plus a copy
+   of Reloaded-II's own reloaded.sharedlib.hooks, which the loader needs to start.
 3. Launches with the user's own Reloaded-II (--launch).
 4. Waits for each test mod's mod-status.json (ready or refused, the build, hooks loaded out of expected), then
    collects any -CollectFiles.
@@ -93,10 +94,19 @@ $mods = foreach ($folder in $ModFolders) {
 }
 $duplicate = $mods | Group-Object Id | Where-Object Count -GT 1 | Select-Object -First 1
 if ($duplicate) { Stop-Start "two test mods have the mod ID $($duplicate.Name)" }
+# Its folder in the throwaway profile holds Reloaded-II's own copy (below).
+if ($mods.Id -contains 'reloaded.sharedlib.hooks') { Stop-Start 'a test mod has the mod ID reloaded.sharedlib.hooks, which is Reloaded-II''s own' }
 
 $application = Find-Application $loader $gameFull
 if (-not $application) { Stop-Start "the game isn't registered in Reloaded-II; add $gameFull as an application first" }
 if ($CollectFiles -and -not $CollectTo) { Stop-Start '-CollectFiles needs -CollectTo' }
+
+# The loader loads its own reloaded.sharedlib.hooks mod first and fails to start without it, even with no other mods
+# (docs/raw-sources/reloaded-ii-log-on-normal-run-2026-11-14.md), so the throwaway profile gets a copy, not enabled.
+$sharedHooks = Get-ChildItem -LiteralPath $loader.ModConfigDirectory -Filter 'ModConfig.json' -Recurse -Depth 1 -ErrorAction SilentlyContinue |
+    Where-Object { try { (Read-Json $_.FullName).ModId -eq 'reloaded.sharedlib.hooks' } catch { $false } } |
+    Select-Object -First 1
+if (-not $sharedHooks) { Stop-Start "Reloaded-II's own reloaded.sharedlib.hooks mod isn't in its mods folder; open Reloaded-II once so it downloads it" }
 
 $smokeProfile = Join-Path ([IO.Path]::GetTempPath()) "metaphor-smoke-$([guid]::NewGuid())"
 $failed = $false
@@ -111,6 +121,7 @@ try {
     $app.AppLocation = $gameFull
     $app.EnabledMods = @($mods.Id)
     Write-Json (Join-Path $smokeProfile "Apps/$($application.Directory.Name)/AppConfig.json") $app
+    Copy-Item -LiteralPath $sharedHooks.Directory.FullName -Destination (Join-Path $smokeProfile 'Mods/reloaded.sharedlib.hooks') -Recurse
     foreach ($mod in $mods) {
         # Named by mod ID, which is unique, so no two mods share a folder or a status file.
         $mod | Add-Member -NotePropertyName Folder -NotePropertyValue (Join-Path $smokeProfile "Mods/$($mod.Id)")

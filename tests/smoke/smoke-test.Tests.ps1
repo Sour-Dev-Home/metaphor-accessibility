@@ -53,6 +53,9 @@ Describe 'smoke-test.ps1' {
             })
         $script:userMod = Join-Path $reloaded 'Mods/user.mod'
         Write-Json (Join-Path $script:userMod 'ModConfig.json') @{ ModId = 'user.mod' }
+        # Reloaded-II's own mod, which every install has and the loader needs to start.
+        $script:sharedHooks = Join-Path $reloaded 'Mods/reloaded.sharedlib.hooks'
+        Write-Json (Join-Path $script:sharedHooks 'ModConfig.json') @{ ModId = 'reloaded.sharedlib.hooks' }
         $script:configBefore = Get-FileHash $script:config
 
         $script:testMod = Join-Path $root 'test-mods/metaphor.smoke'
@@ -87,6 +90,17 @@ Describe 'smoke-test.ps1' {
 
         $result.ExitCode | Should -Be 2
         $result.Output | Should -Match "unknown game build $script:build"
+        (Get-FileHash $script:config).Hash | Should -Be $script:configBefore.Hash
+        Get-Game | Should -BeNullOrEmpty
+    }
+
+    It 'refuses to start when Reloaded-II''s own hooks mod is missing, without launching or touching the config' {
+        Remove-Item -LiteralPath $script:sharedHooks -Recurse
+
+        $result = Invoke-SmokeTest
+
+        $result.ExitCode | Should -Be 2
+        $result.Output | Should -Match 'reloaded\.sharedlib\.hooks'
         (Get-FileHash $script:config).Hash | Should -Be $script:configBefore.Hash
         Get-Game | Should -BeNullOrEmpty
     }
