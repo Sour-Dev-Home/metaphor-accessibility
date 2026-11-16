@@ -45,3 +45,26 @@ jobs:
           name: slow-suite-${{ github.sha }}
           path: artifacts/slow
           if-no-files-found: warn
+
+  # Stage 6's time on the run's summary page. Stage 6 has no budget (issue #1), so this never warns.
+  timing:
+    needs: [slow-suite]
+    if: always()
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    permissions:
+      actions: read # read this run's job times
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          sparse-checkout: scripts/stage-timing.sh
+          sparse-checkout-cone-mode: false
+      - name: Time stage 6
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh api --paginate "repos/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID/attempts/$GITHUB_RUN_ATTEMPT/jobs" \
+            --jq '.jobs[] | select(.status == "completed" and .conclusion != "skipped")
+              | [.name, .started_at, .completed_at] | @tsv' > "$RUNNER_TEMP/jobs.tsv"
+          bash scripts/stage-timing.sh jobs "stage 6 (slow suite)" - "$RUNNER_TEMP/jobs.tsv"

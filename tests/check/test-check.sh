@@ -95,6 +95,27 @@ test_passes_ordinary_source() {
   expect 0
 }
 
+test_fast_stage_prints_its_time_against_the_stage_1_budget() {
+  new_repo
+  run_check fast
+  expect 0 "timing: stage 1 (fast) started" "(budget 10 s)"
+}
+
+test_failing_fast_stage_still_prints_its_time_and_fails() {
+  new_repo
+  printf 'x' > data.cpk
+  git add data.cpk
+  run_check fast
+  expect 1 "game content" "timing: stage 1 (fast)"
+}
+
+test_untimed_stage_prints_no_time() {
+  new_repo
+  run_check rules
+  expect 0
+  expect_absent "timing:"
+}
+
 test_blocks_file_in_ignored_game_folder_added_with_force() {
   new_repo
   printf 'game/\n' > .gitignore

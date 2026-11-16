@@ -25,6 +25,7 @@ jobs:
           bash tests/scripts/test-repo-config.sh
           bash tests/scripts/test-policy-files.sh
           bash tests/scripts/test-slow-survivors.sh
+          bash tests/scripts/test-stage-timing.sh
       - name: Check every tracked file
         env:
           # The private list reaches pushes to this repository's main only, never a pull request, so a fork's code
@@ -148,3 +149,27 @@ jobs:
             echo "::error::A package has a known vulnerability, or the audit failed; see the report above"
             exit 1
           fi
+
+  # Stage 2's time against its 5-minute budget (issue #1): each job's duration on the run's summary page, and a warning
+  # annotation when the stage runs over. It only reports, so it runs after the others whatever their result.
+  timing:
+    needs: [repo-rules, build, security]
+    if: always()
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    permissions:
+      actions: read # read this run's job times
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          sparse-checkout: scripts/stage-timing.sh
+          sparse-checkout-cone-mode: false
+      - name: Time stage 2
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh api --paginate "repos/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID/attempts/$GITHUB_RUN_ATTEMPT/jobs" \
+            --jq '.jobs[] | select(.status == "completed" and .conclusion != "skipped")
+              | [.name, .started_at, .completed_at] | @tsv' > "$RUNNER_TEMP/jobs.tsv"
+          bash scripts/stage-timing.sh jobs "stage 2 (CI)" 300 "$RUNNER_TEMP/jobs.tsv"

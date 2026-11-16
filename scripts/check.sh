@@ -311,10 +311,26 @@ check_message() {
   [ "$lines" -le "$max_body_lines" ] || report "$label: body has $lines lines; the limit is $max_body_lines"
 }
 
-tmp="$(mktemp -d)" || die "could not create a temporary folder"
-trap 'rm -rf "$tmp"' EXIT
-
 stage="${1:-}"
+# Stages with a budget from issue #1 print their duration on exit, and a warning when over budget (stage-timing.sh).
+started="$(date +%s)" timing_script="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/stage-timing.sh"
+case "$stage" in
+  fast | pre-commit) timed=("stage 1 ($stage)" 10) ;;
+  signatures) timed=("stage 4 (signatures)" 30 "commit $(git rev-parse --short HEAD 2> /dev/null || echo none)") ;;
+  *) timed=() ;;
+esac
+finish() {
+  local code=$?
+  rm -rf "${tmp:-}"
+  [ "${#timed[@]}" -eq 0 ] ||
+    bash "$timing_script" report "${timed[0]}" "${timed[1]}" "$started" "$(date +%s)" \
+      "${timed[@]:2}"
+  exit "$code"
+}
+
+tmp="$(mktemp -d)" || die "could not create a temporary folder"
+trap finish EXIT
+
 # list_entries prints "<mode> <blob> <stage>\t<path>\0" for each file to check, in `git ls-files -s -z` form.
 case "$stage" in
   fast | pre-commit)
