@@ -26,7 +26,15 @@ git config core.hooksPath .githooks
 cp .claude/pii-patterns.example.txt .claude/pii-patterns.txt
 ```
 
-The hooks run the fast checks before each commit and check each commit message. In `.claude/pii-patterns.txt`, replace
+The hooks check each commit and push, running only what the change needs:
+
+- **Before a commit:** the repo rules on staged files, plus formatting, docs and hook signatures when those files are
+  staged. Signatures need `METAPHOR_GAME_EXE` set to the game's exe; without it the hook says how to run them.
+- **On the commit message:** its shape.
+- **Before a push:** the Release build and the `Unit` and `RoundTrip` tests, when the pushed commits change code. The
+  first push after a pull builds from cold and takes longer.
+
+CI runs everything again, so it stays the authority. In `.claude/pii-patterns.txt`, replace
 the two example lines with your own private strings, such as your name and email, one per line. It's git-ignored, and
 the checks block any commit that contains one. Don't leave the example lines in: they match the example file itself, so
 the checks would fail.

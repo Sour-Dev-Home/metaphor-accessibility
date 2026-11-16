@@ -32,7 +32,9 @@ One command runs every check, locally (Git Bash on Windows) and in CI:
 
 | Stage | Runs | Where |
 |---|---|---|
-| `scripts/check.sh fast` | repo rules on staged files | pre-commit hook |
+| `scripts/check.sh fast` | repo rules on staged files | by hand |
+| `scripts/check.sh pre-commit` | `fast`, then formatting for staged C#, `docs` when Markdown is staged, `signatures` when `hook-signatures.json` is staged and `METAPHOR_GAME_EXE` is set | pre-commit hook |
+| `scripts/check.sh pre-push` | the Release build, then `Unit` and `RoundTrip` tests, when the pushed commits change code (refs on stdin) | pre-push hook |
 | `scripts/check.sh rules` | repo rules on every tracked file | CI on Ubuntu |
 | `scripts/check.sh full` | repo rules, then the .NET build, `Unit` and `RoundTrip` tests, formatting and the smoke-test and deploy scripts' own tests (Pester 5+) | CI on Windows |
 | `scripts/check.sh docs` | broken relative links and anchors fail; Markdown lint, Vale and ADRs over 250 words warn | CI on Ubuntu |
