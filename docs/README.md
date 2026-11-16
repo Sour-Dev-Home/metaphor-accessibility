@@ -25,3 +25,4 @@ These folders hold project records, and stay where the checks and skills expect 
 - [`adr/`](adr/): decision records.
 - [`agents/`](agents/): how the agent skills use this repo.
 - [`coding-standards.md`](coding-standards.md): the rules reviews check.
+<!-- timing probe -->
