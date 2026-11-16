@@ -34,5 +34,35 @@
     "pattern": "48 89 5C 24 ?? 48 89 74 24 ?? 57 48 83 EC 20 49 8B D9 49 8B F8 48 8B F1",
     "gameBuilds": ["548ddc955c176867f062c44f94c03dd9ac33caefb278a5ac388e792aedf09504"],
     "evidence": "MF.Toolkit SquirrelPatterns.cs at b1f876da; one match on disk on this build (docs/raw-sources/mf-toolkit-squirrel-registration-2026-11-16.md)"
+  },
+  {
+    "name": "MsgRequestByName",
+    "pattern": "48 8B C4 48 89 58 08 48 89 70 10 48 89 78 18 55 41 54 41 55 41 56 41 57 48 8D A8 C8 FE FF FF 48 81 EC 10 02 00 00 C5 F8 29 70 C8 C5 F8 29 78 B8 49 8B F8 48 8B F2 44 8B F1 48 8B 05 F8 C6 50 02",
+    "gameBuilds": ["548ddc955c176867f062c44f94c03dd9ac33caefb278a5ac388e792aedf09504"],
+    "evidence": "Our reading of the exe (docs/raw-sources/msg-request-functions-2026-11-16.md); one match on disk and in memory, same place (docs/raw-sources/msg-request-signature-spike-2026-11-16.md). The last four bytes are a build-specific relative address that tells it from its twin"
+  },
+  {
+    "name": "MsgRequestByNameTwin",
+    "pattern": "48 8B C4 48 89 58 08 48 89 70 10 48 89 78 18 55 41 54 41 55 41 56 41 57 48 8D A8 C8 FE FF FF 48 81 EC 10 02 00 00 C5 F8 29 70 C8 C5 F8 29 78 B8 49 8B F8 48 8B F2 44 8B F1 48 8B 05 C8 C4 50 02",
+    "gameBuilds": ["548ddc955c176867f062c44f94c03dd9ac33caefb278a5ac388e792aedf09504"],
+    "evidence": "Our reading of the exe (docs/raw-sources/msg-request-functions-2026-11-16.md); one match on disk and in memory, same place (docs/raw-sources/msg-request-signature-spike-2026-11-16.md). The last four bytes are a build-specific relative address that tells it from its twin"
+  },
+  {
+    "name": "MsgRequestById",
+    "pattern": "48 8B C4 48 89 58 08 48 89 70 10 48 89 78 18 55 41 54 41 55 41 56 41 57 48 8D A8 48 FF FF FF 48 81 EC 90 01 00 00",
+    "gameBuilds": ["548ddc955c176867f062c44f94c03dd9ac33caefb278a5ac388e792aedf09504"],
+    "evidence": "Our reading of the exe (docs/raw-sources/msg-request-functions-2026-11-16.md); one match on disk and in memory, same place (docs/raw-sources/msg-request-signature-spike-2026-11-16.md)"
+  },
+  {
+    "name": "MsgRequestByNameAuto",
+    "pattern": "48 8B C4 48 89 58 08 48 89 70 10 48 89 78 18 55 41 54 41 55 41 56 41 57 48 8D A8 B8 FE FF FF 48 81 EC 20 02 00 00",
+    "gameBuilds": ["548ddc955c176867f062c44f94c03dd9ac33caefb278a5ac388e792aedf09504"],
+    "evidence": "Our reading of the exe (docs/raw-sources/msg-request-functions-2026-11-16.md); one match on disk and in memory, same place (docs/raw-sources/msg-request-signature-spike-2026-11-16.md)"
+  },
+  {
+    "name": "MsgRequestByIdAuto",
+    "pattern": "48 8B C4 48 89 58 08 48 89 70 10 48 89 78 18 55 41 54 41 55 41 56 41 57 48 8D A8 28 FF FF FF 48 81 EC B0 01 00 00",
+    "gameBuilds": ["548ddc955c176867f062c44f94c03dd9ac33caefb278a5ac388e792aedf09504"],
+    "evidence": "Our reading of the exe (docs/raw-sources/msg-request-functions-2026-11-16.md); one match on disk and in memory, same place (docs/raw-sources/msg-request-signature-spike-2026-11-16.md)"
   }
 ]

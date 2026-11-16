@@ -53,6 +53,17 @@ public sealed class MessageLogTests
     }
 
     [Fact]
+    public void RecordsAMessageRequestWithItsFunctionAndArguments()
+    {
+        var (log, text) = NewLog(now: 4200);
+
+        log.Requested(function: "MsgRequestByName", arguments: "kind=0 text=\"line_1\"");
+
+        Assert.Equal(
+            $"4200 ms request via=MsgRequestByName kind=0 text=\"line_1\"{Environment.NewLine}", text.ToString());
+    }
+
+    [Fact]
     public void NeverThrowsEvenOnValuesItCannotRecord()
     {
         var (log, text) = NewLog();
