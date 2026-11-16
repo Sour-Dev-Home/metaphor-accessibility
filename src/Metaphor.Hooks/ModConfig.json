@@ -1,0 +1,14 @@
+{
+  "ModId": "metaphor.accessibility",
+  "ModName": "Metaphor Accessibility",
+  "ModAuthor": "metaphor-refantazio contributors",
+  "ModVersion": "0.1.0",
+  "ModDescription": "Accessibility for blind and visually impaired players. Early development: it loads and reports, but changes nothing in the game yet.",
+  "ModDll": "Metaphor.Hooks.dll",
+  "IsLibrary": false,
+  "IsUniversalMod": false,
+  "ModDependencies": [],
+  "OptionalDependencies": [],
+  "SupportedAppId": [ "metaphor.exe" ],
+  "ProjectUrl": "https://github.com/Sour-Dev-Home/metaphor-refantazio"
+}

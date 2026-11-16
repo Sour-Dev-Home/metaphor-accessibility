@@ -1,0 +1,17 @@
+[
+  { "name": "CriFs_CalculateWorkSizeForLibrary", "pattern": "48 89 5C 24 ?? 48 89 74 24 ?? 55 57 41 54 41 56 41 57 48 8D 6C 24 ?? 48 81 EC A0 00 00 00 48 8B 05 ?? ?? ?? ??", "source": "docs/raw-sources/crifs-v2-hook-metaphor-patterns-2026-11-15.md" },
+  { "name": "CriFs_InitializeLibrary", "pattern": "49 89 E3 49 89 5B ?? 49 89 6B ?? 49 89 7B", "source": "docs/raw-sources/crifs-v2-hook-metaphor-patterns-2026-11-15.md" },
+  { "name": "CriFs_FinalizeLibrary", "pattern": "48 83 EC 28 83 3D ?? ?? ?? ?? 00 75 ?? 48 8D 15 ?? ?? ?? ?? 33 C9 E8 ?? ?? ?? ?? 83 C8 FF E9 ?? ?? ?? ??", "source": "docs/raw-sources/crifs-v2-hook-metaphor-patterns-2026-11-15.md" },
+  { "name": "CriFsBinder_BindCpk", "pattern": "48 83 EC 48 48 8B 44 24 ?? C7 44 24 ?? 01 00 00 00", "source": "docs/raw-sources/crifs-v2-hook-metaphor-patterns-2026-11-15.md" },
+  { "name": "CriFsBinder_BindFile", "pattern": "48 83 EC 48 48 8B 44 24 ?? 48 89 44 24 ?? 8B 44 24 ?? 89 44 24 ?? 4C 89 4C 24 ?? 41 B9 01 00 00 00", "source": "docs/raw-sources/crifs-v2-hook-metaphor-patterns-2026-11-15.md" },
+  { "name": "CriFsBinder_BindFiles", "pattern": "48 83 EC 48 48 8B 44 24 ?? 48 89 44 24 ?? 8B 44 24 ?? 89 44 24 ?? 4C 89 4C 24 ?? 41 83 C9 FF", "source": "docs/raw-sources/crifs-v2-hook-metaphor-patterns-2026-11-15.md" },
+  { "name": "CriFsBinder_Find", "pattern": "48 89 5C 24 ?? 48 89 6C 24 ?? 48 89 74 24 ?? 57 48 83 EC 40 49 8B F9 49 8B D8 48 8B F2", "source": "docs/raw-sources/crifs-v2-hook-metaphor-patterns-2026-11-15.md" },
+  { "name": "CriFsBinder_GetSizeForBindFiles", "pattern": "48 89 5C 24 ?? 48 89 74 24 ?? 57 48 81 EC 50 04 00 00 48 8B 05 ?? ?? ?? ??", "source": "docs/raw-sources/crifs-v2-hook-metaphor-patterns-2026-11-15.md" },
+  { "name": "CriFsBinder_GetStatus", "pattern": "48 89 5C 24 ?? 57 48 83 EC 20 48 89 D3 89 CF 85 C9", "source": "docs/raw-sources/crifs-v2-hook-metaphor-patterns-2026-11-15.md" },
+  { "name": "CriFsBinder_SetPriority", "pattern": "48 89 5C 24 ?? 57 48 83 EC 20 8B FA E8 ?? ?? ?? ?? 48 8B D8 48 85 C0 75 ?? 8D 58 ??", "source": "docs/raw-sources/crifs-v2-hook-metaphor-patterns-2026-11-15.md" },
+  { "name": "CriFsBinder_Unbind", "pattern": "48 89 5C 24 ?? 57 48 83 EC 20 8B F9 E8 ?? ?? ?? ?? 48 8B D8", "source": "docs/raw-sources/crifs-v2-hook-metaphor-patterns-2026-11-15.md" },
+  { "name": "CriFsLoader_RegisterFile", "pattern": "48 8B C4 48 89 58 ?? 48 89 70 ?? 4C 89 60 ??", "source": "docs/raw-sources/crifs-v2-hook-metaphor-patterns-2026-11-15.md" },
+  { "name": "CriFsIo_Exists", "pattern": "48 89 5C 24 ?? 57 48 81 EC 70 08 00 00", "source": "docs/raw-sources/crifs-v2-hook-metaphor-patterns-2026-11-15.md" },
+  { "name": "CriFsIo_Open", "pattern": "48 8B C4 48 89 58 ?? 48 89 68 ?? 48 89 70 ?? 57 41 54 41 55 41 56 41 57 48 83 EC 50 4D 8B E9", "source": "docs/raw-sources/crifs-v2-hook-metaphor-patterns-2026-11-15.md" },
+  { "name": "CriFsIo_IsUtf8", "pattern": "83 3D ?? ?? ?? ?? 00 74 ?? E8 ?? ?? ?? ?? 48 8D 4C 24 ?? C7 44 24 ?? 11 04 00 00 48 89 4C 24 ?? 4C 8B C7", "source": "docs/raw-sources/crifs-v2-hook-metaphor-patterns-2026-11-15.md" }
+]

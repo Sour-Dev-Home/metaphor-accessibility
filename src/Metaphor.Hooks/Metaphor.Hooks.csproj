@@ -8,6 +8,13 @@
 
   <ItemGroup>
     <ProjectReference Include="..\Metaphor.Core\Metaphor.Core.csproj" />
+    <!-- Compile against it only: Reloaded-II supplies it at run time, as in the official template. -->
+    <PackageReference Include="Reloaded.Mod.Interfaces" ExcludeAssets="runtime" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- What Reloaded-II reads to load the mod. Its ModDll must name this project's assembly. -->
+    <Content Include="ModConfig.json" CopyToOutputDirectory="Always" />
   </ItemGroup>
 
 </Project>

@@ -5,4 +5,9 @@
     <TargetFramework>net9.0</TargetFramework>
   </PropertyGroup>
 
+  <ItemGroup>
+    <EmbeddedResource Include="known-game-builds.json" LogicalName="Metaphor.Core.known-game-builds.json" />
+    <EmbeddedResource Include="hook-signatures.json" LogicalName="Metaphor.Core.hook-signatures.json" />
+  </ItemGroup>
+
 </Project>

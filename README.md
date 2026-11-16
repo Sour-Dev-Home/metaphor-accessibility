@@ -29,8 +29,10 @@ One command runs every check, locally (Git Bash on Windows) and in CI:
 |---|---|---|
 | `scripts/check.sh fast` | repo rules on staged files | pre-commit hook |
 | `scripts/check.sh rules` | repo rules on every tracked file | CI on Ubuntu |
-| `scripts/check.sh full` | repo rules, then the .NET build, `Unit` tests and formatting | CI on Windows |
+| `scripts/check.sh full` | repo rules, then the .NET build, `Unit` and `RoundTrip` tests, formatting and the smoke-test and deploy scripts' own tests (Pester 5+) | CI on Windows |
 | `scripts/check.sh docs` | broken relative links and anchors fail; Markdown lint, Vale and ADRs over 250 words warn | CI on Ubuntu |
+| `scripts/check.sh slow` | Stryker.NET mutation testing of `Metaphor.Core` and a jscpd duplication report, into `artifacts/slow/`; reports only, fails only when a tool can't run | weekly CI on Windows (`slow.yml`, also run by hand); never gates a merge |
+| `scripts/check.sh signatures [EXE]` | each hook signature matches exactly once in the game exe on disk, no launch ([how-to](docs/contributors/how-to/check-hook-signatures.md)) | locally, before a hook PR |
 | `scripts/check.sh pr-body FILE` | warns when a PR description passes 300 words, not counting Evidence | CI on pull requests |
 | `scripts/check.sh commit-msg FILE` | one commit message's shape (see the script's header) | commit-msg hook |
 | `scripts/check.sh commits BASE..HEAD` | the same, for each commit in a pull request | CI on Ubuntu |

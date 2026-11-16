@@ -3,8 +3,10 @@
 #
 #   scripts/check.sh fast    repo rules on staged files (the pre-commit hook)
 #   scripts/check.sh rules   repo rules on every tracked file (CI on Ubuntu)
-#   scripts/check.sh full    repo rules, then build, Unit tests and formatting (CI on Windows)
+#   scripts/check.sh full    repo rules, build, Unit and RoundTrip tests, formatting, smoke and deploy script tests (CI on Windows)
 #   scripts/check.sh docs    broken links fail; Markdown lint, Vale and ADR length warn (CI on Ubuntu)
+#   scripts/check.sh slow    mutation testing and a duplication report, report only (weekly CI on Windows)
+#   scripts/check.sh signatures [EXE]    each hook signature matches exactly once in the game exe (local, before a hook PR)
 #   scripts/check.sh pr-body FILE        warns when a PR description is too long (CI on pull requests)
 #   scripts/check.sh commit-msg FILE     one commit message (the commit-msg hook)
 #   scripts/check.sh commits BASE..HEAD  every non-merge commit message in a range (CI on pull requests)
@@ -97,6 +99,58 @@ docs_stage() {
           warn "$file: $count words; ADRs aim for at most $max_adr_words" "$file" ;;
     esac
   done
+}
+
+# The slow suite (weekly in CI): Stryker.NET mutation testing of Metaphor.Core, and a jscpd duplication report, into
+# artifacts/slow/ (git-ignored). summary.md there has the mutation score per file, each surviving mutant, and the
+# duplication totals. Scores never fail it: a tool that can't run exits 2, after the summary says what's missing.
+slow_stage() {
+  local root out broken=""
+  root="$(git rev-parse --show-toplevel)" || die "could not find the repository root"
+  out="$root/artifacts/slow"
+  command -v dotnet > /dev/null || die "slow stage needs the .NET SDK (dotnet) on PATH"
+  command -v npm > /dev/null || die "slow stage needs npm on PATH"
+  rm -rf "$out" && mkdir -p "$out" || die "could not empty $out"
+
+  export DOTNET_CLI_TELEMETRY_OPTOUT=1 DOTNET_NOLOGO=1
+  (cd "$root" && dotnet tool restore -v q) || die "could not restore dotnet-stryker (.config/dotnet-tools.json)"
+  (cd "$root/tests/Metaphor.Core.Tests" && dotnet stryker --output "$out/stryker") || broken="$broken Stryker.NET"
+
+  npm ci --prefix "$root/tools/slow" --ignore-scripts --no-audit --no-fund --loglevel=error ||
+    die "could not install jscpd (tools/slow)"
+  (cd "$root" && tools/slow/node_modules/.bin/jscpd --config tools/slow/jscpd.json --output "$out/jscpd") ||
+    broken="$broken jscpd"
+
+  local reports="$out/stryker/reports"
+  {
+    [ -f "$reports/mutation-report.md" ] && cat "$reports/mutation-report.md" || echo "No mutation report."
+    echo
+    node "$root/tools/slow/survivors.mjs" "$reports/mutation-report.json" "$root" || echo "No list of surviving mutants."
+    echo
+    [ -f "$out/jscpd/jscpd-report.md" ] && cat "$out/jscpd/jscpd-report.md" || echo "No duplication report."
+  } > "$out/summary.md"
+  echo "slow suite reports: $out (summary.md)"
+  [ -z "$broken" ] || die "failed to run:$broken (see above)"
+}
+
+# The offline signature check (stage 4 in issue #1, local only): each signature in src/Metaphor.Core/hook-signatures.json must
+# match exactly once in the game exe on disk. The exe is the argument, or METAPHOR_GAME_EXE. Nothing is launched.
+signatures_stage() {
+  local exe="${1:-${METAPHOR_GAME_EXE:-}}" root
+  [ -n "$exe" ] || die "signatures stage needs the game exe: pass it, or set METAPHOR_GAME_EXE"
+  [ -f "$exe" ] || die "no file at $exe"
+  root="$(git rev-parse --show-toplevel)" || die "could not find the repository root"
+  command -v dotnet > /dev/null || die "signatures stage needs the .NET SDK (dotnet) on PATH"
+  export DOTNET_CLI_TELEMETRY_OPTOUT=1 DOTNET_NOLOGO=1
+  # Built first, so a build failure can't be mistaken for the tool's exit 1.
+  dotnet build "$root/tools/Metaphor.SignatureCheck" -c Release -v q --nologo > /dev/null ||
+    die "could not build tools/Metaphor.SignatureCheck (run: dotnet build tools/Metaphor.SignatureCheck)"
+  dotnet run --project "$root/tools/Metaphor.SignatureCheck" -c Release --no-build -- "$exe"
+  case $? in
+    0) ;;
+    1) report "signatures: a signature doesn't match exactly once (see above)" ;;
+    *) die "the signature check could not run (see above)" ;;
+  esac
 }
 
 max_adr_words=250
@@ -260,7 +314,15 @@ case "$stage" in
     [ "$warnings" -eq 0 ] || echo "$warnings warning(s); they don't fail the run"
     [ "$failures" -eq 0 ]
     exit ;;
-  *) echo "usage: scripts/check.sh fast|rules|full|docs | commit-msg FILE | commits BASE..HEAD | pr-body FILE" >&2
+  slow)
+    slow_stage
+    [ "$failures" -eq 0 ]
+    exit ;;
+  signatures)
+    signatures_stage "${2:-}"
+    [ "$failures" -eq 0 ]
+    exit ;;
+  *) echo "usage: scripts/check.sh fast|rules|full|docs|slow | signatures [EXE] | commit-msg FILE | commits BASE..HEAD | pr-body FILE" >&2
      exit 2 ;;
 esac
 
@@ -404,9 +466,14 @@ done < "$tmp/entries"
 if [ "$stage" = full ]; then
   export DOTNET_CLI_TELEMETRY_OPTOUT=1 DOTNET_NOLOGO=1
   dotnet build "$solution" -c Release -v q || report "build: failed, see the errors above"
-  dotnet test "$solution" -c Release --no-build -v q --filter Category=Unit || report "tests: Unit tests failed"
+  dotnet test "$solution" -c Release --no-build -v q --filter "Category=Unit|Category=RoundTrip" ||
+    report "tests: Unit or RoundTrip tests failed"
   dotnet format whitespace "$solution" --verify-no-changes ||
     report "format: files need formatting (run: dotnet format whitespace Metaphor.sln)"
+  # The smoke-test and deploy scripts' own tests, against the stand-in game (no game needed). Pester 5 or later.
+  pwsh -NoProfile -Command \
+    'Import-Module Pester -MinimumVersion 5.0; $r = Invoke-Pester tests/smoke -PassThru -Output Normal; exit $r.FailedCount' ||
+    report "tests: smoke or deploy script tests failed (run: Invoke-Pester tests/smoke)"
 fi
 
 [ "$failures" -eq 0 ]

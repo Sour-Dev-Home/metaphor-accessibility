@@ -1,0 +1,6 @@
+{
+  "path": ["../../src", "../../tests", "../../scripts"],
+  "ignore": ["**/bin/**", "**/obj/**", "**/packages.lock.json"],
+  "reporters": ["console", "markdown", "html"],
+  "gitignore": true
+}
