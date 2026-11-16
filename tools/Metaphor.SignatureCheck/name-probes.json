@@ -1,0 +1,6 @@
+[
+  { "name": "CreateMsgFromString", "pattern": "40 53 48 83 EC 30 41 80 79 ?? 00", "source": "docs/raw-sources/name-lookup-candidates-2026-11-16.md" },
+  { "name": "GetMessageBySerial", "pattern": "48 89 5C 24 ?? 48 89 74 24 ?? 48 89 7C 24 ?? 55 41 56 41 57 48 8B EC 48 81 EC 80 00 00 00 49 8B F0", "source": "docs/raw-sources/name-lookup-candidates-2026-11-16.md" },
+  { "name": "MessageSerialByLabel", "pattern": "40 53 48 83 EC 30 48 8B 1D ?? ?? ?? ?? 48 8B D1 48 8D 4C 24 20 E8 ?? ?? ?? ?? 84 C0 74 2F 48 8D 54 24 20 48 8B CB E8 ?? ?? ?? ?? 48 85 C0 74 1D 48 8B 00 48 8B 8B 08 02 00 00", "source": "docs/raw-sources/name-lookup-candidates-2026-11-16.md" },
+  { "name": "MessageSerialByHash", "pattern": "40 53 48 83 EC 30 0F B6 01 48 8D 54 24 20 48 8B 1D ?? ?? ?? ?? 88 44 24 20 0F B6 41 01 88 44 24 21 0F B6 41 02 88 44 24 22", "source": "docs/raw-sources/name-lookup-candidates-2026-11-16.md" }
+]

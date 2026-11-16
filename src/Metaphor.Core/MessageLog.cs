@@ -47,6 +47,16 @@ public sealed class MessageLog(TextWriter writer, Func<long> millisecondsSinceSt
     public void Requested(string function, string arguments) =>
         Write(() => Line($"{millisecondsSinceStart()} ms request via={function} {arguments}"));
 
+    /// <summary>A message the game resolved by key (#74, #106): which lookup ran, its arguments and its result, as the
+    /// listening hook formatted them.</summary>
+    public void Resolved(string function, string arguments) =>
+        Write(() => Line($"{millisecondsSinceStart()} ms resolve via={function} {arguments}"));
+
+    /// <summary>A string that could be the player's chosen name (#106): only its length, how it compares with the
+    /// typed name and where it was, never its text.</summary>
+    public void PlayerNameSeen(string function, PlayerNameSighting sighting) =>
+        Write(() => Line($"{millisecondsSinceStart()} ms player-name via={function} {sighting}"));
+
     /// <summary>A line the game asked for by label, with its kind.</summary>
     public void Observe(LineRequested line) => Write(() =>
         Line($"{millisecondsSinceStart()} ms request via={LineRequestFunction} kind={line.Kind} text=\"{LogText.Escaped(line.Label)}\""));
