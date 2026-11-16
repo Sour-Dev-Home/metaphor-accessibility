@@ -82,5 +82,29 @@
     "pattern": "48 89 5C 24 ?? 48 89 6C 24 ?? 48 89 74 24 ?? 57 48 83 EC 20 49 63 F8 48 89 D6",
     "gameBuilds": ["548ddc955c176867f062c44f94c03dd9ac33caefb278a5ac388e792aedf09504"],
     "evidence": "Ryo Framework's Metaphor pattern (docs/raw-sources/ryo-cri-atom-patterns-2026-11-16.md); one match on disk at rva 0x126438d0, 2026-11-16 (tools/Metaphor.SignatureCheck/cri-atom-probes.json); not yet checked in memory"
+  },
+  {
+    "name": "CreateMsgFromString",
+    "pattern": "40 53 48 83 EC 30 41 80 79 ?? 00",
+    "gameBuilds": ["548ddc955c176867f062c44f94c03dd9ac33caefb278a5ac388e792aedf09504"],
+    "evidence": "MF.Toolkit MessageService.cs at b1f876da (docs/raw-sources/game-text-hooks-community-2026-11-15.md); one match, same place on disk and in memory (docs/raw-sources/mf-toolkit-message-signatures-2026-11-15.md); arguments in docs/raw-sources/name-lookup-candidates-2026-11-16.md"
+  },
+  {
+    "name": "GetMessageBySerial",
+    "pattern": "48 89 5C 24 ?? 48 89 74 24 ?? 48 89 7C 24 ?? 55 41 56 41 57 48 8B EC 48 81 EC 80 00 00 00 49 8B F0",
+    "gameBuilds": ["548ddc955c176867f062c44f94c03dd9ac33caefb278a5ac388e792aedf09504"],
+    "evidence": "MF.Toolkit's GetMsgBySerialId at 8e50b937 and our reading of the exe (docs/raw-sources/name-lookup-candidates-2026-11-16.md); one match on disk; not yet checked in memory"
+  },
+  {
+    "name": "MessageSerialByLabel",
+    "pattern": "40 53 48 83 EC 30 48 8B 1D ?? ?? ?? ?? 48 8B D1 48 8D 4C 24 20 E8 ?? ?? ?? ?? 84 C0 74 2F 48 8D 54 24 20 48 8B CB E8 ?? ?? ?? ?? 48 85 C0 74 1D 48 8B 00 48 8B 8B 08 02 00 00",
+    "gameBuilds": ["548ddc955c176867f062c44f94c03dd9ac33caefb278a5ac388e792aedf09504"],
+    "evidence": "Our reading of the exe (docs/raw-sources/name-lookup-candidates-2026-11-16.md); one match on disk; not yet checked in memory"
+  },
+  {
+    "name": "MessageSerialByHash",
+    "pattern": "40 53 48 83 EC 30 0F B6 01 48 8D 54 24 20 48 8B 1D ?? ?? ?? ?? 88 44 24 20 0F B6 41 01 88 44 24 21 0F B6 41 02 88 44 24 22",
+    "gameBuilds": ["548ddc955c176867f062c44f94c03dd9ac33caefb278a5ac388e792aedf09504"],
+    "evidence": "Our reading of the exe (docs/raw-sources/name-lookup-candidates-2026-11-16.md); one match on disk; not yet checked in memory"
   }
 ]

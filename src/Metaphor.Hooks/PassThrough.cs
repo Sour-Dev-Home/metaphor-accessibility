@@ -57,6 +57,15 @@ internal interface IObserves5WithDouble
     void Observe(nint first, nint second, nint third, double fourth, nint fifth);
 }
 
+/// <summary>A hook on a function of up to four pointer-sized arguments that also sees what it returned: the adapter calls
+/// the original first, then hands <c>Observe</c> the arguments as they were passed and the original's rax. A function
+/// of fewer arguments fits too: the registers it doesn't read pass through unchanged and the observer ignores them.
+/// </summary>
+internal interface IObserves4WithResult
+{
+    void Observe(nint first, nint second, nint third, nint fourth, nint result);
+}
+
 /// <summary>The hook loader's pass-through adapters (#88): the code every hook used to repeat. Each keeps its callback
 /// in a field, creates the hook, stores it before activating it (rule 11), guards the observer with a catch-all, and
 /// always calls the original. The loader keeps each adapter alive, and with it the hook it serves (rule 11 in
@@ -79,6 +88,7 @@ internal abstract class PassThrough
         IObserves1WithResult observer => new Adapter1WithResult(hook, observer),
         IObserves4WithDouble observer => new Adapter4WithDouble(hook, observer),
         IObserves5WithDouble observer => new Adapter5WithDouble(hook, observer),
+        IObserves4WithResult observer => new Adapter4WithResult(hook, observer),
         _ => null,
     };
 
@@ -330,6 +340,41 @@ internal abstract class PassThrough
             {
             }
             return hook!.OriginalFunction(first, second, third, fourth, fifth);
+        }
+    }
+
+    private sealed class Adapter4WithResult : PassThrough
+    {
+        private delegate nint Function(nint first, nint second, nint third, nint fourth);
+
+        private readonly IObserves4WithResult observer;
+        private readonly Function callback;
+        private IHook<Function>? hook;
+
+        public Adapter4WithResult(IGameHook hook, IObserves4WithResult observer)
+            : base(hook)
+        {
+            this.observer = observer;
+            callback = OnCall;
+        }
+
+        private protected override void Activate(IReloadedHooks hooks, nint address)
+        {
+            hook = hooks.CreateHook(callback, address);
+            hook.Activate();
+        }
+
+        private nint OnCall(nint first, nint second, nint third, nint fourth)
+        {
+            var result = hook!.OriginalFunction(first, second, third, fourth);
+            try
+            {
+                observer.Observe(first, second, third, fourth, result);
+            }
+            catch (Exception)
+            {
+            }
+            return result;
         }
     }
 }

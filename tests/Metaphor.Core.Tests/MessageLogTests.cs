@@ -80,6 +80,28 @@ public sealed class MessageLogTests
     }
 
     [Fact]
+    public void RecordsAResolvedMessage()
+    {
+        var (log, text) = NewLog(now: 77);
+
+        log.Resolved(function: "MessageSerialByLabel", arguments: "text=\"label_1\" serial=3");
+
+        Assert.Equal(
+            $"77 ms resolve via=MessageSerialByLabel text=\"label_1\" serial=3{Environment.NewLine}", text.ToString());
+    }
+
+    [Fact]
+    public void RecordsAPlayerNameSightingWithoutItsText()
+    {
+        var (log, text) = NewLog(now: 5);
+
+        log.PlayerNameSeen("CreateMsgFromString", new PlayerNameCheck("Ardent").Sight("Ardent", "heap"));
+
+        Assert.Equal(
+            $"5 ms player-name via=CreateMsgFromString bytes=6 match=exact at=heap{Environment.NewLine}", text.ToString());
+    }
+
+    [Fact]
     public void RecordsALineTheGameRequestedByName()
     {
         var (log, text) = NewLog(now: 4200);
