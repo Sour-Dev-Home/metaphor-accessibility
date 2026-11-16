@@ -1,4 +1,32 @@
 {
+  "permissions": {
+    "deny": [
+      "Bash(git push *--force*)",
+      "Bash(git push -f*)",
+      "Bash(git push * -f*)",
+      "Bash(git push * +*)",
+      "PowerShell(git push *--force*)",
+      "PowerShell(git push -f*)",
+      "PowerShell(git push * -f*)",
+      "PowerShell(git push * +*)",
+      "Read(**/pii-patterns.txt)",
+      "Bash(cat *pii-patterns.txt*)",
+      "Bash(type *pii-patterns.txt*)",
+      "Bash(head *pii-patterns.txt*)",
+      "Bash(tail *pii-patterns.txt*)",
+      "Bash(less *pii-patterns.txt*)",
+      "Bash(Get-Content *pii-patterns.txt*)",
+      "PowerShell(Get-Content *pii-patterns.txt*)",
+      "PowerShell(cat *pii-patterns.txt*)",
+      "PowerShell(type *pii-patterns.txt*)",
+      "PowerShell(head *pii-patterns.txt*)",
+      "PowerShell(tail *pii-patterns.txt*)",
+      "PowerShell(less *pii-patterns.txt*)",
+      "Bash(*SECURITY_REVIEW_SKIP=*)",
+      "Bash(export SECURITY_REVIEW_SKIP*)",
+      "PowerShell(*SECURITY_REVIEW_SKIP*)"
+    ]
+  },
   "enabledPlugins": {
     "mattpocock-skills@mattpocock": true
   },
