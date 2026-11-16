@@ -32,8 +32,12 @@ internal sealed class CompileMsgFileListener : IGameHook
 
     public string SignatureName => "CompileMsgFile";
 
-    public void Install(IReloadedHooks hooks, nint address) =>
-        hook = hooks.CreateHook(callback, address).Activate();
+    public void Install(IReloadedHooks hooks, nint address)
+    {
+        // Stored before it goes live: the game may call it the moment it's activated.
+        hook = hooks.CreateHook(callback, address);
+        hook.Activate();
+    }
 
     [SuppressMessage("Design", "CA1031", Justification = "An exception must never cross back into the game.")]
     private uint OnCompile(nint msgSrc, int msgSrcLength, nint msgFile, int param4, byte param5)
@@ -66,8 +70,12 @@ internal sealed unsafe class GetMessageByLabelIndexListener : IGameHook
 
     public string SignatureName => "GetMessageByLabelIndex";
 
-    public void Install(IReloadedHooks hooks, nint address) =>
-        hook = hooks.CreateHook(callback, address).Activate();
+    public void Install(IReloadedHooks hooks, nint address)
+    {
+        // Stored before it goes live: the game may call it the moment it's activated.
+        hook = hooks.CreateHook(callback, address);
+        hook.Activate();
+    }
 
     [SuppressMessage("Design", "CA1031", Justification = "An exception must never cross back into the game.")]
     private nint OnLookup(int* msgId, int labelIdx, nint flags, nint configs)

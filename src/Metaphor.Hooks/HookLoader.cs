@@ -24,6 +24,9 @@ internal interface IGameHook
 /// any other way.</summary>
 internal static class HookLoader
 {
+    /// <summary>Every hook handed to the game, kept alive until the process ends. Only the loader's thread adds to it.</summary>
+    private static readonly List<IGameHook> Installed = [];
+
     private static bool IsDevBuild =>
 #if DEBUG
         true;
@@ -93,6 +96,11 @@ internal static class HookLoader
                 // As the template gets it (docs/raw-sources/reloaded-ii-shared-hooks-library-2026-11-15.md).
                 throw new InvalidOperationException("Reloaded-II gave no IReloadedHooks controller (reloaded.sharedlib.hooks)");
             }
+            // Referenced for the life of the game, before it goes live: the game calls back into the hook's managed
+            // delegate, and a collected delegate makes .NET fail-fast the whole process (seen on the first in-game
+            // run of #55's listening hooks: APPCRASH in coreclr.dll, 0x80131623, seconds after loading). Kept even if
+            // installing fails, since it may have gone live before failing.
+            Installed.Add(hook);
             try
             {
                 hook.Install(reloadedHooks!, moduleBase + (nint)decision.Rva!.Value);
