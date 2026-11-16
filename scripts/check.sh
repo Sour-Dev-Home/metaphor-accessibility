@@ -84,7 +84,7 @@ docs_stage() {
   # Left out: raw sources, which are saved copies of other people's pages linking to the original site; the code of
   # conduct, which is upstream text kept verbatim; and CLAUDE.md, which is only an import line.
   while IFS= read -r -d '' file; do files+=("$file"); done < <(
-    git ls-files -z -- '*.md' ':!:docs/raw-sources/**' ':!:CODE_OF_CONDUCT.md' ':!:CLAUDE.md'
+    git ls-files -z -- '*.md' ':!:docs/raw-sources/**' ':!:.github/CODE_OF_CONDUCT.md' ':!:CLAUDE.md'
   )
   [ "${#files[@]}" -gt 0 ] || return 0
 
@@ -219,11 +219,12 @@ prose_words() {
     tr -d '[:space:]'
 }
 
-# check_lint MARKDOWNLINT FILE...: warn on each markdownlint finding (settings in .markdownlint-cli2.jsonc).
+# check_lint MARKDOWNLINT FILE...: warn on each markdownlint finding (settings in tools/docs/.markdownlint-cli2.jsonc).
 check_lint() {
-  local markdownlint="$1" output status line
+  local markdownlint="$1" config="$root/tools/docs/.markdownlint-cli2.jsonc" output status line
   shift
-  output="$("$markdownlint" -- "$@" 2>&1)"
+  [ -f "$config" ] || die "markdownlint needs tools/docs/.markdownlint-cli2.jsonc"
+  output="$("$markdownlint" --config "$config" -- "$@" 2>&1)"
   status=$?
   [ "$status" -le 1 ] || die "markdownlint failed to run: $output"
   while IFS= read -r line; do
@@ -234,12 +235,12 @@ check_lint() {
   done <<<"$output"
 }
 
-# check_style VALE FILE...: warn on each Vale finding, such as a word from .vale/styles/Project/Filler.yml.
+# check_style VALE FILE...: warn on each Vale finding, such as a word from tools/docs/.vale/styles/Project/Filler.yml.
 check_style() {
-  local vale="$1" output status line
+  local vale="$1" config="$root/tools/docs/.vale.ini" output status line
   shift
-  [ -f "$root/.vale.ini" ] || die "Vale needs .vale.ini at the repository root"
-  output="$("$vale" --config="$root/.vale.ini" --output=line --no-exit -- "$@" 2>&1)"
+  [ -f "$config" ] || die "Vale needs tools/docs/.vale.ini"
+  output="$("$vale" --config="$config"--output=line --no-exit -- "$@" 2>&1)"
   status=$?
   [ "$status" -eq 0 ] || die "Vale failed to run: $output"
   while IFS= read -r line; do

@@ -651,8 +651,9 @@ test_commits_stage_fails_closed_on_a_bad_range() {
 # docs_repo: a new repo holding the real docs-check configs, with the installed docs tools on PATH.
 docs_repo() {
   new_repo
-  cp "$ROOT/.vale.ini" "$ROOT/.markdownlint-cli2.jsonc" .
-  cp -r "$ROOT/.vale" .
+  mkdir -p tools/docs
+  cp "$ROOT/tools/docs/.vale.ini" "$ROOT/tools/docs/.markdownlint-cli2.jsonc" tools/docs/
+  cp -r "$ROOT/tools/docs/.vale" tools/docs/
   PATH="$ROOT/.tools/bin:$ROOT/tools/docs/node_modules/.bin:$PATH"
 }
 
@@ -871,7 +872,7 @@ test_pre_push_skips_a_deleted_branch() {
   expect_absent "Metaphor.sln"
 }
 
-# The must-run security review: real commits through hooks that run the check, as .githooks does.
+# The must-run security review: real commits through hooks that run the check, as scripts/githooks does.
 
 STAMP="$ROOT/scripts/security-stamp.sh"
 HOOKS="$WORK/hooks"
