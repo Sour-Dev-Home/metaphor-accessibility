@@ -66,13 +66,15 @@ public sealed class ModEntryPoint : IMod
 #else
             MessageLog? messageLog = null;
 #endif
-            var services = HookServices.Speaking(announcer, messageLog);
+            var services = HookServices.Speaking(announcer, messageLog, folder);
             // The mod runs inside the game, so this process's exe is the game executable whose hash identifies the
             // build (seen in docs/raw-sources/mod-entry-point-first-run-2026-11-15.md). Hooks go in only on a known
             // build, through the loader (#39). Issue #21's spike scans first, so it reads the game's own bytes (#92).
+            var candidates = HookLoader.Candidates(folder);
             var status = ModStartup.CheckAndReport(
-                config.ModId, Environment.ProcessPath ?? "", folder, () => KnownGameBuilds.All, HookLoader.HookTypes().Count,
-                build => HookLoader.Install(build, modLoader, services, line => logger.WriteLine($"[{config.ModId}] {line}")),
+                config.ModId, Environment.ProcessPath ?? "", folder, () => KnownGameBuilds.All, HookLoader.Expected(candidates),
+                build => HookLoader.Install(
+                    build, candidates, modLoader, services, line => logger.WriteLine($"[{config.ModId}] {line}")),
                 build => ScanIfRequested(folder, build, config.ModId, logger));
             logger.WriteLine(
                 $"[{config.ModId}] build {ModBuild.Revision.CommitSha}{(ModBuild.Revision.HasUncommittedChanges ? "-dirty" : "")}: {status.State} on game build {status.GameBuildSha256}, hooks {status.HooksLoaded}/{status.HooksExpected}" +

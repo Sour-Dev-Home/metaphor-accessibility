@@ -61,6 +61,10 @@ StrykerOutput/
 secrets.json
 .claude/settings.local.json
 .claude/pii-patterns.txt
+# A dev run's files for the mod's folder (docs/contributors/how-to/deploy-a-dev-build.md): the first holds the
+# maintainer's typed hero name, so a copy drafted in the tree must never be committed.
+spike-player-name.txt
+opt-in-*.txt
 
 # Docs tools installed by scripts/install-docs-tools.sh.
 /.tools/

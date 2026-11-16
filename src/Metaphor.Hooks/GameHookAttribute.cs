@@ -12,4 +12,10 @@ public sealed class GameHookAttribute(params string[] gameBuilds) : Attribute
     /// <summary>A hook for development only, such as a spike's listening hook: the loader installs it in Debug builds
     /// and never in Release, which players get. It's still compiled and checked like any other hook.</summary>
     public bool DevOnly { get; init; }
+
+    /// <summary>For a risky hook, the bare name of a file that must be in the mod's folder for it to install; null for
+    /// none. Without the file the loader skips it with a log line naming the file, and doesn't count it as expected.
+    /// With it, the hook still goes through the build check and signature scan (<see cref="Metaphor.Core.HookOptIn"/>).
+    /// </summary>
+    public string? OptInFile { get; init; }
 }
