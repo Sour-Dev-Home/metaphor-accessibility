@@ -22,6 +22,8 @@
                       OutputItemType="ScannedAssembly" />
     <ProjectReference Include="..\..\src\Metaphor.Hooks\Metaphor.Hooks.csproj" ReferenceOutputAssembly="false"
                       SkipGetTargetFrameworkProperties="true" OutputItemType="ScannedAssembly" />
+    <ProjectReference Include="..\..\src\Metaphor.Features.Dialogue\Metaphor.Features.Dialogue.csproj"
+                      ReferenceOutputAssembly="false" OutputItemType="ScannedAssembly" />
   </ItemGroup>
   <Target Name="CopyScannedAssemblies" AfterTargets="ResolveProjectReferences">
     <ItemGroup>
