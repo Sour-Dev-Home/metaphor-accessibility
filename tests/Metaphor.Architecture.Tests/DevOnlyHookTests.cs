@@ -24,4 +24,26 @@ public sealed class DevOnlyHookTests
         // CI and the package are Release builds, where this asserts the switch is off.
         Assert.Equal(debugBuild, switchedOn);
     }
+
+    /// <summary>An opt-in hook (<c>OptInFile = "…"</c>) is a development-only one, and its file is named bare, so it is
+    /// looked for only in the mod's folder (the loader ignores any other name, which would leave the hook off for good).
+    /// </summary>
+    [Fact]
+    public void OptInHooksAreDevOnlyWithABareFileName()
+    {
+        var optIns = Scanned.Load(Rules.HookLayer).MainModule.Types
+            .SelectMany(type => type.CustomAttributes
+                .Where(a => a.AttributeType.FullName == "Metaphor.Hooks.GameHookAttribute")
+                .Select(a => (type.FullName, Properties: a.Properties.ToDictionary(p => p.Name, p => p.Argument.Value))))
+            .Where(hook => hook.Properties.ContainsKey("OptInFile"))
+            .ToList();
+
+        Assert.NotEmpty(optIns);
+        Assert.All(optIns, hook =>
+        {
+            Assert.True(hook.Properties.GetValueOrDefault("DevOnly") is true, $"{hook.FullName} is opt-in but not DevOnly");
+            var file = Assert.IsType<string>(hook.Properties["OptInFile"]);
+            Assert.Matches("^[a-z0-9][a-z0-9.-]*$", file);
+        });
+    }
 }

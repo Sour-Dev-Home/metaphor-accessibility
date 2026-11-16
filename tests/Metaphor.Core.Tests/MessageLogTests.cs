@@ -66,6 +66,42 @@ public sealed class MessageLogTests
     }
 
     [Fact]
+    public void RecordsASoundCueWithItsHandlesAndCaller()
+    {
+        var (log, text) = NewLog(now: 3300);
+
+        log.CueSet(cueId: 42, acb: 0x1f2e3d40, player: 0x2a00, callerRva: 0x12345, callTargetRva: 0x126438d0);
+        log.CueSet(cueId: -1, acb: 0, player: 0, callerRva: null, callTargetRva: null);
+
+        Assert.Equal(
+            $"3300 ms cue id=42 acb=0x1f2e3d40 player=0x2a00 caller=0x12345 call=0x126438d0{Environment.NewLine}" +
+            $"3300 ms cue id=-1 acb=0x0 player=0x0 caller=(unknown) call=(unknown){Environment.NewLine}",
+            text.ToString());
+    }
+
+    [Fact]
+    public void RecordsAResolvedMessage()
+    {
+        var (log, text) = NewLog(now: 77);
+
+        log.Resolved(function: "MessageSerialByLabel", arguments: "text=\"label_1\" serial=3");
+
+        Assert.Equal(
+            $"77 ms resolve via=MessageSerialByLabel text=\"label_1\" serial=3{Environment.NewLine}", text.ToString());
+    }
+
+    [Fact]
+    public void RecordsAPlayerNameSightingWithoutItsText()
+    {
+        var (log, text) = NewLog(now: 5);
+
+        log.PlayerNameSeen("CreateMsgFromString", new PlayerNameCheck("Ardent").Sight("Ardent", "heap"));
+
+        Assert.Equal(
+            $"5 ms player-name via=CreateMsgFromString bytes=6 match=exact at=heap{Environment.NewLine}", text.ToString());
+    }
+
+    [Fact]
     public void RecordsALineTheGameRequestedByName()
     {
         var (log, text) = NewLog(now: 4200);
@@ -74,6 +110,38 @@ public sealed class MessageLogTests
 
         Assert.Equal(
             $"4200 ms request via=MsgRequestByName kind=0 text=\"MES_a\"{Environment.NewLine}", text.ToString());
+    }
+
+    [Fact]
+    public void RecordsAChoiceWithBothLabelsAndTheOtherArguments()
+    {
+        var (log, text) = NewLog(now: 4200);
+
+        log.SelectRequested(kind: 0, first: "MES_a", second: null, fourth: -1, options: "options=00+00", sixth: 0);
+
+        Assert.Equal(
+            $"4200 ms select kind=0 first=\"MES_a\" second=(unreadable) fourth=-1 options=00+00 sixth=0x0000{Environment.NewLine}",
+            text.ToString());
+    }
+
+    [Fact]
+    public void ASelectedLabelStaysOnOneLine()
+    {
+        var (log, text) = NewLog(now: 1);
+
+        log.SelectRequested(0, "a\"b\nc", "", 0, "", 0);
+
+        Assert.StartsWith("1 ms select kind=0 first=\"a\\x22b\\x0ac\" second=\"\" ", text.ToString(), StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void RecordsTheSelectedId()
+    {
+        var (log, text) = NewLog(now: 7);
+
+        log.SelectedId(-1);
+
+        Assert.Equal($"7 ms selected id=-1{Environment.NewLine}", text.ToString());
     }
 
     [Fact]

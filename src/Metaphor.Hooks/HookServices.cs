@@ -18,10 +18,13 @@ internal sealed record HookServices
     /// couldn't be opened.</summary>
     public required MessageLog? Log { get; init; }
 
-    /// <summary>Services whose requested dialogue lines are spoken through <paramref name="announcer"/>. The library
-    /// hears each compiled file first, and speech each requested line first; the log, when there is one, hears both
-    /// last.</summary>
-    public static HookServices Speaking(IAnnouncer announcer, MessageLog? log)
+    /// <summary>The mod's folder, outside the repository, where a development run leaves files for its hooks.</summary>
+    public required string ModFolder { get; init; }
+
+    /// <summary>Services for the mod in <paramref name="modFolder"/> whose requested dialogue lines are spoken through
+    /// <paramref name="announcer"/>. The library hears each compiled file first, and speech each requested line first;
+    /// the log, when there is one, hears both last.</summary>
+    public static HookServices Speaking(IAnnouncer announcer, MessageLog? log, string modFolder)
     {
         var library = new MessageLibrary();
         var events = new MessageEvents();
@@ -33,6 +36,6 @@ internal sealed record HookServices
             events.ObserveFiles(log);
             events.ObserveLines(log);
         }
-        return new() { Messages = events, Log = log };
+        return new() { Messages = events, Log = log, ModFolder = modFolder };
     }
 }
