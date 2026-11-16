@@ -14,7 +14,7 @@ public interface IMessageLookup
 /// <summary>The messages of every message file the game has compiled, by label (#56). The game shows a line by its
 /// label alone (docs/raw-sources/msg-request-run-2026-11-16.md), and its text is in a message file compiled earlier.
 /// Safe to use from several threads.</summary>
-public sealed class MessageLibrary : IMessageLookup
+public sealed class MessageLibrary : IMessageLookup, IMessageFileObserver
 {
     private const string SpeakerStart = "<NS>";
     private const string SpeakerEnd = "<NE>";
@@ -35,6 +35,13 @@ public sealed class MessageLibrary : IMessageLookup
                 byLabel[message.Label] = message;
             }
         }
+    }
+
+    /// <summary>Adds the messages of a file the game compiled (#86).</summary>
+    public void Observe(MessageFileCompiled file)
+    {
+        ArgumentNullException.ThrowIfNull(file);
+        Compiled(file.Source);
     }
 
     /// <summary>The message with this label, or null when no compiled file has one.</summary>

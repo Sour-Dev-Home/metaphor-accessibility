@@ -1,33 +1,33 @@
 using System.Diagnostics.CodeAnalysis;
 using Metaphor.Core.Messages;
-using Metaphor.Features.Dialogue;
 using Reloaded.Hooks.Definitions;
 // Both packages name an IReloadedHooks; the loader's controller is this one (as the template aliases it).
 using IReloadedHooks = Reloaded.Hooks.ReloadedII.Interfaces.IReloadedHooks;
 
 namespace Metaphor.Hooks;
 
-// Spoken story dialogue (#52, #56): one hook keeps each compiled message file's messages (MessageLibrary says why),
-// the other speaks the line the game asks for. Both pass every call through unchanged, and share HookServices'
-// message library.
+// Message events (#52, #56, #86): one hook per game function decodes each call once and hands the event to
+// HookServices.Messages, whose observers keep compiled messages, speak requested lines and, in Debug builds, log both.
+// Both hooks pass every call through unchanged.
 
-/// <summary>Keeps the messages of each message file the game compiles. Signature and delegate shape are MF.Toolkit's
+/// <summary>Reports each message file the game compiles. Signature and delegate shape are MF.Toolkit's
 /// (docs/raw-sources/game-text-hooks-community-2026-11-15.md), checked on this build
 /// (docs/raw-sources/mf-toolkit-message-signatures-2026-11-15.md).</summary>
 [GameHook(GameBuilds.Steam18330018)]
 internal sealed class MessageFileHook : IGameHook
 {
-    // MF.Toolkit MessageService.cs line 37, pointer-sized (rule 9); only the length's low 32 bits are read.
+    // MF.Toolkit MessageService.cs line 37, which declares the length and param4 as int, param5 as byte and the return
+    // as uint. Pointer-sized here so the call passes through unchanged (rule 9); only the low 32 bits are read.
     private delegate nint CompileMsgFile(nint msgSrc, nint msgSrcLength, nint msgFile, nint param4, nint param5);
 
     private readonly CompileMsgFile callback;
-    private readonly MessageLibrary messages;
+    private readonly MessageEvents events;
     private IHook<CompileMsgFile>? hook;
 
     public MessageFileHook(HookServices services)
     {
         ArgumentNullException.ThrowIfNull(services);
-        messages = services.Messages;
+        events = services.Messages;
         callback = OnCompile;
     }
 
@@ -45,11 +45,12 @@ internal sealed class MessageFileHook : IGameHook
     {
         try
         {
-            // The source read as UTF-8 gave readable English on this build
-            // (docs/raw-sources/message-listening-run-2026-11-16.md).
+            // MF.Toolkit reads the path as ANSI; the source read as UTF-8 gave readable English on this build
+            // (docs/raw-sources/message-listening-run-2026-11-16.md). A file whose source can't be read is skipped.
             if (ModuleMemoryReader.ReadUtf8(msgSrc, (int)msgSrcLength) is { } source)
             {
-                messages.Compiled(source);
+                events.Compiled(new MessageFileCompiled(
+                    ModuleMemoryReader.ReadAnsiString(msgFile) ?? "(unreadable path)", (int)param4, source));
             }
         }
         catch (Exception)
@@ -59,7 +60,7 @@ internal sealed class MessageFileHook : IGameHook
     }
 }
 
-/// <summary>Speaks each line the game asks for by label. The function, its arguments and the name (ours) are in
+/// <summary>Reports each line the game asks for by label. The function, its arguments and the name (ours) are in
 /// docs/raw-sources/msg-request-functions-2026-11-16.md; that its pointer is the label is from
 /// docs/raw-sources/msg-request-run-2026-11-16.md.</summary>
 [GameHook(GameBuilds.Steam18330018)]
@@ -68,13 +69,13 @@ internal sealed class DialogueLineHook : IGameHook
     private delegate nint Request(nint kind, nint label, nint options);
 
     private readonly Request callback;
-    private readonly DialogueLines lines;
+    private readonly MessageEvents events;
     private IHook<Request>? hook;
 
     public DialogueLineHook(HookServices services)
     {
         ArgumentNullException.ThrowIfNull(services);
-        lines = services.Lines;
+        events = services.Messages;
         callback = OnRequest;
     }
 
@@ -92,11 +93,10 @@ internal sealed class DialogueLineHook : IGameHook
     {
         try
         {
-            // Only kind 0, the kind a spoken event line was seen with. Kinds 1 and 2 come from the system message,
-            // subtitle and narration wrappers (msg-request-functions-2026-11-16.md); what they show is unverified.
-            if ((int)kind == 0 && ModuleMemoryReader.ReadAnsiString(label) is { } name)
+            // A label that can't be read is skipped.
+            if (ModuleMemoryReader.ReadAnsiString(label) is { } name)
             {
-                lines.Requested(name);
+                events.Requested(new LineRequested((int)kind, name));
             }
         }
         catch (Exception)

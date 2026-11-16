@@ -6,9 +6,9 @@ using IReloadedHooks = Reloaded.Hooks.ReloadedII.Interfaces.IReloadedHooks;
 
 namespace Metaphor.Hooks;
 
-// Issue #55's spike, last step: development-only hooks on the five inner functions every MsgRequest… script function
-// calls, to see which one a spoken event line goes through and what it is passed. They pass every call through
-// unchanged. The functions, their arguments and the names (ours) are in
+// Issue #55's spike, last step: development-only hooks on the inner functions every MsgRequest… script function calls,
+// to see which one a spoken event line goes through and what it is passed. They pass every call through unchanged.
+// The by-pointer request (MsgRequestByName) is logged by DialogueLineHook's log observer (#86). The functions, their arguments and the names (ours) are in
 // docs/raw-sources/msg-request-functions-2026-11-16.md.
 //
 // Delegate shapes: every integer or pointer is pointer-sized, which is right whichever width the game reads. The
@@ -34,12 +34,7 @@ internal static class MsgRequestListening
 
     /// <summary>The pointer argument, as a C string if it reads as one. That it is a string is unverified.</summary>
     public static string Text(nint pointer) =>
-        ModuleMemoryReader.ReadAnsiString(pointer) is { } text ? $"text=\"{Escaped(text)}\"" : "text=(unreadable)";
-
-    /// <summary>Whatever the pointer hit stays on one log line: control characters, quotes and backslashes become
-    /// <c>\xNN</c>.</summary>
-    private static string Escaped(string text) => string.Concat(text.Select(c =>
-        c < ' ' || c is '"' or '\\' ? string.Create(CultureInfo.InvariantCulture, $"\\x{(int)c:x2}") : c.ToString()));
+        ModuleMemoryReader.ReadAnsiString(pointer) is { } text ? $"text=\"{MessageLog.Escaped(text)}\"" : "text=(unreadable)";
 
     /// <summary>The 12-byte options block the script wrappers build, as hex.</summary>
     public static string Options(nint options) =>
@@ -58,41 +53,6 @@ internal static class MsgRequestListening
 
     public static string Numbers(nint first, nint second) =>
         string.Create(CultureInfo.InvariantCulture, $"a={(int)first} b={(int)second}");
-}
-
-/// <summary>A request by pointer: what <c>MsgRequest</c>, <c>MsgRequestSystemMessage</c>, <c>MsgRequestSubtitles</c> and
-/// <c>MsgRequestNarration</c> call.</summary>
-[GameHook(GameBuilds.Steam18330018, DevOnly = true)]
-internal sealed class MsgRequestByNameListener : IGameHook
-{
-    private delegate nint Request(nint kind, nint text, nint options);
-
-    private readonly Request callback;
-    private readonly MessageLog? log;
-    private IHook<Request>? hook;
-
-    public MsgRequestByNameListener(HookServices services)
-    {
-        ArgumentNullException.ThrowIfNull(services);
-        log = services.Log;
-        callback = OnRequest;
-    }
-
-    public string SignatureName => "MsgRequestByName";
-
-    public void Install(IReloadedHooks hooks, nint address, IReadOnlyDictionary<string, nint> calls)
-    {
-        // Stored before it goes live: the game may call it the moment it's activated.
-        hook = hooks.CreateHook(callback, address);
-        hook.Activate();
-    }
-
-    private nint OnRequest(nint kind, nint text, nint options)
-    {
-        MsgRequestListening.Log(log, SignatureName, () =>
-            $"{MsgRequestListening.Kind(kind)} {MsgRequestListening.Text(text)} {MsgRequestListening.Options(options)}");
-        return hook!.OriginalFunction(kind, text, options);
-    }
 }
 
 /// <summary>The byte-identical copy of the by-pointer request; who calls it is what this hook is here to find out.</summary>

@@ -53,8 +53,10 @@ A class in `src/Metaphor.Hooks` ([example](../../../src/Metaphor.Hooks/MessageLi
   the original function unless changing behaviour is the point.
 - Keep the logic in a plain library (`Metaphor.Core` or a feature project) and unit-test it there with fakes; the hook
   only adapts.
+- One hook per game function (rule 13). If the function already has a hook, add an observer behind it
+  ([`MessageEvents`](../../../src/Metaphor.Core/Messages/MessageEvents.cs)) instead of a second hook.
 
-`scripts/check.sh full` must pass. Its [architecture rules](../../coding-standards.md#architecture-rules) 6 and 8–12
+`scripts/check.sh full` must pass. Its [architecture rules](../../coding-standards.md#architecture-rules) 6 and 8–13
 check the points above.
 
 ## 5. Prove it in the game

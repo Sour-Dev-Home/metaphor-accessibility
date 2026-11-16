@@ -11,24 +11,28 @@ namespace Metaphor.Hooks;
 /// architecture rule 8 flags in the hook layer.</remarks>
 internal sealed record HookServices
 {
-    /// <summary>Every message the game has compiled since the mod loaded.</summary>
-    public required MessageLibrary Messages { get; init; }
+    /// <summary>Where the message hooks report what the game compiled and asked for (#86).</summary>
+    public required MessageEvents Messages { get; init; }
 
-    /// <summary>Where requested dialogue lines are spoken.</summary>
-    public required DialogueLines Lines { get; init; }
-
-    /// <summary>#55's message log: null in Release builds, or when the file couldn't be opened.</summary>
+    /// <summary>#55's message log, for the listening hooks that remain: null in Release builds, or when the file
+    /// couldn't be opened.</summary>
     public required MessageLog? Log { get; init; }
 
-    /// <summary>Services whose dialogue lines are spoken through <paramref name="announcer"/>.</summary>
+    /// <summary>Services whose requested dialogue lines are spoken through <paramref name="announcer"/>. The library
+    /// hears each compiled file first, and speech each requested line first; the log, when there is one, hears both
+    /// last.</summary>
     public static HookServices Speaking(IAnnouncer announcer, MessageLog? log)
     {
-        var messages = new MessageLibrary();
-        return new()
+        var library = new MessageLibrary();
+        var events = new MessageEvents();
+        events.ObserveFiles(library);
+        events.ObserveLines(
+            new DialogueLines(library, new DialogueAnnouncer(announcer, new TextCleaner(TextCleanerRules.None))));
+        if (log is not null)
         {
-            Messages = messages,
-            Lines = new DialogueLines(messages, new DialogueAnnouncer(announcer, new TextCleaner(TextCleanerRules.None))),
-            Log = log,
-        };
+            events.ObserveFiles(log);
+            events.ObserveLines(log);
+        }
+        return new() { Messages = events, Log = log };
     }
 }

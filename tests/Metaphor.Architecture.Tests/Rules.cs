@@ -615,6 +615,41 @@ internal static class Rules
         return [.. fields, .. setters, .. constructors];
     }
 
+    /// <summary>
+    /// #86, rule 13: one hook per game function. No two <c>[GameHook]</c> types return the same
+    /// <c>SignatureName</c>, read from the constant string its getter returns; a getter that returns anything but a
+    /// constant can't be checked, so it is a violation too.
+    /// </summary>
+    public static IReadOnlyList<string> OneHookPerFunction(AssemblyDefinition assembly)
+    {
+        var name = assembly.Name.Name;
+        var hooks = Types(assembly)
+            .Where(type => type.CustomAttributes.Any(attribute => attribute.AttributeType.FullName == GameHookAttribute))
+            .Select(type => (Type: type.FullName, Signature: ConstantSignatureName(type)))
+            .ToList();
+        var notConstant = hooks
+            .Where(hook => hook.Signature is null)
+            .Select(hook => $"{name} hook {hook.Type} has no constant SignatureName (rule 13)");
+        var shared = hooks
+            .Where(hook => hook.Signature is not null)
+            .GroupBy(hook => hook.Signature, StringComparer.Ordinal)
+            .Where(group => group.Count() > 1)
+            .Select(group => $"{name} hooks {string.Join(", ", group.Select(hook => hook.Type).Order(StringComparer.Ordinal))} all hook {group.Key} (rule 13)");
+        return [.. notConstant, .. shared];
+    }
+
+    /// <summary>The string a hook's <c>SignatureName</c> getter returns, when its body is just <c>ldstr; ret</c>.</summary>
+    private static string? ConstantSignatureName(TypeDefinition type)
+    {
+        var getter = type.Properties.FirstOrDefault(property => property.Name == "SignatureName")?.GetMethod;
+        var code = getter is { HasBody: true }
+            ? getter.Body.Instructions.Where(i => i.OpCode.Code != Mono.Cecil.Cil.Code.Nop).ToList()
+            : [];
+        return code is [{ OpCode.Code: Mono.Cecil.Cil.Code.Ldstr, Operand: string value }, { OpCode.Code: Mono.Cecil.Cil.Code.Ret }]
+            ? value
+            : null;
+    }
+
     private static IEnumerable<TypeDefinition> Types(AssemblyDefinition assembly) =>
         assembly.Modules.SelectMany(module => module.GetTypes());
 
