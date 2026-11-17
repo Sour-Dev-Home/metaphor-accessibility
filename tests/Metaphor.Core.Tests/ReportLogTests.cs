@@ -205,14 +205,20 @@ public sealed class ReportLogTests
         using var stalled = new StalledWriter();
         var log = new ReportLog(stalled, () => 7, []);
 
-        for (var i = 0; i < 20_000; i++)
+        // The writer takes every queued line in one batch, so flood only once it's stuck on the first line: then the
+        // count is exact instead of depending on when its thread started.
+        log.Note("x");
+        Assert.True(stalled.Stuck.Wait(TimeSpan.FromSeconds(5)), "the writer never started");
+        for (var i = 1; i < 20_000; i++)
         {
             log.Note("x");
         }
 
         stalled.Release();
         Assert.True(log.WaitForWrites(TimeSpan.FromSeconds(5)));
-        Assert.Matches(@"7 ms x\r?\n[0-9]+ ms \(1[0-9]{4} lines dropped: the log fell behind\)", stalled.ToString());
+        var lines = stalled.ToString().Split(Environment.NewLine, StringSplitOptions.RemoveEmptyEntries);
+        Assert.Equal(1 + 4096 + 1, lines.Length);
+        Assert.Equal("7 ms (15903 lines dropped: the log fell behind)", lines[^1]);
     }
 
     /// <summary>The writer writes as lines come, not only when asked or at exit, so a native crash, which runs no exit
@@ -320,10 +326,14 @@ public sealed class ReportLogTests
     {
         private readonly ManualResetEventSlim released = new();
 
+        /// <summary>Set once the log's writer is inside a write, stuck until <see cref="Release"/>.</summary>
+        public ManualResetEventSlim Stuck { get; } = new();
+
         public void Release() => released.Set();
 
         public override void Write(string? value)
         {
+            Stuck.Set();
             released.Wait(TimeSpan.FromSeconds(10));
             base.Write(value);
         }
@@ -333,6 +343,7 @@ public sealed class ReportLogTests
             if (disposing)
             {
                 released.Dispose();
+                Stuck.Dispose();
             }
 
             base.Dispose(disposing);
