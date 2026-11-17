@@ -80,18 +80,6 @@ public sealed class MessageLogTests
     }
 
     [Fact]
-    public void RecordsACursorInputWithItsCaller()
-    {
-        var (log, text) = NewLog(now: 12);
-
-        log.CursorInputHandled(new CursorInput(0x2a00, 0x22045e8, 0x15, 1, 0, 3, 0x20, new CallerTrace([(0x5000, null)], "scan", 4)));
-
-        Assert.Equal(
-            $"12 ms cursor mgr=0x2a00 class=0x22045e8 cmd=0x15 result=1 index=3 top=0 row=3 flags=0x20 caller=0x5000 call=(unknown) via=scan frames=4{Environment.NewLine}",
-            text.ToString());
-    }
-
-    [Fact]
     public void RecordsADrawnPaneWithTheTextFoundOrNone()
     {
         var (log, text) = NewLog(now: 5);
@@ -105,6 +93,22 @@ public sealed class MessageLogTests
             Environment.NewLine +
             "5 ms pane at=0x40 class=0x2205688 x=12.5 y=-3 f38=1 i3c=0x0000007f colour=0x00ff00ff00ff00ff(unset) n08=0x1 flags=0x110 elem=0x80 text=(none)" +
             Environment.NewLine,
+            text.ToString());
+    }
+
+    [Fact]
+    public void RecordsAMenuCursorInputAsNumbers()
+    {
+        var (log, text) = NewLog(now: 32257);
+
+        log.Observe(new Metaphor.Core.Menus.CursorInput(
+            Manager: 0xa0, ClassRva: 0x100, Command: 0x16, Result: 22, Top: 1, Row: 2, Flags: 0x46));
+        log.Observe(new Metaphor.Core.Menus.CursorInput(
+            Manager: 0xa0, ClassRva: null, Command: 0x1, Result: 1, Top: 0, Row: 0, Flags: 0x66));
+
+        Assert.Equal(
+            $"32257 ms cursor mgr=0xa0 class=0x100 cmd=0x16 result=22 index=3 top=1 row=2 flags=0x46{Environment.NewLine}" +
+            $"32257 ms cursor mgr=0xa0 class=? cmd=0x1 result=1 index=0 top=0 row=0 flags=0x66{Environment.NewLine}",
             text.ToString());
     }
 

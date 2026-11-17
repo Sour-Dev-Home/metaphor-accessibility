@@ -8,20 +8,6 @@ namespace Metaphor.Core;
 // the game. The field offsets are our reading of the exe on one build and are leads until a run shows them
 // (docs/raw-sources/ui-focus-candidates-2026-11-16.md).
 
-/// <summary>One input a menu's cursor manager handled (#93): the manager, its class (its vtable as a module offset),
-/// the command it was given and what it returned, the cursor after it ran (<c>top</c> at <c>+0x60</c> and
-/// <c>row</c> at <c>+0x64</c>, whose sum the class's index getter returns), its flags at <c>+0xAC</c>, and who called.
-/// Numbers only, no game text.</summary>
-public sealed record CursorInput(
-    long Manager, long? ClassRva, int? Command, int Result, int? Top, int? Row, int? Flags, CallerTrace Caller)
-{
-    /// <summary>The log's form: <c>mgr=0x… class=0x… cmd=0x14 result=1 index=3 top=0 row=3 flags=0x… caller=…</c>.
-    /// Unreadable values are <c>?</c>.</summary>
-    public override string ToString() => string.Create(
-        CultureInfo.InvariantCulture,
-        $"mgr=0x{Manager:x} class={UiFocusText.Hex(ClassRva)} cmd={UiFocusText.Hex(Command)} result={Result} index={(Top + Row)?.ToString(CultureInfo.InvariantCulture) ?? "?"} top={UiFocusText.Number(Top)} row={UiFocusText.Number(Row)} flags={UiFocusText.Hex(Flags)} {Caller}");
-}
-
 /// <summary>A UI text pane's draw state (#93), from the first <see cref="Length"/> bytes of the pane: its class (vtable),
 /// two 32-bit fields at <c>+0x08</c> and <c>+0x0C</c> (flags, read by the draw), the floats at <c>+0x30</c>,
 /// <c>+0x34</c>, <c>+0x38</c> and the 32-bit value at <c>+0x3C</c> the draw passes on (position, then a float and an

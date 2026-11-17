@@ -1,5 +1,6 @@
 using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
+using Metaphor.Core.Menus;
 using Metaphor.Core.Messages;
 
 namespace Metaphor.Core;
@@ -9,7 +10,7 @@ namespace Metaphor.Core;
 /// <see cref="MessageLog"/> but keeps only their numbers and labels. Safe to call from any game thread, and never
 /// throws.</summary>
 public sealed class ReportLog(TextWriter writer, Func<long> millisecondsSinceStart, IEnumerable<string> redact)
-    : IMessageFileObserver, ILineRequestObserver, IChoiceRequestObserver
+    : IMessageFileObserver, ILineRequestObserver, IChoiceRequestObserver, ICursorObserver
 {
     /// <summary>The log's file name in the mod's folder.</summary>
     public const string FileName = "report-log.txt";
@@ -31,6 +32,11 @@ public sealed class ReportLog(TextWriter writer, Func<long> millisecondsSinceSta
     /// <summary>A choice the game opened: its kind and the labels of its prompt and options, not their text.</summary>
     public void Observe(ChoiceRequested choice) => Write(() =>
         Line($"select kind={choice.Kind} prompt={Label(choice.PromptLabel)} choice={Label(choice.ChoiceLabel)}"));
+
+    /// <summary>An input a menu's cursor manager handled (#94), as <see cref="MessageLog"/> records it: numbers only,
+    /// no game text.</summary>
+    public void Observe(CursorInput input) => Write(() => Line(
+        $"cursor mgr=0x{input.Manager:x} class={(input.ClassRva is { } rva ? $"0x{rva:x}" : "?")} cmd=0x{input.Command:x} result={input.Result} index={input.Index} top={input.Top} row={input.Row} flags=0x{input.Flags:x}"));
 
     /// <summary>One line from the mod itself, such as the startup status with its hook counts, or an error. Each
     /// string the log was made to redact (the mod's folder, the player's user name) is replaced first.</summary>
