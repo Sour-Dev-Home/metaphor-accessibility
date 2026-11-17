@@ -7,9 +7,10 @@ using Metaphor.Core.Announcements;
 
 namespace Metaphor.Hooks;
 
-/// <summary>The announcer that speaks through Prism (ADR 0005). It loads the pinned <c>prism.dll</c> by full path from
-/// the mod's folder after checking its hash, and creates a backend only from <see cref="Backends"/>, in that order.
-/// Function signatures and IDs are from Prism v0.18.3's <c>include/prism.h</c>.</summary>
+/// <summary>The announcer that speaks through Prism (ADR 0005), and sends the same text to braille where the backend
+/// supports it (#115, <see cref="OutputRoute"/>). It loads the pinned <c>prism.dll</c> by full path from the mod's
+/// folder after checking its hash, and creates a backend only from <see cref="Backends"/>, in that order. Function
+/// signatures and IDs are from Prism v0.18.3's <c>include/prism.h</c>.</summary>
 internal sealed unsafe class PrismSpeech : IAnnouncer
 {
     /// <summary>The only backends the mod creates, tried in order: screen readers first, which fail to initialise
@@ -44,14 +45,21 @@ internal sealed unsafe class PrismSpeech : IAnnouncer
 
     private readonly object gate = new();
     private readonly delegate* unmanaged[Cdecl]<nint, byte*, byte, int> speak;
+    private readonly delegate* unmanaged[Cdecl]<nint, byte*, byte, int> output;
+    private readonly OutputRoute route = new();
     private readonly nint backend;
 
     /// <summary>Which backend is speaking: one of <see cref="Backends"/>.</summary>
     public string BackendName { get; }
 
-    private PrismSpeech(delegate* unmanaged[Cdecl]<nint, byte*, byte, int> speak, nint backend, string backendName)
+    private PrismSpeech(
+        delegate* unmanaged[Cdecl]<nint, byte*, byte, int> speak,
+        delegate* unmanaged[Cdecl]<nint, byte*, byte, int> output,
+        nint backend,
+        string backendName)
     {
         this.speak = speak;
+        this.output = output;
         this.backend = backend;
         BackendName = backendName;
     }
@@ -86,6 +94,7 @@ internal sealed unsafe class PrismSpeech : IAnnouncer
             var initialize = (delegate* unmanaged[Cdecl]<nint, int>)NativeLibrary.GetExport(library, "prism_backend_initialize");
             var free = (delegate* unmanaged[Cdecl]<nint, void>)NativeLibrary.GetExport(library, "prism_backend_free");
             var speak = (delegate* unmanaged[Cdecl]<nint, byte*, byte, int>)NativeLibrary.GetExport(library, "prism_backend_speak");
+            var output = (delegate* unmanaged[Cdecl]<nint, byte*, byte, int>)NativeLibrary.GetExport(library, "prism_backend_output");
 
             var config = configInit();
             if (config.Version != ConfigVersion)
@@ -110,7 +119,7 @@ internal sealed unsafe class PrismSpeech : IAnnouncer
                 }
                 if (initialize(candidate) == 0) // PRISM_OK
                 {
-                    return (new PrismSpeech(speak, candidate, name), null);
+                    return (new PrismSpeech(speak, output, candidate, name), null);
                 }
                 free(candidate);
             }
@@ -128,13 +137,18 @@ internal sealed unsafe class PrismSpeech : IAnnouncer
         try
         {
             ArgumentNullException.ThrowIfNull(announcement);
-            // prism_backend_speak takes a NUL-terminated UTF-8 string.
+            // prism_backend_output and _speak take a NUL-terminated UTF-8 string. Braille gets the spoken text (#115).
             var text = Encoding.UTF8.GetBytes(announcement.Text + '\0');
+            var interrupt = announcement.Interrupt ? (byte)1 : (byte)0;
             lock (gate)
             {
                 fixed (byte* bytes = text)
                 {
-                    _ = speak(backend, bytes, announcement.Interrupt ? (byte)1 : (byte)0);
+                    if (route.TriesOutput && !route.SpeakInstead(output(backend, bytes, interrupt)))
+                    {
+                        return;
+                    }
+                    _ = speak(backend, bytes, interrupt);
                 }
             }
         }

@@ -29,6 +29,9 @@ This is a public repository.
 6. **No personal information or local paths in committed files.** That means no real name, email or phone number, and no
    absolute path like `C:\Users\...`. Use paths relative to the repository or environment variables. The checks scan
    for both, with your private patterns set up as in `README.md#checks`.
+7. **Credit what you borrow.** Any idea or code taken from another project is credited by name, repository, licence,
+   commit and file, in a code comment where it's used and in `CREDITS.md`. Copied code keeps its licence notice and
+   must be under a GPL-3.0-compatible licence.
 
 ## Layout
 
@@ -36,18 +39,18 @@ This is a public repository.
 - `docs/findings/`: one note per finding, from the template in its README.
 - `docs/players/` and `docs/contributors/`: docs by audience, then by Diátaxis type (`docs/README.md`).
 - `docs/coding-standards.md`: the judgement and architecture rules reviews check.
-- `CONTRIBUTING.md`: setup and the change workflow. `README.md#checks`: the check command's stages.
+- `.github/CONTRIBUTING.md`: setup and the change workflow. `README.md#checks`: the check command's stages.
 - This file holds every rule agents follow; `CLAUDE.md` only imports it. Put new rules here. Agent definitions
   (`.claude/agents/`) and skill settings (`docs/agents/`) live where their tools look for them.
 
 ## Claude Code setup
 
 This project runs with its own config directory, so the owner's other projects' settings, agents and plugins don't load
-here. Start it with `.\claude.ps1` from the repository root, not `claude`. The only plugin is Matt Pocock's skills
+here. Start it with `.\scripts\claude.ps1` from the repository root, not `claude`. The only plugin is Matt Pocock's skills
 (`mattpocock-skills`). The one custom agent is `security-reviewer` (`.claude/agents/`): run it before a release, and on
 staged changes before any commit that touches hooking, injection, loading, install or update code. For the hook layer
 and its deploy scripts the pre-commit hook enforces this through the reviewer's stamp, and CI checks the trailer
-([`CONTRIBUTING.md`](CONTRIBUTING.md#security-review-and-deny-rules)). Never set `SECURITY_REVIEW_SKIP`.
+([`CONTRIBUTING.md`](.github/CONTRIBUTING.md#security-review-and-deny-rules)). Never set `SECURITY_REVIEW_SKIP`.
 
 ## Agent skills
 

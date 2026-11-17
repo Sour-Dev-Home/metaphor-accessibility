@@ -14,7 +14,7 @@ public sealed class DialogueLinesTests
     private readonly MessageLibrary messages = new();
 
     private DialogueLines Lines() =>
-        new(messages, new DialogueAnnouncer(announcer, new TextCleaner(TextCleanerRules.None)));
+        new(messages, new DialogueAnnouncer(announcer, new TextCleaner(TextCleanerRules.None), new DialogueHistory()));
 
     [Fact]
     public void ARequestedLineIsSpokenWithItsSpeaker()

@@ -651,8 +651,9 @@ test_commits_stage_fails_closed_on_a_bad_range() {
 # docs_repo: a new repo holding the real docs-check configs, with the installed docs tools on PATH.
 docs_repo() {
   new_repo
-  cp "$ROOT/.vale.ini" "$ROOT/.markdownlint-cli2.jsonc" .
-  cp -r "$ROOT/.vale" .
+  mkdir -p tools/docs
+  cp "$ROOT/tools/docs/.vale.ini" "$ROOT/tools/docs/.markdownlint-cli2.jsonc" tools/docs/
+  cp -r "$ROOT/tools/docs/.vale" tools/docs/
   PATH="$ROOT/.tools/bin:$ROOT/tools/docs/node_modules/.bin:$PATH"
 }
 
@@ -871,7 +872,7 @@ test_pre_push_skips_a_deleted_branch() {
   expect_absent "Metaphor.sln"
 }
 
-# The must-run security review: real commits through hooks that run the check, as .githooks does.
+# The must-run security review: real commits through hooks that run the check, as scripts/githooks does.
 
 STAMP="$ROOT/scripts/security-stamp.sh"
 HOOKS="$WORK/hooks"
@@ -1093,6 +1094,34 @@ test_outside_pr_fails_closed_when_the_timeline_cannot_be_read() {
   outside_repo
   FAKE_GH_FAIL=1 run_pr CONTRIBUTOR
   expect 2 "could not read the timeline of PR #7"
+}
+
+test_outside_pr_merge_commit_cannot_hide_a_scope_change() {
+  review_repo docs/notes.txt
+  git commit -q --no-verify -m "docs: notes"
+  git checkout -q -b upstream HEAD~1
+  stage_file readme.txt
+  git commit -q --no-verify -m "docs: upstream"
+  base="$(git rev-parse HEAD)"
+  git checkout -q -
+  git merge -q --no-ff --no-commit upstream > /dev/null
+  stage_file src/Metaphor.Hooks/Hooks/Speech.ps1 # changed inside the merge commit only
+  git commit -q --no-verify -m "Merge upstream"
+  TIMELINE=""
+  run_pr CONTRIBUTOR
+  expect 1 "add the security-reviewed label"
+}
+
+test_outside_pr_gate_runs_from_a_copy_outside_the_repository() {
+  local gate="$WORK/base-scripts" script
+  outside_repo
+  mkdir -p "$gate"
+  for script in check.sh security-stamp.sh stage-timing.sh; do # what CI copies from the base branch
+    cp "$(dirname "$CHECK")/$script" "$gate/$script"
+  done
+  TIMELINE=""
+  CHECK="$gate/check.sh" run_pr CONTRIBUTOR
+  expect 1 "add the security-reviewed label"
 }
 
 test_outside_pr_still_checks_commit_messages() {

@@ -69,7 +69,7 @@
     "name": "MsgRequestSelectByName",
     "pattern": "48 8B C4 48 89 58 08 48 89 70 10 48 89 78 18 55 41 54 41 55 41 56 41 57 48 8D A8 38 FF FF FF 48 81 EC A0 01 00 00 C5 F8 29 70 C8 C5 F8 29 78 B8 41 8B F9 49 8B F0 4C 8B F2 44 8B F9",
     "gameBuilds": ["548ddc955c176867f062c44f94c03dd9ac33caefb278a5ac388e792aedf09504"],
-    "evidence": "Our reading of the exe: what MsgRequestSelect calls (docs/raw-sources/msg-select-functions-2026-11-16.md); one match on disk, not yet checked in memory"
+    "evidence": "Our reading of the exe: what MsgRequestSelect calls (docs/raw-sources/msg-select-functions-2026-11-16.md); one match on disk and in memory at the disk address (docs/raw-sources/spike-session-1-2026-11-16.md)"
   },
   {
     "name": "MsgSelectedId",
@@ -106,5 +106,29 @@
     "pattern": "40 53 48 83 EC 30 0F B6 01 48 8D 54 24 20 48 8B 1D ?? ?? ?? ?? 88 44 24 20 0F B6 41 01 88 44 24 21 0F B6 41 02 88 44 24 22",
     "gameBuilds": ["548ddc955c176867f062c44f94c03dd9ac33caefb278a5ac388e792aedf09504"],
     "evidence": "Our reading of the exe (docs/raw-sources/name-lookup-candidates-2026-11-16.md); one match on disk; not yet checked in memory"
+  },
+  {
+    "name": "PadRead",
+    "pattern": "48 89 5C 24 20 57 48 83 EC 40 48 63 D9 48 8B FA C5 F9 EF C0 8B CB 48 8D 54 24 20 C5 F8 11 44 24 20 E8 ?? ?? ?? ?? 4C 8D 0D ?? ?? ?? ?? 85 C0 42 0F B6 8C 0B",
+    "gameBuilds": ["548ddc955c176867f062c44f94c03dd9ac33caefb278a5ac388e792aedf09504"],
+    "evidence": "Our reading of the exe: the one caller of XInputGetState (docs/raw-sources/input-route-2026-11-16.md); one match on disk, not yet checked in memory"
+  },
+  {
+    "name": "KeyboardRead",
+    "pattern": "40 53 48 81 EC 20 01 00 00 C5 FA 10 05 ?? ?? ?? ?? C5 F8 2F 05 ?? ?? ?? ?? 48 8B DA 0F 82 ?? ?? ?? ?? 80 3D ?? ?? ?? ?? 00 0F 84 ?? ?? ?? ?? 48 8D 4C 24 20 48 89 B4 24 38 01 00 00 FF 15 ?? ?? ?? ?? 33 C0 F6 44 24 3B 80",
+    "gameBuilds": ["548ddc955c176867f062c44f94c03dd9ac33caefb278a5ac388e792aedf09504"],
+    "evidence": "Our reading of the exe: the GetKeyboardState caller next to the pad read (docs/raw-sources/input-route-2026-11-16.md); one match on disk, not yet checked in memory"
+  },
+  {
+    "name": "CursorManagerInput",
+    "pattern": "40 53 56 48 83 EC 28 F6 81 AC 00 00 00 01 48 8B F2 48 8B D9 76 16 8B 02 8B C8 83 E9 16 0F 84 ?? ?? ?? ?? 83 F9 01 0F 84",
+    "gameBuilds": ["548ddc955c176867f062c44f94c03dd9ac33caefb278a5ac388e792aedf09504"],
+    "evidence": "Our reading of the exe through its type information (docs/raw-sources/ui-focus-candidates-2026-11-16.md); one match on disk; not yet checked in memory"
+  },
+  {
+    "name": "TextPaneDraw",
+    "pattern": "40 55 57 48 8D 6C 24 B1 48 81 EC A8 00 00 00 48 8B F9 E8 19 B9 55 00 48 8B 47 30 48 8B CF C5 FA 10 47 38 48 89 45 D7 8B 47 3C 89 45 E3",
+    "gameBuilds": ["548ddc955c176867f062c44f94c03dd9ac33caefb278a5ac388e792aedf09504"],
+    "evidence": "Our reading of the exe through its type information (docs/raw-sources/ui-focus-candidates-2026-11-16.md); one match on disk with its first call's offset fixed (a licence-text copy matches otherwise); not yet checked in memory"
   }
 ]

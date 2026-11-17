@@ -63,19 +63,21 @@ the game exited, the deploy failed or there's no log, and 2 when the deploy coul
 
 ### Files a run can leave in the mod's folder
 
-Two files in the deployed mod's folder (`<mods>\metaphor.accessibility`) change what a Debug run does. The folder is
-outside the repository, so neither is ever committed.
+These files in the deployed mod's folder (`<mods>\metaphor.accessibility`) change what a Debug run does. The folder is
+outside the repository, so none is ever committed.
 
 - `opt-in-create-msg-from-string.txt`: turns on the listener on `CreateMsgFromString` (#106), the first hook inside the
   exe's `.text1` section. It's off by default; only the file's presence counts, not its contents. Without it, Reloaded-II's
   log says `hook CreateMsgFromStringListener skipped: opt-in, and opt-in-create-msg-from-string.txt isn't in the mod's
   folder`, and the hook isn't counted in `hooks n/m`. With it, the hook still goes through the build check and signature
   scan, and counts as expected like any other. Use it for one short, separate run, then delete it.
+- `opt-in-ui-text-panes.txt`: the same, for the listener on the UI text pane's draw (#93), which runs every frame and
+  logs drawn text (`docs/raw-sources/ui-focus-candidates-2026-11-16.md`).
 - `spike-player-name.txt`: the hero name you typed in the game, on its first line (trimmed, UTF-8). The listener compares
   each string with it and logs only `match=exact`, `contains` or `no`, never the name. Without the file it falls back to
   the `METAPHOR_SPIKE_PLAYER_NAME` environment variable, which Reloaded-II may not pass to the game.
 
-A deploy replaces the mod's folder, removing both files, and `listen.ps1` launches the game straight after. So deploy
+A deploy replaces the mod's folder, removing these files, and `listen.ps1` launches the game straight after. So deploy
 first (a short `listen.ps1 -Seconds 30 -Close` run), then add the files to the folder and start the game from Reloaded-II
 yourself. The listener writes to `message-log.txt` in the same folder.
 

@@ -1,6 +1,7 @@
 using Metaphor.Core;
 using Metaphor.Core.Announcements;
 using Metaphor.Core.Messages;
+using Metaphor.Core.Settings;
 using Metaphor.Features.Dialogue;
 
 namespace Metaphor.Hooks;
@@ -18,24 +19,35 @@ internal sealed record HookServices
     /// couldn't be opened.</summary>
     public required MessageLog? Log { get; init; }
 
+    /// <summary>The last dialogue lines (#126), for the repeat key (#58) and the backlog fallback (#114). Empty unless
+    /// the dialogue feature is feeding it.</summary>
+    public DialogueHistory DialogueHistory { get; init; } = new();
+
     /// <summary>The mod's folder, outside the repository, where a development run leaves files for its hooks.</summary>
     public required string ModFolder { get; init; }
 
-    /// <summary>Services for the mod in <paramref name="modFolder"/> whose requested dialogue lines are spoken through
-    /// <paramref name="announcer"/>. The library hears each compiled file first, and speech each requested line first;
-    /// the log, when there is one, hears both last.</summary>
-    public static HookServices Speaking(IAnnouncer announcer, MessageLog? log, string modFolder)
+    /// <summary>Services for the mod in <paramref name="modFolder"/> whose requested dialogue lines and opened choices
+    /// are spoken through <paramref name="announcer"/>, voiced lines as <paramref name="settings"/> say. The library
+    /// hears each compiled file first, and speech each requested line and choice first; the log, when there is one,
+    /// hears all three last.</summary>
+    public static HookServices Speaking(IAnnouncer announcer, SettingsReloader settings, MessageLog? log, string modFolder)
     {
+        ArgumentNullException.ThrowIfNull(settings);
         var library = new MessageLibrary();
+        var history = new DialogueHistory();
         var events = new MessageEvents();
+        // The voice language is unknown until #103 finds it, so Auto speaks the full line.
+        var dialogue = new DialogueAnnouncer(
+            announcer, new TextCleaner(TextCleanerRules.None), history, () => settings.Current.VoicedLines);
         events.ObserveFiles(library);
-        events.ObserveLines(
-            new DialogueLines(library, new DialogueAnnouncer(announcer, new TextCleaner(TextCleanerRules.None))));
+        events.ObserveLines(new DialogueLines(library, dialogue));
+        events.ObserveChoices(new DialogueChoices(library, dialogue));
         if (log is not null)
         {
             events.ObserveFiles(log);
             events.ObserveLines(log);
+            events.ObserveChoices(log);
         }
-        return new() { Messages = events, Log = log, ModFolder = modFolder };
+        return new() { Messages = events, Log = log, ModFolder = modFolder, DialogueHistory = history };
     }
 }

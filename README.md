@@ -18,13 +18,14 @@ This project is single-player modding only. It doesn't touch online features, DR
 Metaphor: ReFantazio and related names are trademarks of their respective owners, used here only to say which game
 this tool works with.
 
-To contribute, start with [CONTRIBUTING.md](CONTRIBUTING.md).
+To contribute, start with [CONTRIBUTING.md](.github/CONTRIBUTING.md).
 
 ## License
 
 Code is under [GPL-3.0](LICENSE). Docs (the Markdown files, including everything in `docs/`) are under
 [CC BY 4.0](docs/LICENSE), except `docs/raw-sources/`, which holds copies of other people's work under their own terms.
 
+- [CREDITS.md](CREDITS.md) lists the projects whose code, findings or ideas this one uses.
 - `src/Metaphor.Hooks/SquirrelRegistrationListener.cs` follows a technique from MF.Toolkit (AGPL-3.0), credited in the
   file. It's a development-only hook that never ships in a release.
 - The mod package ships third-party libraries under their own licences, each in `licenses/` with where its source is
@@ -37,7 +38,7 @@ One command runs every check, locally (Git Bash on Windows) and in CI:
 | Stage | Runs | Where |
 |---|---|---|
 | `scripts/check.sh fast` | repo rules on staged files | by hand |
-| `scripts/check.sh pre-commit` | `fast`, then formatting for staged C#, `docs` when Markdown is staged, `signatures` when `hook-signatures.json` is staged and `METAPHOR_GAME_EXE` is set, and a matching security-review stamp when the security-review scope is staged ([CONTRIBUTING.md](CONTRIBUTING.md#security-review-and-deny-rules)) | pre-commit hook |
+| `scripts/check.sh pre-commit` | `fast`, then formatting for staged C#, `docs` when Markdown is staged, `signatures` when `hook-signatures.json` is staged and `METAPHOR_GAME_EXE` is set, and a matching security-review stamp when the security-review scope is staged ([CONTRIBUTING.md](.github/CONTRIBUTING.md#security-review-and-deny-rules)) | pre-commit hook |
 | `scripts/check.sh pre-push` | the Release build, then `Unit` and `RoundTrip` tests, when the pushed commits change code (refs on stdin) | pre-push hook |
 | `scripts/check.sh rules` | repo rules on every tracked file | CI on Ubuntu |
 | `scripts/check.sh full` | repo rules, then the .NET build, `Unit` and `RoundTrip` tests, formatting and the smoke-test and deploy scripts' own tests (Pester 5+) | CI: Linux on pull requests, Windows in the merge queue and on `main` (see below) |
@@ -72,15 +73,15 @@ over budget prints a warning, and in CI an annotation on the run; it never fails
 Turn on the committed git hooks once per clone:
 
 ```sh
-git config core.hooksPath .githooks
+git config core.hooksPath scripts/githooks
 ```
 
 The checks also fail a raw source without its header ([`docs/raw-sources/`](docs/raw-sources/README.md)) and a
 finding without its game build ([`docs/findings/`](docs/findings/README.md)).
 
 The checks block game content and personal information. For the second, copy `.claude/pii-patterns.example.txt` to
-`.claude/pii-patterns.txt` (git-ignored) and list your own private strings. CI checks general patterns on every push
-and pull request, and the private list on pushes to `main`, from a repository secret. To set it, a maintainer runs:
+`.claude/pii-patterns.txt` (git-ignored) and list your own private strings. CI checks general patterns on every pull
+request and merge-queue run, and the private list on pushes to `main`, from a repository secret. To set it, a maintainer runs:
 
 ```sh
 gh secret set PII_PATTERNS < .claude/pii-patterns.txt

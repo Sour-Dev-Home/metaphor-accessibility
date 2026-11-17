@@ -4,8 +4,9 @@
 #
 #   scripts/security-stamp.sh                stamp the staged scope (the security-reviewer agent's last step)
 #   scripts/security-stamp.sh hash [COMMIT]  print the scope hash of the index, or of COMMIT's tree
-#   scripts/security-stamp.sh touches [COMMIT]  exit 0 when the staged changes (or COMMIT, against its first parent)
-#                                            touch the scope, 1 when they don't
+#   scripts/security-stamp.sh touches [COMMIT | BASE..HEAD]  exit 0 when the staged changes (or COMMIT, against its
+#                                            first parent, or the range from its merge base) touch the scope, 1 when
+#                                            they don't
 #   scripts/security-stamp.sh stamped        exit 0 when the stamp matches the staged scope, 1 when it doesn't
 #
 # The hash is the SHA-256 of "<mode> <blob> <path>" for each scope file, so the index and a commit with the same scope
@@ -37,8 +38,12 @@ scope_hash() {
 
 # touches [COMMIT]: exit 0 when the scope changed.
 touches() {
-  local status base
-  if [ -n "${1:-}" ]; then
+  local status base head
+  if [[ "${1:-}" == *..* ]]; then
+    # A range BASE..HEAD (or BASE...HEAD) counts from their merge base, so merge commits can't hide a change.
+    base="${1%%..*}" head="${1#*..}"
+    git diff --quiet "$base...${head#.}" -- "${scope[@]}"
+  elif [ -n "${1:-}" ]; then
     git diff-tree --quiet -r --root --no-commit-id "$1" -- "${scope[@]}"
   else
     base=HEAD
@@ -67,6 +72,6 @@ case "${1:-}" in
   stamped)
     hash="$(scope_hash)" || exit 2
     [ -f "$stamp_file" ] && [ "$(tr -d '\r\n' < "$stamp_file")" = "$hash" ] ;;
-  *) echo "usage: scripts/security-stamp.sh [hash [COMMIT] | touches [COMMIT] | stamped]" >&2
+  *) echo "usage: scripts/security-stamp.sh [hash [COMMIT] | touches [COMMIT | BASE..HEAD] | stamped]" >&2
      exit 2 ;;
 esac

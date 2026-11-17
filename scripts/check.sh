@@ -89,7 +89,7 @@ docs_stage() {
   # Left out: raw sources, which are saved copies of other people's pages linking to the original site; the code of
   # conduct, which is upstream text kept verbatim; and CLAUDE.md, which is only an import line.
   while IFS= read -r -d '' file; do files+=("$file"); done < <(
-    git ls-files -z -- '*.md' ':!:docs/raw-sources/**' ':!:CODE_OF_CONDUCT.md' ':!:CLAUDE.md'
+    git ls-files -z -- '*.md' ':!:docs/raw-sources/**' ':!:.github/CODE_OF_CONDUCT.md' ':!:CLAUDE.md'
   )
   [ "${#files[@]}" -gt 0 ] || return 0
 
@@ -224,11 +224,12 @@ prose_words() {
     tr -d '[:space:]'
 }
 
-# check_lint MARKDOWNLINT FILE...: warn on each markdownlint finding (settings in .markdownlint-cli2.jsonc).
+# check_lint MARKDOWNLINT FILE...: warn on each markdownlint finding (settings in tools/docs/.markdownlint-cli2.jsonc).
 check_lint() {
-  local markdownlint="$1" output status line
+  local markdownlint="$1" config="$root/tools/docs/.markdownlint-cli2.jsonc" output status line
   shift
-  output="$("$markdownlint" -- "$@" 2>&1)"
+  [ -f "$config" ] || die "markdownlint needs tools/docs/.markdownlint-cli2.jsonc"
+  output="$("$markdownlint" --config "$config" -- "$@" 2>&1)"
   status=$?
   [ "$status" -le 1 ] || die "markdownlint failed to run: $output"
   while IFS= read -r line; do
@@ -239,12 +240,12 @@ check_lint() {
   done <<<"$output"
 }
 
-# check_style VALE FILE...: warn on each Vale finding, such as a word from .vale/styles/Project/Filler.yml.
+# check_style VALE FILE...: warn on each Vale finding, such as a word from tools/docs/.vale/styles/Project/Filler.yml.
 check_style() {
-  local vale="$1" output status line
+  local vale="$1" config="$root/tools/docs/.vale.ini" output status line
   shift
-  [ -f "$root/.vale.ini" ] || die "Vale needs .vale.ini at the repository root"
-  output="$("$vale" --config="$root/.vale.ini" --output=line --no-exit -- "$@" 2>&1)"
+  [ -f "$config" ] || die "Vale needs tools/docs/.vale.ini"
+  output="$("$vale" --config="$config" --output=line --no-exit -- "$@" 2>&1)"
   status=$?
   [ "$status" -eq 0 ] || die "Vale failed to run: $output"
   while IFS= read -r line; do
@@ -398,7 +399,8 @@ matching its content, or a Security-Review-Skipped one"
 # make a label look fresh). ISO 8601 UTC timestamps compare as text.
 require_review_label() {
   local repo="${GITHUB_REPOSITORY:-}" pr="${PR_NUMBER:-}" events kind date pushed="${PR_UPDATED_AT:-}" label_state="" labeled_at=""
-  [ -n "$repo" ] && [ -n "$pr" ] || die "an outside PR needs GITHUB_REPOSITORY and PR_NUMBER to read its timeline"
+  [ -n "$repo" ] && [ -n "$pr" ] && [ -n "$pushed" ] ||
+    die "an outside PR needs GITHUB_REPOSITORY, PR_NUMBER and PR_UPDATED_AT to read its timeline"
   events="$(gh api --paginate "repos/$repo/issues/$pr/timeline" --jq \
     '.[] | (select((.event=="labeled" or .event=="unlabeled") and .label.name=="security-reviewed") | "\(.event)\t\(.created_at)"),
      (select(.event=="head_ref_force_pushed") | "push\t\(.created_at)"),
@@ -452,7 +454,7 @@ case "$stage" in
   commits)
     # Merge commits are skipped: git writes their messages, and PRs are squash-merged.
     shas="$(git rev-list --no-merges "${2:-}" --)" || die "could not list the commits in ${2:-}"
-    outside=0 touched=0
+    outside=0
     case "${PR_AUTHOR_ASSOCIATION:-}" in
       "" | OWNER | MEMBER | COLLABORATOR) ;;
       *) outside=1 ;;
@@ -460,13 +462,12 @@ case "$stage" in
     for sha in $shas; do
       git log -1 --format=%B "$sha" > "$tmp/message" || die "could not read commit $sha"
       check_message "commit $(git rev-parse --short "$sha")" < "$tmp/message"
-      if [ "$outside" -eq 1 ]; then
-        ! in_scope "$sha" || touched=1
-      else
-        check_review_trailer "$sha"
-      fi
+      [ "$outside" -eq 1 ] || check_review_trailer "$sha"
     done
-    [ "$touched" -eq 0 ] || require_review_label
+    # An outside PR is judged by its whole diff, so a scope change inside a merge commit still needs the label.
+    if [ "$outside" -eq 1 ] && in_scope "${2:-}"; then
+      require_review_label
+    fi
     [ "$failures" -eq 0 ]
     exit ;;
   pr-body)

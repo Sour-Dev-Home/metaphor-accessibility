@@ -2,6 +2,7 @@ name: CI
 
 on:
   push:
+    branches: [main]
   pull_request:
   # The merge queue tests each PR merged with the ones ahead of it; its required checks come from this run.
   merge_group:
@@ -21,6 +22,35 @@ jobs:
         with:
           persist-credentials: false
           fetch-depth: 0 # the commit-message step needs the PR's commits, not just the merge result
+      # Dependabot's commit bodies carry release notes past the body limit; its PRs get the maintainer's message on
+      # the squash merge. Each commit touching the security-review scope needs its Security-Review trailer (#71).
+      # This step stays first: a step running the PR's code could write $GITHUB_ENV or $GITHUB_PATH (BASH_ENV, a fake
+      # git or gh) and so control every step after it.
+      - name: Check the pull request's commit messages and review trailers
+        if: github.event_name == 'pull_request' && github.event.pull_request.user.login != 'dependabot[bot]'
+        env:
+          BASE: ${{ github.event.pull_request.base.sha }}
+          HEAD: ${{ github.event.pull_request.head.sha }}
+          # An outside author's PR needs the security-reviewed label instead of a trailer (#127). The read-only
+          # token reads the PR timeline through `gh api`.
+          PR_AUTHOR_ASSOCIATION: ${{ github.event.pull_request.author_association }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          PR_UPDATED_AT: ${{ github.event.pull_request.updated_at }}
+          GH_TOKEN: ${{ github.token }}
+        # An outside PR is judged by the base branch's copy of the gate, so it can't edit the check that judges it. A
+        # maintainer's PR runs its own copy, so changes to the gate test themselves.
+        run: |
+          gate=scripts
+          case "$PR_AUTHOR_ASSOCIATION" in
+            OWNER | MEMBER | COLLABORATOR) ;;
+            *)
+              gate="$RUNNER_TEMP/base-scripts"
+              mkdir -p "$gate"
+              for script in check.sh security-stamp.sh stage-timing.sh; do
+                git show "$BASE:scripts/$script" > "$gate/$script" || exit 1
+              done ;;
+          esac
+          bash "$gate/check.sh" commits "$BASE..$HEAD"
       - name: Install the docs tools
         run: bash scripts/install-docs-tools.sh
       - name: Test the check scripts
@@ -56,20 +86,6 @@ jobs:
         run: |
           printf '%s\n' "$PR_BODY" > "$RUNNER_TEMP/pr-body.md"
           bash scripts/check.sh pr-body "$RUNNER_TEMP/pr-body.md"
-      # Dependabot's commit bodies carry release notes past the body limit; its PRs get the maintainer's message on
-      # the squash merge. Each commit touching the security-review scope needs its Security-Review trailer (#71).
-      - name: Check the pull request's commit messages and review trailers
-        if: github.event_name == 'pull_request' && github.event.pull_request.user.login != 'dependabot[bot]'
-        env:
-          BASE: ${{ github.event.pull_request.base.sha }}
-          HEAD: ${{ github.event.pull_request.head.sha }}
-          # An outside author's PR needs the security-reviewed label instead of a trailer (#127). The read-only
-          # token reads the PR timeline through `gh api`.
-          PR_AUTHOR_ASSOCIATION: ${{ github.event.pull_request.author_association }}
-          PR_NUMBER: ${{ github.event.pull_request.number }}
-          PR_UPDATED_AT: ${{ github.event.pull_request.updated_at }}
-          GH_TOKEN: ${{ github.token }}
-        run: bash scripts/check.sh commits "$BASE..$HEAD"
 
   # Two paths under one check name (#100). On a pull request: the .NET work on Linux, which is fast, skipped when only
   # docs changed. In the merge queue and on main: the full Windows gate, where the release package is built and rebuilt;

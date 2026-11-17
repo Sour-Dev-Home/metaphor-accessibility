@@ -101,4 +101,23 @@ public sealed class PlayerNameCheck
         var bytes = Encoding.Latin1.GetBytes(latin1 ?? "");
         return new PlayerNameSighting(bytes.Length, Compare(bytes), location);
     }
+
+    /// <summary><paramref name="latin1"/>, a label read as <see cref="Sight"/> reads a string, as a log field: its text
+    /// when it reads as an identifier (ASCII letters, digits, <c>_</c>) and doesn't hold the typed name, otherwise only
+    /// its length (#120). Null reads as unreadable.</summary>
+    public string LabelField(string? latin1)
+    {
+        if (latin1 is null)
+        {
+            return "text=(unreadable)";
+        }
+        var bytes = Encoding.Latin1.GetBytes(latin1);
+        if (Compare(bytes) is PlayerNameMatch.Exact or PlayerNameMatch.Contains)
+        {
+            return string.Create(CultureInfo.InvariantCulture, $"text=(typed name, {bytes.Length} bytes)");
+        }
+        return latin1.Length > 0 && latin1.All(c => char.IsAsciiLetterOrDigit(c) || c == '_')
+            ? $"text=\"{latin1}\""
+            : string.Create(CultureInfo.InvariantCulture, $"text=(not an identifier, {bytes.Length} bytes)");
+    }
 }
