@@ -181,6 +181,16 @@ public sealed class MessageLogTests
     }
 
     [Fact]
+    public void RecordsABattleRecordWithItsKind()
+    {
+        var (log, text) = NewLog(now: 9);
+
+        log.Battle("phase", "pkg=0x10 class=Fight@phase@btl");
+
+        Assert.Equal($"9 ms battle phase pkg=0x10 class=Fight@phase@btl{Environment.NewLine}", text.ToString());
+    }
+
+    [Fact]
     public void RecordsAResolvedMessage()
     {
         var (log, text) = NewLog(now: 77);

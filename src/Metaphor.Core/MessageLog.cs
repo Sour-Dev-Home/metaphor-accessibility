@@ -130,6 +130,11 @@ public sealed class MessageLog(TextWriter writer, Func<long> millisecondsSinceSt
     public void ValueRead(ValueRead read, CallerTrace caller) =>
         Write(() => Line($"{millisecondsSinceStart()} ms value {read} {caller}"));
 
+    /// <summary>One battle record (#162): a kind such as <c>phase</c> or <c>unit</c>, then its fields. Addresses,
+    /// offsets, numbers and class names only, no game text.</summary>
+    public void Battle(string kind, string fields) =>
+        Write(() => Line($"{millisecondsSinceStart()} ms battle {kind} {fields}"));
+
     /// <summary>A line the game asked for by label, with its kind.</summary>
     public void Observe(LineRequested line) => Write(() =>
         Line($"{millisecondsSinceStart()} ms request via={LineRequestFunction} kind={line.Kind} text=\"{LogText.Escaped(line.Label)}\""));
