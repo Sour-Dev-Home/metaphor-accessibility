@@ -18,7 +18,7 @@ This project is single-player modding only. It doesn't touch online features, DR
 Metaphor: ReFantazio and related names are trademarks of their respective owners, used here only to say which game
 this tool works with.
 
-To contribute, start with [CONTRIBUTING.md](CONTRIBUTING.md).
+To contribute, start with [CONTRIBUTING.md](.github/CONTRIBUTING.md).
 
 ## License
 
@@ -37,7 +37,7 @@ One command runs every check, locally (Git Bash on Windows) and in CI:
 | Stage | Runs | Where |
 |---|---|---|
 | `scripts/check.sh fast` | repo rules on staged files | by hand |
-| `scripts/check.sh pre-commit` | `fast`, then formatting for staged C#, `docs` when Markdown is staged, `signatures` when `hook-signatures.json` is staged and `METAPHOR_GAME_EXE` is set, and a matching security-review stamp when the security-review scope is staged ([CONTRIBUTING.md](CONTRIBUTING.md#security-review-and-deny-rules)) | pre-commit hook |
+| `scripts/check.sh pre-commit` | `fast`, then formatting for staged C#, `docs` when Markdown is staged, `signatures` when `hook-signatures.json` is staged and `METAPHOR_GAME_EXE` is set, and a matching security-review stamp when the security-review scope is staged ([CONTRIBUTING.md](.github/CONTRIBUTING.md#security-review-and-deny-rules)) | pre-commit hook |
 | `scripts/check.sh pre-push` | the Release build, then `Unit` and `RoundTrip` tests, when the pushed commits change code (refs on stdin) | pre-push hook |
 | `scripts/check.sh rules` | repo rules on every tracked file | CI on Ubuntu |
 | `scripts/check.sh full` | repo rules, then the .NET build, `Unit` and `RoundTrip` tests, formatting and the smoke-test and deploy scripts' own tests (Pester 5+) | CI: Linux on pull requests, Windows in the merge queue and on `main` (see below) |
@@ -72,7 +72,7 @@ over budget prints a warning, and in CI an annotation on the run; it never fails
 Turn on the committed git hooks once per clone:
 
 ```sh
-git config core.hooksPath .githooks
+git config core.hooksPath scripts/githooks
 ```
 
 The checks also fail a raw source without its header ([`docs/raw-sources/`](docs/raw-sources/README.md)) and a

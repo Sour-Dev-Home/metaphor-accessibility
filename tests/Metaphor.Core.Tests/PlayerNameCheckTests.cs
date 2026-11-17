@@ -39,6 +39,20 @@ public sealed class PlayerNameCheckTests
         Assert.Equal("bytes=6 match=exact at=module+0x10", sighting.ToString());
         Assert.DoesNotContain("Ardent", sighting.ToString(), StringComparison.Ordinal);
     }
+
+    [Theory]
+    [InlineData("CharaName_FO12_Mor_00", "text=\"CharaName_FO12_Mor_00\"")]
+    [InlineData("Ardent", "text=(typed name, 6 bytes)")]
+    [InlineData("Name_Ardent_1", "text=(typed name, 13 bytes)")]
+    [InlineData("two words", "text=(not an identifier, 9 bytes)")]
+    [InlineData("", "text=(not an identifier, 0 bytes)")]
+    [InlineData(null, "text=(unreadable)")]
+    public void ALabelThatHoldsTheTypedNameIsLoggedByLengthOnly(string? label, string expected) =>
+        Assert.Equal(expected, new PlayerNameCheck("Ardent").LabelField(label));
+
+    [Fact]
+    public void WithoutATypedNameAnIdentifierLabelIsLoggedAsIs() =>
+        Assert.Equal("text=\"Ardent\"", new PlayerNameCheck(null).LabelField("Ardent"));
 }
 
 /// <summary>Where a development run's typed name comes from: a file in the mod's folder, outside the repository.</summary>

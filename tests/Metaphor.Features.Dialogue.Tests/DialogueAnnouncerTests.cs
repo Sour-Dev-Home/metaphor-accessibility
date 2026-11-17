@@ -1,4 +1,5 @@
 using Metaphor.Core.Announcements;
+using Metaphor.Core.Messages;
 
 namespace Metaphor.Features.Dialogue.Tests;
 
@@ -8,7 +9,26 @@ public sealed class DialogueAnnouncerTests
 {
     private readonly RecordingAnnouncer announcer = new();
 
-    private DialogueAnnouncer Dialogue() => new(announcer, new TextCleaner(TextCleanerRules.None));
+    private readonly DialogueHistory history = new();
+
+    private DialogueAnnouncer Dialogue() => new(announcer, new TextCleaner(TextCleanerRules.None), history);
+
+    [Fact]
+    public void EachSpokenLineIsRecordedInTheHistoryAsSpoken()
+    {
+        Dialogue().Show("Ada", "One.");
+        Dialogue().Show(null, "Two.");
+
+        Assert.Equal(["Ada: One.", "Two."], history.Lines());
+    }
+
+    [Fact]
+    public void ALineThatCleansToNothingIsNotRecorded()
+    {
+        Dialogue().Show("Ada", "");
+
+        Assert.Empty(history.Lines());
+    }
 
     [Fact]
     public void ALineWithASpeakerIsSpokenAsNameThenLineAndInterrupts()

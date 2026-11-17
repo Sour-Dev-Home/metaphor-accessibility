@@ -1,4 +1,4 @@
 #!/usr/bin/env bash
 # The repo rules on staged files, then formatting, docs and signature checks when their files are staged.
-# Turn on with: git config core.hooksPath .githooks
+# Turn on with: git config core.hooksPath scripts/githooks
 exec bash "$(git rev-parse --show-toplevel)/scripts/check.sh" pre-commit

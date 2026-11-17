@@ -26,9 +26,19 @@ check "CLAUDE.md only imports AGENTS.md" \
 
 # Vulnerabilities go to GitHub's private reporting, never a public issue.
 check "SECURITY.md links to private vulnerability reporting" \
-  grep -qF "/security/advisories/new" "$ROOT/SECURITY.md"
-check "the code of conduct exists" [ -s "$ROOT/CODE_OF_CONDUCT.md" ]
-check "CONTRIBUTING.md exists" [ -s "$ROOT/CONTRIBUTING.md" ]
+  grep -qF "/security/advisories/new" "$ROOT/.github/SECURITY.md"
+check "the code of conduct exists" [ -s "$ROOT/.github/CODE_OF_CONDUCT.md" ]
+check "CONTRIBUTING.md exists" [ -s "$ROOT/.github/CONTRIBUTING.md" ]
+
+# The docs-lint configs live in tools/docs/; check.sh passes their paths explicitly, and Vale's StylesPath (relative to
+# the .vale.ini) must still land on our rules.
+check "the markdownlint config is in tools/docs" [ -s "$ROOT/tools/docs/.markdownlint-cli2.jsonc" ]
+check "the Vale config is in tools/docs" [ -s "$ROOT/tools/docs/.vale.ini" ]
+check "Vale's StylesPath resolves to the Project style" bash -c \
+  'p="$(sed -n "s/^StylesPath *= *//p" "$1/tools/docs/.vale.ini" | tr -d "\r")"; [ -s "$1/tools/docs/$p/Project/Filler.yml" ]' _ "$ROOT"
+check "check.sh passes both docs configs explicitly" \
+  bash -c 'grep -qF -- "--config \"\$config\"" "$1" && grep -qF -- "--config=\"\$config\"" "$1"' _ "$ROOT/scripts/check.sh"
+check "the git hooks live in scripts/githooks" [ -f "$ROOT/scripts/githooks/pre-commit" ]
 
 TEMPLATES="$ROOT/.github/ISSUE_TEMPLATE"
 for template in bug finding accessibility; do

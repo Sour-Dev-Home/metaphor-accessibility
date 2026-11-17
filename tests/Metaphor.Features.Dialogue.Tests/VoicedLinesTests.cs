@@ -1,4 +1,5 @@
 using Metaphor.Core.Announcements;
+using Metaphor.Core.Messages;
 using Metaphor.Core.Settings;
 
 namespace Metaphor.Features.Dialogue.Tests;
@@ -11,9 +12,10 @@ public sealed class VoicedLinesTests
     private const string Voiced = "<VOICE \"v_a\">\nThe bridge is out.";
 
     private readonly RecordingAnnouncer announcer = new();
+    private readonly DialogueHistory history = new();
 
     private DialogueAnnouncer Dialogue(VoicedLinesMode mode, VoiceLanguage language = VoiceLanguage.Unknown) =>
-        new(announcer, new TextCleaner(TextCleanerRules.None), () => mode, () => language);
+        new(announcer, new TextCleaner(TextCleanerRules.None), history, () => mode, () => language);
 
     private string? Said() => announcer.Said.SingleOrDefault()?.Text;
 
@@ -76,7 +78,7 @@ public sealed class VoicedLinesTests
     public void ModeIsReadOnEveryLineSoAChangeAppliesAtOnce()
     {
         var mode = VoicedLinesMode.FullLine;
-        var dialogue = new DialogueAnnouncer(announcer, new TextCleaner(TextCleanerRules.None), () => mode);
+        var dialogue = new DialogueAnnouncer(announcer, new TextCleaner(TextCleanerRules.None), history, () => mode);
 
         dialogue.Show("Ada", Voiced);
         mode = VoicedLinesMode.Nothing;
@@ -88,8 +90,18 @@ public sealed class VoicedLinesTests
     [Fact]
     public void WithoutSettingsEveryLineIsSpokenInFull()
     {
-        new DialogueAnnouncer(announcer, new TextCleaner(TextCleanerRules.None)).Show("Ada", Voiced);
+        new DialogueAnnouncer(announcer, new TextCleaner(TextCleanerRules.None), history).Show("Ada", Voiced);
 
         Assert.Equal("Ada: The bridge is out.", Said());
+    }
+
+    [Theory]
+    [InlineData(VoicedLinesMode.NameOnly)]
+    [InlineData(VoicedLinesMode.Nothing)]
+    public void TheHistoryKeepsTheFullLineWhateverIsSpoken(VoicedLinesMode mode)
+    {
+        Dialogue(mode).Show("Ada", Voiced);
+
+        Assert.Equal(["Ada: The bridge is out."], history.Lines());
     }
 }
