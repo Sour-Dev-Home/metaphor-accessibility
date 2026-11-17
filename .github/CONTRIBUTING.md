@@ -98,6 +98,16 @@ touching it needs a review stamp:
 **Override (maintainer only).** `SECURITY_REVIEW_SKIP="<reason>" git commit ...` lets the commit through and records
 `Security-Review-Skipped: <reason>`, which CI accepts. Agents are denied it.
 
+**Outside contributors (the `security-reviewed` label).** CI treats a PR as the maintainer's when its author is the
+repository's owner, a member or a collaborator, and judges it by the trailers above. Any other PR is outside, and
+trailers don't count for it, since anyone can write or stamp one. If it touches the scope, CI fails until a maintainer
+runs the `security-reviewer` agent on it and adds the `security-reviewed` label (only people with write access can).
+The label counts only if it was added after the PR's latest push; a push after the review needs a new review and the
+label added again. Re-run the CI job after labelling. CI judges an outside PR by its whole diff, so a change made inside a
+merge commit counts, and runs the base branch's copy of `scripts/check.sh` and `scripts/security-stamp.sh`, so the PR
+can't edit the check that judges it. That step runs first in its job, before any of the PR's own code. The PR can still
+edit `.github/workflows/`, so read a workflow change before approving an outside PR's CI run.
+
 **Deny rules.** [`.claude/settings.json`](../.claude/settings.json) denies Claude Code every force push, printing
 `.claude/pii-patterns.txt` (the Read tool, `cat`, `type`, `Get-Content`, `head`, `tail`, `less`), setting
 `SECURITY_REVIEW_SKIP`, and skipping the git hooks with `--no-verify` (or `git commit -n`). `scripts/check.sh` and a `grep -F -f` over the patterns file stay allowed. The maintainer's

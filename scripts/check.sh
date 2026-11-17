@@ -21,6 +21,11 @@
 # matching the staged scope; the commit-msg hook then appends "Security-Review: <hash>". SECURITY_REVIEW_SKIP="<reason>"
 # lets it through and records "Security-Review-Skipped: <reason>" instead.
 #
+# In CI the `commits` stage also reads PR_AUTHOR_ASSOCIATION. A PR whose author is OWNER, MEMBER or COLLABORATOR is the
+# maintainer's and is judged by trailers. Any other PR is outside: trailers don't count, and a PR touching the scope needs
+# the `security-reviewed` label, added after the PR's latest push (PR_NUMBER, GITHUB_REPOSITORY, GH_TOKEN, and
+# PR_UPDATED_AT from the event). Without PR_AUTHOR_ASSOCIATION (local runs) trailers decide.
+#
 # Rules judge the staged blobs in the index, not the working tree, so they see exactly what would be committed.
 # Every step runs even after a failure, so one run shows every problem.
 # Exit 0 when everything passes (warnings don't fail), 1 when something fails, 2 on a usage error or when a tool is
@@ -388,6 +393,30 @@ check_review_trailer() {
 matching its content, or a Security-Review-Skipped one"
 }
 
+# require_review_label: an outside PR touching the scope needs the security-reviewed label, added after its latest push.
+# A fork's token is read-only, so CI can't remove a stale label; it reads the timeline instead. Push time is the latest
+# of the timeline's commits and force pushes and the event's updated_at (set by GitHub, so a backdated commit can't
+# make a label look fresh). ISO 8601 UTC timestamps compare as text.
+require_review_label() {
+  local repo="${GITHUB_REPOSITORY:-}" pr="${PR_NUMBER:-}" events kind date pushed="${PR_UPDATED_AT:-}" label_state="" labeled_at=""
+  [ -n "$repo" ] && [ -n "$pr" ] && [ -n "$pushed" ] ||
+    die "an outside PR needs GITHUB_REPOSITORY, PR_NUMBER and PR_UPDATED_AT to read its timeline"
+  events="$(gh api --paginate "repos/$repo/issues/$pr/timeline" --jq \
+    '.[] | (select((.event=="labeled" or .event=="unlabeled") and .label.name=="security-reviewed") | "\(.event)\t\(.created_at)"),
+     (select(.event=="head_ref_force_pushed") | "push\t\(.created_at)"),
+     (select(.event=="committed") | "push\t\(.committer.date)")')" || die "could not read the timeline of PR #$pr"
+  while IFS=$'\t' read -r kind date; do
+    case "$kind" in
+      labeled | unlabeled) label_state="$kind" labeled_at="$date" ;;
+      push) [[ "$date" > "$pushed" ]] && pushed="$date" ;;
+    esac
+  done <<<"$events"
+  [ "$label_state" = labeled ] ||
+    { report "outside PR touches the security-review scope: a maintainer must review it and add the security-reviewed label"; return; }
+  [[ "$labeled_at" > "$pushed" ]] ||
+    report "security-reviewed was added before the PR's latest push ($pushed): review the new commits and add the label again"
+}
+
 stage="${1:-}"
 # Stages with a budget from issue #1 print their duration on exit, and a warning when over budget (stage-timing.sh).
 started="$(date +%s)" timing_script="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/stage-timing.sh"
@@ -425,11 +454,20 @@ case "$stage" in
   commits)
     # Merge commits are skipped: git writes their messages, and PRs are squash-merged.
     shas="$(git rev-list --no-merges "${2:-}" --)" || die "could not list the commits in ${2:-}"
+    outside=0
+    case "${PR_AUTHOR_ASSOCIATION:-}" in
+      "" | OWNER | MEMBER | COLLABORATOR) ;;
+      *) outside=1 ;;
+    esac
     for sha in $shas; do
       git log -1 --format=%B "$sha" > "$tmp/message" || die "could not read commit $sha"
       check_message "commit $(git rev-parse --short "$sha")" < "$tmp/message"
-      check_review_trailer "$sha"
+      [ "$outside" -eq 1 ] || check_review_trailer "$sha"
     done
+    # An outside PR is judged by its whole diff, so a scope change inside a merge commit still needs the label.
+    if [ "$outside" -eq 1 ] && in_scope "${2:-}"; then
+      require_review_label
+    fi
     [ "$failures" -eq 0 ]
     exit ;;
   pr-body)

@@ -1017,6 +1017,136 @@ test_commits_stage_passes_reviewed_skipped_and_unscoped_commits() {
   expect 0
 }
 
+# outside_repo: a repo with a scope commit carrying a skip trailer, ready for the commits stage; sets $base.
+# A fake gh answers the timeline call with the lines in $TIMELINE (what the real call's --jq filter prints).
+FAKE_BIN="$WORK/fakebin"
+mkdir -p "$FAKE_BIN"
+printf '#!/usr/bin/env bash\nif [ -n "${FAKE_GH_FAIL:-}" ]; then exit 1; fi\nprintf "%%b" "${TIMELINE:-}"\n' > "$FAKE_BIN/gh"
+chmod +x "$FAKE_BIN/gh"
+
+outside_repo() {
+  review_repo "${1:-src/Metaphor.Hooks/Hooks/Speech.ps1}"
+  base="$(git rev-parse HEAD)" # review_repo staged the change; commit it here
+  git commit -q --no-verify -m "feat: scope change" -m "Security-Review-Skipped: by hand"
+}
+
+# run_pr ASSOCIATION: the commits stage the way CI runs it, for a PR #7 updated at 2026-11-16T10:00:00Z.
+run_pr() {
+  out="$(PATH="$FAKE_BIN:$PATH" TIMELINE="${TIMELINE:-}" FAKE_GH_FAIL="${FAKE_GH_FAIL:-}" PR_AUTHOR_ASSOCIATION="$1" PR_NUMBER=7 GITHUB_REPOSITORY=o/r \
+    PR_UPDATED_AT=2026-11-16T10:00:00Z bash "$CHECK" commits "$base..HEAD" 2>&1)"
+  code=$?
+}
+
+test_outside_pr_touching_scope_fails_without_the_label() {
+  outside_repo
+  TIMELINE=""
+  run_pr CONTRIBUTOR
+  expect 1 "add the security-reviewed label"
+  run_pr NONE
+  expect 1 "add the security-reviewed label"
+  run_pr FIRST_TIME_CONTRIBUTOR
+  expect 1 "add the security-reviewed label"
+}
+
+test_outside_pr_passes_with_a_label_added_after_the_latest_push() {
+  outside_repo
+  TIMELINE='push\t2026-11-16T09:00:00Z\nlabeled\t2026-11-16T11:00:00Z\n'
+  run_pr CONTRIBUTOR
+  expect 0
+}
+
+test_outside_pr_ignores_trailers() {
+  outside_repo
+  TIMELINE=""
+  run_pr CONTRIBUTOR
+  expect 1 "add the security-reviewed label"
+  expect_absent "Security-Review trailer"
+}
+
+test_outside_pr_fails_when_the_label_predates_a_push() {
+  outside_repo
+  TIMELINE='labeled\t2026-11-16T11:00:00Z\npush\t2026-11-16T12:00:00Z\n'
+  run_pr CONTRIBUTOR
+  expect 1 "before the PR's latest push (2026-11-16T12:00:00Z)"
+  TIMELINE='labeled\t2026-11-16T08:00:00Z\n' # older than the event's own updated_at
+  run_pr CONTRIBUTOR
+  expect 1 "before the PR's latest push (2026-11-16T10:00:00Z)"
+}
+
+test_outside_pr_fails_when_the_label_was_removed_after_adding() {
+  outside_repo
+  TIMELINE='labeled\t2026-11-16T11:00:00Z\nunlabeled\t2026-11-16T11:30:00Z\n'
+  run_pr CONTRIBUTOR
+  expect 1 "add the security-reviewed label"
+  TIMELINE='labeled\t2026-11-16T11:00:00Z\nunlabeled\t2026-11-16T11:30:00Z\nlabeled\t2026-11-16T12:00:00Z\n'
+  run_pr CONTRIBUTOR
+  expect 0
+}
+
+test_outside_pr_outside_the_scope_needs_no_label_or_timeline() {
+  outside_repo docs/notes.txt
+  TIMELINE=""
+  FAKE_GH_FAIL=1 run_pr CONTRIBUTOR
+  expect 0
+}
+
+test_outside_pr_fails_closed_when_the_timeline_cannot_be_read() {
+  outside_repo
+  FAKE_GH_FAIL=1 run_pr CONTRIBUTOR
+  expect 2 "could not read the timeline of PR #7"
+}
+
+test_outside_pr_merge_commit_cannot_hide_a_scope_change() {
+  review_repo docs/notes.txt
+  git commit -q --no-verify -m "docs: notes"
+  git checkout -q -b upstream HEAD~1
+  stage_file readme.txt
+  git commit -q --no-verify -m "docs: upstream"
+  base="$(git rev-parse HEAD)"
+  git checkout -q -
+  git merge -q --no-ff --no-commit upstream > /dev/null
+  stage_file src/Metaphor.Hooks/Hooks/Speech.ps1 # changed inside the merge commit only
+  git commit -q --no-verify -m "Merge upstream"
+  TIMELINE=""
+  run_pr CONTRIBUTOR
+  expect 1 "add the security-reviewed label"
+}
+
+test_outside_pr_gate_runs_from_a_copy_outside_the_repository() {
+  local gate="$WORK/base-scripts" script
+  outside_repo
+  mkdir -p "$gate"
+  for script in check.sh security-stamp.sh stage-timing.sh; do # what CI copies from the base branch
+    cp "$(dirname "$CHECK")/$script" "$gate/$script"
+  done
+  TIMELINE=""
+  CHECK="$gate/check.sh" run_pr CONTRIBUTOR
+  expect 1 "add the security-reviewed label"
+}
+
+test_outside_pr_still_checks_commit_messages() {
+  outside_repo
+  git commit -q --no-verify --allow-empty -m "not typed"
+  TIMELINE='labeled\t2026-11-16T11:00:00Z\n'
+  run_pr CONTRIBUTOR
+  expect 1 "subject needs a type prefix"
+}
+
+test_maintainer_pr_uses_trailers_and_ignores_the_label() {
+  local assoc
+  outside_repo
+  TIMELINE=""
+  for assoc in OWNER MEMBER COLLABORATOR; do
+    FAKE_GH_FAIL=1 run_pr "$assoc" # the timeline isn't read
+    expect 0
+  done
+  git commit -q --no-verify --allow-empty -m "fix: no trailer"
+  stage_file scripts/smoke-test.ps1
+  git commit -q --no-verify -m "fix: scope without trailer"
+  run_pr OWNER
+  expect 1 "touches the security-review scope without a Security-Review trailer"
+}
+
 test_stamp_script_rejects_unknown_arguments() {
   new_repo
   out="$(bash "$STAMP" nope 2>&1)"
