@@ -2,6 +2,9 @@
   "name": "metaphor-docs-tools",
   "private": true,
   "description": "Pinned Markdown lint for scripts/check.sh docs. Install with scripts/install-docs-tools.sh.",
+  "overrides": {
+    "katex": "0.18.2"
+  },
   "devDependencies": {
     "markdownlint-cli2": "0.24.1"
   }
