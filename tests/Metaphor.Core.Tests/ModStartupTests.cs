@@ -44,7 +44,7 @@ public sealed class ModStartupTests : IDisposable
 
         var status = ModStartup.CheckAndReport(
             ModId, _gameExe, _folder.FullName, () => [Build(GameBuild)], hooksExpected: 3,
-            installHooks: build => { askedFor = build; return 2; });
+            installHooks: build => { askedFor = build; return new(2, []); });
 
         Assert.Equal(GameBuild, askedFor);
         Assert.Equal(ModStatus.Ready(ModId, GameBuild, hooksLoaded: 2, hooksExpected: 3), status);
@@ -59,7 +59,7 @@ public sealed class ModStartupTests : IDisposable
 
         ModStartup.CheckAndReport(
             ModId, _gameExe, _folder.FullName, () => [Build(GameBuild)], hooksExpected: 1,
-            installHooks: _ => { calls.Add("install"); return 1; },
+            installHooks: _ => { calls.Add("install"); return new(1, []); },
             beforeHooks: build => calls.Add($"before {build}"));
 
         Assert.Equal([$"before {GameBuild}", "install"], calls);
@@ -70,7 +70,7 @@ public sealed class ModStartupTests : IDisposable
     {
         var status = ModStartup.CheckAndReport(
             ModId, _gameExe, _folder.FullName, () => [Build(GameBuild)], hooksExpected: 1,
-            installHooks: _ => 1, beforeHooks: _ => throw new IOException("probe file locked"));
+            installHooks: _ => new(1, []), beforeHooks: _ => throw new IOException("probe file locked"));
 
         Assert.Equal(ModStatus.Ready(ModId, GameBuild, hooksLoaded: 1, hooksExpected: 1), status);
     }
@@ -82,7 +82,7 @@ public sealed class ModStartupTests : IDisposable
 
         ModStartup.CheckAndReport(
             ModId, _gameExe, _folder.FullName, () => [Build(new string('0', 64))], hooksExpected: 1,
-            installHooks: _ => { installed = true; return 1; });
+            installHooks: _ => { installed = true; return new(1, []); });
 
         Assert.False(installed);
     }
@@ -125,10 +125,41 @@ public sealed class ModStartupTests : IDisposable
         var announcer = new RecordingAnnouncer();
 
         ModStartup.CheckAndReport(
-            ModId, _gameExe, _folder.FullName, () => [Build(GameBuild)], hooksExpected: 1, installHooks: _ => 1,
+            ModId, _gameExe, _folder.FullName, () => [Build(GameBuild)], hooksExpected: 1, installHooks: _ => new(1, []),
             announcer: announcer);
 
         Assert.Equal([new Announcement("Metaphor accessibility loaded", Interrupt: true)], announcer.Said);
+    }
+
+    // #223: the maintainer hears which dev opt-ins took effect before playing, not from the log afterwards.
+    [Fact]
+    public void ThePlayerHearsEachDevOptInWhoseHooksWentIn()
+    {
+        var announcer = new RecordingAnnouncer();
+
+        ModStartup.CheckAndReport(
+            ModId, _gameExe, _folder.FullName, () => [Build(GameBuild)], hooksExpected: 3,
+            installHooks: _ => new InstalledHooks(3, [new OptInState("text panes", true), new OptInState("dialogue window", true)]),
+            announcer: announcer);
+
+        Assert.Equal(
+            [new Announcement("Metaphor accessibility loaded, dev opt-ins: text panes, dialogue window", Interrupt: true)],
+            announcer.Said);
+    }
+
+    [Fact]
+    public void ADevOptInWhoseHooksDidNotGoInIsNamedAsNotActive()
+    {
+        var announcer = new RecordingAnnouncer();
+
+        ModStartup.CheckAndReport(
+            ModId, _gameExe, _folder.FullName, () => [Build(GameBuild)], hooksExpected: 3,
+            installHooks: _ => new InstalledHooks(1, [new OptInState("text panes", true), new OptInState("dialogue window", false)]),
+            announcer: announcer);
+
+        Assert.Equal(
+            [new Announcement("Metaphor accessibility loaded, dev opt-ins: text panes, dialogue window not active", Interrupt: true)],
+            announcer.Said);
     }
 
     // A supported build whose hooks fail is not an unsupported version; saying so would send the player the wrong way.

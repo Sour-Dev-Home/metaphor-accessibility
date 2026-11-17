@@ -13,6 +13,14 @@ public enum HookInclusion
     NotOptedIn,
 }
 
+/// <summary>A dev opt-in whose file was in the mod's folder (#223).</summary>
+/// <param name="Name">Its name in plain words, as the load message says it.</param>
+/// <param name="Active">Whether every one of its hooks went in.</param>
+public sealed record OptInState(string Name, bool Active);
+
+/// <summary>What installing the hooks did: how many went in, and the state of each opt-in the run asked for.</summary>
+public sealed record InstalledHooks(int Count, IReadOnlyList<OptInState> OptIns);
+
 /// <summary>Decides which hooks a build installs: development-only hooks only in a Debug build, and an opt-in hook only
 /// when its file is in the mod's folder, so a risky dev hook stays off unless a run asks for it.</summary>
 public static class HookOptIn
@@ -34,6 +42,13 @@ public static class HookOptIn
         }
         return IsBareFileName(optInFile) && exists(optInFile) ? HookInclusion.Included : HookInclusion.NotOptedIn;
     }
+
+    /// <summary>The opt-ins whose files a run had, from each <paramref name="optedInHooks"/>: an included hook's opt-in
+    /// name and whether it went in. An opt-in is active only when every one of its hooks went in (#223). In the order
+    /// each name first appears.</summary>
+    public static IReadOnlyList<OptInState> Summarize(IEnumerable<(string Name, bool WentIn)> optedInHooks) =>
+        [.. optedInHooks.GroupBy(h => h.Name, StringComparer.Ordinal)
+            .Select(g => new OptInState(g.Key, g.All(h => h.WentIn)))];
 
     /// <summary>Whether <paramref name="name"/> names a file directly in a folder: no separators, drive or parent.</summary>
     public static bool IsBareFileName(string name) =>

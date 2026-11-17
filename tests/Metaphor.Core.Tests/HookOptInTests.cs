@@ -15,6 +15,16 @@ public sealed class HookOptInTests
     public void ADevOnlyHookIsLeftOutOfReleaseBuilds(bool devOnly, bool devBuild, HookInclusion expected) =>
         Assert.Equal(expected, HookOptIn.Decide(devOnly, optInFile: null, devBuild, NoFiles));
 
+    // #223: an opt-in is active only when every one of its hooks went in, as a pair works only with both.
+    [Fact]
+    public void AnOptInIsActiveOnlyWhenEachOfItsHooksWentIn() =>
+        Assert.Equal(
+            [new OptInState("dialogue window", false), new OptInState("text panes", true)],
+            HookOptIn.Summarize([("dialogue window", true), ("text panes", true), ("dialogue window", false)]));
+
+    [Fact]
+    public void WithNoOptedInHooksThereAreNoOptIns() => Assert.Empty(HookOptIn.Summarize([]));
+
     [Fact]
     public void AnOptInHookIsLeftOutWithoutItsFile() =>
         Assert.Equal(HookInclusion.NotOptedIn, HookOptIn.Decide(true, "opt-in.txt", true, NoFiles));

@@ -35,7 +35,7 @@ public sealed class HookInstallationTests
         var installed = new List<(string, long?)>();
         var log = new List<string>();
 
-        var (loaded, _) = HookInstallation.Run(
+        var (loaded, _, _) = HookInstallation.Run(
             Build, [Hook("Dialogue", "show-line"), Hook("Choices", "show-choice")], Signatures, Found,
             () => (hook, decision) => installed.Add((hook.Name, decision.Rva)), log.Add);
 
@@ -52,7 +52,7 @@ public sealed class HookInstallationTests
         var asked = false;
         var log = new List<string>();
 
-        var (loaded, kept) = HookInstallation.Run(
+        var (loaded, kept, _) = HookInstallation.Run(
             Build, [Hook("Dialogue", "show-line", OtherBuild), Hook("Choices", "nowhere")], Signatures, Found,
             () =>
             {
@@ -75,7 +75,7 @@ public sealed class HookInstallationTests
     {
         var log = new List<string>();
 
-        var (loaded, kept) = HookInstallation.Run<FakeHook>(
+        var (loaded, kept, _) = HookInstallation.Run<FakeHook>(
             OtherBuild, [(new HookSpec("Dialogue", [Build], ""), null)], Signatures, Found,
             () => (_, _) => throw new InvalidOperationException("never installed"), log.Add);
 
@@ -89,7 +89,7 @@ public sealed class HookInstallationTests
     {
         var installed = 0;
 
-        var (loaded, kept) = HookInstallation.Run(
+        var (loaded, kept, _) = HookInstallation.Run(
             Build, [Hook("Dialogue", "show-line"), Hook("Choices", "show-choice"), Hook("Old", "show-line", OtherBuild)],
             Signatures, Found, () => (_, _) => installed++, _ => throw new IOException("log is gone"));
 
@@ -113,7 +113,7 @@ public sealed class HookInstallationTests
         var log = new List<string>();
         (HookSpec, FakeHook?)[] hooks = [Hook("Dialogue", "show-line"), Hook("Choices", "show-choice")];
 
-        var (loaded, kept) = HookInstallation.Run(
+        var (loaded, kept, _) = HookInstallation.Run(
             Build, hooks, Signatures, Found,
             () => (hook, _) =>
             {
@@ -134,6 +134,25 @@ public sealed class HookInstallationTests
             log);
     }
 
+    // #223: the load message names an opt-in as active only if its hooks are among these.
+    [Fact]
+    public void NamesOnlyTheHooksThatWentIn()
+    {
+        var (_, _, wentIn) = HookInstallation.Run(
+            Build, [Hook("Dialogue", "show-line"), Hook("Choices", "show-choice"), Hook("Elsewhere", "nowhere")],
+            Signatures, Found,
+            () => (hook, _) =>
+            {
+                if (hook.Name == "Dialogue")
+                {
+                    throw new InvalidOperationException("failed");
+                }
+            },
+            _ => { });
+
+        Assert.Equal(["Choices"], wentIn);
+    }
+
     private static (HookSpec, FakeHook?) Partnered(string name, string signature, string partner) =>
         (new HookSpec(name, [Build], signature) { Partner = partner }, new FakeHook(name));
 
@@ -143,7 +162,7 @@ public sealed class HookInstallationTests
         var installed = new List<string>();
         var log = new List<string>();
 
-        var (loaded, kept) = HookInstallation.Run(
+        var (loaded, kept, _) = HookInstallation.Run(
             Build, [Partnered("Open", "show-line", "Close"), Partnered("Close", "nowhere", "Open")], Signatures, Found,
             () => (hook, _) => installed.Add(hook.Name), log.Add);
 
@@ -161,7 +180,7 @@ public sealed class HookInstallationTests
     {
         var log = new List<string>();
 
-        var (loaded, _) = HookInstallation.Run(
+        var (loaded, _, _) = HookInstallation.Run(
             Build, [Partnered("Open", "show-line", "Close")], Signatures, Found,
             () => (_, _) => throw new InvalidOperationException("never installed"), log.Add);
 
@@ -187,7 +206,7 @@ public sealed class HookInstallationTests
     {
         var paired = new List<string>();
 
-        var (loaded, _) = HookInstallation.Run(
+        var (loaded, _, _) = HookInstallation.Run(
             Build, [Partnered("Open", "show-line", "Close"), Partnered("Close", "show-choice", "Open")], Signatures, Found,
             () => (hook, _) =>
             {

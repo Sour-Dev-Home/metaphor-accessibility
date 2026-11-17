@@ -83,6 +83,10 @@ A deploy replaces the mod's folder, removing these files, and `listen.ps1` launc
 first (a short `listen.ps1 -Seconds 30 -Close` run), then add the files to the folder and start the game from Reloaded-II
 yourself. The listener writes to `message-log.txt` in the same folder.
 
+The spoken load message names each opt-in whose file it found, as `message strings`, `text panes` or `dialogue window`,
+for example "Metaphor accessibility loaded, dev opt-ins: text panes, dialogue window". An opt-in whose hooks didn't all
+go in is said with `not active`; the log says why (#223).
+
 ## The scripts' own tests
 
 The scripts' own tests run against a stand-in launcher and game, with no game needed:
