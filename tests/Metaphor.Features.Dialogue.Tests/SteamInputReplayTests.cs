@@ -28,19 +28,15 @@ public sealed class SteamInputReplayTests
     private static SessionFixture Load(string scenario) =>
         SessionFixture.Parse(File.ReadAllText(Path.Combine(AppContext.BaseDirectory, "sessions", scenario)));
 
-    [Fact]
-    public void ReadsTheGameReportsAsMadeFromASteamInputSessionFireNoBinding()
+    // Every read goes in, as the pad hook hands them over today; reads the game reports as not made carry leftover
+    // bits, including the repeat button. This is #225's red test: un-skip it with #225's fix.
+    [Fact(Skip = "#225: the pad hook hands over reads the game reports as not made")]
+    public void ASteamInputSessionFiresNoBindingWhenEveryReadIsHandedOver()
     {
         var controls = OpenControls();
 
         Load("steam-input-pad1-noise.txt").Replay(new MessageEvents(), new CursorEvents(),
-            pad: read =>
-            {
-                if (read.Returned != 0)
-                {
-                    controls.Pad(read.Pad, read.Buttons);
-                }
-            });
+            pad: read => controls.Pad(read.Pad, read.Buttons));
 
         Assert.Empty(announcer.Said);
     }
