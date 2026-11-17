@@ -15,17 +15,40 @@ public sealed class ModEntryPoint : IMod
 {
     /// <summary>Starts the announcer every feature speaks through (ADR 0004): Prism when it starts, silence otherwise,
     /// and in Debug builds the transcript in front of either.</summary>
-    private static IAnnouncer StartSpeech(string folder, string modId, ILogger logger)
+    private static IAnnouncer StartSpeech(string folder, Action<string> log)
     {
         var (speech, whyNot) = PrismSpeech.TryStart(folder);
-        logger.WriteLine(speech is null
-            ? $"[{modId}] speech unavailable: {whyNot}"
-            : $"[{modId}] speech: {speech.BackendName}");
+        log(speech is null ? $"speech unavailable: {whyNot}" : $"speech: {speech.BackendName}");
         IAnnouncer announcer = speech is null ? new SilentAnnouncer() : speech;
 #if DEBUG
         announcer = new TranscriptAnnouncer(announcer, folder);
 #endif
         return announcer;
+    }
+
+    /// <summary>The report log a player attaches to a bug report (#188), fresh each run, in every build. It redacts the
+    /// mod's folder, the settings folder, the user profile and the user name, since a path to any of them can turn up in
+    /// an error. A user name under three characters isn't redacted on its own, as replacing it everywhere would garble
+    /// the log. Null when it can't be opened.</summary>
+    [SuppressMessage("Design", "CA1031", Justification = "A report log must never stop the mod.")]
+    [SuppressMessage("Reliability", "CA2000", Justification = "Lives as long as the game process.")]
+    private static ReportLog? OpenReportLog(string folder, string configFolder)
+    {
+        try
+        {
+            var stream = new FileStream(
+                Path.Combine(folder, ReportLog.FileName), FileMode.Create, FileAccess.Write, FileShare.Read);
+            var started = Process.GetCurrentProcess().StartTime;
+            var userName = Environment.UserName;
+            return new ReportLog(
+                new StreamWriter(stream), () => (long)(DateTime.Now - started).TotalMilliseconds,
+                [folder, configFolder, Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
+                    userName.Length >= 3 ? userName : ""]);
+        }
+        catch (Exception)
+        {
+            return null;
+        }
     }
 
 #if DEBUG
@@ -63,19 +86,26 @@ public sealed class ModEntryPoint : IMod
             var modLoader = (IModLoader)loader;
             var folder = modLoader.GetDirectoryForModId(config.ModId);
             var logger = (ILogger)modLoader.GetLogger();
-            // Speech and the dev log first: hooks are created with them, and one may fire at once.
-            var announcer = StartSpeech(folder, config.ModId, logger);
+            // Every line for the loader's console also goes to the report log (#188).
+            // The settings live in Reloaded-II's per-mod user-config folder (IModLoaderV3.GetModConfigDirectory, in
+            // Reloaded.Mod.Interfaces 2.4.0), read now and again when the file changes (#104).
+            var configFolder = modLoader.GetModConfigDirectory(config.ModId);
+            var report = OpenReportLog(folder, configFolder);
+            void Log(string line)
+            {
+                logger.WriteLine($"[{config.ModId}] {line}");
+                report?.Note(line);
+            }
+            // Speech and the logs first: hooks are created with them, and one may fire at once.
+            var announcer = StartSpeech(folder, Log);
 #if DEBUG
             var messageLog = OpenMessageLog(folder);
 #else
             MessageLog? messageLog = null;
 #endif
-            // The settings live in Reloaded-II's per-mod user-config folder (IModLoaderV3.GetModConfigDirectory, in
-            // Reloaded.Mod.Interfaces 2.4.0), read now and again when the file changes (#104).
-            var settings = new SettingsReloader(announcer, line => logger.WriteLine($"[{config.ModId}] {line}"));
-            settingsFile = SettingsFile.Open(
-                modLoader.GetModConfigDirectory(config.ModId), settings, line => logger.WriteLine($"[{config.ModId}] {line}"));
-            var services = HookServices.Speaking(announcer, settings, messageLog, folder);
+            var settings = new SettingsReloader(announcer, Log);
+            settingsFile = SettingsFile.Open(configFolder, settings, Log);
+            var services = HookServices.Speaking(announcer, settings, report, messageLog, folder);
             // The mod runs inside the game, so this process's exe is the game executable whose hash identifies the
             // build (seen in docs/raw-sources/mod-entry-point-first-run-2026-11-15.md). Hooks go in only on a known
             // build, through the loader (#39). Issue #21's spike scans first, so it reads the game's own bytes (#92).
@@ -83,12 +113,12 @@ public sealed class ModEntryPoint : IMod
             var status = ModStartup.CheckAndReport(
                 config.ModId, Environment.ProcessPath ?? "", folder, () => KnownGameBuilds.All, HookLoader.Expected(candidates),
                 build => HookLoader.Install(
-                    build, candidates, modLoader, services, line => logger.WriteLine($"[{config.ModId}] {line}")),
+                    build, candidates, modLoader, services, Log),
                 build => ScanIfRequested(folder, build, config.ModId, logger),
                 announcer);
             // The load message is spoken (#187); the log repeats it for when speech didn't start.
-            logger.WriteLine(
-                $"[{config.ModId}] build {ModBuild.Revision.CommitSha}{(ModBuild.Revision.HasUncommittedChanges ? "-dirty" : "")}: {status.State} on game build {status.GameBuildSha256}, hooks {status.HooksLoaded}/{status.HooksExpected}" +
+            Log(
+                $"build {ModBuild.Revision.CommitSha}{(ModBuild.Revision.HasUncommittedChanges ? "-dirty" : "")}: {status.State} on game build {status.GameBuildSha256}, hooks {status.HooksLoaded}/{status.HooksExpected}" +
                 (status.Reason is null ? "" : $" ({status.Reason})") + $"; load message: {LoadMessage.For(status).Text}");
         }
         catch (Exception)
