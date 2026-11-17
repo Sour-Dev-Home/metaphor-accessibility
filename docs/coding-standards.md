@@ -62,7 +62,8 @@ each rule on every assembly built from `src/`. Each test plants a violation to p
     (`IObserves3`, `IObserves4WithDouble`, …) and only decodes its arguments in `Observe`. The adapter for that shape
     (`PassThrough`) creates, stores and activates the hook, guards `Observe` with a catch-all and always calls the
     original, so no hook calls the hooking library or catches every exception itself. A hook that lists `Calls` takes
-    them in `UseCalls`. A hook that changes the game's behaviour is written the long way, which this rule's check must
-    first make an exception for; it still follows rules 8–11.
+    them in `UseCalls`. A hook that changes the game's behaviour is written the long way: it implements
+    `IChangesBehaviour` instead of a shape, and creates, activates and guards its hook itself, still under rules 8–11
+    (`InputHooks.cs`).
 
 A new project under `src/` must be added to the architecture test project, and a test fails until it is.

@@ -66,6 +66,15 @@ internal interface IObserves4WithResult
     void Observe(nint first, nint second, nint third, nint fourth, nint result);
 }
 
+/// <summary>A hook that changes what the game does (#58), rule 14's exception: it implements this instead of a shape,
+/// and hooks its function itself. <see cref="Activate"/> must store the hook in a field before activating it, guard its
+/// callback with a catch-all and always call the original (rules 8–11).</summary>
+internal interface IChangesBehaviour
+{
+    /// <summary>Hooks the function at <paramref name="address"/>. Called at most once, by the loader.</summary>
+    void Activate(IReloadedHooks hooks, nint address);
+}
+
 /// <summary>The hook loader's pass-through adapters (#88): the code every hook used to repeat. Each keeps its callback
 /// in a field, creates the hook, stores it before activating it (rule 11), guards the observer with a catch-all, and
 /// always calls the original. The loader keeps each adapter alive, and with it the hook it serves (rule 11 in
@@ -89,6 +98,7 @@ internal abstract class PassThrough
         IObserves4WithDouble observer => new Adapter4WithDouble(hook, observer),
         IObserves5WithDouble observer => new Adapter5WithDouble(hook, observer),
         IObserves4WithResult observer => new Adapter4WithResult(hook, observer),
+        IChangesBehaviour changer => new SelfHooked(hook, changer),
         _ => null,
     };
 
@@ -101,6 +111,13 @@ internal abstract class PassThrough
     }
 
     private protected abstract void Activate(IReloadedHooks hooks, nint address);
+
+    /// <summary>Not an adapter: hands the hooking to a hook that changes behaviour, so the loader still keeps it alive.
+    /// </summary>
+    private sealed class SelfHooked(IGameHook hook, IChangesBehaviour changer) : PassThrough(hook)
+    {
+        private protected override void Activate(IReloadedHooks hooks, nint address) => changer.Activate(hooks, address);
+    }
 
     private sealed class Adapter3 : PassThrough
     {

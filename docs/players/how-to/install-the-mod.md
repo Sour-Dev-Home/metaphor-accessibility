@@ -94,7 +94,15 @@ ID, `metaphor.accessibility`. If you report a problem, attach that file.
 
 ## Keys
 
-The mod reads no keys yet. Dev builds speak dialogue lines and nothing else, and have no settings to change.
+While a dialogue window is open (not yet checked in the game):
+
+| Key | Controller | Does |
+|---|---|---|
+| R | X | Repeats the last dialogue line in full |
+| T | LB and RB together | Turns spoken dialogue off or on, and says which |
+
+During dialogue the game doesn't see these presses; elsewhere they keep their normal job and the mod ignores them.
+They can't be changed yet.
 
 This list will grow as the mod gains features. Every key the mod reads will be listed here, including any the game
 doesn't show, because players of other accessibility mods found keys their README left out
