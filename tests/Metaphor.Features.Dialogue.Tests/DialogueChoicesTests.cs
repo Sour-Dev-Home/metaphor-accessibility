@@ -74,4 +74,27 @@ public sealed class DialogueChoicesTests
 
         Assert.Equal([new Announcement("Choice", Interrupt: false)], announcer.Said);
     }
+
+    [Theory]
+    [InlineData("......")]
+    [InlineData("…")]
+    [InlineData(". . .")]
+    public void AnOptionOfOnlyDotsIsSpokenAsDotDotDot(string dots)
+    {
+        messages.Compiled($"@MES_c SEL 0\n{{\n<SEL_ITEM>North\n\n{dots}\n<WAIT>\n}}");
+
+        Choices().Observe(new ChoiceRequested(0, "MES_missing", "MES_c"));
+
+        Assert.Equal([new Announcement("Choose: North; dot dot dot", Interrupt: false)], announcer.Said);
+    }
+
+    [Fact]
+    public void AnOptionMerelyEndingInDotsIsLeftAsItIs()
+    {
+        messages.Compiled("@MES_c SEL 0\n{\n<SEL_ITEM>Well...\n<WAIT>\n}");
+
+        Choices().Observe(new ChoiceRequested(0, "MES_missing", "MES_c"));
+
+        Assert.Equal([new Announcement("Choose: Well...", Interrupt: false)], announcer.Said);
+    }
 }
