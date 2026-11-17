@@ -61,6 +61,8 @@ StrykerOutput/
 secrets.json
 .claude/settings.local.json
 .claude/pii-patterns.txt
+# Git worktrees Claude Code creates for subagents: full checkouts of other branches.
+.claude/worktrees/
 # A dev run's files for the mod's folder (docs/contributors/how-to/deploy-a-dev-build.md): the first holds the
 # maintainer's typed hero name, so a copy drafted in the tree must never be committed.
 spike-player-name.txt
