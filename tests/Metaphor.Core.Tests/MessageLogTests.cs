@@ -1,3 +1,4 @@
+using Metaphor.Core.Menus;
 using Metaphor.Core.Messages;
 
 namespace Metaphor.Core.Tests;
@@ -125,6 +126,18 @@ public sealed class MessageLogTests
         Assert.Equal(
             $"410 ms screen mgr=0xa0 mgrClass=CursorManager@ope@ui@app owner=0x300 ownerClass=RootMenuChoice@ope@ui@app fields=+0x10:CursorManagerSoundParts@ope@ui@app,+0x28:RootMenuChoice@ope@ui@app{Environment.NewLine}" +
             $"410 ms screen mgr=0xb0 mgrClass=? owner=none ownerClass=? fields=none{Environment.NewLine}",
+            text.ToString());
+    }
+
+    [Fact]
+    public void RecordsAGettersValueAndItsCallerAsNumbers()
+    {
+        var (log, text) = NewLog(now: 52);
+
+        log.ValueRead(new ValueRead("GetBagItem", [0x1005], 3), new CallerTrace([(0xf2b9cf, 0x3bcb10)], "scan", 0));
+
+        Assert.Equal(
+            $"52 ms value fn=GetBagItem args=4101 result=3 caller=0xf2b9cf call=0x3bcb10 via=scan frames=0{Environment.NewLine}",
             text.ToString());
     }
 

@@ -3,9 +3,9 @@ using Metaphor.Core.Menus;
 
 namespace Metaphor.Hooks;
 
-// Issue #213: a development-only, opt-in listener to find which screen owns a menu cursor. The function, its arguments
-// and the field offsets are our reading of the exe on one build (docs/raw-sources/screen-class-link-2026-11-17.md); the
-// class names are the game's own, from its run-time type information. Every argument is observed pointer-sized (rule 9).
+// Issues #213 and #227: development-only, opt-in listeners to find which screen owns a menu cursor. The functions, their
+// arguments and the field offsets are our reading of the exe on one build (docs/raw-sources/screen-class-link-2026-11-17.md,
+// docs/raw-sources/archetype-detail-cursors-2026-11-17.md); the class names are the game's own, from its run-time type information. Every argument is observed pointer-sized (rule 9).
 
 /// <summary>The shared cursor getter of the game's menu choices (the 12th virtual function of 279 classes, among them
 /// <c>TitleMenuChoice</c> and <c>RootMenuChoice</c>): <c>shared_ptr&lt;CursorManagerBase&gt;* (Choice* this,
@@ -33,6 +33,44 @@ internal sealed class ChoiceCursorGetterListener : IGameHook, IObserves4WithResu
         if (ModuleMemoryReader.ReadPointer(output) is { } manager && manager != 0)
         {
             probe.Owners.Saw(choice, manager);
+        }
+    }
+}
+
+/// <summary>Issue #227: the cursor setup of the tabbed archetype detail choices, the 11th virtual function (slot 10) of
+/// <c>ClassDetailBase&lt;CampArchetypeDetailLayout&gt;</c>, <c>EquipClassDetailChoice</c>,
+/// <c>StatusMenuClassDetailChoice</c>, <c>AcademiaClassDetailChoice</c> and <c>BTL_ClassChange</c>: <c>void (Choice*
+/// this)</c>, which makes the choice's three tab cursor managers and stores them at <c>+0x1740</c>, <c>+0x1750</c> and
+/// <c>+0x1760</c>, the fields its tabbed cursor getter (<c>0xd976f0</c>) hands out. That getter matches three times on
+/// disk and can't be hooked; this function can (docs/raw-sources/archetype-detail-cursors-2026-11-17.md). After each call
+/// it records the choice as the owner of all three managers, so the <see cref="ScreenClassProbe"/> names archetype
+/// details on its cursor inputs. Turned on by the same file as <see cref="ChoiceCursorGetterListener"/>.</summary>
+[GameHook(GameBuilds.Steam18330018, DevOnly = true, OptInFile = ScreenClassProbe.OptInFile)]
+internal sealed class ClassDetailCursorSetupListener : IGameHook, IObserves1WithResult
+{
+    // Where the choice keeps its tab managers' shared pointers, 16 bytes apart (pointer, then control block).
+    private static readonly int[] ManagerOffsets = [0x1740, 0x1750, 0x1760];
+
+    private readonly ScreenClassProbe probe;
+
+    public ClassDetailCursorSetupListener(HookServices services)
+    {
+        ArgumentNullException.ThrowIfNull(services);
+        probe = services.ScreenClass;
+        probe.Start(services.Cursors);
+    }
+
+    public string SignatureName => "ClassDetailSetupCursors";
+
+    /// <summary>Observed after the setup returns, when the three managers are in place.</summary>
+    public void Observe(nint choice, nint result)
+    {
+        foreach (var offset in ManagerOffsets)
+        {
+            if (ModuleMemoryReader.ReadPointer(choice + offset) is { } manager && manager != 0)
+            {
+                probe.Owners.Saw(choice, manager);
+            }
         }
     }
 }

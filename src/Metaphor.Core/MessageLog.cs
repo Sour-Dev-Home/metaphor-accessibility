@@ -94,6 +94,11 @@ public sealed class MessageLog(TextWriter writer, Func<long> millisecondsSinceSt
     public void ScreenClassSeen(ScreenClassSeen seen) =>
         Write(() => Line($"{millisecondsSinceStart()} ms screen {seen}"));
 
+    /// <summary>A value a game getter returned (#155), with the code that called it (<see cref="CallerTrace"/>). Numbers
+    /// only, no game text.</summary>
+    public void ValueRead(ValueRead read, CallerTrace caller) =>
+        Write(() => Line($"{millisecondsSinceStart()} ms value {read} {caller}"));
+
     /// <summary>A line the game asked for by label, with its kind.</summary>
     public void Observe(LineRequested line) => Write(() =>
         Line($"{millisecondsSinceStart()} ms request via={LineRequestFunction} kind={line.Kind} text=\"{LogText.Escaped(line.Label)}\""));

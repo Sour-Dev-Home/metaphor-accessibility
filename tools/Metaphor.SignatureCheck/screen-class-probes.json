@@ -1,3 +1,4 @@
 [
-  { "name": "ChoiceGetCursor", "pattern": "48 83 EC 18 33 C0 48 89 02 48 89 42 08 48 8B 81 38 02 00 00 48 85 C0 74 04 F0 FF 40 08 48 8B 81 30 02 00 00 48 89 02 48 8B 81 38 02 00 00 48 89 42 08 48 8B C2 48 83 C4 18 C3", "source": "docs/raw-sources/screen-class-link-2026-11-17.md" }
+  { "name": "ChoiceGetCursor", "pattern": "48 83 EC 18 33 C0 48 89 02 48 89 42 08 48 8B 81 38 02 00 00 48 85 C0 74 04 F0 FF 40 08 48 8B 81 30 02 00 00 48 89 02 48 8B 81 38 02 00 00 48 89 42 08 48 8B C2 48 83 C4 18 C3", "source": "docs/raw-sources/screen-class-link-2026-11-17.md" },
+  { "name": "ClassDetailSetupCursors", "pattern": "48 89 5C 24 08 48 89 74 24 10 57 48 83 EC 50 48 8B F1 48 8D 4C 24 20 E8 44 83 73 FF 48 8D 8E 40 17 00 00 48 8B D0 E8 95 C8 FE FF", "source": "docs/raw-sources/archetype-detail-cursors-2026-11-17.md" }
 ]

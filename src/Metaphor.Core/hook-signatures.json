@@ -90,6 +90,42 @@
     "evidence": "Our reading of the exe through its type information (docs/raw-sources/screen-class-link-2026-11-17.md); one match on disk, not yet checked in memory"
   },
   {
+    "name": "ClassDetailSetupCursors",
+    "pattern": "48 89 5C 24 08 48 89 74 24 10 57 48 83 EC 50 48 8B F1 48 8D 4C 24 20 E8 44 83 73 FF 48 8D 8E 40 17 00 00 48 8B D0 E8 95 C8 FE FF",
+    "gameBuilds": ["548ddc955c176867f062c44f94c03dd9ac33caefb278a5ac388e792aedf09504"],
+    "evidence": "Our reading of the exe through its type information (docs/raw-sources/archetype-detail-cursors-2026-11-17.md); one match on disk at 0xd8adf0, unique only through its call displacements; not yet checked in memory"
+  },
+  {
+    "name": "GetMoney",
+    "pattern": "48 8B 05 ?? ?? ?? ?? 8B 80 58 2C 02 00 C3",
+    "gameBuilds": ["548ddc955c176867f062c44f94c03dd9ac33caefb278a5ac388e792aedf09504"],
+    "evidence": "Our reading of the exe from the script function's address (docs/raw-sources/menu-value-getters-2026-11-17.md); one match on disk at 0x3b0c30; not yet checked in memory"
+  },
+  {
+    "name": "GetBagItem",
+    "pattern": "4C 8B DC 48 83 EC 68 48 8D 05 42 F2 FF FF 49 89 43 B8",
+    "gameBuilds": ["548ddc955c176867f062c44f94c03dd9ac33caefb278a5ac388e792aedf09504"],
+    "evidence": "Our reading of the exe from the script function's address (docs/raw-sources/menu-value-getters-2026-11-17.md); one match on disk at 0x3bcb10, unique only through its first displacement; not yet checked in memory"
+  },
+  {
+    "name": "GetPlayerUnit",
+    "pattern": "48 63 C1 48 69 C8 A8 16 00 00 48 8B 05 ?? ?? ?? ?? 48 05 28 02 00 00 48 03 C1 C3",
+    "gameBuilds": ["548ddc955c176867f062c44f94c03dd9ac33caefb278a5ac388e792aedf09504"],
+    "evidence": "Our reading of the exe from the script function's address (docs/raw-sources/menu-value-getters-2026-11-17.md); one match on disk at 0x3b0eb0; not yet checked in memory"
+  },
+  {
+    "name": "UnitGetParam",
+    "pattern": "41 56 48 83 EC 50 4C 89 64 24 28 44 8B E2 4C 89 7C 24 20 4C 8B F9 E8 ?? ?? ?? ?? 41 0F B7 4F 04",
+    "gameBuilds": ["548ddc955c176867f062c44f94c03dd9ac33caefb278a5ac388e792aedf09504"],
+    "evidence": "Our reading of the exe from the script function's address (docs/raw-sources/menu-value-getters-2026-11-17.md); one match on disk at 0x3e6680; not yet checked in memory"
+  },
+  {
+    "name": "UnitAffinity",
+    "pattern": "48 89 4C 24 08 53 55 57 41 54 41 55 41 56 41 57 48 83 EC 40 45 33 FF 49 63 E8 32 DB 44 0F B7 F2 32 D2 89 5C 24 24 89 54",
+    "gameBuilds": ["548ddc955c176867f062c44f94c03dd9ac33caefb278a5ac388e792aedf09504"],
+    "evidence": "Our reading of the exe from the script function's address (docs/raw-sources/menu-value-getters-2026-11-17.md); one match on disk at 0x3e45a0; not yet checked in memory"
+  },
+  {
     "name": "criAtomExPlayer_SetCueId",
     "pattern": "48 89 5C 24 ?? 48 89 6C 24 ?? 48 89 74 24 ?? 57 48 83 EC 20 49 63 F8 48 89 D6",
     "gameBuilds": ["548ddc955c176867f062c44f94c03dd9ac33caefb278a5ac388e792aedf09504"],
