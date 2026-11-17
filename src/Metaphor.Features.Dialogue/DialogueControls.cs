@@ -51,7 +51,7 @@ public sealed class DialogueControls
         this.announcer = announcer;
     }
 
-    /// <summary>The dialogue window's opening and closing will be reported (its hooks are opted in): from now on the
+    /// <summary>The dialogue window's opening and closing will be reported (both its hooks went in): from now on the
     /// controls act, and hide their input from the game, only while it's open.</summary>
     public void TrackWindow()
     {

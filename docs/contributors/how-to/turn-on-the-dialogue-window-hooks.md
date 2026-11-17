@@ -18,7 +18,9 @@ dialogue window opens and closes, `DialogueWindowOpenHook` on `MsgOpenBody` and 
 2. Create an empty file named `opt-in-dialogue-window.txt` in the deployed mod's folder (`<mods>\metaphor.accessibility`).
    Only its presence counts. It works in a Release build too, not only a Debug one.
 3. Start the game from Reloaded-II. Both hooks still go through the build check and signature scan, and count in
-   `hooks n/m`.
+   `hooks n/m`. They go in as a pair: if either fails, neither goes in, the controls behave as without the file, and
+   the log names the reason, such as `hook DialogueWindowOpenHook skipped: its partner DialogueWindowCloseHook can't go
+   in (signature MsgCloseBody matched nowhere)` (#172).
 
 Without the file, Reloaded-II's log says `hook DialogueWindowOpenHook skipped: opt-in, and opt-in-dialogue-window.txt
 isn't in the mod's folder` (and the same for the close hook). To turn them off, delete the file and restart the game.

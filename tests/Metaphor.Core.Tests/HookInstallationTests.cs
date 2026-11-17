@@ -134,6 +134,74 @@ public sealed class HookInstallationTests
             log);
     }
 
+    private static (HookSpec, FakeHook?) Partnered(string name, string signature, string partner) =>
+        (new HookSpec(name, [Build], signature) { Partner = partner }, new FakeHook(name));
+
+    [Fact]
+    public void InstallsNeitherHookOfAPairWhenOnlyOneResolvesAndSaysWhy()
+    {
+        var installed = new List<string>();
+        var log = new List<string>();
+
+        var (loaded, kept) = HookInstallation.Run(
+            Build, [Partnered("Open", "show-line", "Close"), Partnered("Close", "nowhere", "Open")], Signatures, Found,
+            () => (hook, _) => installed.Add(hook.Name), log.Add);
+
+        Assert.Equal(0, loaded);
+        Assert.Empty(kept);
+        Assert.Empty(installed);
+        Assert.Equal(
+            ["hook Open skipped: its partner Close can't go in (no signature nowhere in hook-signatures.json)",
+             "hook Close skipped: no signature nowhere in hook-signatures.json"],
+            log);
+    }
+
+    [Fact]
+    public void InstallsNeitherHookOfAPairWhenThePartnerWasNeverCreated()
+    {
+        var log = new List<string>();
+
+        var (loaded, _) = HookInstallation.Run(
+            Build, [Partnered("Open", "show-line", "Close")], Signatures, Found,
+            () => (_, _) => throw new InvalidOperationException("never installed"), log.Add);
+
+        Assert.Equal(0, loaded);
+        Assert.Equal(["hook Open skipped: its partner Close isn't being loaded"], log);
+    }
+
+    [Fact]
+    public void TellsEachHookOfAPairOnlyOnceBothWentIn()
+    {
+        var paired = new List<string>();
+
+        HookInstallation.Run(
+            Build,
+            [Partnered("Open", "show-line", "Close"), Partnered("Close", "show-choice", "Open"), Hook("Alone", "show-line")],
+            Signatures, Found, () => (_, _) => { }, _ => { }, pairInstalled: hook => paired.Add(hook.Name));
+
+        Assert.Equal(["Open", "Close"], paired);
+    }
+
+    [Fact]
+    public void TellsNeitherHookOfAPairWhenOneFailsToInstall()
+    {
+        var paired = new List<string>();
+
+        var (loaded, _) = HookInstallation.Run(
+            Build, [Partnered("Open", "show-line", "Close"), Partnered("Close", "show-choice", "Open")], Signatures, Found,
+            () => (hook, _) =>
+            {
+                if (hook.Name == "Close")
+                {
+                    throw new InvalidOperationException("failed to go in");
+                }
+            },
+            _ => { }, pairInstalled: hook => paired.Add(hook.Name));
+
+        Assert.Equal(1, loaded);
+        Assert.Empty(paired);
+    }
+
     /// <summary>A hook that failed to install is the line a native crash report needs, so it goes to the error log,
     /// which the report log writes to disk at once (#204).</summary>
     [Fact]

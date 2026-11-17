@@ -18,4 +18,9 @@ public sealed class GameHookAttribute(params string[] gameBuilds) : Attribute
     /// With it, the hook still goes through the build check and signature scan (<see cref="Metaphor.Core.HookOptIn"/>).
     /// </summary>
     public string? OptInFile { get; init; }
+
+    /// <summary>For one of a pair of hooks that only work together, the other's class name; null for none. If either
+    /// can't go in, the loader installs neither and logs why, and it tells each with <c>PairInstalled</c> only once both
+    /// are in (#172, <see cref="Metaphor.Core.HookSpec.Partner"/>).</summary>
+    public string? Partner { get; init; }
 }
