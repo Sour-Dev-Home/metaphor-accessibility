@@ -29,6 +29,9 @@ This is a public repository.
 6. **No personal information or local paths in committed files.** That means no real name, email or phone number, and no
    absolute path like `C:\Users\...`. Use paths relative to the repository or environment variables. The checks scan
    for both, with your private patterns set up as in `README.md#checks`.
+7. **Credit what you borrow.** Any idea or code taken from another project is credited by name, repository, licence,
+   commit and file, in a code comment where it's used and in `CREDITS.md`. Copied code keeps its licence notice and
+   must be under a GPL-3.0-compatible licence.
 
 ## Layout
 
