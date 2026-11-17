@@ -428,6 +428,7 @@ esac
 finish() {
   local code=$?
   rm -rf "${tmp:-}"
+  [ -z "${locked:-}" ] || rm -rf "$locked"
   [ "${#timed[@]}" -eq 0 ] ||
     bash "$timing_script" report "${timed[0]}" "${timed[1]}" "$started" "$(date +%s)" \
       "${timed[@]:2}"
@@ -436,6 +437,27 @@ finish() {
 
 tmp="$(mktemp -d)" || die "could not create a temporary folder"
 trap finish EXIT
+
+# Stages that build take turns through one lock per machine, with no shared MSBuild nodes: several worktrees building
+# at once stalled each other for over an hour (2026-11-17). A lock whose holder has exited is taken over.
+case "$stage" in
+  full | slow | signatures | pre-push)
+    export MSBUILDDISABLENODEREUSE=1 DOTNET_CLI_USE_MSBUILD_SERVER=0
+    lock="${METAPHOR_CHECK_LOCK:-${TMPDIR:-/tmp}/metaphor-check.lock}"
+    until mkdir "$lock" 2> /dev/null; do
+      holder="$(cat "$lock/pid" 2> /dev/null || true)"
+      if [ -n "$holder" ] && ! kill -0 "$holder" 2> /dev/null; then
+        rm -rf "$lock"
+        continue
+      fi
+      [ -n "${waited:-}" ] || echo "check: waiting for another build check to finish ($lock)" >&2
+      waited=1
+      sleep 5
+    done
+    echo "$$" > "$lock/pid"
+    locked="$lock"
+    ;;
+esac
 
 # list_entries prints "<mode> <blob> <stage>\t<path>\0" for each file to check, in `git ls-files -s -z` form.
 case "$stage" in
