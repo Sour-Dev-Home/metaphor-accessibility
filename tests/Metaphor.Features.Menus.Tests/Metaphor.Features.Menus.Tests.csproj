@@ -16,6 +16,11 @@
   </ItemGroup>
 
   <ItemGroup>
+    <!-- Recorded sessions to replay (#149). -->
+    <None Include="..\fixtures\sessions\*.txt" LinkBase="sessions" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
+  <ItemGroup>
     <ProjectReference Include="..\..\src\Metaphor.Features.Menus\Metaphor.Features.Menus.csproj" />
   </ItemGroup>
 

@@ -76,6 +76,12 @@ check the points above.
 3. If it crashed, Windows' Application event log names the faulting module and exception code; `coreclr.dll` with
    `0x80131623` is .NET failing fast, not the game.
 4. Save what the run showed as a raw source (method, game build, steps), and record it on the issue.
+5. Turn each finding into a replay test (#149) before the log is overwritten: cut the scenario out of the mod's
+   `message-log.txt` with `dotnet run --project tools/Metaphor.SessionFixture -- <log> <from ms> <to ms> <kinds> <game
+   build> <raw source> "<behaviour>"` into `tests/fixtures/sessions/<behaviour>.txt`, one small scenario per behaviour.
+   It keeps only labels, numbers and times, and refuses a record that looks like text. Replay it with
+   `SessionFixture.Replay` through the seams the hooks feed, and assert what was announced and in what order, not the
+   wording (`TitleMenuReplayTests`). The session's raw source ends with a list of the tests added for its findings.
 
 ## 6. Review and merge
 

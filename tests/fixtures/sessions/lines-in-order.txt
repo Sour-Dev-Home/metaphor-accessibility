@@ -1,0 +1,12 @@
+# Dialogue lines: an NPC's nine lines, each requested once, in order.
+# source: docs/raw-sources/menu-hook-counts-2026-11-17.md
+# game build: 548ddc955c176867f062c44f94c03dd9ac33caefb278a5ac388e792aedf09504
+0 request kind=0 label=MES_npc_NEWS_MOUNT_T5N3_000
+2634 request kind=0 label=MES_npc_NEWS_MOUNT_T5N3_001
+3701 request kind=0 label=MES_npc_NEWS_MOUNT_T5N3_002
+4335 request kind=0 label=MES_npc_NEWS_MOUNT_T5N3_003
+4903 request kind=0 label=MES_npc_NEWS_MOUNT_T5N3_004
+5486 request kind=0 label=MES_npc_NEWS_MOUNT_T5N3_005
+6037 request kind=0 label=MES_npc_NEWS_MOUNT_T5N3_006
+6537 request kind=0 label=MES_npc_NEWS_MOUNT_T5N3_007
+7020 request kind=0 label=MES_npc_NEWS_MOUNT_T5N3_008
