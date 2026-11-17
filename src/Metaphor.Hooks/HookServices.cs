@@ -42,7 +42,7 @@ internal sealed record HookServices
     /// <summary>Services for the mod in <paramref name="modFolder"/> whose requested dialogue lines and opened choices
     /// are spoken through <paramref name="announcer"/>, voiced lines as <paramref name="settings"/> say. The library
     /// hears each compiled file first, speech each requested line and choice first, and the menu screens (#208, which
-    /// tell the title menu, #94) and a choice's focus (#95) each cursor input; the report log (#188) and the message log,
+    /// tell the title menu, #94, the main menu and any other screen, #97) and a choice's focus (#95) each cursor input; the report log (#188) and the message log,
     /// when there are, hear every event last.</summary>
     public static HookServices Speaking(
         IAnnouncer announcer, SettingsReloader settings, ReportLog? report, MessageLog? log, string modFolder)
@@ -58,8 +58,10 @@ internal sealed record HookServices
         var reader = new DialogueReader(announcer);
         var dialogue = new DialogueAnnouncer(reader, cleaner, history, () => settings.Current.VoicedLines);
         var controls = new DialogueControls(DialogueBindings.Default, history, reader, announcer);
-        var screens = new MenuScreens([TitleMenuFocus.Screen]);
+        var screens = new MenuScreens([TitleMenuFocus.Screen, MainMenuFocus.Screen]);
         screens.Observe(new TitleMenuFocus(library, announcer, cleaner));
+        screens.Observe(new MainMenuFocus(announcer));
+        screens.Observe(new UnknownScreenFocus(announcer));
         events.ObserveFiles(library);
         events.ObserveLines(new DialogueLines(library, dialogue));
         events.ObserveChoices(new DialogueChoices(library, dialogue));
