@@ -27,7 +27,7 @@ public sealed class DevOnlyHookTests
 
     /// <summary>An opt-in hook's file (<c>OptInFile = "…"</c>) is named bare, so it is looked for only in the mod's
     /// folder (the loader ignores any other name, which would leave the hook off for good). An opt-in hook needn't be
-    /// development-only: the dialogue window hooks (#58) are opt-in in Release too, since .text1 hooks stay opt-in.
+    /// development-only, though today's opt-in hooks all are (the dialogue window hooks became so with #232).
     /// </summary>
     [Fact]
     public void OptInHooksHaveABareFileName()
