@@ -11,8 +11,10 @@ namespace Metaphor.Hooks;
 
 // The dialogue controls' input (#58): hooks on the game's own per-frame reads of a pad and of the keyboard. They change
 // what the game sees, so they are written the long way (architecture rule 14's exception, IChangesBehaviour): each
-// calls the original, hands the state it wrote to DialogueControls, and while the dialogue window is open writes it back
-// without the bound buttons or keys. Every read goes through ModuleMemoryReader (rule 10); the one write is
+// calls the original, reads the dialogue window's message pointer (DialogueWindowPointer, #232), hands both to
+// DialogueControls, and while the dialogue window is open writes the state back without the bound buttons or keys.
+// Each asks the loader for the pointer's signature, so it goes in only when that matched once too; without it the
+// controls never see a window and leave every press to the game (#206). Every read goes through ModuleMemoryReader (rule 10); the one write is
 // WriteProcessMemory on this process into the state the original has just filled, and only clears what it wrote.
 // WriteProcessMemory fails instead of faulting, but it also writes through read-only pages, so it is safe only on memory
 // known to be the game's own writable data, never on an arbitrary pointer. In Debug builds each change of a read is
@@ -34,6 +36,7 @@ internal sealed class PadReadHook : IGameHook, IChangesBehaviour
     private readonly DialogueControls controls;
     private readonly MessageLog? log;
     private readonly InputStateChanges changes = new();
+    private readonly DialogueWindowPointer window = new();
     private readonly Function callback;
     private IHook<Function>? hook;
 
@@ -46,6 +49,10 @@ internal sealed class PadReadHook : IGameHook, IChangesBehaviour
     }
 
     public string SignatureName => "PadRead";
+
+    public IReadOnlyList<string> Calls => DialogueWindowPointer.Signatures;
+
+    public void UseCalls(IReadOnlyDictionary<string, nint> calls) => window.Resolve(calls);
 
     public void Activate(IReloadedHooks hooks, nint address)
     {
@@ -66,6 +73,12 @@ internal sealed class PadReadHook : IGameHook, IChangesBehaviour
         var result = hook!.OriginalFunction(pad, state);
         try
         {
+            var current = window.Read();
+            controls.WindowRead(current);
+            if (log is not null && changes.Changed("msgwindow", current?.ToString(CultureInfo.InvariantCulture) ?? "?"))
+            {
+                log.WindowRead(current);
+            }
             if (ModuleMemoryReader.ReadInt32(state) is { } value)
             {
                 var buttons = value & 0xFFFF;
@@ -111,6 +124,7 @@ internal sealed class KeyboardReadHook : IGameHook, IChangesBehaviour
     private readonly DialogueControls controls;
     private readonly MessageLog? log;
     private readonly InputStateChanges changes = new();
+    private readonly DialogueWindowPointer window = new();
     private readonly Function callback;
     private IHook<Function>? hook;
 
@@ -123,6 +137,10 @@ internal sealed class KeyboardReadHook : IGameHook, IChangesBehaviour
     }
 
     public string SignatureName => "KeyboardRead";
+
+    public IReadOnlyList<string> Calls => DialogueWindowPointer.Signatures;
+
+    public void UseCalls(IReadOnlyDictionary<string, nint> calls) => window.Resolve(calls);
 
     public void Activate(IReloadedHooks hooks, nint address)
     {
@@ -143,6 +161,8 @@ internal sealed class KeyboardReadHook : IGameHook, IChangesBehaviour
         var result = hook!.OriginalFunction(first, state);
         try
         {
+            // Read here too: the keyboard may be read on frames, or a thread, the pad isn't.
+            controls.WindowRead(window.Read());
             var slots = new byte[GameKeyList.Slots];
             if (ModuleMemoryReader.ReadInt32(state + CountOffset) is { } count &&
                 ModuleMemoryReader.ReadBytes(state + SlotsOffset, slots))

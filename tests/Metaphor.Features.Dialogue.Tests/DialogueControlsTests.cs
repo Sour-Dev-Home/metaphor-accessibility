@@ -16,6 +16,10 @@ public sealed class DialogueControlsTests
     private const int T = 0x54;
     private const int Enter = 0x0D;
 
+    // A message pointer the window held in session 5 (dialogue-window-flag-session5-2026-11-17.md); any non-zero value
+    // means a message is on screen.
+    private const long Message = 0x1315afe20;
+
     private readonly RecordingAnnouncer announcer = new();
     private readonly DialogueHistory history = new();
     private readonly DialogueReader reader;
@@ -25,11 +29,7 @@ public sealed class DialogueControlsTests
     {
         reader = new DialogueReader(announcer);
         controls = new DialogueControls(DialogueBindings.Default, history, reader, announcer);
-        // Most tests run with the window hooks opted in; the untracked ones at the end make their own controls.
-        controls.TrackWindow();
     }
-
-    private DialogueControls Untracked() => new(DialogueBindings.Default, history, reader, announcer);
 
     private static Announcement Said(string text) => new(text, Interrupt: true);
 
@@ -38,7 +38,7 @@ public sealed class DialogueControlsTests
     {
         history.Add("Ada: One.");
         history.Add("Ada: Two.");
-        controls.WindowOpened();
+        controls.WindowRead(Message);
 
         controls.Pad(0, 0);
         controls.Pad(0, X);
@@ -50,7 +50,7 @@ public sealed class DialogueControlsTests
     public void HoldingXRepeatsOnce()
     {
         history.Add("Ada: One.");
-        controls.WindowOpened();
+        controls.WindowRead(Message);
 
         controls.Pad(0, X);
         controls.Pad(0, X);
@@ -63,7 +63,7 @@ public sealed class DialogueControlsTests
     public void ReleasingAndPressingAgainRepeatsAgain()
     {
         history.Add("Ada: One.");
-        controls.WindowOpened();
+        controls.WindowRead(Message);
 
         controls.Pad(0, X);
         controls.Pad(0, 0);
@@ -75,7 +75,7 @@ public sealed class DialogueControlsTests
     [Fact]
     public void XIsHiddenFromTheGameWhileTheWindowIsOpenAndOtherButtonsAreNot()
     {
-        controls.WindowOpened();
+        controls.WindowRead(Message);
 
         Assert.Equal(A, controls.Pad(0, X | A));
     }
@@ -92,8 +92,8 @@ public sealed class DialogueControlsTests
     [Fact]
     public void AfterTheWindowClosesXIsHandedToTheGameAgain()
     {
-        controls.WindowOpened();
-        controls.WindowClosed();
+        controls.WindowRead(Message);
+        controls.WindowRead(0);
 
         Assert.Equal(X, controls.Pad(0, X));
     }
@@ -103,7 +103,7 @@ public sealed class DialogueControlsTests
     {
         history.Add("Ada: One.");
         controls.Pad(0, X);
-        controls.WindowOpened();
+        controls.WindowRead(Message);
 
         controls.Pad(0, X);
 
@@ -115,7 +115,7 @@ public sealed class DialogueControlsTests
     {
         // Steam Input's virtual pad can report the same press as the physical one (spike-session-2-2026-11-16.md).
         history.Add("Ada: One.");
-        controls.WindowOpened();
+        controls.WindowRead(Message);
 
         controls.Pad(0, X);
         controls.Pad(1, X);
@@ -130,7 +130,7 @@ public sealed class DialogueControlsTests
     {
         // The game's mask holds buttons only (input-route-2026-11-16.md); a noisy pad repeats the same mask.
         history.Add("Ada: One.");
-        controls.WindowOpened();
+        controls.WindowRead(Message);
 
         for (var frame = 0; frame < 100; frame++)
         {
@@ -143,7 +143,7 @@ public sealed class DialogueControlsTests
     [Fact]
     public void RepeatingWithNoLineYetSaysSo()
     {
-        controls.WindowOpened();
+        controls.WindowRead(Message);
 
         controls.Pad(0, X);
 
@@ -154,7 +154,7 @@ public sealed class DialogueControlsTests
     public void RRepeatsTheLastLineAndIsHiddenFromTheGame()
     {
         history.Add("Ada: One.");
-        controls.WindowOpened();
+        controls.WindowRead(Message);
 
         var handed = controls.Keys([Enter, R]);
 
@@ -173,7 +173,7 @@ public sealed class DialogueControlsTests
     public void HoldingRRepeatsOnce()
     {
         history.Add("Ada: One.");
-        controls.WindowOpened();
+        controls.WindowRead(Message);
 
         controls.Keys([R]);
         controls.Keys([R]);
@@ -184,7 +184,7 @@ public sealed class DialogueControlsTests
     [Fact]
     public void BothBumpersTogetherTurnTheReaderOffAndSayIt()
     {
-        controls.WindowOpened();
+        controls.WindowRead(Message);
 
         controls.Pad(0, LeftBumper);
         controls.Pad(0, LeftBumper | RightBumper);
@@ -196,7 +196,7 @@ public sealed class DialogueControlsTests
     [Fact]
     public void BothBumpersAreHiddenFromTheGameDuringDialogue()
     {
-        controls.WindowOpened();
+        controls.WindowRead(Message);
 
         Assert.Equal(A, controls.Pad(0, LeftBumper | RightBumper | A));
     }
@@ -204,7 +204,7 @@ public sealed class DialogueControlsTests
     [Fact]
     public void OneBumperAloneDoesNotTurnTheReaderOff()
     {
-        controls.WindowOpened();
+        controls.WindowRead(Message);
 
         controls.Pad(0, LeftBumper);
 
@@ -214,7 +214,7 @@ public sealed class DialogueControlsTests
     [Fact]
     public void TTurnsTheReaderOffThenOn()
     {
-        controls.WindowOpened();
+        controls.WindowRead(Message);
 
         controls.Keys([T]);
         controls.Keys([]);
@@ -228,7 +228,7 @@ public sealed class DialogueControlsTests
     public void TheRepeatIsSpokenWhileTheReaderIsOff()
     {
         history.Add("Ada: One.");
-        controls.WindowOpened();
+        controls.WindowRead(Message);
         controls.Keys([T]);
 
         controls.Keys([R]);
@@ -236,50 +236,41 @@ public sealed class DialogueControlsTests
         Assert.Equal(Said("Ada: One."), announcer.Said[^1]);
     }
 
-    // Without opt-in-dialogue-window.txt the window hooks don't go in, so nothing reports the window.
+    // #206, #232: with no reading of the window, the keys do nothing and the game keeps them.
 
     [Fact]
-    public void UntrackedXRepeatsAtAnyTimeAndTheGameStillSeesIt()
+    public void BeforeTheWindowIsReadTheKeysDoNothingAndTheGameKeepsThem()
     {
         history.Add("Ada: One.");
-        var untracked = Untracked();
 
-        Assert.Equal(X | A, untracked.Pad(0, X | A));
+        Assert.Equal(X | A, controls.Pad(0, X | A));
+        Assert.Equal([R, Enter], controls.Keys([R, Enter]));
+        Assert.Equal(LeftBumper | RightBumper, controls.Pad(0, LeftBumper | RightBumper));
+        Assert.True(reader.On);
+        Assert.Empty(announcer.Said);
+    }
+
+    [Fact]
+    public void AnUnreadableWindowLeavesTheKeysToTheGame()
+    {
+        history.Add("Ada: One.");
+        controls.WindowRead(Message);
+        controls.WindowRead(null);
+
+        Assert.Equal(X, controls.Pad(0, X));
+        Assert.Equal([T], controls.Keys([T]));
+        Assert.True(reader.On);
+        Assert.Empty(announcer.Said);
+    }
+
+    [Fact]
+    public void AnUnreadableWindowThatBecomesReadableAgainActs()
+    {
+        history.Add("Ada: One.");
+        controls.WindowRead(null);
+        controls.WindowRead(Message);
+
+        Assert.Equal(0, controls.Pad(0, X));
         Assert.Equal([Said("Ada: One.")], announcer.Said);
-    }
-
-    [Fact]
-    public void UntrackedRRepeatsAndTTogglesAndTheGameStillSeesThem()
-    {
-        history.Add("Ada: One.");
-        var untracked = Untracked();
-
-        Assert.Equal([R, Enter], untracked.Keys([R, Enter]));
-        Assert.Equal([T], untracked.Keys([T]));
-
-        Assert.False(reader.On);
-        Assert.Equal([Said("Ada: One."), Said("Dialogue reader off")], announcer.Said);
-    }
-
-    [Fact]
-    public void UntrackedBothBumpersTurnTheReaderOffAndTheGameStillSeesThem()
-    {
-        var untracked = Untracked();
-
-        Assert.Equal(LeftBumper | RightBumper, untracked.Pad(0, LeftBumper | RightBumper));
-        Assert.False(reader.On);
-    }
-
-    [Fact]
-    public void UntrackedHoldingXStillRepeatsOnce()
-    {
-        history.Add("Ada: One.");
-        var untracked = Untracked();
-
-        untracked.Pad(0, X);
-        untracked.Pad(0, X);
-        untracked.Pad(1, X);
-
-        Assert.Single(announcer.Said);
     }
 }

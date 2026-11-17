@@ -120,6 +120,12 @@
     "evidence": "Our reading of the exe: the one caller of XInputGetState (docs/raw-sources/input-route-2026-11-16.md); one match on disk, and at the same place in memory (docs/raw-sources/spike-session-2-2026-11-16.md)"
   },
   {
+    "name": "MsgIsSelectWindowOpenedBody",
+    "pattern": "48 8B 0D ?? ?? ?? ?? 8B 81 60 05 00 00 83 E8 04 83 F8 01 76 03 32 C0 C3 48 81 C1 18 03 00 00 E9",
+    "gameBuilds": ["548ddc955c176867f062c44f94c03dd9ac33caefb278a5ac388e792aedf09504"],
+    "evidence": "Our reading of the exe: where MsgIsSelectWindowOpened jumps, in .ecode (docs/raw-sources/dialogue-window-flag-2026-11-16.md); one match on disk; matched once in memory and read on every pad read for 35 minutes in session 5 (docs/raw-sources/dialogue-window-flag-session5-2026-11-17.md); read only, never hooked or called"
+  },
+  {
     "name": "KeyboardRead",
     "pattern": "40 53 48 81 EC 20 01 00 00 C5 FA 10 05 ?? ?? ?? ?? C5 F8 2F 05 ?? ?? ?? ?? 48 8B DA 0F 82 ?? ?? ?? ?? 80 3D ?? ?? ?? ?? 00 0F 84 ?? ?? ?? ?? 48 8D 4C 24 20 48 89 B4 24 38 01 00 00 FF 15 ?? ?? ?? ?? 33 C0 F6 44 24 3B 80",
     "gameBuilds": ["548ddc955c176867f062c44f94c03dd9ac33caefb278a5ac388e792aedf09504"],

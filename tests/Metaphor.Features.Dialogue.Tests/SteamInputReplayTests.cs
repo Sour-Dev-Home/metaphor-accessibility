@@ -20,8 +20,7 @@ public sealed class SteamInputReplayTests
         var history = new DialogueHistory();
         history.Add("Made up line.");
         var controls = new DialogueControls(DialogueBindings.Default, history, new DialogueReader(announcer), announcer);
-        controls.TrackWindow();
-        controls.WindowOpened();
+        controls.WindowRead(0x1315afe20);
         return controls;
     }
 

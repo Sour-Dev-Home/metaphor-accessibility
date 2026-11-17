@@ -82,8 +82,25 @@ public sealed class SessionFixtureTests
         Assert.Equal(new CursorInput(0xa0, null, 0x1, 1, 0, 1, 0x46), Assert.IsType<CursorRecord>(record).Input);
     }
 
+    [Fact]
+    public void ReplaysWindowReadsInOrderBetweenPadReads()
+    {
+        var seen = new List<object?>();
+
+        SessionFixture.Parse($"""
+            # game build: {Build}
+            0 window current=0x13387b350
+            5 pad pad=0 buttons=0x8000 returned=1
+            10 window current=0x0
+            20 window current=-
+            """).Replay(new MessageEvents(), new CursorEvents(), pad => seen.Add(pad), window: current => seen.Add(current));
+
+        Assert.Equal([0x13387b350L, new PadRead(0, 0x8000, 1), 0L, null], seen);
+    }
+
     [Theory]
     [InlineData("# A made-up scenario\n0 request kind=0 label=MES_x_001")]
+    [InlineData($"# game build: {Build}\n0 window current=Made-up")]
     [InlineData($"# game build: {Build}\n0 request kind=0 label=Made up words")]
     [InlineData($"# game build: {Build}\n0 lookup id=1 label=2")]
     public void RefusesAFixtureWithoutABuildOrWithARecordItDoesNotKnow(string text) =>

@@ -73,7 +73,7 @@ outside the repository, so none is ever committed.
   scan, and counts as expected like any other. Use it for one short, separate run, then delete it.
 - `opt-in-ui-text-panes.txt`: the same, for the listener on the UI text pane's draw (#93), which runs every frame and
   logs drawn text (`docs/raw-sources/ui-focus-candidates-2026-11-16.md`).
-- `opt-in-dialogue-window.txt`: turns on the two dialogue window hooks (#58), in Release builds too
+- `opt-in-dialogue-window.txt`: turns on the two dialogue window hooks, which only log (#232)
   ([turn on the dialogue window hooks](turn-on-the-dialogue-window-hooks.md)).
 - `spike-player-name.txt`: the hero name you typed in the game, on its first line (trimmed, UTF-8). The listener compares
   each string with it and logs only `match=exact`, `contains` or `no`, never the name. Without the file it falls back to

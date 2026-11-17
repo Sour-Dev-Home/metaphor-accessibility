@@ -47,7 +47,7 @@ public sealed class DevOnlyHookTests
         });
     }
 
-    /// <summary>The dialogue window hooks sit in .text1, so the default Release build leaves them out: they need
+    /// <summary>The dialogue window hooks sit in .text1, so even a Debug build leaves them out unless given
     /// <c>opt-in-dialogue-window.txt</c> (maintainer, 2026-11-16).</summary>
     [Theory]
     [InlineData("Metaphor.Hooks.DialogueWindowOpenHook")]
@@ -61,16 +61,16 @@ public sealed class DevOnlyHookTests
             attribute.Properties.Single(p => p.Name == "OptInFile").Argument.Value);
     }
 
-    /// <summary>The dialogue window hooks go in as a pair or not at all (#172), so the window's state never sticks open.
-    /// </summary>
+    /// <summary>The window pointer drives the dialogue controls (#232); the dialogue window hooks are only Debug evidence
+    /// beside it, so a Release build never installs them, opt-in file or not.</summary>
     [Theory]
-    [InlineData("Metaphor.Hooks.DialogueWindowOpenHook", "DialogueWindowCloseHook")]
-    [InlineData("Metaphor.Hooks.DialogueWindowCloseHook", "DialogueWindowOpenHook")]
-    public void TheDialogueWindowHooksArePartners(string hook, string partner)
+    [InlineData("Metaphor.Hooks.DialogueWindowOpenHook")]
+    [InlineData("Metaphor.Hooks.DialogueWindowCloseHook")]
+    public void TheDialogueWindowHooksAreDevelopmentOnly(string hook)
     {
         var attribute = Scanned.Load(Rules.HookLayer).MainModule.GetType(hook).CustomAttributes
             .Single(a => a.AttributeType.FullName == "Metaphor.Hooks.GameHookAttribute");
 
-        Assert.Equal(partner, attribute.Properties.SingleOrDefault(p => p.Name == "Partner").Argument.Value);
+        Assert.Equal(true, attribute.Properties.SingleOrDefault(p => p.Name == "DevOnly").Argument.Value);
     }
 }
