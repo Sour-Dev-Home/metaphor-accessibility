@@ -1,6 +1,7 @@
 using Metaphor.Core;
 using Metaphor.Core.Announcements;
 using Metaphor.Core.Messages;
+using Metaphor.Core.Settings;
 using Metaphor.Features.Dialogue;
 
 namespace Metaphor.Hooks;
@@ -24,13 +25,15 @@ internal sealed record HookServices
     /// <summary>Services for the mod in <paramref name="modFolder"/> whose requested dialogue lines are spoken through
     /// <paramref name="announcer"/>. The library hears each compiled file first, and speech each requested line first;
     /// the log, when there is one, hears both last.</summary>
-    public static HookServices Speaking(IAnnouncer announcer, MessageLog? log, string modFolder)
+    public static HookServices Speaking(IAnnouncer announcer, SettingsReloader settings, MessageLog? log, string modFolder)
     {
+        ArgumentNullException.ThrowIfNull(settings);
         var library = new MessageLibrary();
         var events = new MessageEvents();
         events.ObserveFiles(library);
-        events.ObserveLines(
-            new DialogueLines(library, new DialogueAnnouncer(announcer, new TextCleaner(TextCleanerRules.None))));
+        // The voice language is unknown until #103 finds it, so Auto speaks the full line.
+        events.ObserveLines(new DialogueLines(library, new DialogueAnnouncer(
+            announcer, new TextCleaner(TextCleanerRules.None), () => settings.Current.VoicedLines)));
         if (log is not null)
         {
             events.ObserveFiles(log);
