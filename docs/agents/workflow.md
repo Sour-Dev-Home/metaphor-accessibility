@@ -13,6 +13,10 @@ the mechanics; this page holds what they don't say. Setup, checks and the securi
 3. Run the narrow test file while iterating, then the full suite once. Read the summary line of each; a trimmed pipe
    can hide a failed start.
 
+`check.sh full` records a pass for the index's tree (`git write-tree`) in your clone's git dir, and `full` or `pre-push`
+on that same tree prints `reused the recorded pass for tree <hash>` and skips the 10-15 minutes. A reviewer can rely on
+that line: any change, staged or committed, runs the checks again. Don't rerun `full` on a tree it has passed.
+
 ## Commit
 
 - Subjects: the format and the 72-character limit are in the header of [`scripts/check.sh`](../../scripts/check.sh)

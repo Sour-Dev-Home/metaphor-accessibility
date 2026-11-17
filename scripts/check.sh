@@ -4,6 +4,7 @@
 #   scripts/check.sh fast    repo rules on staged files
 #   scripts/check.sh pre-commit   fast, then formatting, docs and signatures when their files are staged (the hook)
 #   scripts/check.sh pre-push     build, Unit and RoundTrip tests when pushed commits change code (the hook; refs on stdin)
+#                                 (a passing full or pre-push is recorded per clone by tree hash; the same tree reuses it)
 #   scripts/check.sh rules   repo rules on every tracked file (CI on Ubuntu)
 #   scripts/check.sh full    repo rules, build, Unit and RoundTrip tests, formatting, smoke and deploy script tests (CI: Windows in the merge queue, Linux on PRs)
 #   scripts/check.sh docs    broken links fail; Markdown lint, Vale and ADR length warn (CI on Ubuntu)
@@ -176,15 +177,37 @@ signatures_stage() {
 # Files whose change can change the build or the tests' result.
 code_path_re='(\.(cs|csproj|props|targets|sln|json|editorconfig)|(^|/)global\.json)$'
 
+# The pass cache (issue #241): "<stage> <tree>" lines in this clone's git dir, never a shared path. A pass is reused only
+# for the identical tree, so any change, staged or committed, runs the checks again. A `full` pass also covers pre-push.
+pass_cache() { echo "$(git rev-parse --absolute-git-dir 2> /dev/null)/check-pass-cache"; }
+cached_pass() { # cached_pass TREE STAGE...: exit 0 when one of the stages passed on TREE
+  local tree="$1" kind file
+  shift
+  file="$(pass_cache)"
+  [ -f "$file" ] || return 1
+  for kind in "$@"; do grep -qxF "$kind $tree" "$file" && return 0; done
+  return 1
+}
+record_pass() { # record_pass STAGE TREE: keep the last 50 passes
+  local file
+  file="$(pass_cache)"
+  { echo "$1 $2"; cat "$file" 2> /dev/null || true; } | head -n 50 > "$file.new" && mv "$file.new" "$file"
+}
+# full_tree: print the index's tree, only when the working tree matches it (the build reads the working tree).
+full_tree() {
+  git diff --quiet 2> /dev/null && git write-tree 2> /dev/null
+}
+
 # The pre-push hook's stage. Git passes "<local ref> <local sha> <remote ref> <remote sha>" per pushed ref on stdin.
 # Builds and runs the Unit and RoundTrip tests unless every pushed commit leaves code alone. When it can't tell what
 # changed (a new branch with no origin/main to compare, or a remote commit not fetched), it builds.
 pre_push_stage() {
   local zero=0000000000000000000000000000000000000000 local_ref local_sha remote_ref remote_sha base
-  local changed="" unknown=0 pushed=0 root solution
+  local changed="" unknown=0 pushed=0 root solution trees=() tree cached=1
   while read -r local_ref local_sha remote_ref remote_sha; do
     [ -n "$local_sha" ] && [ "$local_sha" != "$zero" ] || continue # a deleted branch pushes nothing
     pushed=1
+    trees+=("$(git rev-parse "$local_sha^{tree}" 2> /dev/null || echo none)")
     base="$remote_sha"
     if [ "$base" = "$zero" ]; then
       base="$(git merge-base "$local_sha" origin/main 2> /dev/null)" || base=""
@@ -200,6 +223,14 @@ pre_push_stage() {
     echo "pre-push: no code changes, so the build and tests were skipped"
     return 0
   fi
+  for tree in "${trees[@]}"; do
+    cached_pass "$tree" full pre-push || cached=0
+  done
+  if [ "$cached" -eq 1 ]; then
+    echo "pre-push: reused the recorded pass for tree ${trees[*]}; no build or tests ran"
+    return 0
+  fi
+  take_lock
   root="$(git rev-parse --show-toplevel)" || die "could not find the repository root"
   solution="$root/Metaphor.sln"
   [ -f "$solution" ] || die "pre-push stage needs $(basename "$solution") at the repository root"
@@ -211,6 +242,9 @@ pre_push_stage() {
       report "tests: Unit or RoundTrip tests failed"
   else
     report "build: failed, see the errors above"
+  fi
+  if [ "$failures" -eq 0 ]; then
+    for tree in "${trees[@]}"; do record_pass pre-push "$tree"; done
   fi
 }
 
@@ -440,23 +474,34 @@ trap finish EXIT
 
 # Stages that build take turns through one lock per machine, with no shared MSBuild nodes: several worktrees building
 # at once stalled each other for over an hour (2026-11-17). A lock whose holder has exited is taken over.
+take_lock() {
+  [ -z "${locked:-}" ] || return 0
+  export MSBUILDDISABLENODEREUSE=1 DOTNET_CLI_USE_MSBUILD_SERVER=0
+  local lock holder
+  lock="${METAPHOR_CHECK_LOCK:-${TMPDIR:-/tmp}/metaphor-check.lock}"
+  until mkdir "$lock" 2> /dev/null; do
+    holder="$(cat "$lock/pid" 2> /dev/null || true)"
+    if [ -n "$holder" ] && ! kill -0 "$holder" 2> /dev/null; then
+      rm -rf "$lock"
+      continue
+    fi
+    [ -n "${waited:-}" ] || echo "check: waiting for another build check to finish ($lock)" >&2
+    waited=1
+    sleep 5
+  done
+  echo "$$" > "$lock/pid"
+  locked="$lock"
+}
+# pre-push takes the lock itself, only once it knows it will build (a docs-only push never waits).
 case "$stage" in
-  full | slow | signatures | pre-push)
-    export MSBUILDDISABLENODEREUSE=1 DOTNET_CLI_USE_MSBUILD_SERVER=0
-    lock="${METAPHOR_CHECK_LOCK:-${TMPDIR:-/tmp}/metaphor-check.lock}"
-    until mkdir "$lock" 2> /dev/null; do
-      holder="$(cat "$lock/pid" 2> /dev/null || true)"
-      if [ -n "$holder" ] && ! kill -0 "$holder" 2> /dev/null; then
-        rm -rf "$lock"
-        continue
-      fi
-      [ -n "${waited:-}" ] || echo "check: waiting for another build check to finish ($lock)" >&2
-      waited=1
-      sleep 5
-    done
-    echo "$$" > "$lock/pid"
-    locked="$lock"
-    ;;
+  full)
+    full_tree_id="$(full_tree)" || full_tree_id=""
+    if [ -n "$full_tree_id" ] && cached_pass "$full_tree_id" full; then
+      echo "full: reused the recorded pass for tree $full_tree_id; no checks ran (change the tree to run them again)"
+      exit 0
+    fi
+    take_lock ;;
+  slow | signatures) take_lock ;;
 esac
 
 # list_entries prints "<mode> <blob> <stage>\t<path>\0" for each file to check, in `git ls-files -s -z` form.
@@ -714,6 +759,10 @@ if [ "$stage" = full ]; then
     pwsh -NoProfile -Command \
       'Import-Module Pester -MinimumVersion 5.0; $r = Invoke-Pester tests/smoke -PassThru -Output Normal; exit $r.FailedCount' ||
       report "tests: smoke or deploy script tests failed (run: Invoke-Pester tests/smoke)"
+  fi
+  # Record only a clean pass of an unchanged tree (nothing edited while the checks ran).
+  if [ "$failures" -eq 0 ] && [ -n "${full_tree_id:-}" ] && [ "$(full_tree)" = "$full_tree_id" ]; then
+    record_pass full "$full_tree_id"
   fi
 fi
 
