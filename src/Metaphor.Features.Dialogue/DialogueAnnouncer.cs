@@ -33,10 +33,12 @@ public sealed class DialogueAnnouncer
 
     /// <summary>Announces a choice's options (#82) from its message as the game stores it, one option per line, as
     /// "Choose: option; option", without cutting off the line before. A missing message (null), or one whose lines all
-    /// clean to nothing, is announced as "Choice".</summary>
+    /// clean to nothing, is announced as "Choice". An option of only dots or ellipses (which a screen reader reads as
+    /// nothing) is spoken as "dot dot dot".</summary>
     public void Offer(string? options)
     {
-        var lines = (options ?? "").Split('\n').Select(cleaner.Clean).Where(line => line.Length > 0).ToList();
+        var lines = (options ?? "").Split('\n').Select(cleaner.Clean).Where(line => line.Length > 0)
+            .Select(line => line.All(c => c is '.' or '…' or ' ') ? "dot dot dot" : line).ToList();
         announcer.Announce(new Announcement(lines.Count == 0 ? "Choice" : $"Choose: {string.Join("; ", lines)}", Interrupt: false));
     }
 }
