@@ -69,7 +69,11 @@ internal sealed class PadReadHook : IGameHook, IChangesBehaviour
             if (ModuleMemoryReader.ReadInt32(state) is { } value)
             {
                 var buttons = value & 0xFFFF;
-                var handed = controls.Pad((int)pad, buttons);
+                // A zero al is taken as "no read made" (#225): Steam Input's virtual pad 1 returns it while holding
+                // leftover bits (tests/fixtures/sessions/steam-input-pad1-noise.txt). Such a read isn't handed to the
+                // controls, and since they hand its buttons back unchanged it isn't written back either. What the
+                // return means is [NEEDS VERIFICATION], pending capture evening #229 (likely "pad not connected").
+                var handed = controls.Pad((int)pad, buttons, made: (result & 0xFF) != 0);
                 if (handed != buttons)
                 {
                     var mask = new byte[2];
