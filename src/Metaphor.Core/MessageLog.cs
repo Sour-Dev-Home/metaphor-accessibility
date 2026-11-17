@@ -1,6 +1,7 @@
 using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
 using System.Text;
+using Metaphor.Core.Menus;
 using Metaphor.Core.Messages;
 
 namespace Metaphor.Core;
@@ -10,7 +11,7 @@ namespace Metaphor.Core;
 /// screen. Debug builds only; it holds game text, so it stays in the local mod folder and is never committed. Safe to
 /// call from any game thread, and never throws.</summary>
 public sealed class MessageLog(TextWriter writer, Func<long> millisecondsSinceStart)
-    : IMessageFileObserver, ILineRequestObserver, IChoiceRequestObserver
+    : IMessageFileObserver, ILineRequestObserver, IChoiceRequestObserver, ICursorObserver
 {
     /// <summary>The log's file name in the mod's folder.</summary>
     public const string FileName = "message-log.txt";
@@ -73,6 +74,11 @@ public sealed class MessageLog(TextWriter writer, Func<long> millisecondsSinceSt
     /// typed name and where it was, never its text.</summary>
     public void PlayerNameSeen(string function, PlayerNameSighting sighting) =>
         Write(() => Line($"{millisecondsSinceStart()} ms player-name via={function} {sighting}"));
+
+    /// <summary>An input a menu's cursor manager handled that changed something (#93, #94). Numbers only, no game
+    /// text.</summary>
+    public void Observe(CursorInput input) => Write(() => Line(
+        $"{millisecondsSinceStart()} ms cursor mgr=0x{input.Manager:x} class={(input.ClassRva is { } rva ? $"0x{rva:x}" : "?")} cmd=0x{input.Command:x} result={input.Result} index={input.Index} top={input.Top} row={input.Row} flags=0x{input.Flags:x}"));
 
     /// <summary>A line the game asked for by label, with its kind.</summary>
     public void Observe(LineRequested line) => Write(() =>

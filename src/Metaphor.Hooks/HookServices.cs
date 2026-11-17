@@ -1,7 +1,9 @@
 using Metaphor.Core;
 using Metaphor.Core.Announcements;
+using Metaphor.Core.Menus;
 using Metaphor.Core.Messages;
 using Metaphor.Features.Dialogue;
+using Metaphor.Features.Menus;
 
 namespace Metaphor.Hooks;
 
@@ -14,6 +16,9 @@ internal sealed record HookServices
     /// <summary>Where the message hooks report what the game compiled and asked for (#86).</summary>
     public required MessageEvents Messages { get; init; }
 
+    /// <summary>Where the menu cursor hook reports each input a menu's cursor handled (#94).</summary>
+    public required CursorEvents Cursors { get; init; }
+
     /// <summary>#55's message log, for the listening hooks that remain: null in Release builds, or when the file
     /// couldn't be opened.</summary>
     public required MessageLog? Log { get; init; }
@@ -23,21 +28,28 @@ internal sealed record HookServices
 
     /// <summary>Services for the mod in <paramref name="modFolder"/> whose requested dialogue lines and opened choices
     /// are spoken through <paramref name="announcer"/>. The library hears each compiled file first, and speech each
-    /// requested line and choice first; the log, when there is one, hears all three last.</summary>
+    /// requested line and choice first, and the title menu's focus each cursor input (#94); the log, when there is
+    /// one, hears every event last.</summary>
     public static HookServices Speaking(IAnnouncer announcer, MessageLog? log, string modFolder)
     {
         var library = new MessageLibrary();
         var events = new MessageEvents();
-        var dialogue = new DialogueAnnouncer(announcer, new TextCleaner(TextCleanerRules.None));
+        var cursors = new CursorEvents();
+        var cleaner = new TextCleaner(TextCleanerRules.None);
+        var dialogue = new DialogueAnnouncer(announcer, cleaner);
+        var titleMenu = new TitleMenuFocus(library, announcer, cleaner);
         events.ObserveFiles(library);
+        events.ObserveFiles(titleMenu);
         events.ObserveLines(new DialogueLines(library, dialogue));
         events.ObserveChoices(new DialogueChoices(library, dialogue));
+        cursors.Observe(titleMenu);
         if (log is not null)
         {
             events.ObserveFiles(log);
             events.ObserveLines(log);
             events.ObserveChoices(log);
+            cursors.Observe(log);
         }
-        return new() { Messages = events, Log = log, ModFolder = modFolder };
+        return new() { Messages = events, Cursors = cursors, Log = log, ModFolder = modFolder };
     }
 }

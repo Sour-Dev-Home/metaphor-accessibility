@@ -78,6 +78,12 @@
     "evidence": "Our reading of the exe: where MsgGetSelectedID's target jumps (docs/raw-sources/msg-select-functions-2026-11-16.md); one match on disk, not yet checked in memory"
   },
   {
+    "name": "CursorManagerInput",
+    "pattern": "40 53 56 48 83 EC 28 F6 81 AC 00 00 00 01 48 8B F2 48 8B D9 76 16 8B 02 8B C8 83 E9 16 0F 84 ?? ?? ?? ?? 83 F9 01 0F 84",
+    "gameBuilds": ["548ddc955c176867f062c44f94c03dd9ac33caefb278a5ac388e792aedf09504"],
+    "evidence": "Our reading of the exe through its type information (docs/raw-sources/ui-focus-candidates-2026-11-16.md); one match on disk and in memory at the disk address (docs/raw-sources/spike-session-2-2026-11-16.md)"
+  },
+  {
     "name": "criAtomExPlayer_SetCueId",
     "pattern": "48 89 5C 24 ?? 48 89 6C 24 ?? 48 89 74 24 ?? 57 48 83 EC 20 49 63 F8 48 89 D6",
     "gameBuilds": ["548ddc955c176867f062c44f94c03dd9ac33caefb278a5ac388e792aedf09504"],
