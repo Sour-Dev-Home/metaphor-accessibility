@@ -71,5 +71,8 @@ each rule on every assembly built from `src/`. Each test plants a violation to p
     them in `UseCalls`. A hook that changes the game's behaviour is written the long way: it implements
     `IChangesBehaviour` instead of a shape, and creates, activates and guards its hook itself, still under rules 8–11
     (`InputHooks.cs`).
+15. **Hooks in `.text1` stay opt-in.** A `[GameHook]` type whose signature is in the exe's `.text1` section, by the
+    `section` in `hook-signatures.json`, sets `OptInFile` or `DevOnly = true`, in every build
+    ([ADR 0010](adr/0010-text1-hooks-stay-opt-in.md)).
 
 A new project under `src/` must be added to the architecture test project, and a test fails until it is.

@@ -18,7 +18,7 @@ public sealed class SignatureCheckTests : IDisposable
         return path;
     }
 
-    private static HookSignature Signature(string name, string pattern) => new(name, pattern, [], "test");
+    private static HookSignature Signature(string name, string pattern) => new(name, pattern, [], "test", ".ecode");
 
     private static (int ExitCode, string Output) Run(string exe, IReadOnlyList<GameBuild> knownBuilds, params HookSignature[] signatures)
     {
@@ -112,8 +112,8 @@ public sealed class SignatureCheckTests : IDisposable
     {
         var exe = StandInExe(0x10, 0x20);
         var sha = Convert.ToHexStringLower(SHA256.HashData(File.ReadAllBytes(exe)));
-        var listed = new HookSignature("listed", "10", [sha], "test");
-        var unlisted = new HookSignature("unlisted", "20", [new string('1', 64)], "test");
+        var listed = new HookSignature("listed", "10", [sha], "test", ".ecode");
+        var unlisted = new HookSignature("unlisted", "20", [new string('1', 64)], "test", ".ecode");
 
         var (exitCode, output) = Run(exe, listed, unlisted);
 

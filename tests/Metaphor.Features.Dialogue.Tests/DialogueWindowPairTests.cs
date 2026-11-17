@@ -16,8 +16,8 @@ public sealed class DialogueWindowPairTests
 
     private static readonly HookSignature[] Signatures =
     [
-        new("MsgOpenBody", "48 8B ?? 10", [Build], "e"),
-        new("MsgCloseBody", "48 8B ?? 20", [Build], "e"),
+        new("MsgOpenBody", "48 8B ?? 10", [Build], "e", ".text1"),
+        new("MsgCloseBody", "48 8B ?? 20", [Build], "e", ".text1"),
     ];
 
     private readonly DialogueControls controls;

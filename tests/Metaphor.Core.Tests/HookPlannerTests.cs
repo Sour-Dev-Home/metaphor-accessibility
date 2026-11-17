@@ -8,7 +8,7 @@ public sealed class HookPlannerTests
     private const string Build = "548ddc955c176867f062c44f94c03dd9ac33caefb278a5ac388e792aedf09504";
     private const string OtherBuild = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef";
 
-    private static readonly HookSignature ShowLine = new("show-line", "48 8B ?? 10", [Build], "e");
+    private static readonly HookSignature ShowLine = new("show-line", "48 8B ?? 10", [Build], "e", ".ecode");
 
     private static HookSpec Hook(string name = "dialogue", string signature = "show-line", params string[] builds) =>
         new(name, builds.Length == 0 ? [Build] : builds, signature);
@@ -60,7 +60,7 @@ public sealed class HookPlannerTests
     [Fact]
     public void ScansOnlyForTheSignaturesOfHooksThatPassTheBuildCheck()
     {
-        var other = new HookSignature("other", "90 90", [Build], "e");
+        var other = new HookSignature("other", "90 90", [Build], "e", ".ecode");
         IReadOnlyList<HookSignature>? asked = null;
 
         HookPlanner.Plan(
@@ -75,7 +75,7 @@ public sealed class HookPlannerTests
     [Fact]
     public void GivesAHookTheAddressesOfTheGameFunctionsItCalls()
     {
-        var getTop = new HookSignature("sq_gettop", "48 8B 41 48", [Build], "e");
+        var getTop = new HookSignature("sq_gettop", "48 8B 41 48", [Build], "e", ".ecode");
         var hook = new HookSpec("registrations", [Build], "show-line", ["sq_gettop"]);
         IReadOnlyList<HookSignature>? asked = null;
 
@@ -96,7 +96,7 @@ public sealed class HookPlannerTests
     [InlineData(new long[] { 1, 2, 3 }, "signature sq_gettop matched 3 times")]
     public void RefusesAHookWhenAFunctionItCallsIsNotFoundExactlyOnce(long[] rvas, string whyNot)
     {
-        var getTop = new HookSignature("sq_gettop", "48 8B 41 48", [Build], "e");
+        var getTop = new HookSignature("sq_gettop", "48 8B 41 48", [Build], "e", ".ecode");
         var hook = new HookSpec("registrations", [Build], "show-line", ["sq_gettop"]);
 
         var decision = Assert.Single(HookPlanner.Plan(Build, [hook], [ShowLine, getTop], _ =>

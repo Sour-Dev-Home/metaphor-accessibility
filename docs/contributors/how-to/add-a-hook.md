@@ -46,7 +46,8 @@ A class in `src/Metaphor.Hooks` ([example](../../../src/Metaphor.Hooks/MessageLi
 
 - `[GameHook(GameBuilds.<build>)]`, and `DevOnly = true` for a spike: the loader installs it only in Debug builds.
   A risky spike hook also takes `OptInFile = "<bare-name>.txt"`: it installs only when that file is in the mod's
-  folder ([files a run can leave](deploy-a-dev-build.md#files-a-run-can-leave-in-the-mods-folder)).
+  folder ([files a run can leave](deploy-a-dev-build.md#files-a-run-can-leave-in-the-mods-folder)). A hook on a
+  function in `.text1` keeps one of the two in every build (architecture rule 15, ADR 0010).
 - Implements `IGameHook`: `SignatureName`, and `Calls` and `UseCalls` for any game function it calls (each needs its
   own signature). Only the loader installs hooks, after the build check and a full scan.
 - Implements the one shape interface in [`PassThrough.cs`](../../../src/Metaphor.Hooks/PassThrough.cs) that matches its

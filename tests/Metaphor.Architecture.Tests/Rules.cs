@@ -641,6 +641,32 @@ internal static class Rules
         return [.. notConstant, .. shared];
     }
 
+    /// <summary>
+    /// #167, rule 15 (ADR 0010): a <c>[GameHook]</c> type whose <c>SignatureName</c> is in <c>.text1</c>, by
+    /// <paramref name="sectionBySignature"/> from <c>hook-signatures.json</c>, sets <c>OptInFile</c> or
+    /// <c>DevOnly = true</c>. A hook whose name isn't constant is rule 13's violation, and one whose signature isn't
+    /// listed never installs, so neither is checked here.
+    /// </summary>
+    public static IReadOnlyList<string> Text1HooksAreOptIn(
+        AssemblyDefinition assembly, IReadOnlyDictionary<string, string> sectionBySignature)
+    {
+        ArgumentNullException.ThrowIfNull(sectionBySignature);
+
+        var name = assembly.Name.Name;
+        return [.. Types(assembly)
+            .Select(type => (Type: type, Hook: type.CustomAttributes.FirstOrDefault(a => a.AttributeType.FullName == GameHookAttribute)))
+            .Where(hook => hook.Hook is not null)
+            .Select(hook => (hook.Type, hook.Hook, Signature: ConstantSignatureName(hook.Type)))
+            .Where(hook => hook.Signature is not null &&
+                sectionBySignature.TryGetValue(hook.Signature, out var section) && section == Text1Section)
+            .Where(hook => !hook.Hook!.Properties.Any(p =>
+                (p.Name == "DevOnly" && p.Argument.Value is true) || (p.Name == "OptInFile" && p.Argument.Value is string)))
+            .Select(hook => $"{name} hook {hook.Type.FullName} hooks {hook.Signature} in {Text1Section} but sets neither " +
+                "OptInFile nor DevOnly (rule 15)")];
+    }
+
+    private const string Text1Section = ".text1";
+
     /// <summary>The namespace and name prefix of the interfaces, one per parameter shape, a hook observes through.</summary>
     public const string ShapePrefix = "Metaphor.Hooks.IObserves";
 
