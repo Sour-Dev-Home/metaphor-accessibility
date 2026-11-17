@@ -1,8 +1,10 @@
 using Metaphor.Core;
 using Metaphor.Core.Announcements;
+using Metaphor.Core.Menus;
 using Metaphor.Core.Messages;
 using Metaphor.Core.Settings;
 using Metaphor.Features.Dialogue;
+using Metaphor.Features.Menus;
 
 namespace Metaphor.Hooks;
 
@@ -14,6 +16,9 @@ internal sealed record HookServices
 {
     /// <summary>Where the message hooks report what the game compiled and asked for (#86).</summary>
     public required MessageEvents Messages { get; init; }
+
+    /// <summary>Where the menu cursor hook reports each input a menu's cursor handled (#94).</summary>
+    public required CursorEvents Cursors { get; init; }
 
     /// <summary>#55's message log, for the listening hooks that remain: null in Release builds, or when the file
     /// couldn't be opened.</summary>
@@ -28,26 +33,31 @@ internal sealed record HookServices
 
     /// <summary>Services for the mod in <paramref name="modFolder"/> whose requested dialogue lines and opened choices
     /// are spoken through <paramref name="announcer"/>, voiced lines as <paramref name="settings"/> say. The library
-    /// hears each compiled file first, and speech each requested line and choice first; the log, when there is one,
-    /// hears all three last.</summary>
+    /// hears each compiled file first, and speech each requested line and choice first, and the title menu's focus
+    /// each cursor input (#94); the log, when there is one, hears every event last.</summary>
     public static HookServices Speaking(IAnnouncer announcer, SettingsReloader settings, MessageLog? log, string modFolder)
     {
         ArgumentNullException.ThrowIfNull(settings);
         var library = new MessageLibrary();
         var history = new DialogueHistory();
         var events = new MessageEvents();
+        var cursors = new CursorEvents();
+        var cleaner = new TextCleaner(TextCleanerRules.None);
         // The voice language is unknown until #103 finds it, so Auto speaks the full line.
-        var dialogue = new DialogueAnnouncer(
-            announcer, new TextCleaner(TextCleanerRules.None), history, () => settings.Current.VoicedLines);
+        var dialogue = new DialogueAnnouncer(announcer, cleaner, history, () => settings.Current.VoicedLines);
+        var titleMenu = new TitleMenuFocus(library, announcer, cleaner);
         events.ObserveFiles(library);
+        events.ObserveFiles(titleMenu);
         events.ObserveLines(new DialogueLines(library, dialogue));
         events.ObserveChoices(new DialogueChoices(library, dialogue));
+        cursors.Observe(titleMenu);
         if (log is not null)
         {
             events.ObserveFiles(log);
             events.ObserveLines(log);
             events.ObserveChoices(log);
+            cursors.Observe(log);
         }
-        return new() { Messages = events, Log = log, ModFolder = modFolder, DialogueHistory = history };
+        return new() { Messages = events, Cursors = cursors, Log = log, ModFolder = modFolder, DialogueHistory = history };
     }
 }

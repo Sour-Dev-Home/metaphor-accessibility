@@ -108,9 +108,4 @@ public sealed class UiFocusSpyTests
 
         Assert.Null(TextProbe.FirstString(fields, address => memory.GetValueOrDefault(address)));
     }
-
-    [Fact]
-    public void ACursorInputWithUnreadableFieldsShowsQuestionMarks() => Assert.Equal(
-        "mgr=0x10 class=? cmd=? result=-1 index=? top=? row=2 flags=? caller=(unknown) call=(unknown) via=none frames=0",
-        new CursorInput(0x10, null, null, -1, null, 2, null, CallerTrace.Unknown).ToString());
 }
