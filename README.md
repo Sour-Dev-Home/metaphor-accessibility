@@ -79,8 +79,8 @@ The checks also fail a raw source without its header ([`docs/raw-sources/`](docs
 finding without its game build ([`docs/findings/`](docs/findings/README.md)).
 
 The checks block game content and personal information. For the second, copy `.claude/pii-patterns.example.txt` to
-`.claude/pii-patterns.txt` (git-ignored) and list your own private strings. CI checks general patterns on every push
-and pull request, and the private list on pushes to `main`, from a repository secret. To set it, a maintainer runs:
+`.claude/pii-patterns.txt` (git-ignored) and list your own private strings. CI checks general patterns on every pull
+request and merge-queue run, and the private list on pushes to `main`, from a repository secret. To set it, a maintainer runs:
 
 ```sh
 gh secret set PII_PATTERNS < .claude/pii-patterns.txt
