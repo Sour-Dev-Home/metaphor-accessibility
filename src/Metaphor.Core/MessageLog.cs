@@ -89,6 +89,11 @@ public sealed class MessageLog(TextWriter writer, Func<long> millisecondsSinceSt
     public void Observe(CursorInput input) => Write(() => Line(
         $"{millisecondsSinceStart()} ms cursor mgr=0x{input.Manager:x} class={(input.ClassRva is { } rva ? $"0x{rva:x}" : "?")} cmd=0x{input.Command:x} result={input.Result} index={input.Index} top={input.Top} row={input.Row} flags=0x{input.Flags:x}"));
 
+    /// <summary>The message window's state as read from memory, when it changed (#58): pointers and numbers as the
+    /// listening hook formatted them, no game text.</summary>
+    public void MessageWindowChanged(string state) =>
+        Write(() => Line($"{millisecondsSinceStart()} ms msgwindow {state}"));
+
     /// <summary>A line the game asked for by label, with its kind.</summary>
     public void Observe(LineRequested line) => Write(() =>
         Line($"{millisecondsSinceStart()} ms request via={LineRequestFunction} kind={line.Kind} text=\"{LogText.Escaped(line.Label)}\""));

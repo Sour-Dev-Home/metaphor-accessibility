@@ -34,6 +34,7 @@ internal sealed class PadReadHook : IGameHook, IChangesBehaviour
     private readonly DialogueControls controls;
     private readonly MessageLog? log;
     private readonly InputStateChanges changes = new();
+    private readonly DialogueWindowWatch window = new();
     private readonly Function callback;
     private IHook<Function>? hook;
 
@@ -46,6 +47,19 @@ internal sealed class PadReadHook : IGameHook, IChangesBehaviour
     }
 
     public string SignatureName => "PadRead";
+
+    /// <summary>Debug only, and not called: located so <see cref="DialogueWindowWatch"/> can read the globals their
+    /// first instruction loads, once per pad read, with no hook of its own. Release asks for none, so an unmatched
+    /// dialogue-window signature never keeps the pad read from going in.</summary>
+    public IReadOnlyList<string> Calls => log is null ? [] : DialogueWindowWatch.Signatures;
+
+    public void UseCalls(IReadOnlyDictionary<string, nint> calls)
+    {
+        if (log is not null)
+        {
+            window.Resolve(calls);
+        }
+    }
 
     public void Activate(IReloadedHooks hooks, nint address)
     {
@@ -85,6 +99,14 @@ internal sealed class PadReadHook : IGameHook, IChangesBehaviour
                     {
                         log.InputChanged(source, text);
                     }
+                }
+            }
+            if (log is not null)
+            {
+                var windowState = window.Describe();
+                if (changes.Changed("msgwindow", windowState))
+                {
+                    log.MessageWindowChanged(windowState);
                 }
             }
         }

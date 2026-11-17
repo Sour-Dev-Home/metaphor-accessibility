@@ -1,0 +1,4 @@
+[
+  { "name": "TutorialWindowOpenRequest", "pattern": "48 89 5C 24 ?? 48 89 74 24 ?? 48 89 7C 24 ?? 41 56 48 83 EC 30 4C 8B F2 48 8B F1 8B 0A E8 ?? ?? ?? ?? 83 F8 06 75 ?? E8", "source": "docs/raw-sources/tutorial-and-icon-leads-2026-11-16.md" },
+  { "name": "MessageLocationByLabel", "pattern": "48 89 5C 24 ?? 48 89 74 24 ?? 57 48 83 EC 30 48 8B 35 ?? ?? ?? ?? 48 8B FA C7 02 FF FF FF FF 49 8B D8 48 8B D1 41 C7 00 FF FF FF FF", "source": "docs/raw-sources/tutorial-and-icon-leads-2026-11-16.md" }
+]

@@ -188,6 +188,16 @@ public sealed class MessageLogTests
     }
 
     [Fact]
+    public void RecordsAMessageWindowChange()
+    {
+        var (log, text) = NewLog(now: 4);
+
+        log.MessageWindowChanged("current=0x0 state=6 msg+48=- handles=1+0");
+
+        Assert.Equal($"4 ms msgwindow current=0x0 state=6 msg+48=- handles=1+0{Environment.NewLine}", text.ToString());
+    }
+
+    [Fact]
     public void ARequestedLabelStaysOnOneLine()
     {
         var (log, text) = NewLog(now: 1);

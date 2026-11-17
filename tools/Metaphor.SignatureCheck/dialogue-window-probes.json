@@ -1,0 +1,4 @@
+[
+  { "name": "MsgIsSelectWindowOpenedBody", "pattern": "48 8B 0D ?? ?? ?? ?? 8B 81 60 05 00 00 83 E8 04 83 F8 01 76 03 32 C0 C3 48 81 C1 18 03 00 00 E9", "source": "docs/raw-sources/dialogue-window-flag-2026-11-16.md" },
+  { "name": "MsgCheckEndBody", "pattern": "48 83 3D ?? ?? ?? ?? 00 0F 85 ?? ?? ?? ?? B0 01 C3", "source": "docs/raw-sources/dialogue-window-flag-2026-11-16.md" }
+]
