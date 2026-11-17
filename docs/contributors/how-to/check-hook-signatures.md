@@ -85,6 +85,23 @@ It exits 0 when it printed the bytes, 1 when the file doesn't hold them (no sect
 file), and 2 on a usage error. The output holds no local path, so it can go into a raw source as it is; this is how
 [`msg-request-functions-2026-11-16.md`](../../raw-sources/msg-request-functions-2026-11-16.md) was read by hand.
 
+## List the exe's imports and who reads them
+
+To find the game code that calls a Windows or library function (issue #58 used it for input), list the imports its
+PE headers declare:
+
+```sh
+dotnet run --project tools/Metaphor.SignatureCheck -c Release -- --imports "$METAPHOR_GAME_EXE" xinput
+```
+
+Each DLL (regular or delay-loaded) is followed by its functions, by name or ordinal, with the **slot** the loader fills
+(the import's rva) and how many instructions in executable sections read it: `call` or `jmp` through it, or `mov` of
+it into a register. A filter (a piece of a DLL or function name, any case) also lists those instructions, up to 64 per
+function, and the `call` or `jmp` that lands on an import thunk (a `jmp [slot]`). Like `--bytes`, it doesn't
+disassemble, so each is a candidate; read it with `--bytes`. A function the game looks up at run time
+(`GetProcAddress`) has no slot and isn't listed. It exits 0 when it listed imports, 1 when the filter matched none, and
+2 on a usage error or a file that isn't a PE image.
+
 ## Limits
 
 - The offsets are file offsets. The `rva` beside a single match is where the PE headers say it loads, which is only
