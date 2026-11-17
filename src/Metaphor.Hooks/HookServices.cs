@@ -32,6 +32,9 @@ internal sealed record HookServices
     /// the input hooks hand them each read.</summary>
     public required DialogueControls DialogueControls { get; init; }
 
+    /// <summary>The menu controls (#214): the input hooks hand them each read before the dialogue controls.</summary>
+    public required MenuControls MenuControls { get; init; }
+
     /// <summary>Names each cursor manager's screen class (#208): the choice cursor getter hook feeds it, and the menu
     /// cursor hook asks it for each input.</summary>
     public ScreenClassLookup ScreenClasses { get; init; } = new();
@@ -58,8 +61,16 @@ internal sealed record HookServices
         var reader = new DialogueReader(announcer);
         var dialogue = new DialogueAnnouncer(reader, cleaner, history, () => settings.Current.VoicedLines);
         var controls = new DialogueControls(DialogueBindings.Default, history, reader, announcer);
+        // Menus speak through the reader too (#214), and their controls toggle it with the dialogue's binding.
         var screens = new MenuScreens([TitleMenuFocus.Screen]);
-        screens.Observe(new TitleMenuFocus(library, announcer, cleaner));
+        screens.Observe(new TitleMenuFocus(library, reader, cleaner));
+        var menuBindings = MenuBindings.Default with
+        {
+            ReaderButtons = DialogueBindings.Default.ReaderButtons,
+            ReaderKey = DialogueBindings.Default.ReaderKey,
+        };
+        var menuControls = new MenuControls(menuBindings, screens, reader, []);
+        screens.Observe(menuControls);
         events.ObserveFiles(library);
         events.ObserveLines(new DialogueLines(library, dialogue));
         events.ObserveChoices(new DialogueChoices(library, dialogue));
@@ -90,6 +101,7 @@ internal sealed record HookServices
             ModFolder = modFolder,
             DialogueHistory = history,
             DialogueControls = controls,
+            MenuControls = menuControls,
         };
     }
 }

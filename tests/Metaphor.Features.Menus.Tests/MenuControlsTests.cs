@@ -1,0 +1,206 @@
+using Metaphor.Core.Announcements;
+using Metaphor.Core.Menus;
+
+namespace Metaphor.Features.Menus.Tests;
+
+/// <summary>The menu controls (#214): the details key asks the current screen's feature for the rest of the focus's
+/// panel, the press is hidden from the game, and the reader toggle silences menus and on turning on speaks the screen
+/// and focus. Hook events in (cursor inputs carrying a screen class, pad and keyboard reads), announcements out through
+/// the recording announcer; made-up screens and text only.</summary>
+[Trait("Category", "Unit")]
+public sealed class MenuControlsTests
+{
+    private const string ItemClass = "ItemChoice@test";
+    private const string PlainClass = "PlainChoice@test";
+    private const int Settle = 0x1;
+    private const int R3 = 0x0004;
+    private const int A = 0x4000;
+    private const int LbRb = 0x400 | 0x800;
+    private const int Tab = 0x09;
+    private const int KeyT = 0x54;
+
+    private static readonly Screen Items = new("Items", ItemClass);
+    private static readonly Screen Plain = new("Plain", PlainClass);
+
+    private readonly RecordingAnnouncer announcer = new();
+    private readonly SwitchedReader reader;
+    private readonly CursorEvents cursors = new();
+    private readonly MenuControls controls;
+
+    public MenuControlsTests()
+    {
+        reader = new SwitchedReader(announcer);
+        var screens = new MenuScreens([Items, Plain]);
+        cursors.Observe(screens);
+        screens.Observe(new SpeaksFocus(reader));
+        var bindings = MenuBindings.Default with { ReaderButtons = LbRb, ReaderKey = KeyT };
+        controls = new MenuControls(bindings, screens, reader, [new ItemDetails()]);
+        screens.Observe(controls);
+    }
+
+    private void Cursor(string? screenClass, int row) =>
+        cursors.Handled(new CursorInput(0xa0, ClassRva: 0x100, Settle, Result: 1, Top: 0, Row: row, Flags: 0, screenClass));
+
+    private IEnumerable<string> Said() => announcer.Said.Select(said => said.Text);
+
+    [Fact]
+    public void TheDetailsKeyOnAScreenThatAnswersSpeaksItsDetailsForTheFocus()
+    {
+        Cursor(ItemClass, row: 2);
+
+        controls.Pad(0, R3);
+
+        Assert.Equal(new Announcement("Details of item 3", Interrupt: true), announcer.Said[^1]);
+    }
+
+    [Fact]
+    public void TheDetailsKeyOnTheKeyboardSpeaksTheDetailsOfTheCurrentFocus()
+    {
+        Cursor(ItemClass, row: 0);
+        Cursor(ItemClass, row: 1);
+
+        controls.Keys([Tab]);
+
+        Assert.Equal("Details of item 2", Said().Last());
+    }
+
+    [Theory]
+    [InlineData(PlainClass)]
+    [InlineData("UnknownChoice@test")]
+    public void TheDetailsKeyOnAScreenThatDoesNotAnswerSaysThereAreNoMoreDetails(string screenClass)
+    {
+        Cursor(screenClass, row: 0);
+
+        controls.Pad(0, R3);
+
+        Assert.Equal(new Announcement("No more details", Interrupt: true), announcer.Said[^1]);
+    }
+
+    [Fact]
+    public void TheDetailsPressDoesNotReachTheGameInAMenu()
+    {
+        Cursor(ItemClass, row: 0);
+
+        Assert.Equal(A, controls.Pad(0, R3 | A));
+        Assert.Equal([0x41], controls.Keys([Tab, 0x41]));
+    }
+
+    [Fact]
+    public void BeforeAnyScreenIsEnteredTheDetailsKeyDoesNothingAndReachesTheGame()
+    {
+        Assert.Equal(R3, controls.Pad(0, R3));
+        Assert.Equal([Tab], controls.Keys([Tab]));
+        Assert.Empty(announcer.Said);
+    }
+
+    [Fact]
+    public void AfterIdlingOnAScreenForFiveSecondsTheDetailsKeyStillReadsDetails()
+    {
+        Cursor(ItemClass, row: 1);
+        // Five seconds of frames at 60 a second: the same cursor input and an empty pad read each frame.
+        for (var frame = 0; frame < 300; frame++)
+        {
+            Cursor(ItemClass, row: 1);
+            controls.Pad(0, 0);
+        }
+
+        var handed = controls.Pad(0, R3);
+
+        Assert.Equal("Details of item 2", Said().Last());
+        Assert.Equal(0, handed);
+    }
+
+    [Fact]
+    public void MovingToAnotherScreenReadsThatScreensDetails()
+    {
+        Cursor(ItemClass, row: 0);
+        Cursor(PlainClass, row: 0);
+
+        controls.Pad(0, R3);
+
+        Assert.Equal("No more details", Said().Last());
+    }
+
+    [Fact]
+    public void AHeldDetailsKeyOrASecondPadMirroringItSpeaksOnce()
+    {
+        Cursor(ItemClass, row: 0);
+        var before = announcer.Said.Count;
+
+        controls.Pad(0, R3);
+        controls.Pad(1, R3);
+        controls.Pad(0, R3);
+
+        Assert.Equal(before + 1, announcer.Said.Count);
+    }
+
+    [Fact]
+    public void WithTheReaderOffFocusMovesAndTheDetailsKeyAreSilent()
+    {
+        Cursor(ItemClass, row: 0);
+        controls.Keys([KeyT]);
+        controls.Keys([]);
+
+        Cursor(ItemClass, row: 1);
+        controls.Pad(0, R3);
+
+        Assert.Equal(["Items, 1", "Reader off"], Said());
+    }
+
+    [Fact]
+    public void TurningTheReaderBackOnSpeaksTheScreenAndFocus()
+    {
+        Cursor(ItemClass, row: 0);
+        controls.Pad(0, LbRb);
+        controls.Pad(0, 0);
+        Cursor(ItemClass, row: 3);
+
+        var handed = controls.Pad(0, LbRb);
+
+        Assert.Equal(["Items, 1", "Reader off", "Reader on", "Items, 4"], Said());
+        Assert.Equal(0, handed);
+    }
+
+    /// <summary>A screen's feature that answers the details key for <see cref="Items"/>.</summary>
+    private sealed class ItemDetails : IScreenDetails
+    {
+        public string? Details(ScreenEvent focus) =>
+            focus.Screen == Items ? $"Details of item {focus.Index + 1}" : null;
+    }
+
+    /// <summary>A screen's feature that speaks every screen's name on entry and its position on each focus move.</summary>
+    private sealed class SpeaksFocus(IAnnouncer announcer) : IScreenObserver
+    {
+        public void Observe(ScreenEvent change)
+        {
+            if (change.Change == ScreenChange.Entered)
+            {
+                announcer.Announce(new Announcement($"{change.Screen?.Name}, {change.Index + 1}", Interrupt: true));
+            }
+            else if (change.Change == ScreenChange.FocusMoved)
+            {
+                announcer.Announce(new Announcement($"{change.Index + 1}", Interrupt: true));
+            }
+        }
+    }
+
+    /// <summary>The reader switch as the dialogue feature's is: drops what it's handed while off.</summary>
+    private sealed class SwitchedReader(IAnnouncer announcer) : IReaderSwitch
+    {
+        public bool IsOn { get; private set; } = true;
+
+        public void Announce(Announcement announcement)
+        {
+            if (IsOn)
+            {
+                announcer.Announce(announcement);
+            }
+        }
+
+        public void Toggle()
+        {
+            IsOn = !IsOn;
+            announcer.Announce(new Announcement(IsOn ? "Reader on" : "Reader off", Interrupt: true));
+        }
+    }
+}

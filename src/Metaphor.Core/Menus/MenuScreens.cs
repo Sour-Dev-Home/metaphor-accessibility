@@ -30,6 +30,14 @@ public interface IScreenObserver
     void Observe(ScreenEvent change);
 }
 
+/// <summary>A screen's feature that answers the details key (#214).</summary>
+public interface IScreenDetails
+{
+    /// <summary>The rest of the focused item's panel when <paramref name="focus"/> is on this feature's screen, or null
+    /// when the screen isn't its own.</summary>
+    string? Details(ScreenEvent focus);
+}
+
 /// <summary>Turns menu cursor inputs into screen entered, screen left and focus moved (spec #211). The screen is the
 /// input's screen class, never its manager: managers are made per visit and one cursor class serves nearly every list
 /// (docs/raw-sources/screen-class-session-2026-11-17.md). Only inputs where the cursor settled count (a move can be put
@@ -92,6 +100,22 @@ public sealed class MenuScreens : ICursorObserver
         {
             TellEach(each, change);
         }
+    }
+
+    /// <summary>Tells every observer the current screen as entered again at its focus, as when the reader is turned
+    /// back on (#214); nothing when no screen has been entered.</summary>
+    public void RepeatCurrent()
+    {
+        ScreenEvent change;
+        lock (gate)
+        {
+            if (currentClass is not { } screenClass)
+            {
+                return;
+            }
+            change = Change(ScreenChange.Entered, screenClass, currentIndex);
+        }
+        TellEach(Volatile.Read(ref observers), change);
     }
 
     private ScreenEvent Change(ScreenChange change, string screenClass, int index) =>

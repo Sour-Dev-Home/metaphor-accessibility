@@ -1,0 +1,155 @@
+using Metaphor.Core.Announcements;
+using Metaphor.Core.Menus;
+
+namespace Metaphor.Features.Menus;
+
+/// <summary>Which button and key the menu controls (#214) use. Buttons are bits of the game's own 16-bit pad mask and a
+/// binding of several bits means all of them held together; keys are Windows virtual-key codes.</summary>
+/// <param name="DetailsButtons">The buttons that read the focus's details.</param>
+/// <param name="DetailsKey">The key that reads the focus's details.</param>
+public sealed record MenuBindings(int DetailsButtons, int DetailsKey)
+{
+    /// <summary>The buttons that turn the reader on or off: the dialogue feature's binding, which the wiring hands in.
+    /// None by default.</summary>
+    public int ReaderButtons { get; init; }
+
+    /// <summary>The key that turns the reader on or off, as <see cref="ReaderButtons"/>.</summary>
+    public int ReaderKey { get; init; }
+
+    /// <summary>R3 and Tab, the maintainer's choice on #214: neither did anything on the main menu in session 4
+    /// (docs/raw-sources/screen-class-session-2026-11-17.md). The game's mask puts XInput's right thumb at <c>0x0004</c>
+    /// on game build 548ddc95… (Steam build 18330018), and its keyboard read lists Tab (<c>VK_TAB</c>, 0x09) when
+    /// held, as it skips no code below 32 outside its bit table <c>0xF7E71000</c>, where bit 9 is clear:
+    /// docs/raw-sources/pad-and-keyboard-state-2026-11-16.md. Constants until #104's settings file can hold them.
+    /// </summary>
+    public static MenuBindings Default { get; } = new(0x0004, 0x09);
+}
+
+/// <summary>The menu controls (#214), while a menu is open: the details key asks the current screen's feature
+/// (<see cref="IScreenDetails"/>) for the rest of the focus's panel, or says there are no more details, and the reader
+/// binding turns the reader on or off, speaking the current screen and focus again when it comes on. Both are hidden from
+/// the game then, and the game sees them as usual otherwise. A menu is open from its screen entered until it's left, by
+/// the menu-screens module's own events (judgement rule 5). The module reports a screen left only when another screen's
+/// cursor settles, so leaving the menus for the field, a battle or dialogue isn't reported yet and the last screen
+/// stays open as far as these controls know. A press is an up-to-down edge of a binding held on any pad or the keyboard, as for the
+/// dialogue controls, so a mirroring second pad can't fire it again. Menu speech goes through the reader, so it's
+/// silent while the reader is off. The hook layer hands it each pad and keyboard read from any of the game's threads.
+/// </summary>
+public sealed class MenuControls : IScreenObserver
+{
+    private const int KeyboardSource = -1;
+
+    private readonly Lock gate = new();
+    private readonly MenuBindings bindings;
+    private readonly MenuScreens screens;
+    private readonly IReaderSwitch reader;
+    private readonly IScreenDetails[] details;
+    private readonly Binding detailsBinding = new();
+    private readonly Binding toggleBinding = new();
+    private ScreenEvent? focus;
+
+    public MenuControls(
+        MenuBindings bindings, MenuScreens screens, IReaderSwitch reader, IEnumerable<IScreenDetails> details)
+    {
+        ArgumentNullException.ThrowIfNull(bindings);
+        ArgumentNullException.ThrowIfNull(screens);
+        ArgumentNullException.ThrowIfNull(reader);
+        ArgumentNullException.ThrowIfNull(details);
+        this.bindings = bindings;
+        this.screens = screens;
+        this.reader = reader;
+        this.details = [.. details];
+    }
+
+    /// <summary>Keeps the open screen and its focus: set when a screen is entered or its focus moves, cleared when it's
+    /// left.</summary>
+    public void Observe(ScreenEvent change)
+    {
+        ArgumentNullException.ThrowIfNull(change);
+        lock (gate)
+        {
+            if (change.Change != ScreenChange.Left)
+            {
+                focus = change;
+            }
+            else if (focus?.ScreenClass == change.ScreenClass)
+            {
+                focus = null;
+            }
+        }
+    }
+
+    /// <summary>Takes one read of <paramref name="pad"/>'s buttons, acts on a press, and returns the buttons to hand
+    /// on: without the bound ones while a menu is open.</summary>
+    public int Pad(int pad, int buttons)
+    {
+        var detailsHeld = Holds(buttons, bindings.DetailsButtons);
+        var toggleHeld = Holds(buttons, bindings.ReaderButtons);
+        var hidden = Read(pad, detailsHeld, toggleHeld);
+        return hidden ? buttons & ~(bindings.DetailsButtons | (toggleHeld ? bindings.ReaderButtons : 0)) : buttons;
+    }
+
+    /// <summary>Takes one read of the keys held down, acts on a press, and returns the keys to hand on: without the
+    /// bound ones while a menu is open.</summary>
+    public IReadOnlyList<int> Keys(IReadOnlyList<int> keys)
+    {
+        ArgumentNullException.ThrowIfNull(keys);
+        var hidden = Read(KeyboardSource, keys.Contains(bindings.DetailsKey), bindings.ReaderKey != 0 && keys.Contains(bindings.ReaderKey));
+        return hidden ? [.. keys.Where(key => key != bindings.DetailsKey && key != bindings.ReaderKey)] : keys;
+    }
+
+    private static bool Holds(int buttons, int binding) => binding != 0 && (buttons & binding) == binding;
+
+    /// <summary>Records what <paramref name="source"/> holds, acts on each press, and says whether a menu is open, so
+    /// the bound input is hidden.</summary>
+    private bool Read(int source, bool detailsHeld, bool toggleHeld)
+    {
+        bool detailsPressed;
+        bool togglePressed;
+        ScreenEvent? current;
+        lock (gate)
+        {
+            current = focus;
+            detailsPressed = detailsBinding.Update(source, detailsHeld) && current is not null;
+            togglePressed = toggleBinding.Update(source, toggleHeld) && current is not null;
+        }
+        var open = current is not null;
+        // Spoken outside the lock: the announcer may take its time.
+        if (detailsPressed)
+        {
+            var text = details.Select(feature => feature.Details(current!)).FirstOrDefault(said => said is not null);
+            reader.Announce(new Announcement(text ?? "No more details", Interrupt: true));
+        }
+        if (togglePressed)
+        {
+            reader.Toggle();
+            if (reader.IsOn)
+            {
+                screens.RepeatCurrent();
+            }
+        }
+        return open;
+    }
+
+    /// <summary>One binding's state across sources: which hold it now.</summary>
+    private sealed class Binding
+    {
+        private readonly HashSet<int> holding = [];
+
+        /// <summary>Records whether <paramref name="source"/> holds the binding, and says whether that made it go from
+        /// held nowhere to held somewhere.</summary>
+        public bool Update(int source, bool held)
+        {
+            var before = holding.Count > 0;
+            if (held)
+            {
+                holding.Add(source);
+            }
+            else
+            {
+                holding.Remove(source);
+            }
+            return !before && holding.Count > 0;
+        }
+    }
+}
