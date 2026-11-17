@@ -10,18 +10,24 @@ public sealed class MessageEventsTests
     private readonly MessageEvents events = new();
     private readonly List<string> seen = [];
 
-    private sealed class Recording(string name, List<string> seen) : ILineRequestObserver, IMessageFileObserver
+    private sealed class Recording(string name, List<string> seen)
+        : ILineRequestObserver, IMessageFileObserver, IChoiceRequestObserver
     {
         public void Observe(LineRequested line) => seen.Add($"{name}:{line.Kind}:{line.Label}");
 
         public void Observe(MessageFileCompiled file) => seen.Add($"{name}:{file.Id}:{file.Path}");
+
+        public void Observe(ChoiceRequested choice) =>
+            seen.Add($"{name}:{choice.Kind}:{choice.PromptLabel}:{choice.ChoiceLabel}");
     }
 
-    private sealed class Throwing : ILineRequestObserver, IMessageFileObserver
+    private sealed class Throwing : ILineRequestObserver, IMessageFileObserver, IChoiceRequestObserver
     {
         public void Observe(LineRequested line) => throw new InvalidOperationException("observer failed");
 
         public void Observe(MessageFileCompiled file) => throw new InvalidOperationException("observer failed");
+
+        public void Observe(ChoiceRequested choice) => throw new InvalidOperationException("observer failed");
     }
 
     [Fact]
@@ -65,6 +71,28 @@ public sealed class MessageEventsTests
         events.ObserveLines(new Recording("speech", seen));
 
         events.Compiled(new MessageFileCompiled("event/e100.msg", 7, "@MES_a"));
+
+        Assert.Empty(seen);
+    }
+
+    [Fact]
+    public void AnOpenedChoiceReachesEachObserverInOrderEvenAfterOneThrows()
+    {
+        events.ObserveChoices(new Recording("speech", seen));
+        events.ObserveChoices(new Throwing());
+        events.ObserveChoices(new Recording("log", seen));
+
+        events.ChoiceOpened(new ChoiceRequested(0, "MES_q", "MES_c"));
+
+        Assert.Equal(["speech:0:MES_q:MES_c", "log:0:MES_q:MES_c"], seen);
+    }
+
+    [Fact]
+    public void LineObserversDoNotHearChoices()
+    {
+        events.ObserveLines(new Recording("speech", seen));
+
+        events.ChoiceOpened(new ChoiceRequested(0, "MES_q", "MES_c"));
 
         Assert.Empty(seen);
     }

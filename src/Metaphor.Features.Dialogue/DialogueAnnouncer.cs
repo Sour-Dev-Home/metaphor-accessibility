@@ -38,4 +38,13 @@ public sealed class DialogueAnnouncer
         history.Add(spoken);
         announcer.Announce(new Announcement(spoken, Interrupt: true));
     }
+
+    /// <summary>Announces a choice's options (#82) from its message as the game stores it, one option per line, as
+    /// "Choose: option; option", without cutting off the line before. A missing message (null), or one whose lines all
+    /// clean to nothing, is announced as "Choice".</summary>
+    public void Offer(string? options)
+    {
+        var lines = (options ?? "").Split('\n').Select(cleaner.Clean).Where(line => line.Length > 0).ToList();
+        announcer.Announce(new Announcement(lines.Count == 0 ? "Choice" : $"Choose: {string.Join("; ", lines)}", Interrupt: false));
+    }
 }

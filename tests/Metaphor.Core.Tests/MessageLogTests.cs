@@ -113,14 +113,14 @@ public sealed class MessageLogTests
     }
 
     [Fact]
-    public void RecordsAChoiceWithBothLabelsAndTheOtherArguments()
+    public void RecordsAChoiceWithBothLabels()
     {
         var (log, text) = NewLog(now: 4200);
 
-        log.SelectRequested(kind: 0, first: "MES_a", second: null, fourth: -1, options: "options=00+00", sixth: 0);
+        log.Observe(new ChoiceRequested(Kind: 0, PromptLabel: "MES_a", ChoiceLabel: null));
 
         Assert.Equal(
-            $"4200 ms select kind=0 first=\"MES_a\" second=(unreadable) fourth=-1 options=00+00 sixth=0x0000{Environment.NewLine}",
+            $"4200 ms select kind=0 first=\"MES_a\" second=(unreadable){Environment.NewLine}",
             text.ToString());
     }
 
@@ -129,9 +129,9 @@ public sealed class MessageLogTests
     {
         var (log, text) = NewLog(now: 1);
 
-        log.SelectRequested(0, "a\"b\nc", "", 0, "", 0);
+        log.Observe(new ChoiceRequested(0, "a\"b\nc", ""));
 
-        Assert.StartsWith("1 ms select kind=0 first=\"a\\x22b\\x0ac\" second=\"\" ", text.ToString(), StringComparison.Ordinal);
+        Assert.Equal($"1 ms select kind=0 first=\"a\\x22b\\x0ac\" second=\"\"{Environment.NewLine}", text.ToString());
     }
 
     [Fact]

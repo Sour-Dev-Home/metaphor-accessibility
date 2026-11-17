@@ -25,21 +25,23 @@ internal sealed record HookServices
     /// <summary>The mod's folder, outside the repository, where a development run leaves files for its hooks.</summary>
     public required string ModFolder { get; init; }
 
-    /// <summary>Services for the mod in <paramref name="modFolder"/> whose requested dialogue lines are spoken through
-    /// <paramref name="announcer"/>. The library hears each compiled file first, and speech each requested line first;
-    /// the log, when there is one, hears both last.</summary>
+    /// <summary>Services for the mod in <paramref name="modFolder"/> whose requested dialogue lines and opened choices
+    /// are spoken through <paramref name="announcer"/>. The library hears each compiled file first, and speech each
+    /// requested line and choice first; the log, when there is one, hears all three last.</summary>
     public static HookServices Speaking(IAnnouncer announcer, MessageLog? log, string modFolder)
     {
         var library = new MessageLibrary();
         var history = new DialogueHistory();
         var events = new MessageEvents();
+        var dialogue = new DialogueAnnouncer(announcer, new TextCleaner(TextCleanerRules.None), history);
         events.ObserveFiles(library);
-        events.ObserveLines(
-            new DialogueLines(library, new DialogueAnnouncer(announcer, new TextCleaner(TextCleanerRules.None), history)));
+        events.ObserveLines(new DialogueLines(library, dialogue));
+        events.ObserveChoices(new DialogueChoices(library, dialogue));
         if (log is not null)
         {
             events.ObserveFiles(log);
             events.ObserveLines(log);
+            events.ObserveChoices(log);
         }
         return new() { Messages = events, Log = log, ModFolder = modFolder, DialogueHistory = history };
     }
