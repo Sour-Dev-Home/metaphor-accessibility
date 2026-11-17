@@ -61,6 +61,19 @@ output are shortened (`<mods>`, `<game>`, `~` and so on), so it can go into an i
 the deploy's parameters except `-Configuration`, and exits 0 when the game survived and the mod wrote its log, 1 when
 the game exited, the deploy failed or there's no log, and 2 when the deploy couldn't start.
 
+### Summarise a log
+
+`tools/session-log` summarises `message-log.txt` without printing game text:
+
+```bash
+tools/session-log <message-log.txt> [--from <ms>] [--to <ms>] [--offset <ms>]
+```
+
+It prints the record count by kind, each screen class with its first and last time, its `screen` records and its cursor
+inputs, and, with `--from` or `--to`, the counts inside that window. `--offset` is the gap in ms between the mod's
+start and the recording's start; times then also show as video times (log time minus the offset). Records with
+`text=`, `label=` or quoted strings are counted, never printed, so the output can go into an issue.
+
 ### Files a run can leave in the mod's folder
 
 These files in the deployed mod's folder (`<mods>\metaphor.accessibility`) change what a Debug run does. The folder is
