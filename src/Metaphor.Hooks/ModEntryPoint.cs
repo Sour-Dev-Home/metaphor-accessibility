@@ -2,6 +2,7 @@ using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using Metaphor.Core;
 using Metaphor.Core.Announcements;
+using Metaphor.Core.Settings;
 using Reloaded.Mod.Interfaces;
 using Reloaded.Mod.Interfaces.Internal;
 
@@ -47,6 +48,9 @@ public sealed class ModEntryPoint : IMod
     }
 #endif
 
+    // Kept so the watcher lives as long as the game process.
+    private SettingsFile? settingsFile;
+
     public Action Disposing => () => { };
 
     [SuppressMessage("Design", "CA1031", Justification = "An exception here would reach the game through the loader.")]
@@ -66,7 +70,12 @@ public sealed class ModEntryPoint : IMod
 #else
             MessageLog? messageLog = null;
 #endif
-            var services = HookServices.Speaking(announcer, messageLog, folder);
+            // The settings live in Reloaded-II's per-mod user-config folder (IModLoaderV3.GetModConfigDirectory, in
+            // Reloaded.Mod.Interfaces 2.4.0), read now and again when the file changes (#104).
+            var settings = new SettingsReloader(announcer, line => logger.WriteLine($"[{config.ModId}] {line}"));
+            settingsFile = SettingsFile.Open(
+                modLoader.GetModConfigDirectory(config.ModId), settings, line => logger.WriteLine($"[{config.ModId}] {line}"));
+            var services = HookServices.Speaking(announcer, settings, messageLog, folder);
             // The mod runs inside the game, so this process's exe is the game executable whose hash identifies the
             // build (seen in docs/raw-sources/mod-entry-point-first-run-2026-11-15.md). Hooks go in only on a known
             // build, through the loader (#39). Issue #21's spike scans first, so it reads the game's own bytes (#92).
