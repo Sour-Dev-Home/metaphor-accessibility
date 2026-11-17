@@ -21,17 +21,24 @@ internal static class DialogueWindowOptIn
 internal sealed class DialogueWindowOpenHook : IGameHook, IObserves3
 {
     private readonly DialogueControls controls;
+    private readonly Metaphor.Core.MessageLog? log;
 
     public DialogueWindowOpenHook(HookServices services)
     {
         ArgumentNullException.ThrowIfNull(services);
         controls = services.DialogueControls;
+        log = services.Log;
         controls.TrackWindow();
     }
 
     public string SignatureName => "MsgOpenBody";
 
-    public void Observe(nint name, nint second, nint third) => controls.WindowOpened();
+    public void Observe(nint name, nint second, nint third)
+    {
+        // Debug only (no log in Release): set beside the msgwindow records to compare them (#206).
+        log?.MessageWindowHook("open");
+        controls.WindowOpened();
+    }
 }
 
 /// <summary>Reports the dialogue window closing: <c>MsgClose</c>'s body, one 32-bit argument (not read).</summary>
@@ -39,14 +46,20 @@ internal sealed class DialogueWindowOpenHook : IGameHook, IObserves3
 internal sealed class DialogueWindowCloseHook : IGameHook, IObserves3
 {
     private readonly DialogueControls controls;
+    private readonly Metaphor.Core.MessageLog? log;
 
     public DialogueWindowCloseHook(HookServices services)
     {
         ArgumentNullException.ThrowIfNull(services);
         controls = services.DialogueControls;
+        log = services.Log;
     }
 
     public string SignatureName => "MsgCloseBody";
 
-    public void Observe(nint window, nint second, nint third) => controls.WindowClosed();
+    public void Observe(nint window, nint second, nint third)
+    {
+        log?.MessageWindowHook("close");
+        controls.WindowClosed();
+    }
 }

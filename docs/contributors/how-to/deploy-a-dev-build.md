@@ -78,6 +78,15 @@ outside the repository, so none is ever committed.
   (`docs/raw-sources/screen-class-link-2026-11-17.md`, `docs/raw-sources/archetype-detail-cursors-2026-11-17.md`).
 - `opt-in-menu-values.txt`: the same, for five listeners on the game's value getters (#155): money, bag item count,
   party member unit, unit parameter and affinity. Numbers only (`docs/raw-sources/menu-value-getters-2026-11-17.md`).
+- `opt-in-voice-volume.txt`, `opt-in-voice-cues.txt`, `opt-in-voice-banks.txt`: the same, for the #103 CRI listeners
+  (`docs/raw-sources/cri-voice-probes-2026-11-17.md`). In turn: category and player volumes as they change
+  (`category-volume`, `player-volume`, two hooks); each player's category (`player-category`) plus a `voice-check`
+  record per requested line, whether it is `<VOICE>`-tagged and which cues followed it within a second; and each cue
+  sheet loaded with its wave bank's path (`acb-load`).
+- `opt-in-dialogue-window-flag.txt`: the pad read also reads the message window's state from memory, read only, and logs
+  `msgwindow …` when it changes (#206, `docs/raw-sources/dialogue-window-flag-2026-11-16.md`). With
+  `opt-in-dialogue-window.txt` too, the window hooks log `msgwindow-hook open` and `close` beside it. While it's on, the
+  pad read goes in only if both of the watch's signatures match, so a miss shows in `hooks n/m`.
 - `opt-in-dialogue-window.txt`: turns on the two dialogue window hooks (#58), in Release builds too
   ([turn on the dialogue window hooks](turn-on-the-dialogue-window-hooks.md)).
 - `spike-player-name.txt`: the hero name you typed in the game, on its first line (trimmed, UTF-8). The listener compares

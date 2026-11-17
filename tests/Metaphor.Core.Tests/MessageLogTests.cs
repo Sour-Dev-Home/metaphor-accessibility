@@ -67,6 +67,45 @@ public sealed class MessageLogTests
     }
 
     [Fact]
+    public void RecordsAMessageWindowChangeAndTheWindowHooks()
+    {
+        var (log, text) = NewLog(now: 4);
+
+        log.MessageWindowChanged("current=0x0 state=6 msg+48=- handles=1+0");
+        log.MessageWindowHook("open");
+
+        Assert.Equal(
+            $"4 ms msgwindow current=0x0 state=6 msg+48=- handles=1+0{Environment.NewLine}" +
+            $"4 ms msgwindow-hook open{Environment.NewLine}",
+            text.ToString());
+    }
+
+    [Fact]
+    public void RecordsTheVoiceSpikesAudioEventsWithNumbersOnly()
+    {
+        var (log, text) = NewLog(now: 20);
+        var caller = new CallerTrace([(0x12345, null)], "walk", 3);
+        const string Tail = "caller=0x12345 call=(unknown) via=walk frames=3";
+
+        log.CategoryVolume(categoryId: 2, volume: 0.5f, caller);
+        log.PlayerVolume(player: 0x2a00, volume: 1f, caller);
+        log.PlayerCategory(player: 0x2a00, categoryId: 3, caller);
+        log.AcbLoaded(acbDataSize: 1024, awbPath: "sound/x.awb", caller);
+        log.AcbLoaded(acbDataSize: 8, awbPath: null, caller);
+        log.VoiceChecked(new VoiceCueChecked(0, "L1", true, [new VoiceCueHeard(42, 0x2a00, 3, 1)]));
+
+        var nl = Environment.NewLine;
+        Assert.Equal(
+            $"20 ms category-volume id=2 volume=0.500 {Tail}{nl}" +
+            $"20 ms player-volume player=0x2a00 volume=1.000 {Tail}{nl}" +
+            $"20 ms player-category player=0x2a00 id=3 {Tail}{nl}" +
+            $"20 ms acb-load size=1024 awb=\"sound/x.awb\" {Tail}{nl}" +
+            $"20 ms acb-load size=8 awb=(none) {Tail}{nl}" +
+            $"20 ms voice-check kind=0 label=\"L1\" tagged=yes cues=42@1ms/player=0x2a00/cat=3{nl}",
+            text.ToString());
+    }
+
+    [Fact]
     public void RecordsASoundCueWithItsHandlesAndCaller()
     {
         var (log, text) = NewLog(now: 3300);

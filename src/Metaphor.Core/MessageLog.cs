@@ -64,6 +64,37 @@ public sealed class MessageLog(TextWriter writer, Func<long> millisecondsSinceSt
     public void CueSet(int cueId, long acb, long player, CallerTrace caller) => Write(() =>
         Line($"{millisecondsSinceStart()} ms cue id={cueId} acb=0x{acb:x} player=0x{player:x} {caller}"));
 
+    /// <summary>A CRI category's volume the game set (#103), by category number, with the calling code.</summary>
+    public void CategoryVolume(uint categoryId, float volume, CallerTrace caller) => Write(() =>
+        Line($"{millisecondsSinceStart()} ms category-volume id={categoryId} volume={volume:0.000} {caller}"));
+
+    /// <summary>A CRI player's volume the game set (#103), when it changed, with the calling code.</summary>
+    public void PlayerVolume(long player, float volume, CallerTrace caller) => Write(() =>
+        Line($"{millisecondsSinceStart()} ms player-volume player=0x{player:x} volume={volume:0.000} {caller}"));
+
+    /// <summary>The CRI category the game gave a player (#103), with the calling code.</summary>
+    public void PlayerCategory(long player, uint categoryId, CallerTrace caller) => Write(() =>
+        Line($"{millisecondsSinceStart()} ms player-category player=0x{player:x} id={categoryId} {caller}"));
+
+    /// <summary>A cue sheet the game loaded from memory (#103): its size and the path of its wave bank, if it named one
+    /// (a file path, not game text), with the calling code.</summary>
+    public void AcbLoaded(long acbDataSize, string? awbPath, CallerTrace caller) => Write(() =>
+        Line($"{millisecondsSinceStart()} ms acb-load size={acbDataSize} awb={(awbPath is null ? "(none)" : $"\"{LogText.Escaped(awbPath)}\"")} {caller}"));
+
+    /// <summary>One line's voice cue check (#103, <see cref="VoiceCueCheck"/>). Labels and numbers only.</summary>
+    public void VoiceChecked(VoiceCueChecked check) =>
+        Write(() => Line($"{millisecondsSinceStart()} ms voice-check {check}"));
+
+    /// <summary>The message window's state as read from memory, when it changed (#58, #206): pointers and numbers as the
+    /// reader formatted them, no game text.</summary>
+    public void MessageWindowChanged(string state) =>
+        Write(() => Line($"{millisecondsSinceStart()} ms msgwindow {state}"));
+
+    /// <summary>A dialogue window hook ran (#206): <c>open</c> for <c>MsgOpen</c>, <c>close</c> for <c>MsgClose</c>, to
+    /// compare with the <c>msgwindow</c> records.</summary>
+    public void MessageWindowHook(string which) =>
+        Write(() => Line($"{millisecondsSinceStart()} ms msgwindow-hook {which}"));
+
     /// <summary>A UI text pane drawn in a new state (#93, second sitting), with the text a probe found behind it, if any:
     /// where it was (<c>pane+0x…</c> or <c>elem+0x…</c>) and the text. Game text, so this log stays local.</summary>
     public void PaneDrawn(PaneDrawn pane, string? textAt, string? text) => Write(() =>
