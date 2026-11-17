@@ -32,9 +32,10 @@ internal sealed record HookServices
 
     /// <summary>Services for the mod in <paramref name="modFolder"/> whose requested dialogue lines and opened choices
     /// are spoken through <paramref name="announcer"/>, voiced lines as <paramref name="settings"/> say. The library
-    /// hears each compiled file first, and speech each requested line and choice first; the log, when there is one,
-    /// hears all three last.</summary>
-    public static HookServices Speaking(IAnnouncer announcer, SettingsReloader settings, MessageLog? log, string modFolder)
+    /// hears each compiled file first, and speech each requested line and choice first; the report log (#188) and the
+    /// message log, when there are, hear all three last.</summary>
+    public static HookServices Speaking(
+        IAnnouncer announcer, SettingsReloader settings, ReportLog? report, MessageLog? log, string modFolder)
     {
         ArgumentNullException.ThrowIfNull(settings);
         var library = new MessageLibrary();
@@ -49,6 +50,12 @@ internal sealed record HookServices
         events.ObserveFiles(library);
         events.ObserveLines(new DialogueLines(library, dialogue));
         events.ObserveChoices(new DialogueChoices(library, dialogue));
+        if (report is not null)
+        {
+            events.ObserveFiles(report);
+            events.ObserveLines(report);
+            events.ObserveChoices(report);
+        }
         if (log is not null)
         {
             events.ObserveFiles(log);

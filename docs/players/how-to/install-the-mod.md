@@ -90,7 +90,12 @@ aloud through your screen reader or Windows speech
 refuses to hook anything and the game runs as normal, silently.
 
 To check that it loaded, look at the newest file in `%APPDATA%\Reloaded-Mod-Loader-II\Logs\`. It lists the mod by its
-ID, `metaphor.accessibility`. If you report a problem, attach that file.
+ID, `metaphor.accessibility`.
+
+If you report a problem, attach `report-log.txt` from the `metaphor.accessibility` folder in your mods folder. The mod
+writes it fresh each time the game starts. It holds what the mod did (whether it loaded, how many hooks went in, errors,
+and which lines and choices the game asked for, by label, such as `Title_System_08`), never the game's text, and your user name is replaced with
+`<redacted>`.
 
 ## Keys
 
