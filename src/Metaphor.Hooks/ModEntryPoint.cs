@@ -26,10 +26,8 @@ public sealed class ModEntryPoint : IMod
         return announcer;
     }
 
-    /// <summary>The report log a player attaches to a bug report (#188), fresh each run, in every build. It redacts the
-    /// mod's folder, the settings folder, the user profile and the user name, since a path to any of them can turn up in
-    /// an error. A user name under three characters isn't redacted on its own, as replacing it everywhere would garble
-    /// the log. Null when it can't be opened.</summary>
+    /// <summary>The report log a player attaches to a bug report (#188), fresh each run, in every build, redacting what
+    /// <see cref="ReportLog.PathsToRedact"/> lists. Null when it can't be opened.</summary>
     [SuppressMessage("Design", "CA1031", Justification = "A report log must never stop the mod.")]
     [SuppressMessage("Reliability", "CA2000", Justification = "Lives as long as the game process.")]
     private static ReportLog? OpenReportLog(string folder, string configFolder)
@@ -39,11 +37,11 @@ public sealed class ModEntryPoint : IMod
             var stream = new FileStream(
                 Path.Combine(folder, ReportLog.FileName), FileMode.Create, FileAccess.Write, FileShare.Read);
             var started = Process.GetCurrentProcess().StartTime;
-            var userName = Environment.UserName;
             return new ReportLog(
                 new StreamWriter(stream), () => (long)(DateTime.Now - started).TotalMilliseconds,
-                [folder, configFolder, Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
-                    userName.Length >= 3 ? userName : ""]);
+                ReportLog.PathsToRedact(
+                    folder, configFolder, Environment.ProcessPath,
+                    Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), Environment.UserName));
         }
         catch (Exception)
         {
@@ -114,7 +112,7 @@ public sealed class ModEntryPoint : IMod
                 config.ModId, Environment.ProcessPath ?? "", folder, () => KnownGameBuilds.All, HookLoader.Expected(candidates),
                 build => HookLoader.Install(
                     build, candidates, modLoader, services, Log),
-                build => ScanIfRequested(folder, build, config.ModId, logger),
+                build => ScanIfRequested(folder, build, Log),
                 announcer);
             // The load message is spoken (#187); the log repeats it for when speech didn't start.
             Log(
@@ -128,15 +126,16 @@ public sealed class ModEntryPoint : IMod
     }
 
     /// <summary>Issue #21's spike: runs once, only when scripts/signature-spike.ps1 put a probes file in the mod's
-    /// folder, and before any hook installs.</summary>
-    private static void ScanIfRequested(string folder, string build, string modId, ILogger logger)
+    /// folder, and before any hook installs. Its result goes through <paramref name="log"/>, so the report log has it
+    /// too (#204).</summary>
+    private static void ScanIfRequested(string folder, string build, Action<string> log)
     {
         var scan = SignatureScan.ScanIfRequested(folder, build, OpenMainModuleForScan);
         if (scan is not null)
         {
-            logger.WriteLine(scan.Error is null
-                ? $"[{modId}] signature scan: {scan.Probes.Count(probe => probe.Matches == 1)} of {scan.Probes.Count} probes matched once; {scan.ReadableBytes} of {scan.ModuleBytes} bytes read, {scan.UnreadableBytes} failed; {scan.MillisecondsSinceGameStart} ms after start ({SignatureScan.ReportFileName})"
-                : $"[{modId}] signature scan failed: {scan.Error}");
+            log(scan.Error is null
+                ? $"signature scan: {scan.Probes.Count(probe => probe.Matches == 1)} of {scan.Probes.Count} probes matched once; {scan.ReadableBytes} of {scan.ModuleBytes} bytes read, {scan.UnreadableBytes} failed; {scan.MillisecondsSinceGameStart} ms after start ({SignatureScan.ReportFileName})"
+                : $"signature scan failed: {scan.Error}");
         }
     }
 

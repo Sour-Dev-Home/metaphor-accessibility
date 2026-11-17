@@ -15,6 +15,13 @@ public sealed class ReportLogTests
         return (new ReportLog(text, () => now, redact), text);
     }
 
+    /// <summary>The text once the log's background writer has caught up.</summary>
+    private static string Written(ReportLog log, StringWriter text)
+    {
+        Assert.True(log.WaitForWrites(TimeSpan.FromSeconds(5)));
+        return text.ToString();
+    }
+
     [Fact]
     public void RecordsACompiledMessageFileWithoutItsSource()
     {
@@ -22,7 +29,7 @@ public sealed class ReportLogTests
 
         log.Observe(new MessageFileCompiled(Path: "event/e100.msg", Id: 7, Source: $"[msg line_1]\n{Secret}"));
 
-        Assert.Equal($"1500 ms compile id=7 path=(not a label, 14 chars) chars=36{Environment.NewLine}", text.ToString());
+        Assert.Equal($"1500 ms compile id=7 path=(not a label, 14 chars) chars=36{Environment.NewLine}", Written(log, text));
     }
 
     [Fact]
@@ -32,7 +39,7 @@ public sealed class ReportLogTests
 
         log.Observe(new LineRequested(Kind: 2, Label: "line_1"));
 
-        Assert.Equal($"2750 ms request kind=2 label=line_1{Environment.NewLine}", text.ToString());
+        Assert.Equal($"2750 ms request kind=2 label=line_1{Environment.NewLine}", Written(log, text));
     }
 
     [Fact]
@@ -42,7 +49,7 @@ public sealed class ReportLogTests
 
         log.Observe(new ChoiceRequested(Kind: 1, PromptLabel: "sel_q", ChoiceLabel: null));
 
-        Assert.Equal($"300 ms select kind=1 prompt=sel_q choice=(unreadable){Environment.NewLine}", text.ToString());
+        Assert.Equal($"300 ms select kind=1 prompt=sel_q choice=(unreadable){Environment.NewLine}", Written(log, text));
     }
 
     /// <summary>A label read from a bad pointer could be message text, so anything not shaped like the game's labels
@@ -63,7 +70,7 @@ public sealed class ReportLogTests
             10 ms compile id=1 path=(not a label, 23 chars) chars=0
 
             """.ReplaceLineEndings(),
-            text.ToString());
+            Written(log, text));
     }
 
     /// <summary>A one-word line of game text has no underscore, so it isn't a label.</summary>
@@ -74,7 +81,7 @@ public sealed class ReportLogTests
 
         log.Observe(new ChoiceRequested(Kind: 0, PromptLabel: "Yes", ChoiceLabel: "Okay"));
 
-        Assert.Equal($"10 ms select kind=0 prompt=(not a label, 3 chars) choice=(not a label, 4 chars){Environment.NewLine}", text.ToString());
+        Assert.Equal($"10 ms select kind=0 prompt=(not a label, 3 chars) choice=(not a label, 4 chars){Environment.NewLine}", Written(log, text));
     }
 
     /// <summary>Labels in the game's shape: letters and digits joined by underscores.</summary>
@@ -85,7 +92,7 @@ public sealed class ReportLogTests
 
         log.Observe(new ChoiceRequested(Kind: 0, PromptLabel: "MES_e00_002_001_004", ChoiceLabel: "Title_System_08"));
 
-        Assert.Equal($"10 ms select kind=0 prompt=MES_e00_002_001_004 choice=Title_System_08{Environment.NewLine}", text.ToString());
+        Assert.Equal($"10 ms select kind=0 prompt=MES_e00_002_001_004 choice=Title_System_08{Environment.NewLine}", Written(log, text));
     }
 
     [Fact]
@@ -95,7 +102,104 @@ public sealed class ReportLogTests
 
         log.Note(@"hooks 3/4 (can't read D:\Profiles\someone\game.exe as someone)");
 
-        Assert.Equal($"500 ms hooks 3/4 (can't read <redacted>\\game.exe as <redacted>){Environment.NewLine}", text.ToString());
+        Assert.Equal($"500 ms hooks 3/4 (can't read <redacted>\\game.exe as <redacted>){Environment.NewLine}", Written(log, text));
+    }
+
+    /// <summary>The same folder written with forward slashes, or with doubled backslashes as an escaped string shows
+    /// it (#204).</summary>
+    [Fact]
+    public void RedactsAPathWrittenWithForwardSlashes()
+    {
+        var (log, text) = NewLog(500, @"D:\Profiles\someone");
+
+        log.Note("can't read D:/Profiles/someone/game.exe or D:\\\\Profiles\\\\someone\\\\x.dll");
+
+        Assert.Equal($"500 ms can't read <redacted>/game.exe or <redacted>\\\\x.dll{Environment.NewLine}", Written(log, text));
+    }
+
+    /// <summary>Windows can hand out a path with any folder in its 8.3 short form, such as <c>SOMEON~1</c> or the
+    /// hashed <c>SO1A2B~1</c> (#204).</summary>
+    [Fact]
+    public void RedactsAPathWithFoldersInTheirShortForm()
+    {
+        var (log, text) = NewLog(500, @"D:\Profiles\someone.else\Mods\metaphor");
+
+        log.Note(@"can't read D:\PROFIL~1\SOMEON~1\Mods\METAPH~2\a.dll or d:/Profiles/SO1A2B~1/MODS~1/metaphor/b.dll");
+
+        Assert.Equal($"500 ms can't read <redacted>\\a.dll or <redacted>/b.dll{Environment.NewLine}", Written(log, text));
+    }
+
+    /// <summary>A startup reason can name the game's install folder (#204), so it's redacted with the mod's folders and
+    /// the player's profile and name.</summary>
+    [Fact]
+    public void RedactsTheGameFolderAlongsideTheModsAndThePlayers()
+    {
+        var redact = ReportLog.PathsToRedact(
+            modFolder: @"E:\Reloaded\Mods\metaphor", configFolder: @"E:\Reloaded\User\Mods\metaphor",
+            gameExecutable: @"F:\Games\Metaphor ReFantazio\METAPHOR.exe", userProfile: @"D:\Profiles\someone", userName: "someone");
+        var (log, text) = NewLog(500, [.. redact]);
+
+        log.Note(@"unknown build (F:\Games\Metaphor ReFantazio\METAPHOR.exe, F:/Games/METAPH~1/x, E:\Reloaded\Mods\metaphor\y, D:\Profiles\someone, someone)");
+
+        Assert.Equal(
+            $"500 ms unknown build (<redacted>\\METAPHOR.exe, <redacted>/x, <redacted>\\y, <redacted>, <redacted>){Environment.NewLine}",
+            Written(log, text));
+    }
+
+    /// <summary>A user name under three characters isn't redacted on its own: replacing it everywhere would garble
+    /// the log. Nor is a bare drive (a game at <c>F:\</c>), which names no one.</summary>
+    [Theory]
+    [InlineData(null)]
+    [InlineData(@"F:\METAPHOR.exe")]
+    public void LeavesAShortUserNameAndAMissingOrDriveRootGameFolderOut(string? gameExecutable)
+    {
+        var redact = ReportLog.PathsToRedact(
+            modFolder: @"E:\m", configFolder: @"E:\c", gameExecutable, userProfile: @"D:\Profiles\al", userName: "al");
+
+        Assert.Equal([@"E:\m", @"E:\c", @"D:\Profiles\al"], redact);
+    }
+
+    /// <summary>Logging runs on the game's threads, so a slow disk mustn't stall them (#204): the lines wait in memory
+    /// and a background writer writes them.</summary>
+    [Fact]
+    public async Task ABurstOfLinesNeverWaitsForTheFile()
+    {
+        using var stalled = new StalledWriter();
+        var log = new ReportLog(stalled, () => 7, []);
+
+        var burst = Task.Run(() =>
+        {
+            for (var i = 0; i < 100; i++)
+            {
+                log.Note($"line {i}");
+                log.Observe(new LineRequested(0, "line_1"));
+            }
+        });
+
+        var finished = await Task.WhenAny(burst, Task.Delay(TimeSpan.FromSeconds(5)));
+        Assert.True(finished == burst, "the caller waited for the file");
+        stalled.Release();
+        Assert.True(log.WaitForWrites(TimeSpan.FromSeconds(5)));
+        Assert.Equal(200, stalled.ToString().Split(Environment.NewLine, StringSplitOptions.RemoveEmptyEntries).Length);
+        Assert.StartsWith($"7 ms line 0{Environment.NewLine}7 ms request kind=0 label=line_1", stalled.ToString(), StringComparison.Ordinal);
+    }
+
+    /// <summary>Lines past what the log holds in memory are counted, not kept, so a stalled disk can't grow the game's
+    /// memory without end.</summary>
+    [Fact]
+    public void CountsTheLinesItDropsWhileTheFileIsStalled()
+    {
+        using var stalled = new StalledWriter();
+        var log = new ReportLog(stalled, () => 7, []);
+
+        for (var i = 0; i < 20_000; i++)
+        {
+            log.Note("x");
+        }
+
+        stalled.Release();
+        Assert.True(log.WaitForWrites(TimeSpan.FromSeconds(5)));
+        Assert.Matches(@"7 ms x\r?\n[0-9]+ ms \(1[0-9]{4} lines dropped: the log fell behind\)", stalled.ToString());
     }
 
     [Fact]
@@ -121,11 +225,35 @@ public sealed class ReportLogTests
             log.Observe(new LineRequested(Kind: 1, Label: word));
         }
 
-        Assert.All(Secret.Split(' '), word => Assert.DoesNotContain(word, text.ToString(), StringComparison.Ordinal));
+        Assert.All(Secret.Split(' '), word => Assert.DoesNotContain(word, Written(log, text), StringComparison.Ordinal));
     }
 
     private sealed class BrokenWriter : StringWriter
     {
         public override void Write(string? value) => throw new IOException("disk full");
+    }
+
+    /// <summary>A file whose every write waits until the test releases it, as a stalled disk would.</summary>
+    private sealed class StalledWriter : StringWriter
+    {
+        private readonly ManualResetEventSlim released = new();
+
+        public void Release() => released.Set();
+
+        public override void Write(string? value)
+        {
+            released.Wait(TimeSpan.FromSeconds(10));
+            base.Write(value);
+        }
+
+        protected override void Dispose(bool disposing)
+        {
+            if (disposing)
+            {
+                released.Dispose();
+            }
+
+            base.Dispose(disposing);
+        }
     }
 }
