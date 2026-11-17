@@ -25,11 +25,12 @@ public sealed class DevOnlyHookTests
         Assert.Equal(debugBuild, switchedOn);
     }
 
-    /// <summary>An opt-in hook (<c>OptInFile = "…"</c>) is a development-only one, and its file is named bare, so it is
-    /// looked for only in the mod's folder (the loader ignores any other name, which would leave the hook off for good).
+    /// <summary>An opt-in hook's file (<c>OptInFile = "…"</c>) is named bare, so it is looked for only in the mod's
+    /// folder (the loader ignores any other name, which would leave the hook off for good). An opt-in hook needn't be
+    /// development-only: the dialogue window hooks (#58) are opt-in in Release too, since .text1 hooks stay opt-in.
     /// </summary>
     [Fact]
-    public void OptInHooksAreDevOnlyWithABareFileName()
+    public void OptInHooksHaveABareFileName()
     {
         var optIns = Scanned.Load(Rules.HookLayer).MainModule.Types
             .SelectMany(type => type.CustomAttributes
@@ -41,9 +42,22 @@ public sealed class DevOnlyHookTests
         Assert.NotEmpty(optIns);
         Assert.All(optIns, hook =>
         {
-            Assert.True(hook.Properties.GetValueOrDefault("DevOnly") is true, $"{hook.FullName} is opt-in but not DevOnly");
             var file = Assert.IsType<string>(hook.Properties["OptInFile"]);
             Assert.Matches("^[a-z0-9][a-z0-9.-]*$", file);
         });
+    }
+
+    /// <summary>The dialogue window hooks sit in .text1, so the default Release build leaves them out: they need
+    /// <c>opt-in-dialogue-window.txt</c> (maintainer, 2026-11-16).</summary>
+    [Theory]
+    [InlineData("Metaphor.Hooks.DialogueWindowOpenHook")]
+    [InlineData("Metaphor.Hooks.DialogueWindowCloseHook")]
+    public void TheDialogueWindowHooksAreOptIn(string hook)
+    {
+        var attribute = Scanned.Load(Rules.HookLayer).MainModule.GetType(hook).CustomAttributes
+            .Single(a => a.AttributeType.FullName == "Metaphor.Hooks.GameHookAttribute");
+
+        Assert.Equal("opt-in-dialogue-window.txt",
+            attribute.Properties.Single(p => p.Name == "OptInFile").Argument.Value);
     }
 }
