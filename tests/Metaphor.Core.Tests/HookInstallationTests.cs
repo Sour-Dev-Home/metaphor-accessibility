@@ -133,4 +133,27 @@ public sealed class HookInstallationTests
              "hook Choices installed at module offset 0x123abc"],
             log);
     }
+
+    /// <summary>A hook that failed to install is the line a native crash report needs, so it goes to the error log,
+    /// which the report log writes to disk at once (#204).</summary>
+    [Fact]
+    public void AnInstallFailureGoesToTheErrorLog()
+    {
+        var log = new List<string>();
+        var errors = new List<string>();
+
+        HookInstallation.Run(
+            Build, [Hook("Dialogue", "show-line"), Hook("Choices", "show-choice")], Signatures, Found,
+            () => (hook, _) =>
+            {
+                if (hook.Name == "Dialogue")
+                {
+                    throw new InvalidOperationException("went live, then failed");
+                }
+            },
+            log.Add, errors.Add);
+
+        Assert.Equal(["hook Dialogue failed to install: InvalidOperationException"], errors);
+        Assert.Equal(["hook Choices installed at module offset 0x123abc"], log);
+    }
 }

@@ -62,7 +62,8 @@ internal static class HookLoader
 
     /// <summary>Installs the included <paramref name="candidates"/> approved for <paramref name="runningBuild"/> and
     /// returns how many went in. Each hook is created with <paramref name="services"/>. Writes one line per hook to
-    /// <paramref name="log"/>, including each opt-in hook left out.</summary>
+    /// <paramref name="log"/>, including each opt-in hook left out, or to <paramref name="logError"/> for a hook that
+    /// failed to install (#204).</summary>
     /// <exception cref="InvalidOperationException">A hook should go in, but Reloaded-II gave no hooks controller.</exception>
     [SuppressMessage("Design", "CA1031", Justification = "A logging failure must not stop hooks going in.")]
     public static int Install(
@@ -70,12 +71,14 @@ internal static class HookLoader
         IReadOnlyList<(Type Type, GameHookAttribute Hook, HookInclusion Inclusion)> candidates,
         IModLoader loader,
         HookServices services,
-        Action<string> log)
+        Action<string> log,
+        Action<string> logError)
     {
         ArgumentNullException.ThrowIfNull(candidates);
         ArgumentNullException.ThrowIfNull(loader);
         ArgumentNullException.ThrowIfNull(services);
         ArgumentNullException.ThrowIfNull(log);
+        ArgumentNullException.ThrowIfNull(logError);
         // A logging failure must not make the count, or the status, disagree with what's in the game.
         void Log(string line)
         {
@@ -129,7 +132,7 @@ internal static class HookLoader
         var (loaded, kept) = HookInstallation.Run(
             runningBuild, hooks, HookSignatures.All,
             wanted => ChunkedScan.FindAll(regions, (rva, buffer) => ModuleMemoryReader.ReadAt(moduleBase, rva, buffer), wanted),
-            () => ReloadedInstall(loader, moduleBase), log);
+            () => ReloadedInstall(loader, moduleBase), log, logError);
         // Referenced for the life of the game (HookInstallation.Run says why).
         Installed.AddRange(kept);
         return loaded;

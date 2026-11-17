@@ -202,6 +202,20 @@ public sealed class ReportLogTests
         Assert.Matches(@"7 ms x\r?\n[0-9]+ ms \(1[0-9]{4} lines dropped: the log fell behind\)", stalled.ToString());
     }
 
+    /// <summary>The writer writes as lines come, not only when asked or at exit, so a native crash, which runs no exit
+    /// handler, loses at most the last moment's lines (#204).</summary>
+    [Fact]
+    public void AQueuedLineReachesTheFileWithoutBeingWaitedFor()
+    {
+        using var file = new FlushSignallingWriter();
+        var log = new ReportLog(file, () => 40, []);
+
+        log.Observe(new LineRequested(0, "line_1"));
+
+        Assert.True(file.Flushed.Wait(TimeSpan.FromSeconds(5)), "the line was never written");
+        Assert.Equal($"40 ms request kind=0 label=line_1{Environment.NewLine}", file.ToString());
+    }
+
     /// <summary>An error may come just before a crash, when testers need the log most, so it's on disk, after every
     /// line queued before it, by the time the call returns.</summary>
     [Fact]
@@ -263,6 +277,29 @@ public sealed class ReportLogTests
     private sealed class BrokenWriter : StringWriter
     {
         public override void Write(string? value) => throw new IOException("disk full");
+    }
+
+    /// <summary>A file that signals when the writer flushes it, which the writer does once a batch is written, so the
+    /// test reads it only after the writer is done with it.</summary>
+    private sealed class FlushSignallingWriter : StringWriter
+    {
+        public ManualResetEventSlim Flushed { get; } = new();
+
+        public override void Flush()
+        {
+            base.Flush();
+            Flushed.Set();
+        }
+
+        protected override void Dispose(bool disposing)
+        {
+            if (disposing)
+            {
+                Flushed.Dispose();
+            }
+
+            base.Dispose(disposing);
+        }
     }
 
     /// <summary>A file whose every write waits until the test releases it, as a stalled disk would.</summary>

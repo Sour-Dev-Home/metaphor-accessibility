@@ -125,8 +125,9 @@ public sealed class ModEntryPoint : IMod
 #else
             MessageLog? messageLog = null;
 #endif
-            var settings = new SettingsReloader(announcer, Log);
-            settingsFile = SettingsFile.Open(configFolder, settings, Log);
+            // The settings report only a file they can't use, so each of their lines is an error.
+            var settings = new SettingsReloader(announcer, LogError);
+            settingsFile = SettingsFile.Open(configFolder, settings, LogError);
             var services = HookServices.Speaking(announcer, settings, report, messageLog, folder);
             // The mod runs inside the game, so this process's exe is the game executable whose hash identifies the
             // build (seen in docs/raw-sources/mod-entry-point-first-run-2026-11-15.md). Hooks go in only on a known
@@ -135,7 +136,7 @@ public sealed class ModEntryPoint : IMod
             var status = ModStartup.CheckAndReport(
                 config.ModId, Environment.ProcessPath ?? "", folder, () => KnownGameBuilds.All, HookLoader.Expected(candidates),
                 build => HookLoader.Install(
-                    build, candidates, modLoader, services, Log),
+                    build, candidates, modLoader, services, Log, LogError),
                 build => ScanIfRequested(folder, build, Log, LogError),
                 announcer);
             // The load message is spoken (#187); the log repeats it for when speech didn't start. A reason means
