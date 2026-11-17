@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
 using System.Text.RegularExpressions;
@@ -8,8 +9,8 @@ namespace Metaphor.Core;
 /// <summary>The log a player can attach to a bug report (#188), written in every build: labels, message events, hook
 /// counts and errors, and never message text (ground rule 4). It hears the same message events as
 /// <see cref="MessageLog"/> but keeps only their numbers and labels. Safe to call from any game thread, and never
-/// throws or waits for the file (#204): a caller only queues its line, and a background thread writes the queue.
-/// </summary>
+/// throws. Only <see cref="Error"/> waits for the file, and only briefly (#204): every other caller just queues its
+/// line, and a background thread writes the queue.</summary>
 public sealed class ReportLog(TextWriter writer, Func<long> millisecondsSinceStart, IEnumerable<string> redact)
     : IMessageFileObserver, ILineRequestObserver, IChoiceRequestObserver
 {
@@ -47,8 +48,30 @@ public sealed class ReportLog(TextWriter writer, Func<long> millisecondsSinceSta
 
     /// <summary>One line from the mod itself, such as the startup status with its hook counts, or an error. Each
     /// string the log was made to redact (the mod's folder, the player's user name) is replaced first.</summary>
-    public void Note(string line) => Write(() =>
-        Line($"{redacted.Aggregate(line ?? "", (text, pattern) => pattern.Replace(text, "<redacted>"))}"));
+    public void Note(string line) => Write(() => Line($"{Redact(line)}"));
+
+    /// <summary>An error from the mod, redacted as <see cref="Note"/> is. An error may come just before a crash, so
+    /// unlike every other line it's on disk, after everything queued before it, when this returns; a stalled disk
+    /// holds the caller up for <see cref="ErrorWriteTimeout"/> at most.</summary>
+    [SuppressMessage("Design", "CA1031", Justification = "A report log must never reach the game.")]
+    public void Error(string line)
+    {
+        Note(line);
+        try
+        {
+            WaitForWrites(ErrorWriteTimeout);
+        }
+        catch (Exception)
+        {
+            // An interrupted wait only means the line may land a moment later.
+        }
+    }
+
+    /// <summary>The longest <see cref="Error"/> waits for the disk.</summary>
+    public static readonly TimeSpan ErrorWriteTimeout = TimeSpan.FromMilliseconds(500);
+
+    private string Redact(string? line) =>
+        redacted.Aggregate(line ?? "", (text, pattern) => pattern.Replace(text, "<redacted>"));
 
     /// <summary>Matches a redacted string however a path in it may be written (#204): with either slash, or with
     /// doubled ones as an escaped string shows them, and with any folder after the first in an 8.3 short form, since
@@ -82,16 +105,16 @@ public sealed class ReportLog(TextWriter writer, Func<long> millisecondsSinceSta
         path?.LastIndexOfAny(Separators) is > 2 and var end ? path[..end] : null;
 
     /// <summary>Waits until every line logged so far is written; false if that takes longer than
-    /// <paramref name="timeout"/>. Not for the game's threads: it's for tests, and for a caller that can afford to
-    /// wait.</summary>
+    /// <paramref name="timeout"/>. It blocks, so it's only for bounded waits off the per-message path: <see cref="Error"/>,
+    /// draining at exit, and tests. Timed by the monotonic clock, so a system clock change can't stretch it.</summary>
     public bool WaitForWrites(TimeSpan timeout)
     {
-        var deadline = DateTime.UtcNow + timeout;
+        var started = Stopwatch.GetTimestamp();
         lock (gate)
         {
             while (queue.Count > 0 || dropped > 0 || writing)
             {
-                var remaining = deadline - DateTime.UtcNow;
+                var remaining = timeout - Stopwatch.GetElapsedTime(started);
                 if (remaining <= TimeSpan.Zero || !Monitor.Wait(gate, remaining))
                 {
                     return false;

@@ -202,6 +202,38 @@ public sealed class ReportLogTests
         Assert.Matches(@"7 ms x\r?\n[0-9]+ ms \(1[0-9]{4} lines dropped: the log fell behind\)", stalled.ToString());
     }
 
+    /// <summary>An error may come just before a crash, when testers need the log most, so it's on disk, after every
+    /// line queued before it, by the time the call returns.</summary>
+    [Fact]
+    public void AnErrorIsWrittenBeforeTheCallReturns()
+    {
+        var (log, text) = NewLog(900, @"D:\Profiles\someone");
+
+        log.Observe(new LineRequested(0, "line_1"));
+        log.Error(@"hook failed reading D:/Profiles/someone/game.exe");
+
+        Assert.Equal(
+            $"900 ms request kind=0 label=line_1{Environment.NewLine}900 ms hook failed reading <redacted>/game.exe{Environment.NewLine}",
+            text.ToString());
+    }
+
+    /// <summary>Writing an error through waits for the disk, but only briefly: a stalled disk mustn't hang the game.
+    /// </summary>
+    [Fact]
+    public async Task AnErrorWaitsOnlyBrieflyForAStalledFile()
+    {
+        using var stalled = new StalledWriter();
+        var log = new ReportLog(stalled, () => 7, []);
+
+        var error = Task.Run(() => log.Error("hook failed"));
+
+        var finished = await Task.WhenAny(error, Task.Delay(TimeSpan.FromSeconds(5)));
+        Assert.True(finished == error, "the error waited for the stalled file");
+        stalled.Release();
+        Assert.True(log.WaitForWrites(TimeSpan.FromSeconds(5)));
+        Assert.Equal($"7 ms hook failed{Environment.NewLine}", stalled.ToString());
+    }
+
     [Fact]
     public void NeverThrowsWhenTheFileCantBeWritten()
     {
