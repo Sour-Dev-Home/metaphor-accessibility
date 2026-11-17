@@ -1,4 +1,5 @@
 using Metaphor.Core.Announcements;
+using Metaphor.Core.Messages;
 
 namespace Metaphor.Features.Dialogue;
 
@@ -9,12 +10,16 @@ public sealed class DialogueAnnouncer
     private readonly IAnnouncer announcer;
     private readonly TextCleaner cleaner;
 
-    public DialogueAnnouncer(IAnnouncer announcer, TextCleaner cleaner)
+    private readonly DialogueHistory history;
+
+    public DialogueAnnouncer(IAnnouncer announcer, TextCleaner cleaner, DialogueHistory history)
     {
         ArgumentNullException.ThrowIfNull(announcer);
         ArgumentNullException.ThrowIfNull(cleaner);
+        ArgumentNullException.ThrowIfNull(history);
         this.announcer = announcer;
         this.cleaner = cleaner;
+        this.history = history;
     }
 
     /// <summary>Announces a line as the game stores it, with its speaker as the game stores it (null when none). A line
@@ -28,7 +33,10 @@ public sealed class DialogueAnnouncer
             return;
         }
         var name = cleaner.Clean(speaker ?? "");
-        announcer.Announce(new Announcement(name.Length == 0 ? text : $"{name}: {text}", Interrupt: true));
+        var spoken = name.Length == 0 ? text : $"{name}: {text}";
+        // Recorded before speaking, so the history holds the line even if a mode leaves it unspoken (#126).
+        history.Add(spoken);
+        announcer.Announce(new Announcement(spoken, Interrupt: true));
     }
 
     /// <summary>Announces a choice's options (#82) from its message as the game stores it, one option per line, as
