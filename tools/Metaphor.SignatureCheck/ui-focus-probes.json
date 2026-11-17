@@ -1,0 +1,4 @@
+[
+  { "name": "CursorManagerInput", "pattern": "40 53 56 48 83 EC 28 F6 81 AC 00 00 00 01 48 8B F2 48 8B D9 76 16 8B 02 8B C8 83 E9 16 0F 84 ?? ?? ?? ?? 83 F9 01 0F 84", "source": "docs/raw-sources/ui-focus-candidates-2026-11-16.md" },
+  { "name": "TextPaneDraw", "pattern": "40 55 57 48 8D 6C 24 B1 48 81 EC A8 00 00 00 48 8B F9 E8 19 B9 55 00 48 8B 47 30 48 8B CF C5 FA 10 47 38 48 89 45 D7 8B 47 3C 89 45 E3", "source": "docs/raw-sources/ui-focus-candidates-2026-11-16.md" }
+]

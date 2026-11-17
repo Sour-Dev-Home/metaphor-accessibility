@@ -108,6 +108,27 @@ These rules match the command text Claude Code sees, so another spelling of the 
 stamp guards against a forgotten review, not a determined one: anyone can run the stamp script, and CI checks the
 trailer, not that a review happened. They are a strong guard, not a guarantee.
 
+## Contributing without Claude
+
+You don't need Claude Code or any agent tooling. The [ground rules in `AGENTS.md`](../AGENTS.md#ground-rules) apply to
+you as they do to agents.
+
+- **Pick an issue.** Any open issue not labelled `needs-game` works
+  ([filter](https://github.com/Sour-Dev-Home/metaphor-refantazio/issues?q=is%3Aopen+-label%3Aneeds-game)). There is no
+  `good first issue` label. Comment on the issue before you start.
+- **Labels.** [`docs/agents/triage-labels.md`](../docs/agents/triage-labels.md) has the full table.
+  - `ready-for-agent` and `ready-for-human` both mean the issue is ready to start. The names say who the maintainer
+    expected to do it; they don't stop you.
+  - `needs-triage`: the maintainer hasn't evaluated it yet. Ask before starting.
+  - `needs-info`: waiting on the reporter. Skip it unless you can supply the answer.
+  - `needs-game`: you need your own copy of the game to do or check the work.
+- **The skills are optional.** The Matt Pocock skills are how the maintainer writes issues and runs agents. You can
+  work and write issues by hand.
+- **The game.** Most work needs your own copy of the game, to check offsets, formats and in-game behaviour. Without
+  it you can still do docs, tooling and anything the unit tests cover.
+- **Security label.** A pull request from an outside contributor that touches hook or deploy code gets the
+  maintainer's `security-reviewed` label after review ([#127](https://github.com/Sour-Dev-Home/metaphor-refantazio/issues/127)).
+
 ## Where things go
 
 - Notes on what the game does: [`docs/findings/`](../docs/findings/README.md), citing sources saved in

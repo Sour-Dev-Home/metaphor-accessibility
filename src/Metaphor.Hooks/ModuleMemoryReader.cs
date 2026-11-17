@@ -89,8 +89,7 @@ internal static unsafe class ModuleMemoryReader
             : null;
     }
 
-    /// <summary>Copies <paramref name="buffer"/>.Length bytes from <paramref name="address"/>; false unless every byte
-    /// arrived.</summary>
+    /// <summary>Fills <paramref name="buffer"/> from <paramref name="address"/>; false unless every byte arrived.</summary>
     public static bool ReadBytes(nint address, Span<byte> buffer) => Copy(address, buffer);
 
     /// <summary>Reads a NUL-terminated ANSI string at <paramref name="address"/>, up to <paramref name="maxBytes"/>,

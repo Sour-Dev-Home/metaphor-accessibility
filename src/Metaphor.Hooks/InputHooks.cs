@@ -1,5 +1,6 @@
 using System.Buffers.Binary;
 using System.Diagnostics.CodeAnalysis;
+using System.Globalization;
 using System.Runtime.InteropServices;
 using Metaphor.Core;
 using Metaphor.Features.Dialogue;
@@ -12,9 +13,12 @@ namespace Metaphor.Hooks;
 // what the game sees, so they are written the long way (architecture rule 14's exception, IChangesBehaviour): each
 // calls the original, hands the state it wrote to DialogueControls, and while the dialogue window is open writes it back
 // without the bound buttons or keys. Every read goes through ModuleMemoryReader (rule 10); the one write is
-// WriteProcessMemory on this process, which fails instead of faulting, into the state the original has just filled.
-// The functions, their arguments and the names (ours) are in docs/raw-sources/input-route-2026-11-16.md; the layout of
-// what they write is in docs/raw-sources/pad-and-keyboard-state-2026-11-16.md.
+// WriteProcessMemory on this process into the state the original has just filled, and only clears what it wrote.
+// WriteProcessMemory fails instead of faulting, but it also writes through read-only pages, so it is safe only on memory
+// known to be the game's own writable data, never on an arbitrary pointer. In Debug builds each change of a read is
+// logged, as #58's input spike did (numbers only, no game text). The functions, their arguments and the names (ours)
+// are in docs/raw-sources/input-route-2026-11-16.md; the layout of what they write is in
+// docs/raw-sources/pad-and-keyboard-state-2026-11-16.md.
 
 /// <summary>The pad read: <c>(32-bit pad number, pointer to the game's pad state) → al</c>; it writes the game's own
 /// 16-bit button mask at <c>+0</c>.</summary>
@@ -28,6 +32,8 @@ internal sealed class PadReadHook : IGameHook, IChangesBehaviour
     private static readonly nint CurrentProcess = -1;
 
     private readonly DialogueControls controls;
+    private readonly MessageLog? log;
+    private readonly InputStateChanges changes = new();
     private readonly Function callback;
     private IHook<Function>? hook;
 
@@ -35,6 +41,7 @@ internal sealed class PadReadHook : IGameHook, IChangesBehaviour
     {
         ArgumentNullException.ThrowIfNull(services);
         controls = services.DialogueControls;
+        log = services.Log;
         callback = OnCall;
     }
 
@@ -69,6 +76,16 @@ internal sealed class PadReadHook : IGameHook, IChangesBehaviour
                     BinaryPrimitives.WriteUInt16LittleEndian(mask, (ushort)handed);
                     WriteProcessMemory(CurrentProcess, state, mask, (nuint)mask.Length, out _);
                 }
+                if (log is not null)
+                {
+                    var source = string.Create(CultureInfo.InvariantCulture, $"pad{(int)pad}");
+                    var text = string.Create(CultureInfo.InvariantCulture,
+                        $"buttons=0x{buttons:x4} handed=0x{handed:x4} returned={result & 0xFF}");
+                    if (changes.Changed(source, text))
+                    {
+                        log.InputChanged(source, text);
+                    }
+                }
             }
         }
         catch (Exception)
@@ -92,6 +109,8 @@ internal sealed class KeyboardReadHook : IGameHook, IChangesBehaviour
     private static readonly nint CurrentProcess = -1;
 
     private readonly DialogueControls controls;
+    private readonly MessageLog? log;
+    private readonly InputStateChanges changes = new();
     private readonly Function callback;
     private IHook<Function>? hook;
 
@@ -99,6 +118,7 @@ internal sealed class KeyboardReadHook : IGameHook, IChangesBehaviour
     {
         ArgumentNullException.ThrowIfNull(services);
         controls = services.DialogueControls;
+        log = services.Log;
         callback = OnCall;
     }
 
@@ -137,6 +157,15 @@ internal sealed class KeyboardReadHook : IGameHook, IChangesBehaviour
                     GameKeyList.Write(handed).CopyTo(written, SlotsOffset - CountOffset);
                     WriteProcessMemory(CurrentProcess, state + CountOffset, written, (nuint)written.Length, out _);
                 }
+                if (log is not null)
+                {
+                    var text = string.Create(CultureInfo.InvariantCulture,
+                        $"keys=0x{ModuleMemoryReader.ReadInt32(state) ?? 0:x8} held={Codes(keys)} handed={Codes(handed)} returned={result & 0xFF}");
+                    if (changes.Changed("keyboard", text))
+                    {
+                        log.InputChanged("keyboard", text);
+                    }
+                }
             }
         }
         catch (Exception)
@@ -144,4 +173,7 @@ internal sealed class KeyboardReadHook : IGameHook, IChangesBehaviour
         }
         return result;
     }
+
+    private static string Codes(IReadOnlyList<int> keys) =>
+        keys.Count == 0 ? "-" : string.Join(',', keys.Select(key => key.ToString("x2", CultureInfo.InvariantCulture)));
 }

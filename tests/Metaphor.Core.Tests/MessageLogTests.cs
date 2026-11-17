@@ -70,12 +70,41 @@ public sealed class MessageLogTests
     {
         var (log, text) = NewLog(now: 3300);
 
-        log.CueSet(cueId: 42, acb: 0x1f2e3d40, player: 0x2a00, callerRva: 0x12345, callTargetRva: 0x126438d0);
-        log.CueSet(cueId: -1, acb: 0, player: 0, callerRva: null, callTargetRva: null);
+        log.CueSet(cueId: 42, acb: 0x1f2e3d40, player: 0x2a00, new CallerTrace([(0x12345, 0x126438d0)], "walk", 7));
+        log.CueSet(cueId: -1, acb: 0, player: 0, CallerTrace.Unknown);
 
         Assert.Equal(
-            $"3300 ms cue id=42 acb=0x1f2e3d40 player=0x2a00 caller=0x12345 call=0x126438d0{Environment.NewLine}" +
-            $"3300 ms cue id=-1 acb=0x0 player=0x0 caller=(unknown) call=(unknown){Environment.NewLine}",
+            $"3300 ms cue id=42 acb=0x1f2e3d40 player=0x2a00 caller=0x12345 call=0x126438d0 via=walk frames=7{Environment.NewLine}" +
+            $"3300 ms cue id=-1 acb=0x0 player=0x0 caller=(unknown) call=(unknown) via=none frames=0{Environment.NewLine}",
+            text.ToString());
+    }
+
+    [Fact]
+    public void RecordsACursorInputWithItsCaller()
+    {
+        var (log, text) = NewLog(now: 12);
+
+        log.CursorInputHandled(new CursorInput(0x2a00, 0x22045e8, 0x15, 1, 0, 3, 0x20, new CallerTrace([(0x5000, null)], "scan", 4)));
+
+        Assert.Equal(
+            $"12 ms cursor mgr=0x2a00 class=0x22045e8 cmd=0x15 result=1 index=3 top=0 row=3 flags=0x20 caller=0x5000 call=(unknown) via=scan frames=4{Environment.NewLine}",
+            text.ToString());
+    }
+
+    [Fact]
+    public void RecordsADrawnPaneWithTheTextFoundOrNone()
+    {
+        var (log, text) = NewLog(now: 5);
+        var pane = new PaneDrawn(0x40, 0x2205688, 1, 0x110, 12.5f, -3f, 1f, 0x7f, 0x00ff00ff00ff00ff, true, 0x80);
+
+        log.PaneDrawn(pane, "elem+0x18", "New \"Game\"");
+        log.PaneDrawn(pane with { ColourSet = false }, null, null);
+
+        Assert.Equal(
+            "5 ms pane at=0x40 class=0x2205688 x=12.5 y=-3 f38=1 i3c=0x0000007f colour=0x00ff00ff00ff00ff(set) n08=0x1 flags=0x110 elem=0x80 text=elem+0x18 \"New \\x22Game\\x22\"" +
+            Environment.NewLine +
+            "5 ms pane at=0x40 class=0x2205688 x=12.5 y=-3 f38=1 i3c=0x0000007f colour=0x00ff00ff00ff00ff(unset) n08=0x1 flags=0x110 elem=0x80 text=(none)" +
+            Environment.NewLine,
             text.ToString());
     }
 
@@ -142,6 +171,16 @@ public sealed class MessageLogTests
         log.SelectedId(-1);
 
         Assert.Equal($"7 ms selected id=-1{Environment.NewLine}", text.ToString());
+    }
+
+    [Fact]
+    public void RecordsAnInputChange()
+    {
+        var (log, text) = NewLog(now: 9);
+
+        log.InputChanged("pad0", "buttons=0x0010 returned=1");
+
+        Assert.Equal($"9 ms input pad0 buttons=0x0010 returned=1{Environment.NewLine}", text.ToString());
     }
 
     [Fact]
