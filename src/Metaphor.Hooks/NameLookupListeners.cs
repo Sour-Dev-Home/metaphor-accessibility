@@ -45,15 +45,6 @@ internal sealed class NameListening
         return new NameListening(0, 0);
     }
 
-    /// <summary>A label as a log field when it reads as an identifier (ASCII letters, digits, <c>_</c>), otherwise only
-    /// its length: a label built from player text must not reach the log.</summary>
-    public static string Label(nint pointer) => ModuleMemoryReader.ReadAnsiString(pointer) switch
-    {
-        null => "text=(unreadable)",
-        var text when text.Length > 0 && text.All(c => char.IsAsciiLetterOrDigit(c) || c == '_') => $"text=\"{text}\"",
-        var text => string.Create(CultureInfo.InvariantCulture, $"text=(not an identifier, {text.Length} bytes)"),
-    };
-
     /// <summary>A fresh gate for one listener's repeats.</summary>
     public static RepeatGate NewGate() => new(QuietMilliseconds, () => Environment.TickCount64);
 
@@ -86,12 +77,14 @@ internal sealed class NameListening
 internal sealed class MessageSerialByLabelListener : IGameHook, IObserves4WithResult
 {
     private readonly MessageLog? log;
+    private readonly PlayerNameCheck playerName;
     private readonly RepeatGate repeats = NameListening.NewGate();
 
     public MessageSerialByLabelListener(HookServices services)
     {
         ArgumentNullException.ThrowIfNull(services);
         log = services.Log;
+        playerName = PlayerNameCheck.FromModFolder(services.ModFolder);
     }
 
     public string SignatureName => "MessageSerialByLabel";
@@ -103,7 +96,7 @@ internal sealed class MessageSerialByLabelListener : IGameHook, IObserves4WithRe
         {
             return;
         }
-        log.Resolved(SignatureName, $"{NameListening.Label(label)} {NameListening.Number("serial", (int)result)}");
+        log.Resolved(SignatureName, $"{playerName.LabelField(ModuleMemoryReader.ReadAnsiString(label))} {NameListening.Number("serial", (int)result)}");
     }
 }
 

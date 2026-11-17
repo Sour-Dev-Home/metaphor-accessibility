@@ -2,8 +2,9 @@ using Metaphor.Core.Messages;
 
 namespace Metaphor.Hooks;
 
-// Message events (#52, #56, #86): one hook per game function decodes each call once and hands the event to
-// HookServices.Messages, whose observers keep compiled messages, speak requested lines and, in Debug builds, log both.
+// Message events (#52, #56, #82, #86): one hook per game function decodes each call once and hands the event to
+// HookServices.Messages, whose observers keep compiled messages, speak requested lines and opened choices and, in Debug
+// builds, log them.
 // The loader's adapter passes every call through unchanged (#88).
 
 /// <summary>Reports each message file the game compiles. Signature and argument shape are MF.Toolkit's
@@ -60,4 +61,26 @@ internal sealed class DialogueLineHook : IGameHook, IObserves3
             events.Requested(new LineRequested((int)kind, name));
         }
     }
+}
+
+/// <summary>Reports each choice the game opens (#82). The function (what <c>MsgRequestSelect</c> calls), its six
+/// arguments and the name (ours) are in docs/raw-sources/msg-select-functions-2026-11-16.md; that its second and third
+/// are the prompt's and the choice's labels is from docs/raw-sources/spike-session-1-2026-11-16.md. Only the kind's
+/// low 32 bits and the two labels are read.</summary>
+[GameHook(GameBuilds.Steam18330018)]
+internal sealed class DialogueChoiceHook : IGameHook, IObserves6
+{
+    private readonly MessageEvents events;
+
+    public DialogueChoiceHook(HookServices services)
+    {
+        ArgumentNullException.ThrowIfNull(services);
+        events = services.Messages;
+    }
+
+    public string SignatureName => "MsgRequestSelectByName";
+
+    public void Observe(nint kind, nint promptLabel, nint choiceLabel, nint fourth, nint options, nint sixth) =>
+        events.ChoiceOpened(new ChoiceRequested(
+            (int)kind, ModuleMemoryReader.ReadAnsiString(promptLabel), ModuleMemoryReader.ReadAnsiString(choiceLabel)));
 }
