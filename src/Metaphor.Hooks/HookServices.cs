@@ -18,6 +18,10 @@ internal sealed record HookServices
     /// couldn't be opened.</summary>
     public required MessageLog? Log { get; init; }
 
+    /// <summary>The last dialogue lines (#126), for the repeat key (#58) and the backlog fallback (#114). Empty unless
+    /// the dialogue feature is feeding it.</summary>
+    public DialogueHistory DialogueHistory { get; init; } = new();
+
     /// <summary>The mod's folder, outside the repository, where a development run leaves files for its hooks.</summary>
     public required string ModFolder { get; init; }
 
@@ -27,15 +31,16 @@ internal sealed record HookServices
     public static HookServices Speaking(IAnnouncer announcer, MessageLog? log, string modFolder)
     {
         var library = new MessageLibrary();
+        var history = new DialogueHistory();
         var events = new MessageEvents();
         events.ObserveFiles(library);
         events.ObserveLines(
-            new DialogueLines(library, new DialogueAnnouncer(announcer, new TextCleaner(TextCleanerRules.None))));
+            new DialogueLines(library, new DialogueAnnouncer(announcer, new TextCleaner(TextCleanerRules.None), history)));
         if (log is not null)
         {
             events.ObserveFiles(log);
             events.ObserveLines(log);
         }
-        return new() { Messages = events, Log = log, ModFolder = modFolder };
+        return new() { Messages = events, Log = log, ModFolder = modFolder, DialogueHistory = history };
     }
 }
