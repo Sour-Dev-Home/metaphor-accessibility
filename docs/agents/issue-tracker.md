@@ -51,7 +51,15 @@ fall back to `gh issue view 42`.
 
 ## When a skill says "publish to the issue tracker"
 
-Create a GitHub issue.
+Create a GitHub issue. Every issue or comment an agent writes follows Matt Pocock's skills, even when they aren't
+invocable (`disable-model-invocation`): read their files in the `mattpocock-skills` plugin and apply them by hand.
+
+- **Body:** the `to-tickets` issue template (`## Parent`, `## What to build`, `## Acceptance criteria`, and
+  `## Blocked by` only when the edges aren't native), starting with the `triage` disclaimer line. Name types, not file
+  paths.
+- **Labels:** one category role and one state role ([triage-labels.md](triage-labels.md)), plus `needs-game` when it
+  needs the game. No new labels.
+- **Claims:** verified against the code or a log before filing.
 
 ## When a skill says "fetch the relevant ticket"
 

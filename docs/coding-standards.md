@@ -9,6 +9,12 @@ The checks can't tell whether these hold, so reviews do.
 2. **Writing leads with the point.** The first sentence of a doc, ADR, commit body, PR or comment says what the reader
    needs; background comes after. Cut what the reader doesn't need.
 3. **Link, don't copy.** State a fact once and link to it. A copy drifts out of date and then contradicts the original.
+4. **Threaded tests wait on state.** A test of code that runs on another thread waits for an observable state (an event
+   the code under test sets) before acting, then asserts exact values. A test that races a thread passes locally and
+   fails on a slower CI runner.
+5. **Game state comes from the game's identity for it.** A feature recognises a screen, window or mode by the thing the
+   game uses to tell it apart (its class, its own flag), not by a side effect that also happens elsewhere, such as a
+   message file compiling (#208).
 
 ## Architecture rules
 
