@@ -172,6 +172,44 @@ public sealed class PassThroughRuleTests
     [Fact]
     public void AHookThatOnlyObservesPasses() => Assert.Empty(Rules.HooksPassThroughAdapters(PlantedHook("")));
 
+    private const string BehaviourChangingHook = """
+        namespace Metaphor.Hooks
+        {
+            public interface IChangesBehaviour { void Activate(Reloaded.Hooks.Definitions.IReloadedHooks hooks, long address); }
+        }
+        [Metaphor.Hooks.GameHook] public sealed class PadHook : Metaphor.Hooks.IChangesBehaviour INTERFACES
+        {
+            private Reloaded.Hooks.Definitions.IHook<System.Action> hook;
+
+            public void Activate(Reloaded.Hooks.Definitions.IReloadedHooks hooks, long address)
+            {
+                hook = hooks.CreateHook<System.Action>(() => { try { } catch (System.Exception) { } }, address);
+                hook.Activate();
+            }
+
+            public void Observe(nint a, nint b, nint c) { }
+        }
+        """;
+
+    [Fact]
+    public void AHookThatChangesBehaviourMayInstallAndGuardItself()
+    {
+        // Rule 14's exception: written the long way, still under rules 8-11.
+        var assembly = HookLayer(BehaviourChangingHook.Replace("INTERFACES", "", StringComparison.Ordinal));
+
+        Assert.Empty(Rules.HooksPassThroughAdapters(assembly));
+    }
+
+    [Fact]
+    public void AHookThatChangesBehaviourMustNotAlsoObserveAShape()
+    {
+        var assembly = HookLayer(BehaviourChangingHook.Replace("INTERFACES", ", Metaphor.Hooks.IObserves3",
+            StringComparison.Ordinal));
+
+        var violation = Assert.Single(Rules.HooksPassThroughAdapters(assembly));
+        Assert.Contains("PadHook changes behaviour and observes a shape", violation, StringComparison.Ordinal);
+    }
+
     [Theory]
     [MemberData(nameof(Scanned.Names), MemberType = typeof(Scanned))]
     public void EveryHookPassesThroughAnAdapter(string name) =>

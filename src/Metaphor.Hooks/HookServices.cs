@@ -28,6 +28,10 @@ internal sealed record HookServices
     /// the dialogue feature is feeding it.</summary>
     public DialogueHistory DialogueHistory { get; init; } = new();
 
+    /// <summary>The dialogue controls (#58): the window hooks tell them when the dialogue window opens and closes, and
+    /// the input hooks hand them each read.</summary>
+    public required DialogueControls DialogueControls { get; init; }
+
     /// <summary>The mod's folder, outside the repository, where a development run leaves files for its hooks.</summary>
     public required string ModFolder { get; init; }
 
@@ -43,8 +47,11 @@ internal sealed record HookServices
         var events = new MessageEvents();
         var cursors = new CursorEvents();
         var cleaner = new TextCleaner(TextCleanerRules.None);
+        // Lines go through the reader on/off switch; the repeat and the switch's own state are spoken either way.
         // The voice language is unknown until #103 finds it, so Auto speaks the full line.
-        var dialogue = new DialogueAnnouncer(announcer, cleaner, history, () => settings.Current.VoicedLines);
+        var reader = new DialogueReader(announcer);
+        var dialogue = new DialogueAnnouncer(reader, cleaner, history, () => settings.Current.VoicedLines);
+        var controls = new DialogueControls(DialogueBindings.Default, history, reader, announcer);
         var titleMenu = new TitleMenuFocus(library, announcer, cleaner);
         events.ObserveFiles(library);
         events.ObserveFiles(titleMenu);
@@ -58,6 +65,14 @@ internal sealed record HookServices
             events.ObserveChoices(log);
             cursors.Observe(log);
         }
-        return new() { Messages = events, Cursors = cursors, Log = log, ModFolder = modFolder, DialogueHistory = history };
+        return new()
+        {
+            Messages = events,
+            Cursors = cursors,
+            Log = log,
+            ModFolder = modFolder,
+            DialogueHistory = history,
+            DialogueControls = controls,
+        };
     }
 }
