@@ -1,6 +1,7 @@
 using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
 using System.Text;
+using Metaphor.Core.Menus;
 using Metaphor.Core.Messages;
 
 namespace Metaphor.Core;
@@ -10,7 +11,7 @@ namespace Metaphor.Core;
 /// screen. Debug builds only; it holds game text, so it stays in the local mod folder and is never committed. Safe to
 /// call from any game thread, and never throws.</summary>
 public sealed class MessageLog(TextWriter writer, Func<long> millisecondsSinceStart)
-    : IMessageFileObserver, ILineRequestObserver, IChoiceRequestObserver
+    : IMessageFileObserver, ILineRequestObserver, IChoiceRequestObserver, ICursorObserver
 {
     /// <summary>The log's file name in the mod's folder.</summary>
     public const string FileName = "message-log.txt";
@@ -63,10 +64,6 @@ public sealed class MessageLog(TextWriter writer, Func<long> millisecondsSinceSt
     public void CueSet(int cueId, long acb, long player, CallerTrace caller) => Write(() =>
         Line($"{millisecondsSinceStart()} ms cue id={cueId} acb=0x{acb:x} player=0x{player:x} {caller}"));
 
-    /// <summary>An input a menu's cursor manager handled (#93, second sitting). Numbers only, no game text.</summary>
-    public void CursorInputHandled(CursorInput input) =>
-        Write(() => Line($"{millisecondsSinceStart()} ms cursor {input}"));
-
     /// <summary>A UI text pane drawn in a new state (#93, second sitting), with the text a probe found behind it, if any:
     /// where it was (<c>pane+0x…</c> or <c>elem+0x…</c>) and the text. Game text, so this log stays local.</summary>
     public void PaneDrawn(PaneDrawn pane, string? textAt, string? text) => Write(() =>
@@ -86,6 +83,11 @@ public sealed class MessageLog(TextWriter writer, Func<long> millisecondsSinceSt
     /// the listening hook formatted it. Bit masks only, no game text.</summary>
     public void InputChanged(string source, string state) =>
         Write(() => Line($"{millisecondsSinceStart()} ms input {source} {state}"));
+
+    /// <summary>An input a menu's cursor manager handled that changed something (#93, #94). Numbers only, no game
+    /// text.</summary>
+    public void Observe(CursorInput input) => Write(() => Line(
+        $"{millisecondsSinceStart()} ms cursor mgr=0x{input.Manager:x} class={(input.ClassRva is { } rva ? $"0x{rva:x}" : "?")} cmd=0x{input.Command:x} result={input.Result} index={input.Index} top={input.Top} row={input.Row} flags=0x{input.Flags:x}"));
 
     /// <summary>A line the game asked for by label, with its kind.</summary>
     public void Observe(LineRequested line) => Write(() =>
