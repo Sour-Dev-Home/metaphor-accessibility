@@ -34,6 +34,7 @@ internal static class Rules
     {
         ["Metaphor.Hooks.HookLoader"] = "#39: the loader installs hooks",
         ["Metaphor.Hooks.IGameHook"] = "#39: what every hook implements",
+        ["Metaphor.Hooks.IChangesBehaviour"] = "#58: what a hook that changes behaviour implements instead of a shape",
         ["Metaphor.Hooks.PassThrough"] = "#88: the loader's adapters hook each function for its hook",
         ["Metaphor.Hooks.PrismSpeech"] = "ADR 0005: calls prism.dll's exports through function pointers",
     };
@@ -649,7 +650,8 @@ internal static class Rules
     /// (<c>CreateHook</c>, <c>Activate</c>, <c>OriginalFunction</c>, …) or catches every exception (<c>catch
     /// (Exception)</c> or a bare <c>catch</c>, filtered or not): the adapter for its shape does those, once for every
     /// hook. Rule 11 then has only the adapters to check. A hook that lists <c>Calls</c> declares <c>UseCalls</c>,
-    /// explicitly implemented or not.
+    /// explicitly implemented or not. The exception: a hook that changes the game's behaviour implements
+    /// <c>IChangesBehaviour</c> and no shape, and hooks and guards its function itself (#58).
     /// </summary>
     public static IReadOnlyList<string> HooksPassThroughAdapters(AssemblyDefinition assembly)
     {
@@ -658,10 +660,11 @@ internal static class Rules
             .Where(type => type.CustomAttributes.Any(attribute => attribute.AttributeType.FullName == GameHookAttribute))
             .ToList();
         var shapes = hooks.Select(type => (type, Count: type.Interfaces.Count(implemented =>
-                implemented.InterfaceType.FullName.StartsWith(ShapePrefix, StringComparison.Ordinal))))
-            .Where(hook => hook.Count != 1)
-            .Select(hook => $"{name} hook {hook.type.FullName} " +
-                (hook.Count == 0 ? "observes no shape" : "observes more than one shape") + " (rule 14)");
+                implemented.InterfaceType.FullName.StartsWith(ShapePrefix, StringComparison.Ordinal)),
+                Changes: ChangesBehaviour(type)))
+            .Where(hook => hook.Changes ? hook.Count != 0 : hook.Count != 1)
+            .Select(hook => $"{name} hook {hook.type.FullName} " + (hook.Changes ? "changes behaviour and observes a shape"
+                : hook.Count == 0 ? "observes no shape" : "observes more than one shape") + " (rule 14)");
         // A hook that lists Calls and keeps the empty default UseCalls would call through null function pointers.
         // An explicit implementation is named after its interface (Metaphor.Hooks.IGameHook.UseCalls).
         static bool Named(string member, string name) =>
@@ -670,11 +673,31 @@ internal static class Rules
             .Where(type => type.Properties.Any(property => Named(property.Name, "Calls")) &&
                 !type.Methods.Any(method => Named(method.Name, "UseCalls")))
             .Select(type => $"{name} hook {type.FullName} lists Calls but has no UseCalls to take them (rule 14)");
-        var installs = Types(assembly).Where(IsInsideHook)
+        var installs = Types(assembly).Where(type => IsInsideHook(type) && !IsInsideBehaviourChangingHook(type))
             .SelectMany(type => type.Methods.Where(method => method.HasBody).SelectMany(method => InstallsOrGuards(method)
                 .Select(problem => $"{name} hook code {type.FullName} {problem} (in {method.Name}); the adapter " +
                     "for its shape does that (rule 14)")));
         return [.. shapes, .. calls, .. installs.Distinct()];
+    }
+
+    /// <summary>The interface a hook that changes the game's behaviour implements instead of a shape (#58): rule 14's
+    /// exception. It creates, activates and guards its own hook, still under rules 8-11.</summary>
+    public const string ChangesBehaviourInterface = "Metaphor.Hooks.IChangesBehaviour";
+
+    private static bool ChangesBehaviour(TypeDefinition type) =>
+        type.Interfaces.Any(implemented => implemented.InterfaceType.FullName == ChangesBehaviourInterface);
+
+    private static bool IsInsideBehaviourChangingHook(TypeDefinition type)
+    {
+        for (var owner = type; owner is not null; owner = owner.DeclaringType)
+        {
+            if (ChangesBehaviour(owner) &&
+                owner.CustomAttributes.Any(attribute => attribute.AttributeType.FullName == GameHookAttribute))
+            {
+                return true;
+            }
+        }
+        return false;
     }
 
     private static IEnumerable<string> InstallsOrGuards(MethodDefinition method)

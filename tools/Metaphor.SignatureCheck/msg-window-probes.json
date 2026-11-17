@@ -1,0 +1,4 @@
+[
+  { "name": "MsgOpenBody", "pattern": "40 53 48 83 EC 60 48 89 CB 80 39 2F 75 4A 8B 05 ?? ?? ?? ?? 05 ?? ?? ?? ?? 48 8D 14 01 C5 F9 EF C0 C5 F8 11 44 24 40", "source": "docs/raw-sources/msg-window-functions-2026-11-16.md" },
+  { "name": "MsgCloseBody", "pattern": "89 4C 24 08 56 57 48 83 EC 38 48 8B 35 ?? ?? ?? ?? 89 CF 48 85 F6 0F 84 ?? ?? ?? ?? 48 89 5C 24 60 48 8D 54 24 50 4C 89 64 24 30 48 8D 4E 48", "source": "docs/raw-sources/msg-window-functions-2026-11-16.md" }
+]

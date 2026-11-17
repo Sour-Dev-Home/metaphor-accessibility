@@ -23,6 +23,10 @@ internal sealed record HookServices
     /// the dialogue feature is feeding it.</summary>
     public DialogueHistory DialogueHistory { get; init; } = new();
 
+    /// <summary>The dialogue controls (#58): the window hooks tell them when the dialogue window opens and closes, and
+    /// the input hooks hand them each read.</summary>
+    public required DialogueControls DialogueControls { get; init; }
+
     /// <summary>The mod's folder, outside the repository, where a development run leaves files for its hooks.</summary>
     public required string ModFolder { get; init; }
 
@@ -36,9 +40,12 @@ internal sealed record HookServices
         var library = new MessageLibrary();
         var history = new DialogueHistory();
         var events = new MessageEvents();
+        // Lines go through the reader on/off switch; the repeat and the switch's own state are spoken either way.
         // The voice language is unknown until #103 finds it, so Auto speaks the full line.
+        var reader = new DialogueReader(announcer);
         var dialogue = new DialogueAnnouncer(
-            announcer, new TextCleaner(TextCleanerRules.None), history, () => settings.Current.VoicedLines);
+            reader, new TextCleaner(TextCleanerRules.None), history, () => settings.Current.VoicedLines);
+        var controls = new DialogueControls(DialogueBindings.Default, history, reader, announcer);
         events.ObserveFiles(library);
         events.ObserveLines(new DialogueLines(library, dialogue));
         events.ObserveChoices(new DialogueChoices(library, dialogue));
@@ -48,6 +55,6 @@ internal sealed record HookServices
             events.ObserveLines(log);
             events.ObserveChoices(log);
         }
-        return new() { Messages = events, Log = log, ModFolder = modFolder, DialogueHistory = history };
+        return new() { Messages = events, Log = log, ModFolder = modFolder, DialogueHistory = history, DialogueControls = controls };
     }
 }
