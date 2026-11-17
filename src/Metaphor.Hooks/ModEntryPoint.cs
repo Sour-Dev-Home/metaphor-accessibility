@@ -84,14 +84,12 @@ public sealed class ModEntryPoint : IMod
                 config.ModId, Environment.ProcessPath ?? "", folder, () => KnownGameBuilds.All, HookLoader.Expected(candidates),
                 build => HookLoader.Install(
                     build, candidates, modLoader, services, line => logger.WriteLine($"[{config.ModId}] {line}")),
-                build => ScanIfRequested(folder, build, config.ModId, logger));
+                build => ScanIfRequested(folder, build, config.ModId, logger),
+                announcer);
+            // The load message is spoken (#187); the log repeats it for when speech didn't start.
             logger.WriteLine(
                 $"[{config.ModId}] build {ModBuild.Revision.CommitSha}{(ModBuild.Revision.HasUncommittedChanges ? "-dirty" : "")}: {status.State} on game build {status.GameBuildSha256}, hooks {status.HooksLoaded}/{status.HooksExpected}" +
-                (status.Reason is null ? "" : $" ({status.Reason})"));
-#if DEBUG
-            // The by-ear check (#54): with a screen reader running, this is the first thing the mod says.
-            announcer.Announce(new Announcement($"Metaphor accessibility mod {status.State.ToString().ToLowerInvariant()}.", Interrupt: true));
-#endif
+                (status.Reason is null ? "" : $" ({status.Reason})") + $"; load message: {LoadMessage.For(status).Text}");
         }
         catch (Exception)
         {
