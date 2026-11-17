@@ -34,6 +34,7 @@ internal sealed class PadReadHook : IGameHook, IChangesBehaviour
     private readonly DialogueControls controls;
     private readonly MessageLog? log;
     private readonly InputStateChanges changes = new();
+    private readonly DialogueWindowWatch? window;
     private readonly Function callback;
     private IHook<Function>? hook;
 
@@ -42,10 +43,22 @@ internal sealed class PadReadHook : IGameHook, IChangesBehaviour
         ArgumentNullException.ThrowIfNull(services);
         controls = services.DialogueControls;
         log = services.Log;
+        // #206: Debug only (a log exists) and opt-in. The watch reads the message window's globals, read only, once per
+        // pad read; its two .ecode functions are located, never hooked or called (DialogueWindowWatch).
+        if (log is not null && File.Exists(Path.Combine(services.ModFolder, DialogueWindowWatch.OptInFile)))
+        {
+            window = new DialogueWindowWatch();
+        }
         callback = OnCall;
     }
 
     public string SignatureName => "PadRead";
+
+    /// <summary>The watch's two functions, only while it is opted in: then the pad read goes in only if both match once,
+    /// so a run with the opt-in file shows a miss in <c>hooks n/m</c>. Without the file it asks for none.</summary>
+    public IReadOnlyList<string> Calls => window is null ? [] : DialogueWindowWatch.Signatures;
+
+    public void UseCalls(IReadOnlyDictionary<string, nint> calls) => window?.Resolve(calls);
 
     public void Activate(IReloadedHooks hooks, nint address)
     {
@@ -85,6 +98,14 @@ internal sealed class PadReadHook : IGameHook, IChangesBehaviour
                     {
                         log.InputChanged(source, text);
                     }
+                }
+            }
+            if (window is not null && log is not null)
+            {
+                var windowState = window.Describe();
+                if (changes.Changed("msgwindow", windowState))
+                {
+                    log.MessageWindowChanged(windowState);
                 }
             }
         }

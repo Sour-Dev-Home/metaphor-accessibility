@@ -96,6 +96,42 @@
     "evidence": "Ryo Framework's Metaphor pattern (docs/raw-sources/ryo-cri-atom-patterns-2026-11-16.md); one match on disk at rva 0x126438d0, 2026-11-16 (tools/Metaphor.SignatureCheck/cri-atom-probes.json); not yet checked in memory"
   },
   {
+    "name": "MsgIsSelectWindowOpenedBody",
+    "pattern": "48 8B 0D ?? ?? ?? ?? 8B 81 60 05 00 00 83 E8 04 83 F8 01 76 03 32 C0 C3 48 81 C1 18 03 00 00 E9",
+    "gameBuilds": ["548ddc955c176867f062c44f94c03dd9ac33caefb278a5ac388e792aedf09504"],
+    "evidence": "Our reading of the exe: where MsgIsSelectWindowOpened jumps, in .ecode (docs/raw-sources/dialogue-window-flag-2026-11-16.md); one match on disk, rechecked 2026-11-17; read only, never hooked; not yet checked in memory"
+  },
+  {
+    "name": "MsgCheckEndBody",
+    "pattern": "48 83 3D ?? ?? ?? ?? 00 0F 85 ?? ?? ?? ?? B0 01 C3",
+    "gameBuilds": ["548ddc955c176867f062c44f94c03dd9ac33caefb278a5ac388e792aedf09504"],
+    "evidence": "Our reading of the exe: the function MsgCheckEnd calls, in .ecode (docs/raw-sources/dialogue-window-flag-2026-11-16.md); one match on disk, rechecked 2026-11-17; read only, never hooked; not yet checked in memory"
+  },
+  {
+    "name": "criAtomExCategory_SetVolumeById",
+    "pattern": "40 53 48 83 EC 30 8B D9 0F 29 74 24 ?? 33 C9",
+    "gameBuilds": ["548ddc955c176867f062c44f94c03dd9ac33caefb278a5ac388e792aedf09504"],
+    "evidence": "Ryo Framework's Metaphor pattern (docs/raw-sources/ryo-cri-atom-patterns-2026-11-16.md); one match on disk at rva 0x1276398, 2026-11-17 (docs/raw-sources/cri-voice-probes-2026-11-17.md); not yet checked in memory"
+  },
+  {
+    "name": "criAtomExPlayer_SetVolume",
+    "pattern": "40 53 48 83 EC 30 0F 29 74 24 ?? 0F 28 F1 48 8B D9 48 85 C9 75 ?? 48 8D 15 ?? ?? ?? ?? 41 B8 FE FF FF FF 33 C9 E8 ?? ?? ?? ?? EB ?? 0F 57 C0 F3 0F 5A C6 E8 ?? ?? ?? ?? 85 C0 74 ?? 48 8D 15 ?? ?? ?? ?? EB ?? F3 0F 11 74 24 ?? 33 D2",
+    "gameBuilds": ["548ddc955c176867f062c44f94c03dd9ac33caefb278a5ac388e792aedf09504"],
+    "evidence": "Ryo Framework's Metaphor pattern (docs/raw-sources/ryo-cri-atom-patterns-2026-11-16.md); one match on disk at rva 0x126b4bc, 2026-11-17 (docs/raw-sources/cri-voice-probes-2026-11-17.md); not yet checked in memory"
+  },
+  {
+    "name": "criAtomExPlayer_SetCategoryById",
+    "pattern": "48 89 5C 24 ?? 48 89 6C 24 ?? 48 89 74 24 ?? 57 48 83 EC 50 48 8B F9 8B F2",
+    "gameBuilds": ["548ddc955c176867f062c44f94c03dd9ac33caefb278a5ac388e792aedf09504"],
+    "evidence": "Ryo Framework's Metaphor pattern (docs/raw-sources/ryo-cri-atom-patterns-2026-11-16.md); one match on disk at rva 0x126998c, 2026-11-17 (docs/raw-sources/cri-voice-probes-2026-11-17.md); not yet checked in memory"
+  },
+  {
+    "name": "criAtomExAcb_LoadAcbData",
+    "pattern": "48 89 5C 24 ?? 48 89 6C 24 ?? 48 89 74 24 ?? 57 41 54 41 55 41 56 41 57 48 83 EC 50 33 F6",
+    "gameBuilds": ["548ddc955c176867f062c44f94c03dd9ac33caefb278a5ac388e792aedf09504"],
+    "evidence": "Ryo Framework's Metaphor pattern (docs/raw-sources/ryo-cri-atom-patterns-2026-11-16.md); one match on disk at rva 0x12654a8, 2026-11-17 (docs/raw-sources/cri-voice-probes-2026-11-17.md); not yet checked in memory"
+  },
+  {
     "name": "CreateMsgFromString",
     "pattern": "40 53 48 83 EC 30 41 80 79 ?? 00",
     "gameBuilds": ["548ddc955c176867f062c44f94c03dd9ac33caefb278a5ac388e792aedf09504"],

@@ -36,6 +36,10 @@ internal sealed record HookServices
     /// when there is a log.</summary>
     public ScreenClassProbe ScreenClass { get; init; } = new(null);
 
+    /// <summary>The #103 voice cue check, which the cue listener feeds and the opt-in player category listener starts:
+    /// null without a log.</summary>
+    public VoiceCueCheck? VoiceCues { get; init; }
+
     /// <summary>The mod's folder, outside the repository, where a development run leaves files for its hooks.</summary>
     public required string ModFolder { get; init; }
 
@@ -75,9 +79,16 @@ internal sealed record HookServices
             Cursors = cursors,
             Log = log,
             ScreenClass = new ScreenClassProbe(log),
+            VoiceCues = log is null ? null : new VoiceCueCheck(library, ElapsedMilliseconds(), log.VoiceChecked),
             ModFolder = modFolder,
             DialogueHistory = history,
             DialogueControls = controls,
         };
+    }
+
+    private static Func<long> ElapsedMilliseconds()
+    {
+        var clock = System.Diagnostics.Stopwatch.StartNew();
+        return () => clock.ElapsedMilliseconds;
     }
 }

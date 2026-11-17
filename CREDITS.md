@@ -23,7 +23,7 @@ No code is copied from these; we took signatures, byte patterns and techniques.
 | Project | Author | Licence | What we took |
 |---|---|---|---|
 | [MF.Toolkit](https://github.com/RyoTune/MF.Toolkit) at `b1f876da` | RyoTune | AGPL-3.0 | Message function signatures and argument shapes (`src/Metaphor.Hooks/DialogueHooks.cs`, `MessageListeningHooks.cs`, `NameLookupListeners.cs`; [note](docs/raw-sources/mf-toolkit-message-signatures-2026-11-15.md)); the Squirrel registration technique (`SquirrelRegistrationListener.cs`, development only; [note](docs/raw-sources/mf-toolkit-squirrel-registration-2026-11-16.md)) |
-| [Ryo Framework](https://github.com/RyoTune/Ryo) at `1d661e15` | RyoTune | "General Mod License" (its `LICENSE.txt`) | CRI Atom function names, byte patterns and arguments (`src/Metaphor.Hooks/CriAudioListeners.cs`; [note](docs/raw-sources/ryo-cri-atom-patterns-2026-11-16.md)). Only names and patterns, no code |
+| [Ryo Framework](https://github.com/RyoTune/Ryo) at `1d661e15` | RyoTune | "General Mod License" (its `LICENSE.txt`) | CRI Atom function names, byte patterns and arguments (`src/Metaphor.Hooks/CriAudioListeners.cs`; notes: [cues](docs/raw-sources/ryo-cri-atom-patterns-2026-11-16.md), [volume, category and cue sheets](docs/raw-sources/cri-voice-probes-2026-11-17.md)). Only names and patterns, no code |
 | [CriFs.V2.Hook.ReloadedII](https://github.com/Sewer56/CriFs.V2.Hook.ReloadedII) at `82c79eef` | Sewer56 | LGPL-3.0 | CRI FileSystem release byte patterns, used as signature probes (`tests/Metaphor.Core.Tests/SignatureProbesTests.cs`, never built into the mod; [note](docs/raw-sources/crifs-v2-hook-metaphor-patterns-2026-11-15.md)) |
 
 ## Projects whose ideas we borrowed
