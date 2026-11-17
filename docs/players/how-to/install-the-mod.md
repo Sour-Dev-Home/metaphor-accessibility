@@ -94,15 +94,16 @@ ID, `metaphor.accessibility`. If you report a problem, attach that file.
 
 ## Keys
 
-While a dialogue window is open (not yet checked in the game):
+Not yet checked in the game:
 
 | Key | Controller | Does |
 |---|---|---|
 | R | X | Repeats the last dialogue line in full |
 | T | LB and RB together | Turns spoken dialogue off or on, and says which |
 
-During dialogue the game doesn't see these presses; elsewhere they keep their normal job and the mod ignores them.
-They can't be changed yet.
+They work at any time, and the game sees these presses too, so they also keep their normal job. They can't be changed
+yet. An optional file makes them work only during dialogue, hidden from the game then
+([turn on the dialogue window hooks](../../contributors/how-to/turn-on-the-dialogue-window-hooks.md)).
 
 This list will grow as the mod gains features. Every key the mod reads will be listed here, including any the game
 doesn't show, because players of other accessibility mods found keys their README left out

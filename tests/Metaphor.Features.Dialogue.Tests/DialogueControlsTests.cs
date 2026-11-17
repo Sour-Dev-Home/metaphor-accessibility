@@ -25,7 +25,11 @@ public sealed class DialogueControlsTests
     {
         reader = new DialogueReader(announcer);
         controls = new DialogueControls(DialogueBindings.Default, history, reader, announcer);
+        // Most tests run with the window hooks opted in; the untracked ones at the end make their own controls.
+        controls.TrackWindow();
     }
+
+    private DialogueControls Untracked() => new(DialogueBindings.Default, history, reader, announcer);
 
     private static Announcement Said(string text) => new(text, Interrupt: true);
 
@@ -230,5 +234,52 @@ public sealed class DialogueControlsTests
         controls.Keys([R]);
 
         Assert.Equal(Said("Ada: One."), announcer.Said[^1]);
+    }
+
+    // Without opt-in-dialogue-window.txt the window hooks don't go in, so nothing reports the window.
+
+    [Fact]
+    public void UntrackedXRepeatsAtAnyTimeAndTheGameStillSeesIt()
+    {
+        history.Add("Ada: One.");
+        var untracked = Untracked();
+
+        Assert.Equal(X | A, untracked.Pad(0, X | A));
+        Assert.Equal([Said("Ada: One.")], announcer.Said);
+    }
+
+    [Fact]
+    public void UntrackedRRepeatsAndTTogglesAndTheGameStillSeesThem()
+    {
+        history.Add("Ada: One.");
+        var untracked = Untracked();
+
+        Assert.Equal([R, Enter], untracked.Keys([R, Enter]));
+        Assert.Equal([T], untracked.Keys([T]));
+
+        Assert.False(reader.On);
+        Assert.Equal([Said("Ada: One."), Said("Dialogue reader off")], announcer.Said);
+    }
+
+    [Fact]
+    public void UntrackedBothBumpersTurnTheReaderOffAndTheGameStillSeesThem()
+    {
+        var untracked = Untracked();
+
+        Assert.Equal(LeftBumper | RightBumper, untracked.Pad(0, LeftBumper | RightBumper));
+        Assert.False(reader.On);
+    }
+
+    [Fact]
+    public void UntrackedHoldingXStillRepeatsOnce()
+    {
+        history.Add("Ada: One.");
+        var untracked = Untracked();
+
+        untracked.Pad(0, X);
+        untracked.Pad(0, X);
+        untracked.Pad(1, X);
+
+        Assert.Single(announcer.Said);
     }
 }

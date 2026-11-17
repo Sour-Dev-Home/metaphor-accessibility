@@ -18,9 +18,10 @@ public sealed record DialogueBindings(int RepeatButtons, int ReaderButtons, int 
     public static DialogueBindings Default { get; } = new(0x8000, 0x400 | 0x800, 0x52, 0x54);
 }
 
-/// <summary>The dialogue controls (#58): while the dialogue window is open, the repeat binding re-speaks the last line
-/// in full and the reader binding turns spoken dialogue on or off; both are hidden from the game then, and keep their
-/// normal job while it's closed. A press is an up-to-down edge of a binding held on any pad or the keyboard, so a second
+/// <summary>The dialogue controls (#58): the repeat binding re-speaks the last line in full and the reader binding turns
+/// spoken dialogue on or off. Until <see cref="TrackWindow"/> says the dialogue window's opening and closing will be
+/// reported, they act at any time and the game still sees them. Once it has, they act only while the window is open,
+/// are hidden from the game then, and keep only their normal job while it's closed. A press is an up-to-down edge of a binding held on any pad or the keyboard, so a second
 /// pad mirroring the first (Steam Input's virtual pad) or one whose sticks drift can't fire it again, and a binding
 /// already held when the window opens doesn't fire. The hook layer hands it each pad and keyboard read and the window's
 /// opening and closing, from any of the game's threads.</summary>
@@ -35,6 +36,7 @@ public sealed class DialogueControls
     private readonly IAnnouncer announcer;
     private readonly Binding repeat = new();
     private readonly Binding toggle = new();
+    private bool tracked;
     private bool open;
 
     public DialogueControls(DialogueBindings bindings, DialogueHistory history, DialogueReader reader, IAnnouncer announcer)
@@ -47,6 +49,16 @@ public sealed class DialogueControls
         this.history = history;
         this.reader = reader;
         this.announcer = announcer;
+    }
+
+    /// <summary>The dialogue window's opening and closing will be reported (its hooks are opted in): from now on the
+    /// controls act, and hide their input from the game, only while it's open.</summary>
+    public void TrackWindow()
+    {
+        lock (gate)
+        {
+            tracked = true;
+        }
     }
 
     /// <summary>The dialogue window opened.</summary>
@@ -97,9 +109,10 @@ public sealed class DialogueControls
         bool hidden;
         lock (gate)
         {
-            repeatPressed = repeat.Update(source, repeatHeld) && open;
-            togglePressed = toggle.Update(source, toggleHeld) && open;
-            hidden = open;
+            hidden = tracked && open;
+            var acting = hidden || !tracked;
+            repeatPressed = repeat.Update(source, repeatHeld) && acting;
+            togglePressed = toggle.Update(source, toggleHeld) && acting;
         }
         // Spoken outside the lock: the announcer may take its time.
         if (repeatPressed)
