@@ -1,0 +1,3 @@
+[
+  { "name": "ChoiceGetCursor", "pattern": "48 83 EC 18 33 C0 48 89 02 48 89 42 08 48 8B 81 38 02 00 00 48 85 C0 74 04 F0 FF 40 08 48 8B 81 30 02 00 00 48 89 02 48 8B 81 38 02 00 00 48 89 42 08 48 8B C2 48 83 C4 18 C3", "source": "docs/raw-sources/screen-class-link-2026-11-17.md" }
+]

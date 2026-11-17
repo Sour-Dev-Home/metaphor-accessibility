@@ -113,6 +113,22 @@ public sealed class MessageLogTests
     }
 
     [Fact]
+    public void RecordsACursorManagersScreenClassCandidatesAsNames()
+    {
+        var (log, text) = NewLog(now: 410);
+
+        log.ScreenClassSeen(new ScreenClassSeen(
+            Manager: 0xa0, ManagerClass: "CursorManager@ope@ui@app", Owner: 0x300, OwnerClass: "RootMenuChoice@ope@ui@app",
+            Fields: [(0x10, "CursorManagerSoundParts@ope@ui@app"), (0x28, "RootMenuChoice@ope@ui@app")]));
+        log.ScreenClassSeen(new ScreenClassSeen(Manager: 0xb0, ManagerClass: null, Owner: null, OwnerClass: null, Fields: []));
+
+        Assert.Equal(
+            $"410 ms screen mgr=0xa0 mgrClass=CursorManager@ope@ui@app owner=0x300 ownerClass=RootMenuChoice@ope@ui@app fields=+0x10:CursorManagerSoundParts@ope@ui@app,+0x28:RootMenuChoice@ope@ui@app{Environment.NewLine}" +
+            $"410 ms screen mgr=0xb0 mgrClass=? owner=none ownerClass=? fields=none{Environment.NewLine}",
+            text.ToString());
+    }
+
+    [Fact]
     public void RecordsAResolvedMessage()
     {
         var (log, text) = NewLog(now: 77);

@@ -84,6 +84,12 @@
     "evidence": "Our reading of the exe through its type information (docs/raw-sources/ui-focus-candidates-2026-11-16.md); one match on disk and in memory at the disk address (docs/raw-sources/spike-session-2-2026-11-16.md)"
   },
   {
+    "name": "ChoiceGetCursor",
+    "pattern": "48 83 EC 18 33 C0 48 89 02 48 89 42 08 48 8B 81 38 02 00 00 48 85 C0 74 04 F0 FF 40 08 48 8B 81 30 02 00 00 48 89 02 48 8B 81 38 02 00 00 48 89 42 08 48 8B C2 48 83 C4 18 C3",
+    "gameBuilds": ["548ddc955c176867f062c44f94c03dd9ac33caefb278a5ac388e792aedf09504"],
+    "evidence": "Our reading of the exe through its type information (docs/raw-sources/screen-class-link-2026-11-17.md); one match on disk, not yet checked in memory"
+  },
+  {
     "name": "criAtomExPlayer_SetCueId",
     "pattern": "48 89 5C 24 ?? 48 89 6C 24 ?? 48 89 74 24 ?? 57 48 83 EC 20 49 63 F8 48 89 D6",
     "gameBuilds": ["548ddc955c176867f062c44f94c03dd9ac33caefb278a5ac388e792aedf09504"],

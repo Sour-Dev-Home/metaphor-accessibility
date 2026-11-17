@@ -73,6 +73,8 @@ outside the repository, so none is ever committed.
   scan, and counts as expected like any other. Use it for one short, separate run, then delete it.
 - `opt-in-ui-text-panes.txt`: the same, for the listener on the UI text pane's draw (#93), which runs every frame and
   logs drawn text (`docs/raw-sources/ui-focus-candidates-2026-11-16.md`).
+- `opt-in-screen-class.txt`: the same, for the listener on the menu choices' cursor getter (#213), which logs each
+  cursor input's screen class candidates (`docs/raw-sources/screen-class-link-2026-11-17.md`).
 - `opt-in-dialogue-window.txt`: turns on the two dialogue window hooks (#58), in Release builds too
   ([turn on the dialogue window hooks](turn-on-the-dialogue-window-hooks.md)).
 - `spike-player-name.txt`: the hero name you typed in the game, on its first line (trimmed, UTF-8). The listener compares

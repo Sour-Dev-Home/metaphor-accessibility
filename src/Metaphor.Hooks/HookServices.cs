@@ -32,6 +32,10 @@ internal sealed record HookServices
     /// the input hooks hand them each read.</summary>
     public required DialogueControls DialogueControls { get; init; }
 
+    /// <summary>The #213 screen class probe, which the opt-in choice cursor getter listener feeds and starts. It logs only
+    /// when there is a log.</summary>
+    public ScreenClassProbe ScreenClass { get; init; } = new(null);
+
     /// <summary>The mod's folder, outside the repository, where a development run leaves files for its hooks.</summary>
     public required string ModFolder { get; init; }
 
@@ -70,6 +74,7 @@ internal sealed record HookServices
             Messages = events,
             Cursors = cursors,
             Log = log,
+            ScreenClass = new ScreenClassProbe(log),
             ModFolder = modFolder,
             DialogueHistory = history,
             DialogueControls = controls,
