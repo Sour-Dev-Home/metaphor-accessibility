@@ -1,6 +1,7 @@
 using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
 using System.Text;
+using Metaphor.Core.Field;
 using Metaphor.Core.Menus;
 using Metaphor.Core.Messages;
 
@@ -124,6 +125,29 @@ public sealed class MessageLog(TextWriter writer, Func<long> millisecondsSinceSt
     /// </summary>
     public void ScreenClassSeen(ScreenClassSeen seen) =>
         Write(() => Line($"{millisecondsSinceStart()} ms screen {seen}"));
+
+    /// <summary>A menu choice handed out a cursor manager for the first time (#227), so a screen whose cursor never
+    /// moves through a manager is still named. Address and class name only.</summary>
+    public void ChoiceSeen(long choice, string? choiceClass, long manager) => Write(() =>
+        Line($"{millisecondsSinceStart()} ms choice owner=0x{choice:x} ownerClass={choiceClass ?? "?"} mgr=0x{manager:x}"));
+
+    /// <summary>A cursor manager's item count and item vector, when they changed (#249). Numbers only.</summary>
+    public void ListCountRead(CursorListCount list) =>
+        Write(() => Line($"{millisecondsSinceStart()} ms list-count {list}"));
+
+    /// <summary>The camp menu's open state as the game tests it, when it changed (#250, under #211). Numbers and class
+    /// names only.</summary>
+    public void MenuStateRead(MenuOpenState state) =>
+        Write(() => Line($"{millisecondsSinceStart()} ms menu-state {state}"));
+
+    /// <summary>The field's state, when it changed (#177, #180). Numbers and class names only.</summary>
+    public void FieldStateRead(FieldState state) =>
+        Write(() => Line($"{millisecondsSinceStart()} ms field {state}"));
+
+    /// <summary>The field unit lists near the player, when they changed (#178), as <see cref="FieldNearby"/> wrote
+    /// them. Ids, distances, headings and class names only.</summary>
+    public void FieldNearbyRead(string nearby) =>
+        Write(() => Line($"{millisecondsSinceStart()} ms field-near {nearby}"));
 
     /// <summary>A value a game getter returned (#155), with the code that called it (<see cref="CallerTrace"/>). Numbers
     /// only, no game text.</summary>
