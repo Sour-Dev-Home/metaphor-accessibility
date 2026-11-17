@@ -1,0 +1,14 @@
+# A choice: two lines, the choice's prompt and options, then the reply's lines.
+# source: docs/raw-sources/menu-hook-counts-2026-11-17.md
+# game build: 548ddc955c176867f062c44f94c03dd9ac33caefb278a5ac388e792aedf09504
+0 request kind=0 label=MEScommon_AKADEMEIA_CHECK_CLASS_19
+2668 request kind=0 label=MEScommon_AKADEMEIA_CHECK_CLASS_19_02
+4458 select kind=0 prompt=MEScommon_AKADEMEIA_CHECK_01 choice=MEScommon_AKADEMEIA_CHOICE_01
+8153 request kind=0 label=MEScommon_GET_CLASS_19_HAIZ_00
+11029 request kind=0 label=MEScommon_GET_CLASS_19_HAIZ_01
+18203 request kind=0 label=MEScommon_GET_CLASS_19_HAIZ_02
+21180 request kind=0 label=MEScommon_GET_CLASS_19_HAIZ_03
+23371 request kind=0 label=MEScommon_GET_CLASS_19_HAIZ_05
+25963 request kind=0 label=MEScommon_GET_CLASS_19_HAIZ_08
+28472 request kind=0 label=MEScommon_GET_CLASS_19_HAIZ_09
+31414 request kind=1 label=System_Academy_GET
