@@ -81,36 +81,104 @@ holds for Metaphor is `[NEEDS VERIFICATION]`; use the shortcut.
 2. Open the `(Reloaded)` shortcut on the desktop. The game starts. You can close Reloaded-II's window if it shows up.
    `[NEEDS VERIFICATION]` whether Reloaded-II stays open.
 
+## Copy in a Reloaded-II app config
+
+Enabling a mod in Reloaded-II's window is hard with a screen reader. Persona-4-Golden-Access gets round it by shipping a
+ready-made `AppConfig.json`. We don't ship one yet, so edit the one Reloaded-II made
+([P4G Access notes](../../raw-sources/persona-4-golden-access-2026-11-16.md)). `[NEEDS VERIFICATION]` All of this
+section, by ear.
+
+1. In Notepad, open `%APPDATA%\Reloaded-Mod-Loader-II\ReloadedII.json`. Find `ApplicationConfigDirectory`. This is where
+   Reloaded-II keeps one folder per game.
+2. Open the folder for the game, the one holding an `AppConfig.json` whose `AppId` is `metaphor.exe`. If you added the
+   game as above, it is there.
+3. Open that `AppConfig.json` in Notepad. Find `EnabledMods`. Make it list the mod's ID, so the line reads
+   `"EnabledMods": ["metaphor.accessibility"]`. Save the file.
+4. If `AppLocation` doesn't point at your `metaphor.exe`, correct it. A relative path is read from the folder holding
+   the file ([Reloaded-II config notes](../../raw-sources/reloaded-ii-app-and-mod-config-2026-11-15.md)).
+
 ## What the mod says when it loads
 
-Nothing yet, as far as we know. The mod writes a status file and a log line when it loads, but we found no code that
-speaks on load `[NEEDS VERIFICATION]`. Once the game is running and a line of dialogue appears, the mod should read it
-aloud through your screen reader or Windows speech
-([ADR 0005](../../adr/0005-prism-speech-backend.md)). If the game's version doesn't match one the mod knows, it
-refuses to hook anything and the game runs as normal, silently.
+When the game starts, the mod speaks one of three messages once:
 
-To check that it loaded, look at the newest file in `%APPDATA%\Reloaded-Mod-Loader-II\Logs\`. It lists the mod by its
-ID, `metaphor.accessibility`. If you report a problem, attach that file.
+1. `Metaphor accessibility loaded`: the mod is running.
+2. `This game version isn't supported yet; the mod is off`: your game build is one the mod doesn't know. It hooks
+   nothing and the game runs as normal.
+3. `Metaphor accessibility couldn't start; the mod is off`: any other failure.
 
-## Keys
+You may hear nothing if your screen reader or Windows speech isn't reachable. Then look at the newest file in
+`%APPDATA%\Reloaded-Mod-Loader-II\Logs\`, which lists the mod by its ID, `metaphor.accessibility`. If you hear the first
+message, the install worked.
 
-Not yet checked in the game:
+## Keys and buttons
 
-| Key | Controller | Does |
-|---|---|---|
-| R | X | Repeats the last dialogue line in full |
-| T | LB and RB together | Turns spoken dialogue off or on, and says which |
+Everything the mod reads is here. The mod reads no mouse input.
 
-They work at any time, and the game sees these presses too, so they also keep their normal job. They can't be changed
-yet. An optional file makes them work only during dialogue, hidden from the game then
-([turn on the dialogue window hooks](../../contributors/how-to/turn-on-the-dialogue-window-hooks.md)).
+### Repeat and reader toggle
 
-This list will grow as the mod gains features. Every key the mod reads will be listed here, including any the game
-doesn't show, because players of other accessibility mods found keys their README left out
-([AccessMods survey](../../raw-sources/accessmods-org-survey-2026-11-16.md)).
+1. `R` on the keyboard, or `X` on a controller: repeats the last dialogue line in full. With no line yet, it says "No
+   dialogue to repeat".
+2. `T` on the keyboard, or `LB` and `RB` held together on a controller: turns spoken dialogue off or on. It says
+   "Dialogue reader on" or "Dialogue reader off".
+
+A press counts when the key goes down, not while it is held. A key already held when a dialogue window opens does
+nothing. They can't be rebound yet.
+
+By default they work at any time, on every screen, and the game sees the presses too, so `R`, `T`, `X` and `LB`+`RB`
+keep their normal job. Reader off silences dialogue lines only, not the keys, the load message or the settings message.
+
+With the opt-in window hooks file they work only while a dialogue window is open, and the game doesn't see them then.
+To turn this on, put an empty file named `opt-in-dialogue-window.txt` in the mod's folder (`metaphor.accessibility` in
+your mods folder) and restart the game. An update replaces that folder, so add the file again afterwards. Delete the
+file to turn it off ([details](../../contributors/how-to/turn-on-the-dialogue-window-hooks.md)).
+
+### Menus and choices: no keys of their own
+
+The mod adds no keys here. It speaks what the game's own cursor does, so use the game's own movement keys or buttons.
+
+1. Title menu: when the cursor settles on an item, the mod speaks it with its position. The first time it adds
+   "Main menu" in front, such as "Main menu, New Game, 1 of 4".
+2. Reply choices in dialogue: when the choices appear, the mod speaks "Choose:" and the options. Moving the cursor
+   speaks the option and its position, such as "Option, 2 of 3".
+
+`[NEEDS VERIFICATION]` Both by ear in the game. They need a supported game build.
+
+### Voiced lines
+
+For lines the voice actors speak, the mod can say the speaker only, or the full line. The default (`auto`) says the name
+when the voice is English and the full line when it is Japanese. To change it, make a file named `settings.json` in the
+mod's user-config folder, by default `User\Mods\metaphor.accessibility` next to Reloaded-II (`[NEEDS VERIFICATION]` where
+it lands on your machine), holding:
+
+`{ "voicedLines": "nameOnly" }`
+
+The choices are `auto`, `nameOnly`, `fullLine` and `nothing`. The mod reads the file at start and again when you save
+it, and says "Voiced lines: name only." (or the new value) when it changes. A file it can't use is ignored and the
+default applies.
+
+### Braille
+
+There is no braille setting. Each announcement goes to your screen reader's speech and braille together, where it
+supports that, and to speech alone where it doesn't. `[NEEDS VERIFICATION]` By ear and with a display.
+
+## Report a problem
+
+Use the Alpha feedback form on the project's issues page.
+
+1. Find `report-log.txt` in the `metaphor.accessibility` folder in your mods folder. The mod writes it fresh each time
+   the game starts, so copy it before you start the game again.
+2. Open the form, answer its questions, and drag the file into the "Report log" box, or choose it with the file picker.
+3. The log holds what the mod did (whether it loaded, how many hooks went in, errors, and which lines and choices the
+   game asked for, by label such as `Title_System_08`), never the game's text, and your user name is replaced with
+   `<redacted>`. Read it in Notepad first if you want to check.
 
 ## Credits
 
-The desktop-shortcut method and the idea of shipping a ready-made config come from
-[Persona-4-Golden-Access](https://github.com/AquaRose7/Persona-4-Golden-Access) by AquaRose7 (GPL-3.0). Listing every
-key comes from the AccessMods organisation's READMEs.
+- The desktop-shortcut steps, the NVDA review-cursor steps and the idea of a copy-in app config come from
+  [Persona-4-Golden-Access](https://github.com/AquaRose7/Persona-4-Golden-Access) by AquaRose7 (GPL-3.0), at `dcff255`
+  (v2.2.6). No code is copied.
+- Listing every key, with when it works, comes from the [AccessMods](https://github.com/AccessMods/PhoenixWrightTrilogy)
+  organisation (MIT): blind players of its mods hit keys the README left out. Pinning the loader version follows its
+  CONTRIBUTING.
+
+More in [`CREDITS.md`](../../../CREDITS.md).

@@ -45,7 +45,7 @@ public sealed class DialogueWindowPairTests
                 Complete: true),
             () => (_, _) => { },
             log.Add,
-            hook => hook.OnPaired?.Invoke());
+            pairInstalled: hook => hook.OnPaired?.Invoke());
         return log;
     }
 

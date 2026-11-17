@@ -79,8 +79,7 @@ public sealed class DialogueAnnouncer
     /// nothing) is spoken as "dot dot dot".</summary>
     public void Offer(string? options)
     {
-        var lines = (options ?? "").Split('\n').Select(cleaner.Clean).Where(line => line.Length > 0)
-            .Select(line => line.All(c => c is '.' or '…' or ' ') ? "dot dot dot" : line).ToList();
+        var lines = ChoiceOptions.From(options, cleaner);
         announcer.Announce(new Announcement(lines.Count == 0 ? "Choice" : $"Choose: {string.Join("; ", lines)}", Interrupt: false));
     }
 

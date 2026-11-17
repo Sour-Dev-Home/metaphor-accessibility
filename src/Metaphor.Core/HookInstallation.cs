@@ -11,9 +11,11 @@ public static class HookInstallation
     /// does, then installs each approved hook with the function <paramref name="createInstaller"/> returns. That is
     /// called once, just before the first install, and never if nothing is approved; if it throws, so does this. A
     /// hook is paired with <c>null</c> when it wasn't created, which only a hook for another build may be. Writes one
-    /// line per hook to <paramref name="log"/>. Once every hook is in, <paramref name="pairInstalled"/> is called with
-    /// each hook whose <see cref="HookSpec.Partner"/> went in too, and never with one of a pair that didn't both go in
-    /// (#172). Returns how many went in, and every hook handed to the game, which the caller keeps alive.</summary>
+    /// line per hook to <paramref name="log"/>, or to <paramref name="logError"/>, when given, for a hook that failed
+    /// to install: the line a native crash report needs (#204). Once every hook is in, <paramref name="pairInstalled"/>
+    /// is called with each hook whose <see cref="HookSpec.Partner"/> went in too, and never with one of a pair that
+    /// didn't both go in (#172). Returns how many went in, and every hook handed to the game, which the caller keeps
+    /// alive.</summary>
     [SuppressMessage("Design", "CA1031", Justification = "One hook failing must not stop the others or reach the game.")]
     public static (int Loaded, IReadOnlyList<THook> Kept) Run<THook>(
         string runningBuild,
@@ -22,6 +24,7 @@ public static class HookInstallation
         Func<IReadOnlyList<HookSignature>, ScanResult> scan,
         Func<Action<THook, HookDecision>> createInstaller,
         Action<string> log,
+        Action<string>? logError = null,
         Action<THook>? pairInstalled = null)
         where THook : class
     {
@@ -30,11 +33,13 @@ public static class HookInstallation
         ArgumentNullException.ThrowIfNull(log);
 
         // A logging failure must not make the count, or the status, disagree with what's in the game.
-        void Log(string line)
+        void Log(string line) => Safely(log, line);
+        void LogError(string line) => Safely(logError ?? log, line);
+        static void Safely(Action<string> write, string line)
         {
             try
             {
-                log(line);
+                write(line);
             }
             catch (Exception)
             {
@@ -64,7 +69,7 @@ public static class HookInstallation
             }
             catch (Exception e)
             {
-                Log($"hook {decision.Name} failed to install: {e.GetType().Name}");
+                LogError($"hook {decision.Name} failed to install: {e.GetType().Name}");
                 continue;
             }
             loaded++;

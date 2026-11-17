@@ -1,0 +1,41 @@
+# Title menu: the title file compiles, then the title cursor settles on each item the player arrows to.
+# source: docs/raw-sources/menu-hook-counts-2026-11-17.md
+# game build: 548ddc955c176867f062c44f94c03dd9ac33caefb278a5ac388e792aedf09504
+0 compile id=56 path=EN/message/system/Title_System.msg
+0 compile id=55 path=EN/message/system/System_Network.msg
+6765 compile id=57 path=EN/message/event/e01_001_001.msg
+21784 compile id=58 path=EN/message/system/System_License.msg
+21856 cursor mgr=0x51df310 class=0x22045e8 cmd=0x1 result=1 top=0 row=0 flags=0x46
+23385 cursor mgr=0x51df310 class=0x22045e8 cmd=0x1 result=1 top=0 row=1 flags=0x46
+27835 cursor mgr=0x51df310 class=0x22045e8 cmd=0x14 result=20 top=0 row=2 flags=0x46
+27853 cursor mgr=0x51df310 class=0x22045e8 cmd=0x1 result=1 top=0 row=1 flags=0x46
+27869 cursor mgr=0x51df310 class=0x22045e8 cmd=0x17 result=23 top=0 row=0 flags=0x46
+27887 cursor mgr=0x51df310 class=0x22045e8 cmd=0x1 result=1 top=0 row=0 flags=0x46
+28135 cursor mgr=0x51df310 class=0x22045e8 cmd=0x16 result=22 top=0 row=1 flags=0x46
+28154 cursor mgr=0x51df310 class=0x22045e8 cmd=0x1 result=1 top=0 row=1 flags=0x46
+53024 cursor mgr=0x51df310 class=0x22045e8 cmd=0x17 result=23 top=0 row=0 flags=0x46
+53042 cursor mgr=0x51df310 class=0x22045e8 cmd=0x1 result=1 top=0 row=0 flags=0x46
+53258 cursor mgr=0x51df310 class=0x22045e8 cmd=0x17 result=1 top=0 row=0 flags=0x46
+53274 cursor mgr=0x51df310 class=0x22045e8 cmd=0x1 result=1 top=0 row=0 flags=0x46
+53758 cursor mgr=0x51df310 class=0x22045e8 cmd=0x16 result=22 top=0 row=1 flags=0x46
+53776 cursor mgr=0x51df310 class=0x22045e8 cmd=0x1 result=1 top=0 row=1 flags=0x46
+54141 cursor mgr=0x51df310 class=0x22045e8 cmd=0x16 result=22 top=0 row=2 flags=0x46
+54159 cursor mgr=0x51df310 class=0x22045e8 cmd=0x1 result=1 top=0 row=2 flags=0x46
+54642 cursor mgr=0x51df310 class=0x22045e8 cmd=0x17 result=23 top=0 row=1 flags=0x46
+54659 cursor mgr=0x51df310 class=0x22045e8 cmd=0x1 result=1 top=0 row=1 flags=0x46
+55042 cursor mgr=0x51df310 class=0x22045e8 cmd=0x16 result=22 top=0 row=2 flags=0x46
+55059 cursor mgr=0x51df310 class=0x22045e8 cmd=0x1 result=1 top=0 row=2 flags=0x46
+58043 cursor mgr=0x51df310 class=0x22045e8 cmd=0x1 result=1 top=0 row=0 flags=0x46
+60376 cursor mgr=0x51df310 class=0x22045e8 cmd=0x16 result=22 top=0 row=1 flags=0x46
+60393 cursor mgr=0x51df310 class=0x22045e8 cmd=0x1 result=1 top=0 row=1 flags=0x46
+65511 cursor mgr=0x51df310 class=0x22045e8 cmd=0x17 result=23 top=0 row=0 flags=0x46
+65528 cursor mgr=0x51df310 class=0x22045e8 cmd=0x1 result=1 top=0 row=0 flags=0x46
+67711 cursor mgr=0x51df310 class=0x22045e8 cmd=0x16 result=22 top=0 row=1 flags=0x46
+67729 cursor mgr=0x51df310 class=0x22045e8 cmd=0x1 result=1 top=0 row=1 flags=0x46
+69862 cursor mgr=0x51df310 class=0x22045e8 cmd=0x1 result=1 top=0 row=2 flags=0x66
+74947 cursor mgr=0x51df310 class=0x22045e8 cmd=0x17 result=23 top=0 row=1 flags=0x66
+74963 cursor mgr=0x51df310 class=0x22045e8 cmd=0x1 result=1 top=0 row=1 flags=0x66
+75747 cursor mgr=0x51df310 class=0x22045e8 cmd=0x17 result=23 top=0 row=0 flags=0x66
+75764 cursor mgr=0x51df310 class=0x22045e8 cmd=0x1 result=1 top=0 row=0 flags=0x66
+77363 cursor mgr=0x51df310 class=0x22045e8 cmd=0x16 result=22 top=0 row=1 flags=0x66
+77381 cursor mgr=0x51df310 class=0x22045e8 cmd=0x1 result=1 top=0 row=1 flags=0x66
