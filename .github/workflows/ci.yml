@@ -2,6 +2,7 @@ name: CI
 
 on:
   push:
+    branches: [main]
   pull_request:
   # The merge queue tests each PR merged with the ones ahead of it; its required checks come from this run.
   merge_group:
