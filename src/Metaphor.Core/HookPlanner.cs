@@ -3,7 +3,12 @@ namespace Metaphor.Core;
 /// <summary>A hook as the loader sees it: its name, the game builds its <c>[GameHook]</c> names, the signature in
 /// <c>hook-signatures.json</c> that finds the function it hooks, and the signatures of any game functions it calls.</summary>
 public sealed record HookSpec(
-    string Name, IReadOnlyList<string> GameBuilds, string SignatureName, IReadOnlyList<string>? Calls = null);
+    string Name, IReadOnlyList<string> GameBuilds, string SignatureName, IReadOnlyList<string>? Calls = null)
+{
+    /// <summary>The name of the hook it goes in with, or null for none: if either can't go in, neither does (#172).
+    /// </summary>
+    public string? Partner { get; init; }
+}
 
 /// <summary>Whether to install one hook: at <paramref name="Rva"/> (relative to the game module), or not, and why.</summary>
 public sealed record HookDecision(string Name, long? Rva, string? WhyNot)
@@ -46,7 +51,25 @@ public static class HookPlanner
             .ToList();
         var found = wanted.Count == 0 ? new ScanResult(new Dictionary<string, IReadOnlyList<long>>(), Complete: true) : scan(wanted);
 
-        return [.. hooks.Select(hook => Decide(hook, runningBuild, byName, found))];
+        var alone = hooks.Select(hook => Decide(hook, runningBuild, byName, found)).ToList();
+        var byHook = hooks.Zip(alone).GroupBy(h => h.First.Name).ToDictionary(g => g.Key, g => g.First().Second);
+        return [.. hooks.Zip(alone, (hook, decision) => WithPartner(hook, decision, byHook))];
+    }
+
+    /// <summary>A hook with a partner goes in only if the partner is planned too and can go in, so neither is left in
+    /// the game without the other (#172).</summary>
+    private static HookDecision WithPartner(
+        HookSpec hook, HookDecision decision, Dictionary<string, HookDecision> byHook)
+    {
+        if (!decision.Install || hook.Partner is not { } partner)
+        {
+            return decision;
+        }
+        if (!byHook.TryGetValue(partner, out var other))
+        {
+            return new(hook.Name, null, $"its partner {partner} isn't being loaded");
+        }
+        return other.Install ? decision : new(hook.Name, null, $"its partner {partner} can't go in ({other.WhyNot})");
     }
 
     /// <summary>Every signature a hook needs: the one it hooks first, then the ones it calls.</summary>

@@ -60,4 +60,17 @@ public sealed class DevOnlyHookTests
         Assert.Equal("opt-in-dialogue-window.txt",
             attribute.Properties.Single(p => p.Name == "OptInFile").Argument.Value);
     }
+
+    /// <summary>The dialogue window hooks go in as a pair or not at all (#172), so the window's state never sticks open.
+    /// </summary>
+    [Theory]
+    [InlineData("Metaphor.Hooks.DialogueWindowOpenHook", "DialogueWindowCloseHook")]
+    [InlineData("Metaphor.Hooks.DialogueWindowCloseHook", "DialogueWindowOpenHook")]
+    public void TheDialogueWindowHooksArePartners(string hook, string partner)
+    {
+        var attribute = Scanned.Load(Rules.HookLayer).MainModule.GetType(hook).CustomAttributes
+            .Single(a => a.AttributeType.FullName == "Metaphor.Hooks.GameHookAttribute");
+
+        Assert.Equal(partner, attribute.Properties.SingleOrDefault(p => p.Name == "Partner").Argument.Value);
+    }
 }

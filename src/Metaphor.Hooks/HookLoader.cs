@@ -24,6 +24,12 @@ internal interface IGameHook
     void UseCalls(IReadOnlyDictionary<string, nint> calls)
     {
     }
+
+    /// <summary>Tells a hook whose <c>[GameHook]</c> names a <c>Partner</c> that both of them went in. Called at most
+    /// once, after every hook is installed, and never if either didn't go in.</summary>
+    void PairInstalled()
+    {
+    }
 }
 
 /// <summary>The only way a hook goes into the game (#39, ground rule 2). <see cref="HookPlanner"/> decides from the
@@ -122,14 +128,14 @@ internal static class HookLoader
                 Log($"hook {type.Name} skipped: it observes no shape the loader has an adapter for");
                 continue;
             }
-            hooks.Add((new HookSpec(type.Name, builds, hook.SignatureName, hook.Calls), adapter));
+            hooks.Add((new HookSpec(type.Name, builds, hook.SignatureName, hook.Calls) { Partner = attribute.Partner }, adapter));
         }
 
         var (moduleBase, regions) = hooks.Any(h => h.Hook is not null) ? ModuleMemoryReader.MainModuleRegions() : (0, []);
         var (loaded, kept) = HookInstallation.Run(
             runningBuild, hooks, HookSignatures.All,
             wanted => ChunkedScan.FindAll(regions, (rva, buffer) => ModuleMemoryReader.ReadAt(moduleBase, rva, buffer), wanted),
-            () => ReloadedInstall(loader, moduleBase), log);
+            () => ReloadedInstall(loader, moduleBase), log, adapter => adapter.Hook.PairInstalled());
         // Referenced for the life of the game (HookInstallation.Run says why).
         Installed.AddRange(kept);
         return loaded;
