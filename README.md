@@ -25,6 +25,7 @@ To contribute, start with [CONTRIBUTING.md](.github/CONTRIBUTING.md).
 Code is under [GPL-3.0](LICENSE). Docs (the Markdown files, including everything in `docs/`) are under
 [CC BY 4.0](docs/LICENSE), except `docs/raw-sources/`, which holds copies of other people's work under their own terms.
 
+- [CREDITS.md](CREDITS.md) lists the projects whose code, findings or ideas this one uses.
 - `src/Metaphor.Hooks/SquirrelRegistrationListener.cs` follows a technique from MF.Toolkit (AGPL-3.0), credited in the
   file. It's a development-only hook that never ships in a release.
 - The mod package ships third-party libraries under their own licences, each in `licenses/` with where its source is
