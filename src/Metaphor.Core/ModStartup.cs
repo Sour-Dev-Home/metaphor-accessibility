@@ -1,5 +1,6 @@
 using System.Diagnostics.CodeAnalysis;
 using System.Security.Cryptography;
+using Metaphor.Core.Announcements;
 
 namespace Metaphor.Core;
 
@@ -10,17 +11,21 @@ public static class ModStartup
     /// <summary>The game build reported when the game executable couldn't be hashed.</summary>
     public const string UnknownBuild = "unknown";
 
+    /// <summary>The reason a refusal gives when the game build hashed but isn't in the known builds.</summary>
+    public const string UnknownGameBuildReason = "unknown game build";
+
     /// <summary>Hashes <paramref name="gameExe"/>, looks it up in <paramref name="knownBuilds"/>, and writes the result
     /// into <paramref name="modFolder"/>'s status file. Never throws: Reloaded-II rethrows a mod's start exception
     /// (docs/raw-sources/reloaded-ii-mod-entry-point-2026-11-15.md), so any failure becomes a refusal instead.</summary>
     /// <returns>The status, which the caller should log: writing it to the folder is best effort.</returns>
     /// <remarks><c>installHooks</c> installs the hooks for the running game build and returns how many it installed
     /// (#39). It's called only when the build is known (ground rule 2). <c>beforeHooks</c> gets the game build before
-    /// any hook installs, so it sees the game's own code (the signature spike, #92).</remarks>
+    /// any hook installs, so it sees the game's own code (the signature spike, #92). <c>announcer</c> then speaks the
+    /// <see cref="LoadMessage"/> for the final status (#187).</remarks>
     [SuppressMessage("Design", "CA1031", Justification = "Any failure must refuse rather than reach the game.")]
     public static ModStatus CheckAndReport(
         string modId, string gameExe, string modFolder, Func<IReadOnlyList<GameBuild>> knownBuilds, int hooksExpected,
-        Func<string, int>? installHooks = null, Action<string>? beforeHooks = null)
+        Func<string, int>? installHooks = null, Action<string>? beforeHooks = null, IAnnouncer? announcer = null)
     {
         var status = Check(modId, gameExe, knownBuilds, hooksExpected);
         try
@@ -43,6 +48,7 @@ public static class ModStartup
         {
             // Nothing else to tell the smoke test with; the caller logs the returned status.
         }
+        announcer?.Announce(LoadMessage.For(status));
         return status;
     }
 
@@ -80,7 +86,7 @@ public static class ModStartup
         {
             return knownBuilds().Any(build => build.Sha256 == gameBuild)
                 ? ModStatus.Ready(modId, gameBuild, hooksLoaded: 0, hooksExpected)
-                : ModStatus.Refused(modId, gameBuild, hooksExpected, "unknown game build");
+                : ModStatus.Refused(modId, gameBuild, hooksExpected, UnknownGameBuildReason);
         }
         catch (Exception e)
         {

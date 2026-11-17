@@ -41,9 +41,10 @@ internal sealed record HookServices
 
     /// <summary>Services for the mod in <paramref name="modFolder"/> whose requested dialogue lines and opened choices
     /// are spoken through <paramref name="announcer"/>, voiced lines as <paramref name="settings"/> say. The library
-    /// hears each compiled file first, and speech each requested line and choice first, and the title menu's focus
-    /// each cursor input (#94); the log, when there is one, hears every event last.</summary>
-    public static HookServices Speaking(IAnnouncer announcer, SettingsReloader settings, MessageLog? log, string modFolder)
+    /// hears each compiled file first, speech each requested line and choice first, and the title menu's focus (#94) and
+    /// a choice's focus (#95) each cursor input; the report log (#188) and the message log, when there are, hear every event last.</summary>
+    public static HookServices Speaking(
+        IAnnouncer announcer, SettingsReloader settings, ReportLog? report, MessageLog? log, string modFolder)
     {
         ArgumentNullException.ThrowIfNull(settings);
         var library = new MessageLibrary();
@@ -61,7 +62,18 @@ internal sealed record HookServices
         events.ObserveFiles(titleMenu);
         events.ObserveLines(new DialogueLines(library, dialogue));
         events.ObserveChoices(new DialogueChoices(library, dialogue));
+        var choiceFocus = new ChoiceFocus(library, announcer, cleaner);
+        events.ObserveChoices(choiceFocus);
+        events.ObserveLines(choiceFocus);
         cursors.Observe(titleMenu);
+        cursors.Observe(choiceFocus);
+        if (report is not null)
+        {
+            events.ObserveFiles(report);
+            events.ObserveLines(report);
+            events.ObserveChoices(report);
+            cursors.Observe(report);
+        }
         if (log is not null)
         {
             events.ObserveFiles(log);

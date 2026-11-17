@@ -15,17 +15,56 @@ public sealed class ModEntryPoint : IMod
 {
     /// <summary>Starts the announcer every feature speaks through (ADR 0004): Prism when it starts, silence otherwise,
     /// and in Debug builds the transcript in front of either.</summary>
-    private static IAnnouncer StartSpeech(string folder, string modId, ILogger logger)
+    private static IAnnouncer StartSpeech(string folder, Action<string> log)
     {
         var (speech, whyNot) = PrismSpeech.TryStart(folder);
-        logger.WriteLine(speech is null
-            ? $"[{modId}] speech unavailable: {whyNot}"
-            : $"[{modId}] speech: {speech.BackendName}");
+        log(speech is null ? $"speech unavailable: {whyNot}" : $"speech: {speech.BackendName}");
         IAnnouncer announcer = speech is null ? new SilentAnnouncer() : speech;
 #if DEBUG
         announcer = new TranscriptAnnouncer(announcer, folder);
 #endif
         return announcer;
+    }
+
+    /// <summary>The report log a player attaches to a bug report (#188), fresh each run, in every build, redacting what
+    /// <see cref="ReportLog.PathsToRedact"/> lists. Null when it can't be opened.</summary>
+    [SuppressMessage("Design", "CA1031", Justification = "A report log must never stop the mod.")]
+    [SuppressMessage("Reliability", "CA2000", Justification = "Lives as long as the game process.")]
+    private static ReportLog? OpenReportLog(string folder, string configFolder)
+    {
+        try
+        {
+            var stream = new FileStream(
+                Path.Combine(folder, ReportLog.FileName), FileMode.Create, FileAccess.Write, FileShare.Read);
+            var started = Process.GetCurrentProcess().StartTime;
+            var report = new ReportLog(
+                new StreamWriter(stream), () => (long)(DateTime.Now - started).TotalMilliseconds,
+                ReportLog.PathsToRedact(
+                    folder, configFolder, Environment.ProcessPath,
+                    Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), Environment.UserName));
+            // The queue's last lines are the ones a crash report needs, so they're written on the way out, waiting
+            // briefly so exit can't hang (#204). A crash in native code runs neither handler.
+            AppDomain.CurrentDomain.ProcessExit += (_, _) => DrainBeforeExit(report);
+            AppDomain.CurrentDomain.UnhandledException += (_, _) => DrainBeforeExit(report);
+            return report;
+        }
+        catch (Exception)
+        {
+            return null;
+        }
+    }
+
+    [SuppressMessage("Design", "CA1031", Justification = "An exit handler must never throw.")]
+    private static void DrainBeforeExit(ReportLog report)
+    {
+        try
+        {
+            report.WaitForWrites(ReportLog.ErrorWriteTimeout);
+        }
+        catch (Exception)
+        {
+            // Exiting anyway; nothing to report to.
+        }
     }
 
 #if DEBUG
@@ -63,19 +102,33 @@ public sealed class ModEntryPoint : IMod
             var modLoader = (IModLoader)loader;
             var folder = modLoader.GetDirectoryForModId(config.ModId);
             var logger = (ILogger)modLoader.GetLogger();
-            // Speech and the dev log first: hooks are created with them, and one may fire at once.
-            var announcer = StartSpeech(folder, config.ModId, logger);
+            // Every line for the loader's console also goes to the report log (#188).
+            // The settings live in Reloaded-II's per-mod user-config folder (IModLoaderV3.GetModConfigDirectory, in
+            // Reloaded.Mod.Interfaces 2.4.0), read now and again when the file changes (#104).
+            var configFolder = modLoader.GetModConfigDirectory(config.ModId);
+            var report = OpenReportLog(folder, configFolder);
+            void Log(string line)
+            {
+                logger.WriteLine($"[{config.ModId}] {line}");
+                report?.Note(line);
+            }
+            // An error is on disk before the game goes on, in case a crash follows (#204).
+            void LogError(string line)
+            {
+                logger.WriteLine($"[{config.ModId}] {line}");
+                report?.Error(line);
+            }
+            // Speech and the logs first: hooks are created with them, and one may fire at once.
+            var announcer = StartSpeech(folder, Log);
 #if DEBUG
             var messageLog = OpenMessageLog(folder);
 #else
             MessageLog? messageLog = null;
 #endif
-            // The settings live in Reloaded-II's per-mod user-config folder (IModLoaderV3.GetModConfigDirectory, in
-            // Reloaded.Mod.Interfaces 2.4.0), read now and again when the file changes (#104).
-            var settings = new SettingsReloader(announcer, line => logger.WriteLine($"[{config.ModId}] {line}"));
-            settingsFile = SettingsFile.Open(
-                modLoader.GetModConfigDirectory(config.ModId), settings, line => logger.WriteLine($"[{config.ModId}] {line}"));
-            var services = HookServices.Speaking(announcer, settings, messageLog, folder);
+            // The settings report only a file they can't use, so each of their lines is an error.
+            var settings = new SettingsReloader(announcer, LogError);
+            settingsFile = SettingsFile.Open(configFolder, settings, LogError);
+            var services = HookServices.Speaking(announcer, settings, report, messageLog, folder);
             // The mod runs inside the game, so this process's exe is the game executable whose hash identifies the
             // build (seen in docs/raw-sources/mod-entry-point-first-run-2026-11-15.md). Hooks go in only on a known
             // build, through the loader (#39). Issue #21's spike scans first, so it reads the game's own bytes (#92).
@@ -83,15 +136,14 @@ public sealed class ModEntryPoint : IMod
             var status = ModStartup.CheckAndReport(
                 config.ModId, Environment.ProcessPath ?? "", folder, () => KnownGameBuilds.All, HookLoader.Expected(candidates),
                 build => HookLoader.Install(
-                    build, candidates, modLoader, services, line => logger.WriteLine($"[{config.ModId}] {line}")),
-                build => ScanIfRequested(folder, build, config.ModId, logger));
-            logger.WriteLine(
-                $"[{config.ModId}] build {ModBuild.Revision.CommitSha}{(ModBuild.Revision.HasUncommittedChanges ? "-dirty" : "")}: {status.State} on game build {status.GameBuildSha256}, hooks {status.HooksLoaded}/{status.HooksExpected}" +
-                (status.Reason is null ? "" : $" ({status.Reason})"));
-#if DEBUG
-            // The by-ear check (#54): with a screen reader running, this is the first thing the mod says.
-            announcer.Announce(new Announcement($"Metaphor accessibility mod {status.State.ToString().ToLowerInvariant()}.", Interrupt: true));
-#endif
+                    build, candidates, modLoader, services, Log, LogError),
+                build => ScanIfRequested(folder, build, Log, LogError),
+                announcer);
+            // The load message is spoken (#187); the log repeats it for when speech didn't start. A reason means
+            // something went wrong, so it's written as an error.
+            (status.Reason is null ? (Action<string>)Log : LogError)(
+                $"build {ModBuild.Revision.CommitSha}{(ModBuild.Revision.HasUncommittedChanges ? "-dirty" : "")}: {status.State} on game build {status.GameBuildSha256}, hooks {status.HooksLoaded}/{status.HooksExpected}" +
+                (status.Reason is null ? "" : $" ({status.Reason})") + $"; load message: {LoadMessage.For(status).Text}");
         }
         catch (Exception)
         {
@@ -100,15 +152,23 @@ public sealed class ModEntryPoint : IMod
     }
 
     /// <summary>Issue #21's spike: runs once, only when scripts/signature-spike.ps1 put a probes file in the mod's
-    /// folder, and before any hook installs.</summary>
-    private static void ScanIfRequested(string folder, string build, string modId, ILogger logger)
+    /// folder, and before any hook installs. Its result goes through <paramref name="log"/>, or
+    /// <paramref name="logError"/> when it failed, so the report log has it too (#204).</summary>
+    private static void ScanIfRequested(string folder, string build, Action<string> log, Action<string> logError)
     {
         var scan = SignatureScan.ScanIfRequested(folder, build, OpenMainModuleForScan);
-        if (scan is not null)
+        if (scan is null)
         {
-            logger.WriteLine(scan.Error is null
-                ? $"[{modId}] signature scan: {scan.Probes.Count(probe => probe.Matches == 1)} of {scan.Probes.Count} probes matched once; {scan.ReadableBytes} of {scan.ModuleBytes} bytes read, {scan.UnreadableBytes} failed; {scan.MillisecondsSinceGameStart} ms after start ({SignatureScan.ReportFileName})"
-                : $"[{modId}] signature scan failed: {scan.Error}");
+            return;
+        }
+
+        if (scan.Error is null)
+        {
+            log($"signature scan: {scan.Probes.Count(probe => probe.Matches == 1)} of {scan.Probes.Count} probes matched once; {scan.ReadableBytes} of {scan.ModuleBytes} bytes read, {scan.UnreadableBytes} failed; {scan.MillisecondsSinceGameStart} ms after start ({SignatureScan.ReportFileName})");
+        }
+        else
+        {
+            logError($"signature scan failed: {scan.Error}");
         }
     }
 

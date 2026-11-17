@@ -1,4 +1,5 @@
 using System.Text.Json;
+using Metaphor.Core.Announcements;
 
 namespace Metaphor.Core.Tests;
 
@@ -103,6 +104,45 @@ public sealed class ModStartupTests : IDisposable
         ModStartup.CheckAndReport(ModId, _gameExe, _folder.FullName, () => [Build(new string('0', 64))], hooksExpected: 2);
 
         Assert.Equal(ModStatus.Refused(ModId, GameBuild, hooksExpected: 2, "unknown game build"), Read());
+    }
+
+    // #187: a blind player can't read the status file, so the refusal is spoken.
+    [Fact]
+    public void OnAnUnknownBuildThePlayerHearsThatTheModIsOff()
+    {
+        var announcer = new RecordingAnnouncer();
+
+        ModStartup.CheckAndReport(
+            ModId, _gameExe, _folder.FullName, () => [Build(new string('0', 64))], hooksExpected: 1, announcer: announcer);
+
+        Assert.Equal(
+            [new Announcement("This game version isn't supported yet; the mod is off", Interrupt: true)], announcer.Said);
+    }
+
+    [Fact]
+    public void OnAKnownBuildThePlayerHearsThatTheModLoaded()
+    {
+        var announcer = new RecordingAnnouncer();
+
+        ModStartup.CheckAndReport(
+            ModId, _gameExe, _folder.FullName, () => [Build(GameBuild)], hooksExpected: 1, installHooks: _ => 1,
+            announcer: announcer);
+
+        Assert.Equal([new Announcement("Metaphor accessibility loaded", Interrupt: true)], announcer.Said);
+    }
+
+    // A supported build whose hooks fail is not an unsupported version; saying so would send the player the wrong way.
+    [Fact]
+    public void WhenTheHookLoaderFailsThePlayerHearsTheModCouldNotStart()
+    {
+        var announcer = new RecordingAnnouncer();
+
+        ModStartup.CheckAndReport(
+            ModId, _gameExe, _folder.FullName, () => [Build(GameBuild)], hooksExpected: 1,
+            installHooks: _ => throw new InvalidOperationException("no hooks controller"), announcer: announcer);
+
+        Assert.Equal(
+            [new Announcement("Metaphor accessibility couldn't start; the mod is off", Interrupt: true)], announcer.Said);
     }
 
     // The game must keep running whatever goes wrong: the loader rethrows a mod's start exception.

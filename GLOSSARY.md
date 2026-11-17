@@ -39,3 +39,23 @@ _Avoid_: sanitizer, parser (when used to mean this step)
 Anything that comes from the game: its executable, DLLs, archives, extracted assets, and decompiled or disassembled
 output. It never enters the repository or CI.
 _Avoid_: game files, assets (when used to mean only part of this)
+
+### Menus
+
+**Screen**:
+One menu view the player moves through with a cursor, such as Equipment or the title menu. A submenu opened from a
+screen is a screen of its own.
+_Avoid_: page, panel, window, menu (when used to mean one view)
+
+**Screen class**:
+The game's own type for a screen, which tells one screen from another. Not the cursor's type, which nearly every
+screen shares.
+_Avoid_: menu class, cursor class (when used to mean this)
+
+**Focus**:
+The item on a screen the cursor is on, with its position in the list.
+_Avoid_: selection, highlight, hover
+
+**Details key**:
+The one key, the same on every screen, that reads the rest of the focused item's panel beyond what a focus move says.
+_Avoid_: info key, read-more key

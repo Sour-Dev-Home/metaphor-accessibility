@@ -1,0 +1,40 @@
+name: Alpha feedback
+description: Tell us how the alpha worked for you. Plain text, no contact details needed.
+labels: [needs-triage]
+body:
+  - type: textarea
+    id: did
+    attributes:
+      label: What you did
+      description: The steps, in order. For example, opened the shop and moved down the list.
+    validations:
+      required: true
+  - type: textarea
+    id: heard
+    attributes:
+      label: What you heard
+      description: What the screen reader said, or that it said nothing.
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: What you expected
+    validations:
+      required: true
+  - type: dropdown
+    id: reader
+    attributes:
+      label: Your screen reader
+      options:
+        - NVDA
+        - JAWS
+        - Narrator
+        - Other
+    validations:
+      required: true
+  - type: textarea
+    id: log
+    attributes:
+      label: Report log
+      description: Drag your report-log.txt file into this box. The mod's report feature makes it. Check it holds nothing you want kept private first.
