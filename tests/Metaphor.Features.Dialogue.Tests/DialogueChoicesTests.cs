@@ -13,9 +13,21 @@ public sealed class DialogueChoicesTests
 
     private readonly RecordingAnnouncer announcer = new();
     private readonly MessageLibrary messages = new();
+    private readonly DialogueHistory history = new();
 
     private DialogueChoices Choices() =>
-        new(messages, new DialogueAnnouncer(announcer, new TextCleaner(TextCleanerRules.None)));
+        new(messages, new DialogueAnnouncer(announcer, new TextCleaner(TextCleanerRules.None), history));
+
+    [Fact]
+    public void ThePromptIsKeptInTheHistoryButTheOptionsAreNot()
+    {
+        messages.Compiled(Prompt);
+        messages.Compiled(Options);
+
+        Choices().Observe(new ChoiceRequested(0, "MES_q", "MES_c"));
+
+        Assert.Equal(["Ada: Which way?"], history.Lines());
+    }
 
     [Fact]
     public void ThePromptIsSpokenAsALineThenTheOptionsWithoutCuttingItOff()
