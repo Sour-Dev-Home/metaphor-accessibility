@@ -1,0 +1,114 @@
+using System.Diagnostics.CodeAnalysis;
+
+namespace Metaphor.Core.Menus;
+
+/// <summary>A screen the mod knows (spec #211): its name, and the screen class that identifies it, as the game's
+/// run-time type information names it (such as <c>TitleChoice@ope@ui@app</c>). Each screen's feature declares its
+/// own.</summary>
+public sealed record Screen(string Name, string ScreenClass);
+
+/// <summary>What happened to a screen.</summary>
+public enum ScreenChange
+{
+    /// <summary>Its cursor settled after another screen's: <see cref="ScreenEvent.Index"/> is the focus.</summary>
+    Entered,
+
+    /// <summary>Another screen's cursor settled: <see cref="ScreenEvent.Index"/> is this screen's last focus.</summary>
+    Left,
+
+    /// <summary>Its cursor settled on another item: <see cref="ScreenEvent.Index"/> is the new focus.</summary>
+    FocusMoved,
+}
+
+/// <summary>One change to a screen: which (<paramref name="Screen"/>, null for one the mod doesn't know), its screen
+/// class, and the focus's position from 0.</summary>
+public sealed record ScreenEvent(ScreenChange Change, Screen? Screen, string ScreenClass, int Index);
+
+/// <summary>Told of each screen entered, left, and focus moved.</summary>
+public interface IScreenObserver
+{
+    void Observe(ScreenEvent change);
+}
+
+/// <summary>Turns menu cursor inputs into screen entered, screen left and focus moved (spec #211). The screen is the
+/// input's screen class, never its manager: managers are made per visit and one cursor class serves nearly every list
+/// (docs/raw-sources/screen-class-session-2026-11-17.md). Only inputs where the cursor settled count (a move can be put
+/// back, <see cref="CursorInput.IsMove"/>); an input without a screen class is skipped. Observers hear each change in
+/// the order they were added, and one that throws never stops the rest. Add observers before the hooks go live.
+/// </summary>
+public sealed class MenuScreens : ICursorObserver
+{
+    private readonly Dictionary<string, Screen> known;
+    private readonly Lock gate = new();
+    private IScreenObserver[] observers = [];
+    private string? currentClass;
+    private int currentIndex;
+
+    /// <summary>A module that tags each screen whose class is one of <paramref name="knownScreens"/>' with it.</summary>
+    public MenuScreens(IEnumerable<Screen> knownScreens)
+    {
+        ArgumentNullException.ThrowIfNull(knownScreens);
+        known = knownScreens.ToDictionary(screen => screen.ScreenClass, StringComparer.Ordinal);
+    }
+
+    /// <summary>Adds an observer of screen changes, after those already added.</summary>
+    public void Observe(IScreenObserver observer)
+    {
+        ArgumentNullException.ThrowIfNull(observer);
+        lock (gate)
+        {
+            observers = [.. observers, observer];
+        }
+    }
+
+    public void Observe(CursorInput input)
+    {
+        ArgumentNullException.ThrowIfNull(input);
+        if (input.IsMove || input.ScreenClass is not { } screenClass)
+        {
+            return;
+        }
+        ScreenEvent[] changes;
+        lock (gate)
+        {
+            if (screenClass == currentClass)
+            {
+                if (input.Index == currentIndex)
+                {
+                    return;
+                }
+                changes = [Change(ScreenChange.FocusMoved, screenClass, input.Index)];
+            }
+            else
+            {
+                var entered = Change(ScreenChange.Entered, screenClass, input.Index);
+                changes = currentClass is { } left ? [Change(ScreenChange.Left, left, currentIndex), entered] : [entered];
+            }
+            currentClass = screenClass;
+            currentIndex = input.Index;
+        }
+        var each = Volatile.Read(ref observers);
+        foreach (var change in changes)
+        {
+            TellEach(each, change);
+        }
+    }
+
+    private ScreenEvent Change(ScreenChange change, string screenClass, int index) =>
+        new(change, known.GetValueOrDefault(screenClass), screenClass, index);
+
+    [SuppressMessage("Design", "CA1031", Justification = "One observer's failure must not keep the change from the others, or reach the game.")]
+    private static void TellEach(IScreenObserver[] observers, ScreenEvent change)
+    {
+        foreach (var observer in observers)
+        {
+            try
+            {
+                observer.Observe(change);
+            }
+            catch (Exception)
+            {
+            }
+        }
+    }
+}

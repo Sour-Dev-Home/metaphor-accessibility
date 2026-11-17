@@ -5,10 +5,10 @@ using Metaphor.Core.Replay;
 
 namespace Metaphor.Features.Menus.Tests;
 
-/// <summary>The title menu's focus (#94) against a recorded session (#149): replays
-/// <c>tests/fixtures/sessions/title-menu-cursor.txt</c> through the message and cursor seams, as the hooks feed them,
-/// and checks which items were announced, in what order, through the recording announcer. Item text is made up, keyed
-/// by the real label; the wording is <see cref="TitleMenuFocusTests"/>' job.</summary>
+/// <summary>The title menu (#94, #208) against recorded sessions (#149): replays fixtures under
+/// <c>tests/fixtures/sessions/</c> through the message and cursor seams, as the hooks feed them, and checks which items
+/// were announced, in what order, through the recording announcer. Item text is made up, keyed by the real label; the
+/// wording is <see cref="TitleMenuFocusTests"/>' job.</summary>
 [Trait("Category", "Unit")]
 public sealed class TitleMenuReplayTests
 {
@@ -20,43 +20,51 @@ public sealed class TitleMenuReplayTests
     private void Replay(string scenario)
     {
         var library = new MessageLibrary();
-        var focus = new TitleMenuFocus(library, announcer, new TextCleaner(TextCleanerRules.None));
+        var screens = new MenuScreens([TitleMenuFocus.Screen]);
         var messages = new MessageEvents();
         var cursors = new CursorEvents();
         messages.ObserveFiles(library);
-        messages.ObserveFiles(focus);
-        cursors.Observe(focus);
+        cursors.Observe(screens);
+        screens.Observe(new TitleMenuFocus(library, announcer, new TextCleaner(TextCleanerRules.None)));
         var fixture = SessionFixture.Parse(File.ReadAllText(Path.Combine(AppContext.BaseDirectory, "sessions", scenario)));
-        fixture.Replay(messages, cursors, source: path => path == TitleFile ? TitleSource : "");
+        fixture.Replay(messages, cursors, source: path => path.EndsWith("Title_System.msg", StringComparison.Ordinal) ? TitleSource : "");
     }
 
-    // The item each announcement names.
-    private IEnumerable<string> ItemsSaid() => announcer.Said.Select(said =>
-        Items.Single(item => said.Text.Contains(item, StringComparison.Ordinal)));
-
-    private static readonly string[] Items = ["Alpha", "Bravo", "Charlie"];
+    private IEnumerable<string> Said() => announcer.Said.Select(said => said.Text);
 
     [Fact]
-    public void EachItemTheCursorSettlesOnIsAnnouncedOnceWhenItChangesAndMovesAreNot()
+    public void TheTitleMenuIsSpokenByItsScreenClassAndAgainWhenSettingsCloses()
     {
-        Replay("title-menu-cursor.txt");
+        Replay("title-screen-class.txt");
 
-        // The settled indexes in the fixture, with repeats of the same index dropped.
+        // Session 4 (build 548ddc95): the title cursor settles, then (from 86487 ms) the System submenu, which the
+        // same choice and cursor serve, so it is still read as the title's items (#210); then the title's Settings
+        // screens, which aren't known; then back on the title's third item.
         Assert.Equal(
             [
-                "Alpha", "Bravo", "Alpha", "Bravo", "Alpha", "Bravo", "Charlie", "Bravo", "Charlie",
-                "Alpha", "Bravo", "Alpha", "Bravo", "Charlie", "Bravo", "Alpha", "Bravo",
+                "Main menu, Alpha, 1 of 3", "Bravo, 2 of 3", "Alpha, 1 of 3", "Bravo, 2 of 3", "Charlie, 3 of 3",
+                "Bravo, 2 of 3", "Alpha, 1 of 3", "Bravo, 2 of 3", "Charlie, 3 of 3",
+                "Alpha, 1 of 3", "Bravo, 2 of 3", "Alpha, 1 of 3",
+                "Main menu, Charlie, 3 of 3", "Bravo, 2 of 3",
             ],
-            ItemsSaid());
+            Said());
+        Assert.All(announcer.Said, said => Assert.True(said.Interrupt));
     }
 
     [Fact]
-    public void OnlyTheFirstAnnouncementNamesTheMenuAndEachCutsOffTheLast()
+    public void TheTitleFileCompilingDuringPlaySaysNothingAboutTheTitleMenu()
     {
+        Replay("title-file-during-play.txt");
+
+        Assert.Empty(announcer.Said);
+    }
+
+    [Fact]
+    public void ARunWithoutScreenClassesSaysNothingAboutTheTitleMenu()
+    {
+        // The #154 run, before the cursor hook named screens: the title file compiled, then cursors with no class.
         Replay("title-menu-cursor.txt");
 
-        Assert.StartsWith("Main menu", announcer.Said[0].Text, StringComparison.Ordinal);
-        Assert.DoesNotContain(announcer.Said.Skip(1), said => said.Text.StartsWith("Main menu", StringComparison.Ordinal));
-        Assert.All(announcer.Said, said => Assert.True(said.Interrupt));
+        Assert.Empty(announcer.Said);
     }
 }

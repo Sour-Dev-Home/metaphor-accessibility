@@ -3,9 +3,8 @@ using System.Text;
 
 namespace Metaphor.Core.Tests;
 
-/// <summary>What the #213 screen class listener decodes: an object's class name from the run-time type information its
-/// vtable points at, which choice owns a cursor manager, and the manager's fields that point at named objects. Made-up
-/// memory and class names only.</summary>
+/// <summary>What the screen class lookup decodes (#213, #208): an object's class name from the run-time type information
+/// its vtable points at, and which choice owns a cursor manager. Made-up memory and class names only.</summary>
 [Trait("Category", "Unit")]
 public sealed class ScreenClassSpyTests
 {
@@ -114,24 +113,5 @@ public sealed class ScreenClassSpyTests
         Assert.Equal(0x300, owners.OwnerOf(0xa0));
         Assert.Equal(0x200, owners.OwnerOf(0xb0));
         Assert.Null(owners.OwnerOf(0xc0));
-    }
-
-    [Fact]
-    public void AManagersFieldsThatPointAtNamedObjectsAreListedByOffset()
-    {
-        var memory = new FakeMemory();
-        memory.Pointer(0x19000, Class(memory, 0x21e2830, 0x1a00100, 0x2b00100, ".?AVRootMenuChoice@ope@ui@app@@"));
-        memory.Pointer(0x19100, Class(memory, 0x2204568, 0x1a00200, 0x2b00200, ".?AVCursorManagerSoundParts@ope@ui@app@@"));
-        var fields = new byte[0x30];
-        BinaryPrimitives.WriteInt64LittleEndian(fields.AsSpan(0x08), 0x19100);
-        BinaryPrimitives.WriteInt64LittleEndian(fields.AsSpan(0x10), 0x17777);
-        BinaryPrimitives.WriteInt32LittleEndian(fields.AsSpan(0x18), 3);
-        BinaryPrimitives.WriteInt64LittleEndian(fields.AsSpan(0x28), 0x19000);
-
-        var named = NamedFields.Of(fields, memory.ClassNameOf);
-
-        Assert.Equal(
-            [(0x08, "CursorManagerSoundParts@ope@ui@app"), (0x28, "RootMenuChoice@ope@ui@app")],
-            named);
     }
 }

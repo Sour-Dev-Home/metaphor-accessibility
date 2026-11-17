@@ -32,7 +32,7 @@ public sealed record PadRecord(long Milliseconds, PadRead Read) : SessionRecord(
 /// then one record per line, <c>&lt;ms&gt; &lt;kind&gt; &lt;field&gt;=&lt;value&gt; …</c>, with kinds <c>compile</c>
 /// (<c>id</c>, <c>path</c>), <c>request</c> (<c>kind</c>, <c>label</c>), <c>select</c> (<c>kind</c>, <c>prompt</c>,
 /// <c>choice</c>; <c>-</c> for an unreadable label), <c>cursor</c> (<c>mgr</c>, <c>class</c>, <c>cmd</c>, <c>result</c>,
-/// <c>top</c>, <c>row</c>, <c>flags</c>) and <c>pad</c> (<c>pad</c>, <c>buttons</c>, <c>returned</c>). No game text: a
+/// <c>top</c>, <c>row</c>, <c>flags</c>, and <c>screen</c> when its screen class is known) and <c>pad</c> (<c>pad</c>, <c>buttons</c>, <c>returned</c>). No game text: a
 /// test that needs text invents it, keyed by the real label.</summary>
 public sealed class SessionFixture
 {
@@ -126,7 +126,7 @@ public sealed class SessionFixture
             "select" => new ChoiceRecord(ms, new ChoiceRequested(Number("kind"), Label("prompt"), Label("choice"))),
             "cursor" => new CursorRecord(ms, new CursorInput(Long(Field("mgr"), number),
                 Field("class") == "?" ? null : Long(Field("class"), number), Number("cmd"), Number("result"),
-                Number("top"), Number("row"), Number("flags"))),
+                Number("top"), Number("row"), Number("flags"), fields.GetValueOrDefault("screen"))),
             "pad" => new PadRecord(ms, new PadRead(Number("pad"), Number("buttons"), Number("returned"))),
             _ => throw Refused(number),
         };

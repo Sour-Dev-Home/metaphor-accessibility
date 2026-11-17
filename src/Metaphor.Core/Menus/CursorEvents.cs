@@ -5,8 +5,11 @@ namespace Metaphor.Core.Menus;
 /// <summary>One input a menu's cursor manager handled (#94): the manager, its class (its vtable as a module offset, null
 /// when unreadable), the command and what the handler returned, the cursor after it ran (<c>top</c> plus <c>row</c>) and
 /// the manager's flags. Fields, command range and build: docs/raw-sources/ui-focus-candidates-2026-11-16.md. Numbers
-/// only, no game text.</summary>
-public sealed record CursorInput(long Manager, long? ClassRva, int Command, int Result, int Top, int Row, int Flags)
+/// only, no game text. <paramref name="ScreenClass"/> is the screen class of the choice that owns the manager, as its
+/// run-time type information names it (<c>TitleChoice@ope@ui@app</c>), or null when no owner was seen or its class is
+/// unreadable (docs/raw-sources/screen-class-session-2026-11-17.md).</summary>
+public sealed record CursorInput(
+    long Manager, long? ClassRva, int Command, int Result, int Top, int Row, int Flags, string? ScreenClass = null)
 {
     /// <summary>The cursor's position: what the class's index getter returns.</summary>
     public int Index => Top + Row;

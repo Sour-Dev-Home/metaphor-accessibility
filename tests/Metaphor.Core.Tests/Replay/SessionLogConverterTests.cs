@@ -78,6 +78,48 @@ public sealed class SessionLogConverterTests
     }
 
     [Fact]
+    public void KeepsACursorsScreenClass()
+    {
+        var fixture = Convert(
+            ["1800 ms cursor mgr=0x51df310 class=0x22045e8 cmd=0x1 result=1 index=0 top=0 row=0 flags=0x46 screen=TitleChoice@ope@ui@app"],
+            kinds: ["cursor"]);
+
+        Assert.Equal("0 cursor mgr=0x51df310 class=0x22045e8 cmd=0x1 result=1 top=0 row=0 flags=0x46 screen=TitleChoice@ope@ui@app",
+            fixture.Split('\n')[3]);
+    }
+
+    [Fact]
+    public void TakesASpikeLogsScreenRecordAsTheScreenClassOfTheCursorJustBeforeIt()
+    {
+        var fixture = Convert(
+            [
+                "1800 ms cursor mgr=0x51df310 class=0x22045e8 cmd=0x1 result=1 index=0 top=0 row=0 flags=0x46",
+                "1800 ms screen mgr=0x51df310 mgrClass=CursorManager@ope@ui@app owner=0x4 ownerClass=?$ConfigTopChoicePc@VConfigTopChoicePcLayoutInit@ui@app@@@ope@ui@app fields=none",
+                "1900 ms cursor mgr=0x51df320 class=0x22045e8 cmd=0x1 result=1 index=1 top=0 row=1 flags=0x46",
+                "1900 ms screen mgr=0x51df320 mgrClass=CursorManager@ope@ui@app owner=none ownerClass=? fields=none",
+            ],
+            kinds: ["cursor"]);
+
+        Assert.Equal(
+            [
+                "0 cursor mgr=0x51df310 class=0x22045e8 cmd=0x1 result=1 top=0 row=0 flags=0x46 screen=?$ConfigTopChoicePc@VConfigTopChoicePcLayoutInit@ui@app@@@ope@ui@app",
+                "100 cursor mgr=0x51df320 class=0x22045e8 cmd=0x1 result=1 top=0 row=1 flags=0x46",
+            ],
+            fixture.Split('\n')[3..5]);
+    }
+
+    [Theory]
+    [InlineData("1800 ms cursor mgr=0x51df310 class=0x22045e8 cmd=0x1 result=1 index=0 top=0 row=0 flags=0x46 screen=Made-up")]
+    [InlineData("1800 ms screen mgr=0x51df310 mgrClass=? owner=0x4 ownerClass=Made up words fields=none")]
+    public void RefusesAScreenClassThatIsNotAClassName(string record)
+    {
+        var refused = Assert.Throws<FormatException>(() => Convert(
+            ["1800 ms cursor mgr=0x51df310 class=0x22045e8 cmd=0x1 result=1 index=0 top=0 row=0 flags=0x46", record]));
+
+        Assert.DoesNotContain("Made", refused.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void KeepsAnUnreadableLabelAsADash()
     {
         var fixture = Convert(["1700 ms select kind=0 first=(unreadable) second=\"MES_x_003\""]);

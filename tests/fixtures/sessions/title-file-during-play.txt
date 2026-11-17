@@ -1,0 +1,260 @@
+# Title file compiled during play, then other screens (Memorandum, menus): nothing is the title menu (#208)
+# source: docs/raw-sources/screen-class-session-2026-11-17.md
+# game build: 548ddc955c176867f062c44f94c03dd9ac33caefb278a5ac388e792aedf09504
+0 cursor mgr=0x13b6b6850 class=0x22046a8 cmd=0x16 result=22 top=27 row=0 flags=0x46 screen=CalendarChoice@ope@ui@app
+17 cursor mgr=0x13b6b6850 class=0x22046a8 cmd=0x1 result=1 top=27 row=0 flags=0x46 screen=CalendarChoice@ope@ui@app
+351 cursor mgr=0x13b6b6850 class=0x22046a8 cmd=0x16 result=22 top=28 row=0 flags=0x46 screen=CalendarChoice@ope@ui@app
+368 cursor mgr=0x13b6b6850 class=0x22046a8 cmd=0x1 result=1 top=28 row=0 flags=0x46 screen=CalendarChoice@ope@ui@app
+651 cursor mgr=0x13b6b6850 class=0x22046a8 cmd=0x15 result=21 top=23 row=0 flags=0x46 screen=CalendarChoice@ope@ui@app
+668 cursor mgr=0x13b6b6850 class=0x22046a8 cmd=0x1 result=1 top=23 row=0 flags=0x46 screen=CalendarChoice@ope@ui@app
+1152 cursor mgr=0x13b6b6850 class=0x22046a8 cmd=0x17 result=23 top=22 row=0 flags=0x46 screen=CalendarChoice@ope@ui@app
+1169 cursor mgr=0x13b6b6850 class=0x22046a8 cmd=0x1 result=1 top=22 row=0 flags=0x46 screen=CalendarChoice@ope@ui@app
+1419 cursor mgr=0x13b6b6850 class=0x22046a8 cmd=0x17 result=23 top=21 row=0 flags=0x46 screen=CalendarChoice@ope@ui@app
+1436 cursor mgr=0x13b6b6850 class=0x22046a8 cmd=0x1 result=1 top=21 row=0 flags=0x46 screen=CalendarChoice@ope@ui@app
+1819 cursor mgr=0x13b6b6850 class=0x22046a8 cmd=0x14 result=20 top=26 row=0 flags=0x46 screen=CalendarChoice@ope@ui@app
+1837 cursor mgr=0x13b6b6850 class=0x22046a8 cmd=0x1 result=1 top=26 row=0 flags=0x46 screen=CalendarChoice@ope@ui@app
+2070 cursor mgr=0x13b6b6850 class=0x22046a8 cmd=0x17 result=23 top=25 row=0 flags=0x46 screen=CalendarChoice@ope@ui@app
+2087 cursor mgr=0x13b6b6850 class=0x22046a8 cmd=0x1 result=1 top=25 row=0 flags=0x46 screen=CalendarChoice@ope@ui@app
+2804 cursor mgr=0x13b6b6850 class=0x22046a8 cmd=0x15 result=21 top=20 row=0 flags=0x46 screen=CalendarChoice@ope@ui@app
+2822 cursor mgr=0x13b6b6850 class=0x22046a8 cmd=0x1 result=1 top=20 row=0 flags=0x46 screen=CalendarChoice@ope@ui@app
+3005 cursor mgr=0x13b6b6850 class=0x22046a8 cmd=0x15 result=21 top=15 row=0 flags=0x46 screen=CalendarChoice@ope@ui@app
+3022 cursor mgr=0x13b6b6850 class=0x22046a8 cmd=0x1 result=1 top=15 row=0 flags=0x46 screen=CalendarChoice@ope@ui@app
+3255 cursor mgr=0x13b6b6850 class=0x22046a8 cmd=0x15 result=21 top=10 row=0 flags=0x46 screen=CalendarChoice@ope@ui@app
+3272 cursor mgr=0x13b6b6850 class=0x22046a8 cmd=0x1 result=1 top=10 row=0 flags=0x46 screen=CalendarChoice@ope@ui@app
+3756 cursor mgr=0x13b6b6850 class=0x22046a8 cmd=0x16 result=22 top=11 row=0 flags=0x46 screen=CalendarChoice@ope@ui@app
+3773 cursor mgr=0x13b6b6850 class=0x22046a8 cmd=0x1 result=1 top=11 row=0 flags=0x46 screen=CalendarChoice@ope@ui@app
+3990 cursor mgr=0x13b6b6850 class=0x22046a8 cmd=0x16 result=22 top=12 row=0 flags=0x46 screen=CalendarChoice@ope@ui@app
+4007 cursor mgr=0x13b6b6850 class=0x22046a8 cmd=0x1 result=1 top=12 row=0 flags=0x46 screen=CalendarChoice@ope@ui@app
+4223 cursor mgr=0x13b6b6850 class=0x22046a8 cmd=0x16 result=22 top=13 row=0 flags=0x46 screen=CalendarChoice@ope@ui@app
+4240 cursor mgr=0x13b6b6850 class=0x22046a8 cmd=0x1 result=1 top=13 row=0 flags=0x46 screen=CalendarChoice@ope@ui@app
+4440 cursor mgr=0x13b6b6850 class=0x22046a8 cmd=0x16 result=22 top=14 row=0 flags=0x46 screen=CalendarChoice@ope@ui@app
+4457 cursor mgr=0x13b6b6850 class=0x22046a8 cmd=0x1 result=1 top=14 row=0 flags=0x46 screen=CalendarChoice@ope@ui@app
+4657 cursor mgr=0x13b6b6850 class=0x22046a8 cmd=0x16 result=22 top=10 row=0 flags=0x46 screen=CalendarChoice@ope@ui@app
+4674 cursor mgr=0x13b6b6850 class=0x22046a8 cmd=0x1 result=1 top=10 row=0 flags=0x46 screen=CalendarChoice@ope@ui@app
+4891 cursor mgr=0x13b6b6850 class=0x22046a8 cmd=0x15 result=21 top=5 row=0 flags=0x46 screen=CalendarChoice@ope@ui@app
+4908 cursor mgr=0x13b6b6850 class=0x22046a8 cmd=0x1 result=1 top=5 row=0 flags=0x46 screen=CalendarChoice@ope@ui@app
+5225 cursor mgr=0x13b6b6850 class=0x22046a8 cmd=0x16 result=22 top=6 row=0 flags=0x46 screen=CalendarChoice@ope@ui@app
+5242 cursor mgr=0x13b6b6850 class=0x22046a8 cmd=0x1 result=1 top=6 row=0 flags=0x46 screen=CalendarChoice@ope@ui@app
+5459 cursor mgr=0x13b6b6850 class=0x22046a8 cmd=0x16 result=22 top=7 row=0 flags=0x46 screen=CalendarChoice@ope@ui@app
+5476 cursor mgr=0x13b6b6850 class=0x22046a8 cmd=0x1 result=1 top=7 row=0 flags=0x46 screen=CalendarChoice@ope@ui@app
+5709 cursor mgr=0x13b6b6850 class=0x22046a8 cmd=0x16 result=22 top=8 row=0 flags=0x46 screen=CalendarChoice@ope@ui@app
+5726 cursor mgr=0x13b6b6850 class=0x22046a8 cmd=0x1 result=1 top=8 row=0 flags=0x46 screen=CalendarChoice@ope@ui@app
+5943 cursor mgr=0x13b6b6850 class=0x22046a8 cmd=0x16 result=22 top=9 row=0 flags=0x46 screen=CalendarChoice@ope@ui@app
+5960 cursor mgr=0x13b6b6850 class=0x22046a8 cmd=0x1 result=1 top=9 row=0 flags=0x46 screen=CalendarChoice@ope@ui@app
+8196 compile id=75 path=EN/message/system/Title_System.msg
+8196 compile id=74 path=EN/message/system/System_Network.msg
+10583 cursor mgr=0x13b6b6850 class=0x22046a8 cmd=0x17 result=23 top=8 row=0 flags=0x46 screen=CalendarChoice@ope@ui@app
+10601 cursor mgr=0x13b6b6850 class=0x22046a8 cmd=0x1 result=1 top=8 row=0 flags=0x46 screen=CalendarChoice@ope@ui@app
+10900 cursor mgr=0x13b6b6850 class=0x22046a8 cmd=0x14 result=20 top=13 row=0 flags=0x46 screen=CalendarChoice@ope@ui@app
+10918 cursor mgr=0x13b6b6850 class=0x22046a8 cmd=0x1 result=1 top=13 row=0 flags=0x46 screen=CalendarChoice@ope@ui@app
+11201 cursor mgr=0x13b6b6850 class=0x22046a8 cmd=0x14 result=20 top=18 row=0 flags=0x46 screen=CalendarChoice@ope@ui@app
+11218 cursor mgr=0x13b6b6850 class=0x22046a8 cmd=0x1 result=1 top=18 row=0 flags=0x46 screen=CalendarChoice@ope@ui@app
+11451 cursor mgr=0x13b6b6850 class=0x22046a8 cmd=0x14 result=20 top=23 row=0 flags=0x46 screen=CalendarChoice@ope@ui@app
+11468 cursor mgr=0x13b6b6850 class=0x22046a8 cmd=0x1 result=1 top=23 row=0 flags=0x46 screen=CalendarChoice@ope@ui@app
+11952 compile id=77 path=EN/message/system/Title_System.msg
+11952 compile id=76 path=EN/message/system/System_Network.msg
+15408 cursor mgr=0x132b04c30 class=0x22045e8 cmd=0x14 result=20 top=7 row=0 flags=0x46 screen=RootMenuChoice@ope@ui@app
+15425 cursor mgr=0x132b04c30 class=0x22045e8 cmd=0x1 result=1 top=7 row=0 flags=0x46 screen=RootMenuChoice@ope@ui@app
+16192 compile id=78 path=EN/message/system/Memorandum_Text.msg
+16342 cursor mgr=0x132b035b0 class=0x22045e8 cmd=0x1 result=1 top=0 row=11 flags=0x66 screen=GlossaryListChoice@ope@ui@app
+17646 cursor mgr=0x132b035b0 class=0x22045e8 cmd=0x1 result=1 top=0 row=0 flags=0x66 screen=GlossaryListChoice@ope@ui@app
+27878 cursor mgr=0x132b035b0 class=0x22045e8 cmd=0x14 result=20 top=1 row=0 flags=0x66 screen=GlossaryListChoice@ope@ui@app
+27895 cursor mgr=0x132b035b0 class=0x22045e8 cmd=0x1 result=1 top=1 row=0 flags=0x66 screen=GlossaryListChoice@ope@ui@app
+28012 cursor mgr=0x132b05c20 class=0x22045e8 cmd=0x1 result=1 top=0 row=0 flags=0x47 screen=GlossaryChoice@ope@ui@app
+33019 cursor mgr=0x132b05c20 class=0x22045e8 cmd=0x16 result=22 top=0 row=0 flags=0x47 screen=GlossaryChoice@ope@ui@app
+33136 cursor mgr=0x132b035b0 class=0x22045e8 cmd=0x1 result=1 top=9 row=22 flags=0x66 screen=GlossaryListChoice@ope@ui@app
+33870 cursor mgr=0x132b035b0 class=0x22045e8 cmd=0x15 result=21 top=8 row=22 flags=0x66 screen=GlossaryListChoice@ope@ui@app
+33888 cursor mgr=0x132b035b0 class=0x22045e8 cmd=0x1 result=1 top=8 row=22 flags=0x66 screen=GlossaryListChoice@ope@ui@app
+34221 cursor mgr=0x132b035b0 class=0x22045e8 cmd=0x15 result=21 top=7 row=22 flags=0x66 screen=GlossaryListChoice@ope@ui@app
+34238 cursor mgr=0x132b035b0 class=0x22045e8 cmd=0x1 result=1 top=7 row=22 flags=0x66 screen=GlossaryListChoice@ope@ui@app
+34438 cursor mgr=0x132b035b0 class=0x22045e8 cmd=0x15 result=21 top=6 row=22 flags=0x66 screen=GlossaryListChoice@ope@ui@app
+34455 cursor mgr=0x132b035b0 class=0x22045e8 cmd=0x1 result=1 top=6 row=22 flags=0x66 screen=GlossaryListChoice@ope@ui@app
+34622 cursor mgr=0x132b035b0 class=0x22045e8 cmd=0x15 result=21 top=5 row=22 flags=0x66 screen=GlossaryListChoice@ope@ui@app
+34639 cursor mgr=0x132b035b0 class=0x22045e8 cmd=0x1 result=1 top=5 row=22 flags=0x66 screen=GlossaryListChoice@ope@ui@app
+34788 cursor mgr=0x132b035b0 class=0x22045e8 cmd=0x15 result=21 top=4 row=22 flags=0x66 screen=GlossaryListChoice@ope@ui@app
+34806 cursor mgr=0x132b035b0 class=0x22045e8 cmd=0x1 result=1 top=4 row=22 flags=0x66 screen=GlossaryListChoice@ope@ui@app
+34939 cursor mgr=0x132b035b0 class=0x22045e8 cmd=0x15 result=21 top=3 row=22 flags=0x66 screen=GlossaryListChoice@ope@ui@app
+34956 cursor mgr=0x132b035b0 class=0x22045e8 cmd=0x1 result=1 top=3 row=22 flags=0x66 screen=GlossaryListChoice@ope@ui@app
+35123 cursor mgr=0x132b035b0 class=0x22045e8 cmd=0x15 result=21 top=2 row=22 flags=0x66 screen=GlossaryListChoice@ope@ui@app
+35140 cursor mgr=0x132b035b0 class=0x22045e8 cmd=0x1 result=1 top=2 row=22 flags=0x66 screen=GlossaryListChoice@ope@ui@app
+35273 cursor mgr=0x132b035b0 class=0x22045e8 cmd=0x15 result=21 top=1 row=22 flags=0x66 screen=GlossaryListChoice@ope@ui@app
+35290 cursor mgr=0x132b035b0 class=0x22045e8 cmd=0x1 result=1 top=1 row=22 flags=0x66 screen=GlossaryListChoice@ope@ui@app
+35440 cursor mgr=0x132b035b0 class=0x22045e8 cmd=0x15 result=21 top=0 row=22 flags=0x66 screen=GlossaryListChoice@ope@ui@app
+35457 cursor mgr=0x132b035b0 class=0x22045e8 cmd=0x1 result=1 top=0 row=22 flags=0x66 screen=GlossaryListChoice@ope@ui@app
+35607 cursor mgr=0x132b035b0 class=0x22045e8 cmd=0x15 result=21 top=0 row=21 flags=0x66 screen=GlossaryListChoice@ope@ui@app
+35624 cursor mgr=0x132b035b0 class=0x22045e8 cmd=0x1 result=1 top=0 row=21 flags=0x66 screen=GlossaryListChoice@ope@ui@app
+35840 cursor mgr=0x132b035b0 class=0x22045e8 cmd=0x15 result=21 top=0 row=20 flags=0x66 screen=GlossaryListChoice@ope@ui@app
+35857 cursor mgr=0x132b035b0 class=0x22045e8 cmd=0x1 result=1 top=0 row=20 flags=0x66 screen=GlossaryListChoice@ope@ui@app
+35941 cursor mgr=0x132b035b0 class=0x22045e8 cmd=0x15 result=21 top=0 row=19 flags=0x66 screen=GlossaryListChoice@ope@ui@app
+35958 cursor mgr=0x132b035b0 class=0x22045e8 cmd=0x1 result=1 top=0 row=19 flags=0x66 screen=GlossaryListChoice@ope@ui@app
+36041 cursor mgr=0x132b035b0 class=0x22045e8 cmd=0x15 result=21 top=0 row=18 flags=0x66 screen=GlossaryListChoice@ope@ui@app
+36058 cursor mgr=0x132b035b0 class=0x22045e8 cmd=0x1 result=1 top=0 row=18 flags=0x66 screen=GlossaryListChoice@ope@ui@app
+36141 cursor mgr=0x132b035b0 class=0x22045e8 cmd=0x15 result=21 top=0 row=17 flags=0x66 screen=GlossaryListChoice@ope@ui@app
+36158 cursor mgr=0x132b035b0 class=0x22045e8 cmd=0x1 result=1 top=0 row=17 flags=0x66 screen=GlossaryListChoice@ope@ui@app
+36241 cursor mgr=0x132b035b0 class=0x22045e8 cmd=0x15 result=21 top=0 row=16 flags=0x66 screen=GlossaryListChoice@ope@ui@app
+36258 cursor mgr=0x132b035b0 class=0x22045e8 cmd=0x1 result=1 top=0 row=16 flags=0x66 screen=GlossaryListChoice@ope@ui@app
+36341 cursor mgr=0x132b035b0 class=0x22045e8 cmd=0x15 result=21 top=0 row=15 flags=0x66 screen=GlossaryListChoice@ope@ui@app
+36358 cursor mgr=0x132b035b0 class=0x22045e8 cmd=0x1 result=1 top=0 row=15 flags=0x66 screen=GlossaryListChoice@ope@ui@app
+36441 cursor mgr=0x132b035b0 class=0x22045e8 cmd=0x15 result=21 top=0 row=14 flags=0x66 screen=GlossaryListChoice@ope@ui@app
+36458 cursor mgr=0x132b035b0 class=0x22045e8 cmd=0x1 result=1 top=0 row=14 flags=0x66 screen=GlossaryListChoice@ope@ui@app
+36542 cursor mgr=0x132b035b0 class=0x22045e8 cmd=0x15 result=21 top=0 row=13 flags=0x66 screen=GlossaryListChoice@ope@ui@app
+36558 cursor mgr=0x132b035b0 class=0x22045e8 cmd=0x1 result=1 top=0 row=13 flags=0x66 screen=GlossaryListChoice@ope@ui@app
+36642 cursor mgr=0x132b035b0 class=0x22045e8 cmd=0x15 result=21 top=0 row=12 flags=0x66 screen=GlossaryListChoice@ope@ui@app
+36659 cursor mgr=0x132b035b0 class=0x22045e8 cmd=0x1 result=1 top=0 row=12 flags=0x66 screen=GlossaryListChoice@ope@ui@app
+36742 cursor mgr=0x132b035b0 class=0x22045e8 cmd=0x15 result=21 top=0 row=11 flags=0x66 screen=GlossaryListChoice@ope@ui@app
+36758 cursor mgr=0x132b035b0 class=0x22045e8 cmd=0x1 result=1 top=0 row=11 flags=0x66 screen=GlossaryListChoice@ope@ui@app
+36842 cursor mgr=0x132b035b0 class=0x22045e8 cmd=0x15 result=21 top=0 row=10 flags=0x66 screen=GlossaryListChoice@ope@ui@app
+36859 cursor mgr=0x132b035b0 class=0x22045e8 cmd=0x1 result=1 top=0 row=10 flags=0x66 screen=GlossaryListChoice@ope@ui@app
+36942 cursor mgr=0x132b035b0 class=0x22045e8 cmd=0x15 result=21 top=0 row=9 flags=0x66 screen=GlossaryListChoice@ope@ui@app
+36959 cursor mgr=0x132b035b0 class=0x22045e8 cmd=0x1 result=1 top=0 row=9 flags=0x66 screen=GlossaryListChoice@ope@ui@app
+37042 cursor mgr=0x132b035b0 class=0x22045e8 cmd=0x15 result=21 top=0 row=8 flags=0x66 screen=GlossaryListChoice@ope@ui@app
+37059 cursor mgr=0x132b035b0 class=0x22045e8 cmd=0x1 result=1 top=0 row=8 flags=0x66 screen=GlossaryListChoice@ope@ui@app
+37142 cursor mgr=0x132b035b0 class=0x22045e8 cmd=0x15 result=21 top=0 row=7 flags=0x66 screen=GlossaryListChoice@ope@ui@app
+37159 cursor mgr=0x132b035b0 class=0x22045e8 cmd=0x1 result=1 top=0 row=7 flags=0x66 screen=GlossaryListChoice@ope@ui@app
+37243 cursor mgr=0x132b035b0 class=0x22045e8 cmd=0x15 result=21 top=0 row=6 flags=0x66 screen=GlossaryListChoice@ope@ui@app
+37260 cursor mgr=0x132b035b0 class=0x22045e8 cmd=0x1 result=1 top=0 row=6 flags=0x66 screen=GlossaryListChoice@ope@ui@app
+37343 cursor mgr=0x132b035b0 class=0x22045e8 cmd=0x15 result=21 top=0 row=5 flags=0x66 screen=GlossaryListChoice@ope@ui@app
+37360 cursor mgr=0x132b035b0 class=0x22045e8 cmd=0x1 result=1 top=0 row=5 flags=0x66 screen=GlossaryListChoice@ope@ui@app
+37443 cursor mgr=0x132b035b0 class=0x22045e8 cmd=0x15 result=21 top=0 row=4 flags=0x66 screen=GlossaryListChoice@ope@ui@app
+37460 cursor mgr=0x132b035b0 class=0x22045e8 cmd=0x1 result=1 top=0 row=4 flags=0x66 screen=GlossaryListChoice@ope@ui@app
+37543 cursor mgr=0x132b035b0 class=0x22045e8 cmd=0x15 result=21 top=0 row=3 flags=0x66 screen=GlossaryListChoice@ope@ui@app
+37560 cursor mgr=0x132b035b0 class=0x22045e8 cmd=0x1 result=1 top=0 row=3 flags=0x66 screen=GlossaryListChoice@ope@ui@app
+37643 cursor mgr=0x132b035b0 class=0x22045e8 cmd=0x15 result=21 top=0 row=2 flags=0x66 screen=GlossaryListChoice@ope@ui@app
+37661 cursor mgr=0x132b035b0 class=0x22045e8 cmd=0x1 result=1 top=0 row=2 flags=0x66 screen=GlossaryListChoice@ope@ui@app
+37743 cursor mgr=0x132b035b0 class=0x22045e8 cmd=0x15 result=21 top=0 row=1 flags=0x66 screen=GlossaryListChoice@ope@ui@app
+37761 cursor mgr=0x132b035b0 class=0x22045e8 cmd=0x1 result=1 top=0 row=1 flags=0x66 screen=GlossaryListChoice@ope@ui@app
+37844 cursor mgr=0x132b035b0 class=0x22045e8 cmd=0x15 result=21 top=0 row=0 flags=0x66 screen=GlossaryListChoice@ope@ui@app
+37861 cursor mgr=0x132b035b0 class=0x22045e8 cmd=0x1 result=1 top=0 row=0 flags=0x66 screen=GlossaryListChoice@ope@ui@app
+37944 cursor mgr=0x132b035b0 class=0x22045e8 cmd=0x15 result=1 top=0 row=0 flags=0x66 screen=GlossaryListChoice@ope@ui@app
+37961 cursor mgr=0x132b035b0 class=0x22045e8 cmd=0x1 result=1 top=0 row=0 flags=0x66 screen=GlossaryListChoice@ope@ui@app
+38044 cursor mgr=0x132b035b0 class=0x22045e8 cmd=0x15 result=1 top=0 row=0 flags=0x66 screen=GlossaryListChoice@ope@ui@app
+38061 cursor mgr=0x132b035b0 class=0x22045e8 cmd=0x1 result=1 top=0 row=0 flags=0x66 screen=GlossaryListChoice@ope@ui@app
+38578 cursor mgr=0x132b035b0 class=0x22045e8 cmd=0x14 result=20 top=1 row=0 flags=0x66 screen=GlossaryListChoice@ope@ui@app
+38596 cursor mgr=0x132b035b0 class=0x22045e8 cmd=0x1 result=1 top=1 row=0 flags=0x66 screen=GlossaryListChoice@ope@ui@app
+39179 cursor mgr=0x132b035b0 class=0x22045e8 cmd=0x14 result=20 top=2 row=0 flags=0x66 screen=GlossaryListChoice@ope@ui@app
+39196 cursor mgr=0x132b035b0 class=0x22045e8 cmd=0x1 result=1 top=2 row=0 flags=0x66 screen=GlossaryListChoice@ope@ui@app
+39830 cursor mgr=0x132b035b0 class=0x22045e8 cmd=0x14 result=20 top=3 row=0 flags=0x66 screen=GlossaryListChoice@ope@ui@app
+39847 cursor mgr=0x132b035b0 class=0x22045e8 cmd=0x1 result=1 top=3 row=0 flags=0x66 screen=GlossaryListChoice@ope@ui@app
+41749 cursor mgr=0x132b035b0 class=0x22045e8 cmd=0x14 result=20 top=4 row=0 flags=0x66 screen=GlossaryListChoice@ope@ui@app
+41767 cursor mgr=0x132b035b0 class=0x22045e8 cmd=0x1 result=1 top=4 row=0 flags=0x66 screen=GlossaryListChoice@ope@ui@app
+42033 cursor mgr=0x132b035b0 class=0x22045e8 cmd=0x15 result=21 top=3 row=0 flags=0x66 screen=GlossaryListChoice@ope@ui@app
+42051 cursor mgr=0x132b035b0 class=0x22045e8 cmd=0x1 result=1 top=3 row=0 flags=0x66 screen=GlossaryListChoice@ope@ui@app
+44238 cursor mgr=0x132b035b0 class=0x22045e8 cmd=0x1 result=1 top=0 row=0 flags=0x66 screen=GlossaryListChoice@ope@ui@app
+44921 cursor mgr=0x132b035b0 class=0x22045e8 cmd=0x14 result=20 top=1 row=0 flags=0x66 screen=GlossaryListChoice@ope@ui@app
+44940 cursor mgr=0x132b035b0 class=0x22045e8 cmd=0x1 result=1 top=1 row=0 flags=0x66 screen=GlossaryListChoice@ope@ui@app
+45539 cursor mgr=0x132b035b0 class=0x22045e8 cmd=0x14 result=20 top=2 row=0 flags=0x66 screen=GlossaryListChoice@ope@ui@app
+45557 cursor mgr=0x132b035b0 class=0x22045e8 cmd=0x1 result=1 top=2 row=0 flags=0x66 screen=GlossaryListChoice@ope@ui@app
+50414 cursor mgr=0x132b035b0 class=0x22045e8 cmd=0x1 result=1 top=0 row=0 flags=0x66 screen=GlossaryListChoice@ope@ui@app
+50897 cursor mgr=0x132b035b0 class=0x22045e8 cmd=0x14 result=20 top=1 row=0 flags=0x66 screen=GlossaryListChoice@ope@ui@app
+50915 cursor mgr=0x132b035b0 class=0x22045e8 cmd=0x1 result=1 top=1 row=0 flags=0x66 screen=GlossaryListChoice@ope@ui@app
+51381 cursor mgr=0x132b035b0 class=0x22045e8 cmd=0x14 result=20 top=2 row=0 flags=0x66 screen=GlossaryListChoice@ope@ui@app
+51399 cursor mgr=0x132b035b0 class=0x22045e8 cmd=0x1 result=1 top=2 row=0 flags=0x66 screen=GlossaryListChoice@ope@ui@app
+52000 cursor mgr=0x132b035b0 class=0x22045e8 cmd=0x1 result=1 top=0 row=0 flags=0x66 screen=GlossaryListChoice@ope@ui@app
+52200 cursor mgr=0x132b035b0 class=0x22045e8 cmd=0x14 result=20 top=1 row=0 flags=0x66 screen=GlossaryListChoice@ope@ui@app
+52217 cursor mgr=0x132b035b0 class=0x22045e8 cmd=0x1 result=1 top=1 row=0 flags=0x66 screen=GlossaryListChoice@ope@ui@app
+52683 cursor mgr=0x132b035b0 class=0x22045e8 cmd=0x14 result=20 top=2 row=0 flags=0x66 screen=GlossaryListChoice@ope@ui@app
+52711 cursor mgr=0x132b035b0 class=0x22045e8 cmd=0x1 result=1 top=2 row=0 flags=0x66 screen=GlossaryListChoice@ope@ui@app
+53219 cursor mgr=0x132b035b0 class=0x22045e8 cmd=0x1 result=1 top=0 row=0 flags=0x66 screen=GlossaryListChoice@ope@ui@app
+53551 cursor mgr=0x132b035b0 class=0x22045e8 cmd=0x14 result=20 top=1 row=0 flags=0x66 screen=GlossaryListChoice@ope@ui@app
+53569 cursor mgr=0x132b035b0 class=0x22045e8 cmd=0x1 result=1 top=1 row=0 flags=0x66 screen=GlossaryListChoice@ope@ui@app
+53735 cursor mgr=0x132b035b0 class=0x22045e8 cmd=0x14 result=20 top=2 row=0 flags=0x66 screen=GlossaryListChoice@ope@ui@app
+53753 cursor mgr=0x132b035b0 class=0x22045e8 cmd=0x1 result=1 top=2 row=0 flags=0x66 screen=GlossaryListChoice@ope@ui@app
+54653 cursor mgr=0x132b04c30 class=0x22045e8 cmd=0x14 result=20 top=8 row=0 flags=0x46 screen=RootMenuChoice@ope@ui@app
+54671 cursor mgr=0x132b04c30 class=0x22045e8 cmd=0x1 result=1 top=8 row=0 flags=0x46 screen=RootMenuChoice@ope@ui@app
+55089 cursor mgr=0x132b02e30 class=0x22045e8 cmd=0x1 result=1 top=0 row=0 flags=0x46 screen=SystemMenuChoice@ope@ui@app
+55738 compile id=79 path=EN/message/system/System_Network.msg
+55839 cursor mgr=0x132b04d20 class=0x22045e8 cmd=0x1 result=1 top=0 row=10 flags=0x46
+56276 cursor mgr=0x132b04d20 class=0x22045e8 cmd=0x14 result=20 top=1 row=10 flags=0x46
+56290 cursor mgr=0x132b04d20 class=0x22045e8 cmd=0x1 result=1 top=1 row=10 flags=0x46
+56607 cursor mgr=0x132b04d20 class=0x22045e8 cmd=0x14 result=20 top=2 row=10 flags=0x46
+56624 cursor mgr=0x132b04d20 class=0x22045e8 cmd=0x1 result=1 top=2 row=10 flags=0x46
+56790 cursor mgr=0x132b04d20 class=0x22045e8 cmd=0x14 result=20 top=3 row=10 flags=0x46
+56807 cursor mgr=0x132b04d20 class=0x22045e8 cmd=0x1 result=1 top=3 row=10 flags=0x46
+56957 cursor mgr=0x132b04d20 class=0x22045e8 cmd=0x14 result=20 top=4 row=10 flags=0x46
+56974 cursor mgr=0x132b04d20 class=0x22045e8 cmd=0x1 result=1 top=4 row=10 flags=0x46
+57107 cursor mgr=0x132b04d20 class=0x22045e8 cmd=0x14 result=20 top=4 row=11 flags=0x46
+57125 cursor mgr=0x132b04d20 class=0x22045e8 cmd=0x1 result=1 top=4 row=11 flags=0x46
+57374 cursor mgr=0x132b04d20 class=0x22045e8 cmd=0x14 result=20 top=4 row=12 flags=0x46
+57391 cursor mgr=0x132b04d20 class=0x22045e8 cmd=0x1 result=1 top=4 row=12 flags=0x46
+57541 cursor mgr=0x132b04d20 class=0x22045e8 cmd=0x14 result=20 top=0 row=0 flags=0x46
+57559 cursor mgr=0x132b04d20 class=0x22045e8 cmd=0x1 result=1 top=0 row=0 flags=0x46
+57725 cursor mgr=0x132b04d20 class=0x22045e8 cmd=0x14 result=20 top=1 row=0 flags=0x46
+57742 cursor mgr=0x132b04d20 class=0x22045e8 cmd=0x1 result=1 top=1 row=0 flags=0x46
+58042 cursor mgr=0x132b04d20 class=0x22045e8 cmd=0x14 result=20 top=2 row=0 flags=0x46
+58059 cursor mgr=0x132b04d20 class=0x22045e8 cmd=0x1 result=1 top=2 row=0 flags=0x46
+58476 cursor mgr=0x132b04d20 class=0x22045e8 cmd=0x14 result=20 top=3 row=0 flags=0x46
+58493 cursor mgr=0x132b04d20 class=0x22045e8 cmd=0x1 result=1 top=3 row=0 flags=0x46
+58710 cursor mgr=0x132b04d20 class=0x22045e8 cmd=0x15 result=21 top=2 row=0 flags=0x46
+58727 cursor mgr=0x132b04d20 class=0x22045e8 cmd=0x1 result=1 top=2 row=0 flags=0x46
+58877 cursor mgr=0x132b04d20 class=0x22045e8 cmd=0x15 result=21 top=1 row=0 flags=0x46
+58894 cursor mgr=0x132b04d20 class=0x22045e8 cmd=0x1 result=1 top=1 row=0 flags=0x46
+59044 cursor mgr=0x132b04d20 class=0x22045e8 cmd=0x15 result=21 top=0 row=0 flags=0x46
+59061 cursor mgr=0x132b04d20 class=0x22045e8 cmd=0x1 result=1 top=0 row=0 flags=0x46
+59628 cursor mgr=0x132b02e30 class=0x22045e8 cmd=0x14 result=20 top=1 row=0 flags=0x46 screen=SystemMenuChoice@ope@ui@app
+59645 cursor mgr=0x132b02e30 class=0x22045e8 cmd=0x1 result=1 top=1 row=0 flags=0x46 screen=SystemMenuChoice@ope@ui@app
+59811 compile id=80 path=EN/message/system/System_Network.msg
+59912 cursor mgr=0x132b041e0 class=0x22045e8 cmd=0x1 result=1 top=0 row=0 flags=0x46
+60396 cursor mgr=0x132b041e0 class=0x22045e8 cmd=0x14 result=20 top=1 row=0 flags=0x46
+60413 cursor mgr=0x132b041e0 class=0x22045e8 cmd=0x1 result=1 top=1 row=0 flags=0x46
+60546 cursor mgr=0x132b041e0 class=0x22045e8 cmd=0x14 result=20 top=2 row=0 flags=0x46
+60563 cursor mgr=0x132b041e0 class=0x22045e8 cmd=0x1 result=1 top=2 row=0 flags=0x46
+60730 cursor mgr=0x132b041e0 class=0x22045e8 cmd=0x14 result=20 top=3 row=0 flags=0x46
+60747 cursor mgr=0x132b041e0 class=0x22045e8 cmd=0x1 result=1 top=3 row=0 flags=0x46
+61397 cursor mgr=0x132b02e30 class=0x22045e8 cmd=0x14 result=20 top=2 row=0 flags=0x46 screen=SystemMenuChoice@ope@ui@app
+61415 cursor mgr=0x132b02e30 class=0x22045e8 cmd=0x1 result=1 top=2 row=0 flags=0x46 screen=SystemMenuChoice@ope@ui@app
+61597 compile id=82 path=EN/message/system/System_Tutorial_1.msg
+61597 compile id=81 path=EN/message/system/System_Tutorial_2.msg
+61681 cursor mgr=0x132b042d0 class=0x22045e8 cmd=0x1 result=1 top=0 row=0 flags=0x46 screen=SystemTutorialChoice@ope@ui@app
+62299 cursor mgr=0x132b042d0 class=0x22045e8 cmd=0x14 result=20 top=1 row=0 flags=0x46 screen=SystemTutorialChoice@ope@ui@app
+62316 cursor mgr=0x132b042d0 class=0x22045e8 cmd=0x1 result=1 top=1 row=0 flags=0x46 screen=SystemTutorialChoice@ope@ui@app
+62666 cursor mgr=0x132b042d0 class=0x22045e8 cmd=0x14 result=20 top=2 row=0 flags=0x46 screen=SystemTutorialChoice@ope@ui@app
+62683 cursor mgr=0x132b042d0 class=0x22045e8 cmd=0x1 result=1 top=2 row=0 flags=0x46 screen=SystemTutorialChoice@ope@ui@app
+63017 cursor mgr=0x132b042d0 class=0x22045e8 cmd=0x15 result=21 top=1 row=0 flags=0x46 screen=SystemTutorialChoice@ope@ui@app
+63034 cursor mgr=0x132b042d0 class=0x22045e8 cmd=0x1 result=1 top=1 row=0 flags=0x46 screen=SystemTutorialChoice@ope@ui@app
+63417 cursor mgr=0x132b042d0 class=0x22045e8 cmd=0x14 result=20 top=2 row=0 flags=0x46 screen=SystemTutorialChoice@ope@ui@app
+63435 cursor mgr=0x132b042d0 class=0x22045e8 cmd=0x1 result=1 top=2 row=0 flags=0x46 screen=SystemTutorialChoice@ope@ui@app
+63535 cursor mgr=0x132b042d0 class=0x22045e8 cmd=0x1 result=1 top=0 row=0 flags=0x46 screen=SystemTutorialChoice@ope@ui@app
+63918 cursor mgr=0x132b042d0 class=0x22045e8 cmd=0x14 result=20 top=1 row=0 flags=0x46 screen=SystemTutorialChoice@ope@ui@app
+63935 cursor mgr=0x132b042d0 class=0x22045e8 cmd=0x1 result=1 top=1 row=0 flags=0x46 screen=SystemTutorialChoice@ope@ui@app
+64118 cursor mgr=0x132b042d0 class=0x22045e8 cmd=0x14 result=20 top=2 row=0 flags=0x46 screen=SystemTutorialChoice@ope@ui@app
+64136 cursor mgr=0x132b042d0 class=0x22045e8 cmd=0x1 result=1 top=2 row=0 flags=0x46 screen=SystemTutorialChoice@ope@ui@app
+64352 cursor mgr=0x132b042d0 class=0x22045e8 cmd=0x1 result=1 top=0 row=0 flags=0x46 screen=SystemTutorialChoice@ope@ui@app
+64552 cursor mgr=0x132b042d0 class=0x22045e8 cmd=0x14 result=20 top=1 row=0 flags=0x46 screen=SystemTutorialChoice@ope@ui@app
+64569 cursor mgr=0x132b042d0 class=0x22045e8 cmd=0x1 result=1 top=1 row=0 flags=0x46 screen=SystemTutorialChoice@ope@ui@app
+64736 cursor mgr=0x132b042d0 class=0x22045e8 cmd=0x14 result=20 top=2 row=0 flags=0x46 screen=SystemTutorialChoice@ope@ui@app
+64753 cursor mgr=0x132b042d0 class=0x22045e8 cmd=0x1 result=1 top=2 row=0 flags=0x46 screen=SystemTutorialChoice@ope@ui@app
+64886 cursor mgr=0x132b042d0 class=0x22045e8 cmd=0x14 result=20 top=3 row=0 flags=0x46 screen=SystemTutorialChoice@ope@ui@app
+64904 cursor mgr=0x132b042d0 class=0x22045e8 cmd=0x1 result=1 top=3 row=0 flags=0x46 screen=SystemTutorialChoice@ope@ui@app
+65087 cursor mgr=0x132b042d0 class=0x22045e8 cmd=0x1 result=1 top=0 row=0 flags=0x46 screen=SystemTutorialChoice@ope@ui@app
+65287 cursor mgr=0x132b042d0 class=0x22045e8 cmd=0x14 result=20 top=1 row=0 flags=0x46 screen=SystemTutorialChoice@ope@ui@app
+65304 cursor mgr=0x132b042d0 class=0x22045e8 cmd=0x1 result=1 top=1 row=0 flags=0x46 screen=SystemTutorialChoice@ope@ui@app
+65471 cursor mgr=0x132b042d0 class=0x22045e8 cmd=0x14 result=20 top=2 row=0 flags=0x46 screen=SystemTutorialChoice@ope@ui@app
+65488 cursor mgr=0x132b042d0 class=0x22045e8 cmd=0x1 result=1 top=2 row=0 flags=0x46 screen=SystemTutorialChoice@ope@ui@app
+65705 cursor mgr=0x132b042d0 class=0x22045e8 cmd=0x1 result=1 top=0 row=0 flags=0x46 screen=SystemTutorialChoice@ope@ui@app
+65888 cursor mgr=0x132b042d0 class=0x22045e8 cmd=0x14 result=20 top=1 row=0 flags=0x46 screen=SystemTutorialChoice@ope@ui@app
+65905 cursor mgr=0x132b042d0 class=0x22045e8 cmd=0x1 result=1 top=1 row=0 flags=0x46 screen=SystemTutorialChoice@ope@ui@app
+66055 cursor mgr=0x132b042d0 class=0x22045e8 cmd=0x14 result=20 top=2 row=0 flags=0x46 screen=SystemTutorialChoice@ope@ui@app
+66072 cursor mgr=0x132b042d0 class=0x22045e8 cmd=0x1 result=1 top=2 row=0 flags=0x46 screen=SystemTutorialChoice@ope@ui@app
+66389 cursor mgr=0x132b042d0 class=0x22045e8 cmd=0x1 result=1 top=0 row=0 flags=0x46 screen=SystemTutorialChoice@ope@ui@app
+71330 cursor mgr=0x132b02e30 class=0x22045e8 cmd=0x14 result=20 top=3 row=0 flags=0x46 screen=SystemMenuChoice@ope@ui@app
+71347 cursor mgr=0x132b02e30 class=0x22045e8 cmd=0x1 result=1 top=3 row=0 flags=0x46 screen=SystemMenuChoice@ope@ui@app
+72681 compile id=83 path=EN/message/system/System_Story_1.msg
+72682 compile id=84 path=EN/message/system/System_Story_2.msg
+72766 cursor mgr=0x132b041e0 class=0x22045e8 cmd=0x1 result=1 top=7 row=34 flags=0x46 screen=SystemStoryChoice@ope@ui@app
+73600 cursor mgr=0x132b041e0 class=0x22045e8 cmd=0x14 result=20 top=0 row=0 flags=0x46 screen=SystemStoryChoice@ope@ui@app
+73617 cursor mgr=0x132b041e0 class=0x22045e8 cmd=0x1 result=1 top=0 row=0 flags=0x46 screen=SystemStoryChoice@ope@ui@app
+74001 cursor mgr=0x132b041e0 class=0x22045e8 cmd=0x14 result=20 top=1 row=0 flags=0x46 screen=SystemStoryChoice@ope@ui@app
+74018 cursor mgr=0x132b041e0 class=0x22045e8 cmd=0x1 result=1 top=1 row=0 flags=0x46 screen=SystemStoryChoice@ope@ui@app
+74184 cursor mgr=0x132b041e0 class=0x22045e8 cmd=0x14 result=20 top=2 row=0 flags=0x46 screen=SystemStoryChoice@ope@ui@app
+74201 cursor mgr=0x132b041e0 class=0x22045e8 cmd=0x1 result=1 top=2 row=0 flags=0x46 screen=SystemStoryChoice@ope@ui@app
+74335 cursor mgr=0x132b041e0 class=0x22045e8 cmd=0x14 result=20 top=3 row=0 flags=0x46 screen=SystemStoryChoice@ope@ui@app
+74352 cursor mgr=0x132b041e0 class=0x22045e8 cmd=0x1 result=1 top=3 row=0 flags=0x46 screen=SystemStoryChoice@ope@ui@app
+75019 cursor mgr=0x132b02e30 class=0x22045e8 cmd=0x14 result=20 top=4 row=0 flags=0x46 screen=SystemMenuChoice@ope@ui@app
+75036 cursor mgr=0x132b02e30 class=0x22045e8 cmd=0x1 result=1 top=4 row=0 flags=0x46 screen=SystemMenuChoice@ope@ui@app
+75319 compile id=86 path=EN/message/system/Title_System.msg
+75319 compile id=85 path=EN/message/system/System_Network.msg
+75404 cursor mgr=0x132b05c20 class=0x22045e8 cmd=0x1 result=1 top=0 row=0 flags=0x46 screen=?$ConfigTopChoicePc@VConfigTopChoicePcLayout@ui@app@@@ope@ui@app
+77723 cursor mgr=0x132b05c20 class=0x22045e8 cmd=0x14 result=20 top=1 row=0 flags=0x46 screen=?$ConfigTopChoicePc@VConfigTopChoicePcLayout@ui@app@@@ope@ui@app
+77741 cursor mgr=0x132b05c20 class=0x22045e8 cmd=0x1 result=1 top=1 row=0 flags=0x46 screen=?$ConfigTopChoicePc@VConfigTopChoicePcLayout@ui@app@@@ope@ui@app
+79159 cursor mgr=0x132b05c20 class=0x22045e8 cmd=0x14 result=20 top=2 row=0 flags=0x46 screen=?$ConfigTopChoicePc@VConfigTopChoicePcLayout@ui@app@@@ope@ui@app
+79177 cursor mgr=0x132b05c20 class=0x22045e8 cmd=0x1 result=1 top=2 row=0 flags=0x46 screen=?$ConfigTopChoicePc@VConfigTopChoicePcLayout@ui@app@@@ope@ui@app

@@ -32,17 +32,18 @@ internal sealed record HookServices
     /// the input hooks hand them each read.</summary>
     public required DialogueControls DialogueControls { get; init; }
 
-    /// <summary>The #213 screen class probe, which the opt-in choice cursor getter listener feeds and starts. It logs only
-    /// when there is a log.</summary>
-    public ScreenClassProbe ScreenClass { get; init; } = new(null);
+    /// <summary>Names each cursor manager's screen class (#208): the choice cursor getter hook feeds it, and the menu
+    /// cursor hook asks it for each input.</summary>
+    public ScreenClassLookup ScreenClasses { get; init; } = new();
 
     /// <summary>The mod's folder, outside the repository, where a development run leaves files for its hooks.</summary>
     public required string ModFolder { get; init; }
 
     /// <summary>Services for the mod in <paramref name="modFolder"/> whose requested dialogue lines and opened choices
     /// are spoken through <paramref name="announcer"/>, voiced lines as <paramref name="settings"/> say. The library
-    /// hears each compiled file first, speech each requested line and choice first, and the title menu's focus (#94) and
-    /// a choice's focus (#95) each cursor input; the report log (#188) and the message log, when there are, hear every event last.</summary>
+    /// hears each compiled file first, speech each requested line and choice first, and the menu screens (#208, which
+    /// tell the title menu, #94) and a choice's focus (#95) each cursor input; the report log (#188) and the message log,
+    /// when there are, hear every event last.</summary>
     public static HookServices Speaking(
         IAnnouncer announcer, SettingsReloader settings, ReportLog? report, MessageLog? log, string modFolder)
     {
@@ -57,15 +58,15 @@ internal sealed record HookServices
         var reader = new DialogueReader(announcer);
         var dialogue = new DialogueAnnouncer(reader, cleaner, history, () => settings.Current.VoicedLines);
         var controls = new DialogueControls(DialogueBindings.Default, history, reader, announcer);
-        var titleMenu = new TitleMenuFocus(library, announcer, cleaner);
+        var screens = new MenuScreens([TitleMenuFocus.Screen]);
+        screens.Observe(new TitleMenuFocus(library, announcer, cleaner));
         events.ObserveFiles(library);
-        events.ObserveFiles(titleMenu);
         events.ObserveLines(new DialogueLines(library, dialogue));
         events.ObserveChoices(new DialogueChoices(library, dialogue));
         var choiceFocus = new ChoiceFocus(library, announcer, cleaner);
         events.ObserveChoices(choiceFocus);
         events.ObserveLines(choiceFocus);
-        cursors.Observe(titleMenu);
+        cursors.Observe(screens);
         cursors.Observe(choiceFocus);
         if (report is not null)
         {
@@ -86,7 +87,6 @@ internal sealed record HookServices
             Messages = events,
             Cursors = cursors,
             Log = log,
-            ScreenClass = new ScreenClassProbe(log),
             ModFolder = modFolder,
             DialogueHistory = history,
             DialogueControls = controls,

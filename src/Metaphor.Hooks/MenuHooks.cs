@@ -12,7 +12,7 @@ namespace Metaphor.Hooks;
 /// and puts it back if the move is refused. The function, its arguments and the field offsets are our reading of the
 /// exe (docs/raw-sources/ui-focus-candidates-2026-11-16.md); that the index follows the menu's focus is from
 /// docs/raw-sources/spike-session-2-2026-11-16.md. Observed after it returns, so the cursor is where the input left it.
-/// </summary>
+/// Each input carries its screen class from <see cref="ScreenClassLookup"/> (#208).</summary>
 [GameHook(GameBuilds.Steam18330018)]
 internal sealed class MenuCursorHook : IGameHook, IObserves4WithResult
 {
@@ -22,12 +22,14 @@ internal sealed class MenuCursorHook : IGameHook, IObserves4WithResult
     private const int FlagsOffset = 0xAC;
 
     private readonly CursorEvents events;
+    private readonly ScreenClassLookup screenClasses;
     private readonly nint? moduleBase;
 
     public MenuCursorHook(HookServices services)
     {
         ArgumentNullException.ThrowIfNull(services);
         events = services.Cursors;
+        screenClasses = services.ScreenClasses;
         using var process = Process.GetCurrentProcess();
         // Without the main module the class is logged as unreadable; the loader isn't stopped.
         moduleBase = process.MainModule?.BaseAddress;
@@ -49,6 +51,7 @@ internal sealed class MenuCursorHook : IGameHook, IObserves4WithResult
             ? vtable - module
             : null;
         events.Handled(new CursorInput(
-            manager, classRva, commandValue, (int)result, top, row, ModuleMemoryReader.ReadInt32(manager + FlagsOffset) ?? 0));
+            manager, classRva, commandValue, (int)result, top, row, ModuleMemoryReader.ReadInt32(manager + FlagsOffset) ?? 0,
+            screenClasses.Of(manager)));
     }
 }
