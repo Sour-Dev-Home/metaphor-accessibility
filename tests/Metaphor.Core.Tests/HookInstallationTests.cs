@@ -10,8 +10,8 @@ public sealed class HookInstallationTests
 
     private static readonly HookSignature[] Signatures =
     [
-        new("show-line", "48 8B ?? 10", [Build], "e"),
-        new("show-choice", "48 8B ?? 20", [Build], "e"),
+        new("show-line", "48 8B ?? 10", [Build], "e", ".ecode"),
+        new("show-choice", "48 8B ?? 20", [Build], "e", ".ecode"),
     ];
 
     private sealed class FakeHook(string name)
