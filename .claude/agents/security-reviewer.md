@@ -15,8 +15,10 @@ the surrounding code too, not just the changed lines.
 
 ## Always check
 
-1. **Run the checks.** Run `bash scripts/check.sh full`. It reads the git index, so changes under review must be staged
-   or committed first; say so if they aren't. Every `personal information:`, `game content` or failed architecture
+1. **Run the checks.** Run `bash scripts/check.sh full` in the foreground, waiting for it in the same call (a 10-minute
+   timeout covers it), and finish your report in this turn. When the caller says it already ran `full` on the same
+   staged tree and passed, run `bash scripts/check.sh rules` instead and review the diff. It reads the git index, so
+   changes under review must be staged or committed first; say so if they aren't. Every `personal information:`, `game content` or failed architecture
    test line is a finding. If it warns that private patterns are missing, report that too.
 2. **Game content.** Nothing from the game may be committed or released (`AGENTS.md` rule 4). The checks catch game
    files by folder, extension, size and known hash; look for what they can't see: decompiled output beyond a short
