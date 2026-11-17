@@ -31,16 +31,16 @@
 | Tactics (Party, X) | 5:42 | Title Auto Battle Tactics; 6 options, each with a description; the current setting for all party members. | Focused option's description. |
 | Status (Party, Y) | 5:50 | Name, level, EXP to next level; ATK, DEF; St, Ma, En, Ag, Lk with bonuses; HP and MP as current/max. LB/RB Switch Character, Y Archetype, B Back. | Switching character changes the whole panel. |
 
-### Screens found outside #145's list (need the maintainer's yes or no)
+### Screens found outside #145's list, with the maintainer's yes or no (2026-11-17)
 
-| Screen | Time | Fields shown | Already tracked |
+| Screen | Time | Fields shown | Decision |
 |---|---|---|---|
-| Follower | 6:10, 6:40 | List of followers; per follower name, archetype, rank (number), an ability list with descriptions and needed rank. LB/RB switches follower. | #147, #199 |
-| Quest | 7:25 | 4 tabs (LB/RB, third labelled Ended); per quest status, type (Hunt, Bounty), name, a rank meter of 10 diamonds. On select: distance and details. | none |
-| Calendar, Travellers' Voices | 9:20 | Other players' aggregate choices as 4 percentages with activity lists; date and time of day; LB/RB for other days. | Online feature: out of scope (ground rule 5). |
-| System: save, load, settings | 10:15 | Save slots; settings. | #96 (settings) |
-| Archetype Tree (Y on main menu) | 11:53 | Navigated with the left stick; A selects; highlights the associated character. | none |
-| Memorandum | not seen | — | none |
+| Follower | 6:10, 6:40 | List of followers; per follower name, archetype, rank (number), an ability list with descriptions and needed rank. LB/RB switches follower. | Already tracked: #147, #199 |
+| Quest | 7:25 | 4 tabs (LB/RB, third labelled Ended); per quest status, type (Hunt, Bounty), name, a rank meter of 10 diamonds. On select: distance and details. | Yes; already in #146's scope |
+| Calendar, Travellers' Voices | 9:20 | Other players' aggregate choices as 4 percentages with activity lists; date and time of day; LB/RB for other days. | No: online feature (ground rule 5) |
+| System: save, load, settings | 10:15 | Save slots; settings. | Settings tracked in #96 |
+| Archetype Tree (Y on main menu) | 11:53 | Navigated with the left stick; A selects; highlights the associated character. | Yes; added to #145 |
+| Memorandum | not seen | — | No |
 
 ### Problems noted in the narration
 
