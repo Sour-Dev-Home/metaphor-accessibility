@@ -31,6 +31,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Metaphor.Features.Menus.Tes
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Metaphor.SessionFixture", "tools\Metaphor.SessionFixture\Metaphor.SessionFixture.csproj", "{F8490AF0-DC26-40EE-B191-2F941EF6DA52}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Metaphor.SessionLog", "tools\Metaphor.SessionLog\Metaphor.SessionLog.csproj", "{48895E71-337D-4380-80BA-700F60CAEF6F}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -173,6 +175,18 @@ Global
 		{F8490AF0-DC26-40EE-B191-2F941EF6DA52}.Release|x64.Build.0 = Release|Any CPU
 		{F8490AF0-DC26-40EE-B191-2F941EF6DA52}.Release|x86.ActiveCfg = Release|Any CPU
 		{F8490AF0-DC26-40EE-B191-2F941EF6DA52}.Release|x86.Build.0 = Release|Any CPU
+		{48895E71-337D-4380-80BA-700F60CAEF6F}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{48895E71-337D-4380-80BA-700F60CAEF6F}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{48895E71-337D-4380-80BA-700F60CAEF6F}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{48895E71-337D-4380-80BA-700F60CAEF6F}.Debug|x64.Build.0 = Debug|Any CPU
+		{48895E71-337D-4380-80BA-700F60CAEF6F}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{48895E71-337D-4380-80BA-700F60CAEF6F}.Debug|x86.Build.0 = Debug|Any CPU
+		{48895E71-337D-4380-80BA-700F60CAEF6F}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{48895E71-337D-4380-80BA-700F60CAEF6F}.Release|Any CPU.Build.0 = Release|Any CPU
+		{48895E71-337D-4380-80BA-700F60CAEF6F}.Release|x64.ActiveCfg = Release|Any CPU
+		{48895E71-337D-4380-80BA-700F60CAEF6F}.Release|x64.Build.0 = Release|Any CPU
+		{48895E71-337D-4380-80BA-700F60CAEF6F}.Release|x86.ActiveCfg = Release|Any CPU
+		{48895E71-337D-4380-80BA-700F60CAEF6F}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -189,5 +203,6 @@ Global
 		{5DAD9E7A-643F-4EDF-8A4B-909F996E932A} = {827E0CD3-B72D-47B6-A68D-7590B98EB39B}
 		{3BAEC49B-E387-4516-9556-B7BFDBFE8F29} = {0AB3BF05-4346-4AA6-1389-037BE0695223}
 		{F8490AF0-DC26-40EE-B191-2F941EF6DA52} = {07C2787E-EAC7-C090-1BA3-A61EC2A24D84}
+		{48895E71-337D-4380-80BA-700F60CAEF6F} = {07C2787E-EAC7-C090-1BA3-A61EC2A24D84}
 	EndGlobalSection
 EndGlobal
