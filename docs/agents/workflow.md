@@ -27,7 +27,9 @@ The scope and the stamp are in
 
 1. Merge your base's tip (`main`, or the integration branch) into your branch first, so a conflict fix never lands
    after the review and voids the stamp.
-2. Stage the change and run `bash scripts/check.sh full` yourself.
+2. Stage the change and run `bash scripts/check.sh full` yourself. On an uncommitted tree the build is marked dirty, so
+   `SourceRevisionTests.AnAssemblyFromThisBuildKnowsItsFullCommit` fails; that one failure is expected and passes once
+   committed (#169). Report any other failure.
 3. Hand the staged change back to the main session. A `security-reviewer` launched in the background ends with your
    turn, before it reports, and the stamp is lost. The main session runs `security-reviewer`, then commits and pushes.
 
