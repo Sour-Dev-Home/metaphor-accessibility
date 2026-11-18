@@ -81,6 +81,16 @@ public sealed class DialogueControlsTests
     }
 
     [Fact]
+    public void AReadNotMadeIsHandedBackUnchangedAndRepeatsNothing()
+    {
+        history.Add("Ada: One.");
+        controls.WindowRead(Message);
+
+        Assert.Equal(X | A, controls.Pad(1, X | A, made: false));
+        Assert.Empty(announcer.Said);
+    }
+
+    [Fact]
     public void OutsideDialogueXKeepsItsJobAndRepeatsNothing()
     {
         history.Add("Ada: One.");

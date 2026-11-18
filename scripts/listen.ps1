@@ -46,60 +46,15 @@ Import-Module (Join-Path $PSScriptRoot 'ReloadedDev.psm1') -Force
 
 $MessageLogFileName = 'message-log.txt' # Metaphor.Core.MessageLog.FileName
 
-# Each folder that can show up in the output, with the name it is shown as. Longer paths go first, so the mods folder
-# inside the Reloaded-II folder is named as itself.
+# Each folder that can show up in the output, with the name it is shown as (Hide-LocalPaths).
 $folders = [ordered]@{}
-function Add-Folder([string] $Name, [string] $Path) {
-    if ($Path) { $folders[$Name] = [IO.Path]::GetFullPath($Path).TrimEnd('\', '/') }
-}
+function Add-Folder([string] $Name, [string] $Path) { Add-PathName $folders $Name $Path }
 
-function Hide-LocalPaths([string] $Text) {
-    foreach ($entry in $folders.GetEnumerator() | Sort-Object { $_.Value.Length } -Descending) {
-        foreach ($form in $entry.Value, $entry.Value.Replace('\', '/')) {
-            $Text = [regex]::Replace($Text, [regex]::Escape($form), $entry.Key, 'IgnoreCase')
-        }
-    }
-    $Text
-}
-
-function Write-Out([string] $Text) { Write-Host (Hide-LocalPaths $Text) }
+function Write-Out([string] $Text) { Write-Host (Hide-LocalPaths $folders $Text) }
 
 function Stop-Start([string] $Message) {
     Write-Out "listening run can't start: $Message"
     exit 2
-}
-
-# The record counts in a message log, by the word after "<n> ms" (Metaphor.Core.MessageLog), and its requests by the
-# function named in via=. Source lines ("  | ...") are counted, not shown.
-function Get-MessageLogSummary([string] $Path) {
-    # The game holds the log open for writing while it runs.
-    $stream = [IO.File]::Open($Path, 'Open', 'Read', 'ReadWrite')
-    try { $lines = (New-Object IO.StreamReader($stream)).ReadToEnd() -split "\r?\n" }
-    finally { $stream.Dispose() }
-
-    $types = @{}
-    $requests = @{}
-    $sourceLines = 0
-    $unrecognised = 0
-    foreach ($line in $lines) {
-        if ($line -eq '') { continue }
-        if ($line.StartsWith('  | ')) { $sourceLines++; continue }
-        if ($line -match '^\d+ ms ([a-z]+)\b') {
-            $types[$Matches[1]] = 1 + $types[$Matches[1]]
-            if ($Matches[1] -eq 'request' -and $line -match ' via=([A-Za-z0-9_]+)') { $requests[$Matches[1]] = 1 + $requests[$Matches[1]] }
-            continue
-        }
-        $unrecognised++
-    }
-
-    $counts = foreach ($type in $types.Keys | Sort-Object) {
-        if ($type -eq 'compile') { "$($types[$type]) compile ($sourceLines source lines)" } else { "$($types[$type]) $type" }
-    }
-    if ($unrecognised) { $counts = @($counts) + "$unrecognised unrecognised line$(if ($unrecognised -ne 1) { 's' })" }
-    "message log: $(if ($counts) { $counts -join ', ' } else { 'empty' })"
-    if ($requests.Count) {
-        "requests by function: $(($requests.Keys | Sort-Object | ForEach-Object { "$_ $($requests[$_])" }) -join ', ')"
-    }
 }
 
 $modConfig = Join-Path $Project 'ModConfig.json'

@@ -26,6 +26,10 @@ public enum ModState
 public sealed record ModStatus(
     string ModId, ModState State, string GameBuildSha256, int HooksLoaded, int HooksExpected, string? Reason)
 {
+    /// <summary>The dev opt-ins the run asked for, for the load message (#223). Not in the status file.</summary>
+    [JsonIgnore]
+    public IReadOnlyList<OptInState> OptIns { get; init; } = [];
+
     public static ModStatus Ready(string modId, string gameBuildSha256, int hooksLoaded, int hooksExpected) =>
         new(modId, ModState.Ready, gameBuildSha256, hooksLoaded, hooksExpected, null);
 

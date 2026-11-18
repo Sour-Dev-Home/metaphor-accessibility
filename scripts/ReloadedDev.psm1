@@ -1,4 +1,4 @@
-# Reloaded-II helpers shared by smoke-test.ps1 and deploy-dev.ps1.
+# Reloaded-II helpers shared by smoke-test.ps1, deploy-dev.ps1, listen.ps1 and capture.ps1.
 # Loader facts: docs/raw-sources/reloaded-ii-config-location-2026-11-13.md and
 # reloaded-ii-app-and-mod-config-2026-11-15.md.
 
@@ -89,6 +89,61 @@ function Wait-ModStatus($Mods, [string] $GameExe, [string] $Build, [datetime] $D
         }
     }
     $passed
+}
+
+# Launches the game through Reloaded-II (--launch) and waits for the launcher, which exits by itself once the game has
+# started. False when it doesn't exit in time.
+function Start-WithLoader([string] $LauncherExe, [string] $GameExe, [int] $TimeoutSeconds) {
+    $launcher = Start-Process -FilePath $LauncherExe -ArgumentList '--launch', "`"$GameExe`"" -PassThru
+    $launcher.WaitForExit($TimeoutSeconds * 1000)
+}
+
+# Each folder that can show up in a script's output, with the name it is shown as, so the output can go into an issue
+# or a raw source as it is. Longer paths go first, so the mods folder inside the Reloaded-II folder is named as itself.
+function Add-PathName($Names, [string] $Name, [string] $Path) {
+    if ($Path) { $Names[$Name] = [IO.Path]::GetFullPath($Path).TrimEnd('\', '/') }
+}
+
+function Hide-LocalPaths($Names, [string] $Text) {
+    foreach ($entry in $Names.GetEnumerator() | Sort-Object { $_.Value.Length } -Descending) {
+        foreach ($form in $entry.Value, $entry.Value.Replace('\', '/')) {
+            $Text = [regex]::Replace($Text, [regex]::Escape($form), $entry.Key, 'IgnoreCase')
+        }
+    }
+    $Text
+}
+
+# The record counts in a message log, by the word after "<n> ms" (Metaphor.Core.MessageLog), and its requests by the
+# function named in via=. Source lines ("  | ...") are counted, not shown, and no line is printed: the log holds game text.
+function Get-MessageLogSummary([string] $Path) {
+    # The game holds the log open for writing while it runs.
+    $stream = [IO.File]::Open($Path, 'Open', 'Read', 'ReadWrite')
+    try { $lines = (New-Object IO.StreamReader($stream)).ReadToEnd() -split "\r?\n" }
+    finally { $stream.Dispose() }
+
+    $types = @{}
+    $requests = @{}
+    $sourceLines = 0
+    $unrecognised = 0
+    foreach ($line in $lines) {
+        if ($line -eq '') { continue }
+        if ($line.StartsWith('  | ')) { $sourceLines++; continue }
+        if ($line -match '^\d+ ms ([a-z]+)\b') {
+            $types[$Matches[1]] = 1 + $types[$Matches[1]]
+            if ($Matches[1] -eq 'request' -and $line -match ' via=([A-Za-z0-9_]+)') { $requests[$Matches[1]] = 1 + $requests[$Matches[1]] }
+            continue
+        }
+        $unrecognised++
+    }
+
+    $counts = foreach ($type in $types.Keys | Sort-Object) {
+        if ($type -eq 'compile') { "$($types[$type]) compile ($sourceLines source lines)" } else { "$($types[$type]) $type" }
+    }
+    if ($unrecognised) { $counts = @($counts) + "$unrecognised unrecognised line$(if ($unrecognised -ne 1) { 's' })" }
+    "message log: $(if ($counts) { $counts -join ', ' } else { 'empty' })"
+    if ($requests.Count) {
+        "requests by function: $(($requests.Keys | Sort-Object | ForEach-Object { "$_ $($requests[$_])" }) -join ', ')"
+    }
 }
 
 Export-ModuleMember -Function * -Variable StatusFileName

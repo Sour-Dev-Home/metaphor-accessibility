@@ -8,8 +8,7 @@ namespace Metaphor.Features.Dialogue.Tests;
 /// <summary>The dialogue controls (#58) against Steam Input's pad reads (#149): replays
 /// <c>tests/fixtures/sessions/steam-input-pad1-noise.txt</c> through the controls with the dialogue window open, as the
 /// pad read hook feeds them, and checks the player hears nothing from a pad that holds no binding. The noisy virtual pad
-/// 1 returns 0 (it reports no read), so only the reads the game reports as made reach the controls; the hook doesn't
-/// filter yet (#225).</summary>
+/// 1 returns 0 (it reports no read), so only the reads the game reports as made reach the controls (#225).</summary>
 [Trait("Category", "Unit")]
 public sealed class SteamInputReplayTests
 {
@@ -27,15 +26,15 @@ public sealed class SteamInputReplayTests
     private static SessionFixture Load(string scenario) =>
         SessionFixture.Parse(File.ReadAllText(Path.Combine(AppContext.BaseDirectory, "sessions", scenario)));
 
-    // Every read goes in, as the pad hook hands them over today; reads the game reports as not made carry leftover
-    // bits, including the repeat button. This is #225's red test: un-skip it with #225's fix.
-    [Fact(Skip = "#225: the pad hook hands over reads the game reports as not made")]
+    // Every read goes in, as the pad hook hands them over, with whether the game reports it made (#225); reads reported
+    // as not made carry leftover bits, including the repeat button.
+    [Fact]
     public void ASteamInputSessionFiresNoBindingWhenEveryReadIsHandedOver()
     {
         var controls = OpenControls();
 
         Load("steam-input-pad1-noise.txt").Replay(new MessageEvents(), new CursorEvents(),
-            pad: read => controls.Pad(read.Pad, read.Buttons));
+            pad: read => controls.Pad(read.Pad, read.Buttons, made: read.Returned != 0));
 
         Assert.Empty(announcer.Said);
     }
