@@ -4,9 +4,9 @@ using Metaphor.Core.Menus;
 namespace Metaphor.Features.Menus;
 
 /// <summary>Speaks the focus on a screen the mod doesn't know yet (#97, spec #211), so the player is never in silence:
-/// on entering it and on each focus move, the focus's position from 1, each cutting off the last. Spec #211 asks for
-/// "n of total", but no hook reads a cursor's item count yet (<c>[NEEDS VERIFICATION]</c>: where the manager keeps it),
-/// so the total is left out. Known screens are their features' to speak, and dialogue choices
+/// on entering it and on each focus move, "n of total", each cutting off the last (#289). The total is the list's item
+/// count the game keeps (<see cref="ScreenEvent.Total"/>); when it can't be read, or can't hold the focus, the position
+/// alone is said. Known screens are their features' to speak, and dialogue choices
 /// (<see cref="DialogueChoice"/>, known too) are <c>ChoiceFocus</c>'s (#95). Safe to call from several threads.</summary>
 public sealed class UnknownScreenFocus : IScreenObserver
 {
@@ -31,6 +31,7 @@ public sealed class UnknownScreenFocus : IScreenObserver
         {
             return;
         }
-        announcer.Announce(new Announcement($"{change.Index + 1}", Interrupt: true));
+        var position = change.Total is { } total ? $"{change.Index + 1} of {total}" : $"{change.Index + 1}";
+        announcer.Announce(new Announcement(position, Interrupt: true));
     }
 }

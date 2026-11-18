@@ -25,10 +25,46 @@ public sealed class UnknownScreenFocusTests
         screens.Observe(new UnknownScreenFocus(announcer));
     }
 
-    private void Cursor(int command, int row, string? screenClass = CalendarClass, long manager = Calendar, int top = 0) =>
-        cursors.Handled(new CursorInput(manager, ClassRva: 0x100, command, Result: 1, top, row, Flags: 0x46, screenClass));
+    private void Cursor(
+        int command, int row, string? screenClass = CalendarClass, long manager = Calendar, int top = 0, int? count = null) =>
+        cursors.Handled(new CursorInput(
+            manager, ClassRva: 0x100, command, Result: 1, top, row, Flags: 0x46, screenClass, count));
 
     private IEnumerable<string> Said() => announcer.Said.Select(said => said.Text);
+
+    [Fact]
+    public void AnUnknownScreenWhoseItemCountIsReadSaysThePositionOfTheTotal()
+    {
+        Cursor(Settle, row: 0, count: 7);
+        Cursor(Down, row: 1, count: 7);
+        Cursor(Settle, row: 1, count: 7);
+
+        Assert.Equal(
+            [new Announcement("1 of 7", Interrupt: true), new Announcement("2 of 7", Interrupt: true)],
+            announcer.Said);
+    }
+
+    [Theory]
+    [InlineData(0)]
+    [InlineData(-1)]
+    [InlineData(3)]
+    [InlineData(1000)]
+    [InlineData(1684300900)]
+    public void ACountThatCannotHoldTheFocusFallsBackToThePositionAlone(int count)
+    {
+        Cursor(Settle, row: 3, count: count);
+
+        Assert.Equal(["4"], Said());
+    }
+
+    [Fact]
+    public void AnotherScreensCountIsReadAfreshOnEntering()
+    {
+        Cursor(Settle, row: 0, count: 2);
+        Cursor(Settle, row: 5, "SkillSelectChoice@ope@ui@app", manager: 0xe0, count: 9);
+
+        Assert.Equal(["1 of 2", "6 of 9"], Said());
+    }
 
     [Fact]
     public void EachPositionTheCursorSettlesOnInAnUnknownScreenIsAnnouncedCuttingOffTheLast()

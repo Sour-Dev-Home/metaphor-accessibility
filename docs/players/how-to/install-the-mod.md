@@ -139,7 +139,8 @@ The mod adds no keys here. It speaks what the game's own cursor does, so use the
 3. The menu during play: opening it speaks "Menu" and the entry, such as "Menu, Equipment, 3 of 9"; each move speaks
    the entry, such as "Party, 4 of 9". The entries, in order: Skill, Item, Equipment, Party, Follower, Quest, Calendar,
    Memorandum, System. The names are the mod's own wording, as the game draws them as pictures.
-4. Any other menu screen: each move speaks the position only, such as "4".
+4. Any other menu screen: each move speaks the position and the list's length, such as "4 of 8", or the position
+   alone, such as "4", when the mod can't read the length.
 
 `[NEEDS VERIFICATION]` All by ear in the game. They need a supported game build.
 

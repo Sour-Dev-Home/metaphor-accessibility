@@ -1,0 +1,12 @@
+# List counts: the main menu, Skill's character list and skill list, back to the main menu, System; a count that can't be read. Written by hand from the counts capture session 6 logged for these screen classes, not converted from its log
+# source: docs/raw-sources/list-count-session6-2026-11-17.md
+# game build: 548ddc955c176867f062c44f94c03dd9ac33caefb278a5ac388e792aedf09504
+0 menus open=1
+100 cursor mgr=0x6772ce90 class=0x22045e8 cmd=0x1 result=1 top=0 row=0 flags=0x46 screen=RootMenuChoice@ope@ui@app count=9
+200 cursor mgr=0x6772d100 class=0x22045e8 cmd=0x1 result=1 top=0 row=0 flags=0x46 screen=SkillCharaSelChoice@ope@ui@app count=8
+300 cursor mgr=0x6772d100 class=0x22045e8 cmd=0x16 result=22 top=0 row=1 flags=0x46 screen=SkillCharaSelChoice@ope@ui@app count=8
+317 cursor mgr=0x6772d100 class=0x22045e8 cmd=0x1 result=1 top=0 row=1 flags=0x46 screen=SkillCharaSelChoice@ope@ui@app count=8
+400 cursor mgr=0x6772d380 class=0x22045e8 cmd=0x1 result=1 top=0 row=0 flags=0x46 screen=SkillSelectChoice@ope@ui@app count=9
+500 cursor mgr=0x6772ce90 class=0x22045e8 cmd=0x1 result=1 top=8 row=0 flags=0x46 screen=RootMenuChoice@ope@ui@app count=9
+600 cursor mgr=0x6772d380 class=0x22045e8 cmd=0x1 result=1 top=0 row=0 flags=0x46 screen=SystemMenuChoice@ope@ui@app count=6
+700 cursor mgr=0x6772d380 class=0x22045e8 cmd=0x1 result=1 top=0 row=2 flags=0x46 screen=SystemMenuChoice@ope@ui@app count=?

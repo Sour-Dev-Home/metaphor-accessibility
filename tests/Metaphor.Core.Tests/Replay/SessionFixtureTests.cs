@@ -102,6 +102,23 @@ public sealed class SessionFixtureTests
     }
 
     [Fact]
+    public void ACursorRecordCarriesTheListsItemCountWhenItHasOne()
+    {
+        var seen = new Seen();
+        var cursors = new CursorEvents();
+        cursors.Observe(seen);
+
+        SessionFixture.Parse($"""
+            # game build: {Build}
+            0 cursor mgr=0xa0 class=0x22045e8 cmd=0x1 result=1 top=0 row=0 flags=0x46 screen=A@ope@ui@app count=7
+            10 cursor mgr=0xa0 class=0x22045e8 cmd=0x1 result=1 top=0 row=1 flags=0x46 screen=A@ope@ui@app count=?
+            20 cursor mgr=0xa0 class=0x22045e8 cmd=0x1 result=1 top=0 row=2 flags=0x46 screen=A@ope@ui@app
+            """).Replay(new MessageEvents(), cursors, _ => { });
+
+        Assert.Equal([7, null, null], seen.Events.Cast<CursorInput>().Select(input => input.Count));
+    }
+
+    [Fact]
     public void ReplaysWindowReadsInOrderBetweenPadReads()
     {
         var seen = new List<object?>();
