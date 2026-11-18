@@ -34,3 +34,14 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           GITHUB_REPOSITORY: ${{ github.repository }}
         run: bash scripts/conflict-alert.sh
+      # Integration sync (issue #242): test-merges main into each draft PR's branch and comments. It never pushes, since a
+      # merge bringing in hook-layer code needs a security-review stamp CI can't give. Needs history, so a full clone.
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Flag integration branches behind main
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+        run: bash scripts/integration-sync.sh
