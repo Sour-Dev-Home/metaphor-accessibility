@@ -14,6 +14,10 @@ For the whole path from your branch to `main` in one picture, see
 On Windows:
 
 - [Git for Windows](https://git-scm.com/download/win), which includes Git Bash. Every script runs in Git Bash.
+  In PowerShell, plain `bash` may start WSL's Linux bash instead, which has no git and fails with
+  `git: command not found`. Open a Git Bash window, or call it by path:
+  `& "C:\Program Files\Git\bin\bash.exe" scripts/check.sh full`. The same applies to every `bash scripts/...` command
+  in this guide.
 - The .NET SDK version pinned in [`global.json`](../global.json), from [dotnet.microsoft.com](https://dotnet.microsoft.com/download/dotnet).
   Roll-forward is off, so a newer SDK won't do. `dotnet --list-sdks` shows what you have.
 - Optional: the [GitHub CLI](https://cli.github.com/) (`gh`) for issues and pull requests.
