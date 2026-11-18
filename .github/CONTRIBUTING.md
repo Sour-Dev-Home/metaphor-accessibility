@@ -50,7 +50,7 @@ bash scripts/check.sh full
 `fast` checks the staged files, so with nothing staged it passes at once. `full` checks every tracked file, then builds,
 runs the `Unit` and `RoundTrip` tests and checks formatting. Both end with exit code 0 when everything passes. A passing `full` is recorded per clone (in the git dir) against the
 index's tree hash; `full` or `pre-push` on an identical tree says it reused the pass and skips the work. `pre-push`
-takes the machine-wide build lock only when it builds, so a docs-only push never waits on it.
+takes a machine-wide build slot only when it builds, so a docs-only push never waits on it.
 [README.md](../README.md#checks) lists every stage.
 
 CI runs `full` on Linux for a pull request (faster; tests marked `WindowsOnly` and the Pester script tests are left to

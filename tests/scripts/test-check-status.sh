@@ -13,6 +13,7 @@ trap 'rm -rf "$WORK"' EXIT
 passed=0
 failed=0
 export METAPHOR_CHECK_LOCK="$WORK/lock" METAPHOR_CHECK_NOW=10000 SKIP_SCRIPT_TESTS=1
+export METAPHOR_CHECK_SLOTS=1 # the single-lock views below; the two-slot views unset it
 export METAPHOR_CHECK_PS_CMD="cat $WORK/ps.txt"
 : > "$WORK/ps.txt"
 
@@ -67,6 +68,40 @@ check "dead holder names the pid" has "999999"
 status --short
 check "dead holder, short" has "stale"
 rm -rf "$WORK/lock" "$WORK/lock.waiting"
+
+# Two slots (the default; #281): each slot's holder shown, free slots free, stale slots flagged.
+unset METAPHOR_CHECK_SLOTS
+status
+check "two free slots listed" has "slot 2: free"
+status --short
+check "two free slots, short" test "$out" = "lock: free"
+mkdir -p "$WORK/lock.2"
+echo "$$" > "$WORK/lock.2/pid"
+echo "281-check-slots" > "$WORK/lock.2/branch"
+echo 9400 > "$WORK/lock.2/since"
+status
+check "slot 1 free, slot 2 held" has "slot 1: free"
+check "slot 2 names pid and branch" has "slot 2: held by pid $$ on 281-check-slots for 10 min"
+status --short
+check "short shows both slots" test "$out" = "slots: free | 281-check-slots · 10m"
+mkdir -p "$WORK/lock"
+echo "$PPID" > "$WORK/lock/pid"
+echo "214-details-key" > "$WORK/lock/branch"
+echo 9640 > "$WORK/lock/since"
+mkdir -p "$WORK/lock.waiting"
+echo "a 9800" > "$WORK/lock.waiting/$$"
+status
+check "slot 1 held" has "slot 1: held by pid $PPID on 214-details-key for 6 min"
+check "waiters shown with two slots" has "waiting: 1 (longest 3 min)"
+status --short
+check "short, both held, waiter" test "$out" = "slots: 214-details-key · 6m | 281-check-slots · 10m · 1 waiting"
+echo 999999 > "$WORK/lock.2/pid"
+status
+check "stale slot 2" has "slot 2: stale, holder pid 999999 has exited"
+status --short
+check "stale slot 2, short" has "stale (pid 999999 gone)"
+rm -rf "$WORK/lock" "$WORK/lock.2" "$WORK/lock.waiting"
+export METAPHOR_CHECK_SLOTS=1
 
 # Run logs per worktree.
 log="$(git rev-parse --absolute-git-dir)/check-run-log"

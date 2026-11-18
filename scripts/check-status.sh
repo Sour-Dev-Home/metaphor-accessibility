@@ -18,15 +18,37 @@ short=0
 
 alive() { kill -0 "$1" 2> /dev/null; }
 
-holder="" branch="" since=""
-if [ -d "$lock" ]; then
-  read -r holder < "$lock/pid" 2> /dev/null || true
-  read -r branch < "$lock/branch" 2> /dev/null || true
-  read -r since < "$lock/since" 2> /dev/null || true
+slots="${METAPHOR_CHECK_SLOTS:-2}"
+[[ "$slots" =~ ^[1-9][0-9]*$ ]] || slots=2
+# Slot 1 is the lock path itself, slot N is "<lock>.N" (take_lock in scripts/check.sh). Per slot: a long line for the
+# full view and a short form, "free", "stale" or "<branch> · <n>m".
+long=() brief=() busy=0
+for ((n = 1; n <= slots; n++)); do
+  dir="$lock"
+  [ "$n" -eq 1 ] || dir="$lock.$n"
+  label="slot $n"
+  [ "$slots" -ne 1 ] || label="lock"
+  holder="" branch="" since=""
+  if [ ! -d "$dir" ]; then
+    long+=("$label: free")
+    brief+=("free")
+    continue
+  fi
+  read -r holder < "$dir/pid" 2> /dev/null || true
+  read -r branch < "$dir/branch" 2> /dev/null || true
+  read -r since < "$dir/since" 2> /dev/null || true
   : "${branch:=unknown}"
-fi
-held_min=0
-[ -z "$since" ] || held_min=$(((now - since) / 60))
+  held_min=0
+  [ -z "$since" ] || held_min=$(((now - since) / 60))
+  if [ -n "$holder" ] && ! alive "$holder"; then
+    long+=("$label: stale, holder pid $holder has exited; the next check takes it over")
+    brief+=("stale (pid $holder gone)")
+  else
+    long+=("$label: held by pid ${holder:-?} on $branch for $held_min min")
+    brief+=("$branch · ${held_min}m")
+    busy=$((busy + 1))
+  fi
+done
 
 waiting=0 longest=0
 for w in "$lock.waiting"/*; do
@@ -38,21 +60,18 @@ for w in "$lock.waiting"/*; do
 done
 
 if [ "$short" -eq 1 ]; then
-  if [ ! -d "$lock" ]; then line="lock: free"
-  elif [ -n "$holder" ] && ! alive "$holder"; then line="lock: stale (pid $holder gone)"
-  else line="lock: $branch · ${held_min}m"; fi
+  if [ "$slots" -eq 1 ]; then line="lock: ${brief[0]}"
+  elif [ "$busy" -eq 0 ] && [[ "${brief[*]}" != *stale* ]]; then line="lock: free"
+  else
+    line="slots: ${brief[0]}"
+    for ((n = 1; n < slots; n++)); do line="$line | ${brief[n]}"; done
+  fi
   [ "$waiting" -eq 0 ] || line="$line · $waiting waiting"
   echo "$line"
   exit 0
 fi
 
-if [ ! -d "$lock" ]; then
-  echo "lock: free"
-elif [ -n "$holder" ] && ! alive "$holder"; then
-  echo "lock: stale, holder pid $holder has exited; the next check takes it over"
-else
-  echo "lock: held by pid ${holder:-?} on $branch for $held_min min"
-fi
+printf '%s\n' "${long[@]}"
 if [ "$waiting" -gt 0 ]; then echo "waiting: $waiting (longest $longest min)"; else echo "waiting: none"; fi
 
 echo "last runs (stage branch start end result built|reused):"
@@ -66,7 +85,7 @@ done
 # Build workers left running while no check holds the lock are idle. ps -W lists Windows processes under Git Bash.
 ps_cmd="${METAPHOR_CHECK_PS_CMD:-ps -W}"
 workers="$($ps_cmd 2> /dev/null | grep -ciE 'msbuild|vbcscompiler|dotnet.*(build-server|MSBuild)')" || true
-if [ "${workers:-0}" -gt 0 ] && [ ! -d "$lock" ]; then
+if [ "${workers:-0}" -gt 0 ] && [ "$busy" -eq 0 ]; then
   echo "idle build workers: $workers; shut them down with: dotnet build-server shutdown"
 fi
 exit 0

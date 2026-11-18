@@ -521,26 +521,38 @@ tmp="$(mktemp -d)" || die "could not create a temporary folder"
 trap finish EXIT
 
 # Stages that build take turns through one lock per machine, with no shared MSBuild nodes: several worktrees building
-# at once stalled each other for over an hour (2026-11-17). A lock whose holder has exited is taken over.
+# at once stalled each other for over an hour (2026-11-17). METAPHOR_CHECK_SLOTS (default 2) runs may build at once, one
+# lock directory each; a slot whose holder has exited is taken over (#281).
 take_lock() {
   [ -z "${locked:-}" ] || return 0
   export MSBUILDDISABLENODEREUSE=1 DOTNET_CLI_USE_MSBUILD_SERVER=0
-  local lock holder
-  lock="${METAPHOR_CHECK_LOCK:-${TMPDIR:-/tmp}/metaphor-check.lock}"
-  until mkdir "$lock" 2> /dev/null; do
-    holder="$(cat "$lock/pid" 2> /dev/null || true)"
-    if [ -n "$holder" ] && ! kill -0 "$holder" 2> /dev/null; then
-      rm -rf "$lock"
-      continue
-    fi
+  local base lock holder slots n
+  base="${METAPHOR_CHECK_LOCK:-${TMPDIR:-/tmp}/metaphor-check.lock}"
+  slots="${METAPHOR_CHECK_SLOTS:-2}"
+  [[ "$slots" =~ ^[1-9][0-9]*$ ]] || slots=2
+  lock=""
+  while [ -z "$lock" ]; do
+    # Slot 1 is the original lock path (check-status.sh and older tools read it); slot N is "<path>.N".
+    for ((n = 1; n <= slots; n++)); do
+      lock="$base"
+      [ "$n" -eq 1 ] || lock="$base.$n"
+      if mkdir "$lock" 2> /dev/null; then break; fi
+      holder="$(cat "$lock/pid" 2> /dev/null || true)"
+      if [ -n "$holder" ] && ! kill -0 "$holder" 2> /dev/null; then
+        rm -rf "$lock"
+        if mkdir "$lock" 2> /dev/null; then break; fi
+      fi
+      lock=""
+    done
+    [ -z "$lock" ] || break
     if [ -z "${waited:-}" ]; then
-      echo "check: waiting for another build check to finish ($lock)" >&2
-      mkdir -p "$lock.waiting" 2> /dev/null && echo "$(current_branch) $(date +%s)" > "$lock.waiting/$$"
+      echo "check: waiting for another build check to finish ($base, $slots slots)" >&2
+      mkdir -p "$base.waiting" 2> /dev/null && echo "$(current_branch) $(date +%s)" > "$base.waiting/$$"
     fi
     waited=1
-    sleep 5
+    sleep "${METAPHOR_CHECK_POLL:-5}"
   done
-  rm -f "$lock.waiting/$$"
+  rm -f "$base.waiting/$$"
   # scripts/check-status.sh reads these; pid goes last, since a lock with no pid yet is never taken over.
   current_branch > "$lock/branch"
   date +%s > "$lock/since"
