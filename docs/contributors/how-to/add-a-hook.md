@@ -49,7 +49,10 @@ A class in `src/Metaphor.Hooks` ([example](../../../src/Metaphor.Hooks/MessageLi
   folder ([files a run can leave](deploy-a-dev-build.md#files-a-run-can-leave-in-the-mods-folder)). A hook on a
   function in `.text1` keeps one of the two in every build (architecture rule 15, ADR 0010).
 - Implements `IGameHook`: `SignatureName`, and `Calls` and `UseCalls` for any game function it calls (each needs its
-  own signature). Only the loader installs hooks, after the build check and a full scan.
+  own signature). Only the loader installs hooks, after the build check and a full scan. A game global read from the
+  instruction that loads it isn't a call: declare it on its reader as a `GlobalSpec`, implement `IReadsGlobal`
+  ([example](../../../src/Metaphor.Hooks/DialogueWindowPointer.cs)) and add the reader to `HookServices.Globals`. The
+  loader locates it on its own, so a global that doesn't match turns off only what reads it (#300).
 - Implements the one shape interface in [`PassThrough.cs`](../../../src/Metaphor.Hooks/PassThrough.cs) that matches its
   arguments, such as `IObserves3`. The loader's adapter for that shape hooks the function, guards `Observe` and calls the
   original (rule 14). The shapes fit functions that return an integer, a pointer or nothing; if none fits, add one

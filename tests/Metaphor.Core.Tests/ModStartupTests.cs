@@ -162,6 +162,27 @@ public sealed class ModStartupTests : IDisposable
             announcer.Said);
     }
 
+    // #300: a global that didn't match turns off only what reads it, and the player hears which and what.
+    [Fact]
+    public void ThePlayerHearsEachMissingGlobalAndWhatItTurnsOff()
+    {
+        var announcer = new RecordingAnnouncer();
+
+        ModStartup.CheckAndReport(
+            ModId, _gameExe, _folder.FullName, () => [Build(GameBuild)], hooksExpected: 2,
+            installHooks: _ => new InstalledHooks(2, [])
+            {
+                MissingGlobals = [new("dialogue window", "dialogue controls"), new("menus-open flag", "menu controls")],
+            },
+            announcer: announcer);
+
+        Assert.Equal(
+            [new Announcement(
+                "Metaphor accessibility loaded, dialogue window not found, so dialogue controls are off; menus-open flag not found, so menu controls are off",
+                Interrupt: true)],
+            announcer.Said);
+    }
+
     // A supported build whose hooks fail is not an unsupported version; saying so would send the player the wrong way.
     [Fact]
     public void WhenTheHookLoaderFailsThePlayerHearsTheModCouldNotStart()

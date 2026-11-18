@@ -23,7 +23,8 @@ public sealed record HookDecision(string Name, long? Rva, string? WhyNot)
 
 /// <summary>Decides which hooks the loader installs (#39). Ground rule 2: a hook goes in only on a game build its
 /// <c>[GameHook]</c> names, and only where its signature, and the signature of every game function it calls, matches
-/// exactly once in a scan that read everything; otherwise it does nothing and says why.</summary>
+/// exactly once in a scan that read everything; otherwise it does nothing and says why. Game globals (#300) are located
+/// by the same rules, from the same scan.</summary>
 public static class HookPlanner
 {
     /// <summary>One decision per hook in <paramref name="hooks"/>, for the game build <paramref name="runningBuild"/>,
@@ -34,15 +35,33 @@ public static class HookPlanner
         string runningBuild,
         IReadOnlyList<HookSpec> hooks,
         IReadOnlyList<HookSignature> signatures,
-        Func<IReadOnlyList<HookSignature>, ScanResult> scan)
+        Func<IReadOnlyList<HookSignature>, ScanResult> scan) =>
+        Plan(runningBuild, hooks, [], signatures, scan, _ => null).Hooks;
+
+    /// <summary>As <see cref="Plan(string, IReadOnlyList{HookSpec}, IReadOnlyList{HookSignature}, Func{IReadOnlyList{HookSignature}, ScanResult})"/>,
+    /// and one decision per global in <paramref name="globals"/> from the same scan (#300). A global is decided as a
+    /// hook is, on its own: a global that can't be located leaves every hook as it was. One that can is located with
+    /// <see cref="GlobalSpec.Locate"/>, reading its load's displacement with <paramref name="readInt32"/>, which is
+    /// called only for globals whose signature matched exactly once.</summary>
+    public static LoadPlan Plan(
+        string runningBuild,
+        IReadOnlyList<HookSpec> hooks,
+        IReadOnlyList<GlobalSpec> globals,
+        IReadOnlyList<HookSignature> signatures,
+        Func<IReadOnlyList<HookSignature>, ScanResult> scan,
+        Func<long, int?> readInt32)
     {
         ArgumentNullException.ThrowIfNull(runningBuild);
         ArgumentNullException.ThrowIfNull(hooks);
+        ArgumentNullException.ThrowIfNull(globals);
         ArgumentNullException.ThrowIfNull(signatures);
         ArgumentNullException.ThrowIfNull(scan);
+        ArgumentNullException.ThrowIfNull(readInt32);
 
         var byName = signatures.ToDictionary(signature => signature.Name);
-        var wanted = hooks
+        // A global is checked as a hook on its load's code is, so it gets the same build check and exactly-once match.
+        var asHooks = globals.Select(global => new HookSpec(global.Name, global.GameBuilds, global.SignatureName)).ToList();
+        var wanted = hooks.Concat(asHooks)
             .Where(hook => hook.GameBuilds.Contains(runningBuild))
             .SelectMany(Needs)
             .Select(name => byName.GetValueOrDefault(name))
@@ -53,7 +72,20 @@ public static class HookPlanner
 
         var alone = hooks.Select(hook => Decide(hook, runningBuild, byName, found)).ToList();
         var byHook = hooks.Zip(alone).GroupBy(h => h.First.Name).ToDictionary(g => g.Key, g => g.First().Second);
-        return [.. hooks.Zip(alone, (hook, decision) => WithPartner(hook, decision, byHook))];
+        return new(
+            [.. hooks.Zip(alone, (hook, decision) => WithPartner(hook, decision, byHook))],
+            [.. globals.Zip(asHooks, (global, spec) => Locate(global, Decide(spec, runningBuild, byName, found), readInt32))]);
+    }
+
+    private static GlobalDecision Locate(GlobalSpec global, HookDecision match, Func<long, int?> readInt32)
+    {
+        if (!match.Install)
+        {
+            return new(global.Name, null, match.WhyNot);
+        }
+        return global.Locate(match.Rva!.Value, readInt32) is { } rva
+            ? new(global.Name, rva, null)
+            : new(global.Name, null, "its load couldn't be read");
     }
 
     /// <summary>A hook with a partner goes in only if the partner is planned too and can go in, so neither is left in

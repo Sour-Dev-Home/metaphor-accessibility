@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using Metaphor.Core;
 using Metaphor.Core.Menus;
 
 namespace Metaphor.Hooks;
@@ -11,42 +12,23 @@ namespace Metaphor.Hooks;
 /// <summary>Reads whether the game has its menus open (#268): the global <c>CampStatus_IsClosed</c> tests is non-null
 /// exactly while a field menu, or the title screen, is open (docs/raw-sources/menus-open-session6-2026-11-17.md, game
 /// build 548ddc95…, Steam build 18330018). One pointer read through <see cref="ModuleMemoryReader"/> per call, no list
-/// walk. The global's address comes from the code of the function that loads it, <c>CampStatusIsOpenBody</c> in
-/// <c>.ecode</c>, which the loader locates for <see cref="PadReadHook"/> and <see cref="KeyboardReadHook"/>
-/// (<see cref="IGameHook.Calls"/>, so only after the build check); that function is read, never hooked or called. Until then, and when a read fails, the menus read
-/// as closed, so the menu controls hand their keys to the game.</summary>
-internal sealed class MenusOpenRead
+/// walk. The global's address comes from the code that loads it: the <c>mov rcx,[rip+disp32]</c> (7 bytes) at
+/// <c>+9</c> in <c>CampStatusIsOpenBody</c>, in <c>.ecode</c>, which the loader locates on its own (#300, after the
+/// build check) and only reads, never hooks or calls. Until then, when it wasn't located, and when a read fails, the
+/// menus read as closed, so the menu controls hand their keys to the game.</summary>
+internal sealed class MenusOpenRead : IReadsGlobal
 {
-    /// <summary>The signature of the function whose <c>mov rcx,[rip+disp32]</c> at <c>+9</c> loads the global.</summary>
-    public const string HandleReader = "CampStatusIsOpenBody";
+    private static readonly GlobalSpec Spec = new(
+        "menus-open flag", [GameBuilds.Steam18330018], "CampStatusIsOpenBody",
+        LoadOffset: 9, DisplacementOffset: 3, InstructionLength: 7, TurnsOff: "menu controls");
 
-    private const int LoadOffset = 9;
-    private const int DisplacementOffset = 3;
-    private const int LoadLength = 7;
-
-    // Set at most once, by the first input hook that resolves it, before that hook goes live; the other hook may already
-    // be reading it. Both find the same address from the same function, so even a race writes one value. A
-    // pointer-sized field is read and written whole, so another thread sees 0, as closed, or the address.
+    // Set once by the loader before any hook goes live. A pointer-sized field is read and written whole, so another
+    // thread sees 0, as closed, or the address.
     private nint global;
 
-    /// <summary>Finds the global from the address the loader located for <see cref="HandleReader"/>. Each input hook
-    /// calls it before it goes live; the first to find the global keeps it, and a later call never changes it.</summary>
-    public void Resolve(IReadOnlyDictionary<string, nint> functions)
-    {
-        ArgumentNullException.ThrowIfNull(functions);
-        if (!functions.TryGetValue(HandleReader, out var function))
-        {
-            return;
-        }
-        var load = function + LoadOffset;
-        if (ModuleMemoryReader.ReadInt32(load + DisplacementOffset) is { } displacement)
-        {
-            if (global == 0)
-            {
-                global = load + LoadLength + displacement;
-            }
-        }
-    }
+    public GlobalSpec Global => Spec;
+
+    public void Locate(nint address) => global = address;
 
     /// <summary>Whether the menus are open now: false when the global is unknown or unreadable.</summary>
     public bool IsOpen() =>

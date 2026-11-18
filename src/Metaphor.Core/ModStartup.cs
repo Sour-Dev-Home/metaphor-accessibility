@@ -58,7 +58,12 @@ public static class ModStartup
         try
         {
             var installed = installHooks(ready.GameBuildSha256);
-            return ready with { HooksLoaded = installed.Count, OptIns = installed.OptIns };
+            return ready with
+            {
+                HooksLoaded = installed.Count,
+                OptIns = installed.OptIns,
+                MissingGlobals = installed.MissingGlobals,
+            };
         }
         catch (Exception e)
         {

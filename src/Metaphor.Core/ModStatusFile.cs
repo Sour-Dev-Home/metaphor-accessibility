@@ -30,6 +30,10 @@ public sealed record ModStatus(
     [JsonIgnore]
     public IReadOnlyList<OptInState> OptIns { get; init; } = [];
 
+    /// <summary>Each game global that wasn't located, for the load message (#300). Not in the status file.</summary>
+    [JsonIgnore]
+    public IReadOnlyList<MissingGlobal> MissingGlobals { get; init; } = [];
+
     public static ModStatus Ready(string modId, string gameBuildSha256, int hooksLoaded, int hooksExpected) =>
         new(modId, ModState.Ready, gameBuildSha256, hooksLoaded, hooksExpected, null);
 

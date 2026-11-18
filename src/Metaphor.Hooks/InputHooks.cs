@@ -18,9 +18,10 @@ namespace Metaphor.Hooks;
 // while a menu or the dialogue window is open writes it back without the bound buttons or keys. Menus come first, so in
 // a menu the reader binding toggles once, through them. Before each read is handed on, both hand the menu screens a
 // read of whether the game has its menus open (#268, MenusOpenRead), so menu-only controls stop when the menus close.
-// Each asks the loader for both readers' signatures, so it goes in only when those matched once too; without them the
-// controls never see a window and leave every press to the game (#206). Every read goes through ModuleMemoryReader
-// (rule 10); the one write is
+// The loader locates both readers' globals on its own (#300), so a reader whose signature didn't match reads as
+// unknown without keeping either hook out: with no window the dialogue controls leave every press to the game (#206),
+// and with no menus-open flag the menus read as closed. Every read goes through ModuleMemoryReader (rule 10); the one
+// write is
 // WriteProcessMemory on this process into the state the original has just filled, and only clears what it wrote.
 // WriteProcessMemory fails instead of faulting, but it also writes through read-only pages, so it is safe only on memory
 // known to be the game's own writable data, never on an arbitrary pointer. In Debug builds each change of a read is
@@ -45,7 +46,7 @@ internal sealed class PadReadHook : IGameHook, IChangesBehaviour
     private readonly MenusOpenRead menusOpen;
     private readonly MessageLog? log;
     private readonly InputStateChanges changes = new();
-    private readonly DialogueWindowPointer window = new();
+    private readonly DialogueWindowPointer window;
     private readonly Function callback;
     private IHook<Function>? hook;
 
@@ -56,21 +57,12 @@ internal sealed class PadReadHook : IGameHook, IChangesBehaviour
         menus = services.MenuControls;
         screens = services.MenuScreens;
         menusOpen = services.MenusOpen;
+        window = services.DialogueWindow;
         log = services.Log;
         callback = OnCall;
     }
 
     public string SignatureName => "PadRead";
-
-    /// <summary>Not called: located so <see cref="DialogueWindowPointer"/> and <see cref="MenusOpenRead"/> can find the
-    /// globals they load.</summary>
-    public IReadOnlyList<string> Calls => [.. DialogueWindowPointer.Signatures, MenusOpenRead.HandleReader];
-
-    public void UseCalls(IReadOnlyDictionary<string, nint> calls)
-    {
-        window.Resolve(calls);
-        menusOpen.Resolve(calls);
-    }
 
     public void Activate(IReloadedHooks hooks, nint address)
     {
@@ -151,7 +143,7 @@ internal sealed class KeyboardReadHook : IGameHook, IChangesBehaviour
     private readonly MenusOpenRead menusOpen;
     private readonly MessageLog? log;
     private readonly InputStateChanges changes = new();
-    private readonly DialogueWindowPointer window = new();
+    private readonly DialogueWindowPointer window;
     private readonly Function callback;
     private IHook<Function>? hook;
 
@@ -162,21 +154,12 @@ internal sealed class KeyboardReadHook : IGameHook, IChangesBehaviour
         menus = services.MenuControls;
         screens = services.MenuScreens;
         menusOpen = services.MenusOpen;
+        window = services.DialogueWindow;
         log = services.Log;
         callback = OnCall;
     }
 
     public string SignatureName => "KeyboardRead";
-
-    /// <summary>Not called: located so <see cref="DialogueWindowPointer"/> and <see cref="MenusOpenRead"/> can find the
-    /// globals they load.</summary>
-    public IReadOnlyList<string> Calls => [.. DialogueWindowPointer.Signatures, MenusOpenRead.HandleReader];
-
-    public void UseCalls(IReadOnlyDictionary<string, nint> calls)
-    {
-        window.Resolve(calls);
-        menusOpen.Resolve(calls);
-    }
 
     public void Activate(IReloadedHooks hooks, nint address)
     {

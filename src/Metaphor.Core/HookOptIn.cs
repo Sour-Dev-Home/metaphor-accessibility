@@ -19,7 +19,11 @@ public enum HookInclusion
 public sealed record OptInState(string Name, bool Active);
 
 /// <summary>What installing the hooks did: how many went in, and the state of each opt-in the run asked for.</summary>
-public sealed record InstalledHooks(int Count, IReadOnlyList<OptInState> OptIns);
+public sealed record InstalledHooks(int Count, IReadOnlyList<OptInState> OptIns)
+{
+    /// <summary>Each game global that wasn't located, and what that turns off (#300).</summary>
+    public IReadOnlyList<MissingGlobal> MissingGlobals { get; init; } = [];
+}
 
 /// <summary>Decides which hooks a build installs: development-only hooks only in a Debug build, and an opt-in hook only
 /// when its file is in the mod's folder, so a risky dev hook stays off unless a run asks for it.</summary>
