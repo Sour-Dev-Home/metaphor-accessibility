@@ -86,6 +86,10 @@ tools too. To flag another filler word, add it to
    shape; the rules are in the header of [`scripts/check.sh`](../scripts/check.sh).
 5. Open a pull request that says what changed and why. A PR that touches hooking, loading or injection includes
    in-game evidence on a named game build.
+6. Editing a workflow? Actions are pinned by commit SHA, and only an allowed list may run:
+   [add or update a GitHub Action](../docs/contributors/how-to/add-or-update-a-github-action.md).
+
+Your branch is deleted automatically after its PR merges. Delete your local copy with `git branch -d <branch>`.
 
 ## Security review and deny rules
 
