@@ -1067,82 +1067,153 @@ test_commits_stage_passes_reviewed_skipped_and_unscoped_commits() {
   expect 0
 }
 
-# outside_repo: a repo with a scope commit carrying a skip trailer, ready for the commits stage; sets $base.
-# A fake gh answers the timeline call with the lines in $TIMELINE (what the real call's --jq filter prints).
+# outside_repo [FILE]: a repo with one reviewed commit changing FILE (default: a scope file), ready for the commits
+# stage; sets $base. A fake gh answers the timeline call with the lines in $TIMELINE (what the real call's --jq filter
+# prints) and a permission call with admin for the logins in $FAKE_ADMINS (default: maint), write for any other; it
+# fails the call for the login in $FAKE_PERMISSION_FAIL. $FAKE_TIMELINE_FAIL fails the timeline call, $FAKE_GH_FAIL every
+# call.
 FAKE_BIN="$WORK/fakebin"
 mkdir -p "$FAKE_BIN"
-printf '#!/usr/bin/env bash\nif [ -n "${FAKE_GH_FAIL:-}" ]; then exit 1; fi\nprintf "%%b" "${TIMELINE:-}"\n' > "$FAKE_BIN/gh"
+cat > "$FAKE_BIN/gh" <<'EOF'
+#!/usr/bin/env bash
+if [ -n "${FAKE_GH_FAIL:-}" ]; then exit 1; fi
+for arg; do
+  case "$arg" in
+    repos/*/collaborators/*/permission)
+      login="${arg#*/collaborators/}" login="${login%/permission}"
+      [ "$login" = "${FAKE_PERMISSION_FAIL:-}" ] && exit 1
+      case " ${FAKE_ADMINS:-maint} " in *" $login "*) echo admin ;; *) echo write ;; esac
+      exit ;;
+  esac
+done
+[ -z "${FAKE_TIMELINE_FAIL:-}" ] || exit 1
+printf "%b" "${TIMELINE:-}"
+EOF
 chmod +x "$FAKE_BIN/gh"
 
 outside_repo() {
   review_repo "${1:-src/Metaphor.Hooks/Hooks/Speech.ps1}"
-  base="$(git rev-parse HEAD)" # review_repo staged the change; commit it here
-  git commit -q --no-verify -m "feat: scope change" -m "Security-Review-Skipped: by hand"
+  base="$(git rev-parse HEAD)" # review_repo staged the change; review and commit it here
+  bash "$STAMP" > /dev/null
+  git commit -q -m "feat: reviewed change" > /dev/null 2>&1 || out="could not commit the reviewed change" code=1
 }
 
-# run_pr ASSOCIATION: the commits stage the way CI runs it, for a PR #7 updated at 2026-11-16T10:00:00Z.
+# run_pr ASSOCIATION: the commits stage the way CI runs it, for a PR #7 by $PR_AUTHOR (default: contrib) updated at
+# 2026-11-16T10:00:00Z.
 run_pr() {
-  out="$(PATH="$FAKE_BIN:$PATH" TIMELINE="${TIMELINE:-}" FAKE_GH_FAIL="${FAKE_GH_FAIL:-}" PR_AUTHOR_ASSOCIATION="$1" PR_NUMBER=7 GITHUB_REPOSITORY=o/r \
-    PR_UPDATED_AT=2026-11-16T10:00:00Z bash "$CHECK" commits "$base..HEAD" 2>&1)"
+  out="$(PATH="$FAKE_BIN:$PATH" TIMELINE="${TIMELINE:-}" FAKE_GH_FAIL="${FAKE_GH_FAIL:-}" \
+    FAKE_PERMISSION_FAIL="${FAKE_PERMISSION_FAIL:-}" FAKE_TIMELINE_FAIL="${FAKE_TIMELINE_FAIL:-}" \
+    PR_AUTHOR_ASSOCIATION="$1" PR_AUTHOR="${PR_AUTHOR:-contrib}" \
+    PR_NUMBER=7 GITHUB_REPOSITORY=o/r PR_UPDATED_AT=2026-11-16T10:00:00Z bash "$CHECK" commits "$base..HEAD" 2>&1)"
   code=$?
 }
 
-test_outside_pr_touching_scope_fails_without_the_label() {
+# Issue #309: every PR by someone other than the owner (or an admin) needs the label, collaborators and members too.
+test_non_owner_pr_fails_without_the_label() {
+  local assoc
   outside_repo
   TIMELINE=""
-  run_pr CONTRIBUTOR
-  expect 1 "add the security-reviewed label"
-  run_pr NONE
-  expect 1 "add the security-reviewed label"
-  run_pr FIRST_TIME_CONTRIBUTOR
-  expect 1 "add the security-reviewed label"
+  for assoc in COLLABORATOR MEMBER CONTRIBUTOR NONE FIRST_TIME_CONTRIBUTOR; do
+    run_pr "$assoc"
+    expect 1 "add the security-reviewed label"
+  done
 }
 
-test_outside_pr_passes_with_a_label_added_after_the_latest_push() {
-  outside_repo
-  TIMELINE='push\t2026-11-16T09:00:00Z\nlabeled\t2026-11-16T11:00:00Z\n'
-  run_pr CONTRIBUTOR
+test_non_owner_pr_outside_the_scope_still_needs_the_label() {
+  outside_repo src/notes.txt
+  TIMELINE=""
+  run_pr COLLABORATOR
+  expect 1 "add the security-reviewed label"
+  TIMELINE='labeled\t2026-11-16T11:00:00Z\tmaint\n'
+  run_pr COLLABORATOR
   expect 0
 }
 
-test_outside_pr_ignores_trailers() {
-  outside_repo
+test_non_owner_docs_only_pr_needs_no_label_or_timeline() {
+  outside_repo docs/notes.txt
   TIMELINE=""
+  FAKE_GH_FAIL=1 run_pr COLLABORATOR
+  expect 0
+  FAKE_GH_FAIL=1 run_pr CONTRIBUTOR
+  expect 0
+}
+
+test_non_owner_pr_passes_with_a_maintainers_label_added_after_the_latest_push() {
+  local assoc
+  outside_repo
+  TIMELINE='push\t2026-11-16T09:00:00Z\nlabeled\t2026-11-16T11:00:00Z\tmaint\n'
+  for assoc in COLLABORATOR MEMBER CONTRIBUTOR; do
+    run_pr "$assoc"
+    expect 0
+  done
+}
+
+test_non_owner_pr_fails_when_a_non_admin_added_the_label() {
+  outside_repo
+  TIMELINE='labeled\t2026-11-16T11:00:00Z\tcollab\n'
+  run_pr COLLABORATOR
+  expect 1 "added by collab, who isn't an admin"
+  TIMELINE='labeled\t2026-11-16T11:00:00Z\tmaint\nunlabeled\t2026-11-16T11:10:00Z\tcollab\nlabeled\t2026-11-16T11:20:00Z\tcollab\n'
+  run_pr COLLABORATOR
+  expect 1 "added by collab, who isn't an admin"
+  TIMELINE='labeled\t2026-11-16T11:00:00Z\tbad/../login\n' # never reaches the API path
+  run_pr COLLABORATOR
+  expect 1 "added by bad/../login, who isn't an admin"
+}
+
+test_non_owner_pr_fails_closed_when_the_labellers_permission_cannot_be_read() {
+  outside_repo
+  TIMELINE='labeled\t2026-11-16T11:00:00Z\tmaint\n'
+  FAKE_PERMISSION_FAIL=maint run_pr COLLABORATOR
+  expect 2 "could not read the permission of maint"
+}
+
+test_non_owner_scope_change_needs_the_trailer_and_the_label() {
+  review_repo
+  base="$(git rev-parse HEAD)"
+  git commit -q --no-verify -m "feat: scope change, no review"
+  TIMELINE='labeled\t2026-11-16T11:00:00Z\tmaint\n'
+  run_pr COLLABORATOR
+  expect 1 "touches the security-review scope without a Security-Review trailer"
   run_pr CONTRIBUTOR
-  expect 1 "add the security-reviewed label"
-  expect_absent "Security-Review trailer"
+  expect 1 "touches the security-review scope without a Security-Review trailer"
+}
+
+# SECURITY_REVIEW_SKIP is the maintainer's, so a skip trailer only counts on the owner's PR.
+test_non_owner_skip_trailer_does_not_count() {
+  review_repo
+  base="$(git rev-parse HEAD)"
+  git commit -q --no-verify -m "feat: scope change" -m "Security-Review-Skipped: by hand"
+  TIMELINE='labeled\t2026-11-16T11:00:00Z\tmaint\n'
+  run_pr COLLABORATOR
+  expect 1 "touches the security-review scope without a Security-Review trailer"
+  PR_AUTHOR=maint run_pr MEMBER
+  expect 0
 }
 
 test_outside_pr_fails_when_the_label_predates_a_push() {
   outside_repo
-  TIMELINE='labeled\t2026-11-16T11:00:00Z\npush\t2026-11-16T12:00:00Z\n'
+  TIMELINE='labeled\t2026-11-16T11:00:00Z\tmaint\npush\t2026-11-16T12:00:00Z\n'
   run_pr CONTRIBUTOR
   expect 1 "before the PR's latest push (2026-11-16T12:00:00Z)"
-  TIMELINE='labeled\t2026-11-16T08:00:00Z\n' # older than the event's own updated_at
-  run_pr CONTRIBUTOR
+  TIMELINE='labeled\t2026-11-16T08:00:00Z\tmaint\n' # older than the event's own updated_at
+  run_pr COLLABORATOR
   expect 1 "before the PR's latest push (2026-11-16T10:00:00Z)"
 }
 
 test_outside_pr_fails_when_the_label_was_removed_after_adding() {
   outside_repo
-  TIMELINE='labeled\t2026-11-16T11:00:00Z\nunlabeled\t2026-11-16T11:30:00Z\n'
+  TIMELINE='labeled\t2026-11-16T11:00:00Z\tmaint\nunlabeled\t2026-11-16T11:30:00Z\tmaint\n'
   run_pr CONTRIBUTOR
   expect 1 "add the security-reviewed label"
-  TIMELINE='labeled\t2026-11-16T11:00:00Z\nunlabeled\t2026-11-16T11:30:00Z\nlabeled\t2026-11-16T12:00:00Z\n'
+  TIMELINE='labeled\t2026-11-16T11:00:00Z\tmaint\nunlabeled\t2026-11-16T11:30:00Z\tmaint\nlabeled\t2026-11-16T12:00:00Z\tmaint\n'
   run_pr CONTRIBUTOR
-  expect 0
-}
-
-test_outside_pr_outside_the_scope_needs_no_label_or_timeline() {
-  outside_repo docs/notes.txt
-  TIMELINE=""
-  FAKE_GH_FAIL=1 run_pr CONTRIBUTOR
   expect 0
 }
 
 test_outside_pr_fails_closed_when_the_timeline_cannot_be_read() {
   outside_repo
-  FAKE_GH_FAIL=1 run_pr CONTRIBUTOR
+  FAKE_TIMELINE_FAIL=1 run_pr CONTRIBUTOR
   expect 2 "could not read the timeline of PR #7"
 }
 
@@ -1177,19 +1248,23 @@ test_outside_pr_gate_runs_from_a_copy_outside_the_repository() {
 test_outside_pr_still_checks_commit_messages() {
   outside_repo
   git commit -q --no-verify --allow-empty -m "not typed"
-  TIMELINE='labeled\t2026-11-16T11:00:00Z\n'
+  TIMELINE='labeled\t2026-11-16T11:00:00Z\tmaint\n'
   run_pr CONTRIBUTOR
   expect 1 "subject needs a type prefix"
 }
 
+# The owner, or an admin (the maintainer's own PRs show MEMBER in an organization's repository), is judged by trailers.
 test_maintainer_pr_uses_trailers_and_ignores_the_label() {
-  local assoc
   outside_repo
   TIMELINE=""
-  for assoc in OWNER MEMBER COLLABORATOR; do
-    FAKE_GH_FAIL=1 run_pr "$assoc" # the timeline isn't read
-    expect 0
-  done
+  FAKE_GH_FAIL=1 run_pr OWNER # neither the timeline nor a permission is read
+  expect 0
+  PR_AUTHOR=maint run_pr MEMBER
+  expect 0
+  PR_AUTHOR=maint run_pr COLLABORATOR
+  expect 0
+  FAKE_PERMISSION_FAIL=maint PR_AUTHOR=maint run_pr MEMBER
+  expect 2 "could not read the permission of maint"
   git commit -q --no-verify --allow-empty -m "fix: no trailer"
   stage_file scripts/smoke-test.ps1
   git commit -q --no-verify -m "fix: scope without trailer"
