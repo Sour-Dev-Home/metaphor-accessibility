@@ -729,7 +729,7 @@ while IFS= read -r -d '' entry; do
   # Game folders are the git-ignored ones at the repo root. Lower-cased because Windows paths are case-insensitive.
   lower="${path,,}"
   case "$lower" in
-    game/* | extracted/* | dumps/* | captures/*) report_game_content "$path" "inside a game folder" ;;
+    game/* | extracted/* | dumps/* | captures/* | ghidra/*) report_game_content "$path" "inside a game folder" ;;
   esac
   case "/$lower" in
     *.rep/*) report_game_content "$path" "inside a disassembler project folder" ;;
@@ -737,7 +737,7 @@ while IFS= read -r -d '' entry; do
     # Our own builds are blocked too: they live as CI artifacts tied to a commit, never in the repository.
     *.exe | *.dll | *.asi) report "game content or build output: $path: executable extension" ;;
     *.dmp | *.mdmp) report_game_content "$path" "memory dump extension" ;;
-    *.gpr | *.idb | *.i64 | *.til | *.nam | *.id0 | *.id1 | *.id2 | *.bndb | *.dd64)
+    *.gpr | *.gzf | *.gbf | *.idb | *.i64 | *.til | *.nam | *.id0 | *.id1 | *.id2 | *.bndb | *.dd64)
       report_game_content "$path" "disassembler database extension" ;;
   esac
 

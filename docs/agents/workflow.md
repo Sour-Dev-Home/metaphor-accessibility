@@ -12,7 +12,10 @@ the mechanics; this page holds what they don't say. Setup, checks and the securi
    stop and report it. Otherwise assign yourself or comment that you're on it.
 1. Branch from the base your brief names (`origin/main` unless it says an integration branch), then reset onto it:
    `git fetch origin && git reset --hard origin/<base>`.
-2. Build test-first with the `tdd` skill.
+2. Build test-first with the `tdd` skill. For a static question about the exe (a function's code, its callers, a struct
+   offset, a class), ask the shared Ghidra project before disassembling anything yourself:
+   [`query-the-ghidra-project.md`](../contributors/how-to/query-the-ghidra-project.md). Quote addresses and names, never
+   its output.
 3. Run the narrow test file while iterating, then the full suite once. Read the summary line of each; a trimmed pipe
    can hide a failed start.
 

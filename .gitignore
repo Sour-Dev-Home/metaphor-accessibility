@@ -3,6 +3,8 @@
 /extracted/
 /dumps/
 /captures/
+# The local Ghidra project of the exe and its query output (scripts/ghidra.ps1).
+/ghidra/
 *.cpk
 *.pak
 # The content-blocker script is the real guard; these only catch the obvious cases.
@@ -17,6 +19,8 @@ Logs/
 # Disassembler and decompiler databases hold decompiled game code.
 *.gpr
 *.rep/
+*.gzf
+*.gbf
 *.idb
 *.i64
 *.til
