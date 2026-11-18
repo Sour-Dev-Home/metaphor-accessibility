@@ -7,6 +7,9 @@ the mechanics; this page holds what they don't say. Setup, checks and the securi
 
 ## Start
 
+0. Claim the issue. Others may take the same one by accident: first look for a branch, PR or "working on this" comment
+   that mentions it (`gh pr list --search "<n>"`, `git branch -r | grep <n>`, the issue's comments). If you find one,
+   stop and report it. Otherwise assign yourself or comment that you're on it.
 1. Branch from the base your brief names (`origin/main` unless it says an integration branch), then reset onto it:
    `git fetch origin && git reset --hard origin/<base>`.
 2. Build test-first with the `tdd` skill.
@@ -26,6 +29,7 @@ worktree's last runs and idle build workers (with the command to stop them). The
   (`commit-msg` hook). Merge commits need a conventional subject too; git's default is rejected.
 - Add the trailer the session's attribution reminder gives (`Co-Authored-By: ...`).
 - Never force-push. Deny rules in [`.claude/settings.json`](../../.claude/settings.json) already block it.
+- Stop only processes you started in this task. A check or lock held by someone else: wait, or hand back and say so.
 
 ## Hook, loading, install or update code
 
@@ -49,6 +53,8 @@ Commit with the stamp. `SECURITY_REVIEW_SKIP` is the maintainer's.
   the ticket `merged into <branch> at <sha>`, so the next agent finds the ticket done.
 - **Anywhere else**: open a PR with the `pr` skill's template, then `gh pr merge <n> --auto`. The merge queue refuses
   `--squash` and `--delete-branch`.
+- Check every push's own exit code (`git push ...; echo $?`), never a pipe's or an echo after it: a pre-push hook that
+  fails or times out on the build lock leaves the branch unpushed while the command looks quiet.
 
 ## Integration branches behind main
 
