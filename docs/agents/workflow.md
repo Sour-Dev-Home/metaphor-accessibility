@@ -52,10 +52,14 @@ stop them). The status line shows the `--short` form.
 - Never force-push. Deny rules in [`.claude/settings.json`](../../.claude/settings.json) already block it.
 - Stop only processes you started in this task. A check or lock held by someone else: wait, or hand back and say so.
 
-## Hook, loading, install or update code
+## Hook, loading, install or update code, and the guards
 
-The scope and the stamp are in
-[`CONTRIBUTING.md`](../../.github/CONTRIBUTING.md#security-review-and-deny-rules). Two steps are yours:
+This covers the security-review scope: the hook layer and its deploy scripts, and the guards that enforce the ground
+rules: `scripts/check.sh` and every script it, a git hook or a workflow runs, `.github/workflows/`, the check tests
+(`tests/check/`, `tests/scripts/`), the pinned tools, `scripts/github-outage.sh` and the `security-reviewer` agent. The
+full list and the stamp are in
+[`CONTRIBUTING.md`](../../.github/CONTRIBUTING.md#security-review-and-deny-rules). A change to any of them is handed
+back for review, never auto-merged on CI alone. Three steps are yours:
 
 1. Merge your base's tip (`main`, or the integration branch) into your branch first, so a conflict fix never lands
    after the review and voids the stamp.

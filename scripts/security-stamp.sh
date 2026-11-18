@@ -1,9 +1,11 @@
 #!/usr/bin/env bash
-# The must-run security review's stamp (issue #71). The security-review scope is the hook layer plus the scripts that
-# deploy, launch, package or fetch native code; a commit touching it needs the security-reviewer agent's stamp.
+# The must-run security review's stamp (issue #71). The security-review scope is the hook layer, the scripts that
+# deploy, launch, package or fetch native code, and the guards that enforce the ground rules (#306); a commit touching
+# it needs the security-reviewer agent's stamp.
 #
 #   scripts/security-stamp.sh                stamp the staged scope (the security-reviewer agent's last step)
 #   scripts/security-stamp.sh hash [COMMIT]  print the scope hash of the index, or of COMMIT's tree
+#   scripts/security-stamp.sh accepted COMMIT  print each hash a Security-Review trailer on COMMIT may carry
 #   scripts/security-stamp.sh touches [COMMIT | BASE..HEAD]  exit 0 when the staged changes (or COMMIT, against its
 #                                            first parent, or the range from its merge base) touch the scope, 1 when
 #                                            they don't
@@ -14,8 +16,18 @@
 # Exit 2 on a usage error or when git fails.
 set -uo pipefail
 
+# The guards (#306) are everything the checks, the git hooks and CI run, transitively, plus what they read to decide:
+# tests/check/test-check.sh fails when one of those scripts falls outside this list.
 scope=(src/Metaphor.Hooks/ scripts/deploy-dev.ps1 scripts/smoke-test.ps1 scripts/package-mod.sh scripts/fetch-prism.ps1
-  scripts/ReloadedDev.psm1 scripts/capture.ps1)
+  scripts/ReloadedDev.psm1 scripts/capture.ps1 scripts/listen.ps1
+  scripts/check.sh scripts/game-content.sha256 scripts/tree-hash.sh scripts/ci-changes.sh scripts/test-select.sh
+  scripts/stage-timing.sh scripts/install-docs-tools.sh scripts/conflict-alert.sh scripts/integration-sync.sh
+  scripts/check-status.sh scripts/github-outage.sh scripts/githooks/ scripts/security-stamp.sh .github/workflows/
+  tests/check/ tests/scripts/ tools/docs/ tools/slow/ .config/dotnet-tools.json .claude/agents/security-reviewer.md)
+# The scope before #306. A commit stamped then carries a hash of these paths; it stays valid while the commit changes
+# nothing in the scope outside them.
+old_scope=(src/Metaphor.Hooks/ scripts/deploy-dev.ps1 scripts/smoke-test.ps1 scripts/package-mod.sh
+  scripts/fetch-prism.ps1 scripts/ReloadedDev.psm1 scripts/capture.ps1)
 empty_tree=4b825dc642cb6eb9a060e54bf8d69288fbee4904
 
 die() {
@@ -23,11 +35,12 @@ die() {
   exit 2
 }
 
-# scope_hash [COMMIT]: print the hash of the scope in the index, or in COMMIT.
+# scope_hash [COMMIT [PATHS...]]: print the hash of the scope (or PATHS) in the index, or in COMMIT.
 scope_hash() {
-  local listing
+  local listing paths=("${scope[@]}")
+  [ $# -le 1 ] || paths=("${@:2}")
   if [ -n "${1:-}" ]; then
-    listing="$(git ls-tree -r "$1" -- "${scope[@]}")" || die "could not list the scope in $1"
+    listing="$(git ls-tree -r "$1" -- "${paths[@]}")" || die "could not list the scope in $1"
     listing="$(awk -F'\t' '{ split($1, m, " "); print m[1], m[3], $2 }' <<<"$listing")"
   else
     listing="$(git ls-files -s -- "${scope[@]}")" || die "could not list the staged scope"
@@ -68,10 +81,21 @@ case "${1:-}" in
     printf '%s\n' "$hash" > "$stamp_file" || die "could not write $stamp_file"
     echo "security review stamped: $hash" ;;
   hash) scope_hash "${2:-}" ;;
+  accepted)
+    # Every hash a Security-Review trailer on COMMIT may carry: its scope hash, and its old-scope hash when it changes
+    # nothing in the scope outside the old one (#306).
+    [ -n "${2:-}" ] || die "accepted needs a commit"
+    scope_hash "$2" || exit 2
+    git diff-tree --quiet -r --root --no-commit-id "$2" -- "${scope[@]}" "${old_scope[@]/#/:!}"
+    case $? in
+      0) scope_hash "$2" "${old_scope[@]}" || exit 2 ;;
+      1) ;;
+      *) die "could not tell whether $2 changes the guards" ;;
+    esac ;;
   touches) touches "${2:-}" ;;
   stamped)
     hash="$(scope_hash)" || exit 2
     [ -f "$stamp_file" ] && [ "$(tr -d '\r\n' < "$stamp_file")" = "$hash" ] ;;
-  *) echo "usage: scripts/security-stamp.sh [hash [COMMIT] | touches [COMMIT | BASE..HEAD] | stamped]" >&2
+  *) echo "usage: scripts/security-stamp.sh [hash [COMMIT] | accepted COMMIT | touches [COMMIT | BASE..HEAD] | stamped]" >&2
      exit 2 ;;
 esac

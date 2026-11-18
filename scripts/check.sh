@@ -445,15 +445,17 @@ review_trailer() {
   git interpret-trailers --trailer "$trailer" < "$tmp/message" > "$file" || die "could not add the trailer to $file"
 }
 
-# check_review_trailer SHA: a commit touching the scope carries "Security-Review: <its scope hash>" or a
-# Security-Review-Skipped trailer with a reason.
+# check_review_trailer SHA: a commit touching the scope carries "Security-Review: <a hash the stamp script accepts for
+# it>" (its scope hash, or its old-scope hash from before #306) or a Security-Review-Skipped trailer with a reason.
 check_review_trailer() {
-  local sha="$1" want reviewed skipped
+  local sha="$1" want reviewed skipped hash
   in_scope "$sha" || return 0
-  want="$(bash "$stamp_script" hash "$sha")" || die "could not hash the security-review scope of $sha"
+  want="$(bash "$stamp_script" accepted "$sha")" || die "could not hash the security-review scope of $sha"
   reviewed="$(git log -1 --format='%(trailers:key=Security-Review,valueonly)' "$sha")" || die "could not read $sha"
   skipped="$(git log -1 --format='%(trailers:key=Security-Review-Skipped,valueonly)' "$sha")" || die "could not read $sha"
-  grep -qxF "$want" <<<"$reviewed" && return 0
+  for hash in $want; do
+    grep -qxF "$hash" <<<"$reviewed" && return 0
+  done
   [ -n "${skipped//[[:space:]]/}" ] && return 0
   report "commit $(git rev-parse --short "$sha"): touches the security-review scope without a Security-Review trailer \
 matching its content, or a Security-Review-Skipped one"
