@@ -699,6 +699,21 @@ test_docs_stage_warns_on_a_markdown_lint_finding() {
   expect 0 "warning: notes.md:3" "MD012"
 }
 
+# markdownlint-cli2 loads a config from each linted file's folder, even with --config, and a .cjs or .mjs one runs code
+# (issue #322), so the stage fails before running it.
+test_docs_stage_fails_on_a_markdownlint_config_outside_tools_docs() {
+  docs_repo
+  mkdir -p docs
+  printf '# Notes\n\nPlain words.\n' > docs/notes.md
+  printf 'require("fs").writeFileSync("ran", "");\nmodule.exports = {};\n' > docs/.markdownlint-cli2.cjs
+  git add .
+  run_check docs
+  expect 1 "docs/.markdownlint-cli2.cjs" "tools/docs/"
+  out="the config ran" code=0
+  [ ! -e ran ] || code=1
+  expect 0
+}
+
 # words N: print N words of plain prose.
 words() { local i; for ((i = 0; i < $1; i++)); do printf 'word '; done; echo; }
 
@@ -1208,7 +1223,7 @@ test_scope_covers_every_script_the_gate_runs() {
     [ -n "$covered" ] || missing+=" $file"
     # Script names on lines that aren't comments; a bare name means one in scripts/.
     for ref in $(grep -vE '^[[:space:]]*#' "$ROOT/$file" |
-      grep -oE '[A-Za-z0-9_./-]*[A-Za-z0-9_-]+\.(sh|mjs|js|ps1|psm1|py)\b' | sort -u); do
+      grep -oE '[A-Za-z0-9_./-]*[A-Za-z0-9_-]+\.(sh|mjs|cjs|js|ps1|psm1|py)\b' | sort -u); do
       ref="${ref#./}" ref="${ref#/}" # "$root/scripts/x.sh" leaves "/scripts/x.sh"
       [[ "$ref" == */* ]] || ref="scripts/$ref"
       [ -f "$ROOT/$ref" ] && queue+=("$ref")
@@ -1231,6 +1246,47 @@ test_stamp_touches_each_guard_file_but_not_docs() {
   out="docs only" code=0
   bash "$STAMP" touches || code=$?
   expect 1
+}
+
+# What dotnet restore reads before the security job's vulnerability audit (issue #322): MSBuild's auto-imported files in
+# any folder, the SDK pin and the package sources. A change to one could hide a vulnerable package.
+AUDIT_FILES=(Directory.Build.props src/App/Directory.Build.targets src/App/Directory.Build.rsp
+  Directory.Packages.props src/App/Directory.Packages.props Directory.Solution.targets after.Metaphor.sln.targets
+  global.json nuget.config NuGet.config src/App/NuGet.Config)
+
+test_stamp_touches_each_file_the_audit_reads() {
+  local file
+  for file in "${AUDIT_FILES[@]}"; do
+    review_repo "$file"
+    out="$file" code=0
+    bash "$STAMP" touches || code=$?
+    expect 0
+  done
+  review_repo src/App/App.cs
+  out="code only" code=0
+  bash "$STAMP" touches || code=$?
+  expect 1
+}
+
+# A commit's scope hash covers the audit files in subfolders too, and matches the staged hash the stamp recorded.
+test_commit_scope_hash_covers_a_nested_audit_file() {
+  local staged
+  review_repo src/App/Directory.Build.targets
+  staged="$(bash "$STAMP" hash)"
+  git commit -q --no-verify -m "build: nested targets"
+  out="staged $staged, committed $(bash "$STAMP" hash HEAD), before $(bash "$STAMP" hash HEAD~1)" code=0
+  [ "$(bash "$STAMP" hash HEAD)" = "$staged" ] || code=1
+  [ "$(bash "$STAMP" hash HEAD)" != "$(bash "$STAMP" hash HEAD~1)" ] || code=1
+  expect 0
+}
+
+test_commits_stage_fails_an_audit_file_commit_without_a_review_trailer() {
+  local base
+  review_repo src/App/Directory.Packages.props
+  base="$(git rev-parse HEAD)"
+  git commit -q --no-verify -m "build: skipped the hooks"
+  run_check commits "$base..HEAD"
+  expect 1 "touches the security-review scope without a Security-Review trailer"
 }
 
 test_review_refuses_a_check_script_commit_without_a_stamp() {

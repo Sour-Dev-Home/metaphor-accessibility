@@ -108,7 +108,18 @@ docs_stage() {
   else
     missing_tool vale
   fi
-  if tool="$(find_tool markdownlint-cli2)"; then
+  # markdownlint-cli2 also loads a config from each linted file's folder, even with --config, and a .cjs or .mjs one
+  # (or a custom rule a .jsonc one names) runs code in the docs step (#322). Only tools/docs/, in the security-review
+  # scope, may hold one; with any other, markdownlint doesn't run.
+  local configs=()
+  while IFS= read -r -d '' file; do configs+=("$file"); done < <(
+    git ls-files -z -- ':(glob)**/.markdownlint*' ':(exclude,glob)tools/docs/**'
+  )
+  if [ "${#configs[@]}" -gt 0 ]; then
+    for file in "${configs[@]}"; do
+      report "$file: markdownlint config outside tools/docs/; markdownlint would load it and run its code"
+    done
+  elif tool="$(find_tool markdownlint-cli2)"; then
     check_lint "$tool" "${files[@]}"
   else
     missing_tool markdownlint-cli2
