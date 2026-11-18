@@ -227,6 +227,7 @@ pre_push_stage() {
     cached_pass "$tree" full pre-push || cached=0
   done
   if [ "$cached" -eq 1 ]; then
+    reused=reused
     echo "pre-push: reused the recorded pass for tree ${trees[*]}; no build or tests ran"
     return 0
   fi
@@ -459,9 +460,26 @@ case "$stage" in
   signatures) timed=("stage 4 (signatures)" 30 "commit $(git rev-parse --short HEAD 2> /dev/null || echo none)") ;;
   *) timed=() ;;
 esac
+current_branch() { git branch --show-current 2> /dev/null | grep . || echo "detached"; }
+# The run log (issue #269): one line per building run in this clone's git dir, newest first, the last 50.
+# "<stage> <branch> <start> <end> <pass|fail> <built|reused>"; read by scripts/check-status.sh.
+reused=built
+case "$stage" in full | slow | signatures | pre-push) run_logged=1 ;; *) run_logged="" ;; esac
+log_run() { # log_run EXIT_CODE
+  local file result=pass
+  [ "$1" -eq 0 ] || result=fail
+  file="$(git rev-parse --absolute-git-dir 2> /dev/null)/check-run-log" || return 0
+  [ "$file" != "/check-run-log" ] || return 0
+  {
+    echo "$stage $(current_branch) $(date -u -d "@$started" +%Y-%m-%dT%H:%M:%SZ) $(date -u +%Y-%m-%dT%H:%M:%SZ) $result $reused"
+    cat "$file" 2> /dev/null || true
+  } | head -n 50 > "$file.new" && mv "$file.new" "$file"
+}
 finish() {
   local code=$?
   rm -rf "${tmp:-}"
+  [ -z "$run_logged" ] || log_run "$code" || true
+  [ -z "${waited:-}" ] || rm -f "${METAPHOR_CHECK_LOCK:-${TMPDIR:-/tmp}/metaphor-check.lock}.waiting/$$"
   [ -z "${locked:-}" ] || rm -rf "$locked"
   [ "${#timed[@]}" -eq 0 ] ||
     bash "$timing_script" report "${timed[0]}" "${timed[1]}" "$started" "$(date +%s)" \
@@ -485,10 +503,17 @@ take_lock() {
       rm -rf "$lock"
       continue
     fi
-    [ -n "${waited:-}" ] || echo "check: waiting for another build check to finish ($lock)" >&2
+    if [ -z "${waited:-}" ]; then
+      echo "check: waiting for another build check to finish ($lock)" >&2
+      mkdir -p "$lock.waiting" 2> /dev/null && echo "$(current_branch) $(date +%s)" > "$lock.waiting/$$"
+    fi
     waited=1
     sleep 5
   done
+  rm -f "$lock.waiting/$$"
+  # scripts/check-status.sh reads these; pid goes last, since a lock with no pid yet is never taken over.
+  current_branch > "$lock/branch"
+  date +%s > "$lock/since"
   echo "$$" > "$lock/pid"
   locked="$lock"
 }
@@ -497,6 +522,7 @@ case "$stage" in
   full)
     full_tree_id="$(full_tree)" || full_tree_id=""
     if [ -n "$full_tree_id" ] && cached_pass "$full_tree_id" full; then
+      reused=reused
       echo "full: reused the recorded pass for tree $full_tree_id; no checks ran (change the tree to run them again)"
       exit 0
     fi
