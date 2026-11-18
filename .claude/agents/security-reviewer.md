@@ -24,7 +24,7 @@ the surrounding code too, not just the changed lines.
 2. **Game content.** Nothing from the game may be committed or released (`AGENTS.md` rule 4). The checks catch game
    files by folder, extension, size and known hash; look for what they can't see: decompiled output beyond a short
    explanatory snippet in a note, assets renamed or converted, and release or packaging scripts that could sweep in
-   files from `game/`, `extracted/` or `dumps/`.
+   files from `game/`, `extracted/`, `dumps/` or `ghidra/`.
 3. **Secrets.** No tokens or keys in committed files or CI workflows. `.env` is git-ignored.
 
 ## Native-code risks

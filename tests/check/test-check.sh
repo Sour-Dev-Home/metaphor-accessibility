@@ -70,7 +70,7 @@ test_blocks_staged_cpk() {
 
 test_blocks_every_game_extension_even_uppercase() {
   local ext
-  for ext in pak exe DLL asi dmp mdmp gpr idb i64 til nam id0 id1 id2 bndb dd64; do
+  for ext in pak exe DLL asi dmp mdmp gpr gzf gbf idb i64 til nam id0 id1 id2 bndb dd64; do
     new_repo
     printf 'x' > "file.$ext"
     git add -f "file.$ext"
@@ -134,6 +134,15 @@ test_blocks_file_inside_ghidra_project_folder() {
   git add -f work/Metaphor.rep/idata/00.prp
   run_check fast
   expect 1 "game content" "Metaphor.rep/idata/00.prp" "disassembler"
+}
+
+test_blocks_query_output_in_the_ghidra_folder() {
+  new_repo
+  mkdir -p ghidra/out
+  printf 'void FUN_14021e1c0(void) {}\n' > ghidra/out/decompiled.txt
+  git add -f ghidra/out/decompiled.txt
+  run_check fast
+  expect 1 "game content" "ghidra/out/decompiled.txt" "game folder"
 }
 
 test_blocks_large_binary_with_harmless_name() {

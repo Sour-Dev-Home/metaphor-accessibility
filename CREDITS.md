@@ -15,6 +15,10 @@ Build and test tools, not shipped: CsCheck, Mono.Cecil, Microsoft.CodeAnalysis.C
 (versions pinned in `Directory.Packages.props`); [Stryker.NET](https://github.com/stryker-mutator/stryker-net) and
 [jscpd](https://github.com/kucherenko/jscpd) in the weekly slow checks. Their licences are on their package pages
 [NEEDS VERIFICATION: not saved under `docs/raw-sources/`].
+[Ghidra](https://github.com/NationalSecurityAgency/ghidra) 12.2 (Apache-2.0), installed locally and not shipped, runs
+the local exe project (`scripts/ghidra.ps1`, `tools/ghidra/`) and its RTTI analyzer labels the vtables we name; the RTTI
+layout `MetaphorQuery.java` reads comes from its `Rtti4Model.java` and `TypeDescriptorModel.java`
+(`ghidra-and-jdk-install-2026-11-17.md`).
 
 ## Projects whose code or findings we used
 
