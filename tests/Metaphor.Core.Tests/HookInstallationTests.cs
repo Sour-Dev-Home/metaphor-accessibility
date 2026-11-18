@@ -221,6 +221,44 @@ public sealed class HookInstallationTests
         Assert.Empty(paired);
     }
 
+    // #300: hooks read the globals as soon as they go live, so each global is handed out first, found or not.
+    [Fact]
+    public void HandsOutEachGlobalBeforeAnyHookGoesInAndLogsWhatAMissingOneTurnsOff()
+    {
+        var order = new List<string>();
+        var log = new List<string>();
+        GlobalSpec Global(string name, string signature) => new(name, [Build], signature, 0, 3, 7, $"{name} controls");
+        var globals = new GlobalLookup(
+            [Global("window", "show-line"), Global("flag", "nowhere")],
+            rva => rva == 0x9e3b70 + 3 ? 0x100 : null,
+            decision => order.Add($"{decision.Name} {decision.Rva}"));
+
+        HookInstallation.Run(
+            Build, [Hook("Choices", "show-choice")], Signatures, Found,
+            () => (hook, _) => order.Add(hook.Name), log.Add, globals: globals);
+
+        Assert.Equal([$"window {0x9e3b70 + 7 + 0x100}", "flag ", "Choices"], order);
+        Assert.Equal(
+            [
+                "global window at module offset 0x9e3c77",
+                "global flag missing: no signature nowhere in hook-signatures.json; flag controls off",
+                "hook Choices installed at module offset 0x123abc",
+            ],
+            log);
+    }
+
+    [Fact]
+    public void AGlobalsUserThatThrowsStopsNoHook()
+    {
+        var globals = new GlobalLookup(
+            [new("window", [Build], "show-line", 0, 3, 7, "x")], _ => 0, _ => throw new InvalidOperationException());
+
+        var (loaded, _, _) = HookInstallation.Run(
+            Build, [Hook("Choices", "show-choice")], Signatures, Found, () => (_, _) => { }, _ => { }, globals: globals);
+
+        Assert.Equal(1, loaded);
+    }
+
     /// <summary>A hook that failed to install is the line a native crash report needs, so it goes to the error log,
     /// which the report log writes to disk at once (#204).</summary>
     [Fact]

@@ -34,6 +34,7 @@ internal interface IGameHook
 
 /// <summary>The only way a hook goes into the game (#39, ground rule 2). <see cref="HookPlanner"/> decides from the
 /// running build and a signature scan, and <see cref="HookInstallation"/> installs what it approves and reports the rest.
+/// The same scan locates the game globals <see cref="HookServices.Globals"/> read (#300), before any hook goes in.
 /// This finds and creates the hooks, reads the game's code for the scan, and makes the one call that installs a hook,
 /// through Reloaded-II's shared hooks library (ADR 0006). The architecture rule <c>PatchingNeedsGameHook</c> stops code patching the game
 /// any other way.</summary>
@@ -134,17 +135,44 @@ internal static class HookLoader
             hooks.Add((new HookSpec(type.Name, builds, hook.SignatureName, hook.Calls) { Partner = attribute.Partner }, adapter));
         }
 
-        var (moduleBase, regions) = hooks.Any(h => h.Hook is not null) ? ModuleMemoryReader.MainModuleRegions() : (0, []);
+        var readers = services.Globals;
+        var (moduleBase, regions) = hooks.Any(h => h.Hook is not null) || readers.Count > 0
+            ? ModuleMemoryReader.MainModuleRegions()
+            : (0, []);
+        var missing = new List<MissingGlobal>();
         var (loaded, kept, wentIn) = HookInstallation.Run(
             runningBuild, hooks, HookSignatures.All,
             wanted => ChunkedScan.FindAll(regions, (rva, buffer) => ModuleMemoryReader.ReadAt(moduleBase, rva, buffer), wanted),
-            () => ReloadedInstall(loader, moduleBase), log, logError, adapter => adapter.Hook.PairInstalled());
+            () => ReloadedInstall(loader, moduleBase), log, logError, adapter => adapter.Hook.PairInstalled(),
+            new GlobalLookup(
+                [.. readers.Select(reader => reader.Global)],
+                rva => ModuleMemoryReader.ReadInt32(moduleBase + (nint)rva),
+                decision => UseGlobal(readers, decision, moduleBase, missing)));
         // Referenced for the life of the game (HookInstallation.Run says why).
         Installed.AddRange(kept);
         // A hook skipped above, such as one without the constructor, isn't in wentIn, so its opt-in isn't active.
         return new(loaded, HookOptIn.Summarize(candidates
             .Where(c => c.Inclusion == HookInclusion.Included && c.Hook.OptInFile is not null)
-            .Select(c => (c.Hook.OptInName ?? c.Hook.OptInFile!, wentIn.Contains(c.Type.Name)))));
+            .Select(c => (c.Hook.OptInName ?? c.Hook.OptInFile!, wentIn.Contains(c.Type.Name)))))
+        {
+            MissingGlobals = missing,
+        };
+    }
+
+    /// <summary>Hands a located global to the reader that declared it (#300); one that wasn't located leaves its reader
+    /// unknown and is listed as missing, for the load message.</summary>
+    private static void UseGlobal(
+        IReadOnlyList<IReadsGlobal> readers, GlobalDecision decision, nint moduleBase, List<MissingGlobal> missing)
+    {
+        var reader = readers.First(reader => reader.Global.Name == decision.Name);
+        if (decision.Found)
+        {
+            reader.Locate(moduleBase + (nint)decision.Rva!.Value);
+        }
+        else
+        {
+            missing.Add(new(decision.Name, reader.Global.TurnsOff));
+        }
     }
 
     /// <summary>Installs one approved hook, through its adapter, with Reloaded-II's hooks controller, fetched now, once a

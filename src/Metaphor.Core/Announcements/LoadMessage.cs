@@ -13,11 +13,12 @@ public static class LoadMessage
 
     /// <summary>The announcement for <paramref name="status"/>. It interrupts: nothing else should be speaking yet.
     /// When the mod loaded, it names each dev opt-in the run asked for, and any whose hooks didn't all go in as not
-    /// active, so the maintainer hears the setup before playing (#223).</summary>
+    /// active, so the maintainer hears the setup before playing (#223), and each game global that wasn't found, with
+    /// what that turns off (#300).</summary>
     public static Announcement For(ModStatus status)
     {
         ArgumentNullException.ThrowIfNull(status);
-        var text = status.State == ModState.Ready ? Loaded + OptIns(status.OptIns)
+        var text = status.State == ModState.Ready ? Loaded + OptIns(status.OptIns) + Missing(status.MissingGlobals)
             : status.Reason == ModStartup.UnknownGameBuildReason ? Unsupported
             : CouldNotStart;
         return new(text, Interrupt: true);
@@ -26,4 +27,8 @@ public static class LoadMessage
     private static string OptIns(IReadOnlyList<OptInState> optIns) =>
         optIns.Count == 0 ? ""
             : ", dev opt-ins: " + string.Join(", ", optIns.Select(o => o.Active ? o.Name : $"{o.Name} not active"));
+
+    private static string Missing(IReadOnlyList<MissingGlobal> missing) =>
+        missing.Count == 0 ? ""
+            : ", " + string.Join("; ", missing.Select(m => $"{m.Name} not found, so {m.TurnsOff} are off"));
 }

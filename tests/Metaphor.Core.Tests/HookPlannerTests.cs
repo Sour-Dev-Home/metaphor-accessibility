@@ -128,6 +128,79 @@ public sealed class HookPlannerTests
         Assert.Equal("the scan couldn't read all of the game's code", decision.WhyNot);
     }
 
+    // A global's load, `mov rcx,[rip+disp32]`, sits 9 bytes into its signature: its disp32 3 bytes into the 7-byte
+    // instruction, as in CampStatusIsOpenBody. The global is where the instruction ends plus the displacement.
+    private static readonly HookSignature LoadsFlag = new("loads-flag", "4C 63 01 ?? 48 8B 0D", [Build], "e", ".ecode");
+
+    private static GlobalSpec Flag(params string[] builds) =>
+        new("menus-open flag", builds.Length == 0 ? [Build] : builds, "loads-flag", LoadOffset: 9, DisplacementOffset: 3,
+            InstructionLength: 7, TurnsOff: "menu controls");
+
+    private static Func<long, int?> Memory(long rva, int value) => at => at == rva ? value : null;
+
+    [Theory]
+    [InlineData(0x20, 0x1030)]
+    [InlineData(-0x1000, 0x10)]
+    public void LocatesAGlobalFromTheRipRelativeLoadAtItsSignaturesOneMatch(int displacement, long global)
+    {
+        var plan = HookPlanner.Plan(
+            Build, [Hook()], [Flag()], [ShowLine, LoadsFlag], Found(("show-line", [0x10]), ("loads-flag", [0x1000])),
+            Memory(0x1000 + 9 + 3, displacement));
+
+        Assert.Equal(new GlobalDecision("menus-open flag", global, null), Assert.Single(plan.Globals));
+        Assert.True(Assert.Single(plan.Hooks).Install);
+    }
+
+    [Theory]
+    [InlineData(new long[0], "signature loads-flag matched nowhere")]
+    [InlineData(new long[] { 0x1000, 0x2000 }, "signature loads-flag matched 2 times")]
+    public void AGlobalNotMatchedExactlyOnceIsUnknownAndEveryHookStillGoesIn(long[] rvas, string whyNot)
+    {
+        var plan = HookPlanner.Plan(
+            Build, [Hook()], [Flag()], [ShowLine, LoadsFlag], Found(("show-line", [0x10]), ("loads-flag", rvas)),
+            _ => 0x20);
+
+        var global = Assert.Single(plan.Globals);
+        Assert.False(global.Found);
+        Assert.Equal(new GlobalDecision("menus-open flag", null, whyNot), global);
+        Assert.True(Assert.Single(plan.Hooks).Install);
+    }
+
+    [Fact]
+    public void AGlobalForAnotherBuildIsUnknownAndNotScannedFor()
+    {
+        IReadOnlyList<HookSignature>? asked = null;
+
+        var plan = HookPlanner.Plan(
+            Build, [Hook()], [Flag(OtherBuild)], [ShowLine, LoadsFlag],
+            wanted => { asked = wanted; return Found(("show-line", [0x10]), ("loads-flag", [0x1000]))(wanted); },
+            _ => 0x20);
+
+        Assert.Equal(new GlobalDecision("menus-open flag", null, "not checked on game build 548ddc95"), Assert.Single(plan.Globals));
+        Assert.Equal([ShowLine], asked);
+    }
+
+    [Fact]
+    public void AGlobalWhoseLoadCannotBeReadIsUnknown()
+    {
+        var plan = HookPlanner.Plan(
+            Build, [], [Flag()], [LoadsFlag], Found(("loads-flag", [0x1000])), _ => null);
+
+        Assert.Equal(new GlobalDecision("menus-open flag", null, "its load couldn't be read"), Assert.Single(plan.Globals));
+    }
+
+    [Fact]
+    public void HooksAndGlobalsShareOneScan()
+    {
+        var scans = 0;
+
+        HookPlanner.Plan(
+            Build, [Hook()], [Flag()], [ShowLine, LoadsFlag],
+            wanted => { scans++; return Found(("show-line", [0x10]), ("loads-flag", [0x1000]))(wanted); }, _ => 0);
+
+        Assert.Equal(1, scans);
+    }
+
     [Fact]
     public void NoHooksMeansNoScan()
     {

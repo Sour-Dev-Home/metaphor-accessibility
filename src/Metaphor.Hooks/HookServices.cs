@@ -39,8 +39,15 @@ internal sealed record HookServices
     /// the menu controls take the read.</summary>
     public required MenuScreens MenuScreens { get; init; }
 
-    /// <summary>Reads whether the game has its menus open (#268); the pad read hook locates what it reads.</summary>
+    /// <summary>Reads whether the game has its menus open (#268); the loader locates what it reads (#300).</summary>
     public MenusOpenRead MenusOpen { get; init; } = new();
+
+    /// <summary>Reads the message the dialogue window holds (#232); the loader locates what it reads (#300).</summary>
+    public DialogueWindowPointer DialogueWindow { get; init; } = new();
+
+    /// <summary>Every reader of a game global, which the loader hands each global it locates before any hook goes in.
+    /// </summary>
+    public IReadOnlyList<IReadsGlobal> Globals => [MenusOpen, DialogueWindow];
 
     /// <summary>Names each cursor manager's screen class (#208): the choice cursor getter hook feeds it, and the menu
     /// cursor hook asks it for each input.</summary>

@@ -7,8 +7,10 @@ namespace Metaphor.Core;
 /// supplies the hooks, the scan and the call that installs one; this knows nothing of the hooking library.</summary>
 public static class HookInstallation
 {
-    /// <summary>Plans <paramref name="hooks"/> for <paramref name="runningBuild"/> as <see cref="HookPlanner.Plan"/>
-    /// does, then installs each approved hook with the function <paramref name="createInstaller"/> returns. That is
+    /// <summary>Plans <paramref name="hooks"/>, and any <paramref name="globals"/>, for <paramref name="runningBuild"/>
+    /// as <see cref="HookPlanner"/> does, from one scan. Each global is handed to its lookup's <c>Use</c>, found or not,
+    /// before any hook goes in, with one line to <paramref name="log"/> naming where it is, or why it's missing and what
+    /// that turns off (#300). Then installs each approved hook with the function <paramref name="createInstaller"/> returns. That is
     /// called once, just before the first install, and never if nothing is approved; if it throws, so does this. A
     /// hook is paired with <c>null</c> when it wasn't created, which only a hook for another build may be. Writes one
     /// line per hook to <paramref name="log"/>, or to <paramref name="logError"/>, when given, for a hook that failed
@@ -25,7 +27,8 @@ public static class HookInstallation
         Func<Action<THook, HookDecision>> createInstaller,
         Action<string> log,
         Action<string>? logError = null,
-        Action<THook>? pairInstalled = null)
+        Action<THook>? pairInstalled = null,
+        GlobalLookup? globals = null)
         where THook : class
     {
         ArgumentNullException.ThrowIfNull(hooks);
@@ -46,7 +49,24 @@ public static class HookInstallation
             }
         }
 
-        var plan = HookPlanner.Plan(runningBuild, [.. hooks.Select(h => h.Spec)], signatures, scan);
+        var full = HookPlanner.Plan(
+            runningBuild, [.. hooks.Select(h => h.Spec)], globals?.Globals ?? [], signatures, scan,
+            globals?.ReadInt32 ?? (_ => null));
+        foreach (var (global, decision) in (globals?.Globals ?? []).Zip(full.Globals))
+        {
+            Log(decision.Found
+                ? $"global {decision.Name} at module offset 0x{decision.Rva:x}"
+                : $"global {decision.Name} missing: {decision.WhyNot}; {global.TurnsOff} off");
+            try
+            {
+                globals!.Use(decision);
+            }
+            catch (Exception e)
+            {
+                LogError($"global {decision.Name} couldn't be handed out: {e.GetType().Name}");
+            }
+        }
+        var plan = full.Hooks;
         Action<THook, HookDecision>? install = null;
         var kept = new List<THook>();
         var loaded = 0;
