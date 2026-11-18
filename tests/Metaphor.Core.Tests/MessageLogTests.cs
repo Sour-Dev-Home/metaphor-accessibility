@@ -1,3 +1,4 @@
+using Metaphor.Core.Field;
 using Metaphor.Core.Menus;
 using Metaphor.Core.Messages;
 
@@ -165,6 +166,28 @@ public sealed class MessageLogTests
         Assert.Equal(
             $"410 ms screen mgr=0xa0 mgrClass=CursorManager@ope@ui@app owner=0x300 ownerClass=RootMenuChoice@ope@ui@app fields=+0x10:CursorManagerSoundParts@ope@ui@app,+0x28:RootMenuChoice@ope@ui@app{Environment.NewLine}" +
             $"410 ms screen mgr=0xb0 mgrClass=? owner=none ownerClass=? fields=none{Environment.NewLine}",
+            text.ToString());
+    }
+
+    [Fact]
+    public void RecordsAChoiceListCountAndFieldReadsAsNumbersAndNames()
+    {
+        var (log, text) = NewLog(now: 90);
+
+        log.ChoiceSeen(0x300, "AcademiaTopChoice@ope@ui@app", 0xa0);
+        log.ChoiceSeen(0x310, null, 0xb0);
+        log.ListCountRead(new CursorListCount(0xa0, 4, 4, 0, 0));
+        log.FieldStateRead(new FieldState(null, 12, null, null, null, null, null, null, null, null));
+        log.FieldNearbyRead("none");
+        log.MenuStateRead(new MenuOpenState(0, null, null, null, null, null));
+
+        Assert.Equal(
+            $"90 ms choice owner=0x300 ownerClass=AcademiaTopChoice@ope@ui@app mgr=0xa0{Environment.NewLine}" +
+            $"90 ms choice owner=0x310 ownerClass=? mgr=0xb0{Environment.NewLine}" +
+            $"90 ms list-count mgr=0xa0 count=4 items=4 flag8=0 flag9=0{Environment.NewLine}" +
+            $"90 ms field scene=none map=12 player=none pos=- facing=- locks=- action=0x0 cam=- cam60=- cam70=- camHeading=-{Environment.NewLine}" +
+            $"90 ms field-near none{Environment.NewLine}" +
+            $"90 ms menu-state camp=none{Environment.NewLine}",
             text.ToString());
     }
 

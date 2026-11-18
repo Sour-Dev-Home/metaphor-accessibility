@@ -232,5 +232,35 @@
     "pattern": "40 55 57 48 8D 6C 24 B1 48 81 EC A8 00 00 00 48 8B F9 E8 19 B9 55 00 48 8B 47 30 48 8B CF C5 FA 10 47 38 48 89 45 D7 8B 47 3C 89 45 E3",
     "gameBuilds": ["548ddc955c176867f062c44f94c03dd9ac33caefb278a5ac388e792aedf09504"],
     "evidence": "Our reading of the exe through its type information (docs/raw-sources/ui-focus-candidates-2026-11-16.md); one match on disk with its first call's offset fixed (a licence-text copy matches otherwise); not yet checked in memory"
+  },
+  {
+    "name": "FldCameraIsTypeFollow",
+    "pattern": "48 8B 05 ?? ?? ?? ?? 48 8B 48 10 83 79 08 05 0F 94 C0 C3",
+    "gameBuilds": ["548ddc955c176867f062c44f94c03dd9ac33caefb278a5ac388e792aedf09504"],
+    "evidence": "Our reading of the exe: the script function, in .ecode, whose first instruction loads fldWorld (docs/raw-sources/field-position-2026-11-16.md); one match on disk, rechecked 2026-11-17; read only, never hooked; not yet checked in memory"
+  },
+  {
+    "name": "FieldSceneRootCreate",
+    "pattern": "41 B9 A8 00 00 00 4C 8D 05 ?? ?? ?? ?? 33 D2 8D 4A 18 E8 ?? ?? ?? ?? 48 89 44 24 38 48 85 C0 74 0E 48 8B D7 48 8B C8 E8 ?? ?? ?? ?? 48 8B D8 48 89 1D ?? ?? ?? ?? 48 8B 03",
+    "gameBuilds": ["548ddc955c176867f062c44f94c03dd9ac33caefb278a5ac388e792aedf09504"],
+    "evidence": "Our reading of the exe: mid-function in the field's start-up, in .ecode, whose store at +0x2F names the fldScene_Root global (docs/raw-sources/field-state-and-map-2026-11-16.md); one match on disk, rechecked 2026-11-17; read only, never hooked; not yet checked in memory"
+  },
+  {
+    "name": "FldCurrentMapIdBody",
+    "pattern": "48 8B 0D ?? ?? ?? ?? 48 85 C9 75 06 B8 FF FF 00 00 C3 E9",
+    "gameBuilds": ["548ddc955c176867f062c44f94c03dd9ac33caefb278a5ac388e792aedf09504"],
+    "evidence": "Our reading of the exe: where FldGetCurrentMapID jumps, in .ecode, whose first instruction loads fldDatabase (docs/raw-sources/field-state-and-map-2026-11-16.md, docs/raw-sources/capture-2-field-leads-2026-11-17.md); one match on disk, checked 2026-11-17; read only, never hooked; not yet checked in memory"
+  },
+  {
+    "name": "CampStatusIsOpenBody",
+    "pattern": "4C 63 01 41 83 F8 FF 75 0C 48 8B 0D ?? ?? ?? ?? E9 ?? ?? ?? ?? 48 8B 05 ?? ?? ?? ?? 48 85 C0 74",
+    "gameBuilds": ["548ddc955c176867f062c44f94c03dd9ac33caefb278a5ac388e792aedf09504"],
+    "evidence": "Our reading of the exe: the function CampStatus_IsClosed calls, in .ecode, whose load at +9 names the camp handle global (docs/raw-sources/capture-2-field-leads-2026-11-17.md); one match on disk, checked 2026-11-17; read only, never hooked; not yet checked in memory"
+  },
+  {
+    "name": "TaskHandleAlive",
+    "pattern": "8B 11 8B C2 83 E8 01 74 3A 83 E8 01 74 08 83 F8 01 74 30 32 C0 C3 48 8B 05 ?? ?? ?? ?? 48 85 C0 74 F1 48 8B 89 B0 00 00 00 0F 1F 80 00 00 00 00 48 39 88 B0 00 00 00 74 3B 48 8B 40 78 48 85 C0 75 EE C3 48 8B 05 ?? ?? ?? ?? 83 FA 01 48 0F 44 05 ?? ?? ?? ?? 48 85 C0 74 B9 48 8B 89 B0 00 00 00 48 39 88 B0 00 00 00 74 0A 48 8B 40 68",
+    "gameBuilds": ["548ddc955c176867f062c44f94c03dd9ac33caefb278a5ac388e792aedf09504"],
+    "evidence": "Our reading of the exe: the function the camp test jumps to, in .ecode, whose loads at +0x16, +0x43 and +0x4D name three list heads (docs/raw-sources/capture-2-field-leads-2026-11-17.md); one match on disk, checked 2026-11-17; read only, never hooked; not yet checked in memory"
   }
 ]

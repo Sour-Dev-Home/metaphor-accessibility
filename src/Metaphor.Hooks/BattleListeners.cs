@@ -82,7 +82,8 @@ internal sealed class BattleWatch
 
     private readonly MessageLog log;
     private readonly CallerAddress module = new();
-    private readonly FieldWatch fields = new();
+    // Named in full: the field kit's Metaphor.Hooks.FieldWatch would otherwise win over the imported one.
+    private readonly Metaphor.Core.Battle.FieldWatch fields = new();
     private readonly Dictionary<string, string> lastRefs = [];
     private readonly HashSet<long> objects = [];
     private readonly HashSet<long> actions = [];

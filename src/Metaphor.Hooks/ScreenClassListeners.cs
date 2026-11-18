@@ -33,6 +33,7 @@ internal sealed class ChoiceCursorGetterListener : IGameHook, IObserves4WithResu
         if (ModuleMemoryReader.ReadPointer(output) is { } manager && manager != 0)
         {
             probe.Owners.Saw(choice, manager);
+            probe.HandedOut(choice, manager);
         }
     }
 }
@@ -88,15 +89,30 @@ internal sealed class ScreenClassProbe : ICursorObserver
     // (docs/raw-sources/ui-focus-candidates-2026-11-16.md); its size is unknown.
     private const int ManagerBytes = 0x100;
 
+    // How long a choice and manager pair stays quiet once logged: the getter may run every frame while a screen is open.
+    private const long ChoiceQuietMilliseconds = 60_000;
+
     private readonly MessageLog? log;
     private readonly CallerAddress module = new();
     private readonly Lock gate = new();
+    private readonly RepeatGate choices = new(ChoiceQuietMilliseconds, () => Environment.TickCount64);
     private bool started;
 
     public ScreenClassProbe(MessageLog? log) => this.log = log;
 
     /// <summary>Which choice last handed out each manager.</summary>
     public CursorOwners Owners { get; } = new();
+
+    /// <summary>Logs <paramref name="choice"/>'s class the first time it hands out <paramref name="manager"/> (#227), so
+    /// a screen whose cursor never moves through a manager, such as the Archetype Tree in session 5, is still named when
+    /// it asks for one. Class names and addresses only.</summary>
+    public void HandedOut(long choice, long manager)
+    {
+        if (log is not null && choices.LetThrough(choice, manager))
+        {
+            log.ChoiceSeen(choice, ClassNameOf(choice), manager);
+        }
+    }
 
     /// <summary>Starts hearing <paramref name="cursors"/>' inputs; later calls do nothing.</summary>
     public void Start(CursorEvents cursors)

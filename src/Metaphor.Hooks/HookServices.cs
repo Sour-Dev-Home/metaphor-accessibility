@@ -72,6 +72,11 @@ internal sealed record HookServices
             events.ObserveLines(log);
             events.ObserveChoices(log);
             cursors.Observe(log);
+            // #249: Debug only and opt-in; reads the moving manager, nothing else.
+            if (File.Exists(Path.Combine(modFolder, ListCountProbe.OptInFile)))
+            {
+                cursors.Observe(new ListCountProbe(log));
+            }
         }
         return new()
         {

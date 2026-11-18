@@ -35,6 +35,8 @@ internal sealed class PadReadHook : IGameHook, IChangesBehaviour
     private readonly MessageLog? log;
     private readonly InputStateChanges changes = new();
     private readonly DialogueWindowWatch? window;
+    private readonly FieldWatch? field;
+    private readonly MenuStateWatch? menus;
     private readonly Function callback;
     private IHook<Function>? hook;
 
@@ -49,16 +51,33 @@ internal sealed class PadReadHook : IGameHook, IChangesBehaviour
         {
             window = new DialogueWindowWatch();
         }
+        // #250: the field and menu-state watches the same way: Debug only, opt-in, read only through globals their .ecode
+        // functions load; those functions are located, never hooked or called (FieldWatch, MenuStateWatch).
+        if (log is not null && File.Exists(Path.Combine(services.ModFolder, FieldWatch.OptInFile)))
+        {
+            field = new FieldWatch(log);
+            menus = new MenuStateWatch(log);
+        }
         callback = OnCall;
     }
 
     public string SignatureName => "PadRead";
 
-    /// <summary>The watch's two functions, only while it is opted in: then the pad read goes in only if both match once,
-    /// so a run with the opt-in file shows a miss in <c>hooks n/m</c>. Without the file it asks for none.</summary>
-    public IReadOnlyList<string> Calls => window is null ? [] : DialogueWindowWatch.Signatures;
+    /// <summary>The watches' functions, only while each is opted in: then the pad read goes in only if all of them match
+    /// once, so a run with an opt-in file shows a miss in <c>hooks n/m</c>. Without the files it asks for none.</summary>
+    public IReadOnlyList<string> Calls =>
+    [
+        .. window is null ? [] : DialogueWindowWatch.Signatures,
+        .. field is null ? [] : FieldWatch.Signatures,
+        .. menus is null ? [] : MenuStateWatch.Signatures,
+    ];
 
-    public void UseCalls(IReadOnlyDictionary<string, nint> calls) => window?.Resolve(calls);
+    public void UseCalls(IReadOnlyDictionary<string, nint> calls)
+    {
+        window?.Resolve(calls);
+        field?.Resolve(calls);
+        menus?.Resolve(calls);
+    }
 
     public void Activate(IReloadedHooks hooks, nint address)
     {
@@ -108,6 +127,8 @@ internal sealed class PadReadHook : IGameHook, IChangesBehaviour
                     log.MessageWindowChanged(windowState);
                 }
             }
+            field?.Tick();
+            menus?.Tick();
         }
         catch (Exception)
         {
