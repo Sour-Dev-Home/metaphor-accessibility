@@ -13,13 +13,16 @@ BeforeAll {
         $Value | ConvertTo-Json -Depth 5 | Set-Content -LiteralPath $Path -Encoding utf8NoBOM
     }
 
+    # The default timeout is a generous upper bound: the script returns as soon as the state it waits for arrives, so a
+    # loaded machine only slows a test down (coding-standards judgement rule 4). Only a test of the timeout itself sets
+    # a short one.
     # Runs the smoke test in its own process, so its exit code and cleanup are real.
     function Invoke-SmokeTest([string] $Behaviour = 'ready', [string[]] $KnownBuild = @($script:build),
-        [string[]] $Extra = @()) {
+        [string[]] $Extra = @(), [int] $TimeoutSeconds = 60) {
         Write-Json $script:known @($KnownBuild | ForEach-Object { @{ sha256 = $_; steamBuildId = 1; evidence = 'test' } })
         $env:METAPHOR_STANDIN_BEHAVIOUR = $Behaviour
         $output = & pwsh -NoProfile -File $script -GameExe $script:gameExe -LauncherExe $script:launcher `
-            -ModFolders $script:testMod -ReloadedConfig $script:config -KnownBuilds $script:known -TimeoutSeconds 5 @Extra 2>&1
+            -ModFolders $script:testMod -ReloadedConfig $script:config -KnownBuilds $script:known -TimeoutSeconds $TimeoutSeconds @Extra 2>&1
         [pscustomobject]@{ ExitCode = $LASTEXITCODE; Output = ($output -join "`n") }
     }
 
@@ -136,7 +139,7 @@ Describe 'smoke-test.ps1' {
     }
 
     It 'times out when a mod never reports, then restores the config and closes the game' {
-        $result = Invoke-SmokeTest -Behaviour silent
+        $result = Invoke-SmokeTest -Behaviour silent -TimeoutSeconds 5
 
         $result.ExitCode | Should -Be 1
         $result.Output | Should -Match 'metaphor\.smoke: no status within 5 s'
@@ -171,7 +174,7 @@ Describe 'smoke-test.ps1' {
                 modId = 'metaphor.smoke'; state = 'ready'; gameBuildSha256 = $script:build; hooksLoaded = 1; hooksExpected = 1
             } | ConvertTo-Json)
 
-        $result = Invoke-SmokeTest -Behaviour silent
+        $result = Invoke-SmokeTest -Behaviour silent -TimeoutSeconds 5
 
         $result.ExitCode | Should -Be 1
         $result.Output | Should -Match 'metaphor\.smoke: no status within 5 s'
