@@ -68,3 +68,23 @@ A target in a section the build skipped is disassembled for that query only; the
 query does is saved. The answer is also kept in `ghidra/out/`, and Ghidra's logs in `ghidra/logs/`.
 
 Ghidra locks the project, so run one command at a time.
+
+## Browse it by hand
+
+To look around rather than ask, open the project in Ghidra's own window.
+
+1. Start Ghidra (`ghidraRun.bat` in its install folder) and choose File > Open Project.
+2. Pick `ghidra/<build>/metaphor.gpr` in the main checkout, where `<build>` is the first 16 hex characters of the exe's
+   SHA-256 (`scripts/ghidra.ps1` names the folder this way, and the project `metaphor`). Open the main checkout's
+   copy, not a worktree's.
+3. Open the exe from the project window. Our names show in the Symbol Tree and Listing: signature names from
+   `hook-signatures.json`, and `Class::vfN` for vtable functions, with any other inheriting classes in the plate comment.
+   Filter the Symbol Tree for `::vf` to list the latter. [NEEDS VERIFICATION: the menu and filter steps; Ghidra 12.2's
+   help is in its install's `docs/` but isn't saved to `docs/raw-sources/` yet.]
+
+While the window has the project open it holds the project's lock, so `ghidra.ps1` queries can't open it until you
+close the window (the script's header: "Ghidra locks the project"). Don't save changes over the shared project: the
+queries open it read-only and every agent relies on it as built. To experiment, close Ghidra, copy the `ghidra/<build>/`
+folder to another name in `ghidra/`, and delete the copy when done.
+
+Rule 4 still holds: quote names and addresses in notes, never decompiled output.
