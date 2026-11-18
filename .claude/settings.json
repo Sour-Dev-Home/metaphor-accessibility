@@ -37,6 +37,19 @@
       "PowerShell(git commit * -n*)"
     ]
   },
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash|PowerShell",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash \"$CLAUDE_PROJECT_DIR/.claude/hooks/refuse-log-polling.sh\""
+          }
+        ]
+      }
+    ]
+  },
   "enabledPlugins": {
     "mattpocock-skills@mattpocock": true
   },
