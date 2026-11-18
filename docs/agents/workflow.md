@@ -20,8 +20,9 @@ the mechanics; this page holds what they don't say. Setup, checks and the securi
 on that same tree prints `reused the recorded pass for tree <hash>` and skips the 10-15 minutes. A reviewer can rely on
 that line: any change, staged or committed, runs the checks again. Don't rerun `full` on a tree it has passed.
 
-A check that looks stalled: `bash scripts/check-status.sh` shows who holds the machine-wide build lock, who waits, each
-worktree's last runs and idle build workers (with the command to stop them). The status line shows the `--short` form.
+A check that looks stalled: `bash scripts/check-status.sh` shows who holds each of the two machine-wide build slots
+(`METAPHOR_CHECK_SLOTS`, default 2), who waits, each worktree's last runs and idle build workers (with the command to
+stop them). The status line shows the `--short` form.
 
 ## Commit
 
