@@ -187,6 +187,29 @@ public sealed class MessageLogTests
         Assert.Equal($"9 ms input pad0 buttons=0x0010 returned=1{Environment.NewLine}", text.ToString());
     }
 
+    [Theory]
+    [InlineData(0x13387b350L, "current=0x13387b350")]
+    [InlineData(0L, "current=0x0")]
+    [InlineData(null, "current=?")]
+    public void RecordsAWindowReadInTheFormTheConverterKeeps(long? current, string expected)
+    {
+        var (log, text) = NewLog(now: 9);
+
+        log.WindowRead(current);
+
+        Assert.Equal($"9 ms msgwindow {expected}{Environment.NewLine}", text.ToString());
+    }
+
+    [Fact]
+    public void RecordsAWindowHook()
+    {
+        var (log, text) = NewLog(now: 9);
+
+        log.WindowHook("open");
+
+        Assert.Equal($"9 ms msgwindow-hook open{Environment.NewLine}", text.ToString());
+    }
+
     [Fact]
     public void ARequestedLabelStaysOnOneLine()
     {

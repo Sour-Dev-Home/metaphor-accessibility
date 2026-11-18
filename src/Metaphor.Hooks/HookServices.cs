@@ -28,8 +28,8 @@ internal sealed record HookServices
     /// the dialogue feature is feeding it.</summary>
     public DialogueHistory DialogueHistory { get; init; } = new();
 
-    /// <summary>The dialogue controls (#58): the window hooks tell them when the dialogue window opens and closes, and
-    /// the input hooks hand them each read.</summary>
+    /// <summary>The dialogue controls (#58): the input hooks hand them each read and, with it, the dialogue window's
+    /// message pointer (#232).</summary>
     public required DialogueControls DialogueControls { get; init; }
 
     /// <summary>The mod's folder, outside the repository, where a development run leaves files for its hooks.</summary>

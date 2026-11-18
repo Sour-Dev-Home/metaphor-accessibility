@@ -2,7 +2,7 @@
 // labels, paths, numbers and relative times only, no game text (Metaphor.Core's SessionLogConverter). Save the output
 // under tests/fixtures/sessions/<behaviour>.txt.
 // Usage: Metaphor.SessionFixture <message-log.txt> <from ms> <to ms> <kinds> <game build> <raw source> <title>
-//   kinds: a comma-separated list of compile, request, select, cursor, pad.
+//   kinds: a comma-separated list of compile, request, select, cursor, pad, window.
 // Exit 0 when it wrote the fixture, 1 when the log has a kept record that looks like text, 2 on a usage error.
 
 using System.Globalization;

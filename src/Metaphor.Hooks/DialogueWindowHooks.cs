@@ -1,14 +1,13 @@
-using Metaphor.Features.Dialogue;
+using Metaphor.Core;
 
 namespace Metaphor.Hooks;
 
-// The dialogue window's state for the dialogue controls (#58): the window is open from the MsgOpen script function to
-// MsgClose (#58's design). Both hooks sit on the code the script functions jump to, in .text1, and only observe. The
-// functions, their arguments and the names (ours) are in docs/raw-sources/msg-window-functions-2026-11-16.md.
-// .text1 hooks stay opt-in (maintainer, 2026-11-16), in every build: without the file neither goes in, the controls
-// never learn the window's state, and their presses act at any time and are never hidden from the game. The two are
-// partners (#172): if either can't go in, neither does, the loader logs why, and the controls stay in that same mode,
-// so a missing close can't leave the window open and the bindings hidden for the whole session.
+// Debug evidence beside the window pointer (#232): hooks on the code the MsgOpen and MsgClose script functions jump to,
+// in .text1, that only log that they ran. They follow message handles, not the dialogue window, so they no longer
+// drive the dialogue controls (DialogueWindowPointer does): docs/raw-sources/dialogue-window-flag-session5-2026-11-17.md.
+// The functions, their arguments and the names (ours) are in docs/raw-sources/msg-window-functions-2026-11-16.md.
+// .text1 hooks stay opt-in in every build (maintainer, 2026-11-16); these are also development-only, so a Release build
+// never installs them.
 
 /// <summary>The file in the mod's folder that turns on the dialogue window hooks.</summary>
 internal static class DialogueWindowOptIn
@@ -19,41 +18,38 @@ internal static class DialogueWindowOptIn
     public const string Name = "dialogue window";
 }
 
-/// <summary>Reports the dialogue window opening: <c>MsgOpen</c>'s body, one argument (a C string, not read). Once it
-/// and the close hook are both in, tells the controls the window will be reported.</summary>
-[GameHook(GameBuilds.Steam18330018, OptInFile = DialogueWindowOptIn.File, OptInName = DialogueWindowOptIn.Name,
-    Partner = nameof(DialogueWindowCloseHook))]
+/// <summary>Logs <c>MsgOpen</c>'s body running: one argument (a C string, not read).</summary>
+[GameHook(GameBuilds.Steam18330018, DevOnly = true, OptInFile = DialogueWindowOptIn.File,
+    OptInName = DialogueWindowOptIn.Name)]
 internal sealed class DialogueWindowOpenHook : IGameHook, IObserves3
 {
-    private readonly DialogueControls controls;
+    private readonly MessageLog? log;
 
     public DialogueWindowOpenHook(HookServices services)
     {
         ArgumentNullException.ThrowIfNull(services);
-        controls = services.DialogueControls;
+        log = services.Log;
     }
 
     public string SignatureName => "MsgOpenBody";
 
-    public void PairInstalled() => controls.TrackWindow();
-
-    public void Observe(nint name, nint second, nint third) => controls.WindowOpened();
+    public void Observe(nint name, nint second, nint third) => log?.WindowHook("open");
 }
 
-/// <summary>Reports the dialogue window closing: <c>MsgClose</c>'s body, one 32-bit argument (not read).</summary>
-[GameHook(GameBuilds.Steam18330018, OptInFile = DialogueWindowOptIn.File, OptInName = DialogueWindowOptIn.Name,
-    Partner = nameof(DialogueWindowOpenHook))]
+/// <summary>Logs <c>MsgClose</c>'s body running: one 32-bit argument (not read).</summary>
+[GameHook(GameBuilds.Steam18330018, DevOnly = true, OptInFile = DialogueWindowOptIn.File,
+    OptInName = DialogueWindowOptIn.Name)]
 internal sealed class DialogueWindowCloseHook : IGameHook, IObserves3
 {
-    private readonly DialogueControls controls;
+    private readonly MessageLog? log;
 
     public DialogueWindowCloseHook(HookServices services)
     {
         ArgumentNullException.ThrowIfNull(services);
-        controls = services.DialogueControls;
+        log = services.Log;
     }
 
     public string SignatureName => "MsgCloseBody";
 
-    public void Observe(nint window, nint second, nint third) => controls.WindowClosed();
+    public void Observe(nint window, nint second, nint third) => log?.WindowHook("close");
 }

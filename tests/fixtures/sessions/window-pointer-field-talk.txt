@@ -1,0 +1,159 @@
+# Field talk: the window hooks open with no close while the window pointer opens and closes (field-inventory-2026-11-17.md)
+# source: docs/raw-sources/dialogue-window-flag-session5-2026-11-17.md
+# game build: 548ddc955c176867f062c44f94c03dd9ac33caefb278a5ac388e792aedf09504
+0 pad pad=0 buttons=0x4000 returned=1
+17 window current=0x0
+41 window current=0x13387b350
+168 pad pad=0 buttons=0x0000 returned=1
+820 pad pad=0 buttons=0x4000 returned=1
+954 pad pad=0 buttons=0x0000 returned=1
+1472 pad pad=0 buttons=0x4000 returned=1
+1606 pad pad=0 buttons=0x0000 returned=1
+1740 window current=0x0
+5854 pad pad=0 buttons=0x4000 returned=1
+5872 window current=0x0
+5899 window current=0x13387b350
+5973 pad pad=0 buttons=0x0000 returned=1
+6241 pad pad=0 buttons=0x4000 returned=1
+6341 pad pad=0 buttons=0x0000 returned=1
+6592 pad pad=0 buttons=0x4000 returned=1
+6676 pad pad=0 buttons=0x0000 returned=1
+7211 pad pad=0 buttons=0x4000 returned=1
+7328 pad pad=0 buttons=0x0000 returned=1
+7579 pad pad=0 buttons=0x4000 returned=1
+7696 pad pad=0 buttons=0x0000 returned=1
+8080 pad pad=0 buttons=0x4000 returned=1
+8214 pad pad=0 buttons=0x0000 returned=1
+8348 pad pad=0 buttons=0x4000 returned=1
+8447 pad pad=0 buttons=0x0000 returned=1
+8798 pad pad=0 buttons=0x4000 returned=1
+8832 window current=0x13387b350
+8882 pad pad=0 buttons=0x0000 returned=1
+9032 pad pad=0 buttons=0x4000 returned=1
+9133 pad pad=0 buttons=0x0000 returned=1
+10119 pad pad=0 buttons=0x0040 returned=1
+10270 pad pad=0 buttons=0x0000 returned=1
+12059 pad pad=0 buttons=0x0040 returned=1
+12210 pad pad=0 buttons=0x0000 returned=1
+13130 pad pad=0 buttons=0x4000 returned=1
+13314 window current=0x13387b350
+13481 pad pad=0 buttons=0x0000 returned=1
+14066 pad pad=0 buttons=0x4000 returned=1
+14234 pad pad=0 buttons=0x0000 returned=1
+14585 pad pad=0 buttons=0x4000 returned=1
+14786 pad pad=0 buttons=0x0000 returned=1
+15086 pad pad=0 buttons=0x4000 returned=1
+15254 pad pad=0 buttons=0x0000 returned=1
+15622 pad pad=0 buttons=0x4000 returned=1
+15789 pad pad=0 buttons=0x0000 returned=1
+17344 pad pad=0 buttons=0x4000 returned=1
+17528 pad pad=0 buttons=0x0000 returned=1
+17528 window current=0x0
+39222 pad pad=0 buttons=0x0000 returned=0
+39421 pad pad=0 buttons=0x0000 returned=1
+40425 pad pad=0 buttons=0x0800 returned=1
+40592 pad pad=0 buttons=0x0000 returned=1
+40876 pad pad=0 buttons=0x0800 returned=1
+41027 pad pad=0 buttons=0x0000 returned=1
+41344 pad pad=0 buttons=0x1000 returned=1
+41393 window current=0x46474c30
+41551 pad pad=0 buttons=0x0000 returned=1
+41919 pad pad=0 buttons=0x2000 returned=1
+41935 window current=0x46474c30
+42036 pad pad=0 buttons=0x0000 returned=1
+42186 pad pad=0 buttons=0x2000 returned=1
+42303 pad pad=0 buttons=0x0000 returned=1
+42470 pad pad=0 buttons=0x2000 returned=1
+42604 pad pad=0 buttons=0x0000 returned=1
+42822 pad pad=0 buttons=0x2000 returned=1
+42955 pad pad=0 buttons=0x0000 returned=1
+43123 pad pad=0 buttons=0x4000 returned=1
+43273 pad pad=0 buttons=0x0000 returned=1
+43357 window current=0x0
+44160 pad pad=0 buttons=0x0800 returned=1
+44377 pad pad=0 buttons=0x0000 returned=1
+44595 pad pad=0 buttons=0x0800 returned=1
+44779 pad pad=0 buttons=0x0000 returned=1
+44912 pad pad=0 buttons=0x0800 returned=1
+45096 pad pad=0 buttons=0x0000 returned=1
+45347 pad pad=0 buttons=0x0800 returned=1
+45581 pad pad=0 buttons=0x0000 returned=1
+46033 pad pad=0 buttons=0x0800 returned=1
+46200 pad pad=0 buttons=0x0000 returned=1
+46685 pad pad=0 buttons=0x0800 returned=1
+46819 pad pad=0 buttons=0x0000 returned=1
+46919 pad pad=0 buttons=0x0800 returned=1
+47053 pad pad=0 buttons=0x0000 returned=1
+47237 pad pad=0 buttons=0x0800 returned=1
+47292 pad pad=0 buttons=0x0c00 returned=1
+47454 pad pad=0 buttons=0x0000 returned=1
+47621 pad pad=0 buttons=0x0800 returned=1
+47788 pad pad=0 buttons=0x0000 returned=1
+49243 pad pad=0 buttons=0x0800 returned=1
+49344 pad pad=0 buttons=0x0000 returned=1
+49494 pad pad=0 buttons=0x0800 returned=1
+49611 pad pad=0 buttons=0x0000 returned=1
+49728 pad pad=0 buttons=0x0800 returned=1
+49896 pad pad=0 buttons=0x0000 returned=1
+50130 pad pad=0 buttons=0x8000 returned=1
+50297 pad pad=0 buttons=0x0000 returned=1
+50481 pad pad=0 buttons=0x8000 returned=1
+50648 pad pad=0 buttons=0x0000 returned=1
+51518 pad pad=0 buttons=0x8000 returned=1
+51652 pad pad=0 buttons=0x0000 returned=1
+55299 pad pad=0 buttons=0x8000 returned=1
+55448 pad pad=0 buttons=0x0000 returned=1
+55632 pad pad=0 buttons=0x8000 returned=1
+55749 pad pad=0 buttons=0x0000 returned=1
+55966 pad pad=0 buttons=0x8000 returned=1
+56117 pad pad=0 buttons=0x0000 returned=1
+60181 pad pad=0 buttons=0x1000 returned=1
+60198 window current=0x46474c30
+60381 pad pad=0 buttons=0x0000 returned=1
+61401 pad pad=0 buttons=0x8000 returned=1
+61535 pad pad=0 buttons=0x0000 returned=1
+62790 pad pad=0 buttons=0x4000 returned=1
+62823 window current=0x46474c30
+62923 pad pad=0 buttons=0x0000 returned=1
+64746 pad pad=0 buttons=0x4000 returned=1
+64947 pad pad=0 buttons=0x0000 returned=1
+64980 window current=0x0
+66185 pad pad=0 buttons=0x0800 returned=1
+66352 pad pad=0 buttons=0x0000 returned=1
+66552 pad pad=0 buttons=0x0800 returned=1
+66669 pad pad=0 buttons=0x0000 returned=1
+66803 pad pad=0 buttons=0x0800 returned=1
+66937 pad pad=0 buttons=0x0000 returned=1
+67171 pad pad=0 buttons=0x0800 returned=1
+67355 pad pad=0 buttons=0x0000 returned=1
+67573 pad pad=0 buttons=0x0400 returned=1
+67728 pad pad=0 buttons=0x0c00 returned=1
+67740 pad pad=0 buttons=0x0800 returned=1
+67790 pad pad=0 buttons=0x0a00 returned=1
+67940 pad pad=0 buttons=0x0200 returned=1
+68041 pad pad=0 buttons=0x0100 returned=1
+68325 pad pad=0 buttons=0x0000 returned=1
+68994 pad pad=0 buttons=0x0008 returned=1
+69211 pad pad=0 buttons=0x0000 returned=1
+70248 pad pad=0 buttons=0x0800 returned=1
+70399 pad pad=0 buttons=0x0000 returned=1
+70800 pad pad=0 buttons=0x0800 returned=1
+70984 pad pad=0 buttons=0x0000 returned=1
+71135 pad pad=0 buttons=0x0400 returned=1
+71369 pad pad=0 buttons=0x0000 returned=1
+71591 pad pad=0 buttons=0x0c00 returned=1
+71820 pad pad=0 buttons=0x0400 returned=1
+71837 pad pad=0 buttons=0x0000 returned=1
+72222 pad pad=0 buttons=0x0400 returned=1
+72260 pad pad=0 buttons=0x0c00 returned=1
+72472 pad pad=0 buttons=0x0000 returned=1
+75165 pad pad=0 buttons=0x0040 returned=1
+75265 pad pad=0 buttons=0x0000 returned=1
+75332 pad pad=0 buttons=0x0040 returned=1
+75416 pad pad=0 buttons=0x0000 returned=1
+76419 pad pad=0 buttons=0x2000 returned=1
+76570 pad pad=0 buttons=0x0000 returned=1
+77122 pad pad=0 buttons=0x0800 returned=1
+77256 pad pad=0 buttons=0x0000 returned=1
+77339 pad pad=0 buttons=0x0800 returned=1
+77473 pad pad=0 buttons=0x0000 returned=1
