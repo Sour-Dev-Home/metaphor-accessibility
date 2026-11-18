@@ -85,10 +85,11 @@ finding without its game build ([`docs/findings/`](docs/findings/README.md)).
 
 The checks block game content and personal information. For the second, copy `.claude/pii-patterns.example.txt` to
 `.claude/pii-patterns.txt` (git-ignored) and list your own private strings. CI checks general patterns on every pull
-request and merge-queue run, and the private list on pushes to `main`, from a repository secret. To set it, a maintainer runs:
+request and merge-queue run, and the private list on pushes to `main`, from a secret of the `main-push` environment,
+which only `main` may use. To set it, a maintainer runs:
 
 ```sh
-gh secret set PII_PATTERNS < .claude/pii-patterns.txt
+gh secret set PII_PATTERNS --env main-push < .claude/pii-patterns.txt
 ```
 
 Pushes to `main` fail until the secret is set. The check never prints a matching line or pattern, because CI logs are

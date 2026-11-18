@@ -125,15 +125,31 @@ A commit touching it needs a review stamp:
 **Override (maintainer only).** `SECURITY_REVIEW_SKIP="<reason>" git commit ...` lets the commit through and records
 `Security-Review-Skipped: <reason>`, which CI accepts. Agents are denied it.
 
-**Outside contributors (the `security-reviewed` label).** CI treats a PR as the maintainer's when its author is the
-repository's owner, a member or a collaborator, and judges it by the trailers above. Any other PR is outside, and
-trailers don't count for it, since anyone can write or stamp one. If it touches the scope, CI fails until a maintainer
-runs the `security-reviewer` agent on it and adds the `security-reviewed` label (only people with write access can).
-The label counts only if it was added after the PR's latest push; a push after the review needs a new review and the
-label added again. Re-run the CI job after labelling. CI judges an outside PR by its whole diff, so a change made inside a
-merge commit counts, and runs the base branch's copy of `scripts/check.sh` and `scripts/security-stamp.sh`, so the PR
-can't edit the check that judges it. That step runs first in its job, before any of the PR's own code. The PR can still
-edit `.github/workflows/`, so read a workflow change before approving an outside PR's CI run.
+**Everyone else's PRs (the `security-reviewed` label, #127, #309).** CI treats a PR as the maintainer's when its author
+is the repository's owner or has admin permission (in an organization's repository the maintainer's PRs show
+`MEMBER`). Every other PR, collaborators' and members' included, works like this:
+
+- Its commits that touch the scope need the `Security-Review` trailer, as above. A `Security-Review-Skipped` trailer
+  doesn't count.
+- If it changes anything outside `docs/`, CI also fails until a maintainer reviews it (running the `security-reviewer`
+  agent when it touches the scope) and adds the `security-reviewed` label. The label counts only if the latest label
+  event was added by an admin, after the PR's latest push; a push after the review needs a new review and the label
+  added again. Re-run the CI job after labelling. A docs-only PR needs no label.
+- Agents working for a collaborator follow the same rules as their hand-written PRs. Auto-merge only lands once this
+  gate passes.
+
+CI judges these PRs by their whole diff, so a change made inside a merge commit counts, and runs the base branch's copy
+of `scripts/check.sh` and `scripts/security-stamp.sh`, so the PR can't edit the check that judges it. That step runs
+first in its job, before any of the PR's own code. The PR can still edit `.github/workflows/`, so read a workflow
+change before approving its CI run or labelling it.
+
+**Collaborators.** A collaborator has the `write` role: they push branches here and merge through the merge queue. The
+`main` ruleset keeps 0 required approvals and no code-owner review, so the maintainer's and agents' PRs keep flowing;
+the label above is the review gate. 2FA isn't required. Only admins create, update or delete `v*` tags. Workflow runs
+from forks follow GitHub's default: approval for first-time contributors only. The private patterns list
+(`PII_PATTERNS`) is a secret of the `main-push` environment, which only `main` may use, so no branch's run can read it.
+Before their first PR, a collaborator's clone uses the repository's git hooks and their own private-patterns file
+([step 2](#2-clone-and-set-up)).
 
 **Deny rules.** [`.claude/settings.json`](../.claude/settings.json) denies Claude Code every force push, printing
 `.claude/pii-patterns.txt` (the Read tool, `cat`, `type`, `Get-Content`, `head`, `tail`, `less`), setting
@@ -163,8 +179,8 @@ you as they do to agents.
   work and write issues by hand.
 - **The game.** Most work needs your own copy of the game, to check offsets, formats and in-game behaviour. Without
   it you can still do docs, tooling and anything the unit tests cover.
-- **Security label.** A pull request from an outside contributor that touches hook or deploy code gets the
-  maintainer's `security-reviewed` label after review ([#127](https://github.com/Sour-Dev-Home/metaphor-refantazio/issues/127)).
+- **Security label.** A pull request that changes anything outside `docs/` gets the maintainer's `security-reviewed`
+  label after review ([the gate](#security-review-and-deny-rules)).
 
 ## Where things go
 

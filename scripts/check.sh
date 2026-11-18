@@ -26,10 +26,11 @@
 # matching the staged scope; the commit-msg hook then appends "Security-Review: <hash>". SECURITY_REVIEW_SKIP="<reason>"
 # lets it through and records "Security-Review-Skipped: <reason>" instead.
 #
-# In CI the `commits` stage also reads PR_AUTHOR_ASSOCIATION. A PR whose author is OWNER, MEMBER or COLLABORATOR is the
-# maintainer's and is judged by trailers. Any other PR is outside: trailers don't count, and a PR touching the scope needs
-# the `security-reviewed` label, added after the PR's latest push (PR_NUMBER, GITHUB_REPOSITORY, GH_TOKEN, and
-# PR_UPDATED_AT from the event). Without PR_AUTHOR_ASSOCIATION (local runs) trailers decide.
+# In CI the `commits` stage also reads PR_AUTHOR_ASSOCIATION and PR_AUTHOR (#309). Every PR is judged by its trailers. A
+# PR whose author is OWNER or has admin permission is the maintainer's; on any other PR a skip trailer doesn't count, and
+# a change outside docs/ needs the `security-reviewed` label, added by an admin after the PR's latest push (PR_NUMBER,
+# GITHUB_REPOSITORY, GH_TOKEN, and PR_UPDATED_AT from the event). Without PR_AUTHOR_ASSOCIATION (local runs) trailers
+# decide.
 #
 # Rules judge the staged blobs in the index, not the working tree, so they see exactly what would be committed.
 # Every step runs even after a failure, so one run shows every problem.
@@ -467,31 +468,74 @@ check_review_trailer() {
   for hash in $want; do
     grep -qxF "$hash" <<<"$reviewed" && return 0
   done
-  [ -n "${skipped//[[:space:]]/}" ] && return 0
+  # SECURITY_REVIEW_SKIP is the maintainer's, so a skip trailer counts only on the maintainer's PR (#309).
+  [ -n "${skipped//[[:space:]]/}" ] && maintainer_pr && return 0
   report "commit $(git rev-parse --short "$sha"): touches the security-review scope without a Security-Review trailer \
-matching its content, or a Security-Review-Skipped one"
+matching its content, or a Security-Review-Skipped one on the maintainer's PR"
 }
 
-# require_review_label: an outside PR touching the scope needs the security-reviewed label, added after its latest push.
-# A fork's token is read-only, so CI can't remove a stale label; it reads the timeline instead. Push time is the latest
-# of the timeline's commits and force pushes and the event's updated_at (set by GitHub, so a backdated commit can't
-# make a label look fresh). ISO 8601 UTC timestamps compare as text.
+# is_admin LOGIN: exit 0 when LOGIN has admin permission on GITHUB_REPOSITORY, 1 when not (or the login isn't one GitHub
+# could issue, so it never reaches the API path); dies when the permission can't be read.
+is_admin() {
+  local permission
+  [[ "$1" =~ ^[A-Za-z0-9][A-Za-z0-9-]*(\[bot\])?$ ]] || return 1
+  permission="$(gh api "repos/${GITHUB_REPOSITORY:-}/collaborators/$1/permission" --jq .permission)" ||
+    die "could not read the permission of $1 on ${GITHUB_REPOSITORY:-}"
+  [ "$permission" = admin ]
+}
+
+# maintainer_pr: exit 0 when PR_AUTHOR_ASSOCIATION is empty (a local run) or OWNER, or the PR's author (PR_AUTHOR) is
+# an admin: in an organization's repository the maintainer's own PRs show MEMBER. Cached after the first call.
+maintainer_pr() {
+  if [ -z "${maintainer_pr_result:-}" ]; then
+    maintainer_pr_result=no
+    case "${PR_AUTHOR_ASSOCIATION:-}" in
+      "" | OWNER) maintainer_pr_result=yes ;;
+      *) [ -n "${PR_AUTHOR:-}" ] && is_admin "$PR_AUTHOR" && maintainer_pr_result=yes ;;
+    esac
+  fi
+  [ "$maintainer_pr_result" = yes ]
+}
+
+# changes_outside_docs BASE..HEAD: exit 0 when the range changes a file outside docs/, counted from the merge base so a
+# merge commit can't hide a change.
+changes_outside_docs() {
+  local base="${1%%..*}" head="${1#*..}"
+  git diff --quiet "$base...${head#.}" -- . ':(exclude)docs/'
+  case $? in
+    0) return 1 ;;
+    1) return 0 ;;
+    *) die "could not tell whether $1 changes files outside docs/" ;;
+  esac
+}
+
+# require_review_label: a PR not by the maintainer changing files outside docs/ needs the security-reviewed label,
+# added by an admin after its latest push (#127, #309). A fork's token is read-only, so CI can't remove a stale label;
+# it reads the timeline instead. Push time is the latest of the timeline's commits and force pushes and the event's
+# updated_at (set by GitHub, so a backdated commit can't make a label look fresh). ISO 8601 UTC timestamps compare as
+# text. Only the latest label event counts, so a non-admin re-adding the label replaces the maintainer's.
 require_review_label() {
-  local repo="${GITHUB_REPOSITORY:-}" pr="${PR_NUMBER:-}" events kind date pushed="${PR_UPDATED_AT:-}" label_state="" labeled_at=""
+  local repo="${GITHUB_REPOSITORY:-}" pr="${PR_NUMBER:-}" events kind date actor pushed="${PR_UPDATED_AT:-}"
+  local label_state="" labeled_at="" labeled_by=""
   [ -n "$repo" ] && [ -n "$pr" ] && [ -n "$pushed" ] ||
-    die "an outside PR needs GITHUB_REPOSITORY, PR_NUMBER and PR_UPDATED_AT to read its timeline"
+    die "a PR not by the maintainer needs GITHUB_REPOSITORY, PR_NUMBER and PR_UPDATED_AT to read its timeline"
   events="$(gh api --paginate "repos/$repo/issues/$pr/timeline" --jq \
-    '.[] | (select((.event=="labeled" or .event=="unlabeled") and .label.name=="security-reviewed") | "\(.event)\t\(.created_at)"),
+    '.[] | (select((.event=="labeled" or .event=="unlabeled") and .label.name=="security-reviewed")
+       | "\(.event)\t\(.created_at)\t\(.actor.login // "")"),
      (select(.event=="head_ref_force_pushed") | "push\t\(.created_at)"),
      (select(.event=="committed") | "push\t\(.committer.date)")')" || die "could not read the timeline of PR #$pr"
-  while IFS=$'\t' read -r kind date; do
+  while IFS=$'\t' read -r kind date actor; do
     case "$kind" in
-      labeled | unlabeled) label_state="$kind" labeled_at="$date" ;;
+      labeled | unlabeled) label_state="$kind" labeled_at="$date" labeled_by="$actor" ;;
       push) [[ "$date" > "$pushed" ]] && pushed="$date" ;;
     esac
   done <<<"$events"
   [ "$label_state" = labeled ] ||
-    { report "outside PR touches the security-review scope: a maintainer must review it and add the security-reviewed label"; return; }
+    { report "PR not by the maintainer changes files outside docs/: a maintainer must review it and add the \
+security-reviewed label"; return; }
+  is_admin "$labeled_by" ||
+    { report "security-reviewed was added by $labeled_by, who isn't an admin: a maintainer must review the PR and add \
+the label"; return; }
   [[ "$labeled_at" > "$pushed" ]] ||
     report "security-reviewed was added before the PR's latest push ($pushed): review the new commits and add the label again"
 }
@@ -623,18 +667,13 @@ case "$stage" in
   commits)
     # Merge commits are skipped: git writes their messages, and PRs are squash-merged.
     shas="$(git rev-list --no-merges "${2:-}" --)" || die "could not list the commits in ${2:-}"
-    outside=0
-    case "${PR_AUTHOR_ASSOCIATION:-}" in
-      "" | OWNER | MEMBER | COLLABORATOR) ;;
-      *) outside=1 ;;
-    esac
     for sha in $shas; do
       git log -1 --format=%B "$sha" > "$tmp/message" || die "could not read commit $sha"
       check_message "commit $(git rev-parse --short "$sha")" < "$tmp/message"
-      [ "$outside" -eq 1 ] || check_review_trailer "$sha"
+      check_review_trailer "$sha"
     done
-    # An outside PR is judged by its whole diff, so a scope change inside a merge commit still needs the label.
-    if [ "$outside" -eq 1 ] && in_scope "${2:-}"; then
+    # A PR not by the maintainer is judged by its whole diff, so a change inside a merge commit still needs the label.
+    if [ -n "${PR_AUTHOR_ASSOCIATION:-}" ] && changes_outside_docs "${2:-}" && ! maintainer_pr; then
       require_review_label
     fi
     [ "$failures" -eq 0 ]

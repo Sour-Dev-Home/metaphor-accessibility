@@ -14,6 +14,11 @@ jobs:
   repo-rules:
     runs-on: ubuntu-latest
     timeout-minutes: 5
+    # PII_PATTERNS lives in the main-push environment, which only main may use (#309), so no branch's run can read it.
+    # Every other run uses no environment.
+    environment: >-
+      ${{ github.repository == 'Sour-Dev-Home/metaphor-accessibility' && github.event_name == 'push'
+      && github.ref == 'refs/heads/main' && 'main-push' || '' }}
     permissions:
       contents: read
       pull-requests: read # the commits stage reads the PR timeline (#127)
@@ -31,25 +36,32 @@ jobs:
         env:
           BASE: ${{ github.event.pull_request.base.sha }}
           HEAD: ${{ github.event.pull_request.head.sha }}
-          # An outside author's PR needs the security-reviewed label instead of a trailer (#127). The read-only
-          # token reads the PR timeline through `gh api`.
+          # A PR not by the maintainer that changes files outside docs/ needs the security-reviewed label, added by
+          # an admin (#127, #309); collaborators and members included. The read-only token reads the PR timeline and
+          # repository permissions through `gh api`.
           PR_AUTHOR_ASSOCIATION: ${{ github.event.pull_request.author_association }}
+          PR_AUTHOR: ${{ github.event.pull_request.user.login }}
           PR_NUMBER: ${{ github.event.pull_request.number }}
           PR_UPDATED_AT: ${{ github.event.pull_request.updated_at }}
           GH_TOKEN: ${{ github.token }}
-        # An outside PR is judged by the base branch's copy of the gate, so it can't edit the check that judges it. A
-        # maintainer's PR runs its own copy, so changes to the gate test themselves.
+        # A PR not by the maintainer is judged by the base branch's copy of the gate, so it can't edit the check that
+        # judges it. The maintainer's PR (OWNER, or an admin: in an organization the maintainer shows as MEMBER) runs
+        # its own copy, so changes to the gate test themselves.
         run: |
-          gate=scripts
-          case "$PR_AUTHOR_ASSOCIATION" in
-            OWNER | MEMBER | COLLABORATOR) ;;
-            *)
-              gate="$RUNNER_TEMP/base-scripts"
-              mkdir -p "$gate"
-              for script in check.sh security-stamp.sh stage-timing.sh; do
-                git show "$BASE:scripts/$script" > "$gate/$script" || exit 1
-              done ;;
-          esac
+          gate="$RUNNER_TEMP/base-scripts"
+          if [ "$PR_AUTHOR_ASSOCIATION" = OWNER ]; then
+            gate=scripts
+          else
+            permission="$(gh api "repos/$GITHUB_REPOSITORY/collaborators/$PR_AUTHOR/permission" --jq .permission)" ||
+              exit 1
+            [ "$permission" != admin ] || gate=scripts
+          fi
+          if [ "$gate" != scripts ]; then
+            mkdir -p "$gate"
+            for script in check.sh security-stamp.sh stage-timing.sh; do
+              git show "$BASE:scripts/$script" > "$gate/$script" || exit 1
+            done
+          fi
           bash "$gate/check.sh" commits "$BASE..$HEAD"
       - name: Install the docs tools
         run: bash scripts/install-docs-tools.sh
@@ -71,7 +83,8 @@ jobs:
       - name: Check every tracked file
         env:
           # The private list reaches pushes to this repository's main only, never a pull request, so a fork's code
-          # can't read it, and a fork's own main isn't required to have it.
+          # can't read it, and a fork's own main isn't required to have it. It's a secret of the main-push
+          # environment, so a branch run that edits this expression still can't read it.
           PII_PATTERNS: >-
             ${{ github.repository == 'Sour-Dev-Home/metaphor-accessibility' && github.event_name == 'push'
             && github.ref == 'refs/heads/main' && secrets.PII_PATTERNS || '' }}
