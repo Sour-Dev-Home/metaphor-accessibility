@@ -14,10 +14,10 @@ public static class HookInstallation
     /// line per hook to <paramref name="log"/>, or to <paramref name="logError"/>, when given, for a hook that failed
     /// to install: the line a native crash report needs (#204). Once every hook is in, <paramref name="pairInstalled"/>
     /// is called with each hook whose <see cref="HookSpec.Partner"/> went in too, and never with one of a pair that
-    /// didn't both go in (#172). Returns how many went in, and every hook handed to the game, which the caller keeps
-    /// alive.</summary>
+    /// didn't both go in (#172). Returns how many went in, every hook handed to the game, which the caller keeps
+    /// alive, and the name of each hook that went in (#223).</summary>
     [SuppressMessage("Design", "CA1031", Justification = "One hook failing must not stop the others or reach the game.")]
-    public static (int Loaded, IReadOnlyList<THook> Kept) Run<THook>(
+    public static (int Loaded, IReadOnlyList<THook> Kept, IReadOnlySet<string> WentIn) Run<THook>(
         string runningBuild,
         IReadOnlyList<(HookSpec Spec, THook? Hook)> hooks,
         IReadOnlyList<HookSignature> signatures,
@@ -90,6 +90,6 @@ public static class HookInstallation
                 }
             }
         }
-        return (loaded, kept);
+        return (loaded, kept, wentIn);
     }
 }

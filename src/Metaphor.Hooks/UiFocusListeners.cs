@@ -15,7 +15,7 @@ namespace Metaphor.Hooks;
 /// highlighted item by its colour (the lead from Persona-4-Golden-Access's <c>UiTextSpy</c>,
 /// docs/raw-sources/persona-4-golden-access-2026-11-16.md). Opt-in: a hook on a per-frame draw is the riskiest of the
 /// sitting's, and its log holds game text, which stays in the local log.</summary>
-[GameHook(GameBuilds.Steam18330018, DevOnly = true, OptInFile = "opt-in-ui-text-panes.txt")]
+[GameHook(GameBuilds.Steam18330018, DevOnly = true, OptInFile = "opt-in-ui-text-panes.txt", OptInName = "text panes")]
 internal sealed class TextPaneDrawListener : IGameHook, IObserves3
 {
     // How much of the pane and of its text element the text probe looks through.

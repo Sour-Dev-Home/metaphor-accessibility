@@ -19,6 +19,10 @@ public sealed class GameHookAttribute(params string[] gameBuilds) : Attribute
     /// </summary>
     public string? OptInFile { get; init; }
 
+    /// <summary>The opt-in's name in plain words, which the load message says (#223); the file name when null. Hooks
+    /// sharing an <see cref="OptInFile"/> give the same name.</summary>
+    public string? OptInName { get; init; }
+
     /// <summary>For one of a pair of hooks that only work together, the other's class name; null for none. If either
     /// can't go in, the loader installs neither and logs why, and it tells each with <c>PairInstalled</c> only once both
     /// are in (#172, <see cref="Metaphor.Core.HookSpec.Partner"/>).</summary>

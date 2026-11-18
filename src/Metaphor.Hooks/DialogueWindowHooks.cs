@@ -14,11 +14,15 @@ namespace Metaphor.Hooks;
 internal static class DialogueWindowOptIn
 {
     public const string File = "opt-in-dialogue-window.txt";
+
+    /// <summary>What the load message calls it (#223).</summary>
+    public const string Name = "dialogue window";
 }
 
 /// <summary>Reports the dialogue window opening: <c>MsgOpen</c>'s body, one argument (a C string, not read). Once it
 /// and the close hook are both in, tells the controls the window will be reported.</summary>
-[GameHook(GameBuilds.Steam18330018, OptInFile = DialogueWindowOptIn.File, Partner = nameof(DialogueWindowCloseHook))]
+[GameHook(GameBuilds.Steam18330018, OptInFile = DialogueWindowOptIn.File, OptInName = DialogueWindowOptIn.Name,
+    Partner = nameof(DialogueWindowCloseHook))]
 internal sealed class DialogueWindowOpenHook : IGameHook, IObserves3
 {
     private readonly DialogueControls controls;
@@ -37,7 +41,8 @@ internal sealed class DialogueWindowOpenHook : IGameHook, IObserves3
 }
 
 /// <summary>Reports the dialogue window closing: <c>MsgClose</c>'s body, one 32-bit argument (not read).</summary>
-[GameHook(GameBuilds.Steam18330018, OptInFile = DialogueWindowOptIn.File, Partner = nameof(DialogueWindowOpenHook))]
+[GameHook(GameBuilds.Steam18330018, OptInFile = DialogueWindowOptIn.File, OptInName = DialogueWindowOptIn.Name,
+    Partner = nameof(DialogueWindowOpenHook))]
 internal sealed class DialogueWindowCloseHook : IGameHook, IObserves3
 {
     private readonly DialogueControls controls;
