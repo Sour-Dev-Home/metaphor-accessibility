@@ -144,7 +144,8 @@ public sealed class SessionFixture
             "select" => new ChoiceRecord(ms, new ChoiceRequested(Number("kind"), Label("prompt"), Label("choice"))),
             "cursor" => new CursorRecord(ms, new CursorInput(Long(Field("mgr"), number),
                 Field("class") == "?" ? null : Long(Field("class"), number), Number("cmd"), Number("result"),
-                Number("top"), Number("row"), Number("flags"), fields.GetValueOrDefault("screen"))),
+                Number("top"), Number("row"), Number("flags"), fields.GetValueOrDefault("screen"),
+                fields.TryGetValue("count", out var count) && count != "?" ? (int)Long(count, number) : null)),
             "pad" => new PadRecord(ms, new PadRead(Number("pad"), Number("buttons"), Number("returned"))),
             "menus" => new MenusRecord(ms, Field("open") switch
             {

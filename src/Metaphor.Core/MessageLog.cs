@@ -97,7 +97,7 @@ public sealed class MessageLog(TextWriter writer, Func<long> millisecondsSinceSt
     /// <summary>An input a menu's cursor manager handled that changed something (#93, #94). Numbers only, no game
     /// text.</summary>
     public void Observe(CursorInput input) => Write(() => Line(
-        $"{millisecondsSinceStart()} ms cursor mgr=0x{input.Manager:x} class={(input.ClassRva is { } rva ? $"0x{rva:x}" : "?")} cmd=0x{input.Command:x} result={input.Result} index={input.Index} top={input.Top} row={input.Row} flags=0x{input.Flags:x} screen={input.ScreenClass ?? "?"}"));
+        $"{millisecondsSinceStart()} ms cursor mgr=0x{input.Manager:x} class={(input.ClassRva is { } rva ? $"0x{rva:x}" : "?")} cmd=0x{input.Command:x} result={input.Result} index={input.Index} top={input.Top} row={input.Row} flags=0x{input.Flags:x} screen={input.ScreenClass ?? "?"} count={input.Count?.ToString(CultureInfo.InvariantCulture) ?? "?"}"));
 
     /// <summary>A line the game asked for by label, with its kind.</summary>
     public void Observe(LineRequested line) => Write(() =>

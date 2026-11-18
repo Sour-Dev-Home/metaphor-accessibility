@@ -58,7 +58,8 @@ internal sealed class MenusOpenRead
 /// and puts it back if the move is refused. The function, its arguments and the field offsets are our reading of the
 /// exe (docs/raw-sources/ui-focus-candidates-2026-11-16.md); that the index follows the menu's focus is from
 /// docs/raw-sources/spike-session-2-2026-11-16.md. Observed after it returns, so the cursor is where the input left it.
-/// Each input carries its screen class from <see cref="ScreenClassLookup"/> (#208).</summary>
+/// Each input carries its screen class from <see cref="ScreenClassLookup"/> (#208) and its list's item count (#289), null
+/// when unreadable.</summary>
 [GameHook(GameBuilds.Steam18330018)]
 internal sealed class MenuCursorHook : IGameHook, IObserves4WithResult
 {
@@ -66,6 +67,10 @@ internal sealed class MenuCursorHook : IGameHook, IObserves4WithResult
     private const int TopOffset = 0x60;
     private const int RowOffset = 0x64;
     private const int FlagsOffset = 0xAC;
+
+    // The list's item count (#289), matched to the rows on screen on six screens; read per input, since a manager can be
+    // reused by a later screen (docs/raw-sources/list-count-session6-2026-11-17.md, game build 548ddc95…).
+    private const int CountOffset = 0x58;
 
     private readonly CursorEvents events;
     private readonly ScreenClassLookup screenClasses;
@@ -98,6 +103,6 @@ internal sealed class MenuCursorHook : IGameHook, IObserves4WithResult
             : null;
         events.Handled(new CursorInput(
             manager, classRva, commandValue, (int)result, top, row, ModuleMemoryReader.ReadInt32(manager + FlagsOffset) ?? 0,
-            screenClasses.Of(manager)));
+            screenClasses.Of(manager), ModuleMemoryReader.ReadInt32(manager + CountOffset)));
     }
 }

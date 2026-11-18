@@ -103,13 +103,13 @@ public sealed class MessageLogTests
 
         log.Observe(new Metaphor.Core.Menus.CursorInput(
             Manager: 0xa0, ClassRva: 0x100, Command: 0x16, Result: 22, Top: 1, Row: 2, Flags: 0x46,
-            ScreenClass: "RootMenuChoice@ope@ui@app"));
+            ScreenClass: "RootMenuChoice@ope@ui@app", Count: 9));
         log.Observe(new Metaphor.Core.Menus.CursorInput(
             Manager: 0xa0, ClassRva: null, Command: 0x1, Result: 1, Top: 0, Row: 0, Flags: 0x66));
 
         Assert.Equal(
-            $"32257 ms cursor mgr=0xa0 class=0x100 cmd=0x16 result=22 index=3 top=1 row=2 flags=0x46 screen=RootMenuChoice@ope@ui@app{Environment.NewLine}" +
-            $"32257 ms cursor mgr=0xa0 class=? cmd=0x1 result=1 index=0 top=0 row=0 flags=0x66 screen=?{Environment.NewLine}",
+            $"32257 ms cursor mgr=0xa0 class=0x100 cmd=0x16 result=22 index=3 top=1 row=2 flags=0x46 screen=RootMenuChoice@ope@ui@app count=9{Environment.NewLine}" +
+            $"32257 ms cursor mgr=0xa0 class=? cmd=0x1 result=1 index=0 top=0 row=0 flags=0x66 screen=? count=?{Environment.NewLine}",
             text.ToString());
     }
 

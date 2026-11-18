@@ -21,8 +21,19 @@ public enum ScreenChange
 }
 
 /// <summary>One change to a screen: which (<paramref name="Screen"/>, null for one the mod doesn't know), its screen
-/// class, and the focus's position from 0.</summary>
-public sealed record ScreenEvent(ScreenChange Change, Screen? Screen, string ScreenClass, int Index);
+/// class, the focus's position from 0, and the list's item count the game keeps (<see cref="CursorInput.Count"/>), null
+/// when unreadable.</summary>
+public sealed record ScreenEvent(ScreenChange Change, Screen? Screen, string ScreenClass, int Index, int? Count = null)
+{
+    /// <summary>The longest list taken as a count (#289). The longest seen in session 6 had 145 items
+    /// (docs/raw-sources/list-count-session6-2026-11-17.md); a larger value is a screen whose field isn't the count, as
+    /// far as we know (<c>[NEEDS VERIFICATION]</c>: whether any list is longer).</summary>
+    public const int LongestList = 999;
+
+    /// <summary>The list's total when it is known, holds the focus and is no longer than <see cref="LongestList"/>,
+    /// else null.</summary>
+    public int? Total => Count is { } count && Index >= 0 && Index < count && count <= LongestList ? count : null;
+}
 
 /// <summary>Told of each screen entered, left, and focus moved.</summary>
 public interface IScreenObserver
@@ -53,6 +64,7 @@ public sealed class MenuScreens : ICursorObserver
     private IScreenObserver[] observers = [];
     private string? currentClass;
     private int currentIndex;
+    private int? currentCount;
     private bool menusOpen;
 
     /// <summary>A module that tags each screen whose class is one of <paramref name="knownScreens"/>' with it.</summary>
@@ -92,15 +104,16 @@ public sealed class MenuScreens : ICursorObserver
                 {
                     return;
                 }
-                changes = [Change(ScreenChange.FocusMoved, screenClass, input.Index)];
+                changes = [Change(ScreenChange.FocusMoved, screenClass, input.Index, input.Count)];
             }
             else
             {
-                var entered = Change(ScreenChange.Entered, screenClass, input.Index);
-                changes = currentClass is { } left ? [Change(ScreenChange.Left, left, currentIndex), entered] : [entered];
+                var entered = Change(ScreenChange.Entered, screenClass, input.Index, input.Count);
+                changes = currentClass is { } left ? [Change(ScreenChange.Left, left, currentIndex, currentCount), entered] : [entered];
             }
             currentClass = screenClass;
             currentIndex = input.Index;
+            currentCount = input.Count;
         }
         var each = Volatile.Read(ref observers);
         foreach (var change in changes)
@@ -132,7 +145,7 @@ public sealed class MenuScreens : ICursorObserver
             Volatile.Write(ref menusOpen, open);
             if (!open && currentClass is { } screenClass)
             {
-                left = Change(ScreenChange.Left, screenClass, currentIndex);
+                left = Change(ScreenChange.Left, screenClass, currentIndex, currentCount);
                 currentClass = null;
             }
         }
@@ -153,13 +166,13 @@ public sealed class MenuScreens : ICursorObserver
             {
                 return;
             }
-            change = Change(ScreenChange.Entered, screenClass, currentIndex);
+            change = Change(ScreenChange.Entered, screenClass, currentIndex, currentCount);
         }
         TellEach(Volatile.Read(ref observers), change);
     }
 
-    private ScreenEvent Change(ScreenChange change, string screenClass, int index) =>
-        new(change, known.GetValueOrDefault(screenClass), screenClass, index);
+    private ScreenEvent Change(ScreenChange change, string screenClass, int index, int? count) =>
+        new(change, known.GetValueOrDefault(screenClass), screenClass, index, count);
 
     [SuppressMessage("Design", "CA1031", Justification = "One observer's failure must not keep the change from the others, or reach the game.")]
     private static void TellEach(IScreenObserver[] observers, ScreenEvent change)
