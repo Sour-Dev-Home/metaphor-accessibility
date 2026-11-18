@@ -114,6 +114,31 @@ Describe 'fetch-prism.ps1' {
         $script:out | Should -Not -Exist
     }
 
+    It 'gives every one of several fetches started at once in one checkout the pinned files (#333)' {
+        # An empty cache and a file:// URL, so every fetch downloads, extracts and replaces the output at the same time,
+        # as the parallel Pester files' mod builds do in a fresh worktree.
+        Remove-Item -LiteralPath $script:cache -Recurse -Force
+        Write-Pin -Url $script:zipUrl
+        $logs = Join-Path $root 'logs'
+        New-Item -ItemType Directory $logs | Out-Null
+
+        $fetches = foreach ($i in 1..6) {
+            Start-Process pwsh -NoNewWindow -PassThru -RedirectStandardOutput (Join-Path $logs "$i.out") `
+                -RedirectStandardError (Join-Path $logs "$i.err") -ArgumentList @(
+                '-NoProfile', '-NonInteractive', '-File', "`"$script:fetch`"", '-Pin', "`"$script:pin`"",
+                '-OutDir', "`"$script:out`"", '-Cache', "`"$script:cache`"")
+        }
+        $fetches | ForEach-Object { $_.WaitForExit() }
+
+        foreach ($i in 1..6) {
+            $fetches[$i - 1].ExitCode | Should -Be 0 -Because (Get-Content -Raw (Join-Path $logs "$i.*"))
+        }
+        Get-Sha256 (Join-Path $script:out 'prism.dll') | Should -Be $script:dllSha
+        @(Get-ChildItem -LiteralPath $script:out -Recurse -File).Count | Should -Be 4
+        @(Get-ChildItem -LiteralPath $script:cache -File -Filter '*.zip').Count | Should -Be 1
+        @(Get-ChildItem -LiteralPath $script:cache -File -Filter '*.part').Count | Should -Be 0
+    }
+
     It 'does nothing when the pinned DLL is already in place' {
         Invoke-Fetch $script:pin $script:out $script:cache | Out-Null
         Remove-Item -LiteralPath $script:cache -Recurse -Force
