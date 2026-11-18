@@ -185,7 +185,6 @@ jobs:
   # per test file (#314: the files ran one after another in a single job, over 5 of its 6 minutes); each job builds the
   # stand-in game on its own runner, so the files can't collide on its obj folder.
   pester:
-    name: pester (${{ matrix.file }})
     runs-on: windows-latest
     timeout-minutes: 15
     strategy:
