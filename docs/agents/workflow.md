@@ -30,6 +30,11 @@ describing work (rule 8 in [`AGENTS.md`](../../AGENTS.md#ground-rules)).
    its output.
 3. Run the narrow test file while iterating, then the full suite once. Read the summary line of each; a trimmed pipe
    can hide a failed start.
+4. Run long commands (`check.sh full`, the script test suites) in the foreground with the Bash tool's longest timeout
+   (600000 ms), and wait for them in that call. A background run wakes the main session each time you pause, and every
+   wake-up costs a full turn.
+5. Hand back verified: the narrow tests, then `full`, both passed and their summaries read. If a run can't finish, say
+   which and why; don't hand back to be nudged.
 
 `check.sh full` records a pass for the index's tree (`git write-tree`) in your clone's git dir, and `full` or `pre-push`
 on that same tree prints `reused the recorded pass for tree <hash>` and skips the 10-15 minutes. A reviewer can rely on
@@ -90,4 +95,13 @@ Credit them by the rule in [`AGENTS.md`](../../AGENTS.md#ground-rules) (rule 7) 
 
 ## Report
 
-Brief: the PR number or branch, what changed, anything left undone.
+Brief: the PR number or branch, what changed, anything left undone. Stay under the brief's word limit, or 150 words;
+reviewers list findings only, by severity.
+
+## Briefing agents (main session)
+
+- Model: Sonnet for docs-only and mechanical tickets (fix lists, CI, tested library code) and for reviewing docs-only
+  or test-only changes; Opus for reverse engineering, hooks, security and design.
+- Review findings: fix before merge what a player would notice or what weakens a guard; file pure hardening as a
+  follow-up ticket instead of another review round.
+- Keep briefs to pointers (the issue, this file, the files to read first) and a word limit for the report.
