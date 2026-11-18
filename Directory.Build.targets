@@ -3,6 +3,20 @@
        SourceRevision.cs) when the working tree has changes, so a local experiment can never pass as a build of that
        commit. Any non-ignored change counts, new files included, because new source files end up in the build. If git
        can't run, the build continues without the marker and says so. -->
+  <!-- Source Link can leave the commit out where it can't read the repository (an agent worktree, where .git is a
+       file). Fall back to asking git directly, so every build embeds the full commit. Runs first, so the dirty marker
+       below applies to it too. -->
+  <Target Name="EmbedCommitWhenSourceLinkCannot" AfterTargets="InitializeSourceControlInformation"
+          Condition="'$(SourceRevisionId)' == ''">
+    <Exec Command="git rev-parse HEAD" ConsoleToMSBuild="true" StandardOutputImportance="low"
+          WorkingDirectory="$(MSBuildThisFileDirectory)" ContinueOnError="WarnAndContinue">
+      <Output TaskParameter="ConsoleOutput" PropertyName="_HeadCommit" />
+    </Exec>
+    <PropertyGroup Condition="'$(_HeadCommit)' != ''">
+      <SourceRevisionId>$(_HeadCommit)</SourceRevisionId>
+    </PropertyGroup>
+  </Target>
+
   <Target Name="MarkUncommittedChanges" AfterTargets="InitializeSourceControlInformation"
           Condition="'$(SourceRevisionId)' != ''">
     <Exec Command="git status --porcelain" ConsoleToMSBuild="true" StandardOutputImportance="low"

@@ -13,6 +13,13 @@ the mechanics; this page holds what they don't say. Setup, checks and the securi
 3. Run the narrow test file while iterating, then the full suite once. Read the summary line of each; a trimmed pipe
    can hide a failed start.
 
+`check.sh full` records a pass for the index's tree (`git write-tree`) in your clone's git dir, and `full` or `pre-push`
+on that same tree prints `reused the recorded pass for tree <hash>` and skips the 10-15 minutes. A reviewer can rely on
+that line: any change, staged or committed, runs the checks again. Don't rerun `full` on a tree it has passed.
+
+A check that looks stalled: `bash scripts/check-status.sh` shows who holds the machine-wide build lock, who waits, each
+worktree's last runs and idle build workers (with the command to stop them). The status line shows the `--short` form.
+
 ## Commit
 
 - Subjects: the format and the 72-character limit are in the header of [`scripts/check.sh`](../../scripts/check.sh)
@@ -42,6 +49,17 @@ Commit with the stamp. `SECURITY_REVIEW_SKIP` is the maintainer's.
   the ticket `merged into <branch> at <sha>`, so the next agent finds the ticket done.
 - **Anywhere else**: open a PR with the `pr` skill's template, then `gh pr merge <n> --auto`. The merge queue refuses
   `--squash` and `--delete-branch`.
+
+## Integration branches behind main
+
+Integration branches are the heads of open draft PRs. When `main` moves, the
+[`Conflict alert`](../../.github/workflows/conflict-alert.yml) workflow runs
+[`scripts/integration-sync.sh`](../../scripts/integration-sync.sh) (#242): it test-merges `main` into each draft PR's
+branch in memory and comments once, with either the conflicting files or "mergeable cleanly, needs a merge from `main`
+(and a review if hook files change)". It stays quiet while the outcome is unchanged. CI never pushes the merge: one that
+brings hook-layer code from `main` needs a fresh security-review stamp (the 2026-11-17 rule, which #246 may relax), and
+CI can't give one. When you see the comment, merge `main` into the branch yourself, following the steps above if hook
+files changed.
 
 ## Borrowed ideas and code
 

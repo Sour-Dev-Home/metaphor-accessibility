@@ -29,5 +29,9 @@ public static class HookSignatures
         {
             throw new InvalidDataException($"signature {signature.Name} has no evidence");
         }
+        if (signature.Section is not ['.', _, ..] || signature.Section.Any(char.IsWhiteSpace))
+        {
+            throw new InvalidDataException($"signature {signature.Name} names no section, such as .ecode");
+        }
     }
 }
