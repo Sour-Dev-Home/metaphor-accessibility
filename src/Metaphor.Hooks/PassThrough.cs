@@ -45,6 +45,13 @@ internal interface IObserves1WithResult
     void Observe(nint first, nint result);
 }
 
+/// <summary>A hook on a function of one pointer-sized argument then a <c>double</c> (or a <c>float</c>, which travels in
+/// the same xmm register's low half: <see cref="Metaphor.Core.RegisterBits.LowSingle"/>).</summary>
+internal interface IObserves2WithDouble
+{
+    void Observe(nint first, double second);
+}
+
 /// <summary>A hook on a function of two pointer-sized arguments, a <c>double</c>, then one more.</summary>
 internal interface IObserves4WithDouble
 {
@@ -95,6 +102,7 @@ internal abstract class PassThrough
         IObserves5 observer => new Adapter5(hook, observer),
         IObserves6 observer => new Adapter6(hook, observer),
         IObserves1WithResult observer => new Adapter1WithResult(hook, observer),
+        IObserves2WithDouble observer => new Adapter2WithDouble(hook, observer),
         IObserves4WithDouble observer => new Adapter4WithDouble(hook, observer),
         IObserves5WithDouble observer => new Adapter5WithDouble(hook, observer),
         IObserves4WithResult observer => new Adapter4WithResult(hook, observer),
@@ -289,6 +297,40 @@ internal abstract class PassThrough
             {
             }
             return result;
+        }
+    }
+
+    private sealed class Adapter2WithDouble : PassThrough
+    {
+        private delegate nint Function(nint first, double second);
+
+        private readonly IObserves2WithDouble observer;
+        private readonly Function callback;
+        private IHook<Function>? hook;
+
+        public Adapter2WithDouble(IGameHook hook, IObserves2WithDouble observer)
+            : base(hook)
+        {
+            this.observer = observer;
+            callback = OnCall;
+        }
+
+        private protected override void Activate(IReloadedHooks hooks, nint address)
+        {
+            hook = hooks.CreateHook(callback, address);
+            hook.Activate();
+        }
+
+        private nint OnCall(nint first, double second)
+        {
+            try
+            {
+                observer.Observe(first, second);
+            }
+            catch (Exception)
+            {
+            }
+            return hook!.OriginalFunction(first, second);
         }
     }
 

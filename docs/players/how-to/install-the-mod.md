@@ -143,6 +143,13 @@ The mod adds no keys here. It speaks what the game's own cursor does, so use the
 
 `[NEEDS VERIFICATION]` Both by ear in the game. They need a supported game build.
 
+### Battles
+
+When a command battle starts, the mod says how many enemies there are, such as "Battle: 3 enemies", after whatever it
+is already saying. The enemies' names and the rest of the battle come later (#247).
+
+`[NEEDS VERIFICATION]` By ear in the game. It needs a supported game build.
+
 ### Voiced lines
 
 For lines the voice actors speak, the mod can say the speaker only, or the full line. The default (`auto`) says the name

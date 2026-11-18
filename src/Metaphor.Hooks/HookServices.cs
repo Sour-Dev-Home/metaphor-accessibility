@@ -1,8 +1,10 @@
 using Metaphor.Core;
 using Metaphor.Core.Announcements;
+using Metaphor.Core.Battle;
 using Metaphor.Core.Menus;
 using Metaphor.Core.Messages;
 using Metaphor.Core.Settings;
+using Metaphor.Features.Battle;
 using Metaphor.Features.Dialogue;
 using Metaphor.Features.Menus;
 
@@ -19,6 +21,9 @@ internal sealed record HookServices
 
     /// <summary>Where the menu cursor hook reports each input a menu's cursor handled (#94).</summary>
     public required CursorEvents Cursors { get; init; }
+
+    /// <summary>Where the battle package update hook reports each frame of a battle (#251).</summary>
+    public required BattleEvents Battle { get; init; }
 
     /// <summary>#55's message log, for the listening hooks that remain: null in Release builds, or when the file
     /// couldn't be opened.</summary>
@@ -38,7 +43,7 @@ internal sealed record HookServices
     /// <summary>Services for the mod in <paramref name="modFolder"/> whose requested dialogue lines and opened choices
     /// are spoken through <paramref name="announcer"/>, voiced lines as <paramref name="settings"/> say. The library
     /// hears each compiled file first, speech each requested line and choice first, and the title menu's focus (#94) and
-    /// a choice's focus (#95) each cursor input; the report log (#188) and the message log, when there are, hear every event last.</summary>
+    /// a choice's focus (#95) each cursor input, and the battle-start line (#251) each battle that starts; the report log (#188) and the message log, when there are, hear every event last.</summary>
     public static HookServices Speaking(
         IAnnouncer announcer, SettingsReloader settings, ReportLog? report, MessageLog? log, string modFolder)
     {
@@ -63,6 +68,8 @@ internal sealed record HookServices
         events.ObserveLines(choiceFocus);
         cursors.Observe(titleMenu);
         cursors.Observe(choiceFocus);
+        var battle = new BattleEvents(new GameBattleState());
+        battle.Observe(new BattleStartLine(announcer));
         if (report is not null)
         {
             events.ObserveFiles(report);
@@ -81,6 +88,7 @@ internal sealed record HookServices
         {
             Messages = events,
             Cursors = cursors,
+            Battle = battle,
             Log = log,
             ModFolder = modFolder,
             DialogueHistory = history,
