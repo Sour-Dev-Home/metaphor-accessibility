@@ -34,12 +34,14 @@ public sealed class MainMenuReplayTests
         // their entries (3, 4 and 2) and spoken as unknown screens; then System again.
         Assert.Equal(
             [
-                "Menu, 3 of 9", "4 of 9", "5 of 9", "6 of 9", "7 of 9", "8 of 9", "9 of 9", "1",
+                "Menu, Equipment, 3 of 9", "Party, 4 of 9", "Follower, 5 of 9", "Quest, 6 of 9", "Calendar, 7 of 9",
+                "Memorandum, 8 of 9", "System, 9 of 9", "1",
                 "1",
-                "Menu, 3 of 9", "4 of 9", "5 of 9", "4 of 9", "3 of 9", "1",
-                "Menu, 4 of 9", "1",
-                "Menu, 3 of 9", "2 of 9", "1",
-                "Menu, 3 of 9", "4 of 9", "5 of 9", "6 of 9", "7 of 9", "8 of 9", "9 of 9", "1", "2", "1", "2", "1",
+                "Menu, Equipment, 3 of 9", "Party, 4 of 9", "Follower, 5 of 9", "Party, 4 of 9", "Equipment, 3 of 9", "1",
+                "Menu, Party, 4 of 9", "1",
+                "Menu, Equipment, 3 of 9", "Item, 2 of 9", "1",
+                "Menu, Equipment, 3 of 9", "Party, 4 of 9", "Follower, 5 of 9", "Quest, 6 of 9", "Calendar, 7 of 9",
+                "Memorandum, 8 of 9", "System, 9 of 9", "1", "2", "1", "2", "1",
             ],
             announcer.Said.Select(said => said.Text));
         Assert.All(announcer.Said, said => Assert.True(said.Interrupt));

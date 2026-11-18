@@ -36,7 +36,7 @@ public sealed class MainMenuFocusTests
     {
         Cursor(Settle, top: 2);
 
-        Assert.Equal([new Announcement("Menu, 3 of 9", Interrupt: true)], announcer.Said);
+        Assert.Equal([new Announcement("Menu, Equipment, 3 of 9", Interrupt: true)], announcer.Said);
     }
 
     [Fact]
@@ -49,7 +49,7 @@ public sealed class MainMenuFocusTests
         Cursor(Settle, top: 8);
 
         Assert.Equal(
-            [new Announcement("2 of 9", Interrupt: true), new Announcement("9 of 9", Interrupt: true)],
+            [new Announcement("Item, 2 of 9", Interrupt: true), new Announcement("System, 9 of 9", Interrupt: true)],
             announcer.Said.Skip(1));
     }
 
@@ -61,7 +61,7 @@ public sealed class MainMenuFocusTests
 
         Cursor(Settle, top: 1, manager: 0xd0);
 
-        Assert.Equal(["Menu, 2 of 9", "Menu, 2 of 9"], Said());
+        Assert.Equal(["Menu, Item, 2 of 9", "Menu, Item, 2 of 9"], Said());
     }
 
     [Fact]
@@ -71,7 +71,7 @@ public sealed class MainMenuFocusTests
 
         Cursor(Settle, top: 9);
 
-        Assert.Equal(["Menu, 1 of 9"], Said());
+        Assert.Equal(["Menu, Skill, 1 of 9"], Said());
     }
 
     [Fact]

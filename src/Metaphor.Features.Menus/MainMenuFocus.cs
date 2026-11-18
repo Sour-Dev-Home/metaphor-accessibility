@@ -3,10 +3,9 @@ using Metaphor.Core.Menus;
 
 namespace Metaphor.Features.Menus;
 
-/// <summary>Speaks the in-game main menu (#97, spec #211): on entering the screen, "Menu" and the focused entry's
-/// position, then on each focus move "n of total", each cutting off the last. The entries' labels aren't spoken yet: the
-/// menu draws them without a message or a text pane, so where their text comes from is
-/// <c>[NEEDS VERIFICATION]</c> (docs/raw-sources/main-menu-session-2026-11-17.md). Safe to call from several threads.
+/// <summary>Speaks the in-game main menu (#97, spec #211): on entering the screen, "Menu" and the focused entry,
+/// then on each focus move "label, n of total", each cutting off the last. The menu draws its entries as sprites, so
+/// the labels are the mod's own (<see cref="Labels"/>). Safe to call from several threads.
 /// </summary>
 public sealed class MainMenuFocus : IScreenObserver
 {
@@ -14,9 +13,13 @@ public sealed class MainMenuFocus : IScreenObserver
     /// (docs/raw-sources/screen-class-session-2026-11-17.md).</summary>
     public static Screen Screen { get; } = new("Menu", "RootMenuChoice@ope@ui@app");
 
-    // Skill, Item, Equipment, Party, Follower, Quest, Calendar, Memorandum, System, in cursor order, on build 548ddc95
-    // (docs/raw-sources/main-menu-session-2026-11-17.md).
-    private const int EntryCount = 9;
+    /// <summary>The mod's own English wording for the main menu's entries (#248), in cursor order on build 548ddc95
+    /// (docs/raw-sources/main-menu-session-2026-11-17.md, menu-screens-inventory-2026-11-17.md). The game draws them as
+    /// sprites, so these are not game content; a game label found later replaces ours. Ready for translation.</summary>
+    internal static IReadOnlyList<string> Labels { get; } =
+        ["Skill", "Item", "Equipment", "Party", "Follower", "Quest", "Calendar", "Memorandum", "System"];
+
+    private static int EntryCount => Labels.Count;
 
     private readonly IAnnouncer announcer;
 
@@ -30,12 +33,12 @@ public sealed class MainMenuFocus : IScreenObserver
     public void Observe(ScreenEvent change)
     {
         ArgumentNullException.ThrowIfNull(change);
-        if (change.Screen != Screen || change.Change == ScreenChange.Left || change.Index is < 0 or >= EntryCount)
+        if (change.Screen != Screen || change.Change == ScreenChange.Left || change.Index < 0 || change.Index >= EntryCount)
         {
             return;
         }
-        var position = $"{change.Index + 1} of {EntryCount}";
+        var entry = $"{Labels[change.Index]}, {change.Index + 1} of {EntryCount}";
         announcer.Announce(new Announcement(
-            change.Change == ScreenChange.Entered ? $"{Screen.Name}, {position}" : position, Interrupt: true));
+            change.Change == ScreenChange.Entered ? $"{Screen.Name}, {entry}" : entry, Interrupt: true));
     }
 }

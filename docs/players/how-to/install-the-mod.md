@@ -140,9 +140,9 @@ The mod adds no keys here. It speaks what the game's own cursor does, so use the
    "Main menu" in front, such as "Main menu, New Game, 1 of 4".
 2. Reply choices in dialogue: when the choices appear, the mod speaks "Choose:" and the options. Moving the cursor
    speaks the option and its position, such as "Option, 2 of 3".
-3. The menu during play: opening it speaks "Menu" and the entry's position, such as "Menu, 3 of 9"; each move speaks
-   the position. The entries, in order: Skill, Item, Equipment, Party, Follower, Quest, Calendar, Memorandum, System.
-   Their names aren't spoken yet.
+3. The menu during play: opening it speaks "Menu" and the entry, such as "Menu, Equipment, 3 of 9"; each move speaks
+   the entry, such as "Party, 4 of 9". The entries, in order: Skill, Item, Equipment, Party, Follower, Quest, Calendar,
+   Memorandum, System. The names are the mod's own wording, as the game draws them as pictures.
 4. Any other menu screen: each move speaks the position only, such as "4".
 
 `[NEEDS VERIFICATION]` All by ear in the game. They need a supported game build.
