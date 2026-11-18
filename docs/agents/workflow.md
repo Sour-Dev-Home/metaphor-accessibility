@@ -135,8 +135,9 @@ SendMessage to `main`.
 
 ## Briefing agents (main session)
 
-- Model: Sonnet for docs-only and mechanical tickets (fix lists, CI, tested library code) and for reviewing docs-only
-  or test-only changes; Opus for reverse engineering, hooks, security and design.
+- Model: Sonnet for docs-only and mechanical tickets (fix lists, mechanical CI edits, tested library code) and for
+  reviewing docs-only or test-only changes; Opus for reverse engineering, hooks, security, design and any change to
+  the guards (the check scripts, git hooks, check-script tests and CI gates), perf work on them included.
 - Review findings: fix before merge what a player would notice or what weakens a guard; file pure hardening as a
   follow-up ticket instead of another review round.
 - Keep briefs to pointers (the issue, this file, the files to read first) and a word limit for the report.
