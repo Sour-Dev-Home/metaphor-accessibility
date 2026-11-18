@@ -1,10 +1,10 @@
 ---
-status: proposed
+status: accepted
 ---
 
 # We reverse engineer only to interoperate, locally, and ship nothing of the game's
 
-Asked for by the maintainer on 2026-11-17; proposed for their review. We study the game (a local Ghidra database of
+Asked for and accepted by the maintainer on 2026-11-17. We study the game (a local Ghidra database of
 the exe, memory reads, Reloaded-II hooks) only to make an independently written screen-reader mod interoperate with it
 for accessibility. The analysis stays on the contributor's machine. We never distribute game code, assets, decompiled
 output or databases (ground rule 4), never circumvent Denuvo or anti-tamper and never touch online features (ground
