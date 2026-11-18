@@ -20,6 +20,7 @@ Add an entry to [`src/Metaphor.Core/hook-signatures.json`](../../../src/Metaphor
 ```json
 {
   "name": "<what the hook calls it>",
+  "section": "<the exe section its match is in, such as .ecode>",
   "pattern": "48 8B ?? 10",
   "gameBuilds": ["<SHA-256 of each build it matched on>"],
   "evidence": "<where it came from, e.g. a community mod's source; the date and this check's output>"
@@ -27,6 +28,9 @@ Add an entry to [`src/Metaphor.Core/hook-signatures.json`](../../../src/Metaphor
 ```
 
 The pattern is hex bytes with `??` for any byte, as community mods write them. It needs at least one fixed byte.
+Read the section from the exe's section table at the match's file offset, as
+`docs/raw-sources/hook-signature-sections-2026-11-17.md` did for the first entries. A hook on a
+signature in `.text1` must be opt-in or development-only ([ADR 0010](../../adr/0010-text1-hooks-stay-opt-in.md)).
 `HookSignaturesTests` checks each entry, and that every build it names is a known build.
 
 ## Compare the exe on disk with the running game

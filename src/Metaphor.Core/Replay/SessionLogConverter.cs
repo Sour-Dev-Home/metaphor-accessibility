@@ -6,7 +6,7 @@ namespace Metaphor.Core.Replay;
 
 /// <summary>Which records of a log a fixture keeps: those from <paramref name="FromMilliseconds"/> to
 /// <paramref name="ToMilliseconds"/> (both included) of the <paramref name="Kinds"/> named (<c>compile</c>,
-/// <c>request</c>, <c>select</c>, <c>cursor</c>, <c>pad</c>).</summary>
+/// <c>request</c>, <c>select</c>, <c>cursor</c>, <c>pad</c>, <c>window</c>).</summary>
 public sealed record FixtureWindow(long FromMilliseconds, long ToMilliseconds, IReadOnlyCollection<string> Kinds);
 
 /// <summary>What a fixture says about itself: the behaviour it shows, the raw source of the session it came from, and
@@ -109,6 +109,9 @@ public static partial class SessionLogConverter
             case "input" when rest.StartsWith("pad", StringComparison.Ordinal):
                 var pad = Matched(PadPattern(), rest, number);
                 return ("pad", $"pad={pad["pad"].Value} buttons={pad["buttons"].Value} returned={pad["returned"].Value}");
+            case "msgwindow":
+                var window = Matched(WindowPattern(), rest, number);
+                return ("window", $"current={(window["current"].Value is "" or "?" ? "-" : window["current"].Value)}");
             default:
                 return null;
         }
@@ -162,4 +165,9 @@ public static partial class SessionLogConverter
 
     [GeneratedRegex("^pad(?<pad>[0-9]+) buttons=(?<buttons>" + Hex + ") handed=" + Hex + " returned=(?<returned>[0-9]+)$")]
     private static partial Regex PadPattern();
+
+    // The window's message pointer, or no window object (none) or no read at all; the rest of the record is numbers.
+    [GeneratedRegex("^(?:window=(?:none|\\(unreadable\\))|current=(?<current>" + Hex + "|\\?)(?: state=(?:" + Int
+        + "|\\?) msg\\+48=(?:" + Int + "|-|\\?))?)(?: handles=(?:none|\\(unreadable\\)|[0-9?]+\\+[0-9?]+))?$")]
+    private static partial Regex WindowPattern();
 }

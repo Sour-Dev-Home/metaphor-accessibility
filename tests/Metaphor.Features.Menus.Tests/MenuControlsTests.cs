@@ -56,6 +56,16 @@ public sealed class MenuControlsTests
     }
 
     [Fact]
+    public void APadReadNotMadeFiresNothingAndHandsItsButtonsBack()
+    {
+        Cursor(ItemClass, row: 2);
+        var before = announcer.Said.Count;
+
+        Assert.Equal(R3 | LbRb, controls.Pad(1, R3 | LbRb, made: false));
+        Assert.Equal(before, announcer.Said.Count);
+    }
+
+    [Fact]
     public void TheDetailsKeyOnTheKeyboardSpeaksTheDetailsOfTheCurrentFocus()
     {
         Cursor(ItemClass, row: 0);

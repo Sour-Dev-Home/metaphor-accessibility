@@ -24,6 +24,20 @@ internal static class Scanned
         return json.RootElement.EnumerateArray().Select(build => build.GetProperty("sha256").GetString()!).ToHashSet();
     }
 
+    /// <summary>The exe section of each signature in the hook signatures list embedded in the scanned Core assembly, by
+    /// signature name. Core's own tests validate the list; this reads only names and sections.</summary>
+    public static IReadOnlyDictionary<string, string> SignatureSections()
+    {
+        var resource = Load("Metaphor.Core").MainModule.Resources
+            .OfType<EmbeddedResource>()
+            .Single(r => r.Name == "Metaphor.Core.hook-signatures.json");
+        using var json = JsonDocument.Parse(resource.GetResourceData());
+        return json.RootElement.EnumerateArray().ToDictionary(
+            signature => signature.GetProperty("name").GetString()!,
+            signature => signature.GetProperty("section").GetString()!,
+            StringComparer.Ordinal);
+    }
+
     public static AssemblyDefinition Load(string name)
     {
         var resolver = new DefaultAssemblyResolver();

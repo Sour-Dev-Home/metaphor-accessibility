@@ -19,12 +19,12 @@ public sealed record DialogueBindings(int RepeatButtons, int ReaderButtons, int 
 }
 
 /// <summary>The dialogue controls (#58): the repeat binding re-speaks the last line in full and the reader binding turns
-/// spoken dialogue on or off. Until <see cref="TrackWindow"/> says the dialogue window's opening and closing will be
-/// reported, they act at any time and the game still sees them. Once it has, they act only while the window is open,
-/// are hidden from the game then, and keep only their normal job while it's closed. A press is an up-to-down edge of a binding held on any pad or the keyboard, so a second
-/// pad mirroring the first (Steam Input's virtual pad) or one whose sticks drift can't fire it again, and a binding
-/// already held when the window opens doesn't fire. The hook layer hands it each pad and keyboard read and the window's
-/// opening and closing, from any of the game's threads.</summary>
+/// spoken dialogue on or off. They act only while the last <see cref="WindowRead"/> found the dialogue window holding a
+/// message, and are hidden from the game then. While it's closed, before any read, or when it couldn't be read, they do
+/// nothing and the game keeps them (#206, #232). A press is an up-to-down edge of a binding held on any pad or the
+/// keyboard, so a second pad mirroring the first (Steam Input's virtual pad) or one whose sticks drift can't fire it
+/// again, and a binding already held when the window opens doesn't fire. The hook layer hands it each pad and keyboard
+/// read and each read of the window, from any of the game's threads.</summary>
 public sealed class DialogueControls
 {
     private const int KeyboardSource = -1;
@@ -36,7 +36,6 @@ public sealed class DialogueControls
     private readonly IAnnouncer announcer;
     private readonly Binding repeat = new();
     private readonly Binding toggle = new();
-    private bool tracked;
     private bool open;
 
     public DialogueControls(DialogueBindings bindings, DialogueHistory history, DialogueReader reader, IAnnouncer announcer)
@@ -51,38 +50,30 @@ public sealed class DialogueControls
         this.announcer = announcer;
     }
 
-    /// <summary>The dialogue window's opening and closing will be reported (its hooks are opted in): from now on the
-    /// controls act, and hide their input from the game, only while it's open.</summary>
-    public void TrackWindow()
+    /// <summary>One read of the message the dialogue window holds (<c>[W+0x60]</c>): non-zero while a line or a choice
+    /// is on screen, 0 once the window closes, and null when it couldn't be read, which counts as closed. Game build
+    /// 548ddc95… (Steam build 18330018): docs/raw-sources/dialogue-window-flag-session5-2026-11-17.md.</summary>
+    public void WindowRead(long? currentMessage)
     {
         lock (gate)
         {
-            tracked = true;
-        }
-    }
-
-    /// <summary>The dialogue window opened.</summary>
-    public void WindowOpened()
-    {
-        lock (gate)
-        {
-            open = true;
-        }
-    }
-
-    /// <summary>The dialogue window closed.</summary>
-    public void WindowClosed()
-    {
-        lock (gate)
-        {
-            open = false;
+            open = currentMessage is { } message && message != 0;
         }
     }
 
     /// <summary>Takes one read of <paramref name="pad"/>'s buttons, acts on a press, and returns the buttons to hand
     /// the game: without the bound ones while the window is open.</summary>
-    public int Pad(int pad, int buttons)
+    public int Pad(int pad, int buttons) => Pad(pad, buttons, made: true);
+
+    /// <summary>Takes one read of <paramref name="pad"/>'s buttons that the game reports as made or not (#225). A read
+    /// not made is ignored, so leftover bits in it can't fire a binding, and its buttons are handed back
+    /// unchanged.</summary>
+    public int Pad(int pad, int buttons, bool made)
     {
+        if (!made)
+        {
+            return buttons;
+        }
         var repeatHeld = Holds(buttons, bindings.RepeatButtons);
         var toggleHeld = Holds(buttons, bindings.ReaderButtons);
         var hidden = Read(pad, repeatHeld, toggleHeld);
@@ -109,10 +100,9 @@ public sealed class DialogueControls
         bool hidden;
         lock (gate)
         {
-            hidden = tracked && open;
-            var acting = hidden || !tracked;
-            repeatPressed = repeat.Update(source, repeatHeld) && acting;
-            togglePressed = toggle.Update(source, toggleHeld) && acting;
+            hidden = open;
+            repeatPressed = repeat.Update(source, repeatHeld) && open;
+            togglePressed = toggle.Update(source, toggleHeld) && open;
         }
         // Spoken outside the lock: the announcer may take its time.
         if (repeatPressed)

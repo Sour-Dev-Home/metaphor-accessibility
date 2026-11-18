@@ -48,7 +48,9 @@ bash scripts/check.sh full
 ```
 
 `fast` checks the staged files, so with nothing staged it passes at once. `full` checks every tracked file, then builds,
-runs the `Unit` and `RoundTrip` tests and checks formatting. Both end with exit code 0 when everything passes.
+runs the `Unit` and `RoundTrip` tests and checks formatting. Both end with exit code 0 when everything passes. A passing `full` is recorded per clone (in the git dir) against the
+index's tree hash; `full` or `pre-push` on an identical tree says it reused the pass and skips the work. `pre-push`
+takes a machine-wide build slot only when it builds, so a docs-only push never waits on it.
 [README.md](../README.md#checks) lists every stage.
 
 CI runs `full` on Linux for a pull request (faster; tests marked `WindowsOnly` and the Pester script tests are left to
@@ -85,7 +87,7 @@ tools too. To flag another filler word, add it to
 
 ## Security review and deny rules
 
-**Must-run review.** The security-review scope is `src/Metaphor.Hooks/` plus the five scripts listed in
+**Must-run review.** The security-review scope is `src/Metaphor.Hooks/` plus the six scripts listed in
 [`scripts/security-stamp.sh`](../scripts/security-stamp.sh), which deploy, launch, package or fetch native code. A commit
 touching it needs a review stamp:
 

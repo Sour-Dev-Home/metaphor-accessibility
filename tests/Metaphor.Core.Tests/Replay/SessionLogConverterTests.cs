@@ -27,7 +27,7 @@ public sealed class SessionLogConverterTests
         "2500 ms request via=MsgRequestByName kind=0 text=\"MES_x_004\"",
     ];
 
-    private static readonly string[] AllKinds = ["compile", "request", "select", "cursor", "pad"];
+    private static readonly string[] AllKinds = ["compile", "request", "select", "cursor", "pad", "window"];
 
     private static string Convert(IEnumerable<string> log, long from = 1000, long to = 2000, string[]? kinds = null) =>
         SessionLogConverter.Convert(log, new FixtureWindow(from, to, kinds ?? AllKinds),
@@ -126,6 +126,32 @@ public sealed class SessionLogConverterTests
 
         Assert.Contains("0 select kind=0 prompt=- choice=MES_x_003", fixture, StringComparison.Ordinal);
     }
+
+    [Fact]
+    public void KeepsTheWindowsMessagePointerAndADashWhenItWasNotRead()
+    {
+        // The capture-1 watch's format (dialogue-window-flag-session5-2026-11-17.md) and the Release reader's.
+        var fixture = Convert(
+        [
+            "1000 ms msgwindow window=none handles=none",
+            "1100 ms msgwindow current=0x0 state=6 msg+48=- handles=0+0",
+            "1200 ms msgwindow current=0x13387b350 state=0 msg+48=1 handles=0+1",
+            "1300 ms msgwindow current=? state=? msg+48=- handles=(unreadable)",
+            "1400 ms msgwindow window=(unreadable) handles=1+0",
+            "1500 ms msgwindow current=0x46474c30",
+            "1550 ms msgwindow current=?",
+            "1600 ms msgwindow-hook open",
+        ], kinds: ["window"]);
+
+        Assert.Equal(
+            ["0 window current=-", "100 window current=0x0", "200 window current=0x13387b350", "300 window current=-",
+             "400 window current=-", "500 window current=0x46474c30", "550 window current=-", ""],
+            fixture.Split('\n')[3..]);
+    }
+
+    [Fact]
+    public void RefusesAWindowRecordWithText() =>
+        Assert.Throws<FormatException>(() => Convert(["1000 ms msgwindow current=Made-up words"], kinds: ["window"]));
 
     [Fact]
     public void RefusesAHeaderWithoutAGameBuild() =>

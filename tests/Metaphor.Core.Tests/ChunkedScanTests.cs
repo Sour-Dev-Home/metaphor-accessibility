@@ -5,7 +5,7 @@ namespace Metaphor.Core.Tests;
 [Trait("Category", "Unit")]
 public sealed class ChunkedScanTests
 {
-    private static HookSignature Signature(string name, string pattern) => new(name, pattern, [new string('0', 64)], "e");
+    private static HookSignature Signature(string name, string pattern) => new(name, pattern, [new string('0', 64)], "e", ".ecode");
 
     // Reads from `memory` at an RVA; `unreadable` RVAs fail, like a page that can't be copied.
     private static ChunkedScan.ReadAt From(byte[] memory, params long[] unreadable) => (rva, buffer) =>

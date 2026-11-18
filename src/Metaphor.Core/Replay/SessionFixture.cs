@@ -29,14 +29,19 @@ public sealed record PadRecord(long Milliseconds, PadRead Read) : SessionRecord(
 /// <summary>The input hooks read whether the game has its menus open (#268); a failed read is closed.</summary>
 public sealed record MenusRecord(long Milliseconds, bool Open) : SessionRecord(Milliseconds);
 
+/// <summary>A read of the message the dialogue window holds (#232): its pointer, 0 when closed, null when it couldn't be
+/// read.</summary>
+public sealed record WindowRecord(long Milliseconds, long? CurrentMessage) : SessionRecord(Milliseconds);
+
 /// <summary>A recorded game session's events, for tests to replay through the seams the hooks feed (#149). Written by
 /// <see cref="SessionLogConverter"/> from a local <see cref="MessageLog"/>, one file per behaviour under
 /// <c>tests/fixtures/sessions/</c>. The format: <c>#</c> lines first, one of them <c># game build: &lt;sha256&gt;</c>;
 /// then one record per line, <c>&lt;ms&gt; &lt;kind&gt; &lt;field&gt;=&lt;value&gt; …</c>, with kinds <c>compile</c>
 /// (<c>id</c>, <c>path</c>), <c>request</c> (<c>kind</c>, <c>label</c>), <c>select</c> (<c>kind</c>, <c>prompt</c>,
 /// <c>choice</c>; <c>-</c> for an unreadable label), <c>cursor</c> (<c>mgr</c>, <c>class</c>, <c>cmd</c>, <c>result</c>,
-/// <c>top</c>, <c>row</c>, <c>flags</c>, and <c>screen</c> when its screen class is known), <c>pad</c> (<c>pad</c>, <c>buttons</c>, <c>returned</c>) and
-/// <c>menus</c> (<c>open</c>, 1 or 0). No game text: a
+/// <c>top</c>, <c>row</c>, <c>flags</c>, and <c>screen</c> when its screen class is known), <c>pad</c> (<c>pad</c>,
+/// <c>buttons</c>, <c>returned</c>), <c>menus</c> (<c>open</c>, 1 or 0) and <c>window</c> (<c>current</c>; <c>-</c>
+/// when it couldn't be read). No game text: a
 /// test that needs text invents it, keyed by the real label.</summary>
 public sealed class SessionFixture
 {
@@ -81,11 +86,12 @@ public sealed class SessionFixture
 
     /// <summary>Tells each record, in order, to the seam the hook for it feeds: compiled files, line requests and
     /// choices to <paramref name="messages"/>, cursor inputs to <paramref name="cursors"/>, pad reads to
-    /// <paramref name="pad"/>, menus-open reads to <paramref name="menus"/>. A compiled file's source is
-    /// <paramref name="source"/>'s for its path, made up by the test; nothing when omitted.</summary>
+    /// <paramref name="pad"/>, menus-open reads to <paramref name="menus"/>, window reads to <paramref name="window"/>. A
+    /// compiled file's source is <paramref name="source"/>'s for its path, made up by the test; nothing when
+    /// omitted.</summary>
     public void Replay(
         MessageEvents messages, CursorEvents cursors, Action<PadRead>? pad = null, Func<string, string>? source = null,
-        Action<bool>? menus = null)
+        Action<bool>? menus = null, Action<long?>? window = null)
     {
         ArgumentNullException.ThrowIfNull(messages);
         ArgumentNullException.ThrowIfNull(cursors);
@@ -110,6 +116,9 @@ public sealed class SessionFixture
                     break;
                 case MenusRecord state:
                     menus?.Invoke(state.Open);
+                    break;
+                case WindowRecord read:
+                    window?.Invoke(read.CurrentMessage);
                     break;
             }
         }
@@ -143,6 +152,7 @@ public sealed class SessionFixture
                 "0" => false,
                 _ => throw Refused(number),
             }),
+            "window" => new WindowRecord(ms, Field("current") == "-" ? null : Long(Field("current"), number)),
             _ => throw Refused(number),
         };
     }

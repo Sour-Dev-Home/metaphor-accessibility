@@ -80,8 +80,17 @@ public sealed class MenuControls : IScreenObserver
 
     /// <summary>Takes one read of <paramref name="pad"/>'s buttons, acts on a press, and returns the buttons to hand
     /// on: without the bound ones while a menu is open.</summary>
-    public int Pad(int pad, int buttons)
+    public int Pad(int pad, int buttons) => Pad(pad, buttons, made: true);
+
+    /// <summary>Takes one read of <paramref name="pad"/>'s buttons that the game reports as made or not (#225). A read
+    /// not made is ignored, so leftover bits in it can't fire a binding, and its buttons are handed back
+    /// unchanged.</summary>
+    public int Pad(int pad, int buttons, bool made)
     {
+        if (!made)
+        {
+            return buttons;
+        }
         var detailsHeld = Holds(buttons, bindings.DetailsButtons);
         var toggleHeld = Holds(buttons, bindings.ReaderButtons);
         var hidden = Read(pad, detailsHeld, toggleHeld);

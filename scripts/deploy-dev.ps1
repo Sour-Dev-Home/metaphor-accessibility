@@ -126,8 +126,7 @@ finally {
 # 5. Launch. The launcher exits by itself once the game has started. One deadline covers launch and wait.
 $deadline = (Get-Date).AddSeconds($TimeoutSeconds)
 $launched = $true
-$launcher = Start-Process -FilePath $launcherFull -ArgumentList '--launch', "`"$gameFull`"" -PassThru
-if (-not $launcher.WaitForExit($TimeoutSeconds * 1000)) { Write-Host 'the launcher did not exit'; exit 1 }
+if (-not (Start-WithLoader $launcherFull $gameFull $TimeoutSeconds)) { Write-Host 'the launcher did not exit'; exit 1 }
 $mods = @([pscustomobject]@{ Id = $modId; Folder = $folder })
 if (-not (Wait-ModStatus $mods $gameFull $gameBuild.Sha256 $deadline $TimeoutSeconds)) { Write-Host 'deploy FAILED'; exit 1 }
 Write-Host 'deployed and running'

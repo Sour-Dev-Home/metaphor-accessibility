@@ -84,6 +84,16 @@ public sealed class MessageLog(TextWriter writer, Func<long> millisecondsSinceSt
     public void InputChanged(string source, string state) =>
         Write(() => Line($"{millisecondsSinceStart()} ms input {source} {state}"));
 
+    /// <summary>A read of the message the dialogue window holds, when it changed (#232): its pointer, or <c>?</c> when it
+    /// couldn't be read. A pointer only, no game text; <see cref="Replay.SessionLogConverter"/> keeps it.</summary>
+    public void WindowRead(long? currentMessage) => Write(() =>
+        Line($"{millisecondsSinceStart()} ms msgwindow current={(currentMessage is { } message ? $"0x{message:x}" : "?")}"));
+
+    /// <summary>A dialogue window hook ran (#206, #232): <c>open</c> for <c>MsgOpen</c>, <c>close</c> for
+    /// <c>MsgClose</c>, to set beside the <c>msgwindow</c> records.</summary>
+    public void WindowHook(string which) =>
+        Write(() => Line($"{millisecondsSinceStart()} ms msgwindow-hook {which}"));
+
     /// <summary>An input a menu's cursor manager handled that changed something (#93, #94). Numbers only, no game
     /// text.</summary>
     public void Observe(CursorInput input) => Write(() => Line(

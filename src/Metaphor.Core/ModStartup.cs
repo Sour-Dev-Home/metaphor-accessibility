@@ -19,13 +19,13 @@ public static class ModStartup
     /// (docs/raw-sources/reloaded-ii-mod-entry-point-2026-11-15.md), so any failure becomes a refusal instead.</summary>
     /// <returns>The status, which the caller should log: writing it to the folder is best effort.</returns>
     /// <remarks><c>installHooks</c> installs the hooks for the running game build and returns how many it installed
-    /// (#39). It's called only when the build is known (ground rule 2). <c>beforeHooks</c> gets the game build before
+    /// (#39), with the state of each dev opt-in (#223). It's called only when the build is known (ground rule 2). <c>beforeHooks</c> gets the game build before
     /// any hook installs, so it sees the game's own code (the signature spike, #92). <c>announcer</c> then speaks the
     /// <see cref="LoadMessage"/> for the final status (#187).</remarks>
     [SuppressMessage("Design", "CA1031", Justification = "Any failure must refuse rather than reach the game.")]
     public static ModStatus CheckAndReport(
         string modId, string gameExe, string modFolder, Func<IReadOnlyList<GameBuild>> knownBuilds, int hooksExpected,
-        Func<string, int>? installHooks = null, Action<string>? beforeHooks = null, IAnnouncer? announcer = null)
+        Func<string, InstalledHooks>? installHooks = null, Action<string>? beforeHooks = null, IAnnouncer? announcer = null)
     {
         var status = Check(modId, gameExe, knownBuilds, hooksExpected);
         try
@@ -53,11 +53,12 @@ public static class ModStartup
     }
 
     [SuppressMessage("Design", "CA1031", Justification = "Any failure must refuse rather than reach the game.")]
-    private static ModStatus InstallHooks(ModStatus ready, Func<string, int> installHooks)
+    private static ModStatus InstallHooks(ModStatus ready, Func<string, InstalledHooks> installHooks)
     {
         try
         {
-            return ready with { HooksLoaded = installHooks(ready.GameBuildSha256) };
+            var installed = installHooks(ready.GameBuildSha256);
+            return ready with { HooksLoaded = installed.Count, OptIns = installed.OptIns };
         }
         catch (Exception e)
         {

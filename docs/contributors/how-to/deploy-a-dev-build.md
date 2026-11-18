@@ -61,6 +61,19 @@ output are shortened (`<mods>`, `<game>`, `~` and so on), so it can go into an i
 the deploy's parameters except `-Configuration`, and exits 0 when the game survived and the mod wrote its log, 1 when
 the game exited, the deploy failed or there's no log, and 2 when the deploy couldn't start.
 
+### Summarise a log
+
+`tools/session-log` summarises `message-log.txt` without printing game text:
+
+```bash
+tools/session-log <message-log.txt> [--from <ms>] [--to <ms>] [--offset <ms>]
+```
+
+It prints the record count by kind, each screen class with its first and last time, its `screen` records and its cursor
+inputs, and, with `--from` or `--to`, the counts inside that window. `--offset` is the gap in ms between the mod's
+start and the recording's start; times then also show as video times (log time minus the offset). Records with
+`text=`, `label=` or quoted strings are counted, never printed, so the output can go into an issue.
+
 ### Files a run can leave in the mod's folder
 
 These files in the deployed mod's folder (`<mods>\metaphor.accessibility`) change what a Debug run does. The folder is
@@ -73,15 +86,31 @@ outside the repository, so none is ever committed.
   scan, and counts as expected like any other. Use it for one short, separate run, then delete it.
 - `opt-in-ui-text-panes.txt`: the same, for the listener on the UI text pane's draw (#93), which runs every frame and
   logs drawn text (`docs/raw-sources/ui-focus-candidates-2026-11-16.md`).
-- `opt-in-dialogue-window.txt`: turns on the two dialogue window hooks (#58), in Release builds too
+- `opt-in-dialogue-window.txt`: turns on the two dialogue window hooks, which only log (#232)
   ([turn on the dialogue window hooks](turn-on-the-dialogue-window-hooks.md)).
 - `spike-player-name.txt`: the hero name you typed in the game, on its first line (trimmed, UTF-8). The listener compares
   each string with it and logs only `match=exact`, `contains` or `no`, never the name. Without the file it falls back to
   the `METAPHOR_SPIKE_PLAYER_NAME` environment variable, which Reloaded-II may not pass to the game.
 
-A deploy replaces the mod's folder, removing these files, and `listen.ps1` launches the game straight after. So deploy
-first (a short `listen.ps1 -Seconds 30 -Close` run), then add the files to the folder and start the game from Reloaded-II
-yourself. The listener writes to `message-log.txt` in the same folder.
+A deploy replaces the mod's folder, removing these files, and launches the game straight after. A capture run adds the
+opt-in files between the two (the listeners write to `message-log.txt` in the same folder).
+
+### Capture run
+
+```powershell
+pwsh scripts/capture.ps1 -OptIns ui-text-panes,dialogue-window -SaveLog <folder outside the repo>
+```
+
+`scripts/capture.ps1` deploys the Debug build, closes the game it launched, creates `opt-in-<name>.txt` for each name,
+and launches again through Reloaded-II. It prints `hooks n/m` from `mod-status.json` and the mod's `skipped`, `failed`
+and ready lines from Reloaded-II's log of that run, so a listener that didn't go in shows at once. Without `-SaveLog`
+the game is left running. With it, quit the game when the capture is done: the script then copies `message-log.txt` and
+`transcript.txt` into a new timestamped folder there and prints the log's record counts. It refuses a `-SaveLog` folder
+inside a git repository, since the logs hold game text. Exit codes are as for the listening run.
+
+The spoken load message names each opt-in whose file it found, as `message strings`, `text panes` or `dialogue window`,
+for example "Metaphor accessibility loaded, dev opt-ins: text panes, dialogue window". An opt-in whose hooks didn't all
+go in is said with `not active`; the log says why (#223).
 
 ## The scripts' own tests
 

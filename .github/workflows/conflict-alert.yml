@@ -1,0 +1,47 @@
+# Comments once on every open PR, draft or not, that conflicts with main, so a conflicted PR under auto-merge doesn't
+# wait unnoticed (issue #170; scripts/conflict-alert.sh holds the logic). It runs when main moves, and on a schedule as
+# a backstop for PRs whose mergeable state GitHub hadn't computed yet. It never checks out or runs PR code.
+name: Conflict alert
+
+on:
+  push:
+    branches: [main]
+  schedule:
+    # Every 6 hours, off the hour: GitHub delays, and may drop, scheduled runs at the start of each hour.
+    - cron: "23 */6 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: conflict-alert
+  cancel-in-progress: false
+
+jobs:
+  conflict-alert:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      pull-requests: write # to comment on a PR
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Comment on conflicted PRs
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+        run: bash scripts/conflict-alert.sh
+      # Integration sync (issue #242): test-merges main into each draft PR's branch and comments. It never pushes, since a
+      # merge bringing in hook-layer code needs a security-review stamp CI can't give. Needs history, so a full clone.
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Flag integration branches behind main
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+        run: bash scripts/integration-sync.sh

@@ -24,6 +24,12 @@ internal interface IGameHook
     void UseCalls(IReadOnlyDictionary<string, nint> calls)
     {
     }
+
+    /// <summary>Tells a hook whose <c>[GameHook]</c> names a <c>Partner</c> that both of them went in. Called at most
+    /// once, after every hook is installed, and never if either didn't go in.</summary>
+    void PairInstalled()
+    {
+    }
 }
 
 /// <summary>The only way a hook goes into the game (#39, ground rule 2). <see cref="HookPlanner"/> decides from the
@@ -61,12 +67,12 @@ internal static class HookLoader
         candidates.Count(c => c.Inclusion == HookInclusion.Included);
 
     /// <summary>Installs the included <paramref name="candidates"/> approved for <paramref name="runningBuild"/> and
-    /// returns how many went in. Each hook is created with <paramref name="services"/>. Writes one line per hook to
+    /// returns how many went in, with each opt-in whose file was there and whether all its hooks went in (#223). Each hook is created with <paramref name="services"/>. Writes one line per hook to
     /// <paramref name="log"/>, including each opt-in hook left out, or to <paramref name="logError"/> for a hook that
     /// failed to install (#204).</summary>
     /// <exception cref="InvalidOperationException">A hook should go in, but Reloaded-II gave no hooks controller.</exception>
     [SuppressMessage("Design", "CA1031", Justification = "A logging failure must not stop hooks going in.")]
-    public static int Install(
+    public static InstalledHooks Install(
         string runningBuild,
         IReadOnlyList<(Type Type, GameHookAttribute Hook, HookInclusion Inclusion)> candidates,
         IModLoader loader,
@@ -125,17 +131,20 @@ internal static class HookLoader
                 Log($"hook {type.Name} skipped: it observes no shape the loader has an adapter for");
                 continue;
             }
-            hooks.Add((new HookSpec(type.Name, builds, hook.SignatureName, hook.Calls), adapter));
+            hooks.Add((new HookSpec(type.Name, builds, hook.SignatureName, hook.Calls) { Partner = attribute.Partner }, adapter));
         }
 
         var (moduleBase, regions) = hooks.Any(h => h.Hook is not null) ? ModuleMemoryReader.MainModuleRegions() : (0, []);
-        var (loaded, kept) = HookInstallation.Run(
+        var (loaded, kept, wentIn) = HookInstallation.Run(
             runningBuild, hooks, HookSignatures.All,
             wanted => ChunkedScan.FindAll(regions, (rva, buffer) => ModuleMemoryReader.ReadAt(moduleBase, rva, buffer), wanted),
-            () => ReloadedInstall(loader, moduleBase), log, logError);
+            () => ReloadedInstall(loader, moduleBase), log, logError, adapter => adapter.Hook.PairInstalled());
         // Referenced for the life of the game (HookInstallation.Run says why).
         Installed.AddRange(kept);
-        return loaded;
+        // A hook skipped above, such as one without the constructor, isn't in wentIn, so its opt-in isn't active.
+        return new(loaded, HookOptIn.Summarize(candidates
+            .Where(c => c.Inclusion == HookInclusion.Included && c.Hook.OptInFile is not null)
+            .Select(c => (c.Hook.OptInName ?? c.Hook.OptInFile!, wentIn.Contains(c.Type.Name)))));
     }
 
     /// <summary>Installs one approved hook, through its adapter, with Reloaded-II's hooks controller, fetched now, once a

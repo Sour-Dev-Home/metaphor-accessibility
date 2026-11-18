@@ -9,13 +9,15 @@
 // METAPHOR_STANDIN_RELOADED_CONFIG. METAPHOR_STANDIN_BEHAVIOUR picks what the game does: ready (default), refuse,
 // partial (ready with 0 of 1 hooks), otherbuild (ready on another build), silent (writes nothing), crash (exits at
 // once) or exitlater (ready, then exits a second later). With METAPHOR_STANDIN_MESSAGE_LOG set to a file, each enabled
-// mod also gets a copy as its message-log.txt, held open for writing as the Debug mod holds its own (for listen.ps1).
+// mod also gets a copy as its message-log.txt, held open for writing as the Debug mod holds its own (for listen.ps1),
+// and with METAPHOR_STANDIN_TRANSCRIPT a copy as its transcript.txt (for capture.ps1).
 // Loader facts: docs/raw-sources/reloaded-ii-app-and-mod-config-2026-11-15.md.
 
 using System.Diagnostics;
 using System.Security.Cryptography;
 using System.Text.Json;
 using Metaphor.Core;
+using Metaphor.Core.Announcements;
 
 var configPath = Environment.GetEnvironmentVariable("METAPHOR_STANDIN_RELOADED_CONFIG")
     ?? throw new InvalidOperationException("METAPHOR_STANDIN_RELOADED_CONFIG is not set");
@@ -88,6 +90,27 @@ foreach (var modConfig in Directory.EnumerateFiles(Folder(root, "ModConfigDirect
         log.Flush();
         openLogs.Add(log);
     }
+    if (Environment.GetEnvironmentVariable("METAPHOR_STANDIN_TRANSCRIPT") is { Length: > 0 } transcript)
+    {
+        File.Copy(transcript, Path.Combine(folder, TranscriptAnnouncer.FileName), overwrite: true);
+    }
+}
+
+// With METAPHOR_STANDIN_LOADER_LOG set to a file, its lines stand in for Reloaded-II's log of this run, named and placed
+// as the real one (docs/raw-sources/reloaded-ii-launch-and-logs-2026-11-13.md) and held open as the loader holds it.
+if (Environment.GetEnvironmentVariable("METAPHOR_STANDIN_LOADER_LOG") is { Length: > 0 } loaderLog)
+{
+    var logs = Directory.CreateDirectory(Path.Combine(Path.GetDirectoryName(configPath)!, "Logs")).FullName;
+    var stem = $"{DateTime.UtcNow:yyyy-MM-dd HH.mm.ss} ~ {Path.GetFileNameWithoutExtension(self)}";
+    var path = Path.Combine(logs, $"{stem}.txt");
+    for (var n = 1; File.Exists(path); n++)
+    {
+        path = Path.Combine(logs, $"{stem} [{n}].txt");
+    }
+    var log = new FileStream(path, FileMode.CreateNew, FileAccess.Write, FileShare.ReadWrite);
+    log.Write(File.ReadAllBytes(loaderLog));
+    log.Flush();
+    openLogs.Add(log);
 }
 
 if (behaviour == "exitlater")

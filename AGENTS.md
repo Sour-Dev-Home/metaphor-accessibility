@@ -54,6 +54,8 @@ and its deploy scripts the pre-commit hook enforces this through the reviewer's 
 
 ## Agent skills
 
+Before committing or opening a PR, read `docs/agents/workflow.md`: branching, security stamp, delivery, reporting.
+
 ### Issue tracker
 
 Issues live in GitHub Issues on `Sour-Dev-Home/metaphor-accessibility`, managed with the `gh` CLI. See `docs/agents/issue-tracker.md`.

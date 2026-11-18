@@ -12,17 +12,20 @@ public static class HookInstallation
     /// called once, just before the first install, and never if nothing is approved; if it throws, so does this. A
     /// hook is paired with <c>null</c> when it wasn't created, which only a hook for another build may be. Writes one
     /// line per hook to <paramref name="log"/>, or to <paramref name="logError"/>, when given, for a hook that failed
-    /// to install: the line a native crash report needs (#204). Returns how many went in, and every hook handed to the
-    /// game, which the caller keeps alive.</summary>
+    /// to install: the line a native crash report needs (#204). Once every hook is in, <paramref name="pairInstalled"/>
+    /// is called with each hook whose <see cref="HookSpec.Partner"/> went in too, and never with one of a pair that
+    /// didn't both go in (#172). Returns how many went in, every hook handed to the game, which the caller keeps
+    /// alive, and the name of each hook that went in (#223).</summary>
     [SuppressMessage("Design", "CA1031", Justification = "One hook failing must not stop the others or reach the game.")]
-    public static (int Loaded, IReadOnlyList<THook> Kept) Run<THook>(
+    public static (int Loaded, IReadOnlyList<THook> Kept, IReadOnlySet<string> WentIn) Run<THook>(
         string runningBuild,
         IReadOnlyList<(HookSpec Spec, THook? Hook)> hooks,
         IReadOnlyList<HookSignature> signatures,
         Func<IReadOnlyList<HookSignature>, ScanResult> scan,
         Func<Action<THook, HookDecision>> createInstaller,
         Action<string> log,
-        Action<string>? logError = null)
+        Action<string>? logError = null,
+        Action<THook>? pairInstalled = null)
         where THook : class
     {
         ArgumentNullException.ThrowIfNull(hooks);
@@ -47,6 +50,7 @@ public static class HookInstallation
         Action<THook, HookDecision>? install = null;
         var kept = new List<THook>();
         var loaded = 0;
+        var wentIn = new HashSet<string>();
         foreach (var (decision, (_, hook)) in plan.Zip(hooks))
         {
             if (!decision.Install || hook is null)
@@ -69,8 +73,23 @@ public static class HookInstallation
                 continue;
             }
             loaded++;
+            wentIn.Add(decision.Name);
             Log($"hook {decision.Name} installed at module offset 0x{decision.Rva:x}");
         }
-        return (loaded, kept);
+        foreach (var (spec, hook) in hooks)
+        {
+            if (hook is not null && spec.Partner is { } partner && wentIn.Contains(spec.Name) && wentIn.Contains(partner))
+            {
+                try
+                {
+                    pairInstalled?.Invoke(hook);
+                }
+                catch (Exception e)
+                {
+                    Log($"hook {spec.Name} paired, but its handler failed: {e.GetType().Name}");
+                }
+            }
+        }
+        return (loaded, kept, wentIn);
     }
 }

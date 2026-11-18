@@ -1,156 +1,189 @@
 [
   {
     "name": "CompileMsgFile",
+    "section": ".ecode",
     "pattern": "48 89 5C 24 ?? 48 89 4C 24 ?? 55 56 57 41 54 41 55 41 56 41 57 48 8D 6C 24 ?? 48 81 EC E0 00 00 00 45 8B E1",
     "gameBuilds": ["548ddc955c176867f062c44f94c03dd9ac33caefb278a5ac388e792aedf09504"],
     "evidence": "MF.Toolkit MessageService.cs at b1f876da (docs/raw-sources/game-text-hooks-community-2026-11-15.md); one match, same place on disk and in memory, on this build (docs/raw-sources/mf-toolkit-message-signatures-2026-11-15.md)"
   },
   {
     "name": "GetMessageByLabelIndex",
+    "section": ".ecode",
     "pattern": "48 89 5C 24 ?? 48 89 74 24 ?? 48 89 7C 24 ?? 55 41 56 41 57 48 8B EC 48 81 EC 80 00 00 00 49 8B F1",
     "gameBuilds": ["548ddc955c176867f062c44f94c03dd9ac33caefb278a5ac388e792aedf09504"],
     "evidence": "MF.Toolkit MessageService.cs at b1f876da (docs/raw-sources/game-text-hooks-community-2026-11-15.md); one match, same place on disk and in memory, on this build (docs/raw-sources/mf-toolkit-message-signatures-2026-11-15.md)"
   },
   {
     "name": "sq_newclosure",
+    "section": ".ecode",
     "pattern": "48 89 5C 24 ?? 48 89 6C 24 ?? 48 89 74 24 ?? 57 48 83 EC 30 49 8B F8 48 8B F1",
     "gameBuilds": ["548ddc955c176867f062c44f94c03dd9ac33caefb278a5ac388e792aedf09504"],
     "evidence": "MF.Toolkit SquirrelPatterns.cs at b1f876da; one match on disk on this build (docs/raw-sources/mf-toolkit-squirrel-registration-2026-11-16.md)"
   },
   {
     "name": "sq_gettop",
+    "section": ".ecode",
     "pattern": "48 8B 41 48 48 2B 41 50 C3",
     "gameBuilds": ["548ddc955c176867f062c44f94c03dd9ac33caefb278a5ac388e792aedf09504"],
     "evidence": "MF.Toolkit SquirrelPatterns.cs at b1f876da; one match on disk on this build (docs/raw-sources/mf-toolkit-squirrel-registration-2026-11-16.md)"
   },
   {
     "name": "sq_getstring",
+    "section": ".text1",
     "pattern": "48 89 5C 24 ?? 48 89 74 24 ?? 57 48 83 EC 20 4C 89 C3 48 89 CF",
     "gameBuilds": ["548ddc955c176867f062c44f94c03dd9ac33caefb278a5ac388e792aedf09504"],
     "evidence": "MF.Toolkit SquirrelPatterns.cs at b1f876da; one match on disk on this build (docs/raw-sources/mf-toolkit-squirrel-registration-2026-11-16.md)"
   },
   {
     "name": "sq_getuserdata",
+    "section": ".ecode",
     "pattern": "48 89 5C 24 ?? 48 89 74 24 ?? 57 48 83 EC 20 49 8B D9 49 8B F8 48 8B F1",
     "gameBuilds": ["548ddc955c176867f062c44f94c03dd9ac33caefb278a5ac388e792aedf09504"],
     "evidence": "MF.Toolkit SquirrelPatterns.cs at b1f876da; one match on disk on this build (docs/raw-sources/mf-toolkit-squirrel-registration-2026-11-16.md)"
   },
   {
     "name": "MsgRequestByName",
+    "section": ".ecode",
     "pattern": "48 8B C4 48 89 58 08 48 89 70 10 48 89 78 18 55 41 54 41 55 41 56 41 57 48 8D A8 C8 FE FF FF 48 81 EC 10 02 00 00 C5 F8 29 70 C8 C5 F8 29 78 B8 49 8B F8 48 8B F2 44 8B F1 48 8B 05 F8 C6 50 02",
     "gameBuilds": ["548ddc955c176867f062c44f94c03dd9ac33caefb278a5ac388e792aedf09504"],
     "evidence": "Our reading of the exe (docs/raw-sources/msg-request-functions-2026-11-16.md); one match on disk and in memory, same place (docs/raw-sources/msg-request-signature-spike-2026-11-16.md). The last four bytes are a build-specific relative address that tells it from its twin"
   },
   {
     "name": "MsgRequestByNameTwin",
+    "section": ".ecode",
     "pattern": "48 8B C4 48 89 58 08 48 89 70 10 48 89 78 18 55 41 54 41 55 41 56 41 57 48 8D A8 C8 FE FF FF 48 81 EC 10 02 00 00 C5 F8 29 70 C8 C5 F8 29 78 B8 49 8B F8 48 8B F2 44 8B F1 48 8B 05 C8 C4 50 02",
     "gameBuilds": ["548ddc955c176867f062c44f94c03dd9ac33caefb278a5ac388e792aedf09504"],
     "evidence": "Our reading of the exe (docs/raw-sources/msg-request-functions-2026-11-16.md); one match on disk and in memory, same place (docs/raw-sources/msg-request-signature-spike-2026-11-16.md). The last four bytes are a build-specific relative address that tells it from its twin"
   },
   {
     "name": "MsgRequestById",
+    "section": ".ecode",
     "pattern": "48 8B C4 48 89 58 08 48 89 70 10 48 89 78 18 55 41 54 41 55 41 56 41 57 48 8D A8 48 FF FF FF 48 81 EC 90 01 00 00",
     "gameBuilds": ["548ddc955c176867f062c44f94c03dd9ac33caefb278a5ac388e792aedf09504"],
     "evidence": "Our reading of the exe (docs/raw-sources/msg-request-functions-2026-11-16.md); one match on disk and in memory, same place (docs/raw-sources/msg-request-signature-spike-2026-11-16.md)"
   },
   {
     "name": "MsgRequestByNameAuto",
+    "section": ".ecode",
     "pattern": "48 8B C4 48 89 58 08 48 89 70 10 48 89 78 18 55 41 54 41 55 41 56 41 57 48 8D A8 B8 FE FF FF 48 81 EC 20 02 00 00",
     "gameBuilds": ["548ddc955c176867f062c44f94c03dd9ac33caefb278a5ac388e792aedf09504"],
     "evidence": "Our reading of the exe (docs/raw-sources/msg-request-functions-2026-11-16.md); one match on disk and in memory, same place (docs/raw-sources/msg-request-signature-spike-2026-11-16.md)"
   },
   {
     "name": "MsgRequestByIdAuto",
+    "section": ".ecode",
     "pattern": "48 8B C4 48 89 58 08 48 89 70 10 48 89 78 18 55 41 54 41 55 41 56 41 57 48 8D A8 28 FF FF FF 48 81 EC B0 01 00 00",
     "gameBuilds": ["548ddc955c176867f062c44f94c03dd9ac33caefb278a5ac388e792aedf09504"],
     "evidence": "Our reading of the exe (docs/raw-sources/msg-request-functions-2026-11-16.md); one match on disk and in memory, same place (docs/raw-sources/msg-request-signature-spike-2026-11-16.md)"
   },
   {
     "name": "MsgRequestSelectByName",
+    "section": ".ecode",
     "pattern": "48 8B C4 48 89 58 08 48 89 70 10 48 89 78 18 55 41 54 41 55 41 56 41 57 48 8D A8 38 FF FF FF 48 81 EC A0 01 00 00 C5 F8 29 70 C8 C5 F8 29 78 B8 41 8B F9 49 8B F0 4C 8B F2 44 8B F9",
     "gameBuilds": ["548ddc955c176867f062c44f94c03dd9ac33caefb278a5ac388e792aedf09504"],
     "evidence": "Our reading of the exe: what MsgRequestSelect calls (docs/raw-sources/msg-select-functions-2026-11-16.md); one match on disk and in memory at the disk address (docs/raw-sources/spike-session-1-2026-11-16.md)"
   },
   {
     "name": "MsgSelectedId",
+    "section": ".ecode",
     "pattern": "48 83 EC 28 8B 81 00 02 00 00 83 F8 06 75 0B 8B 81 04 02 00 00 83 F8 06 74 16 83 F8 05 75 11 E8",
     "gameBuilds": ["548ddc955c176867f062c44f94c03dd9ac33caefb278a5ac388e792aedf09504"],
     "evidence": "Our reading of the exe: where MsgGetSelectedID's target jumps (docs/raw-sources/msg-select-functions-2026-11-16.md); one match on disk, not yet checked in memory"
   },
   {
     "name": "CursorManagerInput",
+    "section": ".ecode",
     "pattern": "40 53 56 48 83 EC 28 F6 81 AC 00 00 00 01 48 8B F2 48 8B D9 76 16 8B 02 8B C8 83 E9 16 0F 84 ?? ?? ?? ?? 83 F9 01 0F 84",
     "gameBuilds": ["548ddc955c176867f062c44f94c03dd9ac33caefb278a5ac388e792aedf09504"],
     "evidence": "Our reading of the exe through its type information (docs/raw-sources/ui-focus-candidates-2026-11-16.md); one match on disk and in memory at the disk address (docs/raw-sources/spike-session-2-2026-11-16.md)"
   },
   {
     "name": "ChoiceGetCursor",
+    "section": ".ecode",
     "pattern": "48 83 EC 18 33 C0 48 89 02 48 89 42 08 48 8B 81 38 02 00 00 48 85 C0 74 04 F0 FF 40 08 48 8B 81 30 02 00 00 48 89 02 48 8B 81 38 02 00 00 48 89 42 08 48 8B C2 48 83 C4 18 C3",
     "gameBuilds": ["548ddc955c176867f062c44f94c03dd9ac33caefb278a5ac388e792aedf09504"],
     "evidence": "Our reading of the exe through its type information (docs/raw-sources/screen-class-link-2026-11-17.md); one match on disk, installed in memory at module offset 0xd4ab90 (docs/raw-sources/screen-class-session-2026-11-17.md)"
   },
   {
     "name": "criAtomExPlayer_SetCueId",
+    "section": ".text1",
     "pattern": "48 89 5C 24 ?? 48 89 6C 24 ?? 48 89 74 24 ?? 57 48 83 EC 20 49 63 F8 48 89 D6",
     "gameBuilds": ["548ddc955c176867f062c44f94c03dd9ac33caefb278a5ac388e792aedf09504"],
     "evidence": "Ryo Framework's Metaphor pattern (docs/raw-sources/ryo-cri-atom-patterns-2026-11-16.md); one match on disk at rva 0x126438d0, 2026-11-16 (tools/Metaphor.SignatureCheck/cri-atom-probes.json); not yet checked in memory"
   },
   {
     "name": "CreateMsgFromString",
+    "section": ".text1",
     "pattern": "40 53 48 83 EC 30 41 80 79 ?? 00",
     "gameBuilds": ["548ddc955c176867f062c44f94c03dd9ac33caefb278a5ac388e792aedf09504"],
     "evidence": "MF.Toolkit MessageService.cs at b1f876da (docs/raw-sources/game-text-hooks-community-2026-11-15.md); one match, same place on disk and in memory (docs/raw-sources/mf-toolkit-message-signatures-2026-11-15.md); arguments in docs/raw-sources/name-lookup-candidates-2026-11-16.md"
   },
   {
     "name": "GetMessageBySerial",
+    "section": ".ecode",
     "pattern": "48 89 5C 24 ?? 48 89 74 24 ?? 48 89 7C 24 ?? 55 41 56 41 57 48 8B EC 48 81 EC 80 00 00 00 49 8B F0",
     "gameBuilds": ["548ddc955c176867f062c44f94c03dd9ac33caefb278a5ac388e792aedf09504"],
     "evidence": "MF.Toolkit's GetMsgBySerialId at 8e50b937 and our reading of the exe (docs/raw-sources/name-lookup-candidates-2026-11-16.md); one match on disk; not yet checked in memory"
   },
   {
     "name": "MessageSerialByLabel",
+    "section": ".ecode",
     "pattern": "40 53 48 83 EC 30 48 8B 1D ?? ?? ?? ?? 48 8B D1 48 8D 4C 24 20 E8 ?? ?? ?? ?? 84 C0 74 2F 48 8D 54 24 20 48 8B CB E8 ?? ?? ?? ?? 48 85 C0 74 1D 48 8B 00 48 8B 8B 08 02 00 00",
     "gameBuilds": ["548ddc955c176867f062c44f94c03dd9ac33caefb278a5ac388e792aedf09504"],
     "evidence": "Our reading of the exe (docs/raw-sources/name-lookup-candidates-2026-11-16.md); one match on disk; not yet checked in memory"
   },
   {
     "name": "MessageSerialByHash",
+    "section": ".ecode",
     "pattern": "40 53 48 83 EC 30 0F B6 01 48 8D 54 24 20 48 8B 1D ?? ?? ?? ?? 88 44 24 20 0F B6 41 01 88 44 24 21 0F B6 41 02 88 44 24 22",
     "gameBuilds": ["548ddc955c176867f062c44f94c03dd9ac33caefb278a5ac388e792aedf09504"],
     "evidence": "Our reading of the exe (docs/raw-sources/name-lookup-candidates-2026-11-16.md); one match on disk; not yet checked in memory"
   },
   {
     "name": "PadRead",
+    "section": ".ecode",
     "pattern": "48 89 5C 24 20 57 48 83 EC 40 48 63 D9 48 8B FA C5 F9 EF C0 8B CB 48 8D 54 24 20 C5 F8 11 44 24 20 E8 ?? ?? ?? ?? 4C 8D 0D ?? ?? ?? ?? 85 C0 42 0F B6 8C 0B",
     "gameBuilds": ["548ddc955c176867f062c44f94c03dd9ac33caefb278a5ac388e792aedf09504"],
     "evidence": "Our reading of the exe: the one caller of XInputGetState (docs/raw-sources/input-route-2026-11-16.md); one match on disk, and at the same place in memory (docs/raw-sources/spike-session-2-2026-11-16.md)"
   },
   {
+    "name": "MsgIsSelectWindowOpenedBody",
+    "section": ".ecode",
+    "pattern": "48 8B 0D ?? ?? ?? ?? 8B 81 60 05 00 00 83 E8 04 83 F8 01 76 03 32 C0 C3 48 81 C1 18 03 00 00 E9",
+    "gameBuilds": ["548ddc955c176867f062c44f94c03dd9ac33caefb278a5ac388e792aedf09504"],
+    "evidence": "Our reading of the exe: where MsgIsSelectWindowOpened jumps, in .ecode (docs/raw-sources/dialogue-window-flag-2026-11-16.md); one match on disk; matched once in memory and read on every pad read for 35 minutes in session 5 (docs/raw-sources/dialogue-window-flag-session5-2026-11-17.md); read only, never hooked or called"
+  },
+  {
     "name": "KeyboardRead",
+    "section": ".ecode",
     "pattern": "40 53 48 81 EC 20 01 00 00 C5 FA 10 05 ?? ?? ?? ?? C5 F8 2F 05 ?? ?? ?? ?? 48 8B DA 0F 82 ?? ?? ?? ?? 80 3D ?? ?? ?? ?? 00 0F 84 ?? ?? ?? ?? 48 8D 4C 24 20 48 89 B4 24 38 01 00 00 FF 15 ?? ?? ?? ?? 33 C0 F6 44 24 3B 80",
     "gameBuilds": ["548ddc955c176867f062c44f94c03dd9ac33caefb278a5ac388e792aedf09504"],
     "evidence": "Our reading of the exe: the GetKeyboardState caller next to the pad read (docs/raw-sources/input-route-2026-11-16.md); one match on disk, and at the same place in memory (docs/raw-sources/spike-session-2-2026-11-16.md)"
   },
   {
     "name": "CampStatusIsOpenBody",
+    "section": ".ecode",
     "pattern": "4C 63 01 41 83 F8 FF 75 0C 48 8B 0D ?? ?? ?? ?? E9 ?? ?? ?? ?? 48 8B 05 ?? ?? ?? ?? 48 85 C0 74",
     "gameBuilds": ["548ddc955c176867f062c44f94c03dd9ac33caefb278a5ac388e792aedf09504"],
-    "evidence": "Our reading of the exe: the function CampStatus_IsClosed calls, in .ecode, whose load at +9 names the menus' handle global (capture-2-field-leads-2026-11-17.md on branch capture-kit-2); one match on disk, checked 2026-11-17; read only, never hooked or called; the global it names read non-null exactly while the menus were open in capture session 6 (docs/raw-sources/menus-open-session6-2026-11-17.md)"
+    "evidence": "Our reading of the exe: the function CampStatus_IsClosed calls, in .ecode, whose load at +9 names the menus' handle global at 0x2ee7338; one match on disk, checked 2026-11-17; read only, never hooked or called; that global read non-null exactly while the menus were open in capture session 6 (docs/raw-sources/menus-open-session6-2026-11-17.md)"
   },
   {
     "name": "MsgOpenBody",
+    "section": ".text1",
     "pattern": "40 53 48 83 EC 60 48 89 CB 80 39 2F 75 4A 8B 05 ?? ?? ?? ?? 05 ?? ?? ?? ?? 48 8D 14 01 C5 F9 EF C0 C5 F8 11 44 24 40",
     "gameBuilds": ["548ddc955c176867f062c44f94c03dd9ac33caefb278a5ac388e792aedf09504"],
     "evidence": "Our reading of the exe: where the MsgOpen script function jumps, in .text1 (docs/raw-sources/msg-window-functions-2026-11-16.md); one match on disk; not yet checked in memory"
   },
   {
     "name": "MsgCloseBody",
+    "section": ".text1",
     "pattern": "89 4C 24 08 56 57 48 83 EC 38 48 8B 35 ?? ?? ?? ?? 89 CF 48 85 F6 0F 84 ?? ?? ?? ?? 48 89 5C 24 60 48 8D 54 24 50 4C 89 64 24 30 48 8D 4E 48",
     "gameBuilds": ["548ddc955c176867f062c44f94c03dd9ac33caefb278a5ac388e792aedf09504"],
     "evidence": "Our reading of the exe: where the MsgClose script function's jumps end, in .text1 (docs/raw-sources/msg-window-functions-2026-11-16.md); one match on disk; not yet checked in memory"
   },
   {
     "name": "TextPaneDraw",
+    "section": ".ecode",
     "pattern": "40 55 57 48 8D 6C 24 B1 48 81 EC A8 00 00 00 48 8B F9 E8 19 B9 55 00 48 8B 47 30 48 8B CF C5 FA 10 47 38 48 89 45 D7 8B 47 3C 89 45 E3",
     "gameBuilds": ["548ddc955c176867f062c44f94c03dd9ac33caefb278a5ac388e792aedf09504"],
     "evidence": "Our reading of the exe through its type information (docs/raw-sources/ui-focus-candidates-2026-11-16.md); one match on disk with its first call's offset fixed (a licence-text copy matches otherwise); not yet checked in memory"

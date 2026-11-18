@@ -124,13 +124,9 @@ Everything the mod reads is here. The mod reads no mouse input.
 A press counts when the key goes down, not while it is held. A key already held when a dialogue window opens does
 nothing. They can't be rebound yet.
 
-By default they work at any time, on every screen, and the game sees the presses too, so `R`, `T`, `X` and `LB`+`RB`
-keep their normal job. Reader off silences dialogue lines only, not the keys, the load message or the settings message.
-
-With the opt-in window hooks file they work only while a dialogue window is open, and the game doesn't see them then.
-To turn this on, put an empty file named `opt-in-dialogue-window.txt` in the mod's folder (`metaphor.accessibility` in
-your mods folder) and restart the game. An update replaces that folder, so add the file again afterwards. Delete the
-file to turn it off ([details](../../contributors/how-to/turn-on-the-dialogue-window-hooks.md)).
+They work only while a dialogue window is open, a line or a choice, and the game doesn't see them then. Anywhere else,
+such as a menu or the field, they do nothing and keep their normal job in the game. Reader off silences dialogue lines
+only, not the keys, the load message or the settings message.
 
 ### Menus and choices: no keys of their own
 
