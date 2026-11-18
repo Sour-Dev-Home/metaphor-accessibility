@@ -32,7 +32,8 @@ describing work (rule 8 in [`AGENTS.md`](../../AGENTS.md#ground-rules)).
    can hide a failed start.
 4. Run long commands (`check.sh full`, the script test suites) in the foreground with the Bash tool's longest timeout
    (600000 ms), and wait for them in that call. A background run wakes the main session each time you pause, and every
-   wake-up costs a full turn.
+   wake-up costs a full turn. A hook (`.claude/hooks/refuse-log-polling.sh`) refuses a sleep loop that waits on a log
+   file.
 5. Hand back verified: the narrow tests, then `full`, both passed and their summaries read. If a run can't finish, say
    which and why; don't hand back to be nudged.
 
@@ -86,6 +87,8 @@ Commit with the stamp. `SECURITY_REVIEW_SKIP` is the maintainer's.
   waits, because GitHub closes a push connection that sits idle (exit 141).
 - Check every push's own exit code (`git push ...; echo $?`), never a pipe's or an echo after it: a pre-push hook that
   fails or times out on the build lock leaves the branch unpushed while the command looks quiet.
+- No checks on the PR 5 minutes after a push: GitHub sometimes starts no run at all (#329). Close and reopen the PR
+  (`gh pr close <n> && gh pr reopen <n>`), then turn auto-merge on again.
 
 ## GitHub outage
 
@@ -127,10 +130,14 @@ Credit them by the rule in [`AGENTS.md`](../../AGENTS.md#ground-rules) (rule 7) 
 Brief: the PR number or branch, what changed, anything left undone. Stay under the brief's word limit, or 150 words;
 reviewers list findings only, by severity.
 
+A subagent gets one hand-back per result; a second is refused and never arrives. Send any later report with
+SendMessage to `main`.
+
 ## Briefing agents (main session)
 
-- Model: Sonnet for docs-only and mechanical tickets (fix lists, CI, tested library code) and for reviewing docs-only
-  or test-only changes; Opus for reverse engineering, hooks, security and design.
+- Model: Sonnet for docs-only and mechanical tickets (fix lists, mechanical CI edits, tested library code) and for
+  reviewing docs-only or test-only changes; Opus for reverse engineering, hooks, security, design and any change to
+  the guards (the check scripts, git hooks, check-script tests and CI gates), perf work on them included.
 - Review findings: fix before merge what a player would notice or what weakens a guard; file pure hardening as a
   follow-up ticket instead of another review round.
 - Keep briefs to pointers (the issue, this file, the files to read first) and a word limit for the report.
