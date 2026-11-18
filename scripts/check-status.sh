@@ -75,12 +75,24 @@ printf '%s\n' "${long[@]}"
 if [ "$waiting" -gt 0 ]; then echo "waiting: $waiting (longest $longest min)"; else echo "waiting: none"; fi
 
 echo "last runs (stage branch start end result built|reused):"
-git worktree list --porcelain 2> /dev/null | sed -n 's/^worktree //p' | while IFS= read -r wt; do
-  gd="$(git -C "$wt" rev-parse --absolute-git-dir 2> /dev/null)" || continue
+# One git call for the list, then bash builtins only: a `git -C` per worktree took about a second each under Git Bash on
+# Windows (35 worktrees: 35 s, #314). A worktree's .git is a folder (the main one) or a file "gitdir: <path>".
+while IFS= read -r line; do
+  [[ "$line" == "worktree "* ]] || continue
+  wt="${line#worktree }"
+  gd="$wt/.git"
+  if [ -f "$gd" ]; then
+    read -r gd < "$gd" || continue
+    gd="${gd#gitdir: }"
+  fi
   [ -f "$gd/check-run-log" ] || continue
-  echo "  $(basename "$wt"):"
-  head -n 3 "$gd/check-run-log" | sed 's/^/    /'
-done
+  echo "  ${wt##*/}:"
+  n=0
+  while IFS= read -r entry && [ "$n" -lt 3 ]; do
+    echo "    $entry"
+    n=$((n + 1))
+  done < "$gd/check-run-log"
+done < <(git worktree list --porcelain 2> /dev/null)
 
 # Work parked by scripts/github-outage.sh (#312): one dir per branch under the clone's common git dir.
 common="$(git rev-parse --path-format=absolute --git-common-dir 2> /dev/null)"

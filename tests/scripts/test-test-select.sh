@@ -43,6 +43,19 @@ out="$(sel Directory.Packages.props)"
 check "build-wide file runs every test project" has "Dialogue.Tests"
 check "build-wide file runs Core tests" has "Core.Tests"
 
+# What the local build needs (#314)
+out="$(sel tools/Metaphor.SessionLog/X.cs)"
+check "a tool no test reaches is built, not tested" has "build tools/Metaphor.SessionLog/Metaphor.SessionLog.csproj"
+check "a tool change runs no dotnet tests" lacks "dotnet"
+out="$(sel src/Metaphor.Features.Menus/Foo.cs)"
+check "a tested change names no extra build" lacks "build "
+check "a tested change doesn't ask for the solution" lacks "solution"
+out="$(sel docs/README.md)"
+check "docs change builds nothing" lacks "build "
+check "docs change doesn't ask for the solution" lacks "solution"
+out="$(sel Directory.Packages.props)"
+check "a build-wide file asks for the solution" has "solution Directory.Packages.props changed"
+
 # Selection is local only
 out="$(GITHUB_ACTIONS=true sel docs/README.md)"
 check "CI selects every test project" has "Dialogue.Tests"

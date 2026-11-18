@@ -80,6 +80,7 @@ jobs:
           bash tests/scripts/test-test-select.sh
           bash tests/scripts/test-check-status.sh
           bash tests/scripts/test-github-outage.sh
+          bash tests/scripts/test-ci-matrix.sh
       - name: Check every tracked file
         env:
           # The private list reaches pushes to this repository's main only, never a pull request, so a fork's code
@@ -180,10 +181,16 @@ jobs:
           if-no-files-found: error
 
   # The smoke-test and deploy scripts' Pester tests, in parallel with build. They need Windows (PowerShell scripts against
-  # the stand-in game) and run when a change touches scripts, tests/smoke, the stand-in game or the workflows.
-  scripts:
+  # the stand-in game) and run when a change touches scripts, tests/smoke, the stand-in game or the workflows. One job
+  # per test file (#314: the files ran one after another in a single job, over 5 of its 6 minutes); each job builds the
+  # stand-in game on its own runner, so the files can't collide on its obj folder.
+  pester:
     runs-on: windows-latest
     timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        file: [capture, deploy-dev, fetch-prism, listen, signature-spike, smoke-test]
     defaults:
       run:
         shell: bash
@@ -207,8 +214,26 @@ jobs:
           cache-dependency-path: '**/packages.lock.json'
       - name: Run the Pester tests
         if: steps.changes.outputs.run == 'true'
+        env:
+          TEST_FILE: tests/smoke/${{ matrix.file }}.Tests.ps1
         run: |
-          pwsh -NoProfile -Command 'Import-Module Pester -MinimumVersion 5.0; $r = Invoke-Pester tests/smoke -PassThru -Output Normal; exit $r.FailedCount'
+          pwsh -NoProfile -Command 'Import-Module Pester -MinimumVersion 5.0; $r = Invoke-Pester $env:TEST_FILE -PassThru -Output Normal; exit $r.FailedCount'
+
+  # The required check named `scripts` (the ruleset asks for it by name): it passes when every Pester job passed or was
+  # skipped, and fails when any failed or was cancelled. Add a test file under tests/smoke and to the matrix above;
+  # tests/scripts/test-ci-matrix.sh fails when the two disagree.
+  scripts:
+    needs: [pester]
+    if: always()
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    steps:
+      - name: Every Pester job passed
+        env:
+          RESULT: ${{ needs.pester.result }}
+        run: |
+          echo "pester jobs: $RESULT"
+          [ "$RESULT" = success ] || [ "$RESULT" = skipped ]
 
   # Runs beside build, so it gates merges without slowing the commit stage. A vulnerable package fails the job; a new
   # high or critical CodeQL security alert blocks the merge through the ruleset's code-scanning rule. It runs on every
@@ -252,7 +277,7 @@ jobs:
   # Stage 2's time against its 5-minute budget (issue #1): each job's duration on the run's summary page, and a warning
   # annotation when the stage runs over. It only reports, so it runs after the others whatever their result.
   timing:
-    needs: [repo-rules, build, scripts, security]
+    needs: [repo-rules, build, pester, scripts, security]
     if: always()
     runs-on: ubuntu-latest
     timeout-minutes: 2

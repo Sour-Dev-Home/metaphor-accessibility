@@ -53,12 +53,17 @@ One command runs every check, locally (Git Bash on Windows) and in CI:
 | `scripts/check.sh commit-msg FILE` | one commit message's shape (see the script's header); appends the `Security-Review` trailer to a commit touching the security-review scope | commit-msg hook |
 | `scripts/check.sh commits BASE..HEAD` | each commit's shape in a pull request, and a matching `Security-Review` or `Security-Review-Skipped` trailer on each one touching the scope | CI on Ubuntu |
 
+`full` prints each step's time (`restore`, `build`, `tests`, `format`, `pester`) and keeps them in the run log. Locally
+the pre-push build covers only the test projects the change selects (and a changed tool no test reaches); a build-wide
+file or an unplaceable change builds the solution. `tests/check/test-check.sh` runs its tests in parallel
+(`METAPHOR_TEST_JOBS=1` runs them one at a time), as does `scripts/run-pester.sh`.
+
 `full` needs the .NET SDK pinned in `global.json`. CI runs it by two paths under the same required checks
 (`repo-rules`, `build`, `scripts`, `security`):
 
 - **Pull requests** do the .NET work on Linux: `build` runs `full` there, minus the tests marked `WindowsOnly` (the
-  `Category` trait; `check.sh` adds that category on Windows only). The Pester script tests run in the parallel
-  `scripts` job on Windows. Each job starts with a `git diff` check (`scripts/ci-changes.sh`) and finishes green at once
+  `Category` trait; `check.sh` adds that category on Windows only). The Pester script tests run in parallel `pester`
+  jobs on Windows, one per file under `tests/smoke/`; the `scripts` check waits for them all (#314). Each job starts with a `git diff` check (`scripts/ci-changes.sh`) and finishes green at once
   when nothing it covers changed: `build` skips when only `docs/` or Markdown changed, and `scripts` skips unless
   `scripts/`, `tests/smoke/`, the stand-in game or the workflows changed. `repo-rules` and `security` (CodeQL) always run.
 - **The merge queue and pushes to `main`** run everything, skipping nothing: `build` on Windows runs `full`, then
