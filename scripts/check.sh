@@ -214,31 +214,57 @@ full_tree() {
   git diff --quiet 2> /dev/null && git write-tree 2> /dev/null
 }
 
-# run_selected_tests SOLUTION UNKNOWN CHANGED: local test selection (issue #243, scripts/test-select.sh). Runs only the
+# select_tests UNKNOWN CHANGED: print test-select.sh's lines for the pushed change; nothing when the whole solution runs
+# (an unknown change set, CI, or METAPHOR_FULL_TESTS=1).
+whole_solution() { [ "$1" -eq 1 ] || [ "${GITHUB_ACTIONS:-}" = true ] || [ -n "${METAPHOR_FULL_TESTS:-}" ]; }
+select_tests() {
+  whole_solution "$1" && return 0
+  sed '/^$/d' <<< "$2" | bash "$(dirname "${BASH_SOURCE[0]}")/test-select.sh"
+}
+
+# build_selected SOLUTION ROOT UNKNOWN SELECTION: the pre-push build (#314). Builds the whole solution when the change
+# set is unknown, in CI or with METAPHOR_FULL_TESTS=1, when a build-wide file changed, and when the selection names
+# nothing to build (a code change the selector couldn't place). Otherwise builds just the selected test projects and
+# the changed projects no test reaches; a project's build brings the projects it references. Returns 1 on a failure.
+build_selected() {
+  local solution="$1" root="$2" unknown="$3" selection="$4" kind proj reason ok=0 any=0
+  if whole_solution "$unknown" || grep -q '^solution ' <<< "$selection" || ! grep -qE '^(dotnet|build) ' <<< "$selection"; then
+    timed_step build dotnet build "$solution" -c Release -v q --nologo
+    return
+  fi
+  while read -r kind proj reason; do
+    [ "$kind" = dotnet ] || [ "$kind" = build ] || continue
+    any=1
+    timed_step "build:$(basename "$proj" .csproj)" dotnet build "$root/$proj" -c Release -v q --nologo || ok=1
+  done <<< "$selection"
+  [ "$any" -eq 1 ] || ok=1
+  return "$ok"
+}
+
+# run_selected_tests SOLUTION UNKNOWN SELECTION: local test selection (issue #243, scripts/test-select.sh). Runs only the
 # test projects the changed files can affect and says which ran and why. With an unknown change set, in CI, or with
 # METAPHOR_FULL_TESTS=1 it runs the whole solution. `full` (CI, merge queue) never calls this.
 run_selected_tests() {
-  local solution="$1" unknown="$2" changed="$3" kind proj reason ran=0
-  if [ "$unknown" -eq 1 ] || [ "${GITHUB_ACTIONS:-}" = true ] || [ -n "${METAPHOR_FULL_TESTS:-}" ]; then
+  local solution="$1" unknown="$2" selection="$3" kind proj reason ran=0
+  if whole_solution "$unknown"; then
     echo "tests: all suites (change set unknown, CI, or METAPHOR_FULL_TESTS)"
-    dotnet test "$solution" -c Release --no-build -v q --filter "$(test_filter)" ||
+    timed_step tests dotnet test "$solution" -c Release --no-build -v q --filter "$(test_filter)" ||
       report "tests: Unit or RoundTrip tests failed"
     return 0
   fi
   while read -r kind proj reason; do
     if [ "$kind" = pester ] && [ -z "${SKIP_SCRIPT_TESTS:-}" ] && command -v pwsh > /dev/null; then
       echo "tests: Pester smoke tests because $proj $reason"
-      pwsh -NoProfile -Command \
-        'Import-Module Pester -MinimumVersion 5.0; $r = Invoke-Pester tests/smoke -PassThru -Output Normal; exit $r.FailedCount' ||
-        report "tests: smoke or deploy script tests failed (run: Invoke-Pester tests/smoke)"
+      timed_step pester bash "$(dirname "${BASH_SOURCE[0]}")/run-pester.sh" ||
+        report "tests: smoke or deploy script tests failed (run: bash scripts/run-pester.sh)"
       ran=1
     fi
     [ "$kind" = dotnet ] || continue
     ran=1
     echo "tests: $proj because $reason"
-    dotnet test "$proj" -c Release --no-build -v q --filter "$(test_filter)" ||
+    timed_step "tests:$(basename "$proj" .csproj)" dotnet test "$proj" -c Release --no-build -v q --filter "$(test_filter)" ||
       report "tests: $proj failed"
-  done < <(sed '/^$/d' <<< "$changed" | bash "$(dirname "${BASH_SOURCE[0]}")/test-select.sh")
+  done <<< "$selection"
   [ "$ran" -eq 1 ] || echo "tests: no test project is affected by this change"
 }
 
@@ -247,7 +273,7 @@ run_selected_tests() {
 # changed (a new branch with no origin/main to compare, or a remote commit not fetched), it builds.
 pre_push_stage() {
   local zero=0000000000000000000000000000000000000000 local_ref local_sha remote_ref remote_sha base
-  local changed="" unknown=0 pushed=0 root solution trees=() tree cached=1
+  local changed="" unknown=0 pushed=0 root solution trees=() tree cached=1 selection
   while read -r local_ref local_sha remote_ref remote_sha; do
     [ -n "$local_sha" ] && [ "$local_sha" != "$zero" ] || continue # a deleted branch pushes nothing
     pushed=1
@@ -282,8 +308,9 @@ pre_push_stage() {
   command -v dotnet > /dev/null || die "pre-push stage needs the .NET SDK (dotnet) on PATH"
   export DOTNET_CLI_TELEMETRY_OPTOUT=1 DOTNET_NOLOGO=1
   # Tests run only after a good build: --no-build would otherwise test the last good build and pass.
-  if dotnet build "$solution" -c Release -v q --nologo; then
-    run_selected_tests "$solution" "$unknown" "$changed"
+  selection="$(select_tests "$unknown" "$changed")"
+  if build_selected "$solution" "$root" "$unknown" "$selection"; then
+    run_selected_tests "$solution" "$unknown" "$selection"
   else
     report "build: failed, see the errors above"
   fi
@@ -553,19 +580,32 @@ current_branch() { git branch --show-current 2> /dev/null | grep . || echo "deta
 # "<stage> <branch> <start> <end> <pass|fail> <built|reused>"; read by scripts/check-status.sh.
 reused=built
 case "$stage" in full | slow | signatures | pre-push) run_logged=1 ;; *) run_logged="" ;; esac
+# Per-step times of a building stage (#314): "restore=12s build=80s ...", printed when the run ends and kept as the run
+# log line's last field, so a slow step is named by data.
+step_times=()
+timed_step() { # timed_step NAME COMMAND...: run COMMAND and note how long it took; its exit code is returned
+  local name="$1" began=$SECONDS code
+  shift
+  "$@"
+  code=$?
+  step_times+=("$name=$((SECONDS - began))s")
+  return "$code"
+}
 log_run() { # log_run EXIT_CODE
-  local file result=pass
+  local file result=pass times=""
   [ "$1" -eq 0 ] || result=fail
+  [ "${#step_times[@]}" -eq 0 ] || times=" ${step_times[*]}"
   file="$(git rev-parse --absolute-git-dir 2> /dev/null)/check-run-log" || return 0
   [ "$file" != "/check-run-log" ] || return 0
   {
-    echo "$stage $(current_branch) $(date -u -d "@$started" +%Y-%m-%dT%H:%M:%SZ) $(date -u +%Y-%m-%dT%H:%M:%SZ) $result $reused"
+    echo "$stage $(current_branch) $(date -u -d "@$started" +%Y-%m-%dT%H:%M:%SZ) $(date -u +%Y-%m-%dT%H:%M:%SZ) $result $reused$times"
     cat "$file" 2> /dev/null || true
   } | head -n 50 > "$file.new" && mv "$file.new" "$file"
 }
 finish() {
   local code=$?
   rm -rf "${tmp:-}"
+  [ "${#step_times[@]}" -eq 0 ] || echo "step times: ${step_times[*]}"
   [ -z "$run_logged" ] || log_run "$code" || true
   [ -z "${waited:-}" ] || rm -f "${METAPHOR_CHECK_LOCK:-${TMPDIR:-/tmp}/metaphor-check.lock}.waiting/$$"
   [ -z "${locked:-}" ] || rm -rf "$locked"
@@ -978,17 +1018,18 @@ fi
 # The .NET part of the full stage. Tests and formatting still run after a failed build, so one run shows everything.
 if [ "$stage" = full ]; then
   export DOTNET_CLI_TELEMETRY_OPTOUT=1 DOTNET_NOLOGO=1
-  dotnet build "$solution" -c Release -v q || report "build: failed, see the errors above"
-  dotnet test "$solution" -c Release --no-build -v q --filter "$(test_filter)" ||
+  timed_step restore dotnet restore "$solution" -v q || report "build: restore failed, see the errors above"
+  timed_step build dotnet build "$solution" -c Release --no-restore -v q || report "build: failed, see the errors above"
+  timed_step tests dotnet test "$solution" -c Release --no-build -v q --filter "$(test_filter)" ||
     report "tests: Unit or RoundTrip tests failed"
-  dotnet format whitespace "$solution" --verify-no-changes ||
+  timed_step format dotnet format whitespace "$solution" --verify-no-changes ||
     report "format: files need formatting (run: dotnet format whitespace Metaphor.sln)"
-  # The smoke-test and deploy scripts' own tests, against the stand-in game (no game needed). Pester 5 or later.
-  # CI sets SKIP_SCRIPT_TESTS=1 because its own `scripts` job runs them in parallel.
+  # The smoke-test and deploy scripts' own tests, against the stand-in game (no game needed). Pester 5 or later, one
+  # process per file, a few at a time (scripts/run-pester.sh). CI sets SKIP_SCRIPT_TESTS=1 because its own `pester`
+  # jobs run them in parallel.
   if [ -z "${SKIP_SCRIPT_TESTS:-}" ]; then
-    pwsh -NoProfile -Command \
-      'Import-Module Pester -MinimumVersion 5.0; $r = Invoke-Pester tests/smoke -PassThru -Output Normal; exit $r.FailedCount' ||
-      report "tests: smoke or deploy script tests failed (run: Invoke-Pester tests/smoke)"
+    timed_step pester bash "$(dirname "${BASH_SOURCE[0]}")/run-pester.sh" ||
+      report "tests: smoke or deploy script tests failed (run: bash scripts/run-pester.sh)"
   fi
   # Record only a clean pass of an unchanged tree (nothing edited while the checks ran).
   if [ "$failures" -eq 0 ] && [ -n "${full_tree_id:-}" ] && [ "$(full_tree)" = "$full_tree_id" ]; then

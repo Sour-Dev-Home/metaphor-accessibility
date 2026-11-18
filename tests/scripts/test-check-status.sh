@@ -109,6 +109,20 @@ echo "full 214-details-key 2026-11-17T10:00:00Z 2026-11-17T10:12:00Z pass built"
 status
 check "last runs listed" has "full 214-details-key 2026-11-17T10:00:00Z 2026-11-17T10:12:00Z pass built"
 
+# Twelve linked worktrees (#314): every one's last runs are listed, and the listing doesn't fork per worktree (it took
+# about a second each under Git Bash on Windows, so 12 worktrees took over 10 s; the bound is loose for a busy machine).
+for n in $(seq 1 12); do
+  git worktree add -q --detach "$WORK/wt$n" &&
+    echo "full branch-$n 2026-11-17T10:00:00Z 2026-11-17T10:12:00Z pass built" > "$(git -C "$WORK/wt$n" rev-parse --absolute-git-dir)/check-run-log"
+done
+t0=$(date +%s%N)
+status
+t1=$(date +%s%N)
+check "all 12 linked worktrees listed" test "$(grep -c 'full branch-' <<< "$out")" -eq 12
+out="12 worktrees: $(((t1 - t0) / 1000000)) ms"
+check "12 worktrees list in under 6 s" test $(((t1 - t0) / 1000000)) -lt 6000
+for n in $(seq 1 12); do git worktree remove --force "$WORK/wt$n"; done
+
 # Idle workers, and the shutdown command.
 printf '  1234 MSBuild.exe /nodeReuse:true\n  1235 VBCSCompiler.exe\n  1300 bash\n' > "$WORK/ps.txt"
 status

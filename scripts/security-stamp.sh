@@ -26,8 +26,9 @@ scope=(src/Metaphor.Hooks/ scripts/deploy-dev.ps1 scripts/smoke-test.ps1 scripts
   scripts/ReloadedDev.psm1 scripts/capture.ps1 scripts/listen.ps1
   scripts/check.sh scripts/game-content.sha256 scripts/tree-hash.sh scripts/ci-changes.sh scripts/test-select.sh
   scripts/stage-timing.sh scripts/install-docs-tools.sh scripts/conflict-alert.sh scripts/integration-sync.sh
-  scripts/check-status.sh scripts/github-outage.sh scripts/githooks/ scripts/security-stamp.sh .github/workflows/
-  tests/check/ tests/scripts/ tools/docs/ tools/slow/ .config/dotnet-tools.json .claude/agents/security-reviewer.md
+  scripts/check-status.sh scripts/github-outage.sh scripts/run-pester.sh scripts/githooks/ scripts/security-stamp.sh
+  .github/workflows/ tests/check/ tests/scripts/ tools/docs/ tools/slow/ .config/dotnet-tools.json
+  .claude/agents/security-reviewer.md
   *Directory.Build.* *Directory.Packages.props *Directory.Solution.* *.sln.targets global.json
   *nuget.config *NuGet.config *NuGet.Config)
 set +f

@@ -1275,7 +1275,7 @@ test_maintainer_pr_uses_trailers_and_ignores_the_label() {
 # The guards that enforce the ground rules are in the scope too (issue #306).
 GUARD_FILES=(scripts/check.sh scripts/game-content.sha256 scripts/tree-hash.sh scripts/ci-changes.sh
   scripts/test-select.sh scripts/stage-timing.sh scripts/install-docs-tools.sh scripts/conflict-alert.sh
-  scripts/integration-sync.sh scripts/check-status.sh scripts/githooks/pre-commit scripts/githooks/pre-push
+  scripts/integration-sync.sh scripts/check-status.sh scripts/run-pester.sh scripts/githooks/pre-commit scripts/githooks/pre-push
   scripts/githooks/commit-msg scripts/security-stamp.sh scripts/github-outage.sh .github/workflows/ci.yml
   .github/workflows/slow.yml .github/workflows/a-new-one.yml .claude/agents/security-reviewer.md
   tests/check/test-check.sh tests/scripts/test-anything.sh tools/slow/survivors.mjs tools/docs/package-lock.json
@@ -1609,11 +1609,52 @@ test_rules_process_starts_do_not_grow_with_the_file_count() {
   expect 0 "starts"
 }
 
-# An optional argument runs only the tests whose names match it (an extended regular expression).
-for current in $(declare -F | awk '{print $3}' | grep '^test_' | grep -E -- "${1:-.}"); do
-  "$current"
-  cd "$WORK" || exit 2
+# Each test runs in its own subshell, with its own temp folder and its own counters, several at a time (#314: the suite
+# took tens of minutes in one process on Windows, where every git and bash start is slow). Output is shown whole, in
+# test order, after all have finished. METAPHOR_TEST_JOBS=1 runs one at a time and must give the same pass and fail
+# counts. An optional argument runs only the tests whose names match it (an extended regular expression).
+JOBS="${METAPHOR_TEST_JOBS:-}"
+if ! [[ "$JOBS" =~ ^[1-9][0-9]*$ ]]; then
+  JOBS="$(nproc 2> /dev/null || echo 4)"
+  [ "$JOBS" -le 4 ] || JOBS=4
+fi
+RESULTS="$WORK/results"
+mkdir -p "$RESULTS"
+
+run_test() { # run_test NAME
+  local name="$1" began=$SECONDS
+  mkdir -p "$WORK/t-$name"
+  (
+    WORK="$WORK/t-$name"
+    passed=0 failed=0 current="$name"
+    "$name"
+    echo "$passed $failed" > "$RESULTS/$name.counts"
+  ) > "$RESULTS/$name.out" 2>&1
+  echo "$((SECONDS - began))" > "$RESULTS/$name.secs"
+}
+
+mapfile -t names < <(declare -F | awk '{print $3}' | grep '^test_' | grep -E -- "${1:-.}")
+for name in "${names[@]}"; do
+  while [ "$(jobs -rp | wc -l)" -ge "$JOBS" ]; do wait -n; done
+  run_test "$name" &
 done
+wait
+
+for name in "${names[@]}"; do
+  cat "$RESULTS/$name.out"
+  if read -r p f < "$RESULTS/$name.counts" 2> /dev/null; then
+    passed=$((passed + p))
+    failed=$((failed + f))
+  else
+    failed=$((failed + 1))
+    printf 'FAIL %s\n  the test stopped before it finished\n' "$name"
+  fi
+  [ ! -s "$RESULTS/$name.secs" ] || printf '%s %s\n' "$(cat "$RESULTS/$name.secs")" "$name" >> "$RESULTS/times"
+done
+if [ -s "$RESULTS/times" ]; then
+  echo "slowest tests (seconds):"
+  sort -rn "$RESULTS/times" | head -n 8 | sed 's/^/  /'
+fi
 
 printf 'check tests: %d passed, %d failed\n' "$passed" "$failed"
 [ "$failed" -eq 0 ]

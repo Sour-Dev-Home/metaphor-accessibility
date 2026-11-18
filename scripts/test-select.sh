@@ -3,6 +3,9 @@
 #   dotnet <test project .csproj>  <reason>
 #   pester                         <reason>   (the smoke and deploy script tests)
 #   docs                           <reason>   (the docs stage)
+#   build <project .csproj>        <reason>   (a changed project no test project reaches: build it, nothing to run)
+#   solution                       <reason>   (a build-wide file changed: build the whole solution)
+# check.sh's pre-push builds only the projects these lines name (#314); a pass with no such line builds the solution.
 # A test project is selected when the changed file sits in it, or in a project it references, directly or through
 # other projects (the ProjectReference graph in the .csproj files). Build-wide files (Directory.*, global.json, the
 # solution) select every test project.
@@ -46,7 +49,14 @@ mark() { # mark PROJECT REASON REASON: add the project and everything that refer
   for q in ${rdeps[$p]:-}; do mark "$q" "$3 (via $(basename "$p" .csproj), which it references)"; done
 }
 
-pester="" docs="" every="" owner=""
+reaches_test() { # reaches_test PROJECT: the project, or one referencing it (transitively), is a test project
+  local p="$1" q
+  [[ "$p" == tests/*Tests.csproj ]] && return 0
+  for q in ${rdeps[$p]:-}; do reaches_test "$q" && return 0; done
+  return 1
+}
+
+pester="" docs="" every="" owner="" untested=()
 for f in "${files[@]}"; do
   case "$f" in
     Directory.Build.* | Directory.Packages.props | global.json | Metaphor.sln | .editorconfig) every="$f" ;;
@@ -60,6 +70,10 @@ for f in "${files[@]}"; do
     if [[ "$f" == "${dir_of[$p]}/"* ]] && [ "${#dir_of[$p]}" -gt "${#best}" ]; then best="${dir_of[$p]}" owner="$p"; fi
   done
   [ -z "$owner" ] || mark "$owner" "$f changed"
+  # A code file in a project no test project reaches (a tool): nothing runs, but the local build must still compile it.
+  if [ -n "$owner" ] && [[ "$f" =~ \.(cs|csproj|props|targets|json)$ ]] && ! reaches_test "$owner"; then
+    untested+=("build $owner $f changed (no test project covers it)")
+  fi
 done
 if [ -n "$every" ]; then
   while read -r p; do mark "$p" "$every changed (build-wide)"; done < <(all_tests)
@@ -68,6 +82,8 @@ fi
 while read -r p; do
   [ -z "${hit[$p]:-}" ] || echo "dotnet $p ${why[$p]}"
 done < <(all_tests)
+[ "${#untested[@]}" -eq 0 ] || printf '%s\n' "${untested[@]}"
+[ -z "$every" ] || echo "solution $every changed (build-wide)"
 [ -z "$pester" ] || echo "pester $pester changed"
 [ -z "$docs" ] || echo "docs $docs changed"
 exit 0

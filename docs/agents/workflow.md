@@ -40,6 +40,9 @@ describing work (rule 8 in [`AGENTS.md`](../../AGENTS.md#ground-rules)).
 on that same tree prints `reused the recorded pass for tree <hash>` and skips the 10-15 minutes. A reviewer can rely on
 that line: any change, staged or committed, runs the checks again. Don't rerun `full` on a tree it has passed.
 
+A building run prints `step times: restore=.. build=.. tests=.. ...` and keeps them as the run log line's last field.
+`tests/check/test-check.sh` runs its tests in parallel; narrow it with a name pattern as its argument.
+
 A check that looks stalled: `bash scripts/check-status.sh` shows who holds each of the two machine-wide build slots
 (`METAPHOR_CHECK_SLOTS`, default 2), who waits, each worktree's last runs and idle build workers (with the command to
 stop them). The status line shows the `--short` form.
