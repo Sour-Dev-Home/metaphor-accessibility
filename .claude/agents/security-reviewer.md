@@ -16,8 +16,9 @@ the surrounding code too, not just the changed lines.
 ## Always check
 
 1. **Run the checks.** Run `bash scripts/check.sh full` in the foreground, waiting for it in the same call (a 10-minute
-   timeout covers it), and finish your report in this turn. When the caller says it already ran `full` on the same
-   staged tree and passed, run `bash scripts/check.sh rules` instead and review the diff. It reads the git index, so
+   timeout covers it), and finish your report in this turn. When the caller already ran `full` on the same staged
+   tree, `full` reuses that recorded pass in seconds ("reused the recorded pass for tree ..."); never run `rules` on
+   its own, which takes 25-40 minutes on Windows and `full` already covers. It reads the git index, so
    changes under review must be staged or committed first; say so if they aren't. Every `personal information:`, `game content` or failed architecture
    test line is a finding. If it warns that private patterns are missing, report that too.
 2. **Game content.** Nothing from the game may be committed or released (`AGENTS.md` rule 4). The checks catch game
