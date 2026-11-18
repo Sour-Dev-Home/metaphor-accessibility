@@ -47,6 +47,17 @@ Commit with the stamp. `SECURITY_REVIEW_SKIP` is the maintainer's.
 - **Anywhere else**: open a PR with the `pr` skill's template, then `gh pr merge <n> --auto`. The merge queue refuses
   `--squash` and `--delete-branch`.
 
+## Integration branches behind main
+
+Integration branches are the heads of open draft PRs. When `main` moves, the
+[`Conflict alert`](../../.github/workflows/conflict-alert.yml) workflow runs
+[`scripts/integration-sync.sh`](../../scripts/integration-sync.sh) (#242): it test-merges `main` into each draft PR's
+branch in memory and comments once, with either the conflicting files or "mergeable cleanly, needs a merge from `main`
+(and a review if hook files change)". It stays quiet while the outcome is unchanged. CI never pushes the merge: one that
+brings hook-layer code from `main` needs a fresh security-review stamp (the 2026-11-17 rule, which #246 may relax), and
+CI can't give one. When you see the comment, merge `main` into the branch yourself, following the steps above if hook
+files changed.
+
 ## Borrowed ideas and code
 
 Credit them by the rule in [`AGENTS.md`](../../AGENTS.md#ground-rules) (rule 7) and record them in
