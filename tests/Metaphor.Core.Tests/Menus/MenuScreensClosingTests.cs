@@ -90,12 +90,25 @@ public sealed class MenuScreensClosingTests
     }
 
     [Fact]
-    public void AScreenEnteredWhileTheMenusAreClosedIsStillTold()
+    public void ACursorThatSettlesWhileTheMenusAreClosedTellsNothing()
     {
-        // A cursor outside the menus, such as a dialogue's choice, is still a screen to the features that speak it.
+        // A cursor outside the menus, such as a dialogue's choice or a battle's command list, is no menu screen: its
+        // own features speak it (#268).
         Cursor(PlainClass, row: 0);
+        Cursor(PlainClass, row: 1);
 
-        Assert.Equal([$"Entered {PlainClass} 0"], seen);
+        Assert.Empty(seen);
         Assert.False(screens.MenusOpen);
+    }
+
+    [Fact]
+    public void AfterTheMenusOpenTheFirstCursorToSettleEntersItsScreen()
+    {
+        Cursor(PlainClass, row: 3);
+        screens.MenusRead(open: true);
+
+        Cursor(PlainClass, row: 3);
+
+        Assert.Equal([$"Entered {PlainClass} 3"], seen);
     }
 }

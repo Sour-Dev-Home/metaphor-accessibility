@@ -27,6 +27,7 @@ public sealed class TitleMenuFocusTests
     {
         var library = new MessageLibrary();
         var screens = new MenuScreens([TitleMenuFocus.Screen]);
+        screens.MenusRead(open: true);
         messages.ObserveFiles(library);
         cursors.Observe(screens);
         screens.Observe(new TitleMenuFocus(library, announcer, new TextCleaner(TextCleanerRules.None)));

@@ -69,7 +69,7 @@ internal sealed record HookServices
         var dialogue = new DialogueAnnouncer(reader, cleaner, history, () => settings.Current.VoicedLines);
         var controls = new DialogueControls(DialogueBindings.Default, history, reader, announcer);
         // Menus speak through the reader too (#214), and their controls toggle it with the dialogue's binding.
-        var screens = new MenuScreens([TitleMenuFocus.Screen, MainMenuFocus.Screen]);
+        var screens = new MenuScreens(KnownScreens.All);
         screens.Observe(new TitleMenuFocus(library, reader, cleaner));
         screens.Observe(new MainMenuFocus(reader));
         screens.Observe(new UnknownScreenFocus(reader));

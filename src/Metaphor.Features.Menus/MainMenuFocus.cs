@@ -32,13 +32,9 @@ public sealed class MainMenuFocus : IScreenObserver
     /// <summary>Speaks the focus when the main menu is entered or its focus moves.</summary>
     public void Observe(ScreenEvent change)
     {
-        ArgumentNullException.ThrowIfNull(change);
-        if (change.Screen != Screen || change.Change == ScreenChange.Left || change.Index < 0 || change.Index >= EntryCount)
+        if (ListFocus.Of(change, Screen, Screen.Name, EntryCount, index => Labels[index]) is { } said)
         {
-            return;
+            announcer.Announce(said);
         }
-        var entry = $"{Labels[change.Index]}, {change.Index + 1} of {EntryCount}";
-        announcer.Announce(new Announcement(
-            change.Change == ScreenChange.Entered ? $"{Screen.Name}, {entry}" : entry, Interrupt: true));
     }
 }

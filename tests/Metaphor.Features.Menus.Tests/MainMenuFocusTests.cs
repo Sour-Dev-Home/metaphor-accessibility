@@ -20,7 +20,8 @@ public sealed class MainMenuFocusTests
 
     public MainMenuFocusTests()
     {
-        var screens = new MenuScreens([TitleMenuFocus.Screen, MainMenuFocus.Screen]);
+        var screens = new MenuScreens(KnownScreens.All);
+        screens.MenusRead(open: true);
         cursors.Observe(screens);
         screens.Observe(new MainMenuFocus(announcer));
     }

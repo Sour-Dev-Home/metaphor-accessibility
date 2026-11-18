@@ -4,15 +4,16 @@ using Metaphor.Core.Menus;
 namespace Metaphor.Hooks;
 
 // Menu cursor events (#94): one hook decodes each input a menu's cursor manager handles and hands it to
-// HookServices.Cursors, whose observers speak the title menu's focus and, in Debug builds, log it. The loader's adapter
+// HookServices.Cursors, whose observers are MenuScreens (#211), which turns them into the screen changes the menu
+// features speak, and the dialogue's ChoiceFocus, plus the report and the log when they are on. The loader's adapter
 // passes every call through unchanged (#88).
 
 /// <summary>Reads whether the game has its menus open (#268): the global <c>CampStatus_IsClosed</c> tests is non-null
 /// exactly while a field menu, or the title screen, is open (docs/raw-sources/menus-open-session6-2026-11-17.md, game
 /// build 548ddc95…, Steam build 18330018). One pointer read through <see cref="ModuleMemoryReader"/> per call, no list
 /// walk. The global's address comes from the code of the function that loads it, <c>CampStatusIsOpenBody</c> in
-/// <c>.ecode</c>, which the loader locates for <see cref="PadReadHook"/> (<see cref="IGameHook.Calls"/>, so only after
-/// the build check); that function is read, never hooked or called. Until then, and when a read fails, the menus read
+/// <c>.ecode</c>, which the loader locates for <see cref="PadReadHook"/> and <see cref="KeyboardReadHook"/>
+/// (<see cref="IGameHook.Calls"/>, so only after the build check); that function is read, never hooked or called. Until then, and when a read fails, the menus read
 /// as closed, so the menu controls hand their keys to the game.</summary>
 internal sealed class MenusOpenRead
 {
@@ -23,12 +24,13 @@ internal sealed class MenusOpenRead
     private const int DisplacementOffset = 3;
     private const int LoadLength = 7;
 
-    // Written once, before the pad read goes live. A pointer-sized field is read whole, so another thread sees 0, as
-    // closed, or the address.
+    // Set at most once, by the first input hook that resolves it, before that hook goes live; the other hook may already
+    // be reading it. Both find the same address from the same function, so even a race writes one value. A
+    // pointer-sized field is read and written whole, so another thread sees 0, as closed, or the address.
     private nint global;
 
-    /// <summary>Finds the global from the address the loader located for <see cref="HandleReader"/>. Called once,
-    /// before the hook that carries it goes live.</summary>
+    /// <summary>Finds the global from the address the loader located for <see cref="HandleReader"/>. Each input hook
+    /// calls it before it goes live; the first to find the global keeps it, and a later call never changes it.</summary>
     public void Resolve(IReadOnlyDictionary<string, nint> functions)
     {
         ArgumentNullException.ThrowIfNull(functions);
@@ -39,7 +41,10 @@ internal sealed class MenusOpenRead
         var load = function + LoadOffset;
         if (ModuleMemoryReader.ReadInt32(load + DisplacementOffset) is { } displacement)
         {
-            global = load + LoadLength + displacement;
+            if (global == 0)
+            {
+                global = load + LoadLength + displacement;
+            }
         }
     }
 

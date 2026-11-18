@@ -43,8 +43,8 @@ public interface IScreenDetails
 /// (docs/raw-sources/screen-class-session-2026-11-17.md). Only inputs where the cursor settled count (a move can be put
 /// back, <see cref="CursorInput.IsMove"/>); an input without a screen class is skipped. Observers hear each change in
 /// the order they were added, and one that throws never stops the rest. Add observers before the hooks go live. It also
-/// knows whether the game has its menus open (#268), from the reads the input hooks hand it: when they close, the
-/// current screen is left.
+/// knows whether the game has its menus open (#268), from the reads the input hooks hand it: only while they are open
+/// does a cursor count, and when they close, the current screen is left.
 /// </summary>
 public sealed class MenuScreens : ICursorObserver
 {
@@ -82,6 +82,10 @@ public sealed class MenuScreens : ICursorObserver
         ScreenEvent[] changes;
         lock (gate)
         {
+            if (!menusOpen)
+            {
+                return;
+            }
             if (screenClass == currentClass)
             {
                 if (input.Index == currentIndex)
@@ -111,8 +115,9 @@ public sealed class MenuScreens : ICursorObserver
 
     /// <summary>Takes one read of whether the game has its menus open; a read that failed is closed, so menu-only
     /// controls give their input back to the game. When the menus close, the current screen is left at its last focus
-    /// and forgotten: nothing repeats it, and the next cursor to settle, even on the same screen, enters afresh. A
-    /// cursor that settles while the menus are closed (a dialogue's choice) still enters its screen.</summary>
+    /// and forgotten: nothing repeats it, and the next cursor to settle once they open, even on the same screen, enters
+    /// afresh. A cursor that settles while the menus are closed (a dialogue's choice, a battle's commands) is no menu
+    /// screen and tells nothing.</summary>
     /// <remarks>What the game's state is, and that it reads open on the title screen too, is in
     /// docs/raw-sources/menus-open-session6-2026-11-17.md.</remarks>
     public void MenusRead(bool open)

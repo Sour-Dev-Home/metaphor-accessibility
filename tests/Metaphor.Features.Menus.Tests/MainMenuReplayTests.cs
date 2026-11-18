@@ -15,7 +15,9 @@ public sealed class MainMenuReplayTests
 
     private void Replay(string scenario)
     {
-        var screens = new MenuScreens([TitleMenuFocus.Screen, MainMenuFocus.Screen]);
+        var screens = new MenuScreens(KnownScreens.All);
+        // The fixture predates the menus-open read (#268); the main menu and the screens it opens read open (session 6).
+        screens.MenusRead(open: true);
         var cursors = new CursorEvents();
         screens.Observe(new MainMenuFocus(announcer));
         screens.Observe(new UnknownScreenFocus(announcer));

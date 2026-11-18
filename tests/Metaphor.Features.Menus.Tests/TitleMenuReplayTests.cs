@@ -21,6 +21,8 @@ public sealed class TitleMenuReplayTests
     {
         var library = new MessageLibrary();
         var screens = new MenuScreens([TitleMenuFocus.Screen]);
+        // These fixtures predate the menus-open read (#268); the title and the main menu read open (session 6).
+        screens.MenusRead(open: true);
         var messages = new MessageEvents();
         var cursors = new CursorEvents();
         messages.ObserveFiles(library);

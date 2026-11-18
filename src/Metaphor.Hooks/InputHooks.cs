@@ -168,9 +168,15 @@ internal sealed class KeyboardReadHook : IGameHook, IChangesBehaviour
 
     public string SignatureName => "KeyboardRead";
 
-    public IReadOnlyList<string> Calls => DialogueWindowPointer.Signatures;
+    /// <summary>Not called: located so <see cref="DialogueWindowPointer"/> and <see cref="MenusOpenRead"/> can find the
+    /// globals they load.</summary>
+    public IReadOnlyList<string> Calls => [.. DialogueWindowPointer.Signatures, MenusOpenRead.HandleReader];
 
-    public void UseCalls(IReadOnlyDictionary<string, nint> calls) => window.Resolve(calls);
+    public void UseCalls(IReadOnlyDictionary<string, nint> calls)
+    {
+        window.Resolve(calls);
+        menusOpen.Resolve(calls);
+    }
 
     public void Activate(IReloadedHooks hooks, nint address)
     {

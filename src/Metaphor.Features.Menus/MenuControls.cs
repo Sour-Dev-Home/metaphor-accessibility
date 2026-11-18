@@ -1,3 +1,4 @@
+using System.Diagnostics.CodeAnalysis;
 using Metaphor.Core.Announcements;
 using Metaphor.Core.Menus;
 
@@ -60,14 +61,18 @@ public sealed class MenuControls : IScreenObserver
         this.details = [.. details];
     }
 
-    /// <summary>Keeps the open screen and its focus: set when a screen is entered or its focus moves, cleared when it's
-    /// left.</summary>
+    /// <summary>Keeps the open screen and its focus: set when a screen is entered or its focus moves while the menus are
+    /// open, cleared when it's left or a change comes while they are closed, so no focus outlives a menu visit.</summary>
     public void Observe(ScreenEvent change)
     {
         ArgumentNullException.ThrowIfNull(change);
         lock (gate)
         {
-            if (change.Change != ScreenChange.Left)
+            if (!screens.MenusOpen)
+            {
+                focus = null;
+            }
+            else if (change.Change != ScreenChange.Left)
             {
                 focus = change;
             }
@@ -94,7 +99,10 @@ public sealed class MenuControls : IScreenObserver
         var detailsHeld = Holds(buttons, bindings.DetailsButtons);
         var toggleHeld = Holds(buttons, bindings.ReaderButtons);
         var hidden = Read(pad, detailsHeld, toggleHeld);
-        return hidden ? buttons & ~(bindings.DetailsButtons | (toggleHeld ? bindings.ReaderButtons : 0)) : buttons;
+        // Only a binding held in full is hidden: part of a chord is an ordinary press to the game.
+        return hidden
+            ? buttons & ~((detailsHeld ? bindings.DetailsButtons : 0) | (toggleHeld ? bindings.ReaderButtons : 0))
+            : buttons;
     }
 
     /// <summary>Takes one read of the keys held down, acts on a press, and returns the keys to hand on: without the
@@ -125,7 +133,7 @@ public sealed class MenuControls : IScreenObserver
         // Spoken outside the lock: the announcer may take its time.
         if (detailsPressed)
         {
-            var text = details.Select(feature => feature.Details(current!)).FirstOrDefault(said => said is not null);
+            var text = details.Select(feature => DetailsOf(feature, current!)).FirstOrDefault(said => said is not null);
             reader.Announce(new Announcement(text ?? "No more details", Interrupt: true));
         }
         if (togglePressed)
@@ -137,6 +145,21 @@ public sealed class MenuControls : IScreenObserver
             }
         }
         return open;
+    }
+
+    /// <summary>What <paramref name="feature"/> says of <paramref name="focus"/>, or null when it throws, so one
+    /// feature's failure leaves the details to the rest, as <see cref="MenuScreens"/> isolates its observers.</summary>
+    [SuppressMessage("Design", "CA1031", Justification = "One feature's failure must not keep the details from the others, or reach the game.")]
+    private static string? DetailsOf(IScreenDetails feature, ScreenEvent focus)
+    {
+        try
+        {
+            return feature.Details(focus);
+        }
+        catch (Exception)
+        {
+            return null;
+        }
     }
 
     /// <summary>One binding's state across sources: which hold it now.</summary>

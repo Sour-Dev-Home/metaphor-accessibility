@@ -37,20 +37,17 @@ public sealed class TitleMenuFocus : IScreenObserver
     /// <summary>Speaks the focus when the title menu is entered or its focus moves.</summary>
     public void Observe(ScreenEvent change)
     {
-        ArgumentNullException.ThrowIfNull(change);
-        if (change.Screen != Screen || change.Change == ScreenChange.Left || change.Index is < 0 or >= ItemCount)
+        if (ListFocus.Of(change, Screen, "Main menu", ItemCount, ItemText) is { } said)
         {
-            return;
+            announcer.Announce(said);
         }
-        var item = $"{ItemText(change.Index)}{change.Index + 1} of {ItemCount}";
-        announcer.Announce(new Announcement(change.Change == ScreenChange.Entered ? $"Main menu, {item}" : item, Interrupt: true));
     }
 
-    // The item's text and a comma, or nothing when its message or line is missing.
-    private string ItemText(int index)
+    // The item's text, or null when its message or line is missing.
+    private string? ItemText(int index)
     {
         var lines = (messages.Find(ItemsLabel)?.Text ?? "").Split('\n')
             .Select(cleaner.Clean).Where(line => line.Length > 0).ToList();
-        return index < lines.Count ? $"{lines[index]}, " : "";
+        return index < lines.Count ? lines[index] : null;
     }
 }

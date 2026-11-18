@@ -15,7 +15,6 @@ public sealed class MenusClosedReplayTests
     private const int R3 = 0x0004;
     private const string Title = "TitleChoice@ope@ui@app";
     private const string Root = "RootMenuChoice@ope@ui@app";
-    private const string TalkChoice = "CommonTalkChoice@ope@ui@app";
 
     private readonly RecordingAnnouncer announcer = new();
     private readonly List<string> screenEvents = [];
@@ -23,7 +22,7 @@ public sealed class MenusClosedReplayTests
 
     public MenusClosedReplayTests()
     {
-        var screens = new MenuScreens([TitleMenuFocus.Screen, MainMenuFocus.Screen]);
+        var screens = new MenuScreens(KnownScreens.All);
         var cursors = new CursorEvents();
         cursors.Observe(screens);
         screens.Observe(new Recording(screenEvents));
@@ -59,14 +58,13 @@ public sealed class MenusClosedReplayTests
     }
 
     [Fact]
-    public void EachCloseLeavesTheScreenThatWasOpen()
+    public void EachCloseLeavesTheScreenThatWasOpenAndTheDialoguesChoiceIsNoScreen()
     {
         Assert.Equal(
             [
                 $"Entered {Title} 0", $"FocusMoved {Title} 1", $"Left {Title} 1",
                 $"Entered {Root} 0", $"Left {Root} 0",
-                $"Entered {TalkChoice} 0",
-                $"Left {TalkChoice} 0", $"Entered {Root} 8", $"Left {Root} 8",
+                $"Entered {Root} 8", $"Left {Root} 8",
                 $"Entered {Title} 0",
             ],
             screenEvents);

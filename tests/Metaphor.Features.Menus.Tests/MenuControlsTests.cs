@@ -199,6 +199,44 @@ public sealed class MenuControlsTests
     }
 
     [Fact]
+    public void AScreensFeatureThatThrowsLeavesTheDetailsToTheNext()
+    {
+        var guarded = new MenuControls(new MenuBindings(A, KeyT), screens, reader, [new Throws(), new ItemDetails()]);
+        screens.Observe(guarded);
+        Cursor(ItemClass, row: 1);
+
+        Assert.Equal(0, guarded.Pad(0, A));
+        Assert.Equal("Details of item 2", Said().Last());
+    }
+
+    [Fact]
+    public void PartOfABindingsChordReachesTheGameAndTheWholeChordIsHidden()
+    {
+        var chord = new MenuControls(new MenuBindings(R3 | A, Tab), screens, reader, [new ItemDetails()]);
+        screens.Observe(chord);
+        Cursor(ItemClass, row: 0);
+
+        // While a menu is open: part of the details chord is the game's, the whole chord is hidden.
+        Assert.Equal(R3, chord.Pad(0, R3));
+        Assert.Equal(A, chord.Pad(0, A));
+        Assert.Equal(0, chord.Pad(0, R3 | A));
+    }
+
+    [Fact]
+    public void ACursorSettledWhileTheMenusWereClosedLeavesNoFocusForTheNextMenuVisit()
+    {
+        // A dialogue's choice settles in the field; then the menus open, before any of their screens is entered.
+        screens.MenusRead(open: false);
+        Cursor(ItemClass, row: 0);
+        screens.MenusRead(open: true);
+        var before = announcer.Said.Count;
+
+        Assert.Equal(R3, controls.Pad(0, R3));
+        Assert.Equal([Tab], controls.Keys([Tab]));
+        Assert.Equal(before, announcer.Said.Count);
+    }
+
+    [Fact]
     public void AfterTheMenusReopenTheDetailsKeyWaitsForAScreenToBeEnteredAgain()
     {
         Cursor(ItemClass, row: 2);
@@ -235,6 +273,12 @@ public sealed class MenuControlsTests
     {
         public string? Details(ScreenEvent focus) =>
             focus.Screen == Items ? $"Details of item {focus.Index + 1}" : null;
+    }
+
+    /// <summary>A screen's feature whose details always fail.</summary>
+    private sealed class Throws : IScreenDetails
+    {
+        public string? Details(ScreenEvent focus) => throw new InvalidOperationException("made-up failure");
     }
 
     /// <summary>A screen's feature that speaks every screen's name on entry and its position on each focus move.</summary>

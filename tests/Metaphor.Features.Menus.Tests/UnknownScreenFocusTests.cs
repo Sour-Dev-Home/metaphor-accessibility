@@ -19,7 +19,8 @@ public sealed class UnknownScreenFocusTests
 
     public UnknownScreenFocusTests()
     {
-        var screens = new MenuScreens([TitleMenuFocus.Screen, MainMenuFocus.Screen]);
+        var screens = new MenuScreens(KnownScreens.All);
+        screens.MenusRead(open: true);
         cursors.Observe(screens);
         screens.Observe(new UnknownScreenFocus(announcer));
     }
