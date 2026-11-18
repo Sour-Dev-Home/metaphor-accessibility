@@ -1,0 +1,30 @@
+# Menus closed: title (reads open), load a save, field, main menu open and closed, a battle, a dialogue choice, back to the title; R3 pressed in each. Written by hand in the order capture session 6 logged these events, not converted from its log
+# source: docs/raw-sources/menus-open-session6-2026-11-17.md
+# game build: 548ddc955c176867f062c44f94c03dd9ac33caefb278a5ac388e792aedf09504
+0 menus open=1
+100 cursor mgr=0x463f7bf0 class=0x22045e8 cmd=0x1 result=1 top=0 row=0 flags=0x46 screen=TitleChoice@ope@ui@app
+200 pad pad=0 buttons=0x0004 returned=1
+250 pad pad=0 buttons=0x0000 returned=1
+300 cursor mgr=0x463f7bf0 class=0x22045e8 cmd=0x1 result=1 top=0 row=1 flags=0x46 screen=TitleChoice@ope@ui@app
+1000 menus open=0
+2000 pad pad=0 buttons=0x0004 returned=1
+2050 pad pad=0 buttons=0x0000 returned=1
+3000 menus open=1
+3100 cursor mgr=0x6772ce90 class=0x22045e8 cmd=0x1 result=1 top=0 row=0 flags=0x46 screen=RootMenuChoice@ope@ui@app
+3200 pad pad=0 buttons=0x0004 returned=1
+3250 pad pad=0 buttons=0x0000 returned=1
+4000 menus open=0
+4100 pad pad=0 buttons=0x0004 returned=1
+4150 pad pad=0 buttons=0x0000 returned=1
+5000 pad pad=0 buttons=0x0004 returned=1
+5050 pad pad=0 buttons=0x0000 returned=1
+6000 cursor mgr=0x51df310 class=0x22045e8 cmd=0x1 result=1 top=0 row=0 flags=0x46 screen=CommonTalkChoice@ope@ui@app
+6100 pad pad=0 buttons=0x0004 returned=1
+6150 pad pad=0 buttons=0x0000 returned=1
+7000 menus open=1
+7100 cursor mgr=0x6772ce90 class=0x22045e8 cmd=0x1 result=1 top=8 row=0 flags=0x46 screen=RootMenuChoice@ope@ui@app
+7200 menus open=0
+7300 menus open=1
+7400 cursor mgr=0x463f7c00 class=0x22045e8 cmd=0x1 result=1 top=0 row=0 flags=0x46 screen=TitleChoice@ope@ui@app
+7500 pad pad=0 buttons=0x0004 returned=1
+7550 pad pad=0 buttons=0x0000 returned=1

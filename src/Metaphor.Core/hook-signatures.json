@@ -132,6 +132,12 @@
     "evidence": "Our reading of the exe: the GetKeyboardState caller next to the pad read (docs/raw-sources/input-route-2026-11-16.md); one match on disk, and at the same place in memory (docs/raw-sources/spike-session-2-2026-11-16.md)"
   },
   {
+    "name": "CampStatusIsOpenBody",
+    "pattern": "4C 63 01 41 83 F8 FF 75 0C 48 8B 0D ?? ?? ?? ?? E9 ?? ?? ?? ?? 48 8B 05 ?? ?? ?? ?? 48 85 C0 74",
+    "gameBuilds": ["548ddc955c176867f062c44f94c03dd9ac33caefb278a5ac388e792aedf09504"],
+    "evidence": "Our reading of the exe: the function CampStatus_IsClosed calls, in .ecode, whose load at +9 names the menus' handle global (capture-2-field-leads-2026-11-17.md on branch capture-kit-2); one match on disk, checked 2026-11-17; read only, never hooked or called; the global it names read non-null exactly while the menus were open in capture session 6 (docs/raw-sources/menus-open-session6-2026-11-17.md)"
+  },
+  {
     "name": "MsgOpenBody",
     "pattern": "40 53 48 83 EC 60 48 89 CB 80 39 2F 75 4A 8B 05 ?? ?? ?? ?? 05 ?? ?? ?? ?? 48 8D 14 01 C5 F9 EF C0 C5 F8 11 44 24 40",
     "gameBuilds": ["548ddc955c176867f062c44f94c03dd9ac33caefb278a5ac388e792aedf09504"],

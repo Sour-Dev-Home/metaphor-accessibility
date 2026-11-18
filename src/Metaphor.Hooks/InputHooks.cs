@@ -3,6 +3,7 @@ using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
 using System.Runtime.InteropServices;
 using Metaphor.Core;
+using Metaphor.Core.Menus;
 using Metaphor.Features.Dialogue;
 using Metaphor.Features.Menus;
 using Reloaded.Hooks.Definitions;
@@ -14,7 +15,9 @@ namespace Metaphor.Hooks;
 // keyboard. They change what the game sees, so they are written the long way (architecture rule 14's exception,
 // IChangesBehaviour): each calls the original, hands the state it wrote to MenuControls and what that leaves to
 // DialogueControls, and while a menu or the dialogue window is open writes it back without the bound buttons or keys.
-// Menus come first, so in a menu the reader binding toggles once, through them. Every read goes through ModuleMemoryReader (rule 10); the one write is
+// Menus come first, so in a menu the reader binding toggles once, through them. Before each read is handed on, both
+// hand the menu screens a read of whether the game has its menus open (#268, MenusOpenRead), so menu-only controls stop
+// when the menus close. Every read goes through ModuleMemoryReader (rule 10); the one write is
 // WriteProcessMemory on this process into the state the original has just filled, and only clears what it wrote.
 // WriteProcessMemory fails instead of faulting, but it also writes through read-only pages, so it is safe only on memory
 // known to be the game's own writable data, never on an arbitrary pointer. In Debug builds each change of a read is
@@ -35,6 +38,8 @@ internal sealed class PadReadHook : IGameHook, IChangesBehaviour
 
     private readonly DialogueControls controls;
     private readonly MenuControls menus;
+    private readonly MenuScreens screens;
+    private readonly MenusOpenRead menusOpen;
     private readonly MessageLog? log;
     private readonly InputStateChanges changes = new();
     private readonly Function callback;
@@ -45,11 +50,18 @@ internal sealed class PadReadHook : IGameHook, IChangesBehaviour
         ArgumentNullException.ThrowIfNull(services);
         controls = services.DialogueControls;
         menus = services.MenuControls;
+        screens = services.MenuScreens;
+        menusOpen = services.MenusOpen;
         log = services.Log;
         callback = OnCall;
     }
 
     public string SignatureName => "PadRead";
+
+    /// <summary>Not called: located so <see cref="MenusOpenRead"/> can find the global it loads.</summary>
+    public IReadOnlyList<string> Calls => [MenusOpenRead.HandleReader];
+
+    public void UseCalls(IReadOnlyDictionary<string, nint> calls) => menusOpen.Resolve(calls);
 
     public void Activate(IReloadedHooks hooks, nint address)
     {
@@ -73,6 +85,7 @@ internal sealed class PadReadHook : IGameHook, IChangesBehaviour
             if (ModuleMemoryReader.ReadInt32(state) is { } value)
             {
                 var buttons = value & 0xFFFF;
+                screens.MenusRead(menusOpen.IsOpen());
                 var handed = controls.Pad((int)pad, menus.Pad((int)pad, buttons));
                 if (handed != buttons)
                 {
@@ -114,6 +127,8 @@ internal sealed class KeyboardReadHook : IGameHook, IChangesBehaviour
 
     private readonly DialogueControls controls;
     private readonly MenuControls menus;
+    private readonly MenuScreens screens;
+    private readonly MenusOpenRead menusOpen;
     private readonly MessageLog? log;
     private readonly InputStateChanges changes = new();
     private readonly Function callback;
@@ -124,6 +139,8 @@ internal sealed class KeyboardReadHook : IGameHook, IChangesBehaviour
         ArgumentNullException.ThrowIfNull(services);
         controls = services.DialogueControls;
         menus = services.MenuControls;
+        screens = services.MenuScreens;
+        menusOpen = services.MenusOpen;
         log = services.Log;
         callback = OnCall;
     }
@@ -154,6 +171,7 @@ internal sealed class KeyboardReadHook : IGameHook, IChangesBehaviour
                 ModuleMemoryReader.ReadBytes(state + SlotsOffset, slots))
             {
                 var keys = GameKeyList.Read(count, slots);
+                screens.MenusRead(menusOpen.IsOpen());
                 var handed = controls.Keys(menus.Keys(keys));
                 if (handed.Count != keys.Count)
                 {

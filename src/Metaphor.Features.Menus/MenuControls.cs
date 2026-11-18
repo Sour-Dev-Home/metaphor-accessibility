@@ -28,10 +28,9 @@ public sealed record MenuBindings(int DetailsButtons, int DetailsKey)
 /// <summary>The menu controls (#214), while a menu is open: the details key asks the current screen's feature
 /// (<see cref="IScreenDetails"/>) for the rest of the focus's panel, or says there are no more details, and the reader
 /// binding turns the reader on or off, speaking the current screen and focus again when it comes on. Both are hidden from
-/// the game then, and the game sees them as usual otherwise. A menu is open from its screen entered until it's left, by
-/// the menu-screens module's own events (judgement rule 5). The module reports a screen left only when another screen's
-/// cursor settles, so leaving the menus for the field, a battle or dialogue isn't reported yet and the last screen
-/// stays open as far as these controls know. A press is an up-to-down edge of a binding held on any pad or the keyboard, as for the
+/// the game then, and the game sees them as usual otherwise. A menu is open while the menu-screens module reads the
+/// game's menus as open (#268) and has a screen entered and not left, by its own events (judgement rule 5); so in the
+/// field, a battle or dialogue, R3, Tab and the reader binding reach the game. A press is an up-to-down edge of a binding held on any pad or the keyboard, as for the
 /// dialogue controls, so a mirroring second pad can't fire it again. Menu speech goes through the reader, so it's
 /// silent while the reader is off. The hook layer hands it each pad and keyboard read from any of the game's threads.
 /// </summary>
@@ -109,7 +108,7 @@ public sealed class MenuControls : IScreenObserver
         ScreenEvent? current;
         lock (gate)
         {
-            current = focus;
+            current = screens.MenusOpen ? focus : null;
             detailsPressed = detailsBinding.Update(source, detailsHeld) && current is not null;
             togglePressed = toggleBinding.Update(source, toggleHeld) && current is not null;
         }

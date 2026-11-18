@@ -25,12 +25,14 @@ public sealed class MenuControlsTests
     private readonly RecordingAnnouncer announcer = new();
     private readonly SwitchedReader reader;
     private readonly CursorEvents cursors = new();
+    private readonly MenuScreens screens = new([Items, Plain]);
     private readonly MenuControls controls;
 
     public MenuControlsTests()
     {
         reader = new SwitchedReader(announcer);
-        var screens = new MenuScreens([Items, Plain]);
+        // The game reads its menus as open unless a test closes them (#268).
+        screens.MenusRead(open: true);
         cursors.Observe(screens);
         screens.Observe(new SpeaksFocus(reader));
         var bindings = MenuBindings.Default with { ReaderButtons = LbRb, ReaderKey = KeyT };
@@ -159,6 +161,63 @@ public sealed class MenuControlsTests
 
         Assert.Equal(["Items, 1", "Reader off", "Reader on", "Items, 4"], Said());
         Assert.Equal(0, handed);
+    }
+
+    [Fact]
+    public void OnceTheMenusCloseTheDetailsKeyAndTheReaderBindingReachTheGameAndSayNothing()
+    {
+        Cursor(ItemClass, row: 2);
+        var before = announcer.Said.Count;
+
+        screens.MenusRead(open: false);
+
+        Assert.Equal(R3 | LbRb, controls.Pad(0, R3 | LbRb));
+        Assert.Equal([Tab, KeyT], controls.Keys([Tab, KeyT]));
+        Assert.Equal(before, announcer.Said.Count);
+        Assert.True(reader.IsOn);
+    }
+
+    [Fact]
+    public void ACursorThatSettlesWhileTheMenusAreClosedDoesNotTakeTheDetailsKey()
+    {
+        screens.MenusRead(open: false);
+
+        Cursor(ItemClass, row: 0);
+
+        Assert.Equal(R3, controls.Pad(0, R3));
+        Assert.Equal([Tab], controls.Keys([Tab]));
+    }
+
+    [Fact]
+    public void AfterTheMenusReopenTheDetailsKeyWaitsForAScreenToBeEnteredAgain()
+    {
+        Cursor(ItemClass, row: 2);
+        screens.MenusRead(open: false);
+        screens.MenusRead(open: true);
+
+        Assert.Equal(R3, controls.Pad(0, R3));
+        controls.Pad(0, 0);
+        Cursor(ItemClass, row: 1);
+
+        Assert.Equal(0, controls.Pad(0, R3));
+        Assert.Equal("Details of item 2", Said().Last());
+    }
+
+    [Fact]
+    public void ADetailsKeyHeldAcrossTheCloseReachesTheGameAndDoesNotSpeakWhenTheMenusReopen()
+    {
+        Cursor(ItemClass, row: 0);
+        controls.Pad(0, R3);
+        var before = announcer.Said.Count;
+        screens.MenusRead(open: false);
+
+        Assert.Equal(R3, controls.Pad(0, R3));
+        screens.MenusRead(open: true);
+        Cursor(ItemClass, row: 1);
+        controls.Pad(0, R3);
+
+        // Only the screen's entry: the still-held key is no new press.
+        Assert.Equal(["Items, 2"], Said().Skip(before));
     }
 
     /// <summary>A screen's feature that answers the details key for <see cref="Items"/>.</summary>

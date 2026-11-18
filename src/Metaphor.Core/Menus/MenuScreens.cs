@@ -42,7 +42,9 @@ public interface IScreenDetails
 /// input's screen class, never its manager: managers are made per visit and one cursor class serves nearly every list
 /// (docs/raw-sources/screen-class-session-2026-11-17.md). Only inputs where the cursor settled count (a move can be put
 /// back, <see cref="CursorInput.IsMove"/>); an input without a screen class is skipped. Observers hear each change in
-/// the order they were added, and one that throws never stops the rest. Add observers before the hooks go live.
+/// the order they were added, and one that throws never stops the rest. Add observers before the hooks go live. It also
+/// knows whether the game has its menus open (#268), from the reads the input hooks hand it: when they close, the
+/// current screen is left.
 /// </summary>
 public sealed class MenuScreens : ICursorObserver
 {
@@ -51,6 +53,7 @@ public sealed class MenuScreens : ICursorObserver
     private IScreenObserver[] observers = [];
     private string? currentClass;
     private int currentIndex;
+    private bool menusOpen;
 
     /// <summary>A module that tags each screen whose class is one of <paramref name="knownScreens"/>' with it.</summary>
     public MenuScreens(IEnumerable<Screen> knownScreens)
@@ -99,6 +102,38 @@ public sealed class MenuScreens : ICursorObserver
         foreach (var change in changes)
         {
             TellEach(each, change);
+        }
+    }
+
+    /// <summary>Whether the last read (<see cref="MenusRead"/>) found the game's menus open: false before any read.
+    /// </summary>
+    public bool MenusOpen => Volatile.Read(ref menusOpen);
+
+    /// <summary>Takes one read of whether the game has its menus open; a read that failed is closed, so menu-only
+    /// controls give their input back to the game. When the menus close, the current screen is left at its last focus
+    /// and forgotten: nothing repeats it, and the next cursor to settle, even on the same screen, enters afresh. A
+    /// cursor that settles while the menus are closed (a dialogue's choice) still enters its screen.</summary>
+    /// <remarks>What the game's state is, and that it reads open on the title screen too, is in
+    /// docs/raw-sources/menus-open-session6-2026-11-17.md.</remarks>
+    public void MenusRead(bool open)
+    {
+        ScreenEvent? left = null;
+        lock (gate)
+        {
+            if (open == menusOpen)
+            {
+                return;
+            }
+            Volatile.Write(ref menusOpen, open);
+            if (!open && currentClass is { } screenClass)
+            {
+                left = Change(ScreenChange.Left, screenClass, currentIndex);
+                currentClass = null;
+            }
+        }
+        if (left is not null)
+        {
+            TellEach(Volatile.Read(ref observers), left);
         }
     }
 

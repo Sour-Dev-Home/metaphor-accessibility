@@ -35,6 +35,13 @@ internal sealed record HookServices
     /// <summary>The menu controls (#214): the input hooks hand them each read before the dialogue controls.</summary>
     public required MenuControls MenuControls { get; init; }
 
+    /// <summary>The menu screens (#211): the input hooks hand them each read of <see cref="MenusOpen"/> (#268) before
+    /// the menu controls take the read.</summary>
+    public required MenuScreens MenuScreens { get; init; }
+
+    /// <summary>Reads whether the game has its menus open (#268); the pad read hook locates what it reads.</summary>
+    public MenusOpenRead MenusOpen { get; init; } = new();
+
     /// <summary>Names each cursor manager's screen class (#208): the choice cursor getter hook feeds it, and the menu
     /// cursor hook asks it for each input.</summary>
     public ScreenClassLookup ScreenClasses { get; init; } = new();
@@ -104,6 +111,7 @@ internal sealed record HookServices
             DialogueHistory = history,
             DialogueControls = controls,
             MenuControls = menuControls,
+            MenuScreens = screens,
         };
     }
 }
