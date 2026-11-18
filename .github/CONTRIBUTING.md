@@ -87,7 +87,7 @@ tools too. To flag another filler word, add it to
 
 ## Security review and deny rules
 
-**Must-run review.** The security-review scope is `src/Metaphor.Hooks/` plus the five scripts listed in
+**Must-run review.** The security-review scope is `src/Metaphor.Hooks/` plus the six scripts listed in
 [`scripts/security-stamp.sh`](../scripts/security-stamp.sh), which deploy, launch, package or fetch native code. A commit
 touching it needs a review stamp:
 

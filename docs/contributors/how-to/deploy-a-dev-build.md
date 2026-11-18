@@ -92,9 +92,21 @@ outside the repository, so none is ever committed.
   each string with it and logs only `match=exact`, `contains` or `no`, never the name. Without the file it falls back to
   the `METAPHOR_SPIKE_PLAYER_NAME` environment variable, which Reloaded-II may not pass to the game.
 
-A deploy replaces the mod's folder, removing these files, and `listen.ps1` launches the game straight after. So deploy
-first (a short `listen.ps1 -Seconds 30 -Close` run), then add the files to the folder and start the game from Reloaded-II
-yourself. The listener writes to `message-log.txt` in the same folder.
+A deploy replaces the mod's folder, removing these files, and launches the game straight after. A capture run adds the
+opt-in files between the two (the listeners write to `message-log.txt` in the same folder).
+
+### Capture run
+
+```powershell
+pwsh scripts/capture.ps1 -OptIns ui-text-panes,dialogue-window -SaveLog <folder outside the repo>
+```
+
+`scripts/capture.ps1` deploys the Debug build, closes the game it launched, creates `opt-in-<name>.txt` for each name,
+and launches again through Reloaded-II. It prints `hooks n/m` from `mod-status.json` and the mod's `skipped`, `failed`
+and ready lines from Reloaded-II's log of that run, so a listener that didn't go in shows at once. Without `-SaveLog`
+the game is left running. With it, quit the game when the capture is done: the script then copies `message-log.txt` and
+`transcript.txt` into a new timestamped folder there and prints the log's record counts. It refuses a `-SaveLog` folder
+inside a git repository, since the logs hold game text. Exit codes are as for the listening run.
 
 The spoken load message names each opt-in whose file it found, as `message strings`, `text panes` or `dialogue window`,
 for example "Metaphor accessibility loaded, dev opt-ins: text panes, dialogue window". An opt-in whose hooks didn't all

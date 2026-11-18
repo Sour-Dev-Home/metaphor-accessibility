@@ -15,7 +15,7 @@
 set -uo pipefail
 
 scope=(src/Metaphor.Hooks/ scripts/deploy-dev.ps1 scripts/smoke-test.ps1 scripts/package-mod.sh scripts/fetch-prism.ps1
-  scripts/ReloadedDev.psm1)
+  scripts/ReloadedDev.psm1 scripts/capture.ps1)
 empty_tree=4b825dc642cb6eb9a060e54bf8d69288fbee4904
 
 die() {
