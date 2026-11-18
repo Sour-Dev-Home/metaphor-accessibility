@@ -32,6 +32,19 @@ File issues only into the user's own repo. Never file into `mattpocock/skills` (
 the user owns it. In a fork, `gh` can default to the upstream parent, so before the first `gh issue create` of a
 session, check the target with `gh repo view --json nameWithOwner` and confirm it with the user if it is not their repo.
 
+## Who edited an issue body
+
+The maintainer is the login with admin permission:
+`gh api repos/<owner>/<repo>/collaborators/<login>/permission --jq .permission`.
+
+- Label: take the latest `ready-for-agent` event, and compare its `actor` with the maintainer's login:
+  `gh api repos/<owner>/<repo>/issues/<n>/timeline --paginate --jq '.[] | select(.event=="labeled" and
+  .label.name=="ready-for-agent") | {actor: .actor.login, at: .created_at}'`.
+- Body, one line: `gh issue view <n> --json body,author` plus GraphQL `lastEditedAt` and `editor{login}` on the issue
+  (`gh api graphql -f query='{repository(owner:"<owner>",name:"<repo>"){issue(number:<n>){lastEditedAt editor{login}}}}'`).
+  A `lastEditedAt` after the label, by anyone but the maintainer, is a flag; `userContentEdits(first:10){nodes{editedAt
+  editor{login}}}` gives the full history.
+
 ## Pull requests as a triage surface
 
 **PRs as a request surface: no.** _(Set to `yes` if this repo treats external PRs as feature requests; `/triage` reads
