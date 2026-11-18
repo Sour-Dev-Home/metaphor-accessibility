@@ -1,0 +1,31 @@
+=== outage push-https-502
+fatal: unable to access 'https://github.com/example/repo.git/': The requested URL returned error: 502
+=== outage push-rpc-503
+error: RPC failed; HTTP 503 curl 22 The requested URL returned error: 503
+send-pack: unexpected disconnect while reading sideband packet
+fatal: the remote end hung up unexpectedly
+=== outage push-500
+remote: Internal Server Error
+fatal: unable to access 'https://github.com/example/repo.git/': The requested URL returned error: 500
+=== outage push-connect-timeout
+fatal: unable to access 'https://github.com/example/repo.git/': Failed to connect to github.com port 443 after 21034 ms: Could not connect to server
+=== outage gh-502
+HTTP 502: Bad Gateway (https://api.github.com/graphql)
+=== outage gh-503
+HTTP 503: Service Unavailable (https://api.github.com/repos/example/repo/pulls)
+=== outage gh-timeout
+Post "https://api.github.com/graphql": context deadline exceeded (Client.Timeout exceeded while awaiting headers)
+=== real push-403
+remote: Permission to example/repo.git denied to someone.
+fatal: unable to access 'https://github.com/example/repo.git/': The requested URL returned error: 403
+=== real push-auth
+fatal: Authentication failed for 'https://github.com/example/repo.git/'
+=== real push-rejected
+To https://github.com/example/repo.git
+ ! [rejected]        main -> main (non-fast-forward)
+error: failed to push some refs to 'https://github.com/example/repo.git'
+=== real gh-422
+HTTP 422: Validation Failed (https://api.github.com/repos/example/repo/pulls)
+=== real hook-failed
+pre-push: checks failed: the Release build has errors
+error: failed to push some refs to 'origin'

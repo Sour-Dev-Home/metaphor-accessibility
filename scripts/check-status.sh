@@ -82,6 +82,16 @@ git worktree list --porcelain 2> /dev/null | sed -n 's/^worktree //p' | while IF
   head -n 3 "$gd/check-run-log" | sed 's/^/    /'
 done
 
+# Work parked by scripts/github-outage.sh (#312): one dir per branch under the clone's common git dir.
+common="$(git rev-parse --path-format=absolute --git-common-dir 2> /dev/null)"
+for p in "${common:-/nonexistent}/parked-pushes"/*/; do
+  [ -f "${p}branch" ] || continue
+  read -r pb < "${p}branch"
+  read -r pi < "${p}issue"
+  echo "parked (GitHub outage): $pb (issue $pi): $(tr '\n' ' ' < "${p}pending")"
+  echo "  resume with: bash scripts/github-outage.sh resume"
+done
+
 # Build workers left running while no check holds the lock are idle. ps -W lists Windows processes under Git Bash.
 ps_cmd="${METAPHOR_CHECK_PS_CMD:-ps -W}"
 workers="$($ps_cmd 2> /dev/null | grep -ciE 'msbuild|vbcscompiler|dotnet.*(build-server|MSBuild)')" || true
