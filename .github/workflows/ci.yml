@@ -65,6 +65,7 @@ jobs:
           bash tests/scripts/test-conflict-alert.sh
           bash tests/scripts/test-integration-sync.sh
           bash tests/scripts/test-check-cache.sh
+          bash tests/scripts/test-test-select.sh
           bash tests/scripts/test-check-status.sh
       - name: Check every tracked file
         env:
