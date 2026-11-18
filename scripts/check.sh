@@ -573,12 +573,14 @@ case "$stage" in
   slow | signatures) take_lock ;;
 esac
 
-# list_entries prints "<mode> <blob> <stage>\t<path>\0" for each file to check, in `git ls-files -s -z` form.
+# list_entries prints "<mode> <blob> <stage>\t<path>\0" for each file to check, in `git ls-files -s -z` form. Changed
+# files are every change but a deletion (--diff-filter=d), so a symlink turned into a file is scanned too. They are
+# listed in $tmp/changed, with paths from the repository root: the script runs from there.
 case "$stage" in
   fast | pre-commit)
     list_entries() {
-      git diff --cached --name-only --diff-filter=ACMR -z |
-        xargs -0 -r git --literal-pathspecs ls-files -s -z --
+      git diff --cached --name-only --diff-filter=d -z > "$tmp/changed" &&
+        xargs -0 -r git --literal-pathspecs ls-files -s -z -- < "$tmp/changed"
     } ;;
   # CI, or METAPHOR_SCAN_ALL=1, scans every tracked file: CI does so before anything merges. Elsewhere the scan covers
   # the files changed since the merge-base with origin/main, staged changes included (issue #297). Without origin/main,
@@ -588,7 +590,7 @@ case "$stage" in
       local base
       if [ "${GITHUB_ACTIONS:-}" != true ] && [ -z "${METAPHOR_SCAN_ALL:-}" ] &&
         base="$(git merge-base HEAD origin/main 2> /dev/null)" &&
-        git diff --cached --name-only --diff-filter=ACMR -z "$base" -- > "$tmp/changed" &&
+        git diff --cached --name-only --diff-filter=d -z "$base" -- > "$tmp/changed" &&
         ! grep -qzxE 'scripts/(check\.sh|game-content\.sha256)' "$tmp/changed"; then
         scan_scope="changed since origin/main"
         xargs -0 -r git --literal-pathspecs ls-files -s -z -- < "$tmp/changed"
@@ -658,8 +660,14 @@ case "$stage" in
      exit 2 ;;
 esac
 
+# From the root, so a run from a subfolder lists the same files: git diff prints paths from the root, which ls-files
+# would otherwise read from the current folder.
+root="$(git rev-parse --show-toplevel)" || die "could not list files (is this a git repository?)"
+cd "$root" || die "could not enter $root"
+: > "$tmp/changed"
 list_entries > "$tmp/entries" || die "could not list files (is this a git repository?)"
-root="$(git rev-parse --show-toplevel)" || die "could not find the repository root"
+# A change that lists no files means the listing went wrong; passing it would record a pass that scanned nothing.
+[ ! -s "$tmp/changed" ] || [ -s "$tmp/entries" ] || die "could not list the changed files"
 solution="$root/Metaphor.sln"
 if [ "$stage" = full ]; then
   [ -f "$solution" ] || die "full stage needs $(basename "$solution") at the repository root"
@@ -738,7 +746,8 @@ scan_lines() {
 header_has() {
   local -n has_line="$1"
   local line
-  grep -iE "^[0-9]+:- \*\*([^*]* )?${2}s?([^*a-z][^*]*)?(:\*\*|\*\*:)[[:space:]]*[\`\"'<]?${3}" "$tmp/headers" \
+  # -a: GNU grep 3.5+ withholds the lines of a file with invalid UTF-8 ("binary file matches") and still exits 0.
+  grep -aiE "^[0-9]+:- \*\*([^*]* )?${2}s?([^*a-z][^*]*)?(:\*\*|\*\*:)[[:space:]]*[\`\"'<]?${3}" "$tmp/headers" \
     > "$tmp/header-lines"
   [ $? -le 1 ] || die "could not read the note headers"
   while IFS= read -r line; do has_line[${line%%:*}]=1; done < "$tmp/header-lines"
@@ -822,7 +831,7 @@ if [ "${#paths[@]}" -gt 0 ]; then
   if [ -s "$tmp/private" ]; then
     # One name per line, so grep's line number is the file's index plus one.
     printf '%s\n' "${paths[@]//$'\n'/ }" > "$tmp/names"
-    grep -niF -f "$tmp/private" "$tmp/names" > "$tmp/name-matches"
+    grep -naiF -f "$tmp/private" "$tmp/names" > "$tmp/name-matches" # -a as in header_has
     [ $? -le 1 ] || die "could not scan the file names"
     while IFS= read -r line; do found_name[${line%%:*} - 1]=1; done < "$tmp/name-matches"
     scan_lines found_private "matches a private pattern" "" -iF -f "$tmp/private"

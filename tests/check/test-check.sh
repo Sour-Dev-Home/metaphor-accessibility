@@ -1266,6 +1266,52 @@ test_rules_scans_the_whole_tree_when_the_rules_change() {
   expect 1 "old.cpk" "scan: every tracked file"
 }
 
+# stage_blob MODE PATH CONTENT: put CONTENT in the index at PATH with MODE, without touching the working tree, so a path
+# the file system can't hold (an invalid UTF-8 byte) or a symlink works on every platform.
+stage_blob() {
+  local blob
+  blob="$(printf '%s' "$3" | git hash-object -w --stdin)"
+  git update-index --add --cacheinfo "$1,$blob,$2"
+}
+
+# GNU grep 3.5 and later print "binary file matches" instead of the lines when a line isn't valid UTF-8 (Ubuntu CI).
+test_rules_reads_names_and_headers_past_invalid_utf8() {
+  new_repo
+  stage_blob 100644 "$(printf 'bad\377name.txt')" 'fine'
+  stage_blob 100644 zz-private-name.txt 'fine'
+  stage_blob 100644 docs/findings/f.md "$(printf '# Bad \377 title\n\n- **Game build:** %064d\n' 0)"
+  out="$(LC_ALL=C.UTF-8 PII_PATTERNS=zz-private-name bash "$CHECK" rules 2>&1)"
+  code=$?
+  expect 1 "personal information: zz-private-name.txt: file name matches a private pattern"
+  expect_absent "header has no"
+}
+
+test_rules_and_fast_scan_a_symlink_turned_into_a_file() {
+  new_repo
+  stage_blob 120000 link.txt 'target'
+  with_origin_main
+  stage_blob 100644 link.txt "mail alice.smith${at}gmail.com"
+  run_check rules
+  expect 1 "link.txt:1: email address"
+  run_check fast
+  expect 1 "link.txt:1: email address"
+}
+
+test_rules_and_fast_scan_the_right_files_from_a_subfolder() {
+  new_repo
+  mkdir -p src
+  printf 'ok\n' > src/keep.txt
+  git add src/keep.txt
+  with_origin_main
+  printf 'x' > src/new.cpk
+  git add src/new.cpk
+  cd src || exit 2
+  run_check rules
+  expect 1 "game content: src/new.cpk" "scan: 1 files changed since origin/main"
+  run_check fast
+  expect 1 "game content: src/new.cpk"
+}
+
 # count_starts FILES: run `rules` on a fresh repo of FILES text files and notes, counting the external commands it starts
 # through logging stand-ins for the tools the scan uses.
 count_starts() {
