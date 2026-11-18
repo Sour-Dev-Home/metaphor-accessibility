@@ -67,6 +67,7 @@ jobs:
           bash tests/scripts/test-check-cache.sh
           bash tests/scripts/test-test-select.sh
           bash tests/scripts/test-check-status.sh
+          bash tests/scripts/test-github-outage.sh
       - name: Check every tracked file
         env:
           # The private list reaches pushes to this repository's main only, never a pull request, so a fork's code
