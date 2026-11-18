@@ -1182,6 +1182,103 @@ test_maintainer_pr_uses_trailers_and_ignores_the_label() {
   expect 1 "touches the security-review scope without a Security-Review trailer"
 }
 
+# The guards that enforce the ground rules are in the scope too (issue #306).
+GUARD_FILES=(scripts/check.sh scripts/game-content.sha256 scripts/tree-hash.sh scripts/ci-changes.sh
+  scripts/test-select.sh scripts/stage-timing.sh scripts/install-docs-tools.sh scripts/conflict-alert.sh
+  scripts/integration-sync.sh scripts/check-status.sh scripts/githooks/pre-commit scripts/githooks/pre-push
+  scripts/githooks/commit-msg scripts/security-stamp.sh scripts/github-outage.sh .github/workflows/ci.yml
+  .github/workflows/slow.yml .github/workflows/a-new-one.yml .claude/agents/security-reviewer.md
+  tests/check/test-check.sh tests/scripts/test-anything.sh tools/slow/survivors.mjs tools/docs/package-lock.json
+  .config/dotnet-tools.json scripts/listen.ps1)
+
+# Every script the gate runs, transitively from check.sh, the git hooks and the workflows, is in the scope, so a change
+# to one can't take over the CI steps after it (BASH_ENV or PATH through $GITHUB_ENV) without a review.
+test_scope_covers_every_script_the_gate_runs() {
+  local scope_paths queue=() seen=" " file ref entry covered missing=""
+  read -ra scope_paths <<<"$(sed -n '/^scope=(/,/)$/p' "$STAMP" | tr '\n' ' ' | sed 's/^scope=(//; s/).*$//')"
+  read -ra queue <<<"$(cd "$ROOT" && echo scripts/check.sh scripts/githooks/* .github/workflows/*)"
+  while [ "${#queue[@]}" -gt 0 ]; do
+    file="${queue[0]}" queue=("${queue[@]:1}")
+    case "$seen" in *" $file "*) continue ;; esac
+    seen+="$file "
+    covered=""
+    for entry in "${scope_paths[@]}"; do
+      if [ "$file" = "$entry" ] || { [[ "$entry" == */ ]] && [[ "$file" == "$entry"* ]]; }; then covered=1; fi
+    done
+    [ -n "$covered" ] || missing+=" $file"
+    # Script names on lines that aren't comments; a bare name means one in scripts/.
+    for ref in $(grep -vE '^[[:space:]]*#' "$ROOT/$file" |
+      grep -oE '[A-Za-z0-9_./-]*[A-Za-z0-9_-]+\.(sh|mjs|js|ps1|psm1|py)\b' | sort -u); do
+      ref="${ref#./}" ref="${ref#/}" # "$root/scripts/x.sh" leaves "/scripts/x.sh"
+      [[ "$ref" == */* ]] || ref="scripts/$ref"
+      [ -f "$ROOT/$ref" ] && queue+=("$ref")
+    done
+  done
+  out="outside the scope:$missing" code=0
+  [ -z "$missing" ] || code=1
+  expect 0
+}
+
+test_stamp_touches_each_guard_file_but_not_docs() {
+  local file
+  for file in "${GUARD_FILES[@]}"; do
+    review_repo "$file"
+    out="$file" code=0
+    bash "$STAMP" touches || code=$?
+    expect 0
+  done
+  review_repo docs/notes.md
+  out="docs only" code=0
+  bash "$STAMP" touches || code=$?
+  expect 1
+}
+
+test_review_refuses_a_check_script_commit_without_a_stamp() {
+  review_repo scripts/check.sh
+  commit "perf(check): unreviewed scan change"
+  expect 1 "no matching stamp" "security-reviewer"
+}
+
+test_commits_stage_fails_a_guard_commit_without_a_review_trailer() {
+  local base
+  review_repo scripts/check.sh
+  base="$(git rev-parse HEAD)"
+  git commit -q --no-verify -m "perf(check): skipped the hooks"
+  run_check commits "$base..HEAD"
+  expect 1 "touches the security-review scope without a Security-Review trailer"
+}
+
+# legacy_hash: the scope hash a commit stamped before #306 carries, over the old scope's files in HEAD.
+legacy_hash() {
+  git ls-tree -r HEAD -- src/Metaphor.Hooks/ scripts/deploy-dev.ps1 scripts/smoke-test.ps1 scripts/package-mod.sh \
+    scripts/fetch-prism.ps1 scripts/ReloadedDev.psm1 scripts/capture.ps1 |
+    awk -F'\t' '{ split($1, m, " "); print m[1], m[3], $2 }' | sha256sum | cut -d' ' -f1
+}
+
+test_commits_stage_passes_a_hook_commit_stamped_under_the_old_scope() {
+  local base
+  review_repo
+  stage_file scripts/check.sh "already here before the hook change"
+  git commit -q --no-verify -m "chore: guard file from before #306" -m "Security-Review-Skipped: setup"
+  base="$(git rev-parse HEAD)"
+  stage_file src/Metaphor.Hooks/Hooks/Speech.ps1
+  git commit -q --no-verify -m "feat: hook reviewed before #306"
+  git commit -q --no-verify --amend -m "feat: hook reviewed before #306" -m "Security-Review: $(legacy_hash)"
+  run_check commits "$base..HEAD"
+  expect 0
+}
+
+test_commits_stage_fails_a_guard_commit_with_an_old_scope_trailer() {
+  local base
+  review_repo
+  base="$(git rev-parse HEAD)"
+  stage_file scripts/check.sh
+  git commit -q --no-verify -m "perf(check): old-scope trailer"
+  git commit -q --no-verify --amend -m "perf(check): old-scope trailer" -m "Security-Review: $(legacy_hash)"
+  run_check commits "$base..HEAD"
+  expect 1 "touches the security-review scope without a Security-Review trailer"
+}
+
 test_stamp_script_rejects_unknown_arguments() {
   new_repo
   out="$(bash "$STAMP" nope 2>&1)"

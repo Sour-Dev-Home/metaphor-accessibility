@@ -89,15 +89,26 @@ tools too. To flag another filler word, add it to
 
 ## Security review and deny rules
 
-**Must-run review.** The security-review scope is `src/Metaphor.Hooks/` plus the six scripts listed in
-[`scripts/security-stamp.sh`](../scripts/security-stamp.sh), which deploy, launch, package or fetch native code. A commit
-touching it needs a review stamp:
+**Must-run review.** The security-review scope, listed in [`scripts/security-stamp.sh`](../scripts/security-stamp.sh), is:
+
+- the hook layer, `src/Metaphor.Hooks/`, and the scripts that deploy, launch, package or fetch native code;
+- the guards that enforce the ground rules (#306): everything the checks, the git hooks and CI run, transitively, and
+  what they read to decide. That is `scripts/check.sh` and every script it or a workflow calls, `scripts/githooks/`,
+  the whole `.github/workflows/` folder, the check tests in `tests/check/` and `tests/scripts/` (CI runs them before
+  the file scan), the pinned tools in `tools/docs/`, `tools/slow/` and `.config/dotnet-tools.json`,
+  `scripts/github-outage.sh` (it classifies push failures and enables auto-merge) and
+  `.claude/agents/security-reviewer.md`. A change to them can otherwise merge with only CI passing, and CI is what
+  changed. `tests/check/test-check.sh` fails when a script the gate calls falls outside the scope.
+
+A commit touching it needs a review stamp:
 
 1. Stage the change, then run the `security-reviewer` agent. When it finds nothing critical or important, its last step
    runs `scripts/security-stamp.sh`, which hashes the staged scope into a stamp under `.git/`.
 2. Commit. The pre-commit hook refuses the commit unless the stamp matches the staged scope, so any edit after the
    review needs a new one. The commit-msg hook appends `Security-Review: <hash>`.
-3. CI fails a pull request commit that touches the scope without a `Security-Review` trailer matching its content.
+3. CI fails a pull request commit that touches the scope without a `Security-Review` trailer matching its content. A
+   commit stamped before the guards joined the scope carries a hash of the old scope only; CI still accepts it when the
+   commit changes no guard file, so earlier reviews stay valid.
 
 **Override (maintainer only).** `SECURITY_REVIEW_SKIP="<reason>" git commit ...` lets the commit through and records
 `Security-Review-Skipped: <reason>`, which CI accepts. Agents are denied it.
