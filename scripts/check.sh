@@ -263,7 +263,7 @@ pre_push_stage() {
     echo "pre-push: reused the recorded pass for tree ${trees[*]}; no build or tests ran"
     return 0
   fi
-  take_lock
+  take_lock nowait
   root="$(git rev-parse --show-toplevel)" || die "could not find the repository root"
   solution="$root/Metaphor.sln"
   [ -f "$solution" ] || die "pre-push stage needs $(basename "$solution") at the repository root"
@@ -546,6 +546,8 @@ take_lock() {
       lock=""
     done
     [ -z "$lock" ] || break
+    # The pre-push hook must not wait: GitHub closes an idle push connection and git exits 141 (#284).
+    [ "${1:-}" != nowait ] || die "every build slot is busy (see scripts/check-status.sh), so this push would wait with its connection open and be cut. Run 'bash scripts/check.sh full' first, then push: the hook reuses the recorded pass."
     if [ -z "${waited:-}" ]; then
       echo "check: waiting for another build check to finish ($base, $slots slots)" >&2
       mkdir -p "$base.waiting" 2> /dev/null && echo "$(current_branch) $(date +%s)" > "$base.waiting/$$"
