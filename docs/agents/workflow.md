@@ -74,6 +74,9 @@ Commit with the stamp. `SECURITY_REVIEW_SKIP` is the maintainer's.
   the ticket `merged into <branch> at <sha>`, so the next agent finds the ticket done.
 - **Anywhere else**: open a PR with the `pr` skill's template, then `gh pr merge <n> --auto`. The merge queue refuses
   `--squash` and `--delete-branch`.
+- Run the check, then push: `bash scripts/check.sh full` first records the pass, and the pre-push hook then reuses it
+  in seconds. A hook that finds no recorded pass and every build slot busy stops at once and says so (#284); it never
+  waits, because GitHub closes a push connection that sits idle (exit 141).
 - Check every push's own exit code (`git push ...; echo $?`), never a pipe's or an echo after it: a pre-push hook that
   fails or times out on the build lock leaves the branch unpushed while the command looks quiet.
 

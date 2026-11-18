@@ -851,7 +851,9 @@ push_repo() {
 
 # run_pre_push LOCAL REMOTE: run the pre-push stage for one ref, as git would.
 run_pre_push() {
-  out="$(printf 'refs/heads/topic %s refs/heads/topic %s\n' "$1" "$2" | bash "$CHECK" pre-push 2>&1)"
+  # A private lock path, so the machine's real build slots never decide these runs.
+  out="$(printf 'refs/heads/topic %s refs/heads/topic %s\n' "$1" "$2" |
+    METAPHOR_CHECK_LOCK="${METAPHOR_CHECK_LOCK:-$PWD/test-build.lock}" bash "$CHECK" pre-push 2>&1)"
   code=$?
 }
 
@@ -879,6 +881,30 @@ test_pre_push_skips_a_deleted_branch() {
   run_pre_push "$ZERO" "$HEAD"
   expect 0
   expect_absent "Metaphor.sln"
+}
+
+# hold_lock: every build slot (one) is held by a live process, so a build stage would have to wait.
+hold_lock() {
+  export METAPHOR_CHECK_LOCK="$PWD/test-build.lock" METAPHOR_CHECK_SLOTS=1 METAPHOR_CHECK_POLL=1
+  mkdir "$METAPHOR_CHECK_LOCK"
+  echo "$$" > "$METAPHOR_CHECK_LOCK/pid"
+}
+
+test_pre_push_stops_at_once_when_the_lock_is_held_and_no_pass_is_recorded() {
+  push_repo src/Menu.cs
+  hold_lock
+  run_pre_push "$HEAD" "$BASE"
+  unset METAPHOR_CHECK_LOCK METAPHOR_CHECK_SLOTS METAPHOR_CHECK_POLL
+  expect 2 "every build slot is busy" "bash scripts/check.sh full"
+}
+
+test_pre_push_reuses_a_recorded_pass_without_taking_the_lock() {
+  push_repo src/Menu.cs
+  hold_lock
+  echo "full $(git rev-parse "$HEAD^{tree}")" > "$(git rev-parse --absolute-git-dir)/check-pass-cache"
+  run_pre_push "$HEAD" "$BASE"
+  unset METAPHOR_CHECK_LOCK METAPHOR_CHECK_SLOTS METAPHOR_CHECK_POLL
+  expect 0 "reused the recorded pass"
 }
 
 # The must-run security review: real commits through hooks that run the check, as scripts/githooks does.

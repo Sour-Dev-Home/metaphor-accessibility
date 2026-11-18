@@ -51,7 +51,8 @@ bash scripts/check.sh full
 (CI checks every tracked file), then builds,
 runs the `Unit` and `RoundTrip` tests and checks formatting. Both end with exit code 0 when everything passes. A passing `full` is recorded per clone (in the git dir) against the
 index's tree hash; `full` or `pre-push` on an identical tree says it reused the pass and skips the work. `pre-push`
-takes a machine-wide build slot only when it builds, so a docs-only push never waits on it.
+takes a machine-wide build slot only when it builds, so a docs-only push never waits on it. Run `full`, then push: with
+no recorded pass and every slot busy, `pre-push` stops at once instead of waiting, since a waiting push is cut (exit 141).
 [README.md](../README.md#checks) lists every stage.
 
 CI runs `full` on Linux for a pull request (faster; tests marked `WindowsOnly` and the Pester script tests are left to
