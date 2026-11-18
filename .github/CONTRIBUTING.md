@@ -6,6 +6,9 @@ don't need the game for this.
 Read the ground rules in [`AGENTS.md`](../AGENTS.md) first. They apply to people and agents alike, and the checks enforce
 the mechanical ones: no game content, no personal information, and a header on every raw source and finding.
 
+For the whole path from your branch to `main` in one picture, see
+[how a change reaches main](../docs/contributors/explanation/how-a-change-reaches-main.md).
+
 ## 1. Install the tools
 
 On Windows:
