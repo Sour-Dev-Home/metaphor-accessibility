@@ -5,6 +5,9 @@
 #   scripts/check.sh pre-commit   fast, then formatting, docs and signatures when their files are staged (the hook)
 #   scripts/check.sh pre-push     build, Unit and RoundTrip tests when pushed commits change code (the hook; refs on stdin)
 #                                 (a passing full or pre-push is recorded per clone by tree hash; the same tree reuses it)
+#                                 Tests are selected from the changed files and the project references (test-select.sh,
+#                                 issue #243), and Pester runs only for script changes. It prints what ran and why.
+#                                 CI and `full` always run everything; METAPHOR_FULL_TESTS=1 does so locally.
 #   scripts/check.sh rules   repo rules on every tracked file (CI on Ubuntu)
 #   scripts/check.sh full    repo rules, build, Unit and RoundTrip tests, formatting, smoke and deploy script tests (CI: Windows in the merge queue, Linux on PRs)
 #   scripts/check.sh docs    broken links fail; Markdown lint, Vale and ADR length warn (CI on Ubuntu)
@@ -198,6 +201,34 @@ full_tree() {
   git diff --quiet 2> /dev/null && git write-tree 2> /dev/null
 }
 
+# run_selected_tests SOLUTION UNKNOWN CHANGED: local test selection (issue #243, scripts/test-select.sh). Runs only the
+# test projects the changed files can affect and says which ran and why. With an unknown change set, in CI, or with
+# METAPHOR_FULL_TESTS=1 it runs the whole solution. `full` (CI, merge queue) never calls this.
+run_selected_tests() {
+  local solution="$1" unknown="$2" changed="$3" kind proj reason ran=0
+  if [ "$unknown" -eq 1 ] || [ "${GITHUB_ACTIONS:-}" = true ] || [ -n "${METAPHOR_FULL_TESTS:-}" ]; then
+    echo "tests: all suites (change set unknown, CI, or METAPHOR_FULL_TESTS)"
+    dotnet test "$solution" -c Release --no-build -v q --filter "$(test_filter)" ||
+      report "tests: Unit or RoundTrip tests failed"
+    return 0
+  fi
+  while read -r kind proj reason; do
+    if [ "$kind" = pester ] && [ -z "${SKIP_SCRIPT_TESTS:-}" ] && command -v pwsh > /dev/null; then
+      echo "tests: Pester smoke tests because $proj $reason"
+      pwsh -NoProfile -Command \
+        'Import-Module Pester -MinimumVersion 5.0; $r = Invoke-Pester tests/smoke -PassThru -Output Normal; exit $r.FailedCount' ||
+        report "tests: smoke or deploy script tests failed (run: Invoke-Pester tests/smoke)"
+      ran=1
+    fi
+    [ "$kind" = dotnet ] || continue
+    ran=1
+    echo "tests: $proj because $reason"
+    dotnet test "$proj" -c Release --no-build -v q --filter "$(test_filter)" ||
+      report "tests: $proj failed"
+  done < <(sed '/^$/d' <<< "$changed" | bash "$(dirname "${BASH_SOURCE[0]}")/test-select.sh")
+  [ "$ran" -eq 1 ] || echo "tests: no test project is affected by this change"
+}
+
 # The pre-push hook's stage. Git passes "<local ref> <local sha> <remote ref> <remote sha>" per pushed ref on stdin.
 # Builds and runs the Unit and RoundTrip tests unless every pushed commit leaves code alone. When it can't tell what
 # changed (a new branch with no origin/main to compare, or a remote commit not fetched), it builds.
@@ -238,8 +269,7 @@ pre_push_stage() {
   export DOTNET_CLI_TELEMETRY_OPTOUT=1 DOTNET_NOLOGO=1
   # Tests run only after a good build: --no-build would otherwise test the last good build and pass.
   if dotnet build "$solution" -c Release -v q --nologo; then
-    dotnet test "$solution" -c Release --no-build -v q --filter "$(test_filter)" ||
-      report "tests: Unit or RoundTrip tests failed"
+    run_selected_tests "$solution" "$unknown" "$changed"
   else
     report "build: failed, see the errors above"
   fi
