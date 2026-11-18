@@ -1,0 +1,40 @@
+# Title menu by screen class: the title file compiles, the title cursor settles, its System submenu (same choice), title Settings, back
+# source: docs/raw-sources/screen-class-session-2026-11-17.md
+# game build: 548ddc955c176867f062c44f94c03dd9ac33caefb278a5ac388e792aedf09504
+0 compile id=56 path=EN/message/system/Title_System.msg
+0 compile id=55 path=EN/message/system/System_Network.msg
+8200 compile id=57 path=EN/message/event/e01_001_001.msg
+11601 compile id=58 path=EN/message/system/System_License.msg
+11674 cursor mgr=0x463f7bf0 class=0x22045e8 cmd=0x1 result=1 top=0 row=0 flags=0x46 screen=TitleChoice@ope@ui@app
+14468 cursor mgr=0x463f7bf0 class=0x22045e8 cmd=0x1 result=1 top=0 row=1 flags=0x46 screen=TitleChoice@ope@ui@app
+36523 cursor mgr=0x463f7bf0 class=0x22045e8 cmd=0x1 result=1 top=0 row=0 flags=0x46 screen=TitleChoice@ope@ui@app
+66364 cursor mgr=0x463f7bf0 class=0x22045e8 cmd=0x1 result=1 top=0 row=1 flags=0x46 screen=TitleChoice@ope@ui@app
+66564 cursor mgr=0x463f7bf0 class=0x22045e8 cmd=0x1 result=1 top=0 row=2 flags=0x46 screen=TitleChoice@ope@ui@app
+75183 cursor mgr=0x463f7bf0 class=0x22045e8 cmd=0x17 result=23 top=0 row=1 flags=0x46 screen=TitleChoice@ope@ui@app
+75200 cursor mgr=0x463f7bf0 class=0x22045e8 cmd=0x1 result=1 top=0 row=1 flags=0x46 screen=TitleChoice@ope@ui@app
+77317 cursor mgr=0x463f7bf0 class=0x22045e8 cmd=0x17 result=23 top=0 row=0 flags=0x46 screen=TitleChoice@ope@ui@app
+77334 cursor mgr=0x463f7bf0 class=0x22045e8 cmd=0x1 result=1 top=0 row=0 flags=0x46 screen=TitleChoice@ope@ui@app
+80034 cursor mgr=0x463f7bf0 class=0x22045e8 cmd=0x16 result=22 top=0 row=1 flags=0x46 screen=TitleChoice@ope@ui@app
+80052 cursor mgr=0x463f7bf0 class=0x22045e8 cmd=0x1 result=1 top=0 row=1 flags=0x46 screen=TitleChoice@ope@ui@app
+80484 cursor mgr=0x463f7bf0 class=0x22045e8 cmd=0x16 result=22 top=0 row=2 flags=0x46 screen=TitleChoice@ope@ui@app
+80502 cursor mgr=0x463f7bf0 class=0x22045e8 cmd=0x1 result=1 top=0 row=2 flags=0x46 screen=TitleChoice@ope@ui@app
+86487 cursor mgr=0x463f7bf0 class=0x22045e8 cmd=0x1 result=1 top=0 row=0 flags=0x46 screen=TitleChoice@ope@ui@app
+92537 cursor mgr=0x463f7bf0 class=0x22045e8 cmd=0x16 result=22 top=0 row=1 flags=0x46 screen=TitleChoice@ope@ui@app
+92555 cursor mgr=0x463f7bf0 class=0x22045e8 cmd=0x1 result=1 top=0 row=1 flags=0x46 screen=TitleChoice@ope@ui@app
+100156 cursor mgr=0x463f7bf0 class=0x22045e8 cmd=0x17 result=23 top=0 row=0 flags=0x46 screen=TitleChoice@ope@ui@app
+100173 cursor mgr=0x463f7bf0 class=0x22045e8 cmd=0x1 result=1 top=0 row=0 flags=0x46 screen=TitleChoice@ope@ui@app
+100638 cursor mgr=0x463f8460 class=0x22045e8 cmd=0x1 result=1 top=0 row=0 flags=0x46 screen=?$ConfigTopChoicePc@VConfigTopChoicePcLayoutInit@ui@app@@@ope@ui@app
+102306 cursor mgr=0x463f8460 class=0x22045e8 cmd=0x14 result=20 top=1 row=0 flags=0x46 screen=?$ConfigTopChoicePc@VConfigTopChoicePcLayoutInit@ui@app@@@ope@ui@app
+102323 cursor mgr=0x463f8460 class=0x22045e8 cmd=0x1 result=1 top=1 row=0 flags=0x46 screen=?$ConfigTopChoicePc@VConfigTopChoicePcLayoutInit@ui@app@@@ope@ui@app
+103723 cursor mgr=0x463f8460 class=0x22045e8 cmd=0x14 result=20 top=2 row=0 flags=0x46 screen=?$ConfigTopChoicePc@VConfigTopChoicePcLayoutInit@ui@app@@@ope@ui@app
+103740 cursor mgr=0x463f8460 class=0x22045e8 cmd=0x1 result=1 top=2 row=0 flags=0x46 screen=?$ConfigTopChoicePc@VConfigTopChoicePcLayoutInit@ui@app@@@ope@ui@app
+104839 cursor mgr=0x463f8460 class=0x22045e8 cmd=0x15 result=21 top=1 row=0 flags=0x46 screen=?$ConfigTopChoicePc@VConfigTopChoicePcLayoutInit@ui@app@@@ope@ui@app
+104857 cursor mgr=0x463f8460 class=0x22045e8 cmd=0x1 result=1 top=1 row=0 flags=0x46 screen=?$ConfigTopChoicePc@VConfigTopChoicePcLayoutInit@ui@app@@@ope@ui@app
+105073 cursor mgr=0x463f8460 class=0x22045e8 cmd=0x15 result=21 top=0 row=0 flags=0x46 screen=?$ConfigTopChoicePc@VConfigTopChoicePcLayoutInit@ui@app@@@ope@ui@app
+105090 cursor mgr=0x463f8460 class=0x22045e8 cmd=0x1 result=1 top=0 row=0 flags=0x46 screen=?$ConfigTopChoicePc@VConfigTopChoicePcLayoutInit@ui@app@@@ope@ui@app
+105340 cursor mgr=0x463f7ce0 class=0x22045e8 cmd=0x1 result=1 top=0 row=0 flags=0x47 screen=?$ConfigMenuChoicePcT@$0HG@@ope@ui@app
+105957 cursor mgr=0x463f7ce0 class=0x22045e8 cmd=0x14 result=20 top=1 row=0 flags=0x47 screen=?$ConfigMenuChoicePcT@$0HG@@ope@ui@app
+105973 cursor mgr=0x463f7ce0 class=0x22045e8 cmd=0x1 result=1 top=1 row=0 flags=0x47 screen=?$ConfigMenuChoicePcT@$0HG@@ope@ui@app
+107341 cursor mgr=0x463f7bf0 class=0x22045e8 cmd=0x1 result=1 top=0 row=2 flags=0x66 screen=TitleChoice@ope@ui@app
+108307 cursor mgr=0x463f7bf0 class=0x22045e8 cmd=0x17 result=23 top=0 row=1 flags=0x66 screen=TitleChoice@ope@ui@app
+108325 cursor mgr=0x463f7bf0 class=0x22045e8 cmd=0x1 result=1 top=0 row=1 flags=0x66 screen=TitleChoice@ope@ui@app

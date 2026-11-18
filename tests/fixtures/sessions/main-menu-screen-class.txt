@@ -1,0 +1,63 @@
+# Main menu by screen class: System and a dialog, then Equipment, Party, Item and System from it; some inputs have no class
+# source: docs/raw-sources/main-menu-session-2026-11-17.md
+# game build: 548ddc955c176867f062c44f94c03dd9ac33caefb278a5ac388e792aedf09504
+0 cursor mgr=0x6772ce90 class=0x22045e8 cmd=0x1 result=1 top=2 row=0 flags=0x46 screen=RootMenuChoice@ope@ui@app
+284 cursor mgr=0x6772ce90 class=0x22045e8 cmd=0x14 result=20 top=3 row=0 flags=0x46 screen=RootMenuChoice@ope@ui@app
+301 cursor mgr=0x6772ce90 class=0x22045e8 cmd=0x1 result=1 top=3 row=0 flags=0x46 screen=RootMenuChoice@ope@ui@app
+501 cursor mgr=0x6772ce90 class=0x22045e8 cmd=0x14 result=20 top=4 row=0 flags=0x46 screen=RootMenuChoice@ope@ui@app
+518 cursor mgr=0x6772ce90 class=0x22045e8 cmd=0x1 result=1 top=4 row=0 flags=0x46 screen=RootMenuChoice@ope@ui@app
+1552 cursor mgr=0x6772ce90 class=0x22045e8 cmd=0x14 result=20 top=5 row=0 flags=0x46 screen=RootMenuChoice@ope@ui@app
+1569 cursor mgr=0x6772ce90 class=0x22045e8 cmd=0x1 result=1 top=5 row=0 flags=0x46 screen=RootMenuChoice@ope@ui@app
+1752 cursor mgr=0x6772ce90 class=0x22045e8 cmd=0x14 result=20 top=6 row=0 flags=0x46 screen=RootMenuChoice@ope@ui@app
+1769 cursor mgr=0x6772ce90 class=0x22045e8 cmd=0x1 result=1 top=6 row=0 flags=0x46 screen=RootMenuChoice@ope@ui@app
+1902 cursor mgr=0x6772ce90 class=0x22045e8 cmd=0x14 result=20 top=7 row=0 flags=0x46 screen=RootMenuChoice@ope@ui@app
+1920 cursor mgr=0x6772ce90 class=0x22045e8 cmd=0x1 result=1 top=7 row=0 flags=0x46 screen=RootMenuChoice@ope@ui@app
+2052 cursor mgr=0x6772ce90 class=0x22045e8 cmd=0x14 result=20 top=8 row=0 flags=0x46 screen=RootMenuChoice@ope@ui@app
+2069 cursor mgr=0x6772ce90 class=0x22045e8 cmd=0x1 result=1 top=8 row=0 flags=0x46 screen=RootMenuChoice@ope@ui@app
+2335 cursor mgr=0x6772c9e0 class=0x22045e8 cmd=0x1 result=1 top=0 row=0 flags=0x46 screen=SystemMenuChoice@ope@ui@app
+3152 cursor mgr=0x6772b090 class=0x22045e8 cmd=0x1 result=1 top=0 row=10 flags=0x46
+3787 cursor mgr=0x6772b090 class=0x22045e8 cmd=0x14 result=20 top=1 row=10 flags=0x46
+3804 cursor mgr=0x6772b090 class=0x22045e8 cmd=0x1 result=1 top=1 row=10 flags=0x46
+3987 cursor mgr=0x6772b090 class=0x22045e8 cmd=0x14 result=20 top=2 row=10 flags=0x46
+4004 cursor mgr=0x6772b090 class=0x22045e8 cmd=0x1 result=1 top=2 row=10 flags=0x46
+5088 cursor mgr=0x6772a280 class=0x22045e8 cmd=0x1 result=1 top=0 row=0 flags=0x46 screen=YesNoChoiceSample@ope@ui@app
+13717 cursor mgr=0x6771f9c0 class=0x22045e8 cmd=0x1 result=1 top=2 row=0 flags=0x46 screen=RootMenuChoice@ope@ui@app
+14684 cursor mgr=0x6771f9c0 class=0x22045e8 cmd=0x14 result=20 top=3 row=0 flags=0x46 screen=RootMenuChoice@ope@ui@app
+14702 cursor mgr=0x6771f9c0 class=0x22045e8 cmd=0x1 result=1 top=3 row=0 flags=0x46 screen=RootMenuChoice@ope@ui@app
+14851 cursor mgr=0x6771f9c0 class=0x22045e8 cmd=0x14 result=20 top=4 row=0 flags=0x46 screen=RootMenuChoice@ope@ui@app
+14869 cursor mgr=0x6771f9c0 class=0x22045e8 cmd=0x1 result=1 top=4 row=0 flags=0x46 screen=RootMenuChoice@ope@ui@app
+15335 cursor mgr=0x6771f9c0 class=0x22045e8 cmd=0x15 result=21 top=3 row=0 flags=0x46 screen=RootMenuChoice@ope@ui@app
+15352 cursor mgr=0x6771f9c0 class=0x22045e8 cmd=0x1 result=1 top=3 row=0 flags=0x46 screen=RootMenuChoice@ope@ui@app
+15502 cursor mgr=0x6771f9c0 class=0x22045e8 cmd=0x15 result=21 top=2 row=0 flags=0x46 screen=RootMenuChoice@ope@ui@app
+15519 cursor mgr=0x6771f9c0 class=0x22045e8 cmd=0x1 result=1 top=2 row=0 flags=0x46 screen=RootMenuChoice@ope@ui@app
+16068 cursor mgr=0x67721a90 class=0x22045e8 cmd=0x1 result=1 top=0 row=0 flags=0x46 screen=EquipCharaSelChoice@ope@ui@app
+17970 cursor mgr=0x6771f9c0 class=0x22045e8 cmd=0x14 result=20 top=3 row=0 flags=0x46 screen=RootMenuChoice@ope@ui@app
+17987 cursor mgr=0x6771f9c0 class=0x22045e8 cmd=0x1 result=1 top=3 row=0 flags=0x46 screen=RootMenuChoice@ope@ui@app
+18637 cursor mgr=0x6771ed90 class=0x22045e8 cmd=0x1 result=1 top=0 row=0 flags=0x46 screen=StatusCharaSelChoice@ope@ui@app
+19238 cursor mgr=0x6771f9c0 class=0x22045e8 cmd=0x15 result=21 top=2 row=0 flags=0x46 screen=RootMenuChoice@ope@ui@app
+19255 cursor mgr=0x6771f9c0 class=0x22045e8 cmd=0x1 result=1 top=2 row=0 flags=0x46 screen=RootMenuChoice@ope@ui@app
+19421 cursor mgr=0x6771f9c0 class=0x22045e8 cmd=0x15 result=21 top=1 row=0 flags=0x46 screen=RootMenuChoice@ope@ui@app
+19438 cursor mgr=0x6771f9c0 class=0x22045e8 cmd=0x1 result=1 top=1 row=0 flags=0x46 screen=RootMenuChoice@ope@ui@app
+19804 cursor mgr=0x67720b90 class=0x22045e8 cmd=0x1 result=1 top=0 row=0 flags=0x66 screen=ItemMenuChoice@ope@ui@app
+22240 cursor mgr=0x67722300 class=0x22045e8 cmd=0x1 result=1 top=2 row=0 flags=0x46 screen=RootMenuChoice@ope@ui@app
+23440 cursor mgr=0x67722300 class=0x22045e8 cmd=0x14 result=20 top=3 row=0 flags=0x46 screen=RootMenuChoice@ope@ui@app
+23458 cursor mgr=0x67722300 class=0x22045e8 cmd=0x1 result=1 top=3 row=0 flags=0x46 screen=RootMenuChoice@ope@ui@app
+23624 cursor mgr=0x67722300 class=0x22045e8 cmd=0x14 result=20 top=4 row=0 flags=0x46 screen=RootMenuChoice@ope@ui@app
+23641 cursor mgr=0x67722300 class=0x22045e8 cmd=0x1 result=1 top=4 row=0 flags=0x46 screen=RootMenuChoice@ope@ui@app
+23791 cursor mgr=0x67722300 class=0x22045e8 cmd=0x14 result=20 top=5 row=0 flags=0x46 screen=RootMenuChoice@ope@ui@app
+23808 cursor mgr=0x67722300 class=0x22045e8 cmd=0x1 result=1 top=5 row=0 flags=0x46 screen=RootMenuChoice@ope@ui@app
+23957 cursor mgr=0x67722300 class=0x22045e8 cmd=0x14 result=20 top=6 row=0 flags=0x46 screen=RootMenuChoice@ope@ui@app
+23975 cursor mgr=0x67722300 class=0x22045e8 cmd=0x1 result=1 top=6 row=0 flags=0x46 screen=RootMenuChoice@ope@ui@app
+24124 cursor mgr=0x67722300 class=0x22045e8 cmd=0x14 result=20 top=7 row=0 flags=0x46 screen=RootMenuChoice@ope@ui@app
+24141 cursor mgr=0x67722300 class=0x22045e8 cmd=0x1 result=1 top=7 row=0 flags=0x46 screen=RootMenuChoice@ope@ui@app
+24274 cursor mgr=0x67722300 class=0x22045e8 cmd=0x14 result=20 top=8 row=0 flags=0x46 screen=RootMenuChoice@ope@ui@app
+24291 cursor mgr=0x67722300 class=0x22045e8 cmd=0x1 result=1 top=8 row=0 flags=0x46 screen=RootMenuChoice@ope@ui@app
+24607 cursor mgr=0x67721d60 class=0x22045e8 cmd=0x1 result=1 top=0 row=0 flags=0x46 screen=SystemMenuChoice@ope@ui@app
+25158 cursor mgr=0x67721d60 class=0x22045e8 cmd=0x14 result=20 top=1 row=0 flags=0x46 screen=SystemMenuChoice@ope@ui@app
+25175 cursor mgr=0x67721d60 class=0x22045e8 cmd=0x1 result=1 top=1 row=0 flags=0x46 screen=SystemMenuChoice@ope@ui@app
+25709 cursor mgr=0x67721d60 class=0x22045e8 cmd=0x15 result=21 top=0 row=0 flags=0x46 screen=SystemMenuChoice@ope@ui@app
+25726 cursor mgr=0x67721d60 class=0x22045e8 cmd=0x1 result=1 top=0 row=0 flags=0x46 screen=SystemMenuChoice@ope@ui@app
+26042 cursor mgr=0x67721d60 class=0x22045e8 cmd=0x14 result=20 top=1 row=0 flags=0x46 screen=SystemMenuChoice@ope@ui@app
+26059 cursor mgr=0x67721d60 class=0x22045e8 cmd=0x1 result=1 top=1 row=0 flags=0x46 screen=SystemMenuChoice@ope@ui@app
+26293 cursor mgr=0x67721d60 class=0x22045e8 cmd=0x15 result=21 top=0 row=0 flags=0x46 screen=SystemMenuChoice@ope@ui@app
+26310 cursor mgr=0x67721d60 class=0x22045e8 cmd=0x1 result=1 top=0 row=0 flags=0x46 screen=SystemMenuChoice@ope@ui@app

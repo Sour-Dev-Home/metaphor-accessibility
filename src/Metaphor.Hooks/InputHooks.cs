@@ -3,18 +3,24 @@ using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
 using System.Runtime.InteropServices;
 using Metaphor.Core;
+using Metaphor.Core.Menus;
 using Metaphor.Features.Dialogue;
+using Metaphor.Features.Menus;
 using Reloaded.Hooks.Definitions;
 using IReloadedHooks = Reloaded.Hooks.ReloadedII.Interfaces.IReloadedHooks;
 
 namespace Metaphor.Hooks;
 
-// The dialogue controls' input (#58): hooks on the game's own per-frame reads of a pad and of the keyboard. They change
-// what the game sees, so they are written the long way (architecture rule 14's exception, IChangesBehaviour): each
-// calls the original, reads the dialogue window's message pointer (DialogueWindowPointer, #232), hands both to
-// DialogueControls, and while the dialogue window is open writes the state back without the bound buttons or keys.
-// Each asks the loader for the pointer's signature, so it goes in only when that matched once too; without it the
-// controls never see a window and leave every press to the game (#206). Every read goes through ModuleMemoryReader (rule 10); the one write is
+// The dialogue (#58) and menu (#214) controls' input: hooks on the game's own per-frame reads of a pad and of the
+// keyboard. They change what the game sees, so they are written the long way (architecture rule 14's exception,
+// IChangesBehaviour): each calls the original, reads the dialogue window's message pointer (DialogueWindowPointer,
+// #232) for DialogueControls, hands the state it wrote to MenuControls and what that leaves to DialogueControls, and
+// while a menu or the dialogue window is open writes it back without the bound buttons or keys. Menus come first, so in
+// a menu the reader binding toggles once, through them. Before each read is handed on, both hand the menu screens a
+// read of whether the game has its menus open (#268, MenusOpenRead), so menu-only controls stop when the menus close.
+// Each asks the loader for both readers' signatures, so it goes in only when those matched once too; without them the
+// controls never see a window and leave every press to the game (#206). Every read goes through ModuleMemoryReader
+// (rule 10); the one write is
 // WriteProcessMemory on this process into the state the original has just filled, and only clears what it wrote.
 // WriteProcessMemory fails instead of faulting, but it also writes through read-only pages, so it is safe only on memory
 // known to be the game's own writable data, never on an arbitrary pointer. In Debug builds each change of a read is
@@ -34,6 +40,9 @@ internal sealed class PadReadHook : IGameHook, IChangesBehaviour
     private static readonly nint CurrentProcess = -1;
 
     private readonly DialogueControls controls;
+    private readonly MenuControls menus;
+    private readonly MenuScreens screens;
+    private readonly MenusOpenRead menusOpen;
     private readonly MessageLog? log;
     private readonly InputStateChanges changes = new();
     private readonly DialogueWindowPointer window = new();
@@ -44,15 +53,24 @@ internal sealed class PadReadHook : IGameHook, IChangesBehaviour
     {
         ArgumentNullException.ThrowIfNull(services);
         controls = services.DialogueControls;
+        menus = services.MenuControls;
+        screens = services.MenuScreens;
+        menusOpen = services.MenusOpen;
         log = services.Log;
         callback = OnCall;
     }
 
     public string SignatureName => "PadRead";
 
-    public IReadOnlyList<string> Calls => DialogueWindowPointer.Signatures;
+    /// <summary>Not called: located so <see cref="DialogueWindowPointer"/> and <see cref="MenusOpenRead"/> can find the
+    /// globals they load.</summary>
+    public IReadOnlyList<string> Calls => [.. DialogueWindowPointer.Signatures, MenusOpenRead.HandleReader];
 
-    public void UseCalls(IReadOnlyDictionary<string, nint> calls) => window.Resolve(calls);
+    public void UseCalls(IReadOnlyDictionary<string, nint> calls)
+    {
+        window.Resolve(calls);
+        menusOpen.Resolve(calls);
+    }
 
     public void Activate(IReloadedHooks hooks, nint address)
     {
@@ -82,11 +100,13 @@ internal sealed class PadReadHook : IGameHook, IChangesBehaviour
             if (ModuleMemoryReader.ReadInt32(state) is { } value)
             {
                 var buttons = value & 0xFFFF;
+                screens.MenusRead(menusOpen.IsOpen());
                 // A zero al is taken as "no read made" (#225): Steam Input's virtual pad 1 returns it while holding
                 // leftover bits (tests/fixtures/sessions/steam-input-pad1-noise.txt). Such a read isn't handed to the
                 // controls, and since they hand its buttons back unchanged it isn't written back either. What the
                 // return means is [NEEDS VERIFICATION], pending capture evening #229 (likely "pad not connected").
-                var handed = controls.Pad((int)pad, buttons, made: (result & 0xFF) != 0);
+                var made = (result & 0xFF) != 0;
+                var handed = controls.Pad((int)pad, menus.Pad((int)pad, buttons, made), made);
                 if (handed != buttons)
                 {
                     var mask = new byte[2];
@@ -126,6 +146,9 @@ internal sealed class KeyboardReadHook : IGameHook, IChangesBehaviour
     private static readonly nint CurrentProcess = -1;
 
     private readonly DialogueControls controls;
+    private readonly MenuControls menus;
+    private readonly MenuScreens screens;
+    private readonly MenusOpenRead menusOpen;
     private readonly MessageLog? log;
     private readonly InputStateChanges changes = new();
     private readonly DialogueWindowPointer window = new();
@@ -136,15 +159,24 @@ internal sealed class KeyboardReadHook : IGameHook, IChangesBehaviour
     {
         ArgumentNullException.ThrowIfNull(services);
         controls = services.DialogueControls;
+        menus = services.MenuControls;
+        screens = services.MenuScreens;
+        menusOpen = services.MenusOpen;
         log = services.Log;
         callback = OnCall;
     }
 
     public string SignatureName => "KeyboardRead";
 
-    public IReadOnlyList<string> Calls => DialogueWindowPointer.Signatures;
+    /// <summary>Not called: located so <see cref="DialogueWindowPointer"/> and <see cref="MenusOpenRead"/> can find the
+    /// globals they load.</summary>
+    public IReadOnlyList<string> Calls => [.. DialogueWindowPointer.Signatures, MenusOpenRead.HandleReader];
 
-    public void UseCalls(IReadOnlyDictionary<string, nint> calls) => window.Resolve(calls);
+    public void UseCalls(IReadOnlyDictionary<string, nint> calls)
+    {
+        window.Resolve(calls);
+        menusOpen.Resolve(calls);
+    }
 
     public void Activate(IReloadedHooks hooks, nint address)
     {
@@ -172,7 +204,8 @@ internal sealed class KeyboardReadHook : IGameHook, IChangesBehaviour
                 ModuleMemoryReader.ReadBytes(state + SlotsOffset, slots))
             {
                 var keys = GameKeyList.Read(count, slots);
-                var handed = controls.Keys(keys);
+                screens.MenusRead(menusOpen.IsOpen());
+                var handed = controls.Keys(menus.Keys(keys));
                 if (handed.Count != keys.Count)
                 {
                     // The count and the slots after it, in one write.

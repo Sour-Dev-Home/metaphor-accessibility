@@ -37,6 +37,7 @@ public static partial class SessionLogConverter
             fixture.Append("# ").Append(line.ReplaceLineEndings(" ")).Append('\n');
         }
         long? first = null;
+        string? lastCursorManager = null;
         var number = 0;
         foreach (var line in log)
         {
@@ -47,8 +48,24 @@ public static partial class SessionLogConverter
                 continue;
             }
             var at = long.Parse(record.Groups["ms"].Value, CultureInfo.InvariantCulture);
-            if (at < window.FromMilliseconds || at > window.ToMilliseconds
-                || Kept(record.Groups["kind"].Value, record.Groups["rest"].Value, number) is not { } kept
+            if (at < window.FromMilliseconds || at > window.ToMilliseconds)
+            {
+                continue;
+            }
+            if (record.Groups["kind"].Value == "screen")
+            {
+                // The #213 spike logged each cursor's screen class as a record of its own, right after the cursor's.
+                if (SpikeScreenClass(record.Groups["rest"].Value, number) is { } spike && spike.Manager == lastCursorManager
+                    && spike.ScreenClass is { } screenClass)
+                {
+                    fixture.Length--;
+                    fixture.Append(" screen=").Append(screenClass).Append('\n');
+                }
+                lastCursorManager = null;
+                continue;
+            }
+            lastCursorManager = null;
+            if (Kept(record.Groups["kind"].Value, record.Groups["rest"].Value, number) is not { } kept
                 || !window.Kinds.Contains(kept.Kind))
             {
                 continue;
@@ -56,8 +73,19 @@ public static partial class SessionLogConverter
             first ??= at;
             fixture.Append((at - first.Value).ToString(CultureInfo.InvariantCulture))
                 .Append(' ').Append(kept.Kind).Append(' ').Append(kept.Fields).Append('\n');
+            if (kept.Kind == "cursor" && !kept.Fields.Contains(" screen=", StringComparison.Ordinal))
+            {
+                lastCursorManager = CursorPattern().Match(record.Groups["rest"].Value).Groups["mgr"].Value;
+            }
         }
         return fixture.ToString();
+    }
+
+    // A spike log's screen record: the manager, and its owner's class, null when unreadable.
+    private static (string Manager, string? ScreenClass)? SpikeScreenClass(string rest, int number)
+    {
+        var screen = Matched(SpikeScreenPattern(), rest, number);
+        return (screen["mgr"].Value, screen["owner"].Value == "?" ? null : screen["owner"].Value);
     }
 
     /// <summary>The fixture record for one log record, null for a kind fixtures don't keep.</summary>
@@ -76,7 +104,8 @@ public static partial class SessionLogConverter
                 return ("select", $"kind={select["kind"].Value} prompt={Label(select["first"].Value)} choice={Label(select["second"].Value)}");
             case "cursor":
                 var cursor = Matched(CursorPattern(), rest, number);
-                return ("cursor", $"mgr={cursor["mgr"].Value} class={cursor["class"].Value} cmd={cursor["cmd"].Value} result={cursor["result"].Value} top={cursor["top"].Value} row={cursor["row"].Value} flags={cursor["flags"].Value}");
+                var screen = cursor["screen"].Success && cursor["screen"].Value != "?" ? $" screen={cursor["screen"].Value}" : "";
+                return ("cursor", $"mgr={cursor["mgr"].Value} class={cursor["class"].Value} cmd={cursor["cmd"].Value} result={cursor["result"].Value} top={cursor["top"].Value} row={cursor["row"].Value} flags={cursor["flags"].Value}{screen}");
             case "input" when rest.StartsWith("pad", StringComparison.Ordinal):
                 var pad = Matched(PadPattern(), rest, number);
                 return ("pad", $"pad={pad["pad"].Value} buttons={pad["buttons"].Value} returned={pad["returned"].Value}");
@@ -104,6 +133,9 @@ public static partial class SessionLogConverter
     // never passes for one.
     private const string LabelPattern = "[A-Za-z][A-Za-z0-9]*(?:_[A-Za-z0-9]+)+";
     private const string QuotedLabel = "\"" + LabelPattern + "\"|\\(unreadable\\)";
+    // A class's decorated name from run-time type information, without its .?AV prefix (TitleChoice@ope@ui@app,
+    // ?$ConfigMenuChoicePcT@$0HG@@ope@ui@app): no spaces, and at least one @, so a word never passes for one.
+    private const string ClassName = "[A-Za-z0-9_?$]+(?:@[A-Za-z0-9_?$]*)+";
     private const string Hex = "0x[0-9a-f]+";
     private const string Int = "-?[0-9]+";
 
@@ -124,8 +156,12 @@ public static partial class SessionLogConverter
     private static partial Regex SelectPattern();
 
     [GeneratedRegex("^mgr=(?<mgr>" + Hex + ") class=(?<class>" + Hex + "|\\?) cmd=(?<cmd>" + Hex + ") result=(?<result>" + Int
-        + ") index=" + Int + " top=(?<top>" + Int + ") row=(?<row>" + Int + ") flags=(?<flags>" + Hex + ")$")]
+        + ") index=" + Int + " top=(?<top>" + Int + ") row=(?<row>" + Int + ") flags=(?<flags>" + Hex + ")(?: screen=(?<screen>"
+        + ClassName + "|\\?))?$")]
     private static partial Regex CursorPattern();
+
+    [GeneratedRegex("^mgr=(?<mgr>" + Hex + ") mgrClass=\\S+ owner=\\S+ ownerClass=(?<owner>" + ClassName + "|\\?) fields=\\S+$")]
+    private static partial Regex SpikeScreenPattern();
 
     [GeneratedRegex("^pad(?<pad>[0-9]+) buttons=(?<buttons>" + Hex + ") handed=" + Hex + " returned=(?<returned>[0-9]+)$")]
     private static partial Regex PadPattern();

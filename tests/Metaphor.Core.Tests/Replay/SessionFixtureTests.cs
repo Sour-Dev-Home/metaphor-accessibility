@@ -83,6 +83,25 @@ public sealed class SessionFixtureTests
     }
 
     [Fact]
+    public void ReplaysEachMenusOpenReadInOrderWithTheOtherRecords()
+    {
+        var seen = new List<object>();
+        var cursors = new CursorEvents();
+        var fixture = SessionFixture.Parse($"""
+            # game build: {Build}
+            0 menus open=1
+            10 cursor mgr=0xa0 class=0x22045e8 cmd=0x1 result=1 top=0 row=0 flags=0x46
+            20 menus open=0
+            """);
+
+        fixture.Replay(new MessageEvents(), cursors, pad => seen.Add(pad), menus: open => seen.Add(open));
+
+        Assert.Equal([true, false], seen);
+        Assert.Equal([0L, 10, 20], fixture.Records.Select(record => record.Milliseconds));
+        Assert.Equal(new MenusRecord(20, Open: false), fixture.Records[^1]);
+    }
+
+    [Fact]
     public void ReplaysWindowReadsInOrderBetweenPadReads()
     {
         var seen = new List<object?>();
@@ -103,6 +122,7 @@ public sealed class SessionFixtureTests
     [InlineData($"# game build: {Build}\n0 window current=Made-up")]
     [InlineData($"# game build: {Build}\n0 request kind=0 label=Made up words")]
     [InlineData($"# game build: {Build}\n0 lookup id=1 label=2")]
+    [InlineData($"# game build: {Build}\n0 menus open=2")]
     public void RefusesAFixtureWithoutABuildOrWithARecordItDoesNotKnow(string text) =>
         Assert.Throws<FormatException>(() => SessionFixture.Parse(text));
 }

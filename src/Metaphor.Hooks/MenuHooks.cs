@@ -4,15 +4,61 @@ using Metaphor.Core.Menus;
 namespace Metaphor.Hooks;
 
 // Menu cursor events (#94): one hook decodes each input a menu's cursor manager handles and hands it to
-// HookServices.Cursors, whose observers speak the title menu's focus and, in Debug builds, log it. The loader's adapter
+// HookServices.Cursors, whose observers are MenuScreens (#211), which turns them into the screen changes the menu
+// features speak, and the dialogue's ChoiceFocus, plus the report and the log when they are on. The loader's adapter
 // passes every call through unchanged (#88).
+
+/// <summary>Reads whether the game has its menus open (#268): the global <c>CampStatus_IsClosed</c> tests is non-null
+/// exactly while a field menu, or the title screen, is open (docs/raw-sources/menus-open-session6-2026-11-17.md, game
+/// build 548ddc95…, Steam build 18330018). One pointer read through <see cref="ModuleMemoryReader"/> per call, no list
+/// walk. The global's address comes from the code of the function that loads it, <c>CampStatusIsOpenBody</c> in
+/// <c>.ecode</c>, which the loader locates for <see cref="PadReadHook"/> and <see cref="KeyboardReadHook"/>
+/// (<see cref="IGameHook.Calls"/>, so only after the build check); that function is read, never hooked or called. Until then, and when a read fails, the menus read
+/// as closed, so the menu controls hand their keys to the game.</summary>
+internal sealed class MenusOpenRead
+{
+    /// <summary>The signature of the function whose <c>mov rcx,[rip+disp32]</c> at <c>+9</c> loads the global.</summary>
+    public const string HandleReader = "CampStatusIsOpenBody";
+
+    private const int LoadOffset = 9;
+    private const int DisplacementOffset = 3;
+    private const int LoadLength = 7;
+
+    // Set at most once, by the first input hook that resolves it, before that hook goes live; the other hook may already
+    // be reading it. Both find the same address from the same function, so even a race writes one value. A
+    // pointer-sized field is read and written whole, so another thread sees 0, as closed, or the address.
+    private nint global;
+
+    /// <summary>Finds the global from the address the loader located for <see cref="HandleReader"/>. Each input hook
+    /// calls it before it goes live; the first to find the global keeps it, and a later call never changes it.</summary>
+    public void Resolve(IReadOnlyDictionary<string, nint> functions)
+    {
+        ArgumentNullException.ThrowIfNull(functions);
+        if (!functions.TryGetValue(HandleReader, out var function))
+        {
+            return;
+        }
+        var load = function + LoadOffset;
+        if (ModuleMemoryReader.ReadInt32(load + DisplacementOffset) is { } displacement)
+        {
+            if (global == 0)
+            {
+                global = load + LoadLength + displacement;
+            }
+        }
+    }
+
+    /// <summary>Whether the menus are open now: false when the global is unknown or unreadable.</summary>
+    public bool IsOpen() =>
+        global is var at && at != 0 && ModuleMemoryReader.ReadPointer(at) is { } handle && handle != 0;
+}
 
 /// <summary>Reports each input the game's shared menu cursor handler takes: <c>int (CursorManagerBase* this, const
 /// int* command)</c>, shared by four cursor manager classes, which moves the cursor for commands <c>0x14</c>–<c>0x17</c>
 /// and puts it back if the move is refused. The function, its arguments and the field offsets are our reading of the
 /// exe (docs/raw-sources/ui-focus-candidates-2026-11-16.md); that the index follows the menu's focus is from
 /// docs/raw-sources/spike-session-2-2026-11-16.md. Observed after it returns, so the cursor is where the input left it.
-/// </summary>
+/// Each input carries its screen class from <see cref="ScreenClassLookup"/> (#208).</summary>
 [GameHook(GameBuilds.Steam18330018)]
 internal sealed class MenuCursorHook : IGameHook, IObserves4WithResult
 {
@@ -22,12 +68,14 @@ internal sealed class MenuCursorHook : IGameHook, IObserves4WithResult
     private const int FlagsOffset = 0xAC;
 
     private readonly CursorEvents events;
+    private readonly ScreenClassLookup screenClasses;
     private readonly nint? moduleBase;
 
     public MenuCursorHook(HookServices services)
     {
         ArgumentNullException.ThrowIfNull(services);
         events = services.Cursors;
+        screenClasses = services.ScreenClasses;
         using var process = Process.GetCurrentProcess();
         // Without the main module the class is logged as unreadable; the loader isn't stopped.
         moduleBase = process.MainModule?.BaseAddress;
@@ -49,6 +97,7 @@ internal sealed class MenuCursorHook : IGameHook, IObserves4WithResult
             ? vtable - module
             : null;
         events.Handled(new CursorInput(
-            manager, classRva, commandValue, (int)result, top, row, ModuleMemoryReader.ReadInt32(manager + FlagsOffset) ?? 0));
+            manager, classRva, commandValue, (int)result, top, row, ModuleMemoryReader.ReadInt32(manager + FlagsOffset) ?? 0,
+            screenClasses.Of(manager)));
     }
 }

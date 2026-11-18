@@ -98,6 +98,13 @@
     "evidence": "Our reading of the exe through its type information (docs/raw-sources/ui-focus-candidates-2026-11-16.md); one match on disk and in memory at the disk address (docs/raw-sources/spike-session-2-2026-11-16.md)"
   },
   {
+    "name": "ChoiceGetCursor",
+    "section": ".ecode",
+    "pattern": "48 83 EC 18 33 C0 48 89 02 48 89 42 08 48 8B 81 38 02 00 00 48 85 C0 74 04 F0 FF 40 08 48 8B 81 30 02 00 00 48 89 02 48 8B 81 38 02 00 00 48 89 42 08 48 8B C2 48 83 C4 18 C3",
+    "gameBuilds": ["548ddc955c176867f062c44f94c03dd9ac33caefb278a5ac388e792aedf09504"],
+    "evidence": "Our reading of the exe through its type information (docs/raw-sources/screen-class-link-2026-11-17.md); one match on disk, installed in memory at module offset 0xd4ab90 (docs/raw-sources/screen-class-session-2026-11-17.md)"
+  },
+  {
     "name": "criAtomExPlayer_SetCueId",
     "section": ".text1",
     "pattern": "48 89 5C 24 ?? 48 89 6C 24 ?? 48 89 74 24 ?? 57 48 83 EC 20 49 63 F8 48 89 D6",
@@ -152,6 +159,13 @@
     "pattern": "40 53 48 81 EC 20 01 00 00 C5 FA 10 05 ?? ?? ?? ?? C5 F8 2F 05 ?? ?? ?? ?? 48 8B DA 0F 82 ?? ?? ?? ?? 80 3D ?? ?? ?? ?? 00 0F 84 ?? ?? ?? ?? 48 8D 4C 24 20 48 89 B4 24 38 01 00 00 FF 15 ?? ?? ?? ?? 33 C0 F6 44 24 3B 80",
     "gameBuilds": ["548ddc955c176867f062c44f94c03dd9ac33caefb278a5ac388e792aedf09504"],
     "evidence": "Our reading of the exe: the GetKeyboardState caller next to the pad read (docs/raw-sources/input-route-2026-11-16.md); one match on disk, and at the same place in memory (docs/raw-sources/spike-session-2-2026-11-16.md)"
+  },
+  {
+    "name": "CampStatusIsOpenBody",
+    "section": ".ecode",
+    "pattern": "4C 63 01 41 83 F8 FF 75 0C 48 8B 0D ?? ?? ?? ?? E9 ?? ?? ?? ?? 48 8B 05 ?? ?? ?? ?? 48 85 C0 74",
+    "gameBuilds": ["548ddc955c176867f062c44f94c03dd9ac33caefb278a5ac388e792aedf09504"],
+    "evidence": "Our reading of the exe: the function CampStatus_IsClosed calls, in .ecode, whose load at +9 names the menus' handle global at 0x2ee7338; one match on disk, checked 2026-11-17; read only, never hooked or called; that global read non-null exactly while the menus were open in capture session 6 (docs/raw-sources/menus-open-session6-2026-11-17.md)"
   },
   {
     "name": "MsgOpenBody",
