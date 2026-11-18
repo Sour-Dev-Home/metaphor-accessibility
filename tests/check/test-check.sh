@@ -1154,7 +1154,154 @@ test_stamp_script_rejects_unknown_arguments() {
   expect 2 "usage: scripts/security-stamp.sh"
 }
 
-for current in $(declare -F | awk '{print $3}' | grep '^test_'); do
+# --- The batched file scan (issue #297) ---
+
+# every_rule_fixture: commit a tree where every file rule trips at least once, beside files that pass.
+every_rule_fixture() {
+  new_repo
+  mkdir -p scripts game tools/x.rep docs/raw-sources docs/findings "with space"
+  printf 'BA7816BF8F01CFEA414140DE5DAE2223B00361A396177A9CB410FF61F20015AD  some game file\n' \
+    > scripts/game-content.sha256
+  printf 'abc' > hashed.txt
+  printf 'x' > game/a.txt
+  printf 'x' > tools/x.rep/00.prp
+  printf 'x' > a.cpk && printf 'x' > b.EXE && printf 'x' > c.dmp && printf 'x' > d.idb
+  head -c $((1024 * 1024 + 7)) /dev/zero > big.bin
+  printf '# A page\n\n- **Saved:** soon\n\n## Body\n\n- **Source:** below the header\n' > docs/raw-sources/bad.md
+  printf '# Readme\n' > docs/raw-sources/README.md
+  printf 'x' > docs/raw-sources/data.txt
+  printf '# A finding\n\n- **Game build:** 1.0\n' > docs/findings/f.md
+  printf '{}' > docs/findings/x.json
+  printf 'line one\nC:\\%s\\bob\\x and /%s/alice/y\nmail me: a.person%smail.com, b@example.com\n' \
+    "$users" "$home" "$at" > paths.txt
+  printf 'x\0y /%s/carol/z\n' "$home" > binary.dat
+  printf 'git@github.com:o/r.git icon@2x.png\n' > clean.txt
+  printf 'one\ntwo zz-private-name\n' > "with space/zz-private-name.txt"
+  git add -f .
+  git commit -q --no-verify -m "fixture"
+}
+
+test_rules_reports_every_rule_exactly_as_before() {
+  every_rule_fixture
+  PII_PATTERNS=zz-private-name run_check rules
+  out="$(grep -v '^scan:' <<<"$out")"
+  local want
+  # Captured from the per-file scan before #297, which printed findings file by file in index order.
+  want="$(cat <<'EOF'
+game content: a.cpk: game archive extension
+game content or build output: b.EXE: executable extension
+game content: big.bin: larger than 1048576 bytes (1048583)
+personal information: binary.dat:1: local user path
+game content: c.dmp: memory dump extension
+game content: d.idb: disassembler database extension
+finding: docs/findings/f.md: header has no Game build line naming the executable's SHA-256
+finding: docs/findings/x.json: not a .md file
+raw source: docs/raw-sources/bad.md: header has no Source line
+raw source: docs/raw-sources/bad.md: header has no Saved line with a YYYY-MM-DD date
+raw source: docs/raw-sources/bad.md: header has no Game build line
+raw source: docs/raw-sources/data.txt: not a .md file
+game content: game/a.txt: inside a game folder
+game content: hashed.txt: hash matches a known game file
+personal information: paths.txt:2: local user path
+personal information: paths.txt:3: email address
+game content: tools/x.rep/00.prp: inside a disassembler project folder
+personal information: with space/zz-private-name.txt: file name matches a private pattern
+personal information: with space/zz-private-name.txt:2: matches a private pattern
+EOF
+)"
+  if [ "$code" -eq 1 ] && [ "$out" = "$want" ]; then
+    passed=$((passed + 1))
+  else
+    failed=$((failed + 1))
+    printf 'FAIL %s\n  exit %s, diff (want, got):\n%s\n' "$current" "$code" \
+      "$(diff <(echo "$want") <(echo "$out") | sed 's/^/    /')"
+  fi
+}
+
+# with_origin_main: commit what is staged and point origin/main at it, so later commits count as changed.
+with_origin_main() {
+  git commit -q --no-verify --allow-empty -m "base"
+  git update-ref refs/remotes/origin/main HEAD
+}
+
+test_rules_scans_only_files_changed_since_origin_main_locally() {
+  new_repo
+  printf 'x' > old.cpk
+  git add old.cpk
+  with_origin_main
+  printf 'x' > new.pak
+  git add new.pak
+  git commit -q --no-verify -m "new"
+  printf 'x' > staged.dll
+  git add staged.dll
+  run_check rules
+  expect 1 "new.pak" "staged.dll" "scan: 2 files changed since origin/main"
+  expect_absent "old.cpk"
+}
+
+test_rules_scans_the_whole_tree_in_ci_and_on_request() {
+  local env
+  for env in GITHUB_ACTIONS=true METAPHOR_SCAN_ALL=1; do
+    new_repo
+    printf 'x' > old.cpk
+    git add old.cpk
+    with_origin_main
+    printf 'fine\n' > new.txt
+    git add new.txt
+    out="$(env "$env" bash "$CHECK" rules 2>&1)"
+    code=$?
+    expect 1 "old.cpk" "scan: every tracked file (2)"
+  done
+}
+
+test_rules_scans_the_whole_tree_when_the_rules_change() {
+  new_repo
+  printf 'x' > old.cpk
+  git add old.cpk
+  with_origin_main
+  mkdir -p scripts
+  printf '# none yet\n' > scripts/game-content.sha256
+  git add scripts/game-content.sha256
+  run_check rules
+  expect 1 "old.cpk" "scan: every tracked file"
+}
+
+# count_starts FILES: run `rules` on a fresh repo of FILES text files and notes, counting the external commands it starts
+# through logging stand-ins for the tools the scan uses.
+count_starts() {
+  local files="$1" shims="$WORK/shims-$RANDOM" log="$WORK/starts-$RANDOM" tool real i
+  mkdir -p "$shims"
+  for tool in git grep sha256sum perl awk sed wc cut tr cat xargs find mkdir sort head; do
+    real="$(command -v "$tool")" || continue
+    printf '#!/bin/sh\necho %s >> "%s"\nexec "%s" "$@"\n' "$tool" "$log" "$real" > "$shims/$tool"
+    chmod +x "$shims/$tool"
+  done
+  new_repo
+  mkdir -p scripts docs/findings
+  printf '0000000000000000000000000000000000000000000000000000000000000000  nothing\n' > scripts/game-content.sha256
+  for ((i = 0; i < files; i++)); do
+    printf 'text %s\n' "$i" > "file$i.txt"
+    printf '# F\n\n- **Game build:** 1.0\n' > "docs/findings/f$i.md"
+  done
+  git add -A && git commit -q --no-verify -m files
+  : > "$log"
+  PII_PATTERNS=zz-nobody PATH="$shims:$PATH" bash "$CHECK" rules > /dev/null 2>&1
+  wc -l < "$log" | tr -d '[:space:]'
+}
+
+test_rules_process_starts_do_not_grow_with_the_file_count() {
+  local few many
+  current=test_rules_process_starts_do_not_grow_with_the_file_count
+  few="$(count_starts 2)"
+  many="$(count_starts 40)"
+  out="2x2 files: $few starts; 40x2 files: $many starts"
+  code=0
+  [ "$many" -le "$few" ] || code=1
+  expect 0 "starts"
+}
+
+# An optional argument runs only the tests whose names match it (an extended regular expression).
+for current in $(declare -F | awk '{print $3}' | grep '^test_' | grep -E -- "${1:-.}"); do
   "$current"
   cd "$WORK" || exit 2
 done

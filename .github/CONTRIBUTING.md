@@ -47,7 +47,8 @@ bash scripts/check.sh fast
 bash scripts/check.sh full
 ```
 
-`fast` checks the staged files, so with nothing staged it passes at once. `full` checks every tracked file, then builds,
+`fast` checks the staged files, so with nothing staged it passes at once. `full` checks the files changed since `origin/main`
+(CI checks every tracked file), then builds,
 runs the `Unit` and `RoundTrip` tests and checks formatting. Both end with exit code 0 when everything passes. A passing `full` is recorded per clone (in the git dir) against the
 index's tree hash; `full` or `pre-push` on an identical tree says it reused the pass and skips the work. `pre-push`
 takes a machine-wide build slot only when it builds, so a docs-only push never waits on it.

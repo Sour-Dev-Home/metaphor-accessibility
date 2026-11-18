@@ -8,7 +8,8 @@
 #                                 Tests are selected from the changed files and the project references (test-select.sh,
 #                                 issue #243), and Pester runs only for script changes. It prints what ran and why.
 #                                 CI and `full` always run everything; METAPHOR_FULL_TESTS=1 does so locally.
-#   scripts/check.sh rules   repo rules on every tracked file (CI on Ubuntu)
+#   scripts/check.sh rules   repo rules on every tracked file in CI; locally on the files changed since origin/main
+#                            (METAPHOR_SCAN_ALL=1 scans every file; so does `full`'s rules part in CI)
 #   scripts/check.sh full    repo rules, build, Unit and RoundTrip tests, formatting, smoke and deploy script tests (CI: Windows in the merge queue, Linux on PRs)
 #   scripts/check.sh docs    broken links fail; Markdown lint, Vale and ADR length warn (CI on Ubuntu)
 #   scripts/check.sh slow    mutation testing and a duplication report, report only (weekly CI on Windows)
@@ -579,7 +580,23 @@ case "$stage" in
       git diff --cached --name-only --diff-filter=ACMR -z |
         xargs -0 -r git --literal-pathspecs ls-files -s -z --
     } ;;
-  rules | full) list_entries() { git ls-files -s -z; } ;;
+  # CI, or METAPHOR_SCAN_ALL=1, scans every tracked file: CI does so before anything merges. Elsewhere the scan covers
+  # the files changed since the merge-base with origin/main, staged changes included (issue #297). Without origin/main,
+  # or when the rules themselves change, it scans every file.
+  rules | full)
+    list_entries() {
+      local base
+      if [ "${GITHUB_ACTIONS:-}" != true ] && [ -z "${METAPHOR_SCAN_ALL:-}" ] &&
+        base="$(git merge-base HEAD origin/main 2> /dev/null)" &&
+        git diff --cached --name-only --diff-filter=ACMR -z "$base" -- > "$tmp/changed" &&
+        ! grep -qzxE 'scripts/(check\.sh|game-content\.sha256)' "$tmp/changed"; then
+        scan_scope="changed since origin/main"
+        xargs -0 -r git --literal-pathspecs ls-files -s -z -- < "$tmp/changed"
+      else
+        scan_scope=all
+        git ls-files -s -z
+      fi
+    } ;;
   commit-msg)
     [ -f "${2:-}" ] || die "commit-msg stage needs the message file"
     review_trailer "$2"
@@ -688,44 +705,132 @@ email_re='[a-z0-9._%+-]+@[a-z0-9-]+(\.[a-z0-9-]+)*\.[a-z]{2,}'
 not_email_re='@([a-z0-9-]+\.)*(example\.(com|org|net)|[a-z0-9-]+\.(invalid|example|test)|users\.noreply\.github\.com)$'
 not_email_re+='|^git@|@[0-9]+x\.[a-z]+$'
 
-# scan_lines PATH REASON SKIP-RE GREP-ARGS...: report each line of the current blob where grep finds a match, ignoring
-# matches that SKIP-RE (lower case; empty skips nothing) accepts. Only the line number is printed, never the matched
-# text, because CI logs are public.
+# The scan (issue #297). Process starts dominate the run time in Git Bash, so nothing starts once per file: one
+# `git cat-file --batch` writes every blob to $blobs/<n> (n is its index in `paths`), one sha256sum pass hashes them,
+# and each rule runs one grep over all of them. Findings are gathered per file, then printed file by file in index
+# order, exactly as a per-file loop would print them.
+blobs="$tmp/blobs"
+
+# scan_lines FOUND REASON SKIP-RE GREP-ARGS...: add a finding to the array named FOUND, per file, for each line where
+# grep finds a match, ignoring matches that SKIP-RE (lower case; empty skips nothing) accepts. Only the line number is
+# printed, never the matched text, because CI logs are public.
 scan_lines() {
-  local path="$1" reason="$2" skip="$3" matches status line text last=""
+  local -n found_in="$1"
+  local reason="$2" skip="$3" status line n rest number text last=""
   shift 3
-  matches="$(grep -nao "$@" "$tmp/blob")"
+  (cd "$blobs" && grep -rnao "$@" -- .) > "$tmp/matches"
   status=$?
-  [ "$status" -le 1 ] || die "could not scan $path"
-  [ "$status" -eq 0 ] || return 0
+  [ "$status" -le 1 ] || die "could not scan the files to check"
+  # grep reads one file at a time, so a file's matches are together and in line order.
   while IFS= read -r line; do
-    text="${line#*:}"
+    line="${line#./}" && n="${line%%:*}" && rest="${line#*:}" && number="${rest%%:*}" && text="${rest#*:}"
     [ -n "$skip" ] && [[ "${text,,}" =~ $skip ]] && continue
-    [ "${line%%:*}" = "$last" ] && continue
-    last="${line%%:*}"
-    report "personal information: $path:$last: $reason"
-  done <<<"$matches"
+    [ "$n:$number" = "$last" ] && continue
+    last="$n:$number"
+    found_in[n]+="personal information: ${paths[n]}:$number: $reason"$'\n'
+  done < "$tmp/matches"
 }
 
-# check_header PATH KIND LABEL VALUE-RE [HINT]: report when the current blob's header (the lines before its first "## "
-# heading) has no "- **LABEL:** value" line whose value matches VALUE-RE. The label matches as a word in any case, plural
-# or inside longer wording ("Date saved:", "Game build(s) the sources mention:"), with the colon inside or after the
-# bold. One opening quote before the value (`, ", ' or <) is skipped. HINT describes the value in the message.
-check_header() {
-  local path="$1" kind="$2" label="$3" value_re="$4" hint="${5:-}"
-  # Process substitution, not a pipe: grep -q stops at the first match, and under pipefail the write error that gives
-  # sed (on a long file with no "## " heading) would read as a missing line, at random.
-  grep -qiE "^- \*\*([^*]* )?${label}s?([^*a-z][^*]*)?(:\*\*|\*\*:)[[:space:]]*[\`\"'<]?${value_re}" \
-    < <(sed '/^## /,$d' "$tmp/blob") ||
-    report "$kind: $path: header has no $label line${hint:+ $hint}"
+# header_has HAS LABEL VALUE-RE: set HAS[n] for each note whose header (the lines before its first "## " heading) has a
+# "- **LABEL:** value" line whose value matches VALUE-RE. The label matches as a word in any case, plural or inside
+# longer wording ("Date saved:", "Game build(s) the sources mention:"), with the colon inside or after the bold. One
+# opening quote before the value (`, ", ' or <) is skipped. $tmp/headers holds every note's header lines as "n:line".
+header_has() {
+  local -n has_line="$1"
+  local line
+  grep -iE "^[0-9]+:- \*\*([^*]* )?${2}s?([^*a-z][^*]*)?(:\*\*|\*\*:)[[:space:]]*[\`\"'<]?${3}" "$tmp/headers" \
+    > "$tmp/header-lines"
+  [ $? -le 1 ] || die "could not read the note headers"
+  while IFS= read -r line; do has_line[${line%%:*}]=1; done < "$tmp/header-lines"
 }
 
+# emit FINDINGS: report each line of FINDINGS (each ends in a newline).
+emit() {
+  local rest="$1"
+  while [ -n "$rest" ]; do
+    report "${rest%%$'\n'*}"
+    rest="${rest#*$'\n'}"
+  done
+}
+
+scan_started=$SECONDS
+paths=() ids=() sizes=() notes=()
+declare -A known=()
+for hash in $known_hashes; do known[$hash]=1; done
+found_hash=() found_user=() found_email=() found_name=() found_private=() has_source=() has_saved=() has_build=()
+has_sha=()
 while IFS= read -r -d '' entry; do
-  meta="${entry%%$'\t'*}"
-  path="${entry#*$'\t'}"
-  read -r mode blob _ <<<"$meta"
-  [ "$mode" = 160000 ] && continue # a submodule: its content lives in another repository
+  meta="${entry%%$'\t'*}" # "<mode> <blob> <stage>"
+  [ "${meta%% *}" = 160000 ] && continue # a submodule: its content lives in another repository
+  meta="${meta#* }"
+  paths+=("${entry#*$'\t'}") ids+=("${meta%% *}")
+done < "$tmp/entries"
 
+if [ "${#paths[@]}" -gt 0 ]; then
+  command -v perl > /dev/null || die "the file scan needs perl (Git for Windows and Linux include it)"
+  mkdir "$blobs" || die "could not create $blobs"
+  # Each blob as "<id> blob <size>\n<content>\n"; perl writes the content to $blobs/<n> and prints its size.
+  printf '%s\n' "${ids[@]}" | git cat-file --batch | perl -e '
+    binmode STDIN;
+    my ($dir, $n) = ($ARGV[0], 0);
+    while (defined(my $head = <STDIN>)) {
+      my ($id, $type, $size) = split / /, $head;
+      die "check: object $id is missing\n" unless defined $size && $type eq "blob";
+      chomp $size;
+      my $data = "";
+      while (length($data) < $size) {
+        read(STDIN, $data, $size - length($data), length($data)) or die "check: object $id is cut short\n";
+      }
+      getc(STDIN);
+      open(my $out, ">:raw", "$dir/$n") or die "check: $dir/$n: $!\n";
+      print $out $data;
+      close($out) or die "check: $dir/$n: $!\n";
+      print "$size\n";
+      $n++;
+    }' "$blobs" > "$tmp/sizes" || die "could not read the files to check"
+  mapfile -t sizes < "$tmp/sizes"
+  [ "${#sizes[@]}" -eq "${#paths[@]}" ] || die "could not read the files to check"
+
+  if [ -n "$known_hashes" ]; then
+    (cd "$blobs" && printf '%s\0' * | xargs -0 sha256sum) > "$tmp/hashes" || die "could not hash the files to check"
+    while read -r hash name; do
+      name="${name#\*}" && name="${name#./}"
+      [ -z "${known[$hash]:-}" ] || found_hash[name]=1
+    done < "$tmp/hashes"
+  fi
+
+  # Notes cite their sources and pin their game build (AGENTS.md ground rules 1 and 2).
+  for i in "${!paths[@]}"; do
+    case "${paths[i]}" in
+      docs/raw-sources/README.md | docs/findings/README.md) ;;
+      docs/raw-sources/*.md | docs/findings/*.md) notes+=("$i") ;;
+    esac
+  done
+  if [ "${#notes[@]}" -gt 0 ]; then
+    (cd "$blobs" && printf '%s\0' "${notes[@]}" |
+      xargs -0 awk 'FNR == 1 { head = 1 } /^## / { head = 0 } head { print FILENAME ":" $0 }') > "$tmp/headers" ||
+      die "could not read the note headers"
+    header_has has_source Source '[[:alnum:]]'
+    header_has has_saved Saved '[0-9]{4}-[0-9]{2}-[0-9]{2}([^0-9a-z]|$)'
+    header_has has_build "Game build" '[[:alnum:]]'
+    # A finding names its game build by the executable's SHA-256 (GLOSSARY.md).
+    header_has has_sha "Game build" '[0-9a-f]{64}([^0-9a-f]|$)'
+  fi
+
+  scan_lines found_user "local user path" "" -E "$user_path_re"
+  scan_lines found_email "email address" "$not_email_re" -iE "$email_re"
+  if [ -s "$tmp/private" ]; then
+    # One name per line, so grep's line number is the file's index plus one.
+    printf '%s\n' "${paths[@]//$'\n'/ }" > "$tmp/names"
+    grep -niF -f "$tmp/private" "$tmp/names" > "$tmp/name-matches"
+    [ $? -le 1 ] || die "could not scan the file names"
+    while IFS= read -r line; do found_name[${line%%:*} - 1]=1; done < "$tmp/name-matches"
+    scan_lines found_private "matches a private pattern" "" -iF -f "$tmp/private"
+  fi
+fi
+
+for i in "${!paths[@]}"; do
+  path="${paths[i]}"
   # Game folders are the git-ignored ones at the repo root. Lower-cased because Windows paths are case-insensitive.
   lower="${path,,}"
   case "$lower" in
@@ -741,43 +846,37 @@ while IFS= read -r -d '' entry; do
       report_game_content "$path" "disassembler database extension" ;;
   esac
 
-  # One git call per file: process start-up dominates the run time in Git Bash.
-  git cat-file blob "$blob" > "$tmp/blob" || die "could not read $path"
-  size="$(wc -c < "$tmp/blob")"
-  size="${size//[[:space:]]/}"
+  size="${sizes[i]}"
   [ "$size" -le "$max_bytes" ] || report_game_content "$path" "larger than $max_bytes bytes ($size)"
+  [ -z "${found_hash[i]:-}" ] || report_game_content "$path" "hash matches a known game file"
 
-  if [ -n "$known_hashes" ]; then
-    hash="$(sha256sum < "$tmp/blob" | cut -d' ' -f1)" || die "could not hash $path"
-    grep -Fxq "$hash" <<<"$known_hashes" && report_game_content "$path" "hash matches a known game file"
-  fi
-
-  # Notes cite their sources and pin their game build (AGENTS.md ground rules 1 and 2).
   case "$path" in
     docs/raw-sources/README.md | docs/findings/README.md) ;;
     docs/raw-sources/*.md)
-      check_header "$path" "raw source" Source '[[:alnum:]]'
-      check_header "$path" "raw source" Saved '[0-9]{4}-[0-9]{2}-[0-9]{2}([^0-9a-z]|$)' "with a YYYY-MM-DD date"
-      check_header "$path" "raw source" "Game build" '[[:alnum:]]' ;;
-    # A finding names its game build by the executable's SHA-256 (GLOSSARY.md).
+      [ -n "${has_source[i]:-}" ] || report "raw source: $path: header has no Source line"
+      [ -n "${has_saved[i]:-}" ] || report "raw source: $path: header has no Saved line with a YYYY-MM-DD date"
+      [ -n "${has_build[i]:-}" ] || report "raw source: $path: header has no Game build line" ;;
     docs/findings/*.md)
-      check_header "$path" finding "Game build" '[0-9a-f]{64}([^0-9a-f]|$)' "naming the executable's SHA-256" ;;
+      [ -n "${has_sha[i]:-}" ] ||
+        report "finding: $path: header has no Game build line naming the executable's SHA-256" ;;
     docs/raw-sources/*) report "raw source: $path: not a .md file" ;;
     docs/findings/*) report "finding: $path: not a .md file" ;;
   esac
 
-  scan_lines "$path" "local user path" "" -E "$user_path_re"
-  scan_lines "$path" "email address" "$not_email_re" -iE "$email_re"
-  if [ -s "$tmp/private" ]; then
-    printf '%s\n' "$path" | grep -qiF -f "$tmp/private"
-    case $? in
-      0) report "personal information: $path: file name matches a private pattern" ;;
-      1) ;;
-      *) die "could not scan the name of $path" ;;
-    esac
-    scan_lines "$path" "matches a private pattern" "" -iF -f "$tmp/private"
-  fi
-done < "$tmp/entries"
+  emit "${found_user[i]:-}"
+  emit "${found_email[i]:-}"
+  [ -z "${found_name[i]:-}" ] || report "personal information: $path: file name matches a private pattern"
+  emit "${found_private[i]:-}"
+done
+case "$stage" in
+  rules | full)
+    if [ "$scan_scope" = all ]; then
+      echo "scan: every tracked file (${#paths[@]}) in $((SECONDS - scan_started)) s"
+    else
+      echo "scan: ${#paths[@]} files $scan_scope in $((SECONDS - scan_started)) s" \
+        "(CI scans every tracked file; METAPHOR_SCAN_ALL=1 does so here)"
+    fi ;;
+esac
 
 # The pre-commit hook's extra checks, each only when its files are staged, so a commit that doesn't touch them stays
 # instant. Formatting reads the working tree, not the index: close enough for a hook, and CI checks the commit itself.

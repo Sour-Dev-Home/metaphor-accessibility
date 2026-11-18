@@ -44,7 +44,7 @@ One command runs every check, locally (Git Bash on Windows) and in CI:
 | `scripts/check.sh fast` | repo rules on staged files | by hand |
 | `scripts/check.sh pre-commit` | `fast`, then formatting for staged C#, `docs` when Markdown is staged, `signatures` when `hook-signatures.json` is staged and `METAPHOR_GAME_EXE` is set, and a matching security-review stamp when the security-review scope is staged ([CONTRIBUTING.md](.github/CONTRIBUTING.md#security-review-and-deny-rules)) | pre-commit hook |
 | `scripts/check.sh pre-push` | the Release build, then `Unit` and `RoundTrip` tests, when the pushed commits change code (refs on stdin) | pre-push hook |
-| `scripts/check.sh rules` | repo rules on every tracked file | CI on Ubuntu |
+| `scripts/check.sh rules` | repo rules on every tracked file in CI; locally on the files changed since `origin/main` (every file without `origin/main`, when the rules change, or with `METAPHOR_SCAN_ALL=1`) | CI on Ubuntu |
 | `scripts/check.sh full` | repo rules, then the .NET build, `Unit` and `RoundTrip` tests, formatting and the smoke-test and deploy scripts' own tests (Pester 5+) | CI: Linux on pull requests, Windows in the merge queue and on `main` (see below) |
 | `scripts/check.sh docs` | broken relative links and anchors fail; Markdown lint, Vale and ADRs over 250 words warn | CI on Ubuntu |
 | `scripts/check.sh slow` | Stryker.NET mutation testing of `Metaphor.Core` and a jscpd duplication report, into `artifacts/slow/`; reports only, fails only when a tool can't run | weekly CI on Windows (`slow.yml`, also run by hand); never gates a merge |
