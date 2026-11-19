@@ -11,8 +11,8 @@
 #                                 can't be told here, and commit-msg, which runs next, judges it
 #   scripts/check.sh pre-push     build, Unit and RoundTrip tests when pushed commits change code (the hook; refs on stdin)
 #                                 (a passing full or pre-push is recorded per clone by tree hash; the same tree reuses it)
-#                                 Tests are selected from the changed files and the project references (test-select.sh,
-#                                 issue #243), and Pester runs only for script changes. It prints what ran and why.
+#                                 Tests are selected from the changed files and the project references (what-runs.sh,
+#                                 issue #243), and Pester runs only for script changes (#413). It prints what ran and why.
 #                                 CI and `full` always run everything; METAPHOR_FULL_TESTS=1 does so locally.
 #   scripts/check.sh rules   repo rules on every tracked file in CI; locally on the files changed since origin/main
 #                            (METAPHOR_SCAN_ALL=1 scans every file; so does `full`'s rules part in CI)

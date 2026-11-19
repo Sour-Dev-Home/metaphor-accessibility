@@ -52,6 +52,6 @@ A feature never patches or hooks anything ([ADR 0003](../../adr/0003-thin-hook-l
 ## CI
 
 There is no per-project CI wiring. The check selects test projects by their `*Tests.csproj` name and the
-`ProjectReference` graph ([`test-select.sh`](../../../scripts/ci/test-select.sh)), and CI builds and tests the whole
+`ProjectReference` graph ([`what-runs.sh`](../../../scripts/ci/what-runs.sh)), and CI builds and tests the whole
 solution, so the solution entry from step 3 is what puts the pair into CI. A change in a feature runs its tests and the
 tests of everything that references it. [Checks](../reference/checks.md#in-ci).

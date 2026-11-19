@@ -5,9 +5,9 @@
 #
 # Run globals: full_dotnet_checks reads `solution` and `full_tree_id`, which main sets; pre_push_stage sets `reused`,
 # which main resets (its `root` and `solution` are local); both read `failures`, which report updates. `check_dir` is
-# check.sh's constant, which select_tests, run_selected_tests and full_dotnet_checks read. Reads GITHUB_ACTIONS,
+# check.sh's constant, which pre_push_stage, run_selected_pester and full_dotnet_checks read. Reads GITHUB_ACTIONS,
 # METAPHOR_FULL_TESTS, SKIP_SCRIPT_TESTS and METAPHOR_GAME_EXE; exports DOTNET_CLI_TELEMETRY_OPTOUT and DOTNET_NOLOGO.
-# Private to this module: code_path_re.
+# What a change runs is scripts/ci/what-runs.sh's to say (#413).
 
 # The test categories to run. WindowsOnly tests pin down Windows behaviour (the mod only runs there), so they run on
 # Windows alone; on Linux (the pull-request build in CI) they are left out.
@@ -92,16 +92,9 @@ signatures_stage() {
   esac
 }
 
-# Files whose change can change the build or the tests' result.
-code_path_re='(\.(cs|csproj|props|targets|sln|json|editorconfig)|(^|/)global\.json)$'
-
-# select_tests UNKNOWN CHANGED: print test-select.sh's lines for the pushed change; nothing when the whole solution runs
-# (an unknown change set, CI, or METAPHOR_FULL_TESTS=1).
+# whole_solution UNKNOWN: the pre-push builds and tests the whole solution, not the selection: an unknown change set, CI,
+# or METAPHOR_FULL_TESTS=1.
 whole_solution() { [ "$1" -eq 1 ] || [ "${GITHUB_ACTIONS:-}" = true ] || [ -n "${METAPHOR_FULL_TESTS:-}" ]; }
-select_tests() {
-  whole_solution "$1" && return 0
-  sed '/^$/d' <<< "$2" | bash "$check_dir/ci/test-select.sh"
-}
 
 # build_selected SOLUTION ROOT UNKNOWN SELECTION: the pre-push build (#314). Builds the whole solution when the change
 # set is unknown, in CI or with METAPHOR_FULL_TESTS=1, when a build-wide file changed, and when the selection names
@@ -123,7 +116,7 @@ build_selected() {
   return "$ok"
 }
 
-# run_selected_tests SOLUTION UNKNOWN SELECTION: local test selection (issue #243, scripts/ci/test-select.sh). Runs only the
+# run_selected_tests SOLUTION UNKNOWN SELECTION: local test selection (issue #243, scripts/ci/what-runs.sh). Runs only the
 # test projects the changed files can affect and says which ran and why. With an unknown change set, in CI, or with
 # METAPHOR_FULL_TESTS=1 it runs the whole solution. `full` (CI, merge queue) never calls this.
 run_selected_tests() {
@@ -135,27 +128,34 @@ run_selected_tests() {
     return 0
   fi
   while read -r kind proj reason; do
-    if [ "$kind" = pester ] && [ -z "${SKIP_SCRIPT_TESTS:-}" ] && command -v pwsh > /dev/null; then
-      echo "tests: Pester smoke tests because $proj $reason"
-      timed_step pester bash "$check_dir/check/run-pester.sh" ||
-        report "tests: smoke or deploy script tests failed (run: bash scripts/check/run-pester.sh)"
-      ran=1
-    fi
     [ "$kind" = dotnet ] || continue
     ran=1
     echo "tests: $proj because $reason"
     timed_step "tests:$(basename "$proj" .csproj)" dotnet test "$proj" -c Release --no-build -v q --filter "$(category_filter)" ||
       report "tests: $proj failed"
   done <<< "$selection"
-  [ "$ran" -eq 1 ] || echo "tests: no test project is affected by this change"
+  [ "$ran" -eq 1 ] || grep -q '^pester ' <<< "$selection" || echo "tests: no test project is affected by this change"
+}
+
+# run_selected_pester SELECTION: the Pester tests, when a `pester` line selects them (a script, a Pester test, the
+# stand-in game or a workflow changed) and pwsh is on PATH; run-pester.sh builds the stand-in game itself.
+run_selected_pester() {
+  local kind file reason
+  [ -z "${SKIP_SCRIPT_TESTS:-}" ] && command -v pwsh > /dev/null || return 0
+  read -r kind file reason < <(grep '^pester ' <<< "$1") || return 0
+  echo "tests: Pester smoke tests because $file $reason"
+  timed_step pester bash "$check_dir/check/run-pester.sh" ||
+    report "tests: smoke or deploy script tests failed (run: bash scripts/check/run-pester.sh)"
 }
 
 # The pre-push hook's stage. Git passes "<local ref> <local sha> <remote ref> <remote sha>" per pushed ref on stdin.
-# Builds and runs the Unit and RoundTrip tests unless every pushed commit leaves code alone. When it can't tell what
-# changed (a new branch with no origin/main to compare, or a remote commit not fetched), it builds.
+# Asks scripts/ci/what-runs.sh what the pushed change needs: the build and the Unit and RoundTrip tests when a `compile`
+# line names a file that can change them, the Pester tests when a `pester` line names a script or Pester test (#413);
+# nothing when neither does. When it can't tell what changed (a new branch with no origin/main to compare, or a remote
+# commit not fetched), it builds and tests the whole solution.
 pre_push_stage() {
   local zero=0000000000000000000000000000000000000000 local_ref local_sha remote_ref remote_sha base
-  local changed="" unknown=0 pushed=0 root solution trees=() tree cached=1 selection
+  local changed="" unknown=0 pushed=0 root solution trees=() tree cached=1 selection="" built=0
   while read -r local_ref local_sha remote_ref remote_sha; do
     [ -n "$local_sha" ] && [ "$local_sha" != "$zero" ] || continue # a deleted branch pushes nothing
     pushed=1
@@ -171,9 +171,13 @@ pre_push_stage() {
     changed+="$(git diff --name-only "$base" "$local_sha")"$'\n' || die "could not list the files changed in $local_ref"
   done
   [ "$pushed" -eq 1 ] || return 0
-  if [ "$unknown" -eq 0 ] && ! grep -qE "$code_path_re" <<< "$changed"; then
-    echo "pre-push: no code changes, so the build and tests were skipped"
-    return 0
+  if [ "$unknown" -eq 0 ]; then
+    selection="$(sed '/^$/d' <<< "$changed" | bash "$check_dir/ci/what-runs.sh")" ||
+      die "could not tell what the pushed change runs (scripts/ci/what-runs.sh)"
+    if ! grep -qE '^(compile|pester) ' <<< "$selection"; then
+      echo "pre-push: no code changes, so the build and tests were skipped"
+      return 0
+    fi
   fi
   for tree in "${trees[@]}"; do
     # shellcheck disable=SC2046 # full_kinds prints separate words
@@ -191,12 +195,16 @@ pre_push_stage() {
   command -v dotnet > /dev/null || die "pre-push stage needs the .NET SDK (dotnet) on PATH"
   export DOTNET_CLI_TELEMETRY_OPTOUT=1 DOTNET_NOLOGO=1
   # Tests run only after a good build: --no-build would otherwise test the last good build and pass.
-  selection="$(select_tests "$unknown" "$changed")"
-  if build_selected "$solution" "$root" "$unknown" "$selection"; then
-    run_selected_tests "$solution" "$unknown" "$selection"
-  else
-    report "build: failed, see the errors above"
+  if [ "$unknown" -eq 1 ] || grep -q '^compile ' <<< "$selection"; then
+    built=1
+    if build_selected "$solution" "$root" "$unknown" "$selection"; then
+      run_selected_tests "$solution" "$unknown" "$selection"
+    else
+      report "build: failed, see the errors above"
+      built=2
+    fi
   fi
+  [ "$built" -eq 2 ] || run_selected_pester "$selection"
   if [ "$failures" -eq 0 ]; then
     for tree in "${trees[@]}"; do record_pass pre-push "$tree"; done
   fi
