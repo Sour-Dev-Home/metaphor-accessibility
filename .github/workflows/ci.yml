@@ -45,6 +45,7 @@ jobs:
         # judges it. The maintainer's PR (OWNER, or an admin: in an organization the maintainer shows as MEMBER) runs
         # its own copy, so changes to the gate test themselves.
         run: |
+          set -o pipefail # so a failed git ls-tree below stops the step
           gate="$RUNNER_TEMP/base-scripts"
           if [ "$PR_AUTHOR_ASSOCIATION" = OWNER ]; then
             gate=scripts
@@ -54,8 +55,10 @@ jobs:
             [ "$permission" != admin ] || gate=scripts
           fi
           if [ "$gate" != scripts ]; then
-            mkdir -p "$gate"
-            for script in check.sh security-stamp.sh stage-timing.sh; do
+            mkdir -p "$gate/check"
+            # check.sh's modules (ADR 0013) as the base branch has them.
+            modules="$(git ls-tree --name-only "$BASE" scripts/check/ | sed 's|^scripts/||')" || exit 1
+            for script in check.sh security-stamp.sh stage-timing.sh $modules; do
               git show "$BASE:scripts/$script" > "$gate/$script" || exit 1
             done
           fi

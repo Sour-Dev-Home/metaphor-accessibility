@@ -1848,8 +1848,9 @@ test_outside_pr_merge_commit_cannot_hide_a_scope_change() {
 test_outside_pr_gate_runs_from_a_copy_outside_the_repository() {
   local gate="$WORK/base-scripts" script
   outside_repo
-  mkdir -p "$gate"
-  for script in check.sh security-stamp.sh stage-timing.sh; do # what CI copies from the base branch
+  mkdir -p "$gate/check"
+  # What CI copies from the base branch: these three and check.sh's modules.
+  for script in check.sh security-stamp.sh stage-timing.sh $(cd "$(dirname "$CHECK")" && echo check/*.sh); do
     cp "$(dirname "$CHECK")/$script" "$gate/$script"
   done
   TIMELINE=""
@@ -1895,7 +1896,7 @@ test_maintainer_pr_uses_trailers_and_ignores_the_label() {
 }
 
 # The guards that enforce the ground rules are in the scope too (issue #306).
-GUARD_FILES=(scripts/check.sh scripts/game-content.sha256 scripts/tree-hash.sh scripts/ci-changes.sh
+GUARD_FILES=(scripts/check.sh scripts/check/report.sh scripts/check/run.sh scripts/game-content.sha256 scripts/tree-hash.sh scripts/ci-changes.sh
   scripts/test-select.sh scripts/stage-timing.sh scripts/install-docs-tools.sh scripts/conflict-alert.sh
   scripts/integration-sync.sh scripts/check-status.sh scripts/run-pester.sh scripts/live-log.sh scripts/wsl-run.sh
   scripts/run-check-suites.sh scripts/wsl-tools.txt scripts/setup-wsl.ps1 scripts/githooks/pre-commit scripts/githooks/pre-push
@@ -1925,7 +1926,8 @@ test_scope_covers_every_script_the_gate_runs() {
     for ref in $(grep -vE '^[[:space:]]*#' "$ROOT/$file" |
       grep -oE '[A-Za-z0-9_./-]*[A-Za-z0-9_-]+\.(sh|mjs|cjs|js|ps1|psm1|py)\b' | sort -u); do
       ref="${ref#./}" ref="${ref#/}" # "$root/scripts/x.sh" leaves "/scripts/x.sh"
-      [[ "$ref" == */* ]] || ref="scripts/$ref"
+      # A bare name, or one relative to scripts/ ("$check_dir/check/report.sh"), is in scripts/.
+      { [[ "$ref" == */* ]] && [ -f "$ROOT/$ref" ]; } || ref="scripts/$ref"
       [ -f "$ROOT/$ref" ] && queue+=("$ref")
     done
   done
