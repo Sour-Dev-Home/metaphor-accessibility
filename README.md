@@ -45,7 +45,7 @@ One command runs every check, locally (Git Bash on Windows) and in CI:
 | `scripts/check.sh pre-commit` | `fast`, then formatting for staged C#, `docs` when Markdown is staged, `signatures` when `hook-signatures.json` is staged and `METAPHOR_GAME_EXE` is set, and a matching security-review stamp when the security-review scope is staged ([CONTRIBUTING.md](.github/CONTRIBUTING.md#security-review-and-deny-rules)) | pre-commit hook |
 | `scripts/check.sh pre-push` | the Release build, then `Unit` and `RoundTrip` tests, when the pushed commits change code (refs on stdin) | pre-push hook |
 | `scripts/check.sh rules` | repo rules on every tracked file in CI; locally on the files changed since `origin/main` (every file without `origin/main`, when the rules change, or with `METAPHOR_SCAN_ALL=1`) | CI on Ubuntu |
-| `scripts/check.sh full` | repo rules, then the .NET build, `Unit` and `RoundTrip` tests, formatting and the smoke-test and deploy scripts' own tests (Pester 5+) | CI: Linux on pull requests, Windows in the merge queue and on `main` (see below) |
+| `scripts/check.sh full` | repo rules, then the .NET build, `Unit` and `RoundTrip` tests, formatting, the smoke-test and deploy scripts' own tests (Pester 5+) and the check-script suites ([`run-check-suites.sh`](scripts/run-check-suites.sh)) | CI: Linux on pull requests, Windows in the merge queue and on `main` (see below) |
 | `scripts/check.sh docs` | broken relative links and anchors fail; Markdown lint, Vale and ADRs over 250 words warn | CI on Ubuntu |
 | `scripts/check.sh slow` | Stryker.NET mutation testing of `Metaphor.Core` and a jscpd duplication report, into `artifacts/slow/`; reports only, fails only when a tool can't run | weekly CI on Windows (`slow.yml`, also run by hand); never gates a merge |
 | `scripts/check.sh signatures [EXE]` | each hook signature matches exactly once in the game exe on disk, no launch ([how-to](docs/contributors/how-to/check-hook-signatures.md)) | locally, before a hook PR |
@@ -53,7 +53,7 @@ One command runs every check, locally (Git Bash on Windows) and in CI:
 | `scripts/check.sh commit-msg FILE` | one commit message's shape (see the script's header); appends the `Security-Review` trailer to a commit touching the security-review scope | commit-msg hook |
 | `scripts/check.sh commits BASE..HEAD` | each commit's shape in a pull request, and a matching `Security-Review` or `Security-Review-Skipped` trailer on each one touching the scope | CI on Ubuntu |
 
-`full` prints each step's time (`restore`, `build`, `tests`, `format`, `pester`) and keeps them in the run log. Locally
+`full` prints each step's time (`restore`, `build`, `tests`, `format`, `pester`, `check-scripts`) and keeps them in the run log. Locally
 the pre-push build covers only the test projects the change selects (and a changed tool no test reaches); a build-wide
 file or an unplaceable change builds the solution. `tests/check/test-check.sh` runs its tests in parallel
 (`METAPHOR_TEST_JOBS=1` runs them one at a time), as does `scripts/run-pester.sh`. These three print a line per step,

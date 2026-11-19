@@ -29,7 +29,7 @@ wsl_reexec() {
   case "${OSTYPE:-}" in msys* | cygwin*) ;; *) return 0 ;; esac
   [ -z "${METAPHOR_NO_WSL:-}" ] || { wsl_fallback "METAPHOR_NO_WSL is set"; return 0; }
   command -v wsl.exe > /dev/null || { wsl_fallback "WSL is not installed"; return 0; }
-  local list suite win_root code
+  local list suite win_root code live_dir live_env=""
   # WSL_UTF8: wsl.exe prints UTF-16 otherwise. Bash drops the NUL bytes of an older one that ignores it, with a warning.
   { list="$(WSL_UTF8=1 wsl.exe --list --quiet)"; } 2> /dev/null
   [[ $'\n'"${list//$'\r'/}"$'\n' == *$'\n'"$wsl_distro"$'\n'* ]] ||
@@ -39,9 +39,14 @@ wsl_reexec() {
   win_root="$(cd "$ROOT" && { pwd -W 2> /dev/null || pwd; })" # pwd -W: Git Bash's C:/... form
   # MSYS_NO_PATHCONV, MSYS2_ARG_CONV_EXCL: pass the arguments to wsl.exe as they are, not as Windows paths. WSLENV
   # carries the job count over, and this shell's pid for the live log (scripts/live-log.sh), so that
-  # scripts/check-status.sh, which checks it in Git Bash, sees the run as going on.
+  # scripts/check-status.sh, which checks it in Git Bash, sees the run as going on. A caller's live log (`full`, #336)
+  # goes over in C:/... form, which WSL translates (/p). scripts/run-check-suites.sh decides which suite gets them.
+  if [ -n "${METAPHOR_LIVE_LOG:-}" ] &&
+    live_dir="$(cd "${METAPHOR_LIVE_LOG%/*}" 2> /dev/null && { pwd -W 2> /dev/null || pwd; })"; then
+    METAPHOR_LIVE_LOG="$live_dir/${METAPHOR_LIVE_LOG##*/}" live_env=":METAPHOR_LIVE_LOG/p"
+  fi
   METAPHOR_LIVE_PID=$$ MSYS_NO_PATHCONV=1 MSYS2_ARG_CONV_EXCL='*' \
-    WSLENV="METAPHOR_TEST_JOBS:METAPHOR_LIVE_PID${WSLENV:+:$WSLENV}" \
+    WSLENV="METAPHOR_TEST_JOBS:METAPHOR_LIVE_PID$live_env${WSLENV:+:$WSLENV}" \
     wsl.exe --distribution "$wsl_distro" --cd "$win_root" --exec /bin/bash scripts/wsl-run.sh inside \
     "${suite#"$ROOT/"}" "$@"
   code=$?
@@ -104,8 +109,6 @@ wsl_inside() {
   wsl_versions
   # Every core in WSL; Git Bash keeps the suites' default of 4.
   [ -n "${METAPHOR_TEST_JOBS:-}" ] || export METAPHOR_TEST_JOBS="$(nproc)"
-  # Only test-check.sh keeps a live log of its own; in the others, the check runs a case starts would take the pid.
-  [ "$1" = tests/check/test-check.sh ] || unset METAPHOR_LIVE_PID
   wsl_git_view "$@"
 }
 
