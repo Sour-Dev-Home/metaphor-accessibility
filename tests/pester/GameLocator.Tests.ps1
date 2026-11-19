@@ -1,9 +1,9 @@
-# Tests for scripts/player/GameLocator.psm1 and scripts/player/Interactive.psm1, against stand-in Steam libraries and Reloaded-II
-# configs in the test folder. Run: Invoke-Pester tests/pester (Pester 5 or later).
+# Tests for the game locator and the console questions in scripts/player/MetaphorInstall.psm1, against stand-in Steam
+# libraries and Reloaded-II configs in the test folder. Run: Invoke-Pester tests/pester (Pester 5 or later).
 
 BeforeAll {
     $repo = (Resolve-Path "$PSScriptRoot/../..").Path
-    Import-Module (Join-Path $repo 'scripts/player/GameLocator.psm1') -Force
+    Import-Module (Join-Path $repo 'scripts/player/MetaphorInstall.psm1') -Force
 
     # A Steam library at PATH holding the game in steamapps/common/FOLDER, when FOLDER is given.
     function New-Library([string] $Path, [string] $Folder) {
@@ -141,9 +141,9 @@ Describe 'Find-ReloadedLauncher' {
     }
 }
 
-Describe 'Interactive.psm1' {
+Describe 'the console questions' {
     It 'answers no instead of failing under -NonInteractive' {
-        $module = Join-Path $repo 'scripts/player/Interactive.psm1'
+        $module = Join-Path $repo 'scripts/player/MetaphorInstall.psm1'
         $output = & (Join-Path $PSHOME 'pwsh.exe') -NoProfile -NonInteractive -Command (
             "Import-Module '$module'; 'interactive=' + (Test-Interactive); 'confirmed=' + (Confirm-Step 'Go?')") 2>&1
         ($output -join "`n") | Should -Match 'interactive=False'

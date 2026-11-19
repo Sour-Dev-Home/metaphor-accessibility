@@ -5,7 +5,7 @@ Says why the mod didn't load (#283). Run it from the mod's folder, downloaded or
 .DESCRIPTION
 Checks that Reloaded-II is set up, the mod is in its mods folder and turned on for the game, the game's version is one
 the mod knows, the speech library is in place, and how the mod last started, and notes whether a screen reader it
-supports is running (InstallCheck.psm1 lists what each reads). Prints each result, then names the first thing to fix.
+supports is running (MetaphorInstall.psm1 lists what each reads). Prints each result, then names the first thing to fix.
 
 With no screen reader running it also speaks each result with Windows' own voice, so it works when the mod's speech
 doesn't. With one running it prints only, and the reader reads the window; -Speak adds Windows' voice anyway. Spoken
@@ -29,13 +29,13 @@ param(
     [switch] $Speak,
     # Print only. Without a console to speak to (as in tests, or -NonInteractive), it prints only anyway.
     [switch] $NoSpeech,
-    # Reloaded-II's settings file, at its fixed AppData path (ReloadedRead.psm1's Get-ReloadedConfigPath).
+    # Reloaded-II's settings file, at its fixed AppData path (MetaphorInstall.psm1's Get-ReloadedConfigPath).
     [string] $ReloadedConfig = (Join-Path ([Environment]::GetFolderPath('ApplicationData')) 'Reloaded-Mod-Loader-II/ReloadedII.json')
 )
 
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
-Import-Module (Join-Path $PSScriptRoot 'InstallCheck.psm1'), (Join-Path $PSScriptRoot 'Interactive.psm1')
+Import-Module (Join-Path $PSScriptRoot 'MetaphorInstall.psm1')
 
 $readers = @(Find-ScreenReader)
 $speech = Select-Speech -Speak $Speak.IsPresent -NoSpeech $NoSpeech.IsPresent -Interactive (Test-Interactive) -Readers $readers

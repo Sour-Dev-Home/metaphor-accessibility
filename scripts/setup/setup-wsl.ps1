@@ -6,7 +6,7 @@
 #                                      create it)
 #   -RetryDelaySeconds N               wait N seconds before retrying a download that failed on the network (default 15)
 # It never touches your other distros, WSL's settings or git's config, and never installs, converts or upgrades WSL
-# itself: on a machine without WSL 2 it stops with the reason and $WslUnavailableExitCode (Interactive.psm1), and the
+# itself: on a machine without WSL 2 it stops with the reason and $WslUnavailableExitCode (MetaphorInstall.psm1), and the
 # suites keep running in Git Bash. Any other failure exits 1, and onboard.ps1 gives the install advice only for the
 # first (#360), and only when the last line names no fix of its own, such as a restart or virtualization (#402). The
 # last line reads "setup-wsl: <reason>. [<fix>] The check suites keep running in Git Bash." The tools,
@@ -18,7 +18,7 @@ param([switch]$Update, [switch]$Yes, [ValidateRange(0, 600)][int]$RetryDelaySeco
 $ErrorActionPreference = 'Stop'
 $distro = 'metaphor-checks'
 $env:WSL_UTF8 = '1' # wsl.exe prints UTF-16 otherwise
-Import-Module (Join-Path $PSScriptRoot '../player/Interactive.psm1') -Force
+Import-Module (Join-Path $PSScriptRoot '../player/MetaphorInstall.psm1') -Force
 
 function Stop-Setup([string]$reason, [int]$code = 1) {
     Write-Host "setup-wsl: $reason The check suites keep running in Git Bash."
@@ -94,7 +94,7 @@ function Get-DistroVersion {
 $version = Get-DistroVersion
 if ($null -eq $version) {
     if (-not $Yes) {
-        # Without a console Confirm-Step answers no (Interactive.psm1), so a scripted run never hangs here.
+        # Without a console Confirm-Step answers no (MetaphorInstall.psm1), so a scripted run never hangs here.
         $console = Test-Interactive
         if (-not (Confirm-Step "Create the WSL distro '$distro' from Debian? It downloads Debian (about 100 MB).")) {
             if ($console) { Write-Host 'setup-wsl: nothing changed.' }

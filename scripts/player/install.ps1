@@ -42,7 +42,7 @@ param(
     # Answers to the questions, in order, for a scripted run: the run then counts as having a console. A question past
     # the last answer is answered no.
     [string[]] $Answers,
-    # Reloaded-II's settings file, at its fixed AppData path (ReloadedRead.psm1's Get-ReloadedConfigPath).
+    # Reloaded-II's settings file, at its fixed AppData path (MetaphorInstall.psm1's Get-ReloadedConfigPath).
     [string] $ReloadedConfig = (Join-Path ([Environment]::GetFolderPath('ApplicationData')) 'Reloaded-Mod-Loader-II/ReloadedII.json'),
     # Where to put Reloaded-II when it isn't installed.
     [string] $ReloadedFolder = (Join-Path ([Environment]::GetFolderPath('LocalApplicationData')) 'Programs\Reloaded-II'),
@@ -61,8 +61,7 @@ param(
 
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
-Import-Module (Join-Path $PSScriptRoot 'InstallCheck.psm1'), (Join-Path $PSScriptRoot 'Interactive.psm1'),
-    (Join-Path $PSScriptRoot 'Installer.psm1')
+Import-Module (Join-Path $PSScriptRoot 'MetaphorInstall.psm1')
 
 $scripted = $PSBoundParameters.ContainsKey('Answers')
 $answerQueue = [Collections.Generic.Queue[string]]::new()
@@ -79,7 +78,7 @@ function Out-Line([string] $Printed, [string] $Spoken = $Printed) {
     if ($voice) { $voice.Speak($Spoken) }
 }
 
-# Speaks QUESTION, then returns the answer: from -Answers, or else the console (Interactive.psm1). '' for Enter, $null
+# Speaks QUESTION, then returns the answer: from -Answers, or else the console (MetaphorInstall.psm1). '' for Enter, $null
 # for none, which counts as no.
 function Read-InstallAnswer([string] $Question) {
     if ($voice) {

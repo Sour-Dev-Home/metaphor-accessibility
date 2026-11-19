@@ -1,15 +1,14 @@
-# Tests for scripts/player/install.ps1 and scripts/player/Installer.psm1 (#303), against stand-ins in the test folder: a release
-# folder laid out as the package is, a Steam library holding a stand-in game, Reloaded-II's settings and folders, and
-# download pins pointing at stand-in files (file:// URLs): a Reloaded-II zip, a hooks library zip, and two "runtime
-# installers" that are batch files recording themselves in a test folder and a test registry key under HKCU. No network,
-# no speech, no admin prompt, and no real Reloaded-II, game or runtime. Run: Invoke-Pester tests/pester (Pester 5+).
+# Tests for scripts/player/install.ps1 and the installer's steps in scripts/player/MetaphorInstall.psm1 (#303), against
+# stand-ins in the test folder: a release folder laid out as the package is, a Steam library holding a stand-in game,
+# Reloaded-II's settings and folders, and download pins pointing at stand-in files (file:// URLs): a Reloaded-II zip, a
+# hooks library zip, and two "runtime installers" that are batch files recording themselves in a test folder and a test
+# registry key under HKCU. No network, no speech, no admin prompt, and no real Reloaded-II, game or runtime. Run: Invoke-Pester tests/pester (Pester 5+).
 
 BeforeAll {
     $script:repo = (Resolve-Path "$PSScriptRoot/../..").Path
-    Import-Module (Join-Path $repo 'scripts/player/Installer.psm1'), (Join-Path $repo 'scripts/player/GameLocator.psm1') -Force
+    Import-Module (Join-Path $repo 'scripts/player/MetaphorInstall.psm1') -Force
     # What the package ships for the installer and the check, beside the mod's own files (Metaphor.Hooks.csproj).
-    $script:shipped = 'install.ps1', 'Installer.psm1', 'GameLocator.psm1', 'install-pins.json', 'check-install.ps1',
-        'InstallCheck.psm1', 'ReloadedRead.psm1', 'Interactive.psm1'
+    $script:shipped = 'install.ps1', 'MetaphorInstall.psm1', 'install-pins.json', 'check-install.ps1'
     $script:modId = 'metaphor.accessibility'
     $script:pwsh = (Get-Process -Id $PID).Path
 
@@ -143,7 +142,7 @@ BeforeAll {
 
     # install.ps1 from the release folder in its own process, as a player runs it. With ANSWERS it's a scripted run;
     # with -NonInteractive, a run with no console and no answers. SHELL is pwsh or powershell (Windows PowerShell 5.1).
-    # SWITCHES are the installer's test switches (Installer.psm1's Test-TestSwitch) to turn on: by default local file
+    # SWITCHES are the installer's test switches (MetaphorInstall.psm1's Test-TestSwitch) to turn on: by default local file
     # pins, no signature check on them (the stand-ins are unsigned), and running as admin (CI's runners are). Any switch
     # also sets CI=true, without which none counts. ENVIRONMENT sets more variables for the run.
     function Invoke-Install([string[]] $Answers = @(), [switch] $NonInteractive, [string] $Shell = $pwsh,
@@ -474,18 +473,26 @@ Describe 'install.ps1' {
 }
 
 Describe 'Test-DotnetRuntime' {
+    BeforeAll {
+        # The module's own function, not part of its interface.
+        function Test-Runtime {
+            InModuleScope MetaphorInstall -Parameters @{ Dotnet = $dotnet; Frameworks = $frameworks } {
+                Test-DotnetRuntime $Dotnet $Frameworks ([version] '9.0.8')
+            }
+        }
+    }
     BeforeEach { $script:dotnet = (New-Item -ItemType Directory (Join-Path $TestDrive (New-Guid))).FullName }
 
     It 'needs every framework at the minimum version or a later one of the same major' {
         $frameworks = 'Microsoft.NETCore.App', 'Microsoft.WindowsDesktop.App'
         New-Item -ItemType Directory -Force (Join-Path $dotnet 'shared/Microsoft.NETCore.App/9.0.8') | Out-Null
-        Test-DotnetRuntime $dotnet $frameworks ([version] '9.0.8') | Should -BeFalse
+        Test-Runtime | Should -BeFalse
         New-Item -ItemType Directory -Force (Join-Path $dotnet 'shared/Microsoft.WindowsDesktop.App/9.0.7') | Out-Null
-        Test-DotnetRuntime $dotnet $frameworks ([version] '9.0.8') | Should -BeFalse
+        Test-Runtime | Should -BeFalse
         New-Item -ItemType Directory -Force (Join-Path $dotnet 'shared/Microsoft.WindowsDesktop.App/10.0.1') | Out-Null
-        Test-DotnetRuntime $dotnet $frameworks ([version] '9.0.8') | Should -BeFalse
+        Test-Runtime | Should -BeFalse
         New-Item -ItemType Directory -Force (Join-Path $dotnet 'shared/Microsoft.WindowsDesktop.App/9.0.23') | Out-Null
-        Test-DotnetRuntime $dotnet $frameworks ([version] '9.0.8') | Should -BeTrue
+        Test-Runtime | Should -BeTrue
     }
 }
 
@@ -493,7 +500,7 @@ Describe 'Test-Elevated' {
     BeforeAll {
         $script:savedEnvironment = @{}
         foreach ($name in 'METAPHOR_INSTALL_TEST_ALLOW_ADMIN', 'CI') { $savedEnvironment[$name] = [Environment]::GetEnvironmentVariable($name) }
-        Mock -ModuleName Installer Test-AdministratorRole { $true }
+        Mock -ModuleName MetaphorInstall Test-AdministratorRole { $true }
     }
     AfterAll { foreach ($name in $savedEnvironment.Keys) { [Environment]::SetEnvironmentVariable($name, $savedEnvironment[$name]) } }
     BeforeEach { $env:METAPHOR_INSTALL_TEST_ALLOW_ADMIN = '1' }
@@ -519,12 +526,12 @@ Describe 'Get-PinnedFile' {
         Set-Content -LiteralPath (Join-Path $server 'file.zip') -Value 'stand-in' -NoNewline
         $pin = [pscustomobject]@{ name = 'stand-in'; url = ([Uri] (Join-Path $server 'file.zip')).AbsoluteUri
             fileName = 'file.zip'; sha256 = '0' * 64 }
-        Mock -ModuleName Installer Get-StreamSha256 { throw 'hash failed' }
+        Mock -ModuleName MetaphorInstall Get-StreamSha256 { throw 'hash failed' }
         $saved = @{ FILES = $env:METAPHOR_INSTALL_TEST_FILES; CI = $env:CI }
         $env:METAPHOR_INSTALL_TEST_FILES = '1'
         $env:CI = 'true'
         try {
-            { InModuleScope Installer -Parameters @{ Pin = $pin; Work = $work } {
+            { InModuleScope MetaphorInstall -Parameters @{ Pin = $pin; Work = $work } {
                     Get-PinnedFile ([pscustomobject]@{ WorkFolder = $Work }) $Pin } } | Should -Throw '*hash failed*'
         }
         finally { $env:METAPHOR_INSTALL_TEST_FILES = $saved.FILES; $env:CI = $saved.CI }
@@ -539,14 +546,14 @@ Describe 'Get-PinnedFile' {
         $pin = [pscustomobject]@{ name = 'stand-in'; url = ([Uri] (Join-Path $server 'file.exe')).AbsoluteUri
             fileName = 'file.exe'; sha256 = (Get-Sha256 (Join-Path $server 'file.exe')); signer = 'CN=stand-in' }
         # A certificate without a Subject, which strict mode refuses to read.
-        Mock -ModuleName Installer Get-AuthenticodeSignature {
+        Mock -ModuleName MetaphorInstall Get-AuthenticodeSignature {
             [pscustomobject]@{ Status = 'Valid'; SignerCertificate = [pscustomobject]@{ Thumbprint = '0' } }
         }
         $saved = @{ FILES = $env:METAPHOR_INSTALL_TEST_FILES; CI = $env:CI }
         $env:METAPHOR_INSTALL_TEST_FILES = '1'
         $env:CI = 'true'
         try {
-            { InModuleScope Installer -Parameters @{ Pin = $pin; Work = $work } {
+            { InModuleScope MetaphorInstall -Parameters @{ Pin = $pin; Work = $work } {
                     Get-PinnedFile ([pscustomobject]@{ WorkFolder = $Work }) $Pin } } | Should -Throw '*Subject*'
         }
         finally { $env:METAPHOR_INSTALL_TEST_FILES = $saved.FILES; $env:CI = $saved.CI }
@@ -567,10 +574,10 @@ Describe 'Test-TestSwitch' {
         [Environment]::SetEnvironmentVariable("METAPHOR_INSTALL_TEST_$Name", '1')
         foreach ($ci in $null, '1') {
             $env:CI = $ci
-            InModuleScope Installer -Parameters @{ Name = $Name } { Test-TestSwitch $Name } | Should -BeFalse
+            InModuleScope MetaphorInstall -Parameters @{ Name = $Name } { Test-TestSwitch $Name } | Should -BeFalse
         }
         $env:CI = 'true'
-        InModuleScope Installer -Parameters @{ Name = $Name } { Test-TestSwitch $Name } | Should -BeTrue
+        InModuleScope MetaphorInstall -Parameters @{ Name = $Name } { Test-TestSwitch $Name } | Should -BeTrue
     }
 }
 
@@ -592,7 +599,7 @@ Describe 'package-files.txt' {
             Set-Content -LiteralPath (Join-Path $release $file) -Value 'stand-in' -NoNewline
         }
         Write-PackageList
-        InModuleScope Installer -Parameters @{ Release = $release } { Get-PackageFile $Release } | Should -Be @(
+        InModuleScope MetaphorInstall -Parameters @{ Release = $release } { Get-PackageFile $Release } | Should -Be @(
             'package-files.txt', 'Metaphor.Hooks.dll', 'ModConfig.json', 'licenses/LICENSE.txt', 'runtimes/win-x64/native/a.dll')
     }
 }
