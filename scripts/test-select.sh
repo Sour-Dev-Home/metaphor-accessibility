@@ -4,7 +4,8 @@
 #   pester                         <reason>   (the smoke and deploy script tests)
 #   docs                           <reason>   (the docs stage)
 #   check-tests                    <reason>   (tests/check/test-check.sh; scripts/run-check-suites.sh --select)
-#   build <project .csproj>        <reason>   (a changed project no test project reaches: build it, nothing to run)
+#   build <project .csproj>        <reason>   (a changed project, or one depending on it, that no test project
+#                                              reaches: build it, nothing to run; #332)
 #   solution                       <reason>   (a build-wide file changed: build the whole solution)
 # check.sh's pre-push builds only the projects these lines name (#314); a pass with no such line builds the solution.
 # A test project is selected when the changed file sits in it, or in a project it references, directly or through
@@ -58,6 +59,18 @@ reaches_test() { # reaches_test PROJECT: the project, or one referencing it (tra
   return 1
 }
 
+# need_build PROJECT FILE [VIA]: a code change to FILE reaches PROJECT (through VIA, a project it references). A
+# selected test project's build compiles every project it references, so only PROJECT and its dependents (transitively)
+# that no test project reaches get a build line (#332): a tool or the stand-in game that uses a changed Metaphor.Core.
+declare -A build_seen
+need_build() {
+  local p="$1" f="$2" via="${3:+via $3, which it references; }" q
+  [ -z "${build_seen[$p]:-}" ] || return 0
+  build_seen[$p]=1
+  reaches_test "$p" || untested+=("build $p $f changed (${via}no test project covers it)")
+  for q in ${rdeps[$p]:-}; do need_build "$q" "$f" "$(basename "$p" .csproj)"; done
+}
+
 pester="" docs="" check="" every="" owner="" untested=()
 for f in "${files[@]}"; do
   case "$f" in
@@ -76,10 +89,8 @@ for f in "${files[@]}"; do
     if [[ "$f" == "${dir_of[$p]}/"* ]] && [ "${#dir_of[$p]}" -gt "${#best}" ]; then best="${dir_of[$p]}" owner="$p"; fi
   done
   [ -z "$owner" ] || mark "$owner" "$f changed"
-  # A code file in a project no test project reaches (a tool): nothing runs, but the local build must still compile it.
-  if [ -n "$owner" ] && [[ "$f" =~ \.(cs|csproj|props|targets|json)$ ]] && ! reaches_test "$owner"; then
-    untested+=("build $owner $f changed (no test project covers it)")
-  fi
+  # A code file: projects no test project reaches (a tool) run nothing, but the local build must still compile them.
+  if [ -n "$owner" ] && [[ "$f" =~ \.(cs|csproj|props|targets|json)$ ]]; then need_build "$owner" "$f"; fi
 done
 if [ -n "$every" ]; then
   while read -r p; do mark "$p" "$every changed (build-wide)"; done < <(all_tests)
