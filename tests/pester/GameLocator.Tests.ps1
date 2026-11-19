@@ -179,7 +179,7 @@ Describe 'Find-ReloadedLauncher' {
         Find-ReloadedLauncher -ConfigPath $config | Should -Be $launcher
     }
 
-    It 'prefers METAPHOR_RELOADED_EXE, as deploy-dev.ps1 does' {
+    It 'prefers METAPHOR_RELOADED_EXE, as session.ps1 does' {
         $env:METAPHOR_RELOADED_EXE = Join-Path $root 'Other\Reloaded-II.exe'
         New-Item -ItemType File -Force $env:METAPHOR_RELOADED_EXE | Out-Null
         Set-Content -LiteralPath $launcher -Value 'stand-in'

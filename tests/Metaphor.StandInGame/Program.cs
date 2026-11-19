@@ -1,17 +1,17 @@
-// Stands in for Reloaded-II's launcher and the game in the smoke-test and deploy scripts' own tests.
+// Stands in for Reloaded-II's launcher and the game in scripts/dev/session.ps1's own tests.
 //
 //   Metaphor.StandInGame --launch <game exe>   acts as the launcher: finds the application whose AppLocation is that exe
 //                                              (as Reloaded-II's Startup.cs does), starts it, and exits.
 //   <game exe>                                 acts as the game: writes each enabled mod's status file, then runs until
 //                                              it is killed, as the real game doesn't quit unattended.
-//   --inspector <pipe name>                    acts as the Debug mod's live inspector (#291) for inspect.ps1, until killed.
+//   --inspector <pipe name>                    acts as the Debug mod's live inspector (#291) for session.ps1 inspect, until killed.
 //
 // The real loader reads ReloadedII.json from a fixed AppData path; the stand-in reads the path from
 // METAPHOR_STANDIN_RELOADED_CONFIG. METAPHOR_STANDIN_BEHAVIOUR picks what the game does: ready (default), refuse,
 // partial (ready with 0 of 1 hooks), otherbuild (ready on another build), silent (writes nothing), crash (exits at
 // once) or exitlater (ready, then exits a second later). With METAPHOR_STANDIN_MESSAGE_LOG set to a file, each enabled
-// mod also gets a copy as its message-log.txt, held open for writing as the Debug mod holds its own (for listen.ps1),
-// and with METAPHOR_STANDIN_TRANSCRIPT a copy as its transcript.txt (for capture.ps1).
+// mod also gets a copy as its message-log.txt, held open for writing as the Debug mod holds its own (for session.ps1 run),
+// and with METAPHOR_STANDIN_TRANSCRIPT a copy as its transcript.txt (for run -SaveLog).
 // Loader facts: docs/raw-sources/reloaded-ii-app-and-mod-config-2026-11-15.md.
 
 using System.Diagnostics;
@@ -50,7 +50,7 @@ if (behaviour == "crash")
 }
 
 // Reloaded-II loads its own reloaded.sharedlib.hooks mod before any other, and fails to start without it, so no mod
-// reports (docs/raw-sources/reloaded-ii-log-on-normal-run-2026-11-14.md; seen again in the first signature-spike run).
+// reports (docs/raw-sources/reloaded-ii-log-on-normal-run-2026-11-14.md; seen again in the first signature spike run).
 var modsFolder = Folder(root, "ModConfigDirectory");
 var hasSharedHooks = Directory.EnumerateFiles(modsFolder, "ModConfig.json", SearchOption.AllDirectories)
     .Any(file => JsonDocument.Parse(File.ReadAllText(file)).RootElement.GetProperty("ModId").GetString() == "reloaded.sharedlib.hooks");
@@ -82,7 +82,7 @@ foreach (var modConfig in Directory.EnumerateFiles(Folder(root, "ModConfigDirect
         "otherbuild" => ModStatus.Ready(modId, new string('1', 64), hooksLoaded: 1, hooksExpected: 1),
         _ => ModStatus.Ready(modId, build, hooksLoaded: 1, hooksExpected: 1),
     });
-    // As the real mod does after its status, when scripts/dev/signature-spike.ps1 asked; its own file stands in for memory.
+    // As the real mod does after its status, when scripts/dev/session.ps1 spike asked; its own file stands in for memory.
     var bytes = File.ReadAllBytes(self);
     SignatureScan.ScanIfRequested(folder, build, () => new ScannedModule(bytes.Length, 0, [(0, bytes.Length)], (rva, buffer) =>
     {

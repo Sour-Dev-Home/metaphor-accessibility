@@ -46,7 +46,7 @@
           Link="%(Filename)%(Extension)" CopyToPublishDirectory="PreserveNewest" />
   </ItemGroup>
 
-  <!-- Every publish (the package, deploy-dev) fetches the pinned prism.dll and its licences and ships them; plain builds
+  <!-- Every publish (the package, a session deploy) fetches the pinned prism.dll and its licences and ships them; plain builds
        and tests don't download anything. -->
   <Target Name="FetchPrism" AfterTargets="ComputeResolvedFilesToPublishList">
     <Exec Command="pwsh -NoProfile -NonInteractive -File &quot;$(MSBuildThisFileDirectory)../../scripts/dev/fetch-prism.ps1&quot;" />

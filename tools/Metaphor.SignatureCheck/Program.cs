@@ -1,6 +1,6 @@
 // Checks that each hook signature in src/Metaphor.Core/hook-signatures.json matches exactly once in the game exe on
 // disk, without launching the game. With --probes, checks other mods' signatures instead (issue #21): those in the given
-// probes file, or this folder's signature-probes.json, the same file scripts/dev/signature-spike.ps1 sends to the mod.
+// probes file, or this folder's signature-probes.json, the same file scripts/dev/session.ps1 spike sends to the mod.
 // With --bytes, prints the exe's bytes at an address relative to the module instead (issue #70; Metaphor.Core's ExeBytes).
 // Usage: Metaphor.SignatureCheck <game exe>
 //        Metaphor.SignatureCheck --probes <game exe> [probes file]

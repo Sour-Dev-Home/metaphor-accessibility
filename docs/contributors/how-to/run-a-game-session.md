@@ -7,34 +7,35 @@ ask the running game questions. You need the game registered as an application i
 1. **Pick the opt-ins.** An opt-in is an empty file, `opt-in-<name>.txt`, in the deployed mod's folder that turns on a
    dev-only hook. The names and what each does are
    [listed here](deploy-a-dev-build.md#files-a-run-can-leave-in-the-mods-folder): `create-msg-from-string`,
-   `ui-text-panes`, `dialogue-window` and `inspector`. A session that needs no listener needs none.
-2. **Close the game and Reloaded-II.** The scripts won't start while either runs.
+   `ui-text-panes`, `dialogue-window` and `inspector`; `pwsh scripts/dev/session.ps1 status` lists the ones the mod
+   reads. A session that needs no listener needs none.
+2. **Close the game and Reloaded-II.** The session won't start while either runs.
 3. **Deploy, add the opt-ins and launch**, from the repository root in PowerShell 7:
 
    ```powershell
-   pwsh scripts/dev/capture.ps1 -OptIns ui-text-panes,inspector -SaveLog <a folder outside the repo>
+   pwsh scripts/dev/session.ps1 run -Seconds 3600 -OptIn ui-text-panes,inspector -SaveLog <a folder outside the repo>
    ```
 
    It deploys the Debug build, creates the opt-in files, launches through Reloaded-II and prints `hooks n/m`. Check
    that `n` is what you expect and that no line says `skipped: opt-in` or `failed` for a listener you asked for; if
-   one does, quit and fix it before playing. Details and exit codes: [capture run](deploy-a-dev-build.md#capture-run).
-   For a run with no opt-ins, `pwsh scripts/dev/listen.ps1 -Seconds 300 -Close` deploys, watches for that long and
-   closes the game ([listening run](deploy-a-dev-build.md#listening-run)); `-Close` kills the game, so use a test
-   save.
+   one does, quit and fix it before playing. Pick `-Seconds` longer than you mean to play: at the end the game is
+   killed, and unsaved progress is lost. Details and exit codes: [run](deploy-a-dev-build.md#run).
+   For a check with no play-through, `pwsh scripts/dev/session.ps1 run -Seconds 300` deploys, watches for that long,
+   closes the game and fails if it exited.
 4. **Play.** Do what the issue's steps say, and narrate what you do and hear. To keep a recording, start OBS first
    and save it outside the repository; it is optional, and the log alone answers many questions. The Debug mod writes
    its development log, `message-log.txt`, in the mod's folder; it holds game text.
 5. **Ask the running game** (only if you used the `inspector` opt-in), in a second terminal while the game runs:
 
    ```powershell
-   pwsh scripts/dev/inspect.ps1 'base' 'read base+0x1000 16'
+   pwsh scripts/dev/session.ps1 inspect 'base' 'read base+0x1000 16'
    ```
 
    The commands and exit codes: [inspect the running game](inspect-the-running-game.md#commands).
-6. **Quit the game** when you are done. With `-SaveLog`, the script then copies `message-log.txt` and `transcript.txt`
-   into a new timestamped folder there and prints the record counts. It refuses a folder inside a git repository.
-   Without `-SaveLog`, copy those two files out of the mod's folder yourself before the next deploy, which replaces
-   it.
+6. **Quit the game** when you are done. With `-SaveLog`, the session then copies `message-log.txt` and `transcript.txt`
+   into a new timestamped folder there, prints the record counts and removes the opt-in files. It refuses a folder
+   inside a git repository. Without `-SaveLog`, copy those two files out of the mod's folder yourself before the next
+   deploy, which replaces it.
 7. **Summarise the log** without printing game text, with
    [`tools/Metaphor.SessionLog`](deploy-a-dev-build.md#summarise-a-log). Pass `--offset` when you have a recording.
 

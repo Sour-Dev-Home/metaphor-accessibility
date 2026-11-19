@@ -1,5 +1,5 @@
 # Tests for scripts/setup/onboard.ps1, run in a stand-in clone: a real git repository holding the script and stand-ins for
-# the scripts it calls (setup-wsl.ps1, claude.ps1, listen.ps1, ghidra.ps1, install-docs-tools.sh, check.sh), with
+# the scripts it calls (setup-wsl.ps1, claude.ps1, session.ps1, ghidra.ps1, install-docs-tools.sh, check.sh), with
 # stand-ins for dotnet, gh, winget, npm, claude, setx and notepad first on PATH, a stand-in Steam library and a stand-in
 # Reloaded-II config, and a stand-in System32 for the Visual C++ runtime. Real git and Git Bash run. Answers to the
 # script's questions come through -Answers, in order.
@@ -69,8 +69,8 @@ switch ("`$args") {
     'plugin install mattpocock-skills@mattpocock' { Add-Content `$state 'plugin' }
 }
 "@
-        Set-Content (Join-Path $dev 'listen.ps1') @"
-Add-Content $log "listen.ps1 `$args"
+        Set-Content (Join-Path $dev 'session.ps1') @"
+Add-Content $log "session.ps1 `$args"
 Write-Host 'metaphor.hooks: ready on abc, hooks 3/4'
 exit 1
 "@
@@ -240,7 +240,7 @@ Describe 'onboard.ps1' {
         $calls -match "^setx METAPHOR_GAME_EXE `"?$([regex]::Escape($gameExe))`"?$" | Should -Not -BeNullOrEmpty
         $calls | Should -Contain 'check.sh fast'
         $calls | Should -Not -Contain 'winget'
-        $calls | Where-Object { $_ -like 'listen.ps1*' -or $_ -like 'ghidra.ps1*' } | Should -BeNullOrEmpty
+        $calls | Where-Object { $_ -like 'session.ps1*' -or $_ -like 'ghidra.ps1*' } | Should -BeNullOrEmpty
         foreach ($line in 'skills: installed', 'docs tools: installed', 'WSL: the metaphor-checks distro is ready',
             'push access: can push', 'game path: METAPHOR_GAME_EXE is set', 'Reloaded-II: found', 'check.sh fast: passed') {
             $first.Output | Should -Match ([regex]::Escape($line))
@@ -321,7 +321,7 @@ Describe 'onboard.ps1' {
         $result.ExitCode | Should -Be 0 -Because $result.Output
         $result.Output | Should -Match ([regex]::Escape("Found the game: $gameExe"))
         $result.Output | Should -Match 'Use it, saving its path in .*METAPHOR_GAME_EXE environment variable\? \[Y/n\]'
-        Get-Calls | Where-Object { $_ -match '^(setx|listen|ghidra)' } | Should -BeNullOrEmpty
+        Get-Calls | Where-Object { $_ -match '^(setx|session|ghidra)' } | Should -BeNullOrEmpty
     }
 
     It 'asks before installing the skills, and installs nothing after a no' {
@@ -361,7 +361,7 @@ Describe 'onboard.ps1' {
         $result.Output | Should -Match 'private patterns: replace the example lines'
         $result.Output | Should -Not -Match 'NonInteractive mode|Read-Host'
         $calls = Get-Calls
-        $calls | Where-Object { $_ -match '^(notepad|setx|listen|ghidra|winget)' -or $_ -eq 'claude.ps1 ' } |
+        $calls | Where-Object { $_ -match '^(notepad|setx|session|ghidra|winget)' -or $_ -eq 'claude.ps1 ' } |
             Should -BeNullOrEmpty
         $calls | Should -Contain 'check.sh fast'
     }
@@ -369,7 +369,7 @@ Describe 'onboard.ps1' {
     It 'asks before the test deploy, then reports the hooks' {
         $result = Invoke-Onboard @('', 'y', 'y', 'y', 'n')
 
-        Get-Calls | Should -Contain "listen.ps1 -GameExe $gameExe -Seconds 30 -Close"
+        Get-Calls | Should -Contain "session.ps1 run -GameExe $gameExe -Seconds 30"
         $result.Output | Should -Match 'hooks 3/4'
     }
 
@@ -381,7 +381,7 @@ Describe 'onboard.ps1' {
 
         $result.ExitCode | Should -Be 0 -Because $result.Output
         $result.Output | Should -Match 'METAPHOR.exe'
-        Get-Calls | Where-Object { $_ -match '^(listen|ghidra|setx)' } | Should -BeNullOrEmpty
+        Get-Calls | Where-Object { $_ -match '^(session|ghidra|setx)' } | Should -BeNullOrEmpty
     }
 
     It 'says why WSL matters when it can''t be set up, and carries on' {

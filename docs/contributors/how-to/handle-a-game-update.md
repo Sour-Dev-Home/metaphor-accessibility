@@ -15,7 +15,7 @@ The mod hashes the game's executable at start and compares it with the
   off", with the game's SHA-256, and tells the player to look for a newer release
   ([player's page](../../players/how-to/install-the-mod.md#what-the-mod-says-when-it-loads)).
 
-A dev deploy (`deploy-dev.ps1`, `capture.ps1`, `listen.ps1`) refuses the same build.
+Every launching verb of `scripts/dev/session.ps1` refuses the same build.
 
 ## Steps
 
@@ -27,7 +27,7 @@ A dev deploy (`deploy-dev.ps1`, `capture.ps1`, `listen.ps1`) refuses the same bu
    [add a game build](add-a-game-build.md). This alone enables no hook, because each hook names the builds it was
    checked on, so it is safe to land first.
 3. **Compare disk with memory.** Run the [signature spike](check-hook-signatures.md#compare-the-exe-on-disk-with-the-running-game)
-   (`pwsh scripts/dev/signature-spike.ps1`). The earlier pass
+   (`pwsh scripts/dev/session.ps1 spike`). The earlier pass
    ([raw source](../../raw-sources/signature-spike-2026-11-15.md)) holds for build `548ddc95…` only.
 4. **Re-check each hook's offsets** on the new build: the signature, and the offsets a hook or a global derives from
    its match (a `GlobalSpec`'s `LoadOffset`, `DisplacementOffset` and `InstructionLength`). Read the bytes with

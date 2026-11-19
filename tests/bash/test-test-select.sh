@@ -34,8 +34,8 @@ check "a test project change runs itself" has "Core.Tests"
 out="$(sel scripts/check.sh)"
 check "scripts change runs Pester" has "pester scripts/check.sh changed"
 check "scripts change runs no dotnet tests" lacks "dotnet"
-out="$(sel scripts/dev/deploy-dev.ps1)"
-check "deploy script runs Pester" has "pester"
+out="$(sel scripts/dev/session.ps1)"
+check "session script runs Pester" has "pester"
 
 # The check scripts' own suite, which Git Bash without WSL runs only when they change (#336)
 out="$(sel scripts/check.sh)"

@@ -74,7 +74,7 @@ Deploy a Debug build with `opt-in-inspector.txt`
 ([how-to](../contributors/how-to/inspect-the-running-game.md)). `follow` reads the pointer and then adds the offset,
 so `follow base+0x272e310 0x25460` is `G+0x25460`.
 
-1. **Field, before a fight:** `pwsh scripts/dev/inspect.ps1 'follow base+0x272e310 0x25460' 'follow base+0x2ca3248 0x1b8'`.
+1. **Field, before a fight:** `pwsh scripts/dev/session.ps1 inspect 'follow base+0x272e310 0x25460' 'follow base+0x2ca3248 0x1b8'`.
    The first should print `base+0x2ccbb50`. Then `read` 8 bytes at the second address to get the mask `m`.
 2. **Player turn start, 4 icons:** `read <G+0x25460> 12`, then `watch <G+0x25460> 12`. Expected: side, then A = 4.
 3. **After a weakness hit (a half icon):** `changes`. Expect A down by one and B up by one. Repeat after Pass, a miss
