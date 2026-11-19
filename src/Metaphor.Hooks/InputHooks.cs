@@ -3,9 +3,7 @@ using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
 using System.Runtime.InteropServices;
 using Metaphor.Core;
-using Metaphor.Core.Menus;
-using Metaphor.Features.Dialogue;
-using Metaphor.Features.Menus;
+using Metaphor.Core.Input;
 using Reloaded.Hooks.Definitions;
 using IReloadedHooks = Reloaded.Hooks.ReloadedII.Interfaces.IReloadedHooks;
 
@@ -13,21 +11,32 @@ namespace Metaphor.Hooks;
 
 // The dialogue (#58) and menu (#214) controls' input: hooks on the game's own per-frame reads of a pad and of the
 // keyboard. They change what the game sees, so they are written the long way (architecture rule 14's exception,
-// IChangesBehaviour): each calls the original, reads the dialogue window's message pointer (DialogueWindowPointer,
-// #232) for DialogueControls, hands the state it wrote to MenuControls and what that leaves to DialogueControls, and
-// while a menu or the dialogue window is open writes it back without the bound buttons or keys. Menus come first, so in
-// a menu the reader binding toggles once, through them. Before each read is handed on, both hand the menu screens a
-// read of whether the game has its menus open (#268, MenusOpenRead), so menu-only controls stop when the menus close.
-// The loader locates both readers' globals on its own (#300), so a reader whose signature didn't match reads as
-// unknown without keeping either hook out: with no window the dialogue controls leave every press to the game (#206),
-// and with no menus-open flag the menus read as closed. Every read goes through ModuleMemoryReader (rule 10); the one
-// write is
-// WriteProcessMemory on this process into the state the original has just filled, and only clears what it wrote.
-// WriteProcessMemory fails instead of faulting, but it also writes through read-only pages, so it is safe only on memory
-// known to be the game's own writable data, never on an arbitrary pointer. In Debug builds each change of a read is
-// logged, as #58's input spike did (numbers only, no game text). The functions, their arguments and the names (ours)
-// are in docs/raw-sources/input-route-2026-11-16.md; the layout of what they write is in
+// IChangesBehaviour). Each is thin: it calls the original, reads the state the original just filled, asks the input
+// frame (Metaphor.Core.Input.InputFrame, #301) what to hand the game, writes that back if it differs, and logs. The
+// frame holds every rule: menus before dialogue, a read not made fires nothing (#225), only what a binding holds is
+// hidden. It asks GameInputReads for the dialogue window (DialogueWindowPointer, #232) and whether the menus are open
+// (MenusOpenRead, #268), whose globals the loader locates on its own (#300); a reader whose signature didn't match reads
+// as unknown without keeping either hook out. Every read goes through ModuleMemoryReader (rule 10); the one write is
+// WriteProcessMemory on this process into the state the original has just filled, and the frame's answer only clears
+// bits or drops keys from it. WriteProcessMemory fails instead of faulting, but it also writes through read-only pages,
+// so it is safe only on memory known to be the game's own writable data, never on an arbitrary pointer. In Debug builds
+// each change of a read is logged, as #58's input spike did (numbers only, no game text). The functions, their arguments
+// and the names (ours) are in docs/raw-sources/input-route-2026-11-16.md; the layout of what they write is in
 // docs/raw-sources/pad-and-keyboard-state-2026-11-16.md.
+
+/// <summary>The game state the input frame asks about, read from the globals the loader located (#300): unknown when a
+/// global wasn't located or a read failed.</summary>
+internal sealed class GameInputReads(DialogueWindowPointer window, MenusOpenRead menus) : IGameInputState
+{
+    public long? DialogueWindow() => window.Read();
+
+    public bool MenusOpen() => menus.IsOpen();
+
+    /// <summary>The input frame over <paramref name="services"/>' readers, menu screens and controls.</summary>
+    public static InputFrame Frame(HookServices services) =>
+        new(new GameInputReads(services.DialogueWindow, services.MenusOpen), services.MenuScreens, services.MenuControls,
+            services.DialogueControls);
+}
 
 /// <summary>The pad read: <c>(32-bit pad number, pointer to the game's pad state) → al</c>; it writes the game's own
 /// 16-bit button mask at <c>+0</c>.</summary>
@@ -40,24 +49,16 @@ internal sealed class PadReadHook : IGameHook, IChangesBehaviour
 
     private static readonly nint CurrentProcess = -1;
 
-    private readonly DialogueControls controls;
-    private readonly MenuControls menus;
-    private readonly MenuScreens screens;
-    private readonly MenusOpenRead menusOpen;
+    private readonly InputFrame frame;
     private readonly MessageLog? log;
     private readonly InputStateChanges changes = new();
-    private readonly DialogueWindowPointer window;
     private readonly Function callback;
     private IHook<Function>? hook;
 
     public PadReadHook(HookServices services)
     {
         ArgumentNullException.ThrowIfNull(services);
-        controls = services.DialogueControls;
-        menus = services.MenuControls;
-        screens = services.MenuScreens;
-        menusOpen = services.MenusOpen;
-        window = services.DialogueWindow;
+        frame = GameInputReads.Frame(services);
         log = services.Log;
         callback = OnCall;
     }
@@ -83,37 +84,22 @@ internal sealed class PadReadHook : IGameHook, IChangesBehaviour
         var result = hook!.OriginalFunction(pad, state);
         try
         {
-            var current = window.Read();
-            controls.WindowRead(current);
-            if (log is not null && changes.Changed("msgwindow", current?.ToString(CultureInfo.InvariantCulture) ?? "?"))
-            {
-                log.WindowRead(current);
-            }
             if (ModuleMemoryReader.ReadInt32(state) is { } value)
             {
                 var buttons = value & 0xFFFF;
-                screens.MenusRead(menusOpen.IsOpen());
                 // A zero al is taken as "no read made" (#225): Steam Input's virtual pad 1 returns it while holding
-                // leftover bits (tests/fixtures/sessions/steam-input-pad1-noise.txt). Such a read isn't handed to the
-                // controls, and since they hand its buttons back unchanged it isn't written back either. What the
-                // return means is [NEEDS VERIFICATION], pending capture evening #229 (likely "pad not connected").
-                var made = (result & 0xFF) != 0;
-                var handed = controls.Pad((int)pad, menus.Pad((int)pad, buttons, made), made);
-                if (handed != buttons)
+                // leftover bits (tests/fixtures/sessions/steam-input-pad1-noise.txt). What the return means is
+                // [NEEDS VERIFICATION], pending capture evening #229 (likely "pad not connected").
+                var answer = frame.Pad((int)pad, buttons, made: (result & 0xFF) != 0);
+                if (answer.Buttons != buttons)
                 {
                     var mask = new byte[2];
-                    BinaryPrimitives.WriteUInt16LittleEndian(mask, (ushort)handed);
+                    BinaryPrimitives.WriteUInt16LittleEndian(mask, (ushort)answer.Buttons);
                     WriteProcessMemory(CurrentProcess, state, mask, (nuint)mask.Length, out _);
                 }
                 if (log is not null)
                 {
-                    var source = string.Create(CultureInfo.InvariantCulture, $"pad{(int)pad}");
-                    var text = string.Create(CultureInfo.InvariantCulture,
-                        $"buttons=0x{buttons:x4} handed=0x{handed:x4} returned={result & 0xFF}");
-                    if (changes.Changed(source, text))
-                    {
-                        log.InputChanged(source, text);
-                    }
+                    Log(answer.Window, (int)pad, buttons, answer.Buttons, result);
                 }
             }
         }
@@ -121,6 +107,21 @@ internal sealed class PadReadHook : IGameHook, IChangesBehaviour
         {
         }
         return result;
+    }
+
+    private void Log(long? window, int pad, int buttons, int handed, nint result)
+    {
+        if (changes.Changed("msgwindow", window?.ToString(CultureInfo.InvariantCulture) ?? "?"))
+        {
+            log!.WindowRead(window);
+        }
+        var source = string.Create(CultureInfo.InvariantCulture, $"pad{pad}");
+        var text = string.Create(CultureInfo.InvariantCulture,
+            $"buttons=0x{buttons:x4} handed=0x{handed:x4} returned={result & 0xFF}");
+        if (changes.Changed(source, text))
+        {
+            log!.InputChanged(source, text);
+        }
     }
 }
 
@@ -137,24 +138,16 @@ internal sealed class KeyboardReadHook : IGameHook, IChangesBehaviour
 
     private static readonly nint CurrentProcess = -1;
 
-    private readonly DialogueControls controls;
-    private readonly MenuControls menus;
-    private readonly MenuScreens screens;
-    private readonly MenusOpenRead menusOpen;
+    private readonly InputFrame frame;
     private readonly MessageLog? log;
     private readonly InputStateChanges changes = new();
-    private readonly DialogueWindowPointer window;
     private readonly Function callback;
     private IHook<Function>? hook;
 
     public KeyboardReadHook(HookServices services)
     {
         ArgumentNullException.ThrowIfNull(services);
-        controls = services.DialogueControls;
-        menus = services.MenuControls;
-        screens = services.MenuScreens;
-        menusOpen = services.MenusOpen;
-        window = services.DialogueWindow;
+        frame = GameInputReads.Frame(services);
         log = services.Log;
         callback = OnCall;
     }
@@ -180,15 +173,13 @@ internal sealed class KeyboardReadHook : IGameHook, IChangesBehaviour
         var result = hook!.OriginalFunction(first, state);
         try
         {
-            // Read here too: the keyboard may be read on frames, or a thread, the pad isn't.
-            controls.WindowRead(window.Read());
             var slots = new byte[GameKeyList.Slots];
             if (ModuleMemoryReader.ReadInt32(state + CountOffset) is { } count &&
                 ModuleMemoryReader.ReadBytes(state + SlotsOffset, slots))
             {
                 var keys = GameKeyList.Read(count, slots);
-                screens.MenusRead(menusOpen.IsOpen());
-                var handed = controls.Keys(menus.Keys(keys));
+                // The window is read here too: the keyboard may be read on frames, or a thread, the pad isn't.
+                var handed = frame.Keys(keys).Keys;
                 if (handed.Count != keys.Count)
                 {
                     // The count and the slots after it, in one write.

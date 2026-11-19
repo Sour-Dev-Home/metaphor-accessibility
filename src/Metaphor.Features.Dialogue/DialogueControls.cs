@@ -1,4 +1,5 @@
 using Metaphor.Core.Announcements;
+using Metaphor.Core.Input;
 using Metaphor.Core.Messages;
 
 namespace Metaphor.Features.Dialogue;
@@ -23,9 +24,9 @@ public sealed record DialogueBindings(int RepeatButtons, int ReaderButtons, int 
 /// message, and are hidden from the game then. While it's closed, before any read, or when it couldn't be read, they do
 /// nothing and the game keeps them (#206, #232). A press is an up-to-down edge of a binding held on any pad or the
 /// keyboard, so a second pad mirroring the first (Steam Input's virtual pad) or one whose sticks drift can't fire it
-/// again, and a binding already held when the window opens doesn't fire. The hook layer hands it each pad and keyboard
-/// read and each read of the window, from any of the game's threads.</summary>
-public sealed class DialogueControls
+/// again, and a binding already held when the window opens doesn't fire. The input frame (#301) hands it each pad and
+/// keyboard read and each read of the window, from any of the game's threads.</summary>
+public sealed class DialogueControls : IWindowInputControls
 {
     private const int KeyboardSource = -1;
 

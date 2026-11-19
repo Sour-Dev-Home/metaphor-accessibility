@@ -28,15 +28,16 @@ internal sealed record HookServices
     /// the dialogue feature is feeding it.</summary>
     public DialogueHistory DialogueHistory { get; init; } = new();
 
-    /// <summary>The dialogue controls (#58): the input hooks hand them each read and, with it, the dialogue window's
-    /// message pointer (#232).</summary>
+    /// <summary>The dialogue controls (#58): the input hooks' frame (#301) hands them each read and, with it, the
+    /// dialogue window's message pointer (#232).</summary>
     public required DialogueControls DialogueControls { get; init; }
 
-    /// <summary>The menu controls (#214): the input hooks hand them each read before the dialogue controls.</summary>
+    /// <summary>The menu controls (#214): the input hooks' frame (#301) hands them each read before the dialogue
+    /// controls.</summary>
     public required MenuControls MenuControls { get; init; }
 
-    /// <summary>The menu screens (#211): the input hooks hand them each read of <see cref="MenusOpen"/> (#268) before
-    /// the menu controls take the read.</summary>
+    /// <summary>The menu screens (#211): the input hooks' frame (#301) hands them each read of <see cref="MenusOpen"/>
+    /// (#268) before the menu controls take the read.</summary>
     public required MenuScreens MenuScreens { get; init; }
 
     /// <summary>Reads whether the game has its menus open (#268); the loader locates what it reads (#300).</summary>
