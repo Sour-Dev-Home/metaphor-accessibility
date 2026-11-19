@@ -32,19 +32,21 @@ cat > "$FAKE/tests/suite.sh" <<'SUITE'
 OSTYPE="${FAKE_OSTYPE:-$OSTYPE}"
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 source "$ROOT/scripts/wsl-run.sh"
-echo "ran in place with: $* (jobs ${METAPHOR_TEST_JOBS:-unset})"
+echo "ran in place with: $* (jobs ${METAPHOR_TEST_JOBS:-unset}) (pid ${METAPHOR_LIVE_PID:-unset})"
 exit 7
 SUITE
 # The stand-in wsl.exe: --list prints $WSL_LIST in UTF-16 with CRLFs, as wsl.exe does; anything else records its
-# arguments, one per line, and exits with $WSL_CODE.
+# arguments, one per line, and the live log's variables in $WSL_ENV, and exits with $WSL_CODE.
 cat > "$WORK/bin/wsl.exe" <<'STUB'
 #!/usr/bin/env bash
 if [ "$1" = --list ]; then printf '%s\r\n' $WSL_LIST | sed 's/./&\x0/g'; exit 0; fi
 printf '%s\n' "$@" > "$WSL_ARGS"
+printf 'WSLENV=%s\nLIVE=%s\n' "$WSLENV" "${METAPHOR_LIVE_LOG:-}" > "$WSL_ENV"
 exit "$WSL_CODE"
 STUB
 chmod +x "$WORK/bin/wsl.exe" "$FAKE/tests/suite.sh"
-export WSL_ARGS="$WORK/args" WSL_LIST="Debian metaphor-checks" WSL_CODE=0
+unset METAPHOR_LIVE_LOG METAPHOR_LIVE_PID WSLENV # a run inside `full` inherits them
+export WSL_ARGS="$WORK/args" WSL_ENV="$WORK/env" WSL_LIST="Debian metaphor-checks" WSL_CODE=0
 # PATH: the stand-in, then the shell's basics only, so no real wsl.exe is found.
 base_path="/usr/bin:/bin"
 
@@ -66,6 +68,14 @@ check "set up: wsl.exe runs the suite in the distro, from the checkout's root, w
 
 WSL_CODE=3 run_suite
 check "set up: a failing suite's code comes back" [ "$code" -eq 3 ]
+out="$(cat "$WSL_ENV" 2> /dev/null)"
+check "no live log: WSLENV doesn't carry one" lacks "METAPHOR_LIVE_LOG"
+
+# A run inside `full` (#336): the live log reaches the distro as a path WSL translates, so test-check.sh appends to it.
+METAPHOR_LIVE_LOG="$WORK/live" run_suite
+out="$(cat "$WSL_ENV" 2> /dev/null)"
+check "live log: WSLENV translates it as a path" has "METAPHOR_LIVE_LOG/p"
+check "live log: handed over in Windows form" has "LIVE=$(cd "$WORK" && { pwd -W 2> /dev/null || pwd; })/live"
 
 WSL_CODE=125 run_suite one
 check "a missing tool (exit 125 in the distro): falls back to Git Bash" has "ran in place with: one"
@@ -105,6 +115,8 @@ check "inside: prints the versions first" starts "wsl: metaphor-checks"
 check "inside: every core by default" has "(jobs $(nproc))"
 out="$(cd "$FAKE" && METAPHOR_TEST_JOBS=2 bash scripts/wsl-run.sh inside tests/suite.sh 2>&1)"
 check "inside: METAPHOR_TEST_JOBS overrides the core count" has "(jobs 2)"
+out="$(cd "$FAKE" && METAPHOR_LIVE_PID=42 bash scripts/wsl-run.sh inside tests/suite.sh 2>&1)"
+check "inside: hands the live log's pid on (scripts/run-check-suites.sh decides who gets it)" has "(pid 42)"
 
 echo "wsl-run tests: $passed passed, $failed failed"
 [ "$failed" -eq 0 ]

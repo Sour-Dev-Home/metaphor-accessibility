@@ -3,6 +3,7 @@
 #   dotnet <test project .csproj>  <reason>
 #   pester                         <reason>   (the smoke and deploy script tests)
 #   docs                           <reason>   (the docs stage)
+#   check-tests                    <reason>   (tests/check/test-check.sh; scripts/run-check-suites.sh --select)
 #   build <project .csproj>        <reason>   (a changed project no test project reaches: build it, nothing to run)
 #   solution                       <reason>   (a build-wide file changed: build the whole solution)
 # check.sh's pre-push builds only the projects these lines name (#314); a pass with no such line builds the solution.
@@ -24,6 +25,7 @@ if [ "${GITHUB_ACTIONS:-}" = true ] || [ -n "${METAPHOR_FULL_TESTS:-}" ]; then
   while read -r p; do echo "dotnet $p $why"; done < <(all_tests)
   echo "pester $why"
   echo "docs $why"
+  echo "check-tests $why"
   exit 0
 fi
 
@@ -56,7 +58,7 @@ reaches_test() { # reaches_test PROJECT: the project, or one referencing it (tra
   return 1
 }
 
-pester="" docs="" every="" owner="" untested=()
+pester="" docs="" check="" every="" owner="" untested=()
 for f in "${files[@]}"; do
   case "$f" in
     Directory.Build.* | Directory.Packages.props | global.json | Metaphor.sln | .editorconfig) every="$f" ;;
@@ -64,6 +66,10 @@ for f in "${files[@]}"; do
   esac
   case "$f" in
     docs/* | *.md) docs="${docs:-$f}" ;;
+  esac
+  # The check scripts, what they read and their tests: test-check.sh's own ground.
+  case "$f" in
+    scripts/* | tests/check/* | tests/scripts/* | .github/* | tools/docs/* | .claude/*) check="${check:-$f}" ;;
   esac
   best="" owner=""
   for p in "${projects[@]}"; do
@@ -86,4 +92,5 @@ done < <(all_tests)
 [ -z "$every" ] || echo "solution $every changed (build-wide)"
 [ -z "$pester" ] || echo "pester $pester changed"
 [ -z "$docs" ] || echo "docs $docs changed"
+[ -z "$check" ] || echo "check-tests $check changed"
 exit 0

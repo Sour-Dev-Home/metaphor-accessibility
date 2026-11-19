@@ -10,7 +10,7 @@
 #                                 CI and `full` always run everything; METAPHOR_FULL_TESTS=1 does so locally.
 #   scripts/check.sh rules   repo rules on every tracked file in CI; locally on the files changed since origin/main
 #                            (METAPHOR_SCAN_ALL=1 scans every file; so does `full`'s rules part in CI)
-#   scripts/check.sh full    repo rules, build, Unit and RoundTrip tests, formatting, smoke and deploy script tests (CI: Windows in the merge queue, Linux on PRs)
+#   scripts/check.sh full    repo rules, build, Unit and RoundTrip tests, formatting, smoke and deploy script tests, check-script suites (CI: Windows in the merge queue, Linux on PRs)
 #   scripts/check.sh docs    broken links fail; Markdown lint, Vale and ADR length warn (CI on Ubuntu)
 #   scripts/check.sh slow    mutation testing and a duplication report, report only (weekly CI on Windows)
 #   scripts/check.sh signatures [EXE]    each hook signature matches exactly once in the game exe (local, before a hook PR)
@@ -219,6 +219,11 @@ record_pass() { # record_pass STAGE TREE: keep the last 50 passes
   file="$(pass_cache)"
   { echo "$1 $2"; cat "$file" 2> /dev/null || true; } | head -n 50 > "$file.new" && mv "$file.new" "$file"
 }
+# full_kinds: print the kind this full records, then the kinds it may reuse. A full with SKIP_SCRIPT_TESTS=1 (CI's,
+# whose own jobs run the script tests) records full-skipped, which serves only another skipped run, never a plain full.
+full_kinds() {
+  if [ -n "${SKIP_SCRIPT_TESTS:-}" ]; then echo "full-skipped full"; else echo full; fi
+}
 # full_tree: print the index's tree, only when the working tree matches it (the build reads the working tree).
 full_tree() {
   git diff --quiet 2> /dev/null && git write-tree 2> /dev/null
@@ -304,7 +309,8 @@ pre_push_stage() {
     return 0
   fi
   for tree in "${trees[@]}"; do
-    cached_pass "$tree" full pre-push || cached=0
+    # shellcheck disable=SC2046 # full_kinds prints separate words
+    cached_pass "$tree" $(full_kinds) pre-push || cached=0
   done
   if [ "$cached" -eq 1 ]; then
     reused=reused
@@ -766,7 +772,8 @@ main() {
   case "$stage" in
     full)
       full_tree_id="$(full_tree)" || full_tree_id=""
-      if [ -n "$full_tree_id" ] && cached_pass "$full_tree_id" full; then
+      # shellcheck disable=SC2046 # full_kinds prints separate words
+      if [ -n "$full_tree_id" ] && cached_pass "$full_tree_id" $(full_kinds); then
         reused=reused
         echo "full: reused the recorded pass for tree $full_tree_id; no checks ran (change the tree to run them again)"
         exit 0
@@ -774,7 +781,7 @@ main() {
       take_lock
       # Only full reads the live log's helpers, so CI's copy of this script for the commits stage needs no more files.
       source "$check_dir/live-log.sh" || die "could not load $check_dir/live-log.sh"
-      local steps=5
+      local steps=6
       [ -z "${SKIP_SCRIPT_TESTS:-}" ] || steps=4
       live_start full "$steps" ;;
     slow | signatures) take_lock ;;
@@ -1167,15 +1174,17 @@ full_dotnet_checks() {
   timed_step format dotnet format whitespace "$solution" --verify-no-changes ||
     report "format: files need formatting (run: dotnet format whitespace Metaphor.sln)"
   # The smoke-test and deploy scripts' own tests, against the stand-in game (no game needed). Pester 5 or later, one
-  # process per file, a few at a time (scripts/run-pester.sh). CI sets SKIP_SCRIPT_TESTS=1 because its own `pester`
-  # jobs run them in parallel.
+  # process per file, a few at a time (scripts/run-pester.sh). Then the check-script suites (scripts/run-check-suites.sh).
+  # CI sets SKIP_SCRIPT_TESTS=1 because its own jobs run both.
   if [ -z "${SKIP_SCRIPT_TESTS:-}" ]; then
     timed_step pester bash "$check_dir/run-pester.sh" ||
       report "tests: smoke or deploy script tests failed (run: bash scripts/run-pester.sh)"
+    timed_step check-scripts bash "$check_dir/run-check-suites.sh" --select ||
+      report "tests: check-script suites failed (run: bash scripts/run-check-suites.sh)"
   fi
-  # Record only a clean pass of an unchanged tree (nothing edited while the checks ran).
+  # Record only a clean pass of an unchanged tree (nothing edited while the checks ran), under the kind full_kinds reads.
   if [ "$failures" -eq 0 ] && [ -n "${full_tree_id:-}" ] && [ "$(full_tree)" = "$full_tree_id" ]; then
-    record_pass full "$full_tree_id"
+    record_pass "$(full_kinds | cut -d ' ' -f 1)" "$full_tree_id"
   fi
 }
 

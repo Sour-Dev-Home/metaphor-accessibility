@@ -58,7 +58,7 @@ bash scripts/check.sh full
 
 `fast` checks the staged files, so with nothing staged it passes at once. `full` checks the files changed since `origin/main`
 (CI checks every tracked file), then builds,
-runs the `Unit` and `RoundTrip` tests and checks formatting. Both end with exit code 0 when everything passes. A passing `full` is recorded per clone (in the git dir) against the
+runs the `Unit` and `RoundTrip` tests, checks formatting and runs the script tests. Both end with exit code 0 when everything passes. A passing `full` is recorded per clone (in the git dir) against the
 index's tree hash; `full` or `pre-push` on an identical tree says it reused the pass and skips the work. `pre-push`
 takes a machine-wide build slot only when it builds, so a docs-only push never waits on it. Run `full`, then push: with
 no recorded pass and every slot busy, `pre-push` stops at once instead of waiting, since a waiting push is cut (exit 141).
@@ -89,7 +89,8 @@ tools too. To flag another filler word, add it to
 ### Run the check-script suites in WSL
 
 The check-script suites (`tests/check/test-check.sh` and `tests/scripts/*.sh`) start thousands of processes, which is
-slow in Git Bash: `test-check.sh` takes minutes there and seconds on Linux. With WSL 2 on your machine, one command
+slow in Git Bash: `test-check.sh` takes minutes there and seconds on Linux
+([`run-check-suites.sh`](../scripts/run-check-suites.sh) runs them all). With WSL 2 on your machine, one command
 sets up a distro for them. In PowerShell, from the repository root:
 
 ```powershell
@@ -108,7 +109,8 @@ versions. `test-check.sh` uses every core there (`nproc`) instead of Git Bash's 
 both. CI already runs the suites on Linux and doesn't use WSL.
 
 When WSL, the distro or a tool is missing, the suite runs in Git Bash as before and prints a one-line notice naming the
-setup command. `METAPHOR_NO_WSL=1` makes it run in Git Bash on purpose.
+setup command. `METAPHOR_NO_WSL=1` makes it run in Git Bash on purpose. `full` then runs `test-check.sh` only when a
+check script or check test changed.
 
 To remove the distro and everything in it: `wsl --unregister metaphor-checks`.
 

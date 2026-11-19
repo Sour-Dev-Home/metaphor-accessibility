@@ -36,7 +36,18 @@ check "scripts change runs no dotnet tests" lacks "dotnet"
 out="$(sel scripts/deploy-dev.ps1)"
 check "deploy script runs Pester" has "pester"
 
+# The check scripts' own suite, which Git Bash without WSL runs only when they change (#336)
+out="$(sel scripts/check.sh)"
+check "a check script change runs test-check.sh" has "check-tests scripts/check.sh changed"
+out="$(sel tests/check/test-check.sh)"
+check "a check test change runs test-check.sh" has "check-tests tests/check/test-check.sh changed"
+out="$(sel .github/workflows/ci.yml)"
+check "a workflow change runs test-check.sh" has "check-tests"
+out="$(sel src/Metaphor.Core/X.cs)"
+check "a code change skips test-check.sh" lacks "check-tests"
+
 out="$(sel docs/README.md)"
+check "docs change skips test-check.sh" lacks "check-tests"
 check "docs change selects the docs stage" has "docs docs/README.md changed"
 check "docs change runs no tests" lacks "dotnet"
 check "docs change skips Pester" lacks "pester"
@@ -62,6 +73,7 @@ check "a build-wide file asks for the solution" has "solution Directory.Packages
 out="$(GITHUB_ACTIONS=true sel docs/README.md)"
 check "CI selects every test project" has "Dialogue.Tests"
 check "CI selects Pester" has "pester"
+check "CI selects test-check.sh" has "check-tests"
 out="$(METAPHOR_FULL_TESTS=1 sel docs/README.md)"
 check "METAPHOR_FULL_TESTS selects everything" has "Menus.Tests"
 check "check.sh full never calls the selector" bash -c \
