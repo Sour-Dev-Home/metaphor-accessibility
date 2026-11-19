@@ -987,6 +987,19 @@ test_docs_stage_finds_the_tools_installed_for_the_clone() {
   expect 0 "notes.md:1: the clone's vale ran" "lychee is not installed"
 }
 
+# #365: docs_stage works from the repository root but leaves the caller's root and folder as they were, so a step run
+# after it in the same run reads the paths it expects.
+test_docs_stage_leaves_the_callers_root_and_folder_alone() {
+  docs_repo
+  mkdir sub
+  printf '# Notes\n' > notes.md
+  git add .
+  cd sub || exit 2
+  out="$(root=caller-root failures=0 warnings=0 && docs_stage > /dev/null 2>&1 && echo "after: root=$root dir=${PWD##*/}")"
+  code=$?
+  expect 0 "after: root=caller-root dir=sub"
+}
+
 test_docs_stage_passes_good_links_and_skips_raw_sources() {
   docs_repo
   mkdir -p docs/raw-sources

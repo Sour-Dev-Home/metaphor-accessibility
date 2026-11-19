@@ -112,10 +112,18 @@ find_docs_tool_dirs() {
 
 # docs_stage: the docs checks, on the working tree's tracked Markdown files. A broken relative link or anchor fails the
 # run; lint, style and length findings are warnings. Missing tools are skipped with a warning, unless
-# REQUIRE_DOCS_TOOLS=1 (CI), where a missing tool must not pass quietly.
+# REQUIRE_DOCS_TOOLS=1 (CI), where a missing tool must not pass quietly. It works from the root, in a local `root` its
+# helpers read, and returns to the caller's folder, so a step after it sees the run's root and folder unchanged (#365).
 docs_stage() {
+  local root here="$PWD" code
   root="$(git rev-parse --show-toplevel)" || die "could not find the repository root"
   cd "$root" || die "could not enter $root"
+  docs_checks
+  code=$?
+  cd "$here" || die "could not return to $here"
+  return "$code"
+}
+docs_checks() {
   local files=() file tool
   # Left out: raw sources, which are saved copies of other people's pages linking to the original site; the code of
   # conduct, which is upstream text kept verbatim; and CLAUDE.md, which is only an import line.
@@ -867,6 +875,8 @@ main() {
   local merge_hook=""
   stage="${1:-}"
   [ "$stage" != pre-merge-commit ] || stage=pre-commit merge_hook=merge
+  # live_log is set only once full sources scripts/live-log.sh; empty, it tells timed_step and finish (which every stage
+  # reaches, under set -u) that there is no live log to write.
   failures=0 warnings=0 reused=built step_times=() tmp="" locked="" waited="" live_log="" full_tree_id=""
   scan_scope="" maintainer_pr_result=""
   started=$EPOCHSECONDS
@@ -1276,7 +1286,7 @@ pre_commit_checks() {
   fi
   # Builtin matches on the list, where a grep per check was a start each (#328).
   if [[ $'\n'"$staged"$'\n' == *.md$'\n'* ]]; then
-    # In a subshell, which starts its own count: docs_stage changes directory, and an earlier failure isn't a docs one.
+    # In a subshell, which starts its own count: an earlier failure isn't a docs one.
     (failures=0 && docs_stage && [ "$failures" -eq 0 ]) || report "docs: see the problems above"
   fi
   if [[ $'\n'"$staged"$'\n' == *$'\n'src/Metaphor.Core/hook-signatures.json$'\n'* ]]; then
