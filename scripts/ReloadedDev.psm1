@@ -30,18 +30,6 @@ function Find-Application($Loader, [string] $GameExe) {
         Select-Object -First 1
 }
 
-# The launcher and game exe to use: those given, or else Reloaded-II's own records of them. The launcher from
-# ReloadedII.json's LauncherPath (rewritten on each launch: reloaded-ii-config-location-2026-11-13.md), the game from the
-# application registered as metaphor.exe (the AppId Metaphor mods target: reloaded-ii-mod-entry-point-2026-11-15.md).
-function Resolve-LoaderPaths($Loader, [string] $GameExe, [string] $LauncherExe) {
-    if (-not $LauncherExe -and $Loader.PSObject.Properties['LauncherPath']) { $LauncherExe = $Loader.LauncherPath }
-    if (-not $GameExe) {
-        $game = Find-MetaphorApplication $Loader
-        if ($game) { $GameExe = Resolve-AppLocation $game.FullName (Read-Json $game.FullName).AppLocation }
-    }
-    [pscustomobject]@{ GameExe = $GameExe; LauncherExe = $LauncherExe }
-}
-
 # Waits for each mod's status file (each $Mods item has Id and Folder), the game exiting, or the deadline, then prints
 # one line per mod. True when every mod is ready on $Build with all its hooks.
 function Wait-ModStatus($Mods, [string] $GameExe, [string] $Build, [datetime] $Deadline, [int] $TimeoutSeconds) {

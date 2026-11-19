@@ -37,17 +37,6 @@ Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 Import-Module (Join-Path $PSScriptRoot 'InstallCheck.psm1'), (Join-Path $PSScriptRoot 'Interactive.psm1')
 
-# Windows' own voice through System.Speech (SAPI), or $null when it can't start.
-function New-Voice {
-    try {
-        Add-Type -AssemblyName System.Speech
-        $voice = New-Object System.Speech.Synthesis.SpeechSynthesizer
-        $voice.SetOutputToDefaultAudioDevice()
-        return $voice
-    }
-    catch { return $null }
-}
-
 $readers = @(Find-ScreenReader)
 $speech = Select-Speech -Speak $Speak.IsPresent -NoSpeech $NoSpeech.IsPresent -Interactive (Test-Interactive) -Readers $readers
 if ($speech.Message) { Write-Host $speech.Message }

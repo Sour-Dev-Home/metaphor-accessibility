@@ -1,9 +1,10 @@
-# Finds the game and Reloaded-II on this machine (#267), for developer scripts: onboard.ps1 now, and the installer (#303)
-# when it comes. The players' install check (#283) reads ReloadedRead.psm1 instead, which ignores the developer
-# variables.
+# Finds the game and Reloaded-II on this machine (#267), for onboard.ps1 and the players' installer (install.ps1, #303).
+# It ships in the release beside the installer, so it reads only (ReloadedRead.psm1) and must load in Windows
+# PowerShell 5.1: ASCII only. The players' install check (#283) reads ReloadedRead.psm1 alone, which ignores the
+# developer variables.
 #
 # The game: METAPHOR_GAME_EXE, then the game registered in Reloaded-II (the precedence deploy-dev.ps1 and listen.ps1
-# use, through ReloadedDev.psm1's Resolve-LoaderPaths), then METAPHOR.exe in Steam's libraries. How Steam lists its
+# use, through ReloadedRead.psm1's Resolve-LoaderPaths), then METAPHOR.exe in Steam's libraries. How Steam lists its
 # libraries: docs/raw-sources/steam-library-folders-2026-11-18.md.
 # Reloaded-II: METAPHOR_RELOADED_EXE, then LauncherPath in ReloadedII.json, which every launch rewrites
 # (docs/raw-sources/reloaded-ii-config-location-2026-11-13.md). There's no install folder to probe: Reloaded-II is a
@@ -11,7 +12,7 @@
 # 2), so one that has never been launched isn't found.
 
 Set-StrictMode -Version Latest
-Import-Module (Join-Path $PSScriptRoot 'ReloadedDev.psm1')
+Import-Module (Join-Path $PSScriptRoot 'ReloadedRead.psm1')
 
 $GameExeName = 'METAPHOR.exe'
 
@@ -63,12 +64,25 @@ function Get-LoaderRecord([string] $ConfigPath) {
 
 function Test-File([string] $Path) { [bool]($Path -and (Test-Path -LiteralPath $Path -PathType Leaf)) }
 
-# Reloaded-II's launcher: METAPHOR_RELOADED_EXE, then the config's LauncherPath; $null when neither exists.
+# Reloaded-II's launcher: METAPHOR_RELOADED_EXE, then the config's LauncherPath; $null when neither is a file named
+# Reloaded-II.exe, so a record pointing at another program is never started or linked to.
 function Find-ReloadedLauncher([string] $ConfigPath = (Get-ReloadedConfigPath)) {
-    if (Test-File $env:METAPHOR_RELOADED_EXE) { return $env:METAPHOR_RELOADED_EXE }
-    $launcher = (Get-LoaderRecord $ConfigPath).LauncherExe
-    if (Test-File $launcher) { return $launcher }
+    foreach ($launcher in $env:METAPHOR_RELOADED_EXE, (Get-LoaderRecord $ConfigPath).LauncherExe) {
+        if ((Test-File $launcher) -and (Split-Path -Leaf $launcher) -eq 'Reloaded-II.exe') { return $launcher }
+    }
     return $null
+}
+
+# Each game exe that exists, as a full path, once: the one Reloaded-II has registered, then those in Steam's libraries.
+# The environment variables are left to the callers.
+function Find-MetaphorGame([string] $SteamRoot = (Get-SteamRoot), [string] $ConfigPath = (Get-ReloadedConfigPath)) {
+    $found = [Collections.Generic.List[string]]::new()
+    foreach ($exe in @((Get-LoaderRecord $ConfigPath).GameExe) + @(Find-SteamGame $SteamRoot)) {
+        if (-not (Test-File $exe)) { continue }
+        $full = [IO.Path]::GetFullPath($exe)
+        if (-not ($found | Where-Object { $_ -eq $full })) { $found.Add($full) }
+    }
+    $found
 }
 
 # The game exe to use, as { Path; Saved }: Saved is true when it came from METAPHOR_GAME_EXE. $null when there is none.
@@ -83,13 +97,7 @@ function Select-MetaphorGame([scriptblock] $Ask, [string] $SteamRoot = (Get-Stea
     }
     if ($env:METAPHOR_GAME_EXE) { Write-Host 'METAPHOR_GAME_EXE points at a file that is not there; looking again.' }
 
-    $found = [Collections.Generic.List[string]]::new()
-    foreach ($exe in @((Get-LoaderRecord $ConfigPath).GameExe) + @(Find-SteamGame $SteamRoot)) {
-        if (-not (Test-File $exe)) { continue }
-        $full = [IO.Path]::GetFullPath($exe)
-        if (-not ($found | Where-Object { $_ -eq $full })) { $found.Add($full) }
-    }
-
+    $found = @(Find-MetaphorGame -SteamRoot $SteamRoot -ConfigPath $ConfigPath)
     $path = $null
     if ($found.Count -eq 1) {
         Write-Host "Found the game: $($found[0])"
@@ -115,4 +123,4 @@ function Select-MetaphorGame([scriptblock] $Ask, [string] $SteamRoot = (Get-Stea
     return $null
 }
 
-Export-ModuleMember -Function Select-MetaphorGame, Find-ReloadedLauncher
+Export-ModuleMember -Function Select-MetaphorGame, Find-MetaphorGame, Find-ReloadedLauncher

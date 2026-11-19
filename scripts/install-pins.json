@@ -1,0 +1,36 @@
+{
+  "source": "docs/raw-sources/spoken-installer-sources-2026-11-19.md",
+  "reloaded": {
+    "name": "Reloaded-II",
+    "version": "1.31.0",
+    "url": "https://github.com/Reloaded-Project/Reloaded-II/releases/download/1.31.0/Release.zip",
+    "fileName": "Release.zip",
+    "sha256": "c893da3ba8596d9266826bd5ca8aacd25fe3b53d09314324ab65c7b618a05f8c"
+  },
+  "hooksLibrary": {
+    "name": "Reloaded-II's hooks library",
+    "version": "1.16.3",
+    "modId": "reloaded.sharedlib.hooks",
+    "url": "https://github.com/Sewer56/Reloaded.SharedLib.Hooks.ReloadedII/releases/download/1.16.3/Reloaded.Hooks.ReloadedII1.16.3.7z",
+    "fileName": "Reloaded.Hooks.ReloadedII1.16.3.7z",
+    "sha256": "2b7c2e6118a3f1eb00a2e1e9105397b0d17a118a84596308c3a6a9ff3cb14b1b"
+  },
+  "dotnetDesktop": {
+    "name": ".NET 9 Desktop Runtime",
+    "version": "9.0.23",
+    "minimumVersion": "9.0.8",
+    "frameworks": [ "Microsoft.NETCore.App", "Microsoft.WindowsDesktop.App" ],
+    "url": "https://builds.dotnet.microsoft.com/dotnet/WindowsDesktop/9.0.23/windowsdesktop-runtime-9.0.23-win-x64.exe",
+    "fileName": "windowsdesktop-runtime-9.0.23-win-x64.exe",
+    "sha256": "eefb60bd0f3fb33c0787074cebc0467ffba32bcb01088613121649fc3bdb4a27",
+    "signer": "CN=.NET, O=Microsoft Corporation, L=Redmond, S=Washington, C=US"
+  },
+  "vcRedist": {
+    "name": "Microsoft Visual C++ Redistributable",
+    "version": "14.44.35211.0",
+    "url": "https://download.visualstudio.microsoft.com/download/pr/e9604e21-4b79-4096-a4b3-1b63d4b55b4d/CC0FF0EB1DC3F5188AE6300FAEF32BF5BEEBA4BDD6E8E445A9184072096B713B/VC_redist.x64.exe",
+    "fileName": "VC_redist.x64.exe",
+    "sha256": "cc0ff0eb1dc3f5188ae6300faef32bf5beeba4bdd6e8e445a9184072096b713b",
+    "signer": "CN=Microsoft Corporation, O=Microsoft Corporation, L=Redmond, S=Washington, C=US"
+  }
+}

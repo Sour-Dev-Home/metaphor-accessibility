@@ -269,7 +269,7 @@ Describe 'the package' {
         }
         $project | Should -Match ([regex]::Escape('<None Include="../Metaphor.Core/known-game-builds.json" Link="known-game-builds.json"'))
         $project | Should -Match ([regex]::Escape('<None Include="prism.json" CopyToPublishDirectory'))
-        $project | Should -Not -Match 'scripts/(ReloadedDev|GameLocator)\.psm1'
+        $project | Should -Not -Match 'scripts/ReloadedDev\.psm1'
     }
 
     It 'holds only ASCII in what Windows PowerShell 5.1 reads' {
