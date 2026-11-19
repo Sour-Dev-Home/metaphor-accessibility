@@ -1135,6 +1135,17 @@ test_pre_push_builds_when_code_changed() {
   expect 2 "pre-push stage needs Metaphor.sln"
 }
 
+test_pre_push_runs_pester_when_a_script_changed() {
+  # The 2026-11-19 push of scripts/setup/onboard.ps1 skipped everything as "no code changes" (#413).
+  push_repo scripts/setup/onboard.ps1
+  run_pre_push "$HEAD" "$BASE"
+  expect 2 "pre-push stage needs Metaphor.sln"
+  expect_absent "no code changes"
+  push_repo tests/pester/a.Tests.ps1
+  run_pre_push "$HEAD" "$BASE"
+  expect 2 "pre-push stage needs Metaphor.sln"
+}
+
 test_pre_push_builds_when_it_cant_tell_what_changed() {
   # A new branch with no origin/main to compare against.
   push_repo docs/notes.md
@@ -1935,8 +1946,8 @@ test_maintainer_pr_uses_trailers_and_ignores_the_label() {
 # The guards that enforce the ground rules are in the scope too (issue #306).
 GUARD_FILES=(scripts/check.sh scripts/check/report.sh scripts/check/run.sh scripts/check/pool.sh scripts/check/docs.sh
   scripts/check/build.sh scripts/check/message.sh scripts/check/review.sh scripts/check/rules.sh
-  scripts/ci/game-content.sha256 scripts/check/tree-hash.sh scripts/ci/ci-changes.sh
-  scripts/ci/test-select.sh scripts/check/stage-timing.sh scripts/setup/install-docs-tools.sh scripts/ci/conflict-alert.sh
+  scripts/ci/game-content.sha256 scripts/check/tree-hash.sh scripts/ci/what-runs.sh
+  scripts/check/stage-timing.sh scripts/setup/install-docs-tools.sh scripts/ci/conflict-alert.sh
   scripts/ci/integration-sync.sh scripts/check/check-status.sh scripts/check/run-pester.sh scripts/check/live-log.sh
   scripts/check/wsl-run.sh scripts/check/run-check-suites.sh scripts/setup/wsl-tools.txt scripts/setup/setup-wsl.ps1
   scripts/githooks/pre-commit scripts/githooks/pre-push

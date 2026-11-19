@@ -53,8 +53,8 @@ it in their names.
 
 - **Pull requests** do the .NET work on Linux, minus the tests marked `WindowsOnly`, and skip what a change doesn't
   touch. The Pester script tests run on Windows as parallel `pester` jobs, one per test file, and the `scripts` check
-  waits for them all (#314). Each job starts with a `git diff` check (`scripts/ci/ci-changes.sh`) and finishes green at
-  once when the change can't affect it.
+  waits for them all (#314). Each job starts with a `git diff` check (`scripts/ci/what-runs.sh`, which also picks
+  the pre-push's tests, #413) and finishes green at once when the change can't affect it.
 - **The merge queue and pushes to `main`** run everything on Windows, then package, zip and rebuild the mod
   reproducibly; on `main`, `attest` signs the zip ([Check a download](../../players/how-to/check-a-download.md)). The
   path-by-path detail is in [how a change reaches main](../explanation/how-a-change-reaches-main.md) and

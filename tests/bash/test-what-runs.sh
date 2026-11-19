@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Tests for scripts/ci/test-select.sh (issue #243): which suites a change selects, and that CI and `full` never narrow.
+# Tests for scripts/ci/what-runs.sh (#413): what a change runs, locally (#243) and in CI's jobs (#100).
 set -uo pipefail
 unset GITHUB_ACTIONS METAPHOR_FULL_TESTS
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
@@ -8,7 +8,7 @@ source "$ROOT/scripts/check/wsl-run.sh" # in Git Bash, runs this suite in WSL in
 cd "$ROOT" || exit 2
 passed=0 failed=0
 check() { local n="$1"; shift; if "$@"; then passed=$((passed + 1)); else failed=$((failed + 1)); echo "FAIL $n"; fi; }
-sel() { printf '%s\n' "$@" | bash scripts/ci/test-select.sh; }
+sel() { printf '%s\n' "$@" | bash scripts/ci/what-runs.sh; }
 has() { [[ "$out" == *"$1"* ]]; }
 lacks() { [[ "$out" != *"$1"* ]]; }
 
@@ -123,21 +123,75 @@ mkdir -p "$cycle/src/A" "$cycle/src/B"
 printf '<Project><ItemGroup><ProjectReference Include="..\\B\\B.csproj" /></ItemGroup></Project>\n' > "$cycle/src/A/A.csproj"
 printf '<Project><ItemGroup><ProjectReference Include="..\\A\\A.csproj" /></ItemGroup></Project>\n' > "$cycle/src/B/B.csproj"
 git -C "$cycle" add .
-out="$(cd "$cycle" && printf 'src/A/X.cs\n' | FUNCNEST=50 timeout 60 bash "$ROOT/scripts/ci/test-select.sh" 2>&1)"
+out="$(cd "$cycle" && printf 'src/A/X.cs\n' | FUNCNEST=50 timeout 60 bash "$ROOT/scripts/ci/what-runs.sh" 2>&1)"
 check "a reference cycle ends" test $? -eq 0
 check "a reference cycle nests no function deeper than the graph" lacks "nesting level"
 check "a reference cycle builds both projects" has "build src/B/B.csproj"
 rm -rf "$cycle"
 
-# Selection is local only
-out="$(GITHUB_ACTIONS=true sel docs/README.md)"
-check "CI selects every test project" has "Dialogue.Tests"
-check "CI selects Pester" has "pester"
-check "CI selects test-check.sh" has "check-tests"
-out="$(METAPHOR_FULL_TESTS=1 sel docs/README.md)"
-check "METAPHOR_FULL_TESTS selects everything" has "Menus.Tests"
-check "check.sh full never calls the selector" bash -c \
-  "! sed -n '/^if \[ \"\$stage\" = full \]/,\$p' scripts/check.sh | grep -q test-select"
+# The pre-push's gate: `compile` for a file that can change the build or the tests, `pester` for a script (#413)
+out="$(sel src/Metaphor.Core/X.cs)"
+check "a source change asks the pre-push to build" has "compile src/Metaphor.Core/X.cs changed"
+out="$(sel tools/docs/package-lock.json)"
+check "a json file anywhere asks the pre-push to build" has "compile tools/docs/package-lock.json changed"
+out="$(sel src/Metaphor.Core/README.md)"
+check "a docs file in a project asks for no build" lacks "compile"
+out="$(sel scripts/setup/onboard.ps1 tests/pester/onboard.Tests.ps1)"
+check "a setup script and its Pester test select Pester (the 2026-11-19 push)" has \
+  "pester scripts/setup/onboard.ps1 changed"
+check "a setup script asks for no build" lacks "compile"
+out="$(sel tests/pester/onboard.Tests.ps1)"
+check "a Pester test alone selects Pester" has "pester tests/pester/onboard.Tests.ps1 changed"
 
-printf 'test selection tests: %d passed, %d failed\n' "$passed" "$failed"
+# CI's jobs: the `code` line is the build and security job, the `pester` line the scripts job
+out="$(sel docs/a.md README.md docs/raw-sources/x.txt)"
+check "docs only skips the code job" lacks "code "
+out="$(sel src/a.cs docs/a.md)"
+check "a code change runs the code job" has "code src/a.cs changed"
+out="$(sel .github/workflows/ci.yml)"
+check "a workflow change runs the code job" has "code .github/workflows/ci.yml changed"
+check "a workflow change runs the scripts job" has "pester .github/workflows/ci.yml changed"
+
+# The selection is what the change needs; running everything (CI, METAPHOR_FULL_TESTS, `full`) is the caller's choice
+out="$(GITHUB_ACTIONS=true METAPHOR_FULL_TESTS=1 sel docs/README.md)"
+check "the environment never widens the selection" lacks "dotnet"
+check "the environment never adds Pester" lacks "pester"
+check "check.sh full never calls the selector" bash -c \
+  "! sed -n '/^if \[ \"\$stage\" = full \]/,\$p' scripts/check.sh | grep -q what-runs"
+
+# --job against a throwaway repository: which changed files let a CI job skip (#100)
+jobs_repo="$(mktemp -d)"
+(cd "$jobs_repo" && git init -q . && git config user.email t@example.invalid && git config user.name t &&
+  git config commit.gpgsign false && echo a > README.md && git add -A && git commit -q -m "chore: base") || exit 2
+base="$(git -C "$jobs_repo" rev-parse HEAD)"
+# job NAME EXPECTED JOB EVENT PATH...: commit the paths on top of the base, then ask the script.
+job() {
+  local name="$1" expected="$2" job="$3" event="$4" got
+  shift 4
+  got="$(cd "$jobs_repo" && git checkout -q --detach "$base" && for path in "$@"; do
+    mkdir -p "$(dirname "$path")" && echo "$RANDOM" >> "$path"
+  done && git add -A && git commit -q -m "chore: change" &&
+    EVENT_NAME="$event" GITHUB_OUTPUT='' bash "$ROOT/scripts/ci/what-runs.sh" --job "$job" "$base" "$(git rev-parse HEAD)")"
+  check "$name (got $got)" [ "$got" = "run=$expected" ]
+}
+job "docs-only PR skips code jobs" false code pull_request docs/a.md README.md
+job "raw-source PR skips code jobs" false code pull_request docs/raw-sources/x.txt
+job "a code PR runs code jobs" true code pull_request src/a.cs docs/a.md
+job "a workflow change runs code jobs" true code pull_request .github/workflows/ci.yml
+job "docs-only PR skips Pester" false scripts pull_request docs/a.md
+job "a source-only PR skips Pester" false scripts pull_request src/a.cs
+job "a script change runs Pester" true scripts pull_request scripts/x.sh
+job "a smoke-test change runs Pester" true scripts pull_request tests/pester/a.Tests.ps1
+job "the merge queue skips nothing (code)" true code merge_group docs/a.md
+job "the merge queue skips nothing (scripts)" true scripts merge_group docs/a.md
+job "a push to main skips nothing" true scripts push docs/a.md
+GITHUB_ACTIONS=true job "CI's environment doesn't stop a PR skipping" false scripts pull_request docs/a.md
+out="$(cd "$jobs_repo" && GITHUB_OUTPUT="$jobs_repo/out" EVENT_NAME=pull_request \
+  bash "$ROOT/scripts/ci/what-runs.sh" --job code "$base" "$base"; cat "$jobs_repo/out")"
+check "an empty diff runs, and the answer reaches GITHUB_OUTPUT" [ "$out" = $'run=true\nrun=true' ]
+out="$(bash scripts/ci/what-runs.sh --job nope 2>&1)"
+check "an unknown job is a usage error" has "usage: what-runs.sh --job code|scripts"
+rm -rf "$jobs_repo"
+
+printf 'what-runs tests: %d passed, %d failed\n' "$passed" "$failed"
 [ "$failed" -eq 0 ]
