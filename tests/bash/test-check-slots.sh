@@ -3,11 +3,12 @@
 # slot 1 at METAPHOR_CHECK_LOCK itself and slot N at "<lock>.N", a waiter when all are held, dead-holder takeover per
 # slot, and SLOTS=1 behaving as the single lock did. A stand-in `dotnet` records which slots exist while it runs.
 set -uo pipefail
-unset PII_PATTERNS REQUIRE_PRIVATE_PATTERNS REQUIRE_DOCS_TOOLS GITHUB_ACTIONS SECURITY_REVIEW_SKIP METAPHOR_CHECK_SLOTS
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 # shellcheck source=../../scripts/check/wsl-run.sh
 source "$ROOT/scripts/check/wsl-run.sh" # in Git Bash, runs this suite in WSL instead when it's set up (#341)
+# shellcheck source=../../scripts/check/suite-env.sh
+source "$ROOT/scripts/check/suite-env.sh" # the contributor's git config and shell don't reach it (#455)
 WORK="$(mktemp -d)"
 trap 'rm -rf "$WORK"' EXIT
 # A copy of the scripts whose docs-tools installer, which `full` runs (#353), does nothing.

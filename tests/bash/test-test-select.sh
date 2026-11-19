@@ -1,10 +1,11 @@
 #!/usr/bin/env bash
 # Tests for scripts/ci/test-select.sh (issue #243): which suites a change selects, and that CI and `full` never narrow.
 set -uo pipefail
-unset GITHUB_ACTIONS METAPHOR_FULL_TESTS
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 # shellcheck source=../../scripts/check/wsl-run.sh
 source "$ROOT/scripts/check/wsl-run.sh" # in Git Bash, runs this suite in WSL instead when it's set up (#341)
+# shellcheck source=../../scripts/check/suite-env.sh
+source "$ROOT/scripts/check/suite-env.sh" # the contributor's git config and shell don't reach it (#455)
 cd "$ROOT" || exit 2
 passed=0 failed=0
 check() { local n="$1"; shift; if "$@"; then passed=$((passed + 1)); else failed=$((failed + 1)); echo "FAIL $n"; fi; }

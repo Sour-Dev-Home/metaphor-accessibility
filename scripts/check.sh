@@ -207,8 +207,9 @@ commits_stage() {
   shas="$(git rev-list --no-merges "$1" --)" || die "could not list the commits in $1"
   local short
   for sha in $shas; do
-    # The short hash on the first line, then the message: one git start where two were.
-    git log -1 --format=%h%n%B "$sha" > "$tmp/message" || die "could not read commit $sha"
+    # The short hash on the first line, then the message: one git start where two were. --no-show-signature: a
+    # contributor's log.showSignature would print the signature check first (#455).
+    git log -1 --no-show-signature --format=%h%n%B "$sha" > "$tmp/message" || die "could not read commit $sha"
     { read -r short && check_message "commit $short"; } < "$tmp/message"
   done
   check_head_review "$1"
