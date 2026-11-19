@@ -1,6 +1,6 @@
 // Summarises the mod's local message-log.txt (issue #244) without printing game text: counts by record kind, screen
 // classes with first and last time and cursor inputs, and the records in a time window (Metaphor.Core's SessionLogSummary).
-// Usage: tools/session-log <message-log.txt> [--from <ms>] [--to <ms>] [--offset <ms>]
+// Usage: dotnet run --project tools/Metaphor.SessionLog -c Release -v q -- <message-log.txt> [--from <ms>] [--to <ms>] [--offset <ms>]
 //   --offset: the gap in ms between the mod's start and the recording's start; times then also show as video times
 //   (log time minus the offset).
 // Exit 0 on success, 2 on a usage error or a missing file.

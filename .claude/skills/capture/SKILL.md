@@ -15,7 +15,7 @@ Hard rules, throughout:
 - Commit only code, notes and raw sources with no game text and no local path (`AGENTS.md` rules 4 and 6).
 - Hook `.text1` only in Debug, opt-in listeners (ADR 0010).
 - Stop only processes you started. Check every push's own exit code.
-- While the maintainer plays, run no build, check or deploy: `bash scripts/check-status.sh` shows what is running.
+- While the maintainer plays, run no build, check or deploy: `bash scripts/check/check-status.sh` shows what is running.
 
 ## 1. Evening issue
 
@@ -45,10 +45,10 @@ couple of minutes.
 When the maintainer says ready, and with the game closed:
 
 ```powershell
-pwsh scripts/capture.ps1 -OptIns <names> -SaveLog <folder outside the repo>
+pwsh scripts/dev/capture.ps1 -OptIns <names> -SaveLog <folder outside the repo>
 ```
 
-(or deploy with `scripts/listen.ps1 -Seconds 30 -Close` and add the opt-in files by hand). Done when the output shows
+(or deploy with `scripts/dev/listen.ps1 -Seconds 30 -Close` and add the opt-in files by hand). Done when the output shows
 `hooks n/m` as expected with no `skipped: opt-in` or failed listener. Tell the maintainer to start OBS and narrate, and
 to quit the game when done (`-SaveLog` then copies the logs). Fix a missing listener before they play.
 
@@ -56,9 +56,9 @@ to quit the game when done (`-SaveLog` then copies the logs). Fix a missing list
 
 Copy the log folder out of the mod's folder before any later deploy. Transcribe the narration with the `watch` skill
 (local engine). Compute the offset: the mod's Ready time in the log minus the recording's start; pass it as `--offset` to
-`tools/session-log` ([how-to](../../../docs/contributors/how-to/deploy-a-dev-build.md#summarise-a-log)).
+`tools/Metaphor.SessionLog` ([how-to](../../../docs/contributors/how-to/deploy-a-dev-build.md#summarise-a-log)).
 
-One analysis agent per area (Sonnet for inventories, Opus for RE), each running `tools/session-log` over its window and
+One analysis agent per area (Sonnet for inventories, Opus for RE), each running `tools/Metaphor.SessionLog` over its window and
 writing raw sources under `docs/raw-sources/` with the header from its README, no game text. Each opens a docs PR with
 `gh pr merge <n> --auto`, then comments on its tickets. Done when every ticket has a raw source and a comment.
 

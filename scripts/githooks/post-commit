@@ -1,4 +1,4 @@
 #!/usr/bin/env bash
 # Spends the security-review stamp once a commit carries its trailer, so the next scope commit needs a fresh review.
 # Turn on with: git config core.hooksPath scripts/githooks
-exec bash "$(git rev-parse --show-toplevel)/scripts/security-stamp.sh" spend
+exec bash "$(git rev-parse --show-toplevel)/scripts/ci/security-stamp.sh" spend

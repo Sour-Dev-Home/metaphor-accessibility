@@ -32,8 +32,8 @@ describing work (rule 8 in [`AGENTS.md`](../../AGENTS.md#ground-rules)).
 4. Run each long command (`check.sh full`, the script test suites) alone in its own call. In a subagent, a Bash or
    PowerShell call moves to the background after 180 s whatever its timeout, so wait for its completion notification
    and read the output then. Never poll: no sleep loops, no re-reading its output file. `full`,
-   `tests/check/test-check.sh` and `scripts/run-pester.sh` write their progress to the clone's live log,
-   `<git dir>/check-live-log`, where the maintainer follows it (`tail -f`, or `bash scripts/check-status.sh`). Run them
+   `tests/check/test-check.sh` and `scripts/check/run-pester.sh` write their progress to the clone's live log,
+   `<git dir>/check-live-log`, where the maintainer follows it (`tail -f`, or `bash scripts/check/check-status.sh`). Run them
    as they are; never redirect them to a private temp file. A hook (`.claude/hooks/refuse-log-polling.sh`) refuses a
    sleep loop that waits on a log file.
 5. Hand back verified: the narrow tests, then `full`, both passed and their summaries read. If a run can't finish, say
@@ -47,7 +47,7 @@ A building run prints `step times: restore=.. build=.. tests=.. ...` and keeps t
 `tests/check/test-check.sh` runs its tests in parallel, printing a line per test as it finishes; narrow it with a name
 pattern as its argument.
 
-A check that looks stalled: `bash scripts/check-status.sh` shows who holds each of the two machine-wide build slots
+A check that looks stalled: `bash scripts/check/check-status.sh` shows who holds each of the two machine-wide build slots
 (`METAPHOR_CHECK_SLOTS`, default 2), who waits, each worktree's running suite and last runs, and idle build workers
 (with the command to stop them). The status line shows the `--short` form.
 
@@ -61,7 +61,7 @@ A check that looks stalled: `bash scripts/check-status.sh` shows who holds each 
 ## Hook, loading, install or update code, and the guards
 
 This covers the security-review scope (the hook layer, every script and the guards), listed in
-`scripts/security-stamp.sh`. The stamp is in
+`scripts/ci/security-stamp.sh`. The stamp is in
 [`CONTRIBUTING.md`](../../.github/CONTRIBUTING.md#security-review-and-deny-rules). A change to any of it is handed
 back for review, never auto-merged on CI alone. Three steps are yours:
 

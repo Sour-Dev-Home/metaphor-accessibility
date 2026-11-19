@@ -16,7 +16,7 @@ You need the game registered as an application in Reloaded-II, and the game buil
 4. From the repository root, in PowerShell 7:
 
    ```powershell
-   pwsh scripts/smoke-test.ps1 -ModFolders <test mod folder>, <another>
+   pwsh scripts/dev/smoke-test.ps1 -ModFolders <test mod folder>, <another>
    ```
 
    It finds the launcher and the game in Reloaded-II's config, as
@@ -33,5 +33,5 @@ hand, move the backup back over `ReloadedII.json`.
 The script's own tests run against the [stand-in game](../../../GLOSSARY.md#working-and-testing), with no game needed:
 
 ```powershell
-Invoke-Pester tests/smoke
+Invoke-Pester tests/pester
 ```

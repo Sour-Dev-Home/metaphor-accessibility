@@ -40,7 +40,7 @@ the handle on field menus only. The shop functions reading it suggest it's non-n
 
 Deploy a Debug build with `opt-in-inspector.txt` ([how-to](../contributors/how-to/inspect-the-running-game.md)).
 
-1. **Field, any time:** `pwsh scripts/inspect.ps1 'follow base+0x272e310 0x22c58' 'follow base+0x272e310 0x24674'
+1. **Field, any time:** `pwsh scripts/dev/inspect.ps1 'follow base+0x272e310 0x22c58' 'follow base+0x272e310 0x24674'
    'follow base+0x272e310 0x1c758'`. The first should print `base+0x2cc9348`. Then `read <money> 4` against the money
    on the main menu, `read <rank> 92` (23 ranks) against the Followers screen, and `watch` all three.
 2. **Item shop, top menu:** `read base+0x2cc9ea4 4` while moving between buy and sell.
@@ -56,9 +56,9 @@ Deploy a Debug build with `opt-in-inspector.txt` ([how-to](../contributors/how-t
 
 ## Steps
 
-Ghidra 12.2 (`ghidra_12.2_PUBLIC`) with JDK 25.0.5+8, the shared project built by `pwsh scripts/ghidra.ps1 build` on
+Ghidra 12.2 (`ghidra_12.2_PUBLIC`) with JDK 25.0.5+8, the shared project built by `pwsh scripts/dev/ghidra.ps1 build` on
 the build above, Windows 11 x64, 2026-11-19. Script function addresses come from the squirrel registration list. Each
-line is one `pwsh scripts/ghidra.ps1` query.
+line is one `pwsh scripts/dev/ghidra.ps1` query.
 
 1. `decompile 0x90a510`, then `0x3b0c30`. `global 0x272e310`. The 8 bytes at file offset
    `0x272e310 - 0x2729000 + 0x2727000` (`.debug`'s virtual and raw starts) hold `0x142ca66f0`.

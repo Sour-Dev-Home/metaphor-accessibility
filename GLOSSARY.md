@@ -65,7 +65,7 @@ _Avoid_: info key, read-more key
 **Security-review scope**:
 The files whose changes must be reviewed by the `security-reviewer` agent before they are committed: the hook layer,
 every script, and the guards that enforce the ground rules. The list, by directory, lives in
-`scripts/security-stamp.sh`.
+`scripts/ci/security-stamp.sh`.
 _Avoid_: review list, protected files
 
 **Stamp**:

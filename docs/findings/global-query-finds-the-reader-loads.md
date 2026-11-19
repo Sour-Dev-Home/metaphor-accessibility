@@ -6,7 +6,7 @@
   [`dialogue-window-flag-2026-11-16.md`](../raw-sources/dialogue-window-flag-2026-11-16.md),
   [`squirrel-script-functions-all-2026-11-16.md`](../raw-sources/squirrel-script-functions-all-2026-11-16.md)
 
-`pwsh scripts/ghidra.ps1 global <rva>` (#304) lists the RIP-relative load in each reader that `hook-signatures.json`
+`pwsh scripts/dev/ghidra.ps1 global <rva>` (#304) lists the RIP-relative load in each reader that `hook-signatures.json`
 uses to find the menus' handle global (#268) and the message window global (#232).
 
 ## Evidence
@@ -32,12 +32,12 @@ uses to find the menus' handle global (#268) and the message window global (#232
 
 ## Steps
 
-Ghidra 12.2 (`ghidra_12.2_PUBLIC`) with JDK 25.0.5+8, the shared project built by `pwsh scripts/ghidra.ps1 build` on the
-build above (`ghidra/548ddc955c176867/`, ready 2026-11-17), on Windows 11 x64.
+Ghidra 12.2 (`ghidra_12.2_PUBLIC`) with JDK 25.0.5+8, the shared project built by `pwsh scripts/dev/ghidra.ps1 build` on the
+build above (`out/ghidra/548ddc955c176867/`, ready 2026-11-17), on Windows 11 x64.
 
-1. `pwsh scripts/ghidra.ps1 global 0x2ee7338` and find `0x51fad9`.
-2. `pwsh scripts/ghidra.ps1 disasm 0x903ab0`, then `disasm 0x51f370` and `disasm 0x51fad0`, to tie that load to
+1. `pwsh scripts/dev/ghidra.ps1 global 0x2ee7338` and find `0x51fad9`.
+2. `pwsh scripts/dev/ghidra.ps1 disasm 0x903ab0`, then `disasm 0x51f370` and `disasm 0x51fad0`, to tie that load to
    `CampStatus_IsClosed`.
-3. `pwsh scripts/ghidra.ps1 global 0x2f04960` and find `0x9ea970`.
+3. `pwsh scripts/dev/ghidra.ps1 global 0x2f04960` and find `0x9ea970`.
 
-The answers are in `ghidra/out/`; they hold disassembly, so they stay there (rule 4).
+The answers are in `out/ghidra/out/`; they hold disassembly, so they stay there (rule 4).

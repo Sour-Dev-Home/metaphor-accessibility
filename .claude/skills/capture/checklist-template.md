@@ -5,7 +5,7 @@ Post as one comment on the evening issue, starting with the `This was generated 
 ```markdown
 ## Session checklist (kit: `<branch>` at `<sha>`, every listener reviewed and stamped)
 
-**Setup (Claude does this when asked):** run `scripts/capture.ps1` with the opt-ins below (or deploy Debug from the
+**Setup (Claude does this when asked):** run `scripts/dev/capture.ps1` with the opt-ins below (or deploy Debug from the
 kit and add them by hand) and confirm `hooks <n>/<m>` with no `skipped: opt-in` and every listener installed. Copy
 `message-log.txt` outside the repo before any later deploy.
 

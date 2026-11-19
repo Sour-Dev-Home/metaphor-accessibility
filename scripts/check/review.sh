@@ -11,7 +11,7 @@
 # Private to this module: stamp_script, and review_by, which review_gate sets for review_trailer.
 
 # The security review's stamp script answers for the repository in the current folder.
-stamp_script="$check_dir/security-stamp.sh"
+stamp_script="$check_dir/ci/security-stamp.sh"
 
 # in_scope [COMMIT]: exit 0 when the staged changes (or COMMIT) touch the security-review scope, 1 when they don't.
 in_scope() {

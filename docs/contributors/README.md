@@ -1,7 +1,7 @@
 # Contributor docs
 
 For people working on the code, the notes or the docs. Start with [`CONTRIBUTING.md`](../../.github/CONTRIBUTING.md):
-in PowerShell, `.\scripts\onboard.ps1` sets up a fresh clone in one command
+in PowerShell, `.\scripts\setup\onboard.ps1` sets up a fresh clone in one command
 ([how](../../.github/CONTRIBUTING.md#one-command); on a fresh Windows install, allow scripts first).
 [`../README.md`](../README.md) says which type of page goes in which folder.
 

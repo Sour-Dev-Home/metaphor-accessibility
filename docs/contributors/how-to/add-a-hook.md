@@ -29,7 +29,7 @@ A byte pattern with `??` wildcards that matches the function exactly once
 
 1. Put it in a probes file in `tools/Metaphor.SignatureCheck/` that cites the raw source, and check it on disk:
    `dotnet run --project tools/Metaphor.SignatureCheck -c Release -- --probes "$METAPHOR_GAME_EXE" <probes file>`.
-2. Check it in the running game too: `pwsh scripts/signature-spike.ps1 -Probes <probes file>`
+2. Check it in the running game too: `pwsh scripts/dev/signature-spike.ps1 -Probes <probes file>`
    ([how](check-hook-signatures.md#compare-the-exe-on-disk-with-the-running-game)). Save the draft as a raw source.
 3. Copy it into `src/Metaphor.Core/hook-signatures.json` with the builds it was checked on and evidence pointing to
    those raw sources. `HookSignaturesTests` checks the entry.
@@ -72,9 +72,9 @@ check the points above.
 
 1. **Smoke test** ([how](run-the-smoke-test.md)): the status shows `hooks n/n` on the build. It closes the game within
    seconds, so it proves the hook installs, not what it does later.
-2. **A real run**: `pwsh scripts/deploy-dev.ps1` leaves the game running. Watch it for at least a minute before
+2. **A real run**: `pwsh scripts/dev/deploy-dev.ps1` leaves the game running. Watch it for at least a minute before
    playing; the first run of #55's hooks crashed seven seconds in. A
-   [listening run](deploy-a-dev-build.md#listening-run) (`pwsh scripts/listen.ps1`) does that watch and summarises the
+   [listening run](deploy-a-dev-build.md#listening-run) (`pwsh scripts/dev/listen.ps1`) does that watch and summarises the
    development log by record type. Then do what the feature needs: play the scene,
    listen with a screen reader (say so in advance if someone else is listening), read the transcript.
 3. If it crashed, Windows' Application event log names the faulting module and exception code; `coreclr.dll` with

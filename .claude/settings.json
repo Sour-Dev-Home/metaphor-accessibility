@@ -1,7 +1,7 @@
 {
   "statusLine": {
     "type": "command",
-    "command": "bash \"$CLAUDE_PROJECT_DIR/scripts/check-status.sh\" --short"
+    "command": "bash \"$CLAUDE_PROJECT_DIR/scripts/check/check-status.sh\" --short"
   },
   "permissions": {
     "deny": [

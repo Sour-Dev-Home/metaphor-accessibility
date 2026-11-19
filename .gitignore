@@ -3,7 +3,8 @@
 /extracted/
 /dumps/
 /captures/
-# The local Ghidra project of the exe and its query output (scripts/ghidra.ps1).
+# The local Ghidra project of the exe and its query output (scripts/dev/ghidra.ps1), and its home before #411.
+/out/ghidra/
 /ghidra/
 *.cpk
 *.pak
@@ -72,6 +73,6 @@ secrets.json
 spike-player-name.txt
 opt-in-*.txt
 
-# Docs tools from before #353, when scripts/install-docs-tools.sh installed them per worktree; and npm installs.
+# Docs tools from before #353, when scripts/setup/install-docs-tools.sh installed them per worktree; and npm installs.
 /.tools/
 node_modules/

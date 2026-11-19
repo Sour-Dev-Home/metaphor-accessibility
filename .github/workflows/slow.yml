@@ -1,5 +1,5 @@
 # The slow suite: Stryker.NET mutation testing and a jscpd duplication report (scripts/check.sh slow). It only reports.
-# It never runs on a push or pull request, so no merge waits for it (tests/scripts/test-repo-config.sh checks this).
+# It never runs on a push or pull request, so no merge waits for it (tests/bash/test-repo-config.sh checks this).
 name: Slow suite
 
 on:
@@ -58,7 +58,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-          sparse-checkout: scripts/stage-timing.sh
+          sparse-checkout: scripts/check/stage-timing.sh
           sparse-checkout-cone-mode: false
       - name: Time stage 6
         env:
@@ -67,4 +67,4 @@ jobs:
           gh api --paginate "repos/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID/attempts/$GITHUB_RUN_ATTEMPT/jobs" \
             --jq '.jobs[] | select(.status == "completed" and .conclusion != "skipped")
               | [.name, .started_at, .completed_at] | @tsv' > "$RUNNER_TEMP/jobs.tsv"
-          bash scripts/stage-timing.sh jobs "stage 6 (slow suite)" - "$RUNNER_TEMP/jobs.tsv"
+          bash scripts/check/stage-timing.sh jobs "stage 6 (slow suite)" - "$RUNNER_TEMP/jobs.tsv"

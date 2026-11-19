@@ -25,7 +25,7 @@ list_entries() {
       if [ "${GITHUB_ACTIONS:-}" != true ] && [ -z "${METAPHOR_SCAN_ALL:-}" ] &&
         base="$(git merge-base HEAD origin/main 2> /dev/null)" &&
         git diff --cached --name-only --diff-filter=d -z "$base" -- > "$tmp/changed" &&
-        ! grep -qzxE 'scripts/(check\.sh|check/.*|game-content\.sha256)' "$tmp/changed"; then
+        ! grep -qzxE 'scripts/(check\.sh|check/.*|ci/game-content\.sha256)' "$tmp/changed"; then
         scan_scope="changed since origin/main"
         changed_entries
       else
@@ -52,16 +52,16 @@ changed_entries() {
 # Policy, not a measurement: our code and notes have no reason to exceed this, so anything bigger needs a look.
 max_bytes=$((1024 * 1024))
 
-# read_known_hashes: set known_hashes to the known game-file hashes in the index's scripts/game-content.sha256, lower
+# read_known_hashes: set known_hashes to the known game-file hashes in the index's scripts/ci/game-content.sha256, lower
 # case, one per line. The file holds one SHA-256 per line, then a label naming its game build; '#' starts a comment.
 # One `git cat-file --batch` and builtins, where a `git cat-file -e`, `git show`, tr, sed and awk were five starts (#328).
 read_known_hashes() {
   local listing head line
   known_hashes=""
-  listing="$(git cat-file --batch <<< :scripts/game-content.sha256)" || die "could not read scripts/game-content.sha256"
+  listing="$(git cat-file --batch <<< :scripts/ci/game-content.sha256)" || die "could not read scripts/ci/game-content.sha256"
   head="${listing%%$'\n'*}"
   [[ "$head" == *" missing" ]] && return 0
-  [[ "$head" =~ ^[0-9a-f]+\ blob\ [0-9]+$ ]] || die "could not read scripts/game-content.sha256"
+  [[ "$head" =~ ^[0-9a-f]+\ blob\ [0-9]+$ ]] || die "could not read scripts/ci/game-content.sha256"
   [ "$listing" != "$head" ] || return 0 # an empty file
   while IFS= read -r line; do
     line="${line//$'\r'/}" && line="${line%%#*}"
@@ -258,7 +258,7 @@ scan_files() {
     # Game folders are the git-ignored ones at the repo root. Lower-cased because Windows paths are case-insensitive.
     lower="${path,,}"
     case "$lower" in
-      game/* | extracted/* | dumps/* | captures/* | ghidra/*) report_game_content "$path" "inside a game folder" ;;
+      game/* | extracted/* | dumps/* | captures/* | ghidra/* | out/ghidra/*) report_game_content "$path" "inside a game folder" ;;
     esac
     case "/$lower" in
       *.rep/*) report_game_content "$path" "inside a disassembler project folder" ;;

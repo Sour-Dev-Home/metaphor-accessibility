@@ -32,12 +32,12 @@ Onboard then sets up the distro the checks use. Without it, everything still wor
 Then, in PowerShell, from the root of your clone:
 
 ```powershell
-.\scripts\onboard.ps1
+.\scripts\setup\onboard.ps1
 ```
 
 It does steps 1 to 3 below and the rest of the setup, asks before installing anything, and ends with a ready summary
 and a prompt to paste into Claude. It's safe to run again. Its header in
-[`scripts/onboard.ps1`](https://github.com/Sour-Dev-Home/metaphor-accessibility/blob/main/scripts/onboard.ps1) lists each step; the steps below are for doing them by hand.
+[`scripts/setup/onboard.ps1`](https://github.com/Sour-Dev-Home/metaphor-accessibility/blob/main/scripts/setup/onboard.ps1) lists each step; the steps below are for doing them by hand.
 
 ## 1. Install the tools
 
@@ -123,24 +123,24 @@ bash scripts/check.sh docs
 
 A broken link fails it; everything else is a warning. It runs lychee, Vale and markdownlint (which needs Node.js), and
 so do the check-script tests. `check.sh full` installs them when they're missing, once per clone, and every worktree
-shares them. On Windows, lychee needs the Visual C++ Redistributable (x64), which `.\scripts\onboard.ps1` offers to
-install. Running `bash scripts/install-docs-tools.sh` yourself is optional; its header says how the pins are kept
-([`install-docs-tools.sh`](https://github.com/Sour-Dev-Home/metaphor-accessibility/blob/main/scripts/install-docs-tools.sh)). To flag another filler word, add it to
+shares them. On Windows, lychee needs the Visual C++ Redistributable (x64), which `.\scripts\setup\onboard.ps1` offers to
+install. Running `bash scripts/setup/install-docs-tools.sh` yourself is optional; its header says how the pins are kept
+([`install-docs-tools.sh`](https://github.com/Sour-Dev-Home/metaphor-accessibility/blob/main/scripts/setup/install-docs-tools.sh)). To flag another filler word, add it to
 [`tools/docs/.vale/styles/Project/Filler.yml`](https://github.com/Sour-Dev-Home/metaphor-accessibility/blob/main/tools/docs/.vale/styles/Project/Filler.yml).
 
 ### Run the check-script suites in WSL
 
-The check-script suites (`tests/check/test-check.sh` and `tests/scripts/*.sh`) start thousands of processes, which is
+The check-script suites (`tests/check/test-check.sh` and `tests/bash/*.sh`) start thousands of processes, which is
 slow in Git Bash: `test-check.sh` takes minutes there and seconds on Linux
-([`run-check-suites.sh`](https://github.com/Sour-Dev-Home/metaphor-accessibility/blob/main/scripts/run-check-suites.sh) runs them all). With WSL 2 on your machine, one command
+([`run-check-suites.sh`](https://github.com/Sour-Dev-Home/metaphor-accessibility/blob/main/scripts/check/run-check-suites.sh) runs them all). With WSL 2 on your machine, one command
 sets up a distro for them. In PowerShell, from the repository root:
 
 ```powershell
-.\scripts\setup-wsl.ps1
+.\scripts\setup\setup-wsl.ps1
 ```
 
 It asks once, then creates a WSL distro named `metaphor-checks` from Debian (a download of about 100 MB) and installs
-the tools listed in [`scripts/wsl-tools.txt`](https://github.com/Sour-Dev-Home/metaphor-accessibility/blob/main/scripts/wsl-tools.txt) inside it, as the distro's root. Your own
+the tools listed in [`scripts/setup/wsl-tools.txt`](https://github.com/Sour-Dev-Home/metaphor-accessibility/blob/main/scripts/setup/wsl-tools.txt) inside it, as the distro's root. Your own
 distros, WSL's settings and your git config stay as they are. Running it again installs only what's missing;
 `-Update` upgrades the distro's packages. On a machine without WSL 2 (no WSL, WSL 1 only, or virtualization off) it
 stops with the reason and changes nothing. When WSL is waiting for Windows to restart, or WSL 2 can't start because
@@ -174,7 +174,7 @@ Your branch is deleted automatically after its PR merges. Delete your local copy
 
 ### Two skills worth using
 
-Onboard installs Matt Pocock's skills for Claude Code (start Claude with `.\scripts\claude.ps1`). Two of them carry
+Onboard installs Matt Pocock's skills for Claude Code (start Claude with `.\scripts\setup\claude.ps1`). Two of them carry
 most of how this project works:
 
 - **Grilling** (say "grill me"). Before you build anything non-trivial, Claude questions your plan round by round,
@@ -190,11 +190,11 @@ Both are optional; without Claude, write the same things by hand.
 ## Security review and deny rules
 
 **Must-run review.** The security-review scope is the hook layer, every script, the guards CI runs and what decides
-`dotnet restore`. Its one home is the `scope` list in [`scripts/security-stamp.sh`](https://github.com/Sour-Dev-Home/metaphor-accessibility/blob/main/scripts/security-stamp.sh),
+`dotnet restore`. Its one home is the `scope` list in [`scripts/ci/security-stamp.sh`](https://github.com/Sour-Dev-Home/metaphor-accessibility/blob/main/scripts/ci/security-stamp.sh),
 which names directories, so a new file under one is in scope with no edit
 ([ADR 0014](https://github.com/Sour-Dev-Home/metaphor-accessibility/blob/main/docs/adr/0014-review-scope-by-directory.md)).
 
-Two rules sit next to it. The vulnerability audit (`scripts/vuln-audit.sh`) reads only the committed
+Two rules sit next to it. The vulnerability audit (`scripts/ci/vuln-audit.sh`) reads only the committed
 `packages.lock.json` files, never a project, and CI's build restores in locked mode, so a lock file must match its
 project; only the root `Directory.Build.props` may set the lock-file properties. `markdownlint` configs may live only
 in `tools/docs/`: `check.sh docs` fails on any other, in any case, because markdownlint loads one from each linted
@@ -203,7 +203,7 @@ folder and a `.cjs` or `.mjs` one runs code.
 A commit touching it needs a [stamp](https://github.com/Sour-Dev-Home/metaphor-accessibility/blob/main/GLOSSARY.md#review-and-ci):
 
 1. Stage the change, then run the `security-reviewer` agent. When it finds nothing critical or important, its last step
-   runs `scripts/security-stamp.sh`, which hashes the staged scope into a stamp under `.git/`.
+   runs `scripts/ci/security-stamp.sh`, which hashes the staged scope into a stamp under `.git/`.
 2. Commit. The pre-commit hook refuses the commit unless the stamp matches the staged scope, so any edit after the
    review needs a new one. The commit-msg hook appends `Security-Review: <hash>`. The stamp is single-use: the
    post-commit and post-merge hooks remove it once a commit carries its trailer, or commits the stamped scope without one
@@ -241,7 +241,7 @@ The label gate is its own workflow, [`review-gate.yml`](https://github.com/Sour-
 `pull_request_target`, so GitHub runs `main`'s copy of it, and `main`'s `scripts/check.sh review-label`; a PR can't edit
 or delete it. It reads the PR's file list, timeline and head through the API with a read-only token and never checks
 out or runs the PR's code. It judges the whole diff, so a change made inside a merge commit counts. The trailer check
-in `repo-rules` runs the base branch's copy of `scripts/check.sh` and `scripts/security-stamp.sh`, first in its job.
+in `repo-rules` runs the base branch's copy of `scripts/check.sh` and `scripts/ci/security-stamp.sh`, first in its job.
 The PR can still edit `ci.yml`, or add a job of its own named `review-gate` that passes, since the ruleset requires the
 check by name. So read a workflow change before approving a fork's CI run or labelling it (the remaining gap:
 [security-model.md](https://github.com/Sour-Dev-Home/metaphor-accessibility/blob/main/docs/contributors/explanation/security-model.md#known-limits)).
