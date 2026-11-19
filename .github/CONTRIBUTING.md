@@ -3,11 +3,11 @@
 This guide takes you from a fresh clone to passing checks in about 30 minutes, most of it installing the .NET SDK. You
 don't need the game for this.
 
-Read the ground rules in [`AGENTS.md`](../AGENTS.md) first. They apply to people and agents alike, and the checks enforce
+Read the ground rules in [`AGENTS.md`](https://github.com/Sour-Dev-Home/metaphor-accessibility/blob/main/AGENTS.md) first. They apply to people and agents alike, and the checks enforce
 the mechanical ones: no game content, no personal information, and a header on every raw source and finding.
 
 For the whole path from your branch to `main` in one picture, see
-[how a change reaches main](../docs/contributors/explanation/how-a-change-reaches-main.md).
+[how a change reaches main](https://github.com/Sour-Dev-Home/metaphor-accessibility/blob/main/docs/contributors/explanation/how-a-change-reaches-main.md).
 
 ## One command
 
@@ -37,7 +37,7 @@ Then, in PowerShell, from the root of your clone:
 
 It does steps 1 to 3 below and the rest of the setup, asks before installing anything, and ends with a ready summary
 and a prompt to paste into Claude. It's safe to run again. Its header in
-[`scripts/onboard.ps1`](../scripts/onboard.ps1) lists each step; the steps below are for doing them by hand.
+[`scripts/onboard.ps1`](https://github.com/Sour-Dev-Home/metaphor-accessibility/blob/main/scripts/onboard.ps1) lists each step; the steps below are for doing them by hand.
 
 ## 1. Install the tools
 
@@ -50,7 +50,7 @@ On Windows:
   in this guide. The [`metaphor-checks` distro](#run-the-check-script-suites-in-wsl) doesn't change this: the suites
   reach it from Git Bash on their own. If it's your only distro, WSL makes it the default, and plain `bash` then opens
   it as root; still use Git Bash.
-- The .NET SDK version pinned in [`global.json`](../global.json), from [dotnet.microsoft.com](https://dotnet.microsoft.com/download/dotnet).
+- The .NET SDK version pinned in [`global.json`](https://github.com/Sour-Dev-Home/metaphor-accessibility/blob/main/global.json), from [dotnet.microsoft.com](https://dotnet.microsoft.com/download/dotnet).
   Roll-forward is off, so a newer SDK won't do. `dotnet --list-sdks` shows what you have.
 - Optional: the [GitHub CLI](https://cli.github.com/) (`gh`) for issues and pull requests.
 
@@ -97,22 +97,22 @@ bash scripts/check.sh full
 
 `fast` checks the staged files, so with nothing staged it passes at once. `full` checks the files changed since `origin/main`
 (CI checks every tracked file), then builds,
-runs the `Unit` and `RoundTrip` tests, checks formatting and runs the script tests. Both end with exit code 0 when everything passes. A passing `full` leaves a [recorded pass](../GLOSSARY.md#review-and-ci) in the git dir, keyed by the
+runs the `Unit` and `RoundTrip` tests, checks formatting and runs the script tests. Both end with exit code 0 when everything passes. A passing `full` leaves a [recorded pass](https://github.com/Sour-Dev-Home/metaphor-accessibility/blob/main/GLOSSARY.md#review-and-ci) in the git dir, keyed by the
 index's tree hash; `full` or `pre-push` on an identical tree says it reused the pass and skips the work. `pre-push`
 takes a machine-wide build slot only when it builds, so a docs-only push never waits on it. Run `full`, then push: with
 no recorded pass and every slot busy, `pre-push` stops at once instead of waiting, since a waiting push is cut (exit 141).
-[Checks](../docs/contributors/reference/checks.md) lists every stage.
+[Checks](https://github.com/Sour-Dev-Home/metaphor-accessibility/blob/main/docs/contributors/reference/checks.md) lists every stage.
 
 CI's two paths (Linux on a pull request, the whole Windows gate in the merge queue) are in
-[how a change reaches main](../docs/contributors/explanation/how-a-change-reaches-main.md) and
-[ADR 0008](../docs/adr/0008-ci-fast-path-and-windows-gate.md). A pull request that passes can still fail in the queue;
+[how a change reaches main](https://github.com/Sour-Dev-Home/metaphor-accessibility/blob/main/docs/contributors/explanation/how-a-change-reaches-main.md) and
+[ADR 0008](https://github.com/Sour-Dev-Home/metaphor-accessibility/blob/main/docs/adr/0008-ci-fast-path-and-windows-gate.md). A pull request that passes can still fail in the queue;
 run `full` on Windows locally before you push a change near Windows behaviour. Mark a test that only holds on Windows
 with `[Trait("Category", "WindowsOnly")]` instead of `Unit`.
 
 `RoundTrip` tests check our format code against real game files, so they need game data and are skipped without it (CI
-never has any, per [ADR 0001](../docs/adr/0001-ci-never-sees-game-content.md)). To run them, point `METAPHOR_GAME_DATA` at
+never has any, per [ADR 0001](https://github.com/Sour-Dev-Home/metaphor-accessibility/blob/main/docs/adr/0001-ci-never-sees-game-content.md)). To run them, point `METAPHOR_GAME_DATA` at
 your extracted files, or put them in the git-ignored `extracted/` folder. If the variable is set, `extracted/` isn't
-checked. Put the [game build](../GLOSSARY.md) on the first line of `game-build.txt` in that folder; the tests show it in
+checked. Put the [game build](https://github.com/Sour-Dev-Home/metaphor-accessibility/blob/main/GLOSSARY.md) on the first line of `game-build.txt` in that folder; the tests show it in
 their names.
 
 If you change docs, also run their stage:
@@ -125,14 +125,14 @@ A broken link fails it; everything else is a warning. It runs lychee, Vale and m
 so do the check-script tests. `check.sh full` installs them when they're missing, once per clone, and every worktree
 shares them. On Windows, lychee needs the Visual C++ Redistributable (x64), which `.\scripts\onboard.ps1` offers to
 install. Running `bash scripts/install-docs-tools.sh` yourself is optional; its header says how the pins are kept
-([`install-docs-tools.sh`](../scripts/install-docs-tools.sh)). To flag another filler word, add it to
-[`tools/docs/.vale/styles/Project/Filler.yml`](../tools/docs/.vale/styles/Project/Filler.yml).
+([`install-docs-tools.sh`](https://github.com/Sour-Dev-Home/metaphor-accessibility/blob/main/scripts/install-docs-tools.sh)). To flag another filler word, add it to
+[`tools/docs/.vale/styles/Project/Filler.yml`](https://github.com/Sour-Dev-Home/metaphor-accessibility/blob/main/tools/docs/.vale/styles/Project/Filler.yml).
 
 ### Run the check-script suites in WSL
 
 The check-script suites (`tests/check/test-check.sh` and `tests/scripts/*.sh`) start thousands of processes, which is
 slow in Git Bash: `test-check.sh` takes minutes there and seconds on Linux
-([`run-check-suites.sh`](../scripts/run-check-suites.sh) runs them all). With WSL 2 on your machine, one command
+([`run-check-suites.sh`](https://github.com/Sour-Dev-Home/metaphor-accessibility/blob/main/scripts/run-check-suites.sh) runs them all). With WSL 2 on your machine, one command
 sets up a distro for them. In PowerShell, from the repository root:
 
 ```powershell
@@ -140,7 +140,7 @@ sets up a distro for them. In PowerShell, from the repository root:
 ```
 
 It asks once, then creates a WSL distro named `metaphor-checks` from Debian (a download of about 100 MB) and installs
-the tools listed in [`scripts/wsl-tools.txt`](../scripts/wsl-tools.txt) inside it, as the distro's root. Your own
+the tools listed in [`scripts/wsl-tools.txt`](https://github.com/Sour-Dev-Home/metaphor-accessibility/blob/main/scripts/wsl-tools.txt) inside it, as the distro's root. Your own
 distros, WSL's settings and your git config stay as they are. Running it again installs only what's missing;
 `-Update` upgrades the distro's packages. On a machine without WSL 2 (no WSL, WSL 1 only, or virtualization off) it
 stops with the reason and changes nothing. When WSL is waiting for Windows to restart, or WSL 2 can't start because
@@ -148,7 +148,7 @@ virtualization is off (in a Hyper-V VM, nested virtualization), it says what to 
 
 From then on, a suite started in Git Bash runs itself in `metaphor-checks`, from your checkout through `/mnt/c`, with
 its temporary repositories in the distro's `/tmp`, and exits with the suite's code. Its first line names the tools'
-versions. The suites, and `test-check.sh`'s tests, run in a bounded pool ([`pool.sh`](../scripts/check/pool.sh)) of
+versions. The suites, and `test-check.sh`'s tests, run in a bounded pool ([`pool.sh`](https://github.com/Sour-Dev-Home/metaphor-accessibility/blob/main/scripts/check/pool.sh)) of
 the same size in WSL and Git Bash; `METAPHOR_TEST_JOBS` overrides it. CI already runs the suites on Linux and doesn't
 use WSL.
 
@@ -162,13 +162,13 @@ To remove the distro and everything in it: `wsl --unregister metaphor-checks`.
 
 1. Pick an issue, or open one with a template. Issues labelled `ready-for-agent` or `ready-for-human` are ready to start.
 2. Work on a branch. `main` only takes pull requests that pass CI.
-3. Follow the [coding standards](../docs/coding-standards.md).
+3. Follow the [coding standards](https://github.com/Sour-Dev-Home/metaphor-accessibility/blob/main/docs/coding-standards.md).
 4. Commit with a typed subject such as `feat: ...`, and a short body that says why. The commit-msg hook checks the
-   shape; the rules are in the header of [`scripts/check.sh`](../scripts/check.sh).
+   shape; the rules are in the header of [`scripts/check.sh`](https://github.com/Sour-Dev-Home/metaphor-accessibility/blob/main/scripts/check.sh).
 5. Open a pull request that says what changed and why. A PR that touches hooking, loading or injection includes
    in-game evidence on a named game build.
 6. Editing a workflow? Actions are pinned by commit SHA, and only an allowed list may run:
-   [add or update a GitHub Action](../docs/contributors/how-to/add-or-update-a-github-action.md).
+   [add or update a GitHub Action](https://github.com/Sour-Dev-Home/metaphor-accessibility/blob/main/docs/contributors/how-to/add-or-update-a-github-action.md).
 
 Your branch is deleted automatically after its PR merges. Delete your local copy with `git branch -d <branch>`.
 
@@ -190,9 +190,9 @@ Both are optional; without Claude, write the same things by hand.
 ## Security review and deny rules
 
 **Must-run review.** The security-review scope is the hook layer, every script, the guards CI runs and what decides
-`dotnet restore`. Its one home is the `scope` list in [`scripts/security-stamp.sh`](../scripts/security-stamp.sh),
+`dotnet restore`. Its one home is the `scope` list in [`scripts/security-stamp.sh`](https://github.com/Sour-Dev-Home/metaphor-accessibility/blob/main/scripts/security-stamp.sh),
 which names directories, so a new file under one is in scope with no edit
-([ADR 0014](../docs/adr/0014-review-scope-by-directory.md)).
+([ADR 0014](https://github.com/Sour-Dev-Home/metaphor-accessibility/blob/main/docs/adr/0014-review-scope-by-directory.md)).
 
 Two rules sit next to it. The vulnerability audit (`scripts/vuln-audit.sh`) reads only the committed
 `packages.lock.json` files, never a project, and CI's build restores in locked mode, so a lock file must match its
@@ -200,7 +200,7 @@ project; only the root `Directory.Build.props` may set the lock-file properties.
 in `tools/docs/`: `check.sh docs` fails on any other, in any case, because markdownlint loads one from each linted
 folder and a `.cjs` or `.mjs` one runs code.
 
-A commit touching it needs a [stamp](../GLOSSARY.md#review-and-ci):
+A commit touching it needs a [stamp](https://github.com/Sour-Dev-Home/metaphor-accessibility/blob/main/GLOSSARY.md#review-and-ci):
 
 1. Stage the change, then run the `security-reviewer` agent. When it finds nothing critical or important, its last step
    runs `scripts/security-stamp.sh`, which hashes the staged scope into a stamp under `.git/`.
@@ -209,13 +209,13 @@ A commit touching it needs a [stamp](../GLOSSARY.md#review-and-ci):
    post-commit and post-merge hooks remove it once a commit carries its trailer, or commits the stamped scope without one
    (`--no-verify`), and a refused commit keeps it for the retry.
 3. CI checks only the pull request's HEAD commit, when the PR's diff touches the scope
-   ([ADR 0012](../docs/adr/0012-review-trailer-covers-clean-merges.md), #174, #246). HEAD passes with a
+   ([ADR 0012](https://github.com/Sour-Dev-Home/metaphor-accessibility/blob/main/docs/adr/0012-review-trailer-covers-clean-merges.md), #174, #246). HEAD passes with a
    `Security-Review` trailer matching its own scope content, or through its first parent when HEAD leaves the scope as
    every parent had it or is a clean merge from `main`; the walk passes at a commit already on the base branch, so older
    merges without a trailer don't fail a branch. A commit stamped before the guards joined the scope carries a hash of
    the old scope only; CI still accepts it when the commit changes no guard file, so earlier reviews stay valid.
 
-A [clean merge](../GLOSSARY.md#review-and-ci) from `main` needs no stamp, and the commit-msg hook says so and adds no
+A [clean merge](https://github.com/Sour-Dev-Home/metaphor-accessibility/blob/main/GLOSSARY.md#review-and-ci) from `main` needs no stamp, and the commit-msg hook says so and adds no
 trailer. A scope conflict you resolve, a file git merges
 from both sides' changes, and a side kept over the other's change (`-s ours`, `checkout --ours` or `--theirs`) all
 need a stamp.
@@ -237,14 +237,14 @@ is the repository's owner or has admin permission (in an organization's reposito
 - Agents working for a collaborator follow the same rules as their hand-written PRs. Auto-merge only lands once this
   gate passes.
 
-The label gate is its own workflow, [`review-gate.yml`](workflows/review-gate.yml) (#330). It runs on
+The label gate is its own workflow, [`review-gate.yml`](https://github.com/Sour-Dev-Home/metaphor-accessibility/blob/main/.github/workflows/review-gate.yml) (#330). It runs on
 `pull_request_target`, so GitHub runs `main`'s copy of it, and `main`'s `scripts/check.sh review-label`; a PR can't edit
 or delete it. It reads the PR's file list, timeline and head through the API with a read-only token and never checks
 out or runs the PR's code. It judges the whole diff, so a change made inside a merge commit counts. The trailer check
 in `repo-rules` runs the base branch's copy of `scripts/check.sh` and `scripts/security-stamp.sh`, first in its job.
 The PR can still edit `ci.yml`, or add a job of its own named `review-gate` that passes, since the ruleset requires the
 check by name. So read a workflow change before approving a fork's CI run or labelling it (the remaining gap:
-[security-model.md](../docs/contributors/explanation/security-model.md#known-limits)).
+[security-model.md](https://github.com/Sour-Dev-Home/metaphor-accessibility/blob/main/docs/contributors/explanation/security-model.md#known-limits)).
 
 **Collaborators.** A collaborator has the `write` role: they push branches here and merge through the merge queue. The
 `main` ruleset keeps 0 required approvals and no code-owner review, so the maintainer's and agents' PRs keep flowing;
@@ -254,7 +254,7 @@ from forks need the maintainer's approval for every outside contributor, not onl
 Before their first PR, a collaborator's clone uses the repository's git hooks and their own private-patterns file
 ([step 2](#2-clone-and-set-up)).
 
-**Deny rules.** [`.claude/settings.json`](../.claude/settings.json) denies Claude Code every force push, printing
+**Deny rules.** [`.claude/settings.json`](https://github.com/Sour-Dev-Home/metaphor-accessibility/blob/main/.claude/settings.json) denies Claude Code every force push, printing
 `.claude/pii-patterns.txt` (the Read tool, `cat`, `type`, `Get-Content`, `head`, `tail`, `less`), setting
 `SECURITY_REVIEW_SKIP`, and skipping the git hooks with `--no-verify` (or `git commit -n`). `scripts/check.sh` and a `grep -F -f` over the patterns file stay allowed. The maintainer's
 private `~/.claude-metaphor/settings.json` also denies edits and common shell writes inside the game's install folder
@@ -266,7 +266,7 @@ trailer, not that a review happened. They are a strong guard, not a guarantee.
 
 ## Contributing without Claude
 
-You don't need Claude Code or any agent tooling. The [ground rules in `AGENTS.md`](../AGENTS.md#ground-rules) apply to
+You don't need Claude Code or any agent tooling. The [ground rules in `AGENTS.md`](https://github.com/Sour-Dev-Home/metaphor-accessibility/blob/main/AGENTS.md#ground-rules) apply to
 you as they do to agents.
 
 - **Pick an issue.** Any open issue not labelled `needs-game` works
@@ -274,7 +274,7 @@ you as they do to agents.
   Start with a
   [`good first issue`](https://github.com/Sour-Dev-Home/metaphor-accessibility/issues?q=is%3Aopen+label%3A%22good+first+issue%22).
   Comment on the issue before you start.
-- **Labels.** [`docs/agents/triage-labels.md`](../docs/agents/triage-labels.md) has the table. `ready-for-agent` and
+- **Labels.** [`docs/agents/triage-labels.md`](https://github.com/Sour-Dev-Home/metaphor-accessibility/blob/main/docs/agents/triage-labels.md) has the table. `ready-for-agent` and
   `ready-for-human` both mean ready to start; the names say who the maintainer expected, and they don't stop you. Ask
   before starting a `needs-triage` issue, and skip `needs-info` unless you can supply the answer.
 - **The skills are optional.** The Matt Pocock skills are how the maintainer writes issues and runs agents. You can
@@ -287,12 +287,12 @@ you as they do to agents.
 
 ## Where things go
 
-- Notes on what the game does: [`docs/findings/`](../docs/findings/README.md), citing sources saved in
-  [`docs/raw-sources/`](../docs/raw-sources/README.md).
-- Decisions: [`docs/adr/`](../docs/adr/). Terms: [`GLOSSARY.md`](../GLOSSARY.md).
-- Docs for players and contributors: [`docs/`](../docs/README.md).
+- Notes on what the game does: [`docs/findings/`](https://github.com/Sour-Dev-Home/metaphor-accessibility/blob/main/docs/findings/README.md), citing sources saved in
+  [`docs/raw-sources/`](https://github.com/Sour-Dev-Home/metaphor-accessibility/blob/main/docs/raw-sources/README.md).
+- Decisions: [`docs/adr/`](https://github.com/Sour-Dev-Home/metaphor-accessibility/tree/main/docs/adr). Terms: [`GLOSSARY.md`](https://github.com/Sour-Dev-Home/metaphor-accessibility/blob/main/GLOSSARY.md).
+- Docs for players and contributors: [`docs/`](https://github.com/Sour-Dev-Home/metaphor-accessibility/blob/main/docs/README.md).
 
-Report security problems privately, as [SECURITY.md](SECURITY.md) explains. Everyone here follows the
-[code of conduct](CODE_OF_CONDUCT.md).
+Report security problems privately, as [SECURITY.md](https://github.com/Sour-Dev-Home/metaphor-accessibility/blob/main/.github/SECURITY.md) explains. Everyone here follows the
+[code of conduct](https://github.com/Sour-Dev-Home/metaphor-accessibility/blob/main/.github/CODE_OF_CONDUCT.md).
 
-By contributing, you agree that your work is licensed as [README.md](../README.md#license) describes.
+By contributing, you agree that your work is licensed as [README.md](https://github.com/Sour-Dev-Home/metaphor-accessibility/blob/main/README.md#license) describes.
