@@ -55,16 +55,17 @@ function Write-JsonFile([string] $Path, $Value) {
 function Test-LauncherName([string] $Path) { [bool]($Path -and (Split-Path -Leaf $Path) -eq 'Reloaded-II.exe') }
 
 # The tests' switches, read from the environment (tests/pester/install.Tests.ps1). METAPHOR_INSTALL_TEST_FILES lets a pin
-# be a local file:// URL; METAPHOR_INSTALL_TEST_UNSIGNED, only for such a pin, skips the signature check. The shipped
-# pins are https, so neither changes what a player's run downloads or checks.
-function Test-TestSwitch([string] $Name) { [Environment]::GetEnvironmentVariable("METAPHOR_INSTALL_TEST_$Name") -eq '1' }
+# be a local file:// URL; METAPHOR_INSTALL_TEST_UNSIGNED, only for such a pin, skips the signature check. A switch
+# counts only with CI=true, as CI sets, so a player can't turn one on by accident (#408, #425).
+function Test-TestSwitch([string] $Name) {
+    $env:CI -eq 'true' -and [Environment]::GetEnvironmentVariable("METAPHOR_INSTALL_TEST_$Name") -eq '1'
+}
 
 # True when this process runs as administrator. Reloaded-II isn't meant to run as admin, and nothing but the two
 # runtime installers needs it (they ask for it themselves), so install.ps1 refuses. The tests set
-# METAPHOR_INSTALL_TEST_ALLOW_ADMIN, since CI's runners are admin; it counts only with CI=true, as CI sets, so a player
-# can't turn the refusal off by accident (#408).
+# METAPHOR_INSTALL_TEST_ALLOW_ADMIN, since CI's runners are admin.
 function Test-Elevated {
-    if ((Test-TestSwitch 'ALLOW_ADMIN') -and $env:CI -eq 'true') { return $false }
+    if (Test-TestSwitch 'ALLOW_ADMIN') { return $false }
     Test-AdministratorRole
 }
 
@@ -127,25 +128,31 @@ function Get-PinnedFile($Context, $Pin) {
                     'Check that this computer is online, then run the installer again.' "$($Pin.url): $($_.Exception.Message)") }
     }
     $stream = [IO.File]::Open($target, 'Open', 'Read', 'Read')
-    $problem = $null
-    try { $sha256 = Get-StreamSha256 $stream } catch { $stream.Dispose(); throw }
-    if ($sha256 -ne $Pin.sha256) { $problem = "SHA-256 $sha256, expected $($Pin.sha256)" }
-    elseif ((Get-Property $Pin 'signer') -and -not ($uri.IsFile -and (Test-TestSwitch 'UNSIGNED'))) {
-        $signature = $null
-        try { $signature = Get-AuthenticodeSignature -LiteralPath $target } catch { $problem = "signature not checked: $($_.Exception.Message)" }
-        if ($signature -and ([string] $signature.Status -ne 'Valid' -or -not $signature.SignerCertificate -or
-                $signature.SignerCertificate.Subject -cne $Pin.signer)) {
-            $subject = if ($signature.SignerCertificate) { $signature.SignerCertificate.Subject } else { 'none' }
-            $problem = "signature $($signature.Status), signer $subject, expected $($Pin.signer)"
+    # Disposed here on every way out but success, a throw included, which hands STREAM to the caller.
+    $handedOver = $false
+    try {
+        $problem = $null
+        $sha256 = Get-StreamSha256 $stream
+        if ($sha256 -ne $Pin.sha256) { $problem = "SHA-256 $sha256, expected $($Pin.sha256)" }
+        elseif ((Get-Property $Pin 'signer') -and -not ($uri.IsFile -and (Test-TestSwitch 'UNSIGNED'))) {
+            $signature = $null
+            try { $signature = Get-AuthenticodeSignature -LiteralPath $target } catch { $problem = "signature not checked: $($_.Exception.Message)" }
+            if ($signature -and ([string] $signature.Status -ne 'Valid' -or -not $signature.SignerCertificate -or
+                    $signature.SignerCertificate.Subject -cne $Pin.signer)) {
+                $subject = if ($signature.SignerCertificate) { $signature.SignerCertificate.Subject } else { 'none' }
+                $problem = "signature $($signature.Status), signer $subject, expected $($Pin.signer)"
+            }
         }
+        if ($problem) {
+            $stream.Dispose()
+            Remove-Item -LiteralPath $target -Force
+            return [pscustomobject]@{ Path = $null; Stream = $null; Step = (Failed "The downloaded $($Pin.name) is not the file this installer expects, so it was deleted unused." `
+                        'Run the installer again later. If it happens again, report it with the alpha feedback form.' "$($Pin.url): $problem") }
+        }
+        $handedOver = $true
+        [pscustomobject]@{ Path = $target; Stream = $stream; Step = $null }
     }
-    if ($problem) {
-        $stream.Dispose()
-        Remove-Item -LiteralPath $target -Force
-        return [pscustomobject]@{ Path = $null; Stream = $null; Step = (Failed "The downloaded $($Pin.name) is not the file this installer expects, so it was deleted unused." `
-                    'Run the installer again later. If it happens again, report it with the alpha feedback form.' "$($Pin.url): $problem") }
-    }
-    [pscustomobject]@{ Path = $target; Stream = $stream; Step = $null }
+    finally { if (-not $handedOver) { $stream.Dispose() } }
 }
 
 # Unpacks ARCHIVE (zip or 7z) into DESTINATION with Windows' own tar.exe, by its full path. Without -P it refuses
