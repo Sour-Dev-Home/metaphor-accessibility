@@ -1,8 +1,8 @@
 # Query the Ghidra project
 
 A local Ghidra project of the game exe answers static questions in one command: a function's code, who calls it, what
-touches a struct field, what class a vtable belongs to. Build it once per game build and every agent and worktree
-shares it, so nobody disassembles from scratch.
+touches a struct field or a global, what class a vtable belongs to. Build it once per game build and every agent and
+worktree shares it, so nobody disassembles from scratch.
 
 It reads the exe on disk only. Nothing is launched, attached to, decrypted or unpacked (`AGENTS.md` rule 5). The
 project holds the exe's bytes and every answer holds decompiled code, so they live in the main checkout's `ghidra/`
@@ -49,6 +49,7 @@ pwsh scripts/ghidra.ps1 disasm CursorManagerInput
 pwsh scripts/ghidra.ps1 callers 0x21e1c0
 pwsh scripts/ghidra.ps1 callees CursorManagerInput
 pwsh scripts/ghidra.ps1 offset 0x48 CursorManagerInput
+pwsh scripts/ghidra.ps1 global 0x2f04960
 pwsh scripts/ghidra.ps1 rtti 0xd4ab90
 pwsh scripts/ghidra.ps1 vtable <class name or vtable address>
 ```
@@ -61,6 +62,7 @@ addresses are RVAs.
 | `decompile`, `disasm` | the function containing the target |
 | `callers`, `callees` | each call site, with the calling or called function |
 | `offset <displacement> [<function>]` | instructions with a `[register + displacement]` operand, read or written, in one function or all analysed code |
+| `global <address>` | instructions with a RIP-relative operand at that global (`mov rcx,[rip+disp32]`), as `read`, `write`, `rw`, `addr` (`lea`) or `call`, with each one's function, or the nearest name before it when no function holds it. Proven on the menus' handle and the message window ([finding](../../findings/global-query-finds-the-reader-loads.md)) |
 | `rtti` | the class of a vtable, of an object holding a vtable pointer, or of each vtable holding a pointer to a function |
 | `vtable` | the vtable's class and each slot's function |
 

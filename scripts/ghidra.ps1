@@ -7,8 +7,8 @@ build   Creates the project for the current game build in the git-ignored ghidra
         build's project is already complete. Imports the exe from disk, runs auto-analysis on everything but the
         protection's sections (tools/ghidra/MetaphorBuild.java), names each hook-signatures.json match, then names
         virtual functions after the RTTI vtables they sit in. -Rebuild starts over.
-<query> One of decompile, disasm, callers, callees, offset, rtti, vtable (tools/ghidra/MetaphorQuery.java lists what
-        each takes). Opens the project read-only, so a query never changes it. Prints the answer and keeps it in
+<query> One of decompile, disasm, callers, callees, offset, global, rtti, vtable (tools/ghidra/MetaphorQuery.java lists
+        what each takes). Opens the project read-only, so a query never changes it. Prints the answer and keeps it in
         ghidra/out/.
 
 Only the exe on disk is read: nothing is launched, attached to, decrypted or unpacked (AGENTS.md rule 5,
@@ -26,11 +26,12 @@ pwsh scripts/ghidra.ps1 build
 pwsh scripts/ghidra.ps1 decompile 0x21e1c0
 pwsh scripts/ghidra.ps1 callers CursorManagerInput
 pwsh scripts/ghidra.ps1 offset 0x48 CursorManagerInput
+pwsh scripts/ghidra.ps1 global 0x2f04960
 #>
 [CmdletBinding()]
 param(
     [Parameter(Mandatory, Position = 0)]
-    [ValidateSet('build', 'decompile', 'disasm', 'callers', 'callees', 'offset', 'rtti', 'vtable')]
+    [ValidateSet('build', 'decompile', 'disasm', 'callers', 'callees', 'offset', 'global', 'rtti', 'vtable')]
     [string] $Command,
     # The query's target: an RVA such as 0x21e1c0, a full address, or a symbol name. For offset, the displacement.
     [Parameter(Position = 1)] [string] $Target,
