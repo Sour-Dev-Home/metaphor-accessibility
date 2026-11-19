@@ -3,7 +3,6 @@
 What the main session decides when it hands work to an agent and when it takes the result back. The agent's own flow,
 from claim to report, is in [`workflow.md`](workflow.md).
 
-
 - Model: Sonnet for docs-only and mechanical tickets (fix lists, mechanical CI edits, tested library code) and for
   reviewing docs-only or test-only changes; Opus for reverse engineering, hooks, security, design and any change to
   the guards (the check scripts, git hooks, check-script tests and CI gates), perf work on them included.

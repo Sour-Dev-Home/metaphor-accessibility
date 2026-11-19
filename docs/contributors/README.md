@@ -13,5 +13,8 @@ How-tos: [add a hook](how-to/add-a-hook.md), [deploy a dev build](how-to/deploy-
 [cut a release](how-to/cut-a-release.md), [handle a GitHub outage](how-to/handle-a-github-outage.md),
 [merge main into a draft PR](how-to/merge-main-into-a-draft-pr.md).
 
+Reference: [checks](reference/checks.md), every check stage and how CI runs them; [supply chain](reference/supply-chain.md);
+[branch rules](reference/branch-rules.md), the ruleset and the merge queue.
+
 Explanation: [how a change reaches main](explanation/how-a-change-reaches-main.md), a diagram of the hooks, CI and the
 merge queue; [security model](explanation/security-model.md), each security decision and what it protects.

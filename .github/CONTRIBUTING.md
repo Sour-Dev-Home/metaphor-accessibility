@@ -101,7 +101,7 @@ runs the `Unit` and `RoundTrip` tests, checks formatting and runs the script tes
 index's tree hash; `full` or `pre-push` on an identical tree says it reused the pass and skips the work. `pre-push`
 takes a machine-wide build slot only when it builds, so a docs-only push never waits on it. Run `full`, then push: with
 no recorded pass and every slot busy, `pre-push` stops at once instead of waiting, since a waiting push is cut (exit 141).
-[README.md](../README.md#checks) lists every stage.
+[Checks](../docs/contributors/reference/checks.md) lists every stage.
 
 CI's two paths (Linux on a pull request, the whole Windows gate in the merge queue) are in
 [how a change reaches main](../docs/contributors/explanation/how-a-change-reaches-main.md) and

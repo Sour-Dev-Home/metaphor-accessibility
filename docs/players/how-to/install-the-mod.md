@@ -72,7 +72,7 @@ cursor and a simulated mouse click
 
 `[NEEDS VERIFICATION]` Where testers get a dev build, and what it is called. The project's CI builds a package of the
 mod on every merge and keeps it as a workflow artifact with a SHA-256 hash
-([README](../../../README.md#checks)). The package holds our mod only; Reloaded-II is installed separately.
+([Checks](../../contributors/reference/checks.md)). The package holds our mod only; Reloaded-II is installed separately.
 
 1. Download the zip from a CI run on `main` and check it, as [Check a download](check-a-download.md) says.
 2. Unzip it. You get a folder named for the mod ID, `metaphor.accessibility`.

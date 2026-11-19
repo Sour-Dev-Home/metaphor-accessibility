@@ -16,7 +16,7 @@ Inside each, one folder per type:
 | `reference/` | "what exactly is it" | the settings file's keys |
 | `explanation/` | "why is it like this" | how announcements reach the screen reader |
 
-A page belongs to one type. If it's two, split it and link the halves.
+A folder exists only while it holds a page. A page belongs to one type. If it's two, split it and link the halves.
 
 These folders hold project records, and stay where the checks and skills expect them:
 
