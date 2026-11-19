@@ -2,11 +2,14 @@
 # the scripts it calls (setup-wsl.ps1, claude.ps1, listen.ps1, ghidra.ps1, install-docs-tools.sh, check.sh), with
 # stand-ins for dotnet, gh, winget, npm, claude, setx and notepad first on PATH, a stand-in Steam library and a stand-in
 # Reloaded-II config. Real git and Git Bash run. Answers to the script's questions come through -Answers, in order.
+# Git Bash starts one process at a time at about 0.3 s each (#348), so the clone starts with the docs tools' stand-ins
+# installed, and only the test of their install pays for it.
 # Run: Invoke-Pester tests/smoke (Pester 5 or later).
 
 BeforeAll {
     $repo = (Resolve-Path "$PSScriptRoot/../..").Path
     $pwsh = Join-Path $PSHOME 'pwsh.exe'
+    $windowsPowerShell = Join-Path $env:SystemRoot 'System32/WindowsPowerShell/v1.0/powershell.exe'
     $gitDir = Split-Path (Get-Command git -CommandType Application | Select-Object -First 1).Source
     $sdk = (Get-Content -Raw (Join-Path $repo 'global.json') | ConvertFrom-Json).sdk.version
 
@@ -19,8 +22,13 @@ $Body
 "@
     }
 
-    function New-Clone {
-        $script:root = (New-Item -ItemType Directory (Join-Path $TestDrive (New-Guid))).FullName
+    # A literal for a -Command string, escaped as PowerShell itself does (typographic single quotes included).
+    function ConvertTo-Literal([string] $Text) {
+        "'" + [Management.Automation.Language.CodeGeneration]::EscapeSingleQuotedStringContent($Text) + "'"
+    }
+
+    function New-Clone([string] $Name = (New-Guid)) {
+        $script:root = (New-Item -ItemType Directory (Join-Path $TestDrive $Name)).FullName
         $script:clone = (New-Item -ItemType Directory (Join-Path $root 'clone')).FullName
         $script:bin = (New-Item -ItemType Directory (Join-Path $root 'bin')).FullName
         git -C $clone init -q
@@ -66,10 +74,16 @@ exit 1
                 'printf "#!/bin/sh\necho vale version %s\n" "$VALE_VERSION" > .tools/bin/vale'
                 'touch tools/docs/node_modules/.bin/markdownlint-cli2', ''
             ) -join "`n"))
+        # The docs tools as that installer leaves them.
+        New-Item -ItemType Directory (Join-Path $clone '.tools/bin'), (Join-Path $clone 'tools/docs/node_modules/.bin') |
+            Out-Null
+        [IO.File]::WriteAllText((Join-Path $clone '.tools/bin/lychee'), "#!/bin/sh`necho lychee 0.24.2`n")
+        [IO.File]::WriteAllText((Join-Path $clone '.tools/bin/vale'), "#!/bin/sh`necho vale version 3.25.1`n")
+        New-Item -ItemType File (Join-Path $clone 'tools/docs/node_modules/.bin/markdownlint-cli2') | Out-Null
 
         New-StandIn dotnet 'if "%1"=="--list-sdks" if not "%STUB_SDK%"=="" echo %STUB_SDK% [C:\stand-in\sdk]'
         New-StandIn gh "if `"%1`"==`"auth`" exit /b %STUB_GH_AUTH%`r`nif `"%1`"==`"api`" echo %STUB_GH_PUSH%"
-        New-StandIn winget
+        New-StandIn winget 'exit /b %STUB_WINGET%'
         New-StandIn npm
         New-StandIn claude
         New-StandIn setx
@@ -87,16 +101,46 @@ exit 1
         @{ LauncherPath = $launcher; ApplicationConfigDirectory = $apps.FullName } | ConvertTo-Json |
             Set-Content -LiteralPath $reloadedConfig
 
+        # An empty Program Files, so no PowerShell 7 is at its default path unless a test puts one there.
+        $script:programFiles = (New-Item -ItemType Directory (Join-Path $root 'ProgramFiles')).FullName
         $script:stub = @{
             STUB_SDK = $sdk; STUB_GH_AUTH = '0'; STUB_GH_PUSH = 'true'; STUB_WSL = 'ready'; STUB_NOTEPAD = 'edit'
-            STUB_CHECK = '0'; METAPHOR_GAME_EXE = $null; METAPHOR_RELOADED_EXE = $null
+            STUB_CHECK = '0'; STUB_WINGET = '0'; METAPHOR_GAME_EXE = $null; METAPHOR_RELOADED_EXE = $null
+            STUB_CALLS = (Join-Path $bin 'calls.log'); STUB_REAL_PWSH = $pwsh
         }
     }
 
+    # A stand-in pwsh.exe in FOLDER: it logs its arguments to calls.log, then hands them to the real pwsh and returns
+    # its exit code. Compiled once with the .NET Framework's csc, which every Windows has.
+    function Install-PwshStandIn([string] $Folder) {
+        $exe = Join-Path $TestDrive 'pwsh-stand-in/pwsh.exe'
+        if (-not (Test-Path $exe)) {
+            $source = Join-Path (New-Item -ItemType Directory -Force (Split-Path $exe)) 'Program.cs'
+            Set-Content -LiteralPath $source -Value @'
+using System; using System.Diagnostics; using System.IO;
+static class Program {
+    static int Main() {
+        string line = Environment.CommandLine;
+        int start = line.StartsWith("\"") ? line.IndexOf('"', 1) + 1 : line.IndexOf(' ');
+        string rest = start <= 0 || start >= line.Length ? "" : line.Substring(start).TrimStart();
+        File.AppendAllText(Environment.GetEnvironmentVariable("STUB_CALLS"), "pwsh " + rest + Environment.NewLine);
+        var info = new ProcessStartInfo(Environment.GetEnvironmentVariable("STUB_REAL_PWSH"), rest) { UseShellExecute = false };
+        using (var process = Process.Start(info)) { process.WaitForExit(); return process.ExitCode; }
+    }
+}
+'@
+            $csc = Join-Path $env:SystemRoot 'Microsoft.NET/Framework64/v4.0.30319/csc.exe'
+            $built = & $csc -nologo "-out:$exe" $source 2>&1
+            if ($LASTEXITCODE -ne 0) { throw "csc failed: $built" }
+        }
+        Copy-Item $exe (New-Item -ItemType Directory -Force $Folder)
+    }
+
     # Runs onboard.ps1 in its own process, PATH holding the stand-ins, git and Windows only. With ANSWERS it's a
-    # scripted run (-Answers); with -NonInteractive, a run without a console that is given no answers.
+    # scripted run (-Answers); with -NonInteractive, a run without a console that is given no answers. SHELL runs it:
+    # PowerShell 7 unless a test passes Windows PowerShell's.
     function Invoke-Onboard([string[]] $Answers = @(), [string[]] $Path = @($script:bin, $gitDir),
-        [switch] $NonInteractive) {
+        [switch] $NonInteractive, [string] $Shell = $pwsh) {
         $saved = @{}
         $vars = $script:stub.Clone()
         $vars.PATH = (@($Path) + "$env:SystemRoot\System32") -join ';'
@@ -107,13 +151,14 @@ exit 1
         try {
             $script = Join-Path $clone 'scripts/onboard.ps1'
             if ($NonInteractive) {
-                $output = & $pwsh -NoProfile -NonInteractive -File $script -SteamRoot $steam `
-                    -ReloadedConfig $reloadedConfig 2>&1
+                $output = & $Shell -NoProfile -NonInteractive -File $script -SteamRoot $steam `
+                    -ReloadedConfig $reloadedConfig -ProgramFiles $programFiles 2>&1
             }
             else {
-                $list = ($Answers | ForEach-Object { "'" + ($_ -replace "'", "''") + "'" }) -join ','
-                $output = & $pwsh -NoProfile -Command ("& '$script' -NoClaude -SteamRoot '$steam' " +
-                    "-ReloadedConfig '$reloadedConfig' -Answers @($list); exit `$LASTEXITCODE") 2>&1
+                $list = ($Answers | ForEach-Object { ConvertTo-Literal $_ }) -join ','
+                $output = & $Shell -NoProfile -Command ("& $(ConvertTo-Literal $script) -NoClaude " +
+                    "-SteamRoot $(ConvertTo-Literal $steam) -ReloadedConfig $(ConvertTo-Literal $reloadedConfig) " +
+                    "-ProgramFiles $(ConvertTo-Literal $programFiles) -Answers @($list); exit `$LASTEXITCODE") 2>&1
             }
             $code = $LASTEXITCODE
         }
@@ -127,13 +172,22 @@ exit 1
         $file = Join-Path $script:bin 'calls.log'
         @(if (Test-Path $file) { Get-Content $file })
     }
+    # The command the one relaunch through the stand-in pwsh ran, decoded from its -EncodedCommand.
+    function Get-RelaunchCommand {
+        $launches = @(Get-Calls | Where-Object { $_ -like 'pwsh *' })
+        $launches | Should -HaveCount 1
+        $launches[0] -match '^pwsh -NoProfile -OutputFormat Text -EncodedCommand (\S+)$' |
+            Should -BeTrue -Because $launches[0]
+        [Text.Encoding]::Unicode.GetString([Convert]::FromBase64String($Matches[1]))
+    }
     function Clear-Calls { Remove-Item (Join-Path $script:bin 'calls.log') -ErrorAction SilentlyContinue }
 }
 
 Describe 'onboard.ps1' {
     BeforeEach { New-Clone }
 
-    It 'sets up a clean clone, says what it did, and a second run changes nothing' {
+    It 'sets up a clean clone, says what it did and lists every item, and a second run changes nothing' {
+        Remove-Item -Recurse (Join-Path $clone '.tools')
         # Answers: Enter after editing the patterns, use the game found, no test deploy, no Ghidra project.
         $first = Invoke-Onboard @('', 'y', 'y', 'n', 'n')
 
@@ -156,6 +210,10 @@ Describe 'onboard.ps1' {
         $first.Output | Should -Match 'Changed:'
         $first.Output | Should -Not -Match 'private-pattern-for-tests'
         $first.Output | Should -Match 'docs/agents/workflow.md'
+        foreach ($item in '.NET SDK', 'Git', 'PowerShell 7', 'GitHub CLI', 'Node.js', 'GitHub login', 'push access',
+            'git hooks', 'private patterns', 'skills', 'docs tools', 'WSL', 'game') {
+            $first.Output | Should -Match ("(?m)^  \S $([regex]::Escape($item))")
+        }
 
         Clear-Calls
         $script:stub.METAPHOR_GAME_EXE = $gameExe # as setx left it for new processes
@@ -166,15 +224,6 @@ Describe 'onboard.ps1' {
         $calls = Get-Calls
         $calls | Where-Object { $_ -match '^(notepad|setx|install-docs-tools|winget)|marketplace add|plugin install' } |
             Should -BeNullOrEmpty
-    }
-
-    It 'lists every item of the ready summary' {
-        $result = Invoke-Onboard @('', 'y', 'y', 'n', 'n')
-
-        foreach ($item in '.NET SDK', 'Git', 'PowerShell 7', 'GitHub CLI', 'GitHub login', 'push access', 'git hooks',
-            'private patterns', 'skills', 'docs tools', 'WSL', 'game') {
-            $result.Output | Should -Match ([regex]::Escape($item))
-        }
     }
 
     It 'stops with what to do when the SDK is missing or another version and the install is declined' {
@@ -314,5 +363,100 @@ Describe 'onboard.ps1' {
         $result.ExitCode | Should -Be 0
         $result.Output | Should -Match 'gh auth login'
         Get-Calls | Where-Object { $_ -like 'gh api*' } | Should -BeNullOrEmpty
+    }
+
+    It 'treats winget''s already-installed result as installed, and says why it still doesn''t find the tool' {
+        $script:stub.STUB_SDK = ''
+        $script:stub.STUB_WINGET = '-1978335189' # 0x8A15002B, no applicable update
+        $result = Invoke-Onboard @('y')
+
+        $result.ExitCode | Should -Be 1
+        $result.Output | Should -Match 'winget says \.NET SDK is already installed'
+        $result.Output | Should -Match ([regex]::Escape("$sdk in dotnet --list-sdks"))
+        $result.Output | Should -Not -Match 'Installed: '
+    }
+
+    It 'offers a missing Node.js as a pinned winget install after a yes that names the licence' {
+        Remove-Item (Join-Path $bin 'npm.cmd')
+        $result = Invoke-Onboard @('y')
+
+        $result.ExitCode | Should -Be 1
+        $result.Output | Should -Match 'Install Node\.js \S+ and accept its licence agreement\?'
+        $result.Output | Should -Match 'winget show --id OpenJS\.NodeJS\.LTS --exact --version \d+\.\d+\.\d+'
+        @(Get-Calls) -match ('^winget install --id OpenJS\.NodeJS\.LTS --exact --version \d+\.\d+\.\d+ ' +
+            '--source winget --accept-package-agreements --accept-source-agreements$') | Should -HaveCount 1
+        $result.Output | Should -Match 'new PowerShell window'
+    }
+
+    It 'carries on without Node.js after a no, and lists it as missing' {
+        Remove-Item (Join-Path $bin 'npm.cmd')
+        $result = Invoke-Onboard @('n', '', 'y', 'y', 'n', 'n')
+
+        $result.ExitCode | Should -Be 0 -Because $result.Output
+        Get-Calls | Where-Object { $_ -like 'winget*' } | Should -BeNullOrEmpty
+        $result.Output | Should -Match 'Node\.js: not installed, and the docs tools need it: .*nodejs\.org'
+        Get-Calls | Should -Contain 'check.sh fast'
+    }
+
+    It 'shows the skills as optional without Claude Code' {
+        Remove-Item (Join-Path $bin 'claude.cmd')
+        $result = Invoke-Onboard @('', 'y', 'n', 'n')
+
+        $result.ExitCode | Should -Be 0 -Because $result.Output
+        $result.Output | Should -Match '(?m)^  - skills: optional: install Claude Code'
+    }
+
+    Context 'run from Windows PowerShell' {
+        It 'relaunches itself under the PowerShell 7 on PATH, with the same arguments, in the same window' {
+            Install-PwshStandIn $bin
+            $script:stub.STUB_SDK = ''
+            $result = Invoke-Onboard @('n') -Shell $windowsPowerShell
+
+            $result.ExitCode | Should -Be 1 -Because $result.Output
+            $result.Output | Should -Match 'PowerShell 7 is installed'
+            # The relaunched run: PowerShell 7 found, and the answer and paths passed on.
+            $result.Output | Should -Match 'PowerShell 7: found'
+            $result.Output | Should -Match 'dotnet\.microsoft\.com'
+            $command = Get-RelaunchCommand
+            $command | Should -Match ([regex]::Escape("-SteamRoot $(ConvertTo-Literal $steam)"))
+            $command | Should -Match ([regex]::Escape("-Answers @('n')"))
+            Get-Calls | Where-Object { $_ -like 'winget*' } | Should -BeNullOrEmpty
+        }
+
+        It 'passes on paths with typographic quotes and spaces as data, never as code' {
+            $quote = [char]0x2019 # right single quotation mark, which PowerShell also ends a '...' string on
+            New-Clone "O${quote}Brien x"
+            Install-PwshStandIn $bin
+            $script:stub.STUB_SDK = ''
+            $script:steam = Join-Path $root "Steam O$quote; Write-Host INJECTED; #"
+            $result = Invoke-Onboard @('n') -Shell $windowsPowerShell
+
+            $result.ExitCode | Should -Be 1 -Because $result.Output
+            $result.Output | Should -Match 'PowerShell 7: found'
+            $result.Output | Should -Not -Match '(?m)^INJECTED'
+            Get-RelaunchCommand | Should -Match ([regex]::Escape("-SteamRoot $(ConvertTo-Literal $steam)"))
+        }
+
+        It 'prefers PowerShell 7 at its default path, which PATH may not have yet, to one on PATH' {
+            Install-PwshStandIn (Join-Path $programFiles 'PowerShell/7')
+            Install-PwshStandIn $bin
+            $script:stub.STUB_SDK = ''
+            $result = Invoke-Onboard @('n') -Shell $windowsPowerShell
+
+            $result.ExitCode | Should -Be 1 -Because $result.Output
+            $result.Output | Should -Match ([regex]::Escape((Join-Path $programFiles 'PowerShell\7\pwsh.exe')))
+            $result.Output | Should -Match 'PowerShell 7: found'
+            Get-Calls | Where-Object { $_ -like 'winget*' } | Should -BeNullOrEmpty
+        }
+
+        It 'offers the install once when PowerShell 7 is missing' {
+            $result = Invoke-Onboard @('n') -Shell $windowsPowerShell
+
+            $result.ExitCode | Should -Be 1 -Because $result.Output
+            @([regex]::Matches($result.Output, 'Install PowerShell 7 \S+ and accept its licence agreement\?')).Count |
+                Should -Be 1
+            $result.Output | Should -Match 'github\.com/PowerShell/PowerShell'
+            Get-Calls | Where-Object { $_ -like 'pwsh*' -or $_ -like 'winget*' } | Should -BeNullOrEmpty
+        }
     }
 }
