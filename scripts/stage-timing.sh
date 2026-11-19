@@ -21,19 +21,20 @@ die() {
 
 is_seconds() { [[ "$1" =~ ^[0-9]+$ ]]; }
 
-# duration SECONDS: "48 s", "5 min" or "4 min 48 s".
-duration() {
-  local min=$(($1 / 60)) sec=$(($1 % 60))
+# duration_into VAR SECONDS: set VAR to "48 s", "5 min" or "4 min 48 s". A variable, not output, so `report` (which
+# check.sh runs on every fast stage) needs no subshell: under Git Bash each one costs a process start (#328).
+duration_into() {
+  local -n into="$1"
+  local min=$(($2 / 60)) sec=$(($2 % 60))
   if [ "$min" -eq 0 ]; then
-    echo "$sec s"
+    into="$sec s"
   elif [ "$sec" -eq 0 ]; then
-    echo "$min min"
+    into="$min min"
   else
-    echo "$min min $sec s"
+    into="$min min $sec s"
   fi
 }
-
-utc() { date -u -d "@$1" +%Y-%m-%dT%H:%M:%SZ; }
+duration() { local text; duration_into text "$1"; echo "$text"; }
 
 # summary LINE: print a line, and add it to the job summary in GitHub Actions.
 summary() {
@@ -48,8 +49,13 @@ report() {
   is_seconds "$start" && is_seconds "$end" || die "start and end must be Unix seconds"
   [ "$end" -ge "$start" ] || die "end is before start"
   took=$((end - start))
-  line="timing: $label started $(utc "$start"), finished $(utc "$end"), took $(duration "$took")"
-  [ "$budget" = - ] || line+=" (budget $(duration "$budget"))"
+  local from to took_text budget_text
+  # UTC ISO 8601 from builtins, where a `date` per time was a start each.
+  TZ=UTC0 printf -v from '%(%Y-%m-%dT%H:%M:%SZ)T' "$start"
+  TZ=UTC0 printf -v to '%(%Y-%m-%dT%H:%M:%SZ)T' "$end"
+  duration_into took_text "$took"
+  line="timing: $label started $from, finished $to, took $took_text"
+  [ "$budget" = - ] || { duration_into budget_text "$budget"; line+=" (budget $budget_text)"; }
   summary "$line${detail:+, $detail}"
   if [ "$budget" != - ] && [ "$took" -gt "$budget" ]; then
     local message="$label took $(duration "$took"), over its $(duration "$budget") budget"

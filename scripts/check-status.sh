@@ -1,11 +1,13 @@
 #!/usr/bin/env bash
 # A local view of the build checks (issue #269): who holds the build lock, who waits on it, each worktree's last runs
-# and idle build workers. `--short` prints one line for the Claude Code status line, and reads only the lock files.
+# and idle build workers, and each worktree's long run still going (`check.sh full`, the check-script suite, Pester) as
+# "test-check: 37/132, 12 min" with its live log's path (#328). `--short` prints one line for the Claude Code status
+# line, and reads only the lock files and this clone's live log.
 #
 #   bash scripts/check-status.sh [--short]
 #
-# The lock and its waiters are written by take_lock in scripts/check.sh; run logs by its `finish`. Nothing here is
-# game content or personal information: a stage, a branch name, times and a result.
+# The lock and its waiters are written by take_lock in scripts/check.sh; run logs by its `finish`; live logs by
+# scripts/live-log.sh. Nothing here is game content or personal information: a stage, a branch name, times and a result.
 set -uo pipefail
 
 lock="${METAPHOR_CHECK_LOCK:-${TMPDIR:-/tmp}/metaphor-check.lock}"
@@ -17,6 +19,43 @@ short=0
 [ "${1:-}" != "--short" ] || short=1
 
 alive() { kill -0 "$1" 2> /dev/null; }
+
+# live_runs LOG: set `running` to the runs still going in a live log (scripts/live-log.sh), innermost last, as
+# "test-check: 37/132, 12 min" joined by " > "; empty when none is. Builtins only. A run counts while its pid is alive
+# and it has no end line.
+live_runs() {
+  local line word suite total start pid n=0 i parts=()
+  local -a suites=() totals=() starts=() pids=() dones=()
+  running=""
+  [ -f "$1" ] || return 0
+  while IFS= read -r line; do
+    case "$line" in
+      "== start "*)
+        read -r _ word suite total start pid <<< "$line"
+        suites[n]="$suite" totals[n]="$total" starts[n]="$start" pids[n]="$pid" dones[n]=0
+        n=$((n + 1)) ;;
+      "== end "*) [ "$n" -eq 0 ] || n=$((n - 1)) ;;
+      "["*/*"] "*)
+        word="${line#\[}" && word="${word%%/*}"
+        [ "$n" -eq 0 ] || [[ ! "$word" =~ ^[0-9]+$ ]] || dones[n - 1]="$word" ;;
+    esac
+  done < "$1"
+  for ((i = 0; i < n; i++)); do
+    [[ "${pids[i]}" =~ ^[0-9]+$ ]] && alive "${pids[i]}" || continue
+    [[ "${starts[i]}" =~ ^[0-9]+$ ]] || starts[i]="$now"
+    parts+=("${suites[i]}: ${dones[i]}/${totals[i]}, $(((now - starts[i]) / 60)) min")
+  done
+  [ "${#parts[@]}" -eq 0 ] || { printf -v running '%s > ' "${parts[@]}"; running="${running% > }"; }
+}
+
+# git_dir_of DIR: set `gitdir` to the git dir of the worktree at DIR (its .git folder, or the one a .git file names).
+git_dir_of() {
+  gitdir="$1/.git"
+  if [ -f "$gitdir" ]; then
+    read -r gitdir < "$gitdir" || gitdir=""
+    gitdir="${gitdir#gitdir: }"
+  fi
+}
 
 slots="${METAPHOR_CHECK_SLOTS:-2}"
 [[ "$slots" =~ ^[1-9][0-9]*$ ]] || slots=2
@@ -67,6 +106,14 @@ if [ "$short" -eq 1 ]; then
     for ((n = 1; n < slots; n++)); do line="$line | ${brief[n]}"; done
   fi
   [ "$waiting" -eq 0 ] || line="$line · $waiting waiting"
+  # This clone's running suite, from its live log; the worktree is found by walking up from here, with builtins.
+  dir="$PWD"
+  while [ -n "$dir" ] && [ ! -e "$dir/.git" ]; do dir="${dir%/*}"; done
+  if [ -n "$dir" ]; then
+    git_dir_of "$dir"
+    live_runs "$gitdir/check-live-log"
+    [ -z "$running" ] || line="$line · $running"
+  fi
   echo "$line"
   exit 0
 fi
@@ -80,13 +127,15 @@ echo "last runs (stage branch start end result built|reused):"
 while IFS= read -r line; do
   [[ "$line" == "worktree "* ]] || continue
   wt="${line#worktree }"
-  gd="$wt/.git"
-  if [ -f "$gd" ]; then
-    read -r gd < "$gd" || continue
-    gd="${gd#gitdir: }"
-  fi
-  [ -f "$gd/check-run-log" ] || continue
+  git_dir_of "$wt"
+  gd="$gitdir"
+  [ -n "$gd" ] || continue
+  live_runs "$gd/check-live-log"
+  [ -f "$gd/check-run-log" ] || [ -n "$running" ] || continue
   echo "  ${wt##*/}:"
+  # A long run still going (#328): its progress and the live log to follow it with tail -f.
+  [ -z "$running" ] || echo "    running: $running (log: $gd/check-live-log)"
+  [ -f "$gd/check-run-log" ] || continue
   n=0
   while IFS= read -r entry && [ "$n" -lt 3 ]; do
     echo "    $entry"

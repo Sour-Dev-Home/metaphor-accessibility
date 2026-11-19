@@ -134,12 +134,15 @@ $ready = Wait-ModStatus $mods $gameFull (Get-GameBuild $gameFull $KnownBuilds).S
 # 4. The mod's lines in Reloaded-II's log of this run, read from the open file (the folder listing lags). The mod logs
 # its load line just after writing its status, so the file is read until that line is in it.
 $logs = Join-Path (Split-Path $ReloadedConfig) 'Logs'
-$logPattern = "* ~ $([IO.Path]::GetFileNameWithoutExtension($gameFull)).txt"
+# "{UTC time} ~ {exe}.txt", with " [n]" added when a log of the same second exists, as after a quick relaunch
+# (reloaded-ii-launch-and-logs-2026-11-13.md).
+$logName = "^\d{4}-\d{2}-\d{2} \d{2}\.\d{2}\.\d{2} ~ $([regex]::Escape([IO.Path]::GetFileNameWithoutExtension($gameFull)))( \[\d+\])?\.txt$"
 $prefix = "[$modId] "
 $lines = @()
 do {
-    $log = Get-ChildItem -LiteralPath $logs -Filter $logPattern -File -ErrorAction SilentlyContinue |
-        Where-Object CreationTimeUtc -GE $launchedAt | Sort-Object CreationTimeUtc | Select-Object -Last 1
+    $log = Get-ChildItem -LiteralPath $logs -File -ErrorAction SilentlyContinue |
+        Where-Object { $_.Name -match $logName -and $_.CreationTimeUtc -ge $launchedAt } | Sort-Object CreationTimeUtc |
+        Select-Object -Last 1
     if ($log) {
         $stream = [IO.File]::Open($log.FullName, 'Open', 'Read', 'ReadWrite')
         try { $lines = @((New-Object IO.StreamReader($stream)).ReadToEnd() -split "\r?\n" | Where-Object { $_.Contains($prefix) }) }

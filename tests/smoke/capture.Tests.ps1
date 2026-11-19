@@ -98,6 +98,14 @@ public static class Mod { public const string A = "opt-in-ui-text-panes.txt"; pu
     }
 
     It 'deploys, adds the opt-ins, relaunches and reports the hooks and any skipped or failed listener' {
+        # Older logs named for each of the next two minutes, so this run's log clashes with one and gets the loader's
+        # " [n]" suffix, as a relaunch within the deploy run's second does (#339; reloaded-ii-launch-and-logs-2026-11-13.md).
+        $logs = New-Item -ItemType Directory -Force (Join-Path (Split-Path $script:config) 'Logs')
+        $now = [DateTime]::UtcNow
+        foreach ($second in 0..120) {
+            New-Item -ItemType File (Join-Path $logs "$($now.AddSeconds($second).ToString('yyyy-MM-dd HH.mm.ss')) ~ METAPHOR.txt") | Out-Null
+        }
+
         $result = Invoke-Capture -OptIns 'ui-text-panes', 'dialogue-window'
 
         $result.ExitCode | Should -Be 0 -Because $result.Output

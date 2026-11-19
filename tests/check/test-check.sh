@@ -9,23 +9,47 @@ CHECK="$ROOT/scripts/check.sh"
 WORK="$(mktemp -d)"
 trap 'rm -rf "$WORK"' EXIT
 
+# The check's functions: most cases run a stage with `main` in a subshell of this shell, which saves starting a bash and
+# reading the script each time (#328; Git Bash and real-time antivirus make every process start expensive).
+SOURCED_CHECK="$CHECK"
+# shellcheck source=../../scripts/check.sh
+source "$CHECK" || exit 2
+# shellcheck source=../../scripts/live-log.sh
+source "$ROOT/scripts/live-log.sh" || exit 2
+
 passed=0
 failed=0
+
+# One initialised repo, copied for each case: one cp, where a `git init` and four `git config` calls were five starts.
+TEMPLATE="$WORK/template"
+git init -q "$TEMPLATE" || exit 2
+git -C "$TEMPLATE" config user.name test
+git -C "$TEMPLATE" config user.email test@example.invalid
+git -C "$TEMPLATE" config core.autocrlf false
+git -C "$TEMPLATE" config commit.gpgsign false
 
 # new_repo: create an empty git repo and cd into it.
 new_repo() {
   local dir="$WORK/repo-$RANDOM-$RANDOM"
-  mkdir -p "$dir" && cd "$dir" || exit 2
-  git init -q
-  git config user.name test
-  git config user.email test@example.invalid
-  git config core.autocrlf false
-  git config commit.gpgsign false
+  cp -r "$TEMPLATE" "$dir" && cd "$dir" || exit 2
+}
+
+# parent_dir PATH: create PATH's folder, when it has one, without a dirname start.
+parent_dir() { [[ "$1" != */* ]] || mkdir -p "${1%/*}"; }
+
+# check_stage ARGS...: run the check: `main` in this subshell, or a new bash when CHECK names another copy of it. Call it
+# inside $(...), since main exits.
+check_stage() {
+  if [ "$CHECK" = "$SOURCED_CHECK" ]; then
+    main "$@"
+  else
+    bash "$CHECK" "$@"
+  fi
 }
 
 # run_check ARGS...: run the check, capturing its exit code and combined output.
 run_check() {
-  out="$(bash "$CHECK" "$@" 2>&1)"
+  out="$(check_stage "$@" 2>&1)"
   code=$?
 }
 
@@ -195,7 +219,7 @@ test_full_stage_fails_closed_without_a_solution() {
 
 test_signatures_stage_fails_closed_without_a_game_exe() {
   new_repo
-  out="$(unset METAPHOR_GAME_EXE; bash "$CHECK" signatures 2>&1)"
+  out="$(unset METAPHOR_GAME_EXE; check_stage signatures 2>&1)"
   code=$?
   expect 2 "METAPHOR_GAME_EXE"
 }
@@ -389,7 +413,7 @@ test_ignores_blank_lines_in_private_patterns() {
 # sources use, leaving out one when asked.
 raw_source() {
   local path="$1" skip="${2:-}"
-  mkdir -p "$(dirname "$path")"
+  parent_dir "$path"
   {
     printf '# A saved page\n\n'
     [ "$skip" = skip-source ] || printf -- '- **Source:** <https://example.org/page>\n'
@@ -471,7 +495,7 @@ test_passes_raw_sources_readme_without_header() {
 
 # finding PATH BUILD-LINE: stage a finding note whose header holds BUILD-LINE (empty for none).
 finding() {
-  mkdir -p "$(dirname "$1")"
+  parent_dir "$1"
   printf '# Something about a format\n\n%s\n\n## Evidence\n\n- A capture.\n' "$2" > "$1"
   git add "$1"
 }
@@ -511,7 +535,7 @@ test_blocks_finding_whose_game_build_is_not_a_sha() {
 note() {
   local path="$1"
   shift
-  mkdir -p "$(dirname "$path")"
+  parent_dir "$path"
   { printf '# A note\n\n'; printf '%s\n' "$@"; printf '\n## Section\n\n- Text.\n'; } > "$path"
   git add "$path"
 }
@@ -547,8 +571,9 @@ test_passes_findings_readme_without_game_build() {
   expect 0
 }
 
-# check_message TEXT: run the commit-msg stage on a message file holding TEXT (printf escapes allowed).
-check_message() {
+# message_check TEXT: run the commit-msg stage on a message file holding TEXT (printf escapes allowed). Not
+# check_message, which is the check's own function.
+message_check() {
   local file="$WORK/message-$RANDOM"
   printf "$1" > "$file"
   run_check commit-msg "$file"
@@ -556,43 +581,63 @@ check_message() {
 
 test_passes_typed_subject_with_body_and_trailers() {
   new_repo
-  check_message 'feat(check): block bad commit messages\n\nWhy it matters, in two lines\nat most five.\n\nCo-Authored-By: Someone <someone@example.com>\nSigned-off-by: Someone <someone@example.com>\n'
+  message_check 'feat(check): block bad commit messages\n\nWhy it matters, in two lines\nat most five.\n\nCo-Authored-By: Someone <someone@example.com>\nSigned-off-by: Someone <someone@example.com>\n'
   expect 0
 }
 
 test_blocks_subject_without_type_prefix() {
   new_repo
-  check_message 'Add a thing\n'
+  message_check 'Add a thing\n'
   expect 1 "commit message: subject needs a type prefix"
+}
+
+# The hooks and CI run check.sh as a script, never sourced. Its main runs only when executed, so if that guard broke,
+# every stage would exit 0 without checking anything. These run it as a new bash, as the hooks do.
+test_script_mode_fails_a_bad_message() {
+  new_repo
+  local file="$WORK/message-$RANDOM"
+  printf 'Add a thing\n' > "$file"
+  out="$(bash "$CHECK" commit-msg "$file" 2>&1)"
+  code=$?
+  expect 1 "commit message: subject needs a type prefix"
+}
+
+test_script_mode_passes_a_good_message() {
+  new_repo
+  local file="$WORK/message-$RANDOM"
+  printf 'feat: a good subject\n' > "$file"
+  out="$(bash "$CHECK" commit-msg "$file" 2>&1)"
+  code=$?
+  expect 0
 }
 
 test_blocks_subject_over_72_characters() {
   new_repo
-  check_message "feat: $(printf 'x%.0s' {1..67})\n" # 73 characters
+  message_check "feat: $(printf 'x%.0s' {1..67})\n" # 73 characters
   expect 1 "commit message: subject is 73 characters; the limit is 72"
 }
 
 test_counts_subject_length_in_characters_not_bytes() {
   new_repo
-  check_message "docs: $(printf 'é%.0s' {1..66})\n" # 72 characters, 138 bytes
+  message_check "docs: $(printf 'é%.0s' {1..66})\n" # 72 characters, 138 bytes
   expect 0
 }
 
 test_blocks_body_over_five_lines() {
   new_repo
-  check_message 'fix: a bug\n\none\ntwo\n\nthree\nfour\nfive\nsix\n\nCo-Authored-By: Someone <someone@example.com>\n'
+  message_check 'fix: a bug\n\none\ntwo\n\nthree\nfour\nfive\nsix\n\nCo-Authored-By: Someone <someone@example.com>\n'
   expect 1 "commit message: body has 6 lines; the limit is 5"
 }
 
 test_blocks_body_without_blank_line_after_subject() {
   new_repo
-  check_message 'fix: a bug\nno blank line\n'
+  message_check 'fix: a bug\nno blank line\n'
   expect 1 "commit message: leave a blank line after the subject"
 }
 
 test_ignores_comment_lines_and_text_below_the_scissors() {
   new_repo
-  check_message 'fix: a bug\n\nWhy.\n# Please enter the commit message\n# a\n# b\n# c\n# d\n# ------------------------ >8 ------------------------\ndiff --git a/x b/x\n1\n2\n3\n4\n5\n6\n'
+  message_check 'fix: a bug\n\nWhy.\n# Please enter the commit message\n# a\n# b\n# c\n# d\n# ------------------------ >8 ------------------------\ndiff --git a/x b/x\n1\n2\n3\n4\n5\n6\n'
   expect 0
 }
 
@@ -600,27 +645,27 @@ test_passes_git_generated_subjects() {
   local subject
   for subject in 'Revert "feat: a thing"' 'fixup! feat: a thing' 'squash! fix: b' 'amend! docs: c'; do
     new_repo
-    check_message "$subject\n"
+    message_check "$subject\n"
     expect 0
   done
 }
 
 test_passes_subject_followed_only_by_trailers() {
   new_repo
-  check_message 'feat: pair work\n\nCo-Authored-By: a <a@example.com>\nCo-Authored-By: b <b@example.com>\nCo-Authored-By: c <c@example.com>\nCo-Authored-By: d <d@example.com>\nCo-Authored-By: e <e@example.com>\nSigned-off-by: f <f@example.com>\n'
+  message_check 'feat: pair work\n\nCo-Authored-By: a <a@example.com>\nCo-Authored-By: b <b@example.com>\nCo-Authored-By: c <c@example.com>\nCo-Authored-By: d <d@example.com>\nCo-Authored-By: e <e@example.com>\nSigned-off-by: f <f@example.com>\n'
   expect 0
 }
 
 test_blocks_empty_message() {
   new_repo
-  check_message '# only a comment\n\n'
+  message_check '# only a comment\n\n'
   expect 1 "commit message: message is empty"
   expect_absent "type prefix"
 }
 
 test_ignores_trailing_spaces_and_crlf_line_endings() {
   new_repo
-  check_message "fix: $(printf 'x%.0s' {1..67})   \r\n\r\nWhy.\r\n" # 72 characters before the spaces
+  message_check "fix: $(printf 'x%.0s' {1..67})   \r\n\r\nWhy.\r\n" # 72 characters before the spaces
   expect 0
 }
 
@@ -767,7 +812,9 @@ test_pr_body_stage_fails_closed_without_a_file() {
 
 # run_check_without_docs_tools ARGS...: run_check with a PATH that has git and the shell's basics but no docs tools.
 run_check_without_docs_tools() {
-  out="$(PATH="$(dirname "$(command -v git)"):/usr/bin:/bin" bash "$CHECK" "$@" 2>&1)"
+  local git
+  git="$(command -v git)"
+  out="$(PATH="${git%/*}:/usr/bin:/bin" && check_stage "$@" 2>&1)"
   code=$?
 }
 
@@ -843,7 +890,7 @@ test_pre_commit_says_how_to_check_changed_signatures_without_the_game() {
   mkdir -p src/Metaphor.Core
   printf '[]\n' > src/Metaphor.Core/hook-signatures.json
   git add .
-  out="$(env -u METAPHOR_GAME_EXE bash "$CHECK" pre-commit 2>&1)"
+  out="$(unset METAPHOR_GAME_EXE; check_stage pre-commit 2>&1)"
   code=$?
   expect 0 "hook signatures changed" "METAPHOR_GAME_EXE"
 }
@@ -858,7 +905,7 @@ push_repo() {
   printf 'first\n' > readme.txt
   git add . && git commit -q -m "docs: first"
   BASE="$(git rev-parse HEAD)"
-  mkdir -p "$(dirname "$1")"
+  parent_dir "$1"
   printf 'second\n' > "$1"
   git add . && git commit -q -m "feat: second"
   HEAD="$(git rev-parse HEAD)"
@@ -868,7 +915,7 @@ push_repo() {
 run_pre_push() {
   # A private lock path, so the machine's real build slots never decide these runs.
   out="$(printf 'refs/heads/topic %s refs/heads/topic %s\n' "$1" "$2" |
-    METAPHOR_CHECK_LOCK="${METAPHOR_CHECK_LOCK:-$PWD/test-build.lock}" bash "$CHECK" pre-push 2>&1)"
+    METAPHOR_CHECK_LOCK="${METAPHOR_CHECK_LOCK:-$PWD/test-build.lock}" check_stage pre-push 2>&1)"
   code=$?
 }
 
@@ -943,7 +990,7 @@ review_repo() {
 
 # stage_file FILE [TEXT]: write TEXT (default: a random line) to FILE and stage it.
 stage_file() {
-  mkdir -p "$(dirname "$1")"
+  parent_dir "$1"
   printf '%s\n' "${2:-line $RANDOM}" > "$1"
   git add "$1"
 }
@@ -1104,7 +1151,7 @@ run_pr() {
   out="$(PATH="$FAKE_BIN:$PATH" TIMELINE="${TIMELINE:-}" FAKE_GH_FAIL="${FAKE_GH_FAIL:-}" \
     FAKE_PERMISSION_FAIL="${FAKE_PERMISSION_FAIL:-}" FAKE_TIMELINE_FAIL="${FAKE_TIMELINE_FAIL:-}" \
     PR_AUTHOR_ASSOCIATION="$1" PR_AUTHOR="${PR_AUTHOR:-contrib}" \
-    PR_NUMBER=7 GITHUB_REPOSITORY=o/r PR_UPDATED_AT=2026-11-16T10:00:00Z bash "$CHECK" commits "$base..HEAD" 2>&1)"
+    PR_NUMBER=7 GITHUB_REPOSITORY=o/r PR_UPDATED_AT=2026-11-16T10:00:00Z check_stage commits "$base..HEAD" 2>&1)"
   code=$?
 }
 
@@ -1275,7 +1322,7 @@ test_maintainer_pr_uses_trailers_and_ignores_the_label() {
 # The guards that enforce the ground rules are in the scope too (issue #306).
 GUARD_FILES=(scripts/check.sh scripts/game-content.sha256 scripts/tree-hash.sh scripts/ci-changes.sh
   scripts/test-select.sh scripts/stage-timing.sh scripts/install-docs-tools.sh scripts/conflict-alert.sh
-  scripts/integration-sync.sh scripts/check-status.sh scripts/run-pester.sh scripts/githooks/pre-commit scripts/githooks/pre-push
+  scripts/integration-sync.sh scripts/check-status.sh scripts/run-pester.sh scripts/live-log.sh scripts/githooks/pre-commit scripts/githooks/pre-push
   scripts/githooks/commit-msg scripts/security-stamp.sh scripts/github-outage.sh .github/workflows/ci.yml
   .github/workflows/slow.yml .github/workflows/a-new-one.yml .claude/agents/security-reviewer.md
   tests/check/test-check.sh tests/scripts/test-anything.sh tools/slow/survivors.mjs tools/docs/package-lock.json
@@ -1511,7 +1558,7 @@ test_rules_scans_the_whole_tree_in_ci_and_on_request() {
     with_origin_main
     printf 'fine\n' > new.txt
     git add new.txt
-    out="$(env "$env" bash "$CHECK" rules 2>&1)"
+    out="$(export "$env" &&check_stage rules 2>&1)"
     code=$?
     expect 1 "old.cpk" "scan: every tracked file (2)"
   done
@@ -1543,7 +1590,7 @@ test_rules_reads_names_and_headers_past_invalid_utf8() {
   stage_blob 100644 "$(printf 'bad\377name.txt')" 'fine'
   stage_blob 100644 zz-private-name.txt 'fine'
   stage_blob 100644 docs/findings/f.md "$(printf '# Bad \377 title\n\n- **Game build:** %064d\n' 0)"
-  out="$(LC_ALL=C.UTF-8 PII_PATTERNS=zz-private-name bash "$CHECK" rules 2>&1)"
+  out="$(LC_ALL=C.UTF-8 PII_PATTERNS=zz-private-name check_stage rules 2>&1)"
   code=$?
   expect 1 "personal information: zz-private-name.txt: file name matches a private pattern"
   expect_absent "header has no"
@@ -1610,38 +1657,77 @@ test_rules_process_starts_do_not_grow_with_the_file_count() {
 }
 
 # Each test runs in its own subshell, with its own temp folder and its own counters, several at a time (#314: the suite
-# took tens of minutes in one process on Windows, where every git and bash start is slow). Output is shown whole, in
-# test order, after all have finished. METAPHOR_TEST_JOBS=1 runs one at a time and must give the same pass and fail
-# counts. An optional argument runs only the tests whose names match it (an extended regular expression).
+# took tens of minutes in one process on Windows, where every git and bash start is slow). Each prints
+# "[done/total] NAME ok|FAIL (seconds s)" as it finishes, also into the clone's live log (scripts/live-log.sh), which
+# scripts/check-status.sh reads. Their output is shown whole, in test order, after all have finished.
+# METAPHOR_TEST_JOBS=1 runs one at a time and must give the same pass and fail counts. An optional argument runs only
+# the tests whose names match it (an extended regular expression).
 JOBS="${METAPHOR_TEST_JOBS:-}"
 if ! [[ "$JOBS" =~ ^[1-9][0-9]*$ ]]; then
   JOBS="$(nproc 2> /dev/null || echo 4)"
   [ "$JOBS" -le 4 ] || JOBS=4
 fi
 RESULTS="$WORK/results"
-mkdir -p "$RESULTS"
 
-run_test() { # run_test NAME
-  local name="$1" began=$SECONDS
-  mkdir -p "$WORK/t-$name"
+# run_test NAME: run one test in a subshell with its own folder and counters, its output and counts in $RESULTS.
+run_test() {
+  local name="$1"
   (
     WORK="$WORK/t-$name"
     passed=0 failed=0 current="$name"
     "$name"
     echo "$passed $failed" > "$RESULTS/$name.counts"
   ) > "$RESULTS/$name.out" 2>&1
-  echo "$((SECONDS - began))" > "$RESULTS/$name.secs"
 }
 
-mapfile -t names < <(declare -F | awk '{print $3}' | grep '^test_' | grep -E -- "${1:-.}")
-for name in "${names[@]}"; do
-  while [ "$(jobs -rp | wc -l)" -ge "$JOBS" ]; do wait -n; done
-  run_test "$name" &
-done
-wait
+# finished NAME STARTED: print and log the test's progress line. STARTED is its $EPOCHREALTIME at launch.
+finished() {
+  local name="$1" p=0 f=1 tenths
+  read -r p f < "$RESULTS/$name.counts" 2> /dev/null || f=1
+  # EPOCHREALTIME is "seconds.microseconds" (a comma in some locales); tenths of a second from the digits, without a
+  # `bc` or `awk` start.
+  tenths=$(((10#${EPOCHREALTIME//[.,]/} - 10#${2//[.,]/}) / 100000))
+  secs[$name]="$((tenths / 10)).$((tenths % 10))"
+  live_line "$name" "$f" "${secs[$name]}"
+}
 
+names=()
+while read -r _ _ name; do
+  [[ "$name" == test_* && "$name" =~ ${1:-.} ]] && names+=("$name")
+done < <(declare -F)
+[ "${#names[@]}" -gt 0 ] || { echo "check tests: no test matches '${1:-}'"; exit 1; }
+# One mkdir for every test's folder, with short relative names.
+cd "$WORK" && mkdir -p results "${names[@]/#/t-}" && cd "$OLDPWD" || exit 2
+declare -A secs=() began=() running=()
+live_start test-check "${#names[@]}" "$ROOT"
+# Only this suite's own lines: the cases' runs of `main full` must not append to it.
+unset METAPHOR_LIVE_LOG
 for name in "${names[@]}"; do
-  cat "$RESULTS/$name.out"
+  if [ "$JOBS" -eq 1 ]; then
+    began[$name]=$EPOCHREALTIME
+    run_test "$name"
+    finished "$name" "${began[$name]}"
+    continue
+  fi
+  while [ "${#running[@]}" -ge "$JOBS" ]; do
+    wait -n -p done_pid
+    finished "${running[$done_pid]}" "${began[${running[$done_pid]}]}"
+    unset "running[$done_pid]"
+  done
+  began[$name]=$EPOCHREALTIME
+  run_test "$name" &
+  running[$!]="$name"
+done
+while [ "${#running[@]}" -gt 0 ]; do
+  wait -n -p done_pid
+  finished "${running[$done_pid]}" "${began[${running[$done_pid]}]}"
+  unset "running[$done_pid]"
+done
+
+times=""
+for name in "${names[@]}"; do
+  IFS= read -r -d '' text < "$RESULTS/$name.out"
+  printf '%s' "$text"
   if read -r p f < "$RESULTS/$name.counts" 2> /dev/null; then
     passed=$((passed + p))
     failed=$((failed + f))
@@ -1649,12 +1735,12 @@ for name in "${names[@]}"; do
     failed=$((failed + 1))
     printf 'FAIL %s\n  the test stopped before it finished\n' "$name"
   fi
-  [ ! -s "$RESULTS/$name.secs" ] || printf '%s %s\n' "$(cat "$RESULTS/$name.secs")" "$name" >> "$RESULTS/times"
+  times+="${secs[$name]} $name"$'\n'
 done
-if [ -s "$RESULTS/times" ]; then
-  echo "slowest tests (seconds):"
-  sort -rn "$RESULTS/times" | head -n 8 | sed 's/^/  /'
-fi
+echo "slowest tests (seconds):"
+sort -rn <<< "${times%$'\n'}" | head -n 8 | sed 's/^/  /'
 
-printf 'check tests: %d passed, %d failed\n' "$passed" "$failed"
+summary="check tests: $passed passed, $failed failed"
+echo "$summary"
+live_end "$((failed > 0))"
 [ "$failed" -eq 0 ]

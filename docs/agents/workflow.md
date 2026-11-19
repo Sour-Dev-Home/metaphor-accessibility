@@ -32,7 +32,9 @@ describing work (rule 8 in [`AGENTS.md`](../../AGENTS.md#ground-rules)).
    can hide a failed start.
 4. Run long commands (`check.sh full`, the script test suites) in the foreground with the Bash tool's longest timeout
    (600000 ms), and wait for them in that call. A background run wakes the main session each time you pause, and every
-   wake-up costs a full turn. A hook (`.claude/hooks/refuse-log-polling.sh`) refuses a sleep loop that waits on a log
+   wake-up costs a full turn. `full`, `tests/check/test-check.sh` and `scripts/run-pester.sh` write their progress to
+   the clone's live log, `<git dir>/check-live-log`, where the maintainer follows it (`tail -f`, or
+   `bash scripts/check-status.sh`). Run them as they are; never redirect them to a private temp file and poll that. A hook (`.claude/hooks/refuse-log-polling.sh`) refuses a sleep loop that waits on a log
    file.
 5. Hand back verified: the narrow tests, then `full`, both passed and their summaries read. If a run can't finish, say
    which and why; don't hand back to be nudged.
@@ -42,11 +44,12 @@ on that same tree prints `reused the recorded pass for tree <hash>` and skips th
 that line: any change, staged or committed, runs the checks again. Don't rerun `full` on a tree it has passed.
 
 A building run prints `step times: restore=.. build=.. tests=.. ...` and keeps them as the run log line's last field.
-`tests/check/test-check.sh` runs its tests in parallel; narrow it with a name pattern as its argument.
+`tests/check/test-check.sh` runs its tests in parallel, printing a line per test as it finishes; narrow it with a name
+pattern as its argument.
 
 A check that looks stalled: `bash scripts/check-status.sh` shows who holds each of the two machine-wide build slots
-(`METAPHOR_CHECK_SLOTS`, default 2), who waits, each worktree's last runs and idle build workers (with the command to
-stop them). The status line shows the `--short` form.
+(`METAPHOR_CHECK_SLOTS`, default 2), who waits, each worktree's running suite and last runs, and idle build workers
+(with the command to stop them). The status line shows the `--short` form.
 
 ## Commit
 
