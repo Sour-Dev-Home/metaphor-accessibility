@@ -180,7 +180,7 @@ jobs:
           zip="release/metaphor-accessibility-$GITHUB_SHA.zip"
           gh attestation verify "$zip" --repo "$GITHUB_REPOSITORY" --signer-workflow "$GITHUB_REPOSITORY/.github/workflows/ci.yml" --source-ref refs/heads/main --deny-self-hosted-runners
 
-  # The smoke-test and deploy scripts' Pester tests, in parallel with build. They need Windows (PowerShell scripts against
+  # The scripts' Pester tests, in parallel with build. They need Windows (PowerShell scripts against
   # the stand-in game) and run when a change touches scripts, tests/pester, the stand-in game or the workflows. One job
   # per test file (#314: the files ran one after another in a single job, over 5 of its 6 minutes); each job builds the
   # stand-in game on its own runner, so the files can't collide on its obj folder.
@@ -190,7 +190,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        file: [capture, check-install, deploy-dev, fetch-prism, GameLocator, ghidra, inspect, install, listen, onboard, setup-wsl, signature-spike, smoke-test, zip-package]
+        file: [check-install, fetch-prism, GameLocator, ghidra, install, onboard, session, session-inspect, session-smoke, setup-wsl, zip-package]
     defaults:
       run:
         shell: bash

@@ -1,7 +1,7 @@
 using System.IO.Pipes;
 using Metaphor.Core.Inspector;
 
-/// <summary>Stands in for the Debug mod's live inspector (#291) in scripts/dev/inspect.ps1's tests: the same commands and
+/// <summary>Stands in for the Debug mod's live inspector (#291) in scripts/dev/session.ps1 inspect's tests: the same commands and
 /// line protocol over a pipe of the given name, answered from a 0x400-byte "module" at 0x140000000 that holds
 /// <c>deadbeef</c> at +0x10 and, at +0x40, a pointer to +0x100. Serves one client after another, keeping watches between
 /// them as the mod does, until it is killed.</summary>

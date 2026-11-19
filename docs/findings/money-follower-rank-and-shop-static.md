@@ -40,7 +40,7 @@ the handle on field menus only. The shop functions reading it suggest it's non-n
 
 Deploy a Debug build with `opt-in-inspector.txt` ([how-to](../contributors/how-to/inspect-the-running-game.md)).
 
-1. **Field, any time:** `pwsh scripts/dev/inspect.ps1 'follow base+0x272e310 0x22c58' 'follow base+0x272e310 0x24674'
+1. **Field, any time:** `pwsh scripts/dev/session.ps1 inspect 'follow base+0x272e310 0x22c58' 'follow base+0x272e310 0x24674'
    'follow base+0x272e310 0x1c758'`. The first should print `base+0x2cc9348`. Then `read <money> 4` against the money
    on the main menu, `read <rank> 92` (23 ranks) against the Followers screen, and `watch` all three.
 2. **Item shop, top menu:** `read base+0x2cc9ea4 4` while moving between buy and sell.

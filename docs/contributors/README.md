@@ -26,7 +26,7 @@ scripts/
   ci/                       CI-only steps: security stamp, vulnerability audit, test selection, alerts
   release/                  build, package and zip the mod
   player/                   exactly what the release zip ships (installer, install check)
-  dev/                      deploy, listen, capture, inspect, Ghidra, signature spike
+  dev/                      game sessions (session.ps1: deploy, run, smoke, spike, inspect, status), Ghidra
   setup/                    onboard, WSL, docs tools, Claude Code launcher
 tools/                    dev-only programs: session log, session fixture, signature check, Ghidra scripts,
                           and the docs and slow-suite tool pins (docs/, slow/)
