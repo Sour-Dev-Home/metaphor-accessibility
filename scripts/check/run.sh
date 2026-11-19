@@ -8,7 +8,7 @@
 # and exports METAPHOR_CHECK_HELD, the slot it holds.
 # `check_dir` is check.sh's constant: `timing_script` is computed from it when this file is sourced, so check.sh sets
 # check_dir before loading it. Reads SKIP_SCRIPT_TESTS, METAPHOR_CHECK_LOCK, METAPHOR_CHECK_SLOTS, METAPHOR_CHECK_POLL
-# and TMPDIR.
+# and TMPDIR. Private to this module: git_local_env, which timed_step fills once.
 
 # The pass cache (issue #241): "<stage> <tree>" lines in this clone's git dir, never a shared path. A pass is reused only
 # for the identical tree, so any change, staged or committed, runs the checks again. A `full` pass also covers pre-push.
@@ -47,10 +47,19 @@ current_branch() {
 # "<stage> <branch> <start> <end> <pass|fail> <built|reused>"; read by scripts/check/check-status.sh.
 # Per-step times of a building stage (#314): "restore=12s build=80s ...", printed when the run ends and kept as the run
 # log line's last field, so a slow step is named by data.
-timed_step() { # timed_step NAME COMMAND...: run COMMAND and note how long it took; its exit code is returned
+# timed_step NAME COMMAND...: run COMMAND and note how long it took; its exit code is returned. COMMAND runs without
+# git's per-repository variables (`git rev-parse --local-env-vars`: GIT_DIR, GIT_INDEX_FILE, GIT_WORK_TREE, ...), which
+# git sets for a hook: inherited, they pointed a test's `git -C <scratch> init` at this clone, which it made bare. The
+# list also holds GIT_CONFIG_PARAMETERS, so `git -c` overrides don't reach steps either. Every test step runs through
+# here, so the hooks need no other guard. The subshell's exec costs no extra process start.
+timed_step() {
   local name="$1" began=$SECONDS code
   shift
-  "$@"
+  [ -n "${git_local_env:-}" ] ||
+    git_local_env="$(git rev-parse --local-env-vars 2> /dev/null)" ||
+    git_local_env="GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE GIT_PREFIX GIT_COMMON_DIR GIT_OBJECT_DIRECTORY"
+  # shellcheck disable=SC2086 # one variable name per word
+  (unset $git_local_env && exec "$@")
   code=$?
   step_times+=("$name=$((SECONDS - began))s")
   # full's steps go to the live log (scripts/check/live-log.sh) as they finish.
