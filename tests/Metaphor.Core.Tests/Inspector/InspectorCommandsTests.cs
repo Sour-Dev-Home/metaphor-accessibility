@@ -186,6 +186,13 @@ public sealed class InspectorCommandsTests
             Commands().Respond($"watch base+0x0 {InspectorCommands.MaxWatchBytes + 1}"));
 
     [Theory]
+    [InlineData("read base+0x0 0xffffffff00000010")]
+    [InlineData("read base+0x0 0x8000000000000004")]
+    [InlineData("watch base+0x0 0xffffffff00000010")]
+    public void AHexCountPastAnIntIsRefusedNotCutToItsLowBits(string line) =>
+        Assert.StartsWith("err usage: ", Commands().Respond(line));
+
+    [Theory]
     [InlineData("write base+0x0 00")]
     [InlineData("call base+0x0")]
     [InlineData("")]

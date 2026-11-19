@@ -67,9 +67,19 @@ public static class InspectorSession
         return 1;
     }
 
+    /// <summary>Writes <paramref name="response"/> as one line. A control character in it, such as a newline in a class
+    /// name read from memory, becomes <c>?</c>, as anything outside ASCII already does, so the client never sees more
+    /// lines than it asked for (#393).</summary>
     private static void Write(Stream stream, string response)
     {
-        var bytes = Encoding.ASCII.GetBytes(response + "\n");
+        var line = string.Create(response.Length, response, static (target, text) =>
+        {
+            for (var i = 0; i < text.Length; i++)
+            {
+                target[i] = char.IsControl(text[i]) ? '?' : text[i];
+            }
+        });
+        var bytes = Encoding.ASCII.GetBytes(line + "\n");
         stream.Write(bytes, 0, bytes.Length);
         stream.Flush();
     }

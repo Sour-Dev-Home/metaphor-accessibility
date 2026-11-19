@@ -199,10 +199,12 @@ public sealed class InspectorCommands(long moduleBase, long moduleSize, MemoryTe
     private static long? Offset(string word) =>
         word.StartsWith('-') ? ParseHex(word[1..]) is { } value ? -value : null : ParseHex(word);
 
-    /// <summary>Decimal digits or <c>0x</c> and hex digits; a minus sign is accepted so the range check refuses it.</summary>
+    /// <summary>Decimal digits or <c>0x</c> and hex digits; a minus sign is accepted so the range check refuses it. A hex
+    /// count past <see cref="int.MaxValue"/>, including one that wraps to a negative <c>long</c>, is refused rather than
+    /// cut down to its low bits (#393).</summary>
     private static int? Count(string word) =>
         word.StartsWith("0x", StringComparison.Ordinal)
-            ? ParseHex(word) is { } value && value <= int.MaxValue ? (int)value : null
+            ? ParseHex(word) is { } value && value is >= 0 and <= int.MaxValue ? (int)value : null
             : int.TryParse(word, NumberStyles.AllowLeadingSign, CultureInfo.InvariantCulture, out var count) ? count : null;
 
     private static long? ParseHex(string word) =>

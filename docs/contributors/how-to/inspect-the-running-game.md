@@ -34,15 +34,17 @@ opted in, a Release build, or another client connected: it serves one at a time)
 ## Commands
 
 `<addr>` is `0x` and hex digits, or `base+0x` and hex digits for an address in the game's exe. `<offset>` is `0x` and
-hex digits, with an optional leading `-`. `<count>` is decimal or `0x` hex. Anything else is refused with
-`err unknown command; try help`, as is a line over 512 bytes (which also ends the connection) or one with bytes outside
-printable ASCII.
+hex digits, with an optional leading `-`. `<count>` is decimal or `0x` hex. An unknown command is refused with
+`err unknown command; try help`, bad arguments with `err usage: ...`, a line with bytes outside printable ASCII with
+`err not printable ASCII`, and a line over 512 bytes with `err line too long`, which also ends the connection. A
+response never spans lines: a control character in it, such as one in a class name read from memory, comes back as
+`?`.
 
 | Request | Answer |
 |---|---|
 | `help` | the commands |
 | `base` | `ok <exe base> <exe size>` |
-| `read <addr> <count>` | `ok <hex bytes>`, up to 4096 bytes; `err unreadable` when any byte can't be read |
+| `read <addr> <count>` | `ok <hex bytes>`, up to 4096 bytes; `err unreadable` when any byte can't be read, or lies on a page that isn't committed, readable and free of a guard (the mod checks with `VirtualQuery` first, so a guard page is left as it was) |
 | `follow <addr> <offset>...` | `ok <addr>`: for each offset, reads the pointer at the current address and adds the offset, so `follow A 0x8 0x10` is `[[A]+0x8]+0x10`; up to 16 offsets; `err unreadable at step <n> (<addr>)` |
 | `rtti <addr>` | `ok <class>`: the class of the object at `<addr>` from its vtable's run-time type information, as [`RttiName`](../../../src/Metaphor.Core/RttiName.cs) reads it; `err no class` |
 | `watch <addr> <count>` | `ok <id>`: remembers up to 256 bytes at `<addr>`; up to 64 watches |
