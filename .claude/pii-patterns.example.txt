@@ -1,5 +1,7 @@
 # Copy to .claude/pii-patterns.txt (git-ignored) and put one private string per line: your real name, email, phone
 # number, user name. scripts/check.sh and the security-reviewer agent match each one as a fixed string, ignoring case.
 # Generic user folders (C:\Users\<name>, /home/<name>) are already caught by the check's general patterns.
+# Known limitation: a match anywhere in a line counts, with no exceptions, so keep each string specific (full name, not
+# a first name alone) or a game character or ordinary word can block a commit. See CONTRIBUTING.md, step 2.
 your-real-name
 your-email@example.com

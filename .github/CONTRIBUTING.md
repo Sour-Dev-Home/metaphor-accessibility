@@ -65,6 +65,11 @@ the two example lines with your own private strings, such as your name and email
 the checks block any commit that contains one. Don't leave the example lines in: they match the example file itself, so
 the checks would fail.
 
+Known limitation: each line matches anywhere in a line, ignoring case, with no exceptions. A short pattern, such as a
+first name alone, can match a game character, a credited person or part of a longer word, and block a commit that holds
+no personal information. Use specific strings (full name, email, user name, phone number). If a real collision blocks
+you, reword that line, for example name a character by role; don't weaken or remove the pattern.
+
 ## 3. Run the checks
 
 ```sh
@@ -214,7 +219,7 @@ check by name. So read a workflow change before approving a fork's CI run or lab
 **Collaborators.** A collaborator has the `write` role: they push branches here and merge through the merge queue. The
 `main` ruleset keeps 0 required approvals and no code-owner review, so the maintainer's and agents' PRs keep flowing;
 the label above is the review gate. 2FA isn't required. Only admins create, update or delete `v*` tags. Workflow runs
-from forks follow GitHub's default: approval for first-time contributors only. The private patterns list
+from forks need the maintainer's approval for every outside contributor, not only first-timers (Actions settings). The private patterns list
 (`PII_PATTERNS`) is a secret of the `main-push` environment, which only `main` may use, so no branch's run can read it.
 Before their first PR, a collaborator's clone uses the repository's git hooks and their own private-patterns file
 ([step 2](#2-clone-and-set-up)).
