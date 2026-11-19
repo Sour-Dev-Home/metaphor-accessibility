@@ -9,4 +9,4 @@ How-tos: [add a hook](how-to/add-a-hook.md), [deploy a dev build](how-to/deploy-
 [query the Ghidra project](how-to/query-the-ghidra-project.md), [add or update a GitHub Action](how-to/add-or-update-a-github-action.md).
 
 Explanation: [how a change reaches main](explanation/how-a-change-reaches-main.md), a diagram of the hooks, CI and the
-merge queue.
+merge queue; [security model](explanation/security-model.md), each security decision and what it protects.
