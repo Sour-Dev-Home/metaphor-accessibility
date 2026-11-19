@@ -18,7 +18,7 @@
 #                            (METAPHOR_SCAN_ALL=1 scans every file; so does `full`'s rules part in CI)
 #   scripts/check.sh full    repo rules, build, Unit and RoundTrip tests, formatting, smoke and deploy script tests, check-script suites (CI: Windows in the merge queue, Linux on PRs)
 #   scripts/check.sh docs    broken links fail; Markdown lint, Vale and ADR length warn (CI on Ubuntu)
-#   scripts/check.sh slow    mutation testing and a duplication report, report only (weekly CI on Windows)
+#   scripts/check.sh slow    mutation and property tests and a duplication report, report only (weekly CI on Windows)
 #   scripts/check.sh signatures [EXE]    each hook signature matches exactly once in the game exe (local, before a hook PR)
 #   scripts/check.sh pr-body FILE        warns when a PR description is too long (CI on pull requests)
 #   scripts/check.sh commit-msg FILE     one commit message, plus its security-review trailer (the commit-msg hook)
