@@ -206,6 +206,20 @@ static class Program {
         [Text.Encoding]::Unicode.GetString([Convert]::FromBase64String($Matches[1]))
     }
     function Clear-Calls { Remove-Item (Join-Path $script:bin 'calls.log') -ErrorAction SilentlyContinue }
+
+    # Find-GitBash, taken from onboard.ps1's syntax tree so nothing else in the script runs, with PATH holding only the
+    # stand-in git's folder, FOLDER under DRIVE/outer/Git.
+    $tree = [Management.Automation.Language.Parser]::ParseFile((Join-Path $repo 'scripts/setup/onboard.ps1'),
+        [ref] $null, [ref] $null)
+    . ([scriptblock]::Create($tree.Find({ param($node) $node -is [Management.Automation.Language.FunctionDefinitionAst] -and
+                    $node.Name -eq 'Find-GitBash' }, $true).Extent.Text))
+    function Invoke-FindGitBash([string] $Drive, [string] $Folder) {
+        $gitDir = New-Item -ItemType Directory -Force (Join-Path $Drive "outer/Git/$Folder")
+        New-Item -ItemType File -Force (Join-Path $gitDir 'git.exe') | Out-Null
+        $saved = $env:PATH
+        try { $env:PATH = $gitDir.FullName; Find-GitBash }
+        finally { $env:PATH = $saved }
+    }
 }
 
 Describe 'onboard.ps1' {
@@ -290,19 +304,6 @@ Describe 'onboard.ps1' {
 
         $result.ExitCode | Should -Be 0 -Because $result.Output
         $result.Output | Should -Not -Match 'Git Bash isn''t installed'
-    }
-
-    It 'never takes a bash.exe from outside the Git install when Git\bin\bash.exe is missing' {
-        $cmd = New-Item -ItemType Directory (Join-Path $root 'drive/outer/Git/cmd')
-        New-Item -ItemType File (Join-Path $cmd 'git.cmd') | Out-Null
-        foreach ($decoy in 'drive/outer/bin', 'drive/bin') { # one and two levels above the Git root
-            New-Item -ItemType File (Join-Path (New-Item -ItemType Directory -Force (Join-Path $root $decoy)) 'bash.exe') |
-                Out-Null
-        }
-        $result = Invoke-Onboard -Answers @('n') -Path @($script:bin, $cmd.FullName)
-
-        $result.ExitCode | Should -Be 1
-        $result.Output | Should -Match 'Git Bash isn''t installed'
     }
 
     It 'stops while the private patterns file still holds the example lines, without printing it' {
@@ -588,5 +589,29 @@ Describe 'onboard.ps1' {
             $result.Output | Should -Match 'github\.com/PowerShell/PowerShell'
             Get-Calls | Where-Object { $_ -like 'pwsh*' -or $_ -like 'winget*' } | Should -BeNullOrEmpty
         }
+    }
+}
+
+# Find-GitBash alone, against stand-in Git installs: an empty git.exe in each folder Git for Windows keeps one in, and
+# an empty bin\bash.exe at the Git root.
+Describe 'Find-GitBash' {
+    It 'finds Git\bin\bash.exe from git in <_>' -ForEach @('cmd', 'bin', 'mingw64\bin', 'mingw64\libexec\git-core',
+        'ucrt64\bin', 'ucrt64\libexec\git-core', 'clangarm64\bin', 'clangarm64\libexec\git-core') {
+        $drive = Join-Path $TestDrive (New-Guid)
+        $bash = Join-Path (New-Item -ItemType Directory -Force (Join-Path $drive 'outer/Git/bin')) 'bash.exe'
+        New-Item -ItemType File $bash | Out-Null
+
+        Invoke-FindGitBash $drive $_ | Should -Be $bash
+    }
+
+    It 'never takes a bash.exe above the Git root when Git\bin\bash.exe is missing, from git in <_>' -ForEach @(
+        'cmd', 'mingw64\bin', 'ucrt64\libexec\git-core', 'other\bin', 'other\libexec\git-core') {
+        $drive = Join-Path $TestDrive (New-Guid)
+        foreach ($decoy in 'outer/bin', 'bin') { # one and two levels above the Git root
+            New-Item -ItemType File (Join-Path (New-Item -ItemType Directory -Force (Join-Path $drive $decoy)) 'bash.exe') |
+                Out-Null
+        }
+
+        Invoke-FindGitBash $drive $_ | Should -BeNullOrEmpty
     }
 }

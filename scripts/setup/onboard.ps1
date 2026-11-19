@@ -160,17 +160,19 @@ function Test-Command([string] $Name) { [bool](Get-Command $Name -ErrorAction Si
 function Test-VcRuntime { Test-Path -LiteralPath (Join-Path $SystemDirectory 'vcruntime140.dll') }
 
 # Git Bash next to git: Git for Windows keeps git.exe in cmd\ (on PATH) and bash.exe in bin\. Its other copies of git.exe
-# sit in mingw64\bin\ and mingw64\libexec\git-core\, which git puts first on PATH when it runs a hook or an alias. Each
-# step up to the Git root is taken only from its own folder, so a bash.exe outside the Git install is never picked up.
+# sit in <env>\bin\ and <env>\libexec\git-core\, which git puts first on PATH when it runs a hook or an alias. <env> is
+# the MSYS2 environment: mingw64 before Git for Windows 2.56.0, ucrt64 from it (its release notes), clangarm64 on Arm.
+# Each step up to the Git root is taken only from its own folder, so a bash.exe outside the Git install is never used.
 function Find-GitBash {
     $git = Get-Command git -CommandType Application -ErrorAction SilentlyContinue | Select-Object -First 1
     if (-not $git) { return $null }
     $dir = Split-Path $git.Source
     $candidates = @(Join-Path $dir 'bash.exe')
+    $msys = '[\\/](mingw64|mingw32|ucrt64|clang64|clangarm64)[\\/]'
     $up = switch -Regex ($dir) {
         '[\\/]cmd$' { '..' }
-        '[\\/]mingw64[\\/]bin$' { '..\..' }
-        '[\\/]mingw64[\\/]libexec[\\/]git-core$' { '..\..\..' }
+        "${msys}bin$" { '..\..' }
+        "${msys}libexec[\\/]git-core$" { '..\..\..' }
     }
     if ($up) { $candidates += Join-Path $dir "$up\bin\bash.exe" }
     foreach ($candidate in $candidates) {
