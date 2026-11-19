@@ -27,4 +27,7 @@ rm -rf "$out_abs"
 
 export DOTNET_CLI_TELEMETRY_OPTOUT=1 DOTNET_NOLOGO=1
 dotnet publish "$root/src/Metaphor.Hooks/Metaphor.Hooks.csproj" -c Release -o "$out_abs" -v q $build_flag >&2
+# The package's own files, which the players' installer copies and nothing else (#303): every file published, in byte
+# order, with forward slashes, the list itself left out.
+(cd "$out_abs" && find . -type f ! -name package-files.txt | sed 's#^\./##' | LC_ALL=C sort) > "$out_abs/package-files.txt"
 bash "$root/scripts/tree-hash.sh" "$out_abs"

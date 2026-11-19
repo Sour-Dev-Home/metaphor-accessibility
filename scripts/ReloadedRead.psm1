@@ -1,4 +1,4 @@
-# Read-only Reloaded-II helpers: what the players' install check (#283) needs, and ships with. Nothing here writes,
+# Read-only Reloaded-II helpers: what the players' install check (#283) and installer (#303) need, and ship with. Nothing here writes,
 # starts a process or reaches the network; ReloadedDev.psm1 imports this and adds the developer helpers, which don't
 # ship. Loads in Windows PowerShell 5.1, so ASCII only.
 # Loader facts: docs/raw-sources/reloaded-ii-config-location-2026-11-13.md and
@@ -63,6 +63,18 @@ function Get-GameBuild([string] $GameExe, [string] $KnownBuilds) {
 function Find-MetaphorApplication($Loader) {
     Get-ChildItem -LiteralPath $Loader.ApplicationConfigDirectory -Filter AppConfig.json -Recurse -Depth 1 |
         Where-Object { (Read-Json $_.FullName).AppId -eq 'metaphor.exe' } | Select-Object -First 1
+}
+
+# The launcher and game exe to use: those given, or else Reloaded-II's own records of them. The launcher from
+# ReloadedII.json's LauncherPath (rewritten on each launch: reloaded-ii-config-location-2026-11-13.md), the game from the
+# application registered as metaphor.exe (the AppId Metaphor mods target: reloaded-ii-mod-entry-point-2026-11-15.md).
+function Resolve-LoaderPaths($Loader, [string] $GameExe, [string] $LauncherExe) {
+    if (-not $LauncherExe -and $Loader.PSObject.Properties['LauncherPath']) { $LauncherExe = $Loader.LauncherPath }
+    if (-not $GameExe) {
+        $game = Find-MetaphorApplication $Loader
+        if ($game) { $GameExe = Resolve-AppLocation $game.FullName (Read-Json $game.FullName).AppLocation }
+    }
+    [pscustomobject]@{ GameExe = $GameExe; LauncherExe = $LauncherExe }
 }
 
 Export-ModuleMember -Function * -Variable StatusFileName

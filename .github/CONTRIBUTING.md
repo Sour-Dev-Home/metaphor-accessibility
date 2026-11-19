@@ -192,8 +192,9 @@ Both are optional; without Claude, write the same things by hand.
 
 - the hook layer, `src/Metaphor.Hooks/`, and the scripts that deploy, launch, package or fetch native code, including
   `scripts/onboard.ps1`, its modules and the scripts it runs (it installs tools and runs a test deploy), and the
-  players' install check, `scripts/check-install.ps1`, `scripts/InstallCheck.psm1` and `scripts/ReloadedRead.psm1`
-  (they ship in the release);
+  players' install check and installer, `scripts/check-install.ps1`, `scripts/InstallCheck.psm1`,
+  `scripts/ReloadedRead.psm1`, `scripts/install.ps1`, `scripts/Installer.psm1` and `scripts/install-pins.json` (they
+  ship in the release);
 - the guards that enforce the ground rules (#306): everything the checks, the git hooks and CI run, transitively, and
   what they read to decide. That is `scripts/check.sh` and every script it or a workflow calls, `scripts/githooks/`,
   the whole `.github/workflows/` folder, the check tests in `tests/check/` and `tests/scripts/` (CI runs them before

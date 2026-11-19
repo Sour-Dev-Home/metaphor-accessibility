@@ -35,13 +35,14 @@
           CopyToPublishDirectory="PreserveNewest" />
   </ItemGroup>
 
-  <!-- The players' install check (#283) and what it reads: the same known-builds list and Prism pin the mod embeds. It
-       runs from the mod folder, so the scripts and modules it imports sit at the package's root. Read-only modules
-       only: the developer ones (ReloadedDev.psm1, GameLocator.psm1) don't ship. -->
+  <!-- The players' install check (#283) and installer (#303), and what they read: the same known-builds list and Prism
+       pin the mod embeds, and the installer's download pins. They run from the mod folder, so the scripts and modules
+       they import sit at the package's root. The developer module that writes configs and starts the game
+       (ReloadedDev.psm1) doesn't ship. -->
   <ItemGroup>
     <None Include="../Metaphor.Core/known-game-builds.json" Link="known-game-builds.json" CopyToPublishDirectory="PreserveNewest" />
     <None Include="prism.json" CopyToPublishDirectory="PreserveNewest" />
-    <None Include="../../scripts/check-install.ps1;../../scripts/InstallCheck.psm1;../../scripts/ReloadedRead.psm1;../../scripts/Interactive.psm1"
+    <None Include="../../scripts/check-install.ps1;../../scripts/InstallCheck.psm1;../../scripts/ReloadedRead.psm1;../../scripts/Interactive.psm1;../../scripts/install.ps1;../../scripts/Installer.psm1;../../scripts/GameLocator.psm1;../../scripts/install-pins.json"
           Link="%(Filename)%(Extension)" CopyToPublishDirectory="PreserveNewest" />
   </ItemGroup>
 

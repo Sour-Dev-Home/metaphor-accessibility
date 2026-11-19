@@ -66,6 +66,17 @@ function Select-Speech([bool] $Speak, [bool] $NoSpeech, [bool] $Interactive, [st
     & $result $true $null
 }
 
+# Windows' own voice through System.Speech (SAPI), or $null when it can't start. Shared with install.ps1.
+function New-Voice {
+    try {
+        Add-Type -AssemblyName System.Speech
+        $voice = New-Object System.Speech.Synthesis.SpeechSynthesizer
+        $voice.SetOutputToDefaultAudioDevice()
+        return $voice
+    }
+    catch { return $null }
+}
+
 function New-Check([string] $Name, [string] $State, [string] $Line, [string] $Detail, [string] $Fix) {
     [pscustomobject]@{ Name = $Name; State = $State; Line = $Line; Detail = $Detail; Fix = $Fix }
 }
@@ -259,4 +270,4 @@ function Get-InstallSummary($Checks) {
     'Everything this script checks is in order. If the mod is still silent, report it with the alpha feedback form.'
 }
 
-Export-ModuleMember -Function Get-InstallCheck, Get-InstallSummary, Format-Check, Format-SpokenCheck, Find-ScreenReader, Select-Speech
+Export-ModuleMember -Function Get-InstallCheck, Get-InstallSummary, Format-Check, Format-SpokenCheck, Find-ScreenReader, Select-Speech, New-Voice

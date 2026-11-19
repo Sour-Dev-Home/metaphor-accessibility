@@ -10,6 +10,37 @@ hear.
 
 You need the game installed on PC (single-player only) and NVDA running.
 
+## Install with the spoken installer
+
+The mod's folder holds `install.ps1`, which does every step on this page for you and says each one as it goes. It
+needs no clicks in Reloaded-II's window. `[NEEDS VERIFICATION]` All of this section, by ear.
+
+1. Unzip the mod's zip. You get a folder named `metaphor.accessibility`.
+2. Open PowerShell (press `Windows+R`, type `powershell` and press Enter), then type this, with the folder's full path
+   in place of `<folder>`:
+
+   `powershell -ExecutionPolicy Bypass -NoExit -File "<folder>\install.ps1"`
+
+3. Answer its questions with `y` and Enter, or Enter alone where it says Enter means yes. It asks before it starts and
+   before each download.
+4. It finds the game, installs Reloaded-II 1.31.0 if you don't have it (in your user folder, no admin rights needed),
+   installs the .NET 9 Desktop Runtime and the Visual C++ Redistributable if they're missing, copies the mod in, turns
+   it on for the game, and puts a shortcut called "Metaphor ReFantazio with accessibility" on your desktop. The two
+   runtimes need admin rights: when it installs one, Windows asks for permission, and you answer yes there too.
+5. It ends by running the install check (below) and says what it found. Before you start the game with the mod for the
+   first time, the check says the mod hasn't reported a start yet; that is expected.
+6. Start the game from the desktop shortcut.
+
+Each step says whether it worked. A step that fails says what to do and stops there. Run it again after fixing that,
+or to update the mod: it changes only what needs changing and says so. With NVDA running it prints only, and NVDA
+reads the window; Windows' own voice speaks the steps when no screen reader is running. Run it from a normal
+PowerShell window, not one opened as administrator: it refuses to run as administrator.
+
+The installer checks every file it downloads against a recorded hash. If you ever open Reloaded-II's own window, it may
+offer to update itself; that update comes from Reloaded-II's newest release, which nobody has checked with this mod.
+
+The sections below do the same by hand.
+
 ## Install Reloaded-II
 
 The mod is checked against Reloaded-II **1.31.0**
