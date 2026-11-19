@@ -48,6 +48,12 @@ if (`$env:STUB_WSL -in 'ready', 'create') { Write-Host 'setup-wsl: metaphor-chec
 if (`$env:STUB_WSL -eq 'network') {
     Write-Host 'setup-wsl: downloading Debian failed twice on a network error. Check the network and run .\scripts\setup-wsl.ps1 again. The check suites keep running in Git Bash.'; exit 1
 }
+if (`$env:STUB_WSL -eq 'restart') {
+    Write-Host 'setup-wsl: WSL is waiting for Windows to restart before it can create metaphor-checks. Restart Windows, then run .\scripts\setup-wsl.ps1. The check suites keep running in Git Bash.'; exit 2
+}
+if (`$env:STUB_WSL -eq 'novirt') {
+    Write-Host 'setup-wsl: WSL 2 can''t start because virtualization is off. Turn on virtualization in the firmware settings; on a Hyper-V VM, shut it down and run Set-VMProcessor -VMName <vm> -ExposeVirtualizationExtensions `$true on the host. Then run .\scripts\setup-wsl.ps1. The check suites keep running in Git Bash.'; exit 2
+}
 Write-Host 'setup-wsl: WSL is not installed. The check suites keep running in Git Bash.'; exit 2
 "@
         Set-Content (Join-Path $scripts 'claude.ps1') @"
@@ -371,6 +377,27 @@ Describe 'onboard.ps1' {
         $result.Output | Should -Match 'WSL: downloading Debian failed twice on a network error\.'
         $result.Output | Should -Match 'Check the network and run \.\\scripts\\setup-wsl\.ps1 again'
         $result.Output | Should -Not -Match 'wsl --install'
+    }
+
+    It 'carries setup-wsl''s restart fix into the summary, without install advice' {
+        $script:stub.STUB_WSL = 'restart'
+        $result = Invoke-Onboard @('', 'y', 'y', 'n', 'n')
+
+        $result.ExitCode | Should -Be 0
+        $result.Output | Should -Match ('WSL: WSL is waiting for Windows to restart before it can create ' +
+            'metaphor-checks\. Restart Windows, then run \.\\scripts\\setup-wsl\.ps1; until then')
+        $result.Output | Should -Not -Match 'wsl --install|Fix that'
+    }
+
+    It 'carries setup-wsl''s virtualization fix into the summary, without install advice' {
+        $script:stub.STUB_WSL = 'novirt'
+        $result = Invoke-Onboard @('', 'y', 'y', 'n', 'n')
+
+        $result.ExitCode | Should -Be 0
+        $result.Output | Should -Match ('WSL: WSL 2 can''t start because virtualization is off\. Turn on ' +
+            'virtualization in the firmware settings; on a Hyper-V VM, .*ExposeVirtualizationExtensions \$true ' +
+            'on the host\. Then run \.\\scripts\\setup-wsl\.ps1; until then')
+        $result.Output | Should -Not -Match 'wsl --install|Fix that'
     }
 
     It 'says to ask the maintainer when the account can''t push, and carries on' {
