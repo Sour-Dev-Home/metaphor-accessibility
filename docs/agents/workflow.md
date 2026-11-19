@@ -142,6 +142,10 @@ SendMessage to `main`.
 - Model: Sonnet for docs-only and mechanical tickets (fix lists, mechanical CI edits, tested library code) and for
   reviewing docs-only or test-only changes; Opus for reverse engineering, hooks, security, design and any change to
   the guards (the check scripts, git hooks, check-script tests and CI gates), perf work on them included.
+- Hand-back review: run the `code-review` skill on the staged change alongside `security-reviewer`. Its Spec axis
+  checks the change against the issue's acceptance criteria, and its Standards axis against
+  [`coding-standards.md`](../coding-standards.md). `full` and the security review both passed #331, which still failed
+  CI.
 - Review findings: fix before merge what a player would notice or what weakens a guard; file pure hardening as a
   follow-up ticket instead of another review round.
 - Keep briefs to pointers (the issue, this file, the files to read first) and a word limit for the report.

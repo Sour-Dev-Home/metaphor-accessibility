@@ -106,6 +106,8 @@ public.
 
 ## Supply chain
 
+The [security model](docs/contributors/explanation/security-model.md) gathers every security decision in one place.
+
 Workflows use read-only tokens by default, and a job that writes asks for it itself. Every action is pinned to a
 commit. [Dependabot](.github/dependabot.yml) proposes NuGet and Actions updates weekly. CI's `security` job, which the
 ruleset requires, runs CodeQL and fails on any package with a known vulnerability. The ruleset also blocks a PR that
