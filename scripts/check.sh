@@ -26,9 +26,7 @@
 #   scripts/check.sh review-label FILE   the security-reviewed label on a PR not by the maintainer, from the files the
 #                                        API lists (the review-gate workflow, from main's copy)
 #
-# A commit message has a typed subject of at most 72 characters ("feat: ...", "fix(check): ..."), then optionally a blank
-# line and a body of at most 5 lines. A final paragraph of trailers (Co-Authored-By: ...) doesn't count. Subjects git
-# writes itself (Revert "...", fixup!) pass.
+# The commit-message rules (subject, body, trailers, merges) are in docs/contributors/reference/commit-messages.md.
 #
 # A commit touching the security-review scope (scripts/ci/security-stamp.sh) needs the security-reviewer agent's stamp
 # matching the staged scope; the commit-msg hook then appends "Security-Review: <hash>". SECURITY_REVIEW_SKIP="<reason>"
