@@ -1,0 +1,353 @@
+# Tests for scripts/check-install.ps1 and scripts/InstallCheck.psm1 (#283), against stand-ins in the test folder: a
+# release folder laid out as the package is, a Reloaded-II config with its apps and mods folders, a game exe, and a
+# screen-reader probe that finds none. No build, no network, no speech. Run: Invoke-Pester tests/smoke (Pester 5+).
+
+BeforeAll {
+    $script:repo = (Resolve-Path "$PSScriptRoot/../..").Path
+    Import-Module (Join-Path $repo 'scripts/InstallCheck.psm1') -Force
+    # The files the package ships for the check, beside the mod's own (src/Metaphor.Hooks/Metaphor.Hooks.csproj).
+    $script:shipped = 'check-install.ps1', 'InstallCheck.psm1', 'ReloadedRead.psm1', 'Interactive.psm1'
+    $script:modId = 'metaphor.accessibility'
+
+    function Get-Sha256([string] $Path) { (Get-FileHash -LiteralPath $Path -Algorithm SHA256).Hash.ToLowerInvariant() }
+
+    function Write-JsonFile([string] $Path, $Value) {
+        New-Item -ItemType Directory -Force (Split-Path $Path) | Out-Null
+        $Value | ConvertTo-Json -Depth 5 | Set-Content -LiteralPath $Path
+    }
+
+    # A release folder at PATH: the check's scripts, ModConfig.json, the known builds (naming the stand-in game), the
+    # Prism pin and a prism.dll that matches it.
+    function New-Release([string] $Path) {
+        New-Item -ItemType Directory -Force $Path | Out-Null
+        foreach ($file in $shipped) { Copy-Item -LiteralPath (Join-Path $repo "scripts/$file") $Path }
+        Write-JsonFile (Join-Path $Path 'ModConfig.json') @{ ModId = $modId; ModDll = 'Metaphor.Hooks.dll' }
+        Set-Content -LiteralPath (Join-Path $Path 'prism.dll') -Value 'stand-in prism' -NoNewline
+        Write-JsonFile (Join-Path $Path 'prism.json') @{ version = 'v0'; dllSha256 = (Get-Sha256 (Join-Path $Path 'prism.dll')) }
+        Write-JsonFile (Join-Path $Path 'known-game-builds.json') @(
+            @{ sha256 = (Get-Sha256 $game); steamBuildId = 18330018; evidence = 'stand-in' })
+    }
+
+    # A working install under ROOT: Reloaded-II's config, the game added with the mod enabled, the mod in the mods
+    # folder, and a status file from a run where it loaded.
+    function New-Install {
+        $script:game = Join-Path $root 'Game/METAPHOR.exe'
+        New-Item -ItemType Directory -Force (Split-Path $game) | Out-Null
+        Set-Content -LiteralPath $game -Value 'stand-in game' -NoNewline
+        $script:launcher = Join-Path $root 'Reloaded/Reloaded-II.exe'
+        New-Item -ItemType Directory -Force (Split-Path $launcher) | Out-Null
+        Set-Content -LiteralPath $launcher -Value 'stand-in launcher'
+        $script:mods = (New-Item -ItemType Directory -Force (Join-Path $root 'Reloaded/Mods')).FullName
+        $apps = (New-Item -ItemType Directory -Force (Join-Path $root 'Reloaded/Apps')).FullName
+        $script:config = Join-Path $root 'AppData/ReloadedII.json'
+        Write-JsonFile $config @{ LauncherPath = $launcher; ApplicationConfigDirectory = $apps; ModConfigDirectory = $mods }
+        $script:appConfig = Join-Path $apps 'metaphor.exe/AppConfig.json'
+        Write-JsonFile $appConfig @{ AppId = 'metaphor.exe'; AppLocation = $game; EnabledMods = @('other.mod', $modId) }
+        $script:release = Join-Path $root "Downloads/$modId"
+        New-Release $release
+        $script:installed = Join-Path $mods $modId
+        Copy-Item -LiteralPath $release $installed -Recurse
+        Write-Status @{ modId = $modId; state = 'ready'; gameBuildSha256 = (Get-Sha256 $game); hooksLoaded = 9
+            hooksExpected = 9; reason = $null }
+    }
+
+    function Write-Status($Status) { Write-JsonFile (Join-Path $installed 'mod-status.json') $Status }
+
+    function Invoke-Check([string] $Folder = $release, [scriptblock] $Readers = { 'NVDA' }) {
+        Get-InstallCheck -ReleaseFolder $Folder -ConfigPath $config -FindScreenReader $Readers
+    }
+
+    function Get-Check([string] $Name, $Checks = (Invoke-Check)) { $Checks | Where-Object Name -EQ $Name }
+
+    # The script in a new process, as a player runs it; SHELL is pwsh or powershell (Windows PowerShell 5.1).
+    function Invoke-Script([string] $Folder = $release, [string] $Shell = 'pwsh', [string[]] $Extra = @('-NoSpeech')) {
+        $output = & $Shell -NoProfile -NonInteractive -ExecutionPolicy Bypass -File (Join-Path $Folder 'check-install.ps1') `
+            -ReloadedConfig $config @Extra 2>&1
+        [pscustomobject]@{ ExitCode = $LASTEXITCODE; Lines = @($output | ForEach-Object { "$_" }) }
+    }
+}
+
+Describe 'Get-InstallCheck' {
+    BeforeEach {
+        $script:root = (New-Item -ItemType Directory (Join-Path $TestDrive (New-Guid))).FullName
+        $script:savedLauncher = $env:METAPHOR_RELOADED_EXE
+        $env:METAPHOR_RELOADED_EXE = $null
+        New-Install
+    }
+    AfterEach { $env:METAPHOR_RELOADED_EXE = $script:savedLauncher }
+
+    It 'passes every check on a working install, run from the downloaded release folder' {
+        $checks = Invoke-Check
+        @($checks | Where-Object State -NE 'pass' | ForEach-Object Line) | Should -BeNullOrEmpty
+        $checks.Name | Should -Be 'Reloaded-II', 'Mod installed', 'Game added', 'Mod enabled', 'Game version',
+            'Speech library', 'Last start', 'Screen reader'
+        Get-InstallSummary $checks | Should -Match 'Everything this script checks is in order'
+        (Get-Check 'Game version' $checks).Line | Should -Match 'Steam build 18330018'
+        (Get-Check 'Last start' $checks).Line | Should -Match '9 of 9 hooks'
+        (Get-Check 'Screen reader' $checks).Line | Should -Match 'NVDA is running'
+    }
+
+    It 'passes the same way run from the installed mod folder' {
+        @(Invoke-Check $installed | Where-Object State -NE 'pass') | Should -BeNullOrEmpty
+    }
+
+    It 'names installing Reloaded-II first when its config is missing, and checks nothing that needs it' {
+        Remove-Item -LiteralPath $config
+        $checks = Invoke-Check
+        (Get-Check 'Reloaded-II' $checks).State | Should -Be 'problem'
+        foreach ($name in 'Mod installed', 'Game added', 'Mod enabled', 'Game version', 'Last start') {
+            (Get-Check $name $checks).State | Should -Be 'not checked'
+        }
+        Get-InstallSummary $checks | Should -Match '^First thing to fix: Install Reloaded-II'
+    }
+
+    It 'says when the launcher Reloaded-II recorded is gone' {
+        Remove-Item -LiteralPath $launcher
+        (Get-Check 'Reloaded-II').Line | Should -Match 'program is not where Reloaded-II last ran from'
+    }
+
+    It 'says the mod is not in the mods folder, and where to copy it' {
+        Remove-Item -LiteralPath $installed -Recurse
+        $checks = Invoke-Check
+        (Get-Check 'Mod installed' $checks).State | Should -Be 'problem'
+        (Get-Check 'Mod installed' $checks).Detail | Should -Match ([regex]::Escape($mods))
+        (Get-Check 'Last start' $checks).State | Should -Be 'not checked'
+        Get-InstallSummary $checks | Should -Match "^First thing to fix: Copy the $([regex]::Escape($modId)) folder"
+    }
+
+    It 'finds the mod in a mods subfolder of another name by its ModConfig.json' {
+        Rename-Item -LiteralPath $installed 'Metaphor Accessibility'
+        (Get-Check 'Mod installed').State | Should -Be 'pass'
+    }
+
+    It 'says the game has not been added to Reloaded-II' {
+        Remove-Item -LiteralPath $appConfig
+        $checks = Invoke-Check
+        (Get-Check 'Game added' $checks).State | Should -Be 'problem'
+        (Get-Check 'Mod enabled' $checks).State | Should -Be 'not checked'
+        (Get-Check 'Game version' $checks).State | Should -Be 'not checked'
+    }
+
+    It 'says the mod is not turned on for the game' {
+        Write-JsonFile $appConfig @{ AppId = 'metaphor.exe'; AppLocation = $game; EnabledMods = @('other.mod') }
+        $checks = Invoke-Check
+        (Get-Check 'Mod enabled' $checks).State | Should -Be 'problem'
+        Get-InstallSummary $checks | Should -Match '^First thing to fix: Turn the mod on'
+    }
+
+    It 'says the game version is unknown when the exe''s SHA-256 is not a known build' {
+        Set-Content -LiteralPath $game -Value 'a patched game' -NoNewline
+        $check = Get-Check 'Game version'
+        $check.Line | Should -Match 'a version this mod does not know yet'
+        $check.Detail | Should -Match (Get-Sha256 $game)
+    }
+
+    It 'says the game program is missing where Reloaded-II points' {
+        Remove-Item -LiteralPath $game
+        $check = Get-Check 'Game version'
+        $check.State | Should -Be 'problem'
+        $check.Line | Should -Match 'not found'
+    }
+
+    It 'says prism.dll is missing' {
+        Remove-Item -LiteralPath (Join-Path $installed 'prism.dll')
+        $check = Get-Check 'Speech library'
+        $check.State | Should -Be 'problem'
+        $check.Line | Should -Match 'prism.dll, is missing'
+    }
+
+    It 'says prism.dll is not the pinned one' {
+        Set-Content -LiteralPath (Join-Path $installed 'prism.dll') -Value 'another dll' -NoNewline
+        (Get-Check 'Speech library').Line | Should -Match 'not the one this release ships'
+    }
+
+    It 'reports a start the mod refused, with its reason' {
+        Write-Status @{ modId = $modId; state = 'refused'; gameBuildSha256 = 'ab'; hooksLoaded = 0; hooksExpected = 9
+            reason = 'unknown game build' }
+        $check = Get-Check 'Last start'
+        $check.State | Should -Be 'problem'
+        $check.Line | Should -Match 'turned itself off because it does not know this game version'
+        $check.Detail | Should -Match 'unknown game build'
+    }
+
+    It 'reports a status file that was never written' {
+        Remove-Item -LiteralPath (Join-Path $installed 'mod-status.json')
+        $check = Get-Check 'Last start'
+        $check.State | Should -Be 'problem'
+        $check.Fix | Should -Match 'Start the game through Reloaded-II'
+    }
+
+    It 'notes when no screen reader the mod supports is running, without counting it as a problem' {
+        $checks = Invoke-Check -Readers { }
+        (Get-Check 'Screen reader' $checks).State | Should -Be 'note'
+        (Get-Check 'Screen reader' $checks).Line | Should -Match 'NVDA, JAWS or ZoomText'
+        Format-Check (Get-Check 'Screen reader' $checks) | Should -Match '^Note: '
+        Get-InstallSummary $checks | Should -Match 'Everything this script checks is in order'
+    }
+
+    It 'leaves the screen reader note out of the first thing to fix when there is a real problem' {
+        Remove-Item -LiteralPath (Join-Path $installed 'mod-status.json')
+        Get-InstallSummary (Invoke-Check -Readers { }) | Should -Match '^First thing to fix: Start the game through Reloaded-II'
+    }
+
+    It 'speaks no path or hash, in any check or the summary' {
+        $spoken = [Collections.Generic.List[string]]::new()
+        $record = { $checks = Invoke-Check -Readers { }; $checks | ForEach-Object { $spoken.Add((Format-SpokenCheck $_)) }
+            $spoken.Add((Get-InstallSummary $checks)) }
+        & $record
+        Set-Content -LiteralPath $game -Value 'a patched game' -NoNewline
+        Write-Status @{ modId = $modId; state = 'refused'; gameBuildSha256 = ('0' * 64); hooksLoaded = 0; hooksExpected = 9
+            reason = "can't open $root\Game\METAPHOR.exe" }
+        Set-Content -LiteralPath (Join-Path $installed 'prism.dll') -Value 'another dll' -NoNewline
+        & $record
+        Remove-Item -LiteralPath $game, (Join-Path $installed 'prism.dll'), (Join-Path $installed 'mod-status.json')
+        & $record
+        Remove-Item -LiteralPath $installed -Recurse
+        & $record
+        Remove-Item -LiteralPath $mods -Recurse
+        & $record
+        Write-JsonFile $config @{ LauncherPath = '\\host\share\Reloaded-II.exe'; ModConfigDirectory = 'missing' }
+        & $record
+        Remove-Item -LiteralPath $config
+        & $record
+        Remove-Item -LiteralPath (Join-Path $release 'ModConfig.json')
+        & $record
+        foreach ($line in $spoken) {
+            $line | Should -Not -Match '[A-Za-z]:\\|\\\\|/[^ ]+/|[0-9a-f]{64}'
+            $line | Should -Not -Match ([regex]::Escape($root))
+        }
+        @($spoken | Where-Object { $_ -match '^Problem: ' }).Count | Should -BeGreaterThan 8
+    }
+
+    It 'refuses a launcher on a network share without reading it' {
+        Write-JsonFile $config @{ LauncherPath = '\\host\share\Reloaded-II.exe'; ApplicationConfigDirectory = (Split-Path (Split-Path $appConfig))
+            ModConfigDirectory = $mods }
+        $check = Get-Check 'Reloaded-II'
+        $check.State | Should -Be 'problem'
+        $check.Line | Should -Match 'network drive'
+        $check.Fix | Should -Match 'does not read over the network'
+    }
+
+    It 'refuses a mods folder, applications folder or game on a network share' {
+        Write-JsonFile $config @{ LauncherPath = $launcher; ApplicationConfigDirectory = '//host/share/Apps'; ModConfigDirectory = '\\?\UNC\host\share\Mods' }
+        $checks = Invoke-Check
+        (Get-Check 'Mod installed' $checks).Line | Should -Match 'network drive'
+        (Get-Check 'Game added' $checks).Line | Should -Match 'network drive'
+        Write-JsonFile $config @{ LauncherPath = $launcher; ApplicationConfigDirectory = (Split-Path (Split-Path $appConfig))
+            ModConfigDirectory = $mods }
+        Write-JsonFile $appConfig @{ AppId = 'metaphor.exe'; AppLocation = '\\host\share\Game\METAPHOR.exe'; EnabledMods = @($modId) }
+        (Get-Check 'Game version').Line | Should -Match 'network drive'
+    }
+
+    It 'ignores the developer variable METAPHOR_RELOADED_EXE' {
+        Remove-Item -LiteralPath $launcher
+        $env:METAPHOR_RELOADED_EXE = $game
+        (Get-Check 'Reloaded-II').State | Should -Be 'problem'
+    }
+
+    It 'tells the player to turn the mod on in Reloaded-II, not to edit a file' {
+        Write-JsonFile $appConfig @{ AppId = 'metaphor.exe'; AppLocation = $game; EnabledMods = @() }
+        $fix = (Get-Check 'Mod enabled').Fix
+        $fix | Should -Match 'in Reloaded-II, open the game''s page and tick'
+        $fix | Should -Not -Match 'EnabledMods|\.json'
+    }
+
+    It 'says it cannot work out which mod it belongs to without a ModConfig.json beside it' {
+        Remove-Item -LiteralPath (Join-Path $release 'ModConfig.json')
+        (Get-Check 'Mod installed').Detail | Should -Match 'No ModConfig.json'
+    }
+}
+
+Describe 'the package' {
+    It 'ships the check, every module it imports, and the lists it reads' {
+        $project = Get-Content -Raw -LiteralPath (Join-Path $repo 'src/Metaphor.Hooks/Metaphor.Hooks.csproj')
+        foreach ($file in $shipped) {
+            $project | Should -Match ([regex]::Escape("../../scripts/$file"))
+            foreach ($import in [regex]::Matches((Get-Content -Raw (Join-Path $repo "scripts/$file")), "Join-Path \`$PSScriptRoot '([^']+)'")) {
+                $import.Groups[1].Value | Should -BeIn $shipped
+            }
+        }
+        $project | Should -Match ([regex]::Escape('<None Include="../Metaphor.Core/known-game-builds.json" Link="known-game-builds.json"'))
+        $project | Should -Match ([regex]::Escape('<None Include="prism.json" CopyToPublishDirectory'))
+        $project | Should -Not -Match 'scripts/(ReloadedDev|GameLocator)\.psm1'
+    }
+
+    It 'holds only ASCII in what Windows PowerShell 5.1 reads' {
+        foreach ($file in $shipped) {
+            [IO.File]::ReadAllBytes((Join-Path $repo "scripts/$file")) | Where-Object { $_ -gt 127 } | Should -BeNullOrEmpty
+        }
+    }
+}
+
+Describe 'Select-Speech' {
+    It 'prints only while a screen reader is running, and says how to hear Windows'' voice too' {
+        $choice = Select-Speech -Speak $false -NoSpeech $false -Interactive $true -Readers 'NVDA'
+        $choice.Speak | Should -BeFalse
+        $choice.Message | Should -Match '^NVDA is running and reads this window, so printing only\. Add -Speak'
+    }
+
+    It 'speaks with Windows'' voice when no screen reader is running' {
+        (Select-Speech -Speak $false -NoSpeech $false -Interactive $true -Readers @()).Speak | Should -BeTrue
+    }
+
+    It 'speaks anyway with -Speak' {
+        (Select-Speech -Speak $true -NoSpeech $false -Interactive $true -Readers 'JAWS').Speak | Should -BeTrue
+    }
+
+    It 'never speaks with -NoSpeech or without a console' {
+        (Select-Speech -Speak $true -NoSpeech $true -Interactive $true -Readers @()).Speak | Should -BeFalse
+        $choice = Select-Speech -Speak $false -NoSpeech $false -Interactive $false -Readers @()
+        $choice.Speak | Should -BeFalse
+        $choice.Message | Should -Be 'No console, so printing only.'
+    }
+}
+
+Describe 'Find-ScreenReader' {
+    It 'returns only the names of readers the mod supports' {
+        @(Find-ScreenReader | Where-Object { $_ -notin 'NVDA', 'JAWS', 'ZoomText' }) | Should -BeNullOrEmpty
+    }
+}
+
+Describe 'check-install.ps1' {
+    BeforeEach {
+        $script:root = (New-Item -ItemType Directory (Join-Path $TestDrive (New-Guid))).FullName
+        $script:savedLauncher = $env:METAPHOR_RELOADED_EXE
+        $env:METAPHOR_RELOADED_EXE = $null
+        New-Install
+    }
+    AfterEach { $env:METAPHOR_RELOADED_EXE = $script:savedLauncher }
+
+    It 'prints a line per check in plain words, and the first thing to fix last' {
+        Remove-Item -LiteralPath $installed -Recurse
+        $result = Invoke-Script
+        $result.ExitCode | Should -Be 1
+        $result.Lines | Should -Contain 'Pass: Reloaded-II is set up.'
+        $result.Lines | Should -Contain "Problem: The mod is not in Reloaded-II's mods folder. Mods folder: $mods"
+        $result.Lines[-1] | Should -Match "^First thing to fix: Copy the $([regex]::Escape($modId)) folder"
+    }
+
+    It 'exits 0 on a working install, whether or not a screen reader is running' {
+        $result = Invoke-Script
+        $result.ExitCode | Should -Be 0
+        $result.Lines[-1] | Should -Match '^Everything this script checks is in order'
+    }
+
+    It 'changes nothing on the machine' {
+        $before = Get-ChildItem -LiteralPath $root -Recurse -File | ForEach-Object { "$($_.FullName) $(Get-Sha256 $_.FullName)" }
+        Invoke-Script | Out-Null
+        Get-ChildItem -LiteralPath $root -Recurse -File | ForEach-Object { "$($_.FullName) $(Get-Sha256 $_.FullName)" } |
+            Should -Be $before
+    }
+
+    It 'prints only, without speaking, when there is no console to speak to' {
+        $result = Invoke-Script -Extra @()
+        $result.Lines | Should -Contain 'No console, so printing only.'
+    }
+
+    It 'runs in Windows PowerShell 5.1' -Skip:(-not (Get-Command powershell.exe -ErrorAction SilentlyContinue)) {
+        $result = Invoke-Script -Shell powershell.exe
+        $result.Lines | Should -Contain 'Pass: Reloaded-II is set up.'
+        @($result.Lines | Where-Object { $_ -match '^Pass: The game''s version is one the mod knows' }).Count | Should -Be 1
+        @($result.Lines | Where-Object { $_ -match '^Pass: The last time the game started' }).Count | Should -Be 1
+    }
+}

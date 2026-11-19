@@ -31,6 +31,7 @@ set -f
 scope=(src/Metaphor.Hooks/ scripts/deploy-dev.ps1 scripts/smoke-test.ps1 scripts/package-mod.sh scripts/fetch-prism.ps1
   scripts/zip-package.ps1 scripts/build-release.sh scripts/ReloadedDev.psm1 scripts/capture.ps1 scripts/listen.ps1
   scripts/onboard.ps1 scripts/GameLocator.psm1 scripts/Interactive.psm1 scripts/claude.ps1 scripts/ghidra.ps1
+  scripts/check-install.ps1 scripts/InstallCheck.psm1 scripts/ReloadedRead.psm1
   scripts/check.sh scripts/check/ scripts/game-content.sha256 scripts/tree-hash.sh scripts/ci-changes.sh scripts/test-select.sh
   scripts/stage-timing.sh scripts/install-docs-tools.sh scripts/conflict-alert.sh scripts/integration-sync.sh
   scripts/check-status.sh scripts/github-outage.sh scripts/run-pester.sh scripts/run-check-suites.sh scripts/live-log.sh

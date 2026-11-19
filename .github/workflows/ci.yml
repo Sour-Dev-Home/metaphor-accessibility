@@ -190,7 +190,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        file: [capture, deploy-dev, fetch-prism, GameLocator, listen, onboard, setup-wsl, signature-spike, smoke-test, zip-package]
+        file: [capture, check-install, deploy-dev, fetch-prism, GameLocator, listen, onboard, setup-wsl, signature-spike, smoke-test, zip-package]
     defaults:
       run:
         shell: bash
