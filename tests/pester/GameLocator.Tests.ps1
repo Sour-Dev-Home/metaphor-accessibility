@@ -45,6 +45,60 @@ BeforeAll {
     }
 }
 
+Describe 'Reading UTF-8 files' {
+    BeforeAll {
+        # A name with e acute, n tilde, the two kanji of "Japan" and a space, spelt in code so this file stays ASCII.
+        $script:name = "Jos$([char]0xE9) Mu$([char]0xF1)oz $([char]0x65E5)$([char]0x672C)"
+
+        # TEXT written as UTF-8, as Reloaded-II and Steam write their files: no byte order mark (both checked on the
+        # owner's machine, 2026-11-19), or with one when BOM is set.
+        function Write-Utf8([string] $Path, [string] $Text, [bool] $Bom) {
+            [IO.File]::WriteAllText($Path, $Text, (New-Object Text.UTF8Encoding $Bom))
+        }
+
+        # BODY run inside the module in a new SHELL process, as a player's Windows PowerShell 5.1 runs the installer;
+        # its output, which the caller keeps ASCII.
+        function Invoke-InModule([string] $Shell, [string] $Body) {
+            $module = Join-Path $repo 'scripts/player/MetaphorInstall.psm1'
+            $command = "`$ProgressPreference = 'SilentlyContinue'; Import-Module '$($module -replace "'", "''")'; & (Get-Module MetaphorInstall) { $Body }"
+            $output = & $Shell -NoProfile -NonInteractive -EncodedCommand (
+                [Convert]::ToBase64String([Text.Encoding]::Unicode.GetBytes($command)))
+            $LASTEXITCODE | Should -Be 0
+            $output
+        }
+        function ConvertTo-Quoted([string] $Text) { "'$($Text -replace "'", "''")'" }
+    }
+    BeforeEach {
+        if (-not (Get-Command $Shell -ErrorAction SilentlyContinue)) { Set-ItResult -Skipped -Because "$Shell is not here" }
+        $script:root = (New-Item -ItemType Directory (Join-Path $TestDrive (New-Guid))).FullName
+    }
+
+    It 'reads a Reloaded-II config holding a non-ASCII path in <Shell> (byte order mark: <Bom>)' -ForEach @(
+        @{ Shell = 'pwsh'; Bom = $false }, @{ Shell = 'pwsh'; Bom = $true }
+        @{ Shell = 'powershell.exe'; Bom = $false }, @{ Shell = 'powershell.exe'; Bom = $true }) {
+        $launcher = "C:\Users\$name\Reloaded-II\Reloaded-II.exe"
+        $config = Join-Path $root 'ReloadedII.json'
+        Write-Utf8 $config (@{ LauncherPath = $launcher } | ConvertTo-Json) $Bom
+
+        Invoke-InModule $Shell "(Read-Json $(ConvertTo-Quoted $config)).LauncherPath -ceq $(ConvertTo-Quoted $launcher)" |
+            Should -Be 'True'
+    }
+
+    It 'finds a Steam library at a non-ASCII path in <Shell> (byte order mark: <Bom>)' -ForEach @(
+        @{ Shell = 'pwsh'; Bom = $false }, @{ Shell = 'pwsh'; Bom = $true }
+        @{ Shell = 'powershell.exe'; Bom = $false }, @{ Shell = 'powershell.exe'; Bom = $true }) {
+        $steam = Join-Path $root 'Steam'
+        $library = Join-Path $root "Biblioth$([char]0xE8)que $name"
+        New-Library $steam
+        New-Library $library 'METAPHOR'
+        Write-Utf8 (Join-Path $steam 'steamapps/libraryfolders.vdf') (
+            "`"libraryfolders`"`n{`n`t`"0`"`n`t{`n`t`t`"path`"`t`t`"$($library -replace '\\', '\\')`"`n`t}`n}") $Bom
+
+        Invoke-InModule $Shell "@(Get-SteamLibrary $(ConvertTo-Quoted $steam)) -ccontains $(ConvertTo-Quoted $library)" |
+            Should -Be 'True'
+    }
+}
+
 Describe 'Select-MetaphorGame' {
     BeforeEach {
         $script:root = (New-Item -ItemType Directory (Join-Path $TestDrive (New-Guid))).FullName
@@ -125,7 +179,7 @@ Describe 'Find-ReloadedLauncher' {
         Find-ReloadedLauncher -ConfigPath $config | Should -Be $launcher
     }
 
-    It 'prefers METAPHOR_RELOADED_EXE, as deploy-dev.ps1 does' {
+    It 'prefers METAPHOR_RELOADED_EXE, as session.ps1 does' {
         $env:METAPHOR_RELOADED_EXE = Join-Path $root 'Other\Reloaded-II.exe'
         New-Item -ItemType File -Force $env:METAPHOR_RELOADED_EXE | Out-Null
         Set-Content -LiteralPath $launcher -Value 'stand-in'

@@ -1,6 +1,6 @@
-# The developer scripts' module (#412), shared by smoke-test.ps1, deploy-dev.ps1, listen.ps1, capture.ps1, ghidra.ps1
-# and signature-spike.ps1: the Reloaded-II reading from the player module (MetaphorInstall.psm1, re-exported here), and
-# the developer helpers, which write configs and start the game. Doesn't ship.
+# The developer scripts' module (#412), under GameSession.psm1 (scripts/dev/session.ps1) and ghidra.ps1: the Reloaded-II
+# reading and the game locator from the player module (MetaphorInstall.psm1, re-exported here), and the developer
+# helpers, which write configs and start the game. Doesn't ship.
 # Loader facts: docs/raw-sources/reloaded-ii-config-location-2026-11-13.md and
 # reloaded-ii-app-and-mod-config-2026-11-15.md.
 
@@ -128,5 +128,6 @@ function Get-MessageLogSummary([string] $Path) {
 
 # The interface: reading the loader's records (from the player module), then starting the game and waiting on the
 # mods, then keeping local paths out of what a session prints.
-Export-ModuleMember -Function Read-Json, Resolve-LoaderPaths, Get-GameBuild, Get-Game, Find-Application, Write-Json,
+Export-ModuleMember -Function Read-Json, Resolve-LoaderPaths, Get-GameBuild, Find-MetaphorGame, Find-ReloadedLauncher,
+    Get-Game, Find-Application, Write-Json,
     Start-WithLoader, Wait-ModStatus, Get-MessageLogSummary, Add-PathName, Hide-LocalPaths -Variable StatusFileName

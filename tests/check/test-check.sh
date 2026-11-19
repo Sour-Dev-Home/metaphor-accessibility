@@ -1252,10 +1252,10 @@ test_review_refuses_a_scope_commit_without_a_stamp() {
 
 test_review_passes_a_stamped_scope_commit_and_adds_its_trailer() {
   local hash
-  review_repo scripts/dev/deploy-dev.ps1
+  review_repo scripts/dev/session.ps1
   bash "$STAMP" > /dev/null
   hash="$(bash "$STAMP" hash)"
-  commit "feat: reviewed deploy script"
+  commit "feat: reviewed session script"
   expect 0
   expect_message "Security-Review: $hash"
   [ "$(bash "$STAMP" hash HEAD)" = "$hash" ] || out="the committed scope hashes differently: $hash" code=1
@@ -1410,7 +1410,7 @@ test_commits_stage_passes_reviewed_skipped_and_unscoped_commits() {
   base="$(git rev-parse HEAD)"
   bash "$STAMP" > /dev/null
   commit "feat: reviewed"
-  stage_file scripts/dev/smoke-test.ps1
+  stage_file scripts/dev/session.ps1
   SECURITY_REVIEW_SKIP="by hand" git commit -q -m "fix: skipped" > /dev/null 2>&1
   stage_file docs/notes.txt
   commit "docs: unscoped"
@@ -1937,7 +1937,7 @@ test_maintainer_pr_uses_trailers_and_ignores_the_label() {
   FAKE_PERMISSION_FAIL=maint PR_AUTHOR=maint run_pr MEMBER
   expect 2 "could not read the permission of maint"
   git commit -q --no-verify --allow-empty -m "fix: no trailer"
-  stage_file scripts/dev/smoke-test.ps1
+  stage_file scripts/dev/session.ps1
   git commit -q --no-verify -m "fix: scope without trailer"
   run_pr OWNER
   expect 1 "touches the security-review scope without a Security-Review trailer"
@@ -1948,14 +1948,14 @@ GUARD_FILES=(scripts/check.sh scripts/check/report.sh scripts/check/run.sh scrip
   scripts/check/build.sh scripts/check/message.sh scripts/check/review.sh scripts/check/rules.sh
   scripts/ci/game-content.sha256 scripts/check/tree-hash.sh scripts/ci/what-runs.sh
   scripts/check/stage-timing.sh scripts/setup/install-docs-tools.sh scripts/ci/conflict-alert.sh
-  scripts/ci/integration-sync.sh scripts/check/check-status.sh scripts/check/run-pester.sh scripts/check/live-log.sh
+  scripts/check/check-status.sh scripts/check/run-pester.sh scripts/check/live-log.sh
   scripts/check/wsl-run.sh scripts/check/run-check-suites.sh scripts/setup/wsl-tools.txt scripts/setup/setup-wsl.ps1
   scripts/githooks/pre-commit scripts/githooks/pre-push
   scripts/githooks/commit-msg scripts/githooks/post-commit scripts/githooks/post-merge scripts/githooks/pre-merge-commit
   scripts/ci/security-stamp.sh scripts/ci/github-outage.sh .github/workflows/ci.yml
   .github/workflows/slow.yml .github/workflows/a-new-one.yml .claude/agents/security-reviewer.md
   tests/check/test-check.sh tests/bash/test-anything.sh tools/slow/survivors.mjs tools/docs/package-lock.json
-  .config/dotnet-tools.json scripts/dev/listen.ps1 scripts/setup/onboard.ps1 scripts/player/MetaphorInstall.psm1
+  .config/dotnet-tools.json scripts/dev/session.ps1 scripts/setup/onboard.ps1 scripts/player/MetaphorInstall.psm1
   scripts/setup/claude.ps1 scripts/dev/ghidra.ps1 scripts/player/check-install.ps1 scripts/player/install.ps1
   scripts/dev/ReloadedDev.psm1 scripts/player/install-pins.json)
 
@@ -1989,10 +1989,10 @@ test_scope_covers_every_script_the_gate_runs() {
 }
 
 # The scope names directories (#410, ADR 0014): a file added under one is in scope with no list edit. The names below
-# appear nowhere in the stamp script, and inspect.ps1 and signature-spike.ps1 joined the scope with this change.
+# appear nowhere in the stamp script, and session.ps1 and GameSession.psm1 joined the scope with #437.
 test_stamp_touches_a_new_file_in_each_scoped_directory() {
   local file
-  for file in scripts/dev/inspect.ps1 scripts/dev/signature-spike.ps1 scripts/never-listed.ps1 scripts/never-listed/tool.psm1 \
+  for file in scripts/dev/session.ps1 scripts/dev/GameSession.psm1 scripts/never-listed.ps1 scripts/never-listed/tool.psm1 \
     src/Metaphor.Hooks/NeverListed.cs .github/workflows/never-listed.yml tests/check/never-listed.sh \
     tests/bash/test-never-listed.sh tools/docs/never-listed.mjs tools/slow/never-listed.mjs; do
     review_repo "$file"

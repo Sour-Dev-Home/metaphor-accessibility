@@ -33,8 +33,8 @@ check "a test project change runs itself" has "Core.Tests"
 out="$(sel scripts/check.sh)"
 check "scripts change runs Pester" has "pester scripts/check.sh changed"
 check "scripts change runs no dotnet tests" lacks "dotnet"
-out="$(sel scripts/dev/deploy-dev.ps1)"
-check "deploy script runs Pester" has "pester"
+out="$(sel scripts/dev/session.ps1)"
+check "session script runs Pester" has "pester"
 
 # The check scripts' own suite, which Git Bash without WSL runs only when they change (#336)
 out="$(sel scripts/check.sh)"
@@ -181,7 +181,7 @@ job "a workflow change runs code jobs" true code pull_request .github/workflows/
 job "docs-only PR skips Pester" false scripts pull_request docs/a.md
 job "a source-only PR skips Pester" false scripts pull_request src/a.cs
 job "a script change runs Pester" true scripts pull_request scripts/x.sh
-job "a smoke-test change runs Pester" true scripts pull_request tests/pester/a.Tests.ps1
+job "a Pester test change runs Pester" true scripts pull_request tests/pester/a.Tests.ps1
 job "the merge queue skips nothing (code)" true code merge_group docs/a.md
 job "the merge queue skips nothing (scripts)" true scripts merge_group docs/a.md
 job "a push to main skips nothing" true scripts push docs/a.md

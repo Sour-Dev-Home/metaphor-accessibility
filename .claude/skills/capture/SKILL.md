@@ -43,13 +43,15 @@ couple of minutes.
 ## 4. Session
 
 When the maintainer says ready, and with the game closed, follow
-[run a game session](../../../docs/contributors/how-to/run-a-game-session.md). Done when the output shows `hooks n/m` as
-expected with no `skipped: opt-in` or failed listener. Tell the maintainer to start OBS and narrate, and to quit the
-game when done. Fix a missing listener before they play.
+[run a game session](../../../docs/contributors/how-to/run-a-game-session.md): one
+`pwsh scripts/dev/session.ps1 run -Seconds <longer than the evening> -OptIn <names> -SaveLog <folder outside the repo>`,
+in the background, since it lasts until the game exits. Done when the output shows `hooks n/m` as expected with no
+`skipped: opt-in` or failed listener. Tell the maintainer to start OBS and narrate, and to quit the game when done. Fix
+a missing listener before they play.
 
 ## 5. Analysis
 
-Copy the log folder out of the mod's folder before any later deploy. Transcribe the narration with the `watch` skill
+Done when the session's last line is `ok: ...`: it saved the logs to the `-SaveLog` folder and removed the opt-ins. Transcribe the narration with the `watch` skill
 (local engine). Compute the offset: the mod's Ready time in the log minus the recording's start; pass it as `--offset` to
 `tools/Metaphor.SessionLog` ([how-to](../../../docs/contributors/how-to/deploy-a-dev-build.md#summarise-a-log)).
 

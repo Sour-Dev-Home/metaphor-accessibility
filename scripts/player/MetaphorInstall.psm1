@@ -18,9 +18,11 @@ $StatusFileName = 'mod-status.json' # Metaphor.Core.ModStatusFile.FileName
 
 # Dates stay strings, so a config written back keeps them as the loader wrote them. Windows PowerShell 5.1 has no
 # -DateKind and leaves dates as strings anyway. An array comes back one item at a time in both.
+# Reloaded-II writes UTF-8 without a byte order mark, which 5.1 reads as the ANSI code page unless told UTF8 (#453);
+# UTF8 reads a file with a byte order mark too.
 $JsonKeepsDates = (Get-Command ConvertFrom-Json).Parameters.ContainsKey('DateKind')
 function Read-Json([string] $Path) {
-    $text = Get-Content -Raw -LiteralPath $Path
+    $text = Get-Content -Raw -Encoding UTF8 -LiteralPath $Path
     if ($JsonKeepsDates) { $text | ConvertFrom-Json -DateKind String } else { foreach ($item in ($text | ConvertFrom-Json)) { $item } }
 }
 
@@ -124,8 +126,8 @@ $WslUnavailableExitCode = 2
 # Finds the game and Reloaded-II on this machine (#267), for onboard.ps1 and the players' installer (install.ps1, #303).
 # It reads only. The players' install check (#283) doesn't use it, so it ignores the developer variables.
 #
-# The game: METAPHOR_GAME_EXE, then the game registered in Reloaded-II (the precedence deploy-dev.ps1 and listen.ps1
-# use, through Resolve-LoaderPaths above), then METAPHOR.exe in Steam's libraries. How Steam lists its
+# The game: METAPHOR_GAME_EXE, then the game registered in Reloaded-II (the precedence scripts/dev/session.ps1
+# uses, through GameSession.psm1), then METAPHOR.exe in Steam's libraries. How Steam lists its
 # libraries: docs/raw-sources/steam-library-folders-2026-11-18.md.
 # Reloaded-II: METAPHOR_RELOADED_EXE, then LauncherPath in ReloadedII.json, which every launch rewrites
 # (docs/raw-sources/reloaded-ii-config-location-2026-11-13.md). There's no install folder to probe: Reloaded-II is a
@@ -148,7 +150,8 @@ function Get-SteamLibrary([string] $SteamRoot) {
     $folders.Add($SteamRoot)
     $vdf = Join-Path $SteamRoot 'steamapps/libraryfolders.vdf'
     if (Test-Path -LiteralPath $vdf) {
-        foreach ($line in Get-Content -LiteralPath $vdf) {
+        # UTF-8 without a byte order mark, as Read-Json's files are.
+        foreach ($line in Get-Content -Encoding UTF8 -LiteralPath $vdf) {
             if ($line -match '^\s*"path"\s+"(.+)"\s*$') { $folders.Add(($Matches[1] -replace '\\\\', '\')) }
         }
     }
@@ -902,7 +905,7 @@ function Get-PackageFile([string] $Folder) {
     $list = Join-Path $Folder $PackageListName
     if (-not (Test-Path -LiteralPath $list -PathType Leaf)) { return $null }
     $files = @($PackageListName)
-    foreach ($line in Get-Content -LiteralPath $list) {
+    foreach ($line in Get-Content -Encoding UTF8 -LiteralPath $list) {
         if (-not $line) { continue }
         if ($line -cnotmatch '^[A-Za-z0-9._-]+(/[A-Za-z0-9._-]+)*$' -or $line -match '(^|/)\.\.?(/|$)') { return $null }
         if (-not (Test-Path -LiteralPath (Join-Path $Folder $line) -PathType Leaf)) { return $null }
@@ -1005,6 +1008,6 @@ Export-ModuleMember -Function Test-Elevated, New-InstallContext, Select-InstallG
     Initialize-ReloadedConfig, Install-DotnetRuntime, Install-VcRuntime, Install-HooksLibrary, Install-ModFiles, Enable-Mod,
     Install-Shortcut,
     Find-ScreenReader, Select-Speech, New-Voice, Get-InstallCheck, Get-InstallSummary, Format-Check, Format-SpokenCheck,
-    Test-Interactive, Read-Answer, Confirm-Step, Select-MetaphorGame, Find-ReloadedLauncher,
+    Test-Interactive, Read-Answer, Confirm-Step, Select-MetaphorGame, Find-MetaphorGame, Find-ReloadedLauncher,
     Read-Json, Resolve-AppLocation, Resolve-LoaderPaths, Get-GameBuild `
     -Variable ShortcutName, StatusFileName, WslUnavailableExitCode

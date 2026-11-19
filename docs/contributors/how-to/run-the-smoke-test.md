@@ -16,19 +16,20 @@ You need the game registered as an application in Reloaded-II, and the game buil
 4. From the repository root, in PowerShell 7:
 
    ```powershell
-   pwsh scripts/dev/smoke-test.ps1 -ModFolders <test mod folder>, <another>
+   pwsh scripts/dev/session.ps1 smoke -ModFolders <test mod folder>, <another>
    ```
 
-   It finds the launcher and the game in Reloaded-II's config, as
-   [deploying a dev build](deploy-a-dev-build.md) does, and takes the same overrides.
+   It finds the launcher and the game as [deploying a dev build](deploy-a-dev-build.md) does, and takes the same
+   overrides.
 
-It ends with `smoke test passed` (exit code 0) when every test mod is ready with all its hooks, and
-`smoke test FAILED` (exit code 1) otherwise. Exit code 2 means it couldn't start, and says why. The game is closed by
-ending its process, because closing its window only asks "Exit game?".
+It ends with an `ok: ...` line (exit code 0) when every test mod is ready with all its hooks, and a `failed: ...` line
+(exit code 1) otherwise. Exit code 2 means it stopped before launching, and says why. The game is closed by ending its
+process, because closing its window only asks "Exit game?".
 
 While it runs, your `ReloadedII.json` points at a throwaway profile, and the original waits next to it as
-`ReloadedII.json.smoke-backup`. If the run is killed, the next run restores the backup before it starts. To restore by
-hand, move the backup back over `ReloadedII.json`.
+`ReloadedII.json.session-backup`. The session puts it back when it ends, also on Ctrl+C; if the run is killed outright,
+the next session restores the backup before it starts. To restore by hand, move the backup back over
+`ReloadedII.json`.
 
 The script's own tests run against the [stand-in game](../../../GLOSSARY.md#working-and-testing), with no game needed:
 

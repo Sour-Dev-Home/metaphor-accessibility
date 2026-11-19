@@ -19,11 +19,11 @@ internal sealed class LiveInspector
     /// <summary>The opt-in file, named bare so it is looked for only in the mod's folder.</summary>
     public const string OptInFile = "opt-in-inspector.txt";
 
-    /// <summary>The pipe's name, <c>\\.\pipe\metaphor-accessibility-inspector</c>; scripts/dev/inspect.ps1 connects to it.</summary>
+    /// <summary>The pipe's name, <c>\\.\pipe\metaphor-accessibility-inspector</c>; scripts/dev/session.ps1 inspect connects to it.</summary>
     public const string PipeName = "metaphor-accessibility-inspector";
 
     private readonly NamedPipeServerStream pipe;
-    // One set of commands for every client, so a watch set by one run of inspect.ps1 reports its changes to the next.
+    // One set of commands for every client, so a watch set by one inspect run reports its changes to the next.
     private readonly InspectorCommands commands;
     private readonly Action<string> log;
     private readonly Action<string> logError;
@@ -70,7 +70,7 @@ internal sealed class LiveInspector
     /// <summary>One instance, so a second process can't open another end under the same name while this one listens.
     /// Its access list grants read and write to the user running the game and denies the network logon group, so no
     /// other user and no remote client can connect; the owner is set to that user too, which a client that checks the
-    /// server's owner (<c>PipeOptions.CurrentUserOnly</c>, as scripts/dev/inspect.ps1 does) needs.
+    /// server's owner (<c>PipeOptions.CurrentUserOnly</c>, as scripts/dev/session.ps1 inspect does) needs.
     /// https://learn.microsoft.com/dotnet/api/system.io.pipes.namedpipeserverstreamacl.create and
     /// https://learn.microsoft.com/windows/win32/ipc/named-pipe-security-and-access-rights</summary>
     private static NamedPipeServerStream CreatePipe()
