@@ -3,6 +3,8 @@
 set -uo pipefail
 unset GITHUB_ACTIONS METAPHOR_FULL_TESTS
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+# shellcheck source=../../scripts/wsl-run.sh
+source "$ROOT/scripts/wsl-run.sh" # in Git Bash, runs this suite in WSL instead when it's set up (#341)
 cd "$ROOT" || exit 2
 passed=0 failed=0
 check() { local n="$1"; shift; if "$@"; then passed=$((passed + 1)); else failed=$((failed + 1)); echo "FAIL $n"; fi; }

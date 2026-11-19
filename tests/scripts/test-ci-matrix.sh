@@ -4,6 +4,8 @@
 set -uo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+# shellcheck source=../../scripts/wsl-run.sh
+source "$ROOT/scripts/wsl-run.sh" # in Git Bash, runs this suite in WSL instead when it's set up (#341)
 cd "$ROOT" || exit 2
 
 matrix="$(sed -nE 's/^[[:space:]]*file: \[(.*)\]$/\1/p' .github/workflows/ci.yml | tr -d ' ' | tr ',' '\n' | sort)"

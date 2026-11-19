@@ -2,6 +2,8 @@
 # Installs the tools `scripts/check.sh docs` runs, at pinned versions, into .tools/ (git-ignored): lychee and Vale from
 # their GitHub releases, each archive checked against its SHA-256 before it's unpacked, and markdownlint-cli2 from the
 # lockfile in tools/docs/. Runs on Linux x86-64 (CI) and in Git Bash on Windows x86-64. Re-running it is safe.
+# `--bin DIR` installs only lychee and Vale, into DIR: scripts/setup-wsl.ps1 puts the Linux builds in the
+# metaphor-checks WSL distro that way (#341), leaving the checkout's .tools/ and node_modules to Windows.
 #
 # To update a tool: change its version and both hashes below. GitHub shows each asset's SHA-256 on the release page.
 set -euo pipefail
@@ -14,7 +16,11 @@ VALE_SHA256_LINUX=4bf5c5176b682b1da0830f471584d3494f1c2e27ee3029e1ad6f6661d49621
 VALE_SHA256_WINDOWS=5f4b5cefee5d0f7ee0621d7cc035886515888fd732c4e8add36d3c922f2adc68
 
 root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-bin="$root/.tools/bin"
+bin="$root/.tools/bin" bin_only=""
+if [ "${1:-}" = --bin ]; then
+  [ -n "${2:-}" ] || { echo "install-docs-tools: --bin needs a folder" >&2; exit 2; }
+  bin="$2" bin_only=1
+fi
 work="$(mktemp -d)"
 trap 'rm -rf "$work"' EXIT
 mkdir -p "$bin"
@@ -58,6 +64,10 @@ else
   unpack "$work/vale.zip" vale.exe
 fi
 
+if [ -n "$bin_only" ]; then
+  echo "installed into $bin: lychee $LYCHEE_VERSION, vale $VALE_VERSION"
+  exit 0
+fi
 # --ignore-scripts: no package gets to run code at install time.
 npm ci --prefix "$root/tools/docs" --ignore-scripts --no-audit --no-fund --loglevel=error
 

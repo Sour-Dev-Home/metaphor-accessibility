@@ -4,6 +4,8 @@ set -uo pipefail
 unset GITHUB_ACTIONS GITHUB_STEP_SUMMARY # tests set these per run
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+# shellcheck source=../../scripts/wsl-run.sh
+source "$ROOT/scripts/wsl-run.sh" # in Git Bash, runs this suite in WSL instead when it's set up (#341)
 TIMING="$ROOT/scripts/stage-timing.sh"
 WORK="$(mktemp -d)"
 trap 'rm -rf "$WORK"' EXIT

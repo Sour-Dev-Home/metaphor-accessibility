@@ -17,7 +17,9 @@ On Windows:
   In PowerShell, plain `bash` may start WSL's Linux bash instead, which has no git and fails with
   `git: command not found`. Open a Git Bash window, or call it by path:
   `& "C:\Program Files\Git\bin\bash.exe" scripts/check.sh full`. The same applies to every `bash scripts/...` command
-  in this guide.
+  in this guide. The [`metaphor-checks` distro](#run-the-check-script-suites-in-wsl) doesn't change this: the suites
+  reach it from Git Bash on their own. If it's your only distro, WSL makes it the default, and plain `bash` then opens
+  it as root; still use Git Bash.
 - The .NET SDK version pinned in [`global.json`](../global.json), from [dotnet.microsoft.com](https://dotnet.microsoft.com/download/dotnet).
   Roll-forward is off, so a newer SDK won't do. `dotnet --list-sdks` shows what you have.
 - Optional: the [GitHub CLI](https://cli.github.com/) (`gh`) for issues and pull requests.
@@ -83,6 +85,32 @@ bash scripts/check.sh docs
 A broken link fails it; everything else is a warning. The check-script tests (`tests/check/test-check.sh`) need these
 tools too. To flag another filler word, add it to
 [`tools/docs/.vale/styles/Project/Filler.yml`](../tools/docs/.vale/styles/Project/Filler.yml).
+
+### Run the check-script suites in WSL
+
+The check-script suites (`tests/check/test-check.sh` and `tests/scripts/*.sh`) start thousands of processes, which is
+slow in Git Bash: `test-check.sh` takes minutes there and seconds on Linux. With WSL 2 on your machine, one command
+sets up a distro for them. In PowerShell, from the repository root:
+
+```powershell
+.\scripts\setup-wsl.ps1
+```
+
+It asks once, then creates a WSL distro named `metaphor-checks` from Debian (a download of about 100 MB) and installs
+the tools listed in [`scripts/wsl-tools.txt`](../scripts/wsl-tools.txt) inside it, as the distro's root. Your own
+distros, WSL's settings and your git config stay as they are. Running it again installs only what's missing;
+`-Update` upgrades the distro's packages. On a machine without WSL 2 (no WSL, WSL 1 only, or virtualization off) it
+stops with the reason and changes nothing.
+
+From then on, a suite started in Git Bash runs itself in `metaphor-checks`, from your checkout through `/mnt/c`, with
+its temporary repositories in the distro's `/tmp`, and exits with the suite's code. Its first line names the tools'
+versions. `test-check.sh` uses every core there (`nproc`) instead of Git Bash's 4; `METAPHOR_TEST_JOBS` overrides
+both. CI already runs the suites on Linux and doesn't use WSL.
+
+When WSL, the distro or a tool is missing, the suite runs in Git Bash as before and prints a one-line notice naming the
+setup command. `METAPHOR_NO_WSL=1` makes it run in Git Bash on purpose.
+
+To remove the distro and everything in it: `wsl --unregister metaphor-checks`.
 
 ## 4. Make a change
 

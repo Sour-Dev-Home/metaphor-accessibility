@@ -27,7 +27,7 @@ scope=(src/Metaphor.Hooks/ scripts/deploy-dev.ps1 scripts/smoke-test.ps1 scripts
   scripts/check.sh scripts/game-content.sha256 scripts/tree-hash.sh scripts/ci-changes.sh scripts/test-select.sh
   scripts/stage-timing.sh scripts/install-docs-tools.sh scripts/conflict-alert.sh scripts/integration-sync.sh
   scripts/check-status.sh scripts/github-outage.sh scripts/run-pester.sh scripts/live-log.sh
-  scripts/githooks/ scripts/security-stamp.sh
+  scripts/wsl-run.sh scripts/wsl-tools.txt scripts/setup-wsl.ps1 scripts/githooks/ scripts/security-stamp.sh
   .github/workflows/ tests/check/ tests/scripts/ tools/docs/ tools/slow/ .config/dotnet-tools.json
   .claude/agents/security-reviewer.md
   *Directory.Build.* *Directory.Packages.props *Directory.Solution.* *.sln.targets global.json
