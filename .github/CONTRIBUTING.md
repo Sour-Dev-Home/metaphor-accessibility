@@ -170,6 +170,21 @@ To remove the distro and everything in it: `wsl --unregister metaphor-checks`.
 
 Your branch is deleted automatically after its PR merges. Delete your local copy with `git branch -d <branch>`.
 
+### Two skills worth using
+
+Onboard installs Matt Pocock's skills for Claude Code (start Claude with `.\scripts\claude.ps1`). Two of them carry
+most of how this project works:
+
+- **Grilling** (say "grill me"). Before you build anything non-trivial, Claude questions your plan round by round,
+  each question with a recommended answer, until nothing is left assumed. It's how the maintainer settles decisions,
+  and the answers go on the issue, so check an issue's comments for decisions already made before you start. A wrong
+  guess about the engine or a gate costs days here; a grilling costs minutes.
+- **`pr`** (writing a PR body). It shapes the body as a summary, before-and-after evidence, and the merge danger: a
+  one-way or two-way door and the blast radius. Reviews here hinge on evidence (a test run, in-game output on a named
+  build) and on what a change could break, so this is the shape a review can act on fastest.
+
+Both are optional; without Claude, write the same things by hand.
+
 ## Security review and deny rules
 
 **Must-run review.** The security-review scope, listed in [`scripts/security-stamp.sh`](../scripts/security-stamp.sh), is:
@@ -262,8 +277,10 @@ You don't need Claude Code or any agent tooling. The [ground rules in `AGENTS.md
 you as they do to agents.
 
 - **Pick an issue.** Any open issue not labelled `needs-game` works
-  ([filter](https://github.com/Sour-Dev-Home/metaphor-refantazio/issues?q=is%3Aopen+-label%3Aneeds-game)). There is no
-  `good first issue` label. Comment on the issue before you start.
+  ([filter](https://github.com/Sour-Dev-Home/metaphor-accessibility/issues?q=is%3Aopen+-label%3Aneeds-game)). New here?
+  Start with a
+  [`good first issue`](https://github.com/Sour-Dev-Home/metaphor-accessibility/issues?q=is%3Aopen+label%3A%22good+first+issue%22).
+  Comment on the issue before you start.
 - **Labels.** [`docs/agents/triage-labels.md`](../docs/agents/triage-labels.md) has the full table.
   - `ready-for-agent` and `ready-for-human` both mean the issue is ready to start. The names say who the maintainer
     expected to do it; they don't stop you.
@@ -271,7 +288,8 @@ you as they do to agents.
   - `needs-info`: waiting on the reporter. Skip it unless you can supply the answer.
   - `needs-game`: you need your own copy of the game to do or check the work.
 - **The skills are optional.** The Matt Pocock skills are how the maintainer writes issues and runs agents. You can
-  work and write issues by hand.
+  work and write issues by hand; [two skills worth using](#two-skills-worth-using) says what grilling and `pr` give a
+  review, so you can do the same by hand.
 - **The game.** Most work needs your own copy of the game, to check offsets, formats and in-game behaviour. Without
   it you can still do docs, tooling and anything the unit tests cover.
 - **Security label.** A pull request that changes anything outside `docs/` gets the maintainer's `security-reviewed`
