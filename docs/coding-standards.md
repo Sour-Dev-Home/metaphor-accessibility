@@ -78,5 +78,8 @@ each rule on every assembly built from `src/`. Each test plants a violation to p
     signature's pattern in `hook-signatures.json`, four `??` bytes at `DisplacementOffset`, and ends the instruction at
     `InstructionLength`, so a typo in its offsets fails a test instead of pointing a reader at the wrong address (#321;
     the encoding is in [`x86-rip-relative-loads-2026-11-19.md`](raw-sources/x86-rip-relative-loads-2026-11-19.md)).
+17. **Pipes stay in Debug builds.** No Release assembly uses `System.IO.Pipes`, and the hook layer has `LiveInspector`
+    exactly when it is a Debug build, so the read-only inspector's pipe never reaches players
+    ([inspect the running game](contributors/how-to/inspect-the-running-game.md), #291).
 
 A new project under `src/` must be added to the architecture test project, and a test fails until it is.

@@ -4,6 +4,7 @@
 //                                              (as Reloaded-II's Startup.cs does), starts it, and exits.
 //   <game exe>                                 acts as the game: writes each enabled mod's status file, then runs until
 //                                              it is killed, as the real game doesn't quit unattended.
+//   --inspector <pipe name>                    acts as the Debug mod's live inspector (#291) for inspect.ps1, until killed.
 //
 // The real loader reads ReloadedII.json from a fixed AppData path; the stand-in reads the path from
 // METAPHOR_STANDIN_RELOADED_CONFIG. METAPHOR_STANDIN_BEHAVIOUR picks what the game does: ready (default), refuse,
@@ -18,6 +19,12 @@ using System.Security.Cryptography;
 using System.Text.Json;
 using Metaphor.Core;
 using Metaphor.Core.Announcements;
+
+if (args is ["--inspector", var pipeName])
+{
+    InspectorStandIn.Serve(pipeName);
+    return 0;
+}
 
 var configPath = Environment.GetEnvironmentVariable("METAPHOR_STANDIN_RELOADED_CONFIG")
     ?? throw new InvalidOperationException("METAPHOR_STANDIN_RELOADED_CONFIG is not set");

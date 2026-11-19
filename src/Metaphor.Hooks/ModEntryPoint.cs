@@ -89,6 +89,10 @@ public sealed class ModEntryPoint : IMod
 
     // Kept so the watcher lives as long as the game process.
     private SettingsFile? settingsFile;
+#if DEBUG
+    // The live inspector (#291), Debug and opt-in only; kept for the same reason.
+    private LiveInspector? liveInspector;
+#endif
 
     public Action Disposing => () => { };
 
@@ -144,6 +148,10 @@ public sealed class ModEntryPoint : IMod
             (status.Reason is null ? (Action<string>)Log : LogError)(
                 $"build {ModBuild.Revision.CommitSha}{(ModBuild.Revision.HasUncommittedChanges ? "-dirty" : "")}: {status.State} on game build {status.GameBuildSha256}, hooks {status.HooksLoaded}/{status.HooksExpected}" +
                 (status.Reason is null ? "" : $" ({status.Reason})") + $"; load message: {LoadMessage.For(status).Text}");
+#if DEBUG
+            // After the hooks, so its reads never race their installation; read-only, so the build check isn't needed.
+            liveInspector = LiveInspector.StartIfOptedIn(folder, Log, LogError);
+#endif
         }
         catch (Exception)
         {
