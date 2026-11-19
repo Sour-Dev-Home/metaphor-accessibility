@@ -58,8 +58,8 @@ flowchart LR
     queue --> main["main"]
 ```
 
-- **The guards are in the review scope,** not only the hook code: the check scripts, git hooks, workflows, check tests,
-  pinned tools and the reviewer itself. Otherwise a change to CI merges with only CI passing, and CI is what changed.
+- **The guards are in the [review scope](../../../.github/CONTRIBUTING.md#security-review-and-deny-rules),** not only the
+  hook code. Otherwise a change to CI merges with only CI passing, and CI is what changed.
 - **An edit after the review voids the [stamp](../../../GLOSSARY.md#review-and-ci),** and CI refuses a scope commit
   without a matching [review trailer](../../../GLOSSARY.md#review-and-ci).
 - **Only the maintainer can skip review, and the skip is recorded** in a trailer. Agents are denied it.

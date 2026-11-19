@@ -103,10 +103,11 @@ takes a machine-wide build slot only when it builds, so a docs-only push never w
 no recorded pass and every slot busy, `pre-push` stops at once instead of waiting, since a waiting push is cut (exit 141).
 [README.md](../README.md#checks) lists every stage.
 
-CI runs `full` on Linux for a pull request (faster; tests marked `WindowsOnly` and the Pester script tests are left to
-Windows, and a docs-only change skips the .NET work), and the whole Windows gate in the merge queue. A pull request that
-passes can still fail in the queue; run `full` on Windows locally before you push a change near Windows behaviour. Mark a
-test that only holds on Windows with `[Trait("Category", "WindowsOnly")]` instead of `Unit`.
+CI's two paths (Linux on a pull request, the whole Windows gate in the merge queue) are in
+[how a change reaches main](../docs/contributors/explanation/how-a-change-reaches-main.md) and
+[ADR 0008](../docs/adr/0008-ci-fast-path-and-windows-gate.md). A pull request that passes can still fail in the queue;
+run `full` on Windows locally before you push a change near Windows behaviour. Mark a test that only holds on Windows
+with `[Trait("Category", "WindowsOnly")]` instead of `Unit`.
 
 `RoundTrip` tests check our format code against real game files, so they need game data and are skipped without it (CI
 never has any, per [ADR 0001](../docs/adr/0001-ci-never-sees-game-content.md)). To run them, point `METAPHOR_GAME_DATA` at
@@ -283,12 +284,9 @@ you as they do to agents.
   Start with a
   [`good first issue`](https://github.com/Sour-Dev-Home/metaphor-accessibility/issues?q=is%3Aopen+label%3A%22good+first+issue%22).
   Comment on the issue before you start.
-- **Labels.** [`docs/agents/triage-labels.md`](../docs/agents/triage-labels.md) has the full table.
-  - `ready-for-agent` and `ready-for-human` both mean the issue is ready to start. The names say who the maintainer
-    expected to do it; they don't stop you.
-  - `needs-triage`: the maintainer hasn't evaluated it yet. Ask before starting.
-  - `needs-info`: waiting on the reporter. Skip it unless you can supply the answer.
-  - `needs-game`: you need your own copy of the game to do or check the work.
+- **Labels.** [`docs/agents/triage-labels.md`](../docs/agents/triage-labels.md) has the table. `ready-for-agent` and
+  `ready-for-human` both mean ready to start; the names say who the maintainer expected, and they don't stop you. Ask
+  before starting a `needs-triage` issue, and skip `needs-info` unless you can supply the answer.
 - **The skills are optional.** The Matt Pocock skills are how the maintainer writes issues and runs agents. You can
   work and write issues by hand; [two skills worth using](#two-skills-worth-using) says what grilling and `pr` give a
   review, so you can do the same by hand.
