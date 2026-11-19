@@ -1,0 +1,4 @@
+#!/usr/bin/env bash
+# The pre-commit checks for a merge git commits on its own, which skips pre-commit (#321); commit-msg, which runs after
+# it, judges the security review. Turn on with: git config core.hooksPath scripts/githooks
+exec bash "$(git rev-parse --show-toplevel)/scripts/check.sh" pre-merge-commit

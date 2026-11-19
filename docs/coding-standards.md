@@ -74,5 +74,9 @@ each rule on every assembly built from `src/`. Each test plants a violation to p
 15. **Hooks in `.text1` stay opt-in.** A `[GameHook]` type whose signature is in the exe's `.text1` section, by the
     `section` in `hook-signatures.json`, sets `OptInFile` or `DevOnly = true`, in every build
     ([ADR 0010](adr/0010-text1-hooks-stay-opt-in.md)).
+16. **Game globals point at a load.** Each `GlobalSpec` (#300) puts a `[rip+disp32]` mov or lea at `LoadOffset` in its
+    signature's pattern in `hook-signatures.json`, four `??` bytes at `DisplacementOffset`, and ends the instruction at
+    `InstructionLength`, so a typo in its offsets fails a test instead of pointing a reader at the wrong address (#321;
+    the encoding is in [`x86-rip-relative-loads-2026-11-19.md`](raw-sources/x86-rip-relative-loads-2026-11-19.md)).
 
 A new project under `src/` must be added to the architecture test project, and a test fails until it is.

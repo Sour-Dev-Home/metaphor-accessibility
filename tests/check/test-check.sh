@@ -86,6 +86,20 @@ expect() {
   fi
 }
 
+# #321: an absolute core.hooksPath makes every worktree run one checkout's hooks, not its own branch's.
+test_rules_warn_about_an_absolute_hooks_path() {
+  local path
+  for path in /c/clone/scripts/githooks 'C:\clone\scripts\githooks' C:/clone/scripts/githooks; do
+    new_repo
+    git config core.hooksPath "$path"
+    run_check rules
+    expect 0 "core.hooksPath is an absolute path" "git config core.hooksPath scripts/githooks"
+  done
+  git config core.hooksPath scripts/githooks
+  run_check rules
+  expect_absent "core.hooksPath"
+}
+
 test_blocks_staged_cpk() {
   new_repo
   printf 'not really an archive' > data.cpk
@@ -915,9 +929,10 @@ push_repo() {
 
 # run_pre_push LOCAL REMOTE: run the pre-push stage for one ref, as git would.
 run_pre_push() {
-  # A private lock path, so the machine's real build slots never decide these runs.
+  # A private lock path and slot count, whatever the environment exports, so the machine's real build slots never
+  # decide these runs (#321). hold_lock sets $test_slots.
   out="$(printf 'refs/heads/topic %s refs/heads/topic %s\n' "$1" "$2" |
-    METAPHOR_CHECK_LOCK="${METAPHOR_CHECK_LOCK:-$PWD/test-build.lock}" check_stage pre-push 2>&1)"
+    METAPHOR_CHECK_LOCK="$PWD/test-build.lock" METAPHOR_CHECK_SLOTS="${test_slots:-2}" check_stage pre-push 2>&1)"
   code=$?
 }
 
@@ -949,17 +964,27 @@ test_pre_push_skips_a_deleted_branch() {
 
 # hold_lock: every build slot (one) is held by a live process, so a build stage would have to wait.
 hold_lock() {
-  export METAPHOR_CHECK_LOCK="$PWD/test-build.lock" METAPHOR_CHECK_SLOTS=1 METAPHOR_CHECK_POLL=1
-  mkdir "$METAPHOR_CHECK_LOCK"
-  echo "$$" > "$METAPHOR_CHECK_LOCK/pid"
+  test_slots=1
+  mkdir "$PWD/test-build.lock"
+  echo "$$" > "$PWD/test-build.lock/pid"
 }
 
 test_pre_push_stops_at_once_when_the_lock_is_held_and_no_pass_is_recorded() {
   push_repo src/Menu.cs
   hold_lock
   run_pre_push "$HEAD" "$BASE"
-  unset METAPHOR_CHECK_LOCK METAPHOR_CHECK_SLOTS METAPHOR_CHECK_POLL
+  unset test_slots
   expect 2 "every build slot is busy" "bash scripts/check.sh full"
+}
+
+# #321: an exported real lock path or slot count never reaches the pre-push tests, which use their own.
+test_pre_push_tests_ignore_the_machine_lock() {
+  push_repo src/Menu.cs
+  local real="$PWD/machine.lock"
+  mkdir "$real" && echo "$$" > "$real/pid"
+  METAPHOR_CHECK_LOCK="$real" METAPHOR_CHECK_SLOTS=1 run_pre_push "$HEAD" "$BASE"
+  expect 2 "pre-push stage needs Metaphor.sln"
+  expect_absent "every build slot is busy"
 }
 
 test_pre_push_reuses_a_recorded_pass_without_taking_the_lock() {
@@ -967,7 +992,7 @@ test_pre_push_reuses_a_recorded_pass_without_taking_the_lock() {
   hold_lock
   echo "full $(git rev-parse "$HEAD^{tree}")" > "$(git rev-parse --absolute-git-dir)/check-pass-cache"
   run_pre_push "$HEAD" "$BASE"
-  unset METAPHOR_CHECK_LOCK METAPHOR_CHECK_SLOTS METAPHOR_CHECK_POLL
+  unset test_slots
   expect 0 "reused the recorded pass"
 }
 
@@ -985,6 +1010,11 @@ for hook in post-commit post-merge; do
     printf '#!/usr/bin/env bash\nexec bash "%s" spend\n' "$STAMP" > "$HOOKS/$hook" && chmod +x "$HOOKS/$hook"
   fi
 done
+# A merge that commits itself runs pre-merge-commit, not pre-commit (#321); likewise only where the repository has it.
+if [ -f "$ROOT/scripts/githooks/pre-merge-commit" ]; then
+  printf '#!/usr/bin/env bash\nexec bash "%s" pre-merge-commit\n' "$CHECK" > "$HOOKS/pre-merge-commit"
+  chmod +x "$HOOKS/pre-merge-commit"
+fi
 
 # review_repo: a repo using the hooks, with a first commit, then a staged change to scope file FILE (default: the hook
 # layer).
@@ -1065,6 +1095,15 @@ test_stamp_is_spent_by_the_commit_it_reviewed() {
   git reset -q --soft HEAD~1 # the same scope again needs a fresh review
   commit "feat: reviewed hook"
   expect 1 "no matching stamp"
+}
+
+# #321: --no-verify skips commit-msg, so the commit carries no trailer, but post-commit still runs: a commit that
+# records the stamped scope spends the stamp, so a later merge can't pass as stamped on it.
+test_stamp_is_spent_by_a_scope_commit_without_its_trailer() {
+  review_repo
+  bash "$STAMP" > /dev/null
+  git commit -q --no-verify -m "feat: hook, hooks bypassed"
+  expect_stamp absent
 }
 
 # git merge commits on its own and runs post-merge, not post-commit.
@@ -1214,6 +1253,13 @@ merge_main() {
   code=$?
 }
 
+# #321: git merge commits on its own without running pre-commit, so the pre-merge-commit hook runs the same checks.
+test_a_merge_that_commits_itself_runs_the_pre_commit_checks() {
+  merge_repo data.cpk "not really an archive"
+  merge_main
+  expect 1 "game content" "data.cpk"
+}
+
 test_review_passes_a_clean_merge_from_main_and_says_why() {
   merge_repo
   merge_main
@@ -1349,8 +1395,12 @@ test_commits_stage_ignores_old_trailerless_merges_below_a_reviewed_head() {
 # outside_repo [FILE]: a repo with one reviewed commit changing FILE (default: a scope file), ready for the commits
 # stage; sets $base. A fake gh answers the timeline call with the lines in $TIMELINE (what the real call's --jq filter
 # prints), a permission call with admin for the logins in $FAKE_ADMINS (default: maint), write for any other, and a pull
-# request call with its head, $FAKE_HEAD (default: head1); it fails the call for the login in $FAKE_PERMISSION_FAIL.
-# $FAKE_TIMELINE_FAIL fails the timeline call, $FAKE_HEAD_FAIL the pull request call, $FAKE_GH_FAIL every call.
+# request call with its head, $FAKE_HEAD (default: head1), on branch topic of fork/r, created at $FAKE_CREATED
+# (default: 2026-11-16T08:00:00Z); it fails the call for the login
+# in $FAKE_PERMISSION_FAIL. The review-gate runs call prints $RUNS (head, creation time and head repository, a tab
+# between; run_gate's default: one run at head1 at 2026-11-16T09:00:00Z, so head1 arrived then).
+# $FAKE_TIMELINE_FAIL fails the timeline call, $FAKE_HEAD_FAIL the pull request call, $FAKE_RUNS_FAIL the runs call,
+# $FAKE_GH_FAIL every call.
 FAKE_BIN="$WORK/fakebin"
 mkdir -p "$FAKE_BIN"
 cat > "$FAKE_BIN/gh" <<'EOF'
@@ -1363,7 +1413,12 @@ for arg; do
       [ "$login" = "${FAKE_PERMISSION_FAIL:-}" ] && exit 1
       case " ${FAKE_ADMINS:-maint} " in *" $login "*) echo admin ;; *) echo write ;; esac
       exit ;;
-    repos/*/pulls/*) [ -z "${FAKE_HEAD_FAIL:-}" ] || exit 1; echo "${FAKE_HEAD:-head1}"; exit ;;
+    repos/*/pulls/*)
+      [ -z "${FAKE_HEAD_FAIL:-}" ] || exit 1
+      printf '%s\ttopic\tfork/r\t%s\n' "${FAKE_HEAD:-head1}" "${FAKE_CREATED:-2026-11-16T08:00:00Z}"; exit ;;
+    repos/*/actions/workflows/review-gate.yml/runs)
+      [ -z "${FAKE_RUNS_FAIL:-}" ] || exit 1
+      printf '%b' "${RUNS:-}"; exit ;;
   esac
 done
 [ -z "${FAKE_TIMELINE_FAIL:-}" ] || exit 1
@@ -1392,7 +1447,8 @@ run_gate() {
   local files="$WORK/pr-files"
   if [ -n "${PR_FILES+set}" ]; then printf '%b' "$PR_FILES" > "$files"; else pr_files > "$files"; fi
   out="$(PATH="$FAKE_BIN:$PATH" TIMELINE="${TIMELINE:-}" FAKE_GH_FAIL="${FAKE_GH_FAIL:-}" FAKE_HEAD="${FAKE_HEAD:-}" \
-    FAKE_HEAD_FAIL="${FAKE_HEAD_FAIL:-}" \
+    FAKE_HEAD_FAIL="${FAKE_HEAD_FAIL:-}" FAKE_RUNS_FAIL="${FAKE_RUNS_FAIL:-}" FAKE_CREATED="${FAKE_CREATED:-}" \
+    RUNS="${RUNS-head1\t2026-11-16T09:00:00Z\tfork/r\n}" \
     FAKE_PERMISSION_FAIL="${FAKE_PERMISSION_FAIL:-}" FAKE_TIMELINE_FAIL="${FAKE_TIMELINE_FAIL:-}" \
     PR_AUTHOR_ASSOCIATION="$1" PR_AUTHOR="${PR_AUTHOR:-contrib}" PR_NUMBER=7 GITHUB_REPOSITORY=o/r \
     PR_UPDATED_AT=2026-11-16T10:00:00Z PR_HEAD_SHA=head1 PR_CHANGED_FILES="${PR_CHANGED_FILES:-$(grep -c '' "$files")}" \
@@ -1453,15 +1509,58 @@ test_review_gate_passes_on_the_label_event_while_the_head_is_unchanged() {
   expect 0
   PR_EVENT_ACTION=labeled PR_EVENT_LABEL=security-reviewed FAKE_HEAD=head2 run_gate CONTRIBUTOR
   expect 1 "pushed to after"
-  # Another label's event keeps the event's updated_at, so the review label must be newer than it.
-  PR_EVENT_ACTION=labeled PR_EVENT_LABEL=enhancement run_gate CONTRIBUTOR
-  expect 1 "before the PR's latest push (2026-11-16T10:00:00Z)"
   TIMELINE='labeled\t2026-11-16T09:30:00Z\tmaint\npush\t2026-11-16T09:40:00Z\n' # a force push after the label
   PR_EVENT_ACTION=labeled PR_EVENT_LABEL=security-reviewed run_gate CONTRIBUTOR
   expect 1 "before the PR's latest push (2026-11-16T09:40:00Z)"
   TIMELINE='labeled\t2026-11-16T09:30:00Z\tcollab\n'
   PR_EVENT_ACTION=labeled PR_EVENT_LABEL=security-reviewed run_gate CONTRIBUTOR
   expect 1 "added by collab, who isn't an admin"
+}
+
+# #321: any other label event's updated_at is that event's own time, newer than the review label, so its run reads when
+# the head arrived from the review-gate runs (server times, not commit dates) and keeps a reviewed PR green.
+test_review_gate_judges_another_label_event_by_when_the_head_arrived() {
+  local action
+  outside_repo
+  TIMELINE='push\t2026-11-16T09:00:00Z\nlabeled\t2026-11-16T09:30:00Z\tmaint\n'
+  RUNS='head1\t2026-11-16T10:00:00Z\tfork/r\nhead1\t2026-11-16T09:30:05Z\tfork/r\nhead1\t2026-11-16T09:00:10Z\tfork/r\n'
+  RUNS+='head0\t2026-11-16T08:00:00Z\tfork/r\n'
+  for action in labeled unlabeled; do
+    PR_EVENT_ACTION=$action PR_EVENT_LABEL=enhancement run_gate CONTRIBUTOR
+    expect 0
+  done
+  # A push after the label whose commits are backdated: its run's time gives it away.
+  TIMELINE='push\t2026-11-16T08:59:00Z\nlabeled\t2026-11-16T09:30:00Z\tmaint\n'
+  RUNS='head1\t2026-11-16T10:00:00Z\tfork/r\nhead1\t2026-11-16T09:40:00Z\tfork/r\nhead0\t2026-11-16T09:30:05Z\tfork/r\n'
+  RUNS+='head1\t2026-11-16T09:00:00Z\tfork/r\n' # head1 was the head before too: only the latest stretch counts
+  PR_EVENT_ACTION=labeled PR_EVENT_LABEL=enhancement run_gate CONTRIBUTOR
+  expect 1 "before the PR's latest push (2026-11-16T09:40:00Z)"
+  # Runs on a same-named branch of another repository don't count.
+  RUNS='head1\t2026-11-16T09:40:00Z\tfork/r\nhead1\t2026-11-16T09:00:00Z\tother/r\n'
+  PR_EVENT_ACTION=labeled PR_EVENT_LABEL=enhancement run_gate CONTRIBUTOR
+  expect 1 "before the PR's latest push (2026-11-16T09:40:00Z)"
+  # The runs filter by branch, not PR: an older PR's run on a reused branch name can't date the head before this PR.
+  RUNS='head1\t2026-11-16T08:00:00Z\tfork/r\n'
+  PR_EVENT_ACTION=labeled PR_EVENT_LABEL=enhancement FAKE_CREATED=2026-11-16T09:45:00Z run_gate CONTRIBUTOR
+  expect 1 "before the PR's latest push (2026-11-16T09:45:00Z)"
+  # The head moved since the event: the push's own run judges it.
+  RUNS='head1\t2026-11-16T09:00:00Z\tfork/r\n'
+  PR_EVENT_ACTION=labeled PR_EVENT_LABEL=enhancement FAKE_HEAD=head2 run_gate CONTRIBUTOR
+  expect 1 "pushed to after"
+  # Removing the review label still fails.
+  TIMELINE='push\t2026-11-16T09:00:00Z\nlabeled\t2026-11-16T09:30:00Z\tmaint\nunlabeled\t2026-11-16T09:50:00Z\tmaint\n'
+  PR_EVENT_ACTION=unlabeled PR_EVENT_LABEL=security-reviewed run_gate CONTRIBUTOR
+  expect 1 "add the security-reviewed label"
+}
+
+test_review_gate_fails_closed_when_the_runs_cannot_be_read() {
+  outside_repo
+  TIMELINE='push\t2026-11-16T09:00:00Z\nlabeled\t2026-11-16T09:30:00Z\tmaint\n'
+  PR_EVENT_ACTION=labeled PR_EVENT_LABEL=enhancement FAKE_RUNS_FAIL=1 run_gate CONTRIBUTOR
+  expect 2 "could not tell when the head of PR #7 arrived"
+  RUNS='head0\t2026-11-16T09:00:00Z\tfork/r\n' # no run at the head
+  PR_EVENT_ACTION=labeled PR_EVENT_LABEL=enhancement run_gate CONTRIBUTOR
+  expect 2 "could not tell when the head of PR #7 arrived"
 }
 
 test_review_gate_fails_closed_when_the_head_cannot_be_read() {
@@ -1650,7 +1749,7 @@ GUARD_FILES=(scripts/check.sh scripts/game-content.sha256 scripts/tree-hash.sh s
   scripts/test-select.sh scripts/stage-timing.sh scripts/install-docs-tools.sh scripts/conflict-alert.sh
   scripts/integration-sync.sh scripts/check-status.sh scripts/run-pester.sh scripts/live-log.sh scripts/wsl-run.sh
   scripts/run-check-suites.sh scripts/wsl-tools.txt scripts/setup-wsl.ps1 scripts/githooks/pre-commit scripts/githooks/pre-push
-  scripts/githooks/commit-msg scripts/githooks/post-commit scripts/githooks/post-merge
+  scripts/githooks/commit-msg scripts/githooks/post-commit scripts/githooks/post-merge scripts/githooks/pre-merge-commit
   scripts/security-stamp.sh scripts/github-outage.sh .github/workflows/ci.yml
   .github/workflows/slow.yml .github/workflows/a-new-one.yml .claude/agents/security-reviewer.md
   tests/check/test-check.sh tests/scripts/test-anything.sh tools/slow/survivors.mjs tools/docs/package-lock.json
