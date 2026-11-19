@@ -23,7 +23,7 @@ says that nothing changed.
    check-script suites run in Git Bash, and a docs-only check.sh full takes about 4 minutes longer.
 6. Skills: asks, then adds Matt Pocock's skills through scripts/setup/claude.ps1, unless they're already there.
 7. GitHub: checks gh's login and whether the account can push to the repository.
-8. Game: finds the game and Reloaded-II (scripts/player/GameLocator.psm1), shows what it found and asks before saving the
+8. Game: finds the game and Reloaded-II (scripts/player/MetaphorInstall.psm1), shows what it found and asks before saving the
    game's path as METAPHOR_GAME_EXE for your Windows user. With both found, it offers a 30-second test deploy
    (scripts/dev/listen.ps1 -Seconds 30 -Close) and reports the hooks.
 9. Extras: offers to build the Ghidra project (scripts/dev/ghidra.ps1 build, about 10 minutes).
@@ -52,7 +52,7 @@ param(
     [string[]] $Answers,
     # Steam's folder. Defaults to the one in the registry.
     [string] $SteamRoot = '',
-    # Reloaded-II's root config. Defaults to its fixed AppData path (ReloadedDev.psm1's Get-ReloadedConfigPath).
+    # Reloaded-II's root config. Defaults to its fixed AppData path (MetaphorInstall.psm1's Get-ReloadedConfigPath).
     [string] $ReloadedConfig = '',
     # The Program Files folder to look in for PowerShell 7 when pwsh isn't on PATH. Defaults to Windows' own.
     [string] $ProgramFiles = $env:ProgramFiles,
@@ -90,12 +90,12 @@ function Write-Step([string] $Title) { Write-Host ''; Write-Host "== $Title" }
 function Add-Item([string] $Name, [object] $Ready, [string] $Detail) {
     $summary.Add([pscustomobject]@{ Name = $Name; Ready = $Ready; Detail = $Detail })
 }
-Import-Module (Join-Path $PSScriptRoot '../player/Interactive.psm1') -Force
+Import-Module (Join-Path $PSScriptRoot '../player/MetaphorInstall.psm1') -Force
 $scripted = $PSBoundParameters.ContainsKey('Answers')
 $answerQueue = [Collections.Generic.Queue[string]]::new()
 if ($scripted) { foreach ($answer in $Answers) { $answerQueue.Enqueue($answer) } }
 $interactive = $scripted -or (Test-Interactive)
-# An answer from -Answers, or else from the console (Interactive.psm1): '' for Enter, $null for none (counts as no).
+# An answer from -Answers, or else from the console (MetaphorInstall.psm1): '' for Enter, $null for none (counts as no).
 function Read-OnboardAnswer([string] $Question) {
     if (-not $scripted) { return Read-Answer $Question }
     Write-Host "$Question " -NoNewline
@@ -422,7 +422,7 @@ try {
         elseif ($last -and $last[0] -match '^setup-wsl: (.+?\.)(\s|$)') { $reason = $Matches[1] }
         Write-Host 'Without the metaphor-checks distro the check-script suites run in Git Bash, which is slow: a'
         Write-Host 'docs-only check.sh full takes about 4 minutes longer.'
-        # $WslUnavailableExitCode (Interactive.psm1): this machine can't run WSL 2 yet. Any other failure (a network
+        # $WslUnavailableExitCode (MetaphorInstall.psm1): this machine can't run WSL 2 yet. Any other failure (a network
         # error, say) isn't fixed by installing WSL (#360), and neither is a restart or virtualization that
         # setup-wsl.ps1 names itself (#402).
         if ($wslCode -eq $WslUnavailableExitCode -and -not $ownFix) {
@@ -507,7 +507,6 @@ try {
 
     # --- 8. Game ------------------------------------------------------------------------------------------------------
     Write-Step 'Game'
-    Import-Module (Join-Path $PSScriptRoot '../player/GameLocator.psm1') -Force
     $locate = @{}
     if ($SteamRoot) { $locate.SteamRoot = $SteamRoot }
     if ($ReloadedConfig) { $locate.ConfigPath = $ReloadedConfig }

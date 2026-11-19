@@ -35,8 +35,7 @@ $Body
         git -C $clone init -q
         $scripts = New-Item -ItemType Directory (Join-Path $clone 'scripts')
         $setup, $dev, $player = 'setup', 'dev', 'player' | ForEach-Object { New-Item -ItemType Directory (Join-Path $scripts $_) }
-        foreach ($file in 'setup/onboard.ps1', 'player/GameLocator.psm1', 'dev/ReloadedDev.psm1', 'player/ReloadedRead.psm1',
-            'player/Interactive.psm1') {
+        foreach ($file in 'setup/onboard.ps1', 'player/MetaphorInstall.psm1', 'dev/ReloadedDev.psm1') {
             Copy-Item (Join-Path $repo "scripts/$file") (Join-Path $scripts $file)
         }
         Copy-Item (Join-Path $repo 'global.json') $clone

@@ -10,7 +10,7 @@ BeforeAll {
         $script:clone = (New-Item -ItemType Directory (Join-Path $root 'clone')).FullName
         $script:empty = (New-Item -ItemType Directory (Join-Path $root 'empty')).FullName
         git -C $clone init -q
-        foreach ($file in 'dev/ghidra.ps1', 'dev/ReloadedDev.psm1', 'player/ReloadedRead.psm1') {
+        foreach ($file in 'dev/ghidra.ps1', 'dev/ReloadedDev.psm1', 'player/MetaphorInstall.psm1') {
             $target = Join-Path $clone "scripts/$file"
             New-Item -ItemType Directory -Force (Split-Path $target) | Out-Null
             Copy-Item (Join-Path $repo "scripts/$file") $target

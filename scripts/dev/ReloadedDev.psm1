@@ -1,10 +1,11 @@
-# Reloaded-II helpers shared by smoke-test.ps1, deploy-dev.ps1, listen.ps1 and capture.ps1: the read-only ones from
-# ReloadedRead.psm1 (re-exported here), and the developer ones, which write configs and start the game.
+# The developer scripts' module (#412), shared by smoke-test.ps1, deploy-dev.ps1, listen.ps1, capture.ps1, ghidra.ps1
+# and signature-spike.ps1: the Reloaded-II reading from the player module (MetaphorInstall.psm1, re-exported here), and
+# the developer helpers, which write configs and start the game. Doesn't ship.
 # Loader facts: docs/raw-sources/reloaded-ii-config-location-2026-11-13.md and
 # reloaded-ii-app-and-mod-config-2026-11-15.md.
 
 Set-StrictMode -Version Latest
-Import-Module (Join-Path $PSScriptRoot '../player/ReloadedRead.psm1')
+Import-Module (Join-Path $PSScriptRoot '../player/MetaphorInstall.psm1')
 
 $PollMilliseconds = 100
 # How long the game must stay gone before a wait counts it as exited: at least the grace that two missed polls 500 ms
@@ -125,4 +126,7 @@ function Get-MessageLogSummary([string] $Path) {
     }
 }
 
-Export-ModuleMember -Function * -Variable StatusFileName
+# The interface: reading the loader's records (from the player module), then starting the game and waiting on the
+# mods, then keeping local paths out of what a session prints.
+Export-ModuleMember -Function Read-Json, Resolve-LoaderPaths, Get-GameBuild, Get-Game, Find-Application, Write-Json,
+    Start-WithLoader, Wait-ModStatus, Get-MessageLogSummary, Add-PathName, Hide-LocalPaths -Variable StatusFileName

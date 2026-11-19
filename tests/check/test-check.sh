@@ -1926,10 +1926,9 @@ GUARD_FILES=(scripts/check.sh scripts/check/report.sh scripts/check/run.sh scrip
   scripts/ci/security-stamp.sh scripts/ci/github-outage.sh .github/workflows/ci.yml
   .github/workflows/slow.yml .github/workflows/a-new-one.yml .claude/agents/security-reviewer.md
   tests/check/test-check.sh tests/bash/test-anything.sh tools/slow/survivors.mjs tools/docs/package-lock.json
-  .config/dotnet-tools.json scripts/dev/listen.ps1 scripts/setup/onboard.ps1 scripts/player/GameLocator.psm1
-  scripts/player/Interactive.psm1 scripts/setup/claude.ps1 scripts/dev/ghidra.ps1 scripts/player/check-install.ps1
-  scripts/player/InstallCheck.psm1 scripts/player/ReloadedRead.psm1 scripts/player/install.ps1 scripts/player/Installer.psm1
-  scripts/player/install-pins.json)
+  .config/dotnet-tools.json scripts/dev/listen.ps1 scripts/setup/onboard.ps1 scripts/player/MetaphorInstall.psm1
+  scripts/setup/claude.ps1 scripts/dev/ghidra.ps1 scripts/player/check-install.ps1 scripts/player/install.ps1
+  scripts/dev/ReloadedDev.psm1 scripts/player/install-pins.json)
 
 # Every script the gate runs, transitively from check.sh, the git hooks and the workflows, is in the scope, so a change
 # to one can't take over the CI steps after it (BASH_ENV or PATH through $GITHUB_ENV) without a review.

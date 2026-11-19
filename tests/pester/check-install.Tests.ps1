@@ -1,12 +1,13 @@
-# Tests for scripts/player/check-install.ps1 and scripts/player/InstallCheck.psm1 (#283), against stand-ins in the test folder: a
-# release folder laid out as the package is, a Reloaded-II config with its apps and mods folders, a game exe, and a
-# screen-reader probe that finds none. No build, no network, no speech. Run: Invoke-Pester tests/pester (Pester 5+).
+# Tests for scripts/player/check-install.ps1 and the check in scripts/player/MetaphorInstall.psm1 (#283), against
+# stand-ins in the test folder: a release folder laid out as the package is, a Reloaded-II config with its apps and
+# mods folders, a game exe, and a screen-reader probe that finds none. No build, no network, no speech.
+# Run: Invoke-Pester tests/pester (Pester 5+).
 
 BeforeAll {
     $script:repo = (Resolve-Path "$PSScriptRoot/../..").Path
-    Import-Module (Join-Path $repo 'scripts/player/InstallCheck.psm1') -Force
+    Import-Module (Join-Path $repo 'scripts/player/MetaphorInstall.psm1') -Force
     # The files the package ships for the check, beside the mod's own (src/Metaphor.Hooks/Metaphor.Hooks.csproj).
-    $script:shipped = 'check-install.ps1', 'InstallCheck.psm1', 'ReloadedRead.psm1', 'Interactive.psm1'
+    $script:shipped = 'check-install.ps1', 'MetaphorInstall.psm1'
     $script:modId = 'metaphor.accessibility'
 
     function Get-Sha256([string] $Path) { (Get-FileHash -LiteralPath $Path -Algorithm SHA256).Hash.ToLowerInvariant() }
