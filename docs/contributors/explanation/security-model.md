@@ -58,7 +58,7 @@ flowchart LR
     queue --> main["main"]
 ```
 
-- **The guards are in the [review scope](../../../.github/CONTRIBUTING.md#security-review-and-deny-rules),** not only the
+- **The guards are in the [review scope](../reference/security-review.md#scope),** not only the
   hook code. Otherwise a change to CI merges with only CI passing, and CI is what changed.
 - **An edit after the review voids the [stamp](../../../GLOSSARY.md#review-and-ci),** and CI refuses a scope commit
   without a matching [review trailer](../../../GLOSSARY.md#review-and-ci).
@@ -69,7 +69,7 @@ flowchart LR
 - **A [clean merge](../../../GLOSSARY.md#review-and-ci) from `main` keeps its review; a conflict resolution in the scope needs a new one.**
   [ADR 0012](../../adr/0012-review-trailer-covers-clean-merges.md)
 
-The rules are in [`CONTRIBUTING.md`](../../../.github/CONTRIBUTING.md#security-review-and-deny-rules).
+The rules are in [security review](../reference/security-review.md).
 
 ## The agents
 

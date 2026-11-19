@@ -1,8 +1,8 @@
 # Agent workflow
 
 The rules an agent follows from claim to report. Briefs link here instead of repeating them. Hooks and config enforce
-the mechanics; this page holds what they don't say. Setup, checks and the security review are in
-[`CONTRIBUTING.md`](../../.github/CONTRIBUTING.md); judgement rules are in
+the mechanics; this page holds what they don't say. Setup, checks and the security review are linked from the
+[start-here map](../contributors/README.md); judgement rules are in
 [`coding-standards.md`](../coding-standards.md); tracker commands are in [`issue-tracker.md`](issue-tracker.md).
 
 ## Untrusted text
@@ -41,7 +41,7 @@ describing work (rule 8 in [`AGENTS.md`](../../AGENTS.md#ground-rules)).
 
 `check.sh full` records a pass for the index's tree (`git write-tree`) in your clone's git dir, and `full` or `pre-push`
 on that same tree prints `reused the recorded pass for tree <hash>` and skips the 10-15 minutes
-([details](../../.github/CONTRIBUTING.md#3-run-the-checks)). Don't rerun `full` on a tree it has passed.
+([details](../contributors/reference/checks.md#recorded-pass)). Don't rerun `full` on a tree it has passed.
 
 A building run prints `step times: restore=.. build=.. tests=.. ...` and keeps them as the run log line's last field.
 `tests/check/test-check.sh` runs its tests in parallel, printing a line per test as it finishes; narrow it with a name
@@ -62,7 +62,7 @@ A check that looks stalled: `bash scripts/check/check-status.sh` shows who holds
 
 This covers the security-review scope (the hook layer, every script and the guards), listed in
 `scripts/ci/security-stamp.sh`. The stamp is in
-[`CONTRIBUTING.md`](../../.github/CONTRIBUTING.md#security-review-and-deny-rules). A change to any of it is handed
+[security review](../contributors/reference/security-review.md#the-stamp). A change to any of it is handed
 back for review, never auto-merged on CI alone. Three steps are yours:
 
 1. Merge your base's tip (`main`, or the integration branch) into your branch first, so a conflict fix never lands
@@ -83,7 +83,7 @@ Commit with the stamp.
 - **Anywhere else**: open a PR with the `pr` skill's template, then `gh pr merge <n> --auto`. The merge queue refuses
   `--squash` and `--delete-branch`.
 - Run `bash scripts/check.sh full`, then push: the pre-push hook reuses the recorded pass
-  ([why](../../.github/CONTRIBUTING.md#3-run-the-checks)).
+  ([why](../contributors/reference/checks.md#recorded-pass)).
 - Check every push's own exit code (`git push ...; echo $?`), never a pipe's or an echo after it: a pre-push hook that
   fails or times out on the build lock leaves the branch unpushed while the command looks quiet.
 - No checks on the PR 5 minutes after a push: GitHub sometimes starts no run at all (#329). Close and reopen the PR

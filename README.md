@@ -24,8 +24,8 @@ This project is single-player modding only. It doesn't touch online features, DR
 Metaphor: ReFantazio and related names are trademarks of their respective owners, used here only to say which game
 this tool works with.
 
-To contribute, start with [CONTRIBUTING.md](.github/CONTRIBUTING.md). The checks, supply chain and branch rules are in
-the [contributor docs](docs/contributors/README.md).
+To contribute, start with the [start-here map](docs/contributors/README.md): the layout, the tool stack and the
+workflow.
 
 ## License
 
