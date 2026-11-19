@@ -88,7 +88,8 @@ The rules are in [`CONTRIBUTING.md`](../../../.github/CONTRIBUTING.md#security-r
 - Deny rules match command text, so another spelling of the same command can slip past them.
 - The ruleset requires `review-gate` by name, and a pull request's own workflow can add a job with that name that
   passes. A fork's run waits for the maintainer's approval once Actions requires it for all outside collaborators; a
-  write collaborator's doesn't. Revisit before adding one
+  write collaborator's doesn't. The maintainer accepted this on 2026-11-19 for trusted write collaborators; revisit if
+  the collaborator base grows or a GitHub plan change makes required workflows available
   ([#330](https://github.com/Sour-Dev-Home/metaphor-accessibility/issues/330),
   [#309](https://github.com/Sour-Dev-Home/metaphor-accessibility/issues/309)).
 - CI attests each `main` build's zip, but nothing yet turns a tag into a release
