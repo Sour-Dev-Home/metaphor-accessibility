@@ -157,11 +157,12 @@ Your branch is deleted automatically after its PR merges. Delete your local copy
   `scripts/github-outage.sh` (it classifies push failures and enables auto-merge) and
   `.claude/agents/security-reviewer.md`. A change to them can otherwise merge with only CI passing, and CI is what
   changed. `tests/check/test-check.sh` fails when a script the gate calls falls outside the scope;
-- what `dotnet restore` reads before the vulnerability audit, in any folder (#322): `Directory.Build.*`,
-  `Directory.Packages.props`, `Directory.Solution.*`, `*.sln.targets`, `global.json` and NuGet configs. Their targets
-  or feeds could hide a vulnerable package. Turning their import off for the audit would break central package
-  versions, so they need a stamp instead. `markdownlint` configs may live only in `tools/docs/`: `check.sh docs`
-  fails on any other, because markdownlint loads one from each linted folder and a `.cjs` or `.mjs` one runs code.
+- what decides `dotnet restore`, and so the lock files the vulnerability audit reads, in any folder (#322, #324):
+  `Directory.Build.*`, `Directory.Packages.props`, `Directory.Solution.*`, `*.sln.targets`, `global.json` and NuGet
+  configs. Their targets or feeds could hide a vulnerable package. The audit itself (`scripts/vuln-audit.sh`) reads
+  only the committed `packages.lock.json` files, never a project, and CI's build restores in locked mode, so a lock
+  file must match its project. Only the root `Directory.Build.props` may set the lock-file properties. `markdownlint` configs may live only in `tools/docs/`: `check.sh docs` fails on any
+  other, in any case, because markdownlint loads one from each linted folder and a `.cjs` or `.mjs` one runs code.
 
 A commit touching it needs a review stamp:
 

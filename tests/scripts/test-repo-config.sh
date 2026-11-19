@@ -56,6 +56,19 @@ while IFS= read -r job; do
   [ -n "$job" ] || continue
   check "CodeQL job '$job' is a required check" grep -qxF -- "$job" <<<"$contexts"
 done <<<"$codeql_jobs"
+
+# The vulnerability audit reads the committed lock files with a pinned scanner, never a restore or a build (#324), and
+# the build's CI restore runs in locked mode so the lock files can't drift from the projects.
+security_job="$(awk '/^  security:[[:space:]]*$/ { on = 1; next } /^  [A-Za-z0-9_-]+:[[:space:]]*$/ { on = 0 } on' \
+  <<<"$ci_jobs_section")"
+check "the security job audits with scripts/vuln-audit.sh" \
+  grep -qF 'bash scripts/vuln-audit.sh scan' <<<"$security_job"
+check "the security job runs no dotnet command" bash -c '! grep -qE "(^|[[:space:]])dotnet[[:space:]]" <<<"$1"' _ \
+  "$security_job"
+check "the audit pins OSV-Scanner by version and SHA-256" \
+  grep -qE '^OSV_SHA256_LINUX=[0-9a-f]{64}$' "$ROOT/scripts/vuln-audit.sh"
+check "check.sh restores in locked mode in CI" \
+  grep -qF '[ -z "${GITHUB_ACTIONS:-}" ] || restore_flags=(--locked-mode)' "$ROOT/scripts/check.sh"
 # Running isn't enough: a new high or critical CodeQL security alert blocks the merge.
 check "the ruleset blocks merges on high or critical CodeQL security alerts" \
   bash -c 'tr -d "[:space:]" <"$1" | grep -qE "\"type\":\"code_scanning\",\"parameters\":\{\"code_scanning_tools\":\[\{\"tool\":\"CodeQL\",[^}]*\"security_alerts_threshold\":\"(high_or_higher|medium_or_higher|all)\""' _ "$RULESET"

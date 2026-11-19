@@ -22,9 +22,10 @@
 set -uo pipefail
 
 # The guards (#306) are everything the checks, the git hooks and CI run, transitively, plus what they read to decide:
-# tests/check/test-check.sh fails when one of those scripts falls outside this list. The last line is what dotnet
-# restore reads before the security job's vulnerability audit, in any folder (#322): MSBuild's auto-imported files, the
-# SDK pin and the package sources, whose targets or feeds could hide a vulnerable package. Entries are git pathspecs,
+# tests/check/test-check.sh fails when one of those scripts falls outside this list. The last line is what decides
+# dotnet restore, and so the lock files the security job's vulnerability audit reads, in any folder (#322, #324):
+# MSBuild's auto-imported files, the SDK pin and the package sources, whose targets or feeds could hide a vulnerable
+# package. Entries are git pathspecs,
 # where * also matches /; noglob keeps bash from expanding them, and other scripts read this list as text.
 set -f
 scope=(src/Metaphor.Hooks/ scripts/deploy-dev.ps1 scripts/smoke-test.ps1 scripts/package-mod.sh scripts/fetch-prism.ps1
@@ -33,10 +34,10 @@ scope=(src/Metaphor.Hooks/ scripts/deploy-dev.ps1 scripts/smoke-test.ps1 scripts
   scripts/check.sh scripts/game-content.sha256 scripts/tree-hash.sh scripts/ci-changes.sh scripts/test-select.sh
   scripts/stage-timing.sh scripts/install-docs-tools.sh scripts/conflict-alert.sh scripts/integration-sync.sh
   scripts/check-status.sh scripts/github-outage.sh scripts/run-pester.sh scripts/run-check-suites.sh scripts/live-log.sh
-  scripts/wsl-run.sh scripts/wsl-tools.txt scripts/setup-wsl.ps1 scripts/githooks/ scripts/security-stamp.sh
+  scripts/vuln-audit.sh scripts/wsl-run.sh scripts/wsl-tools.txt scripts/setup-wsl.ps1 scripts/githooks/ scripts/security-stamp.sh
   .github/workflows/ tests/check/ tests/scripts/ tools/docs/ tools/slow/ .config/dotnet-tools.json
   .claude/agents/security-reviewer.md
-  *Directory.Build.* *Directory.Packages.props *Directory.Solution.* *.sln.targets global.json
+  *Directory.Build.* *Directory.Packages.props *Directory.Solution.* *.sln.targets *global.json
   *nuget.config *NuGet.config *NuGet.Config)
 set +f
 # The scope before #306. A commit stamped then carries a hash of these paths; it stays valid while the commit changes

@@ -259,17 +259,12 @@ jobs:
           languages: csharp, actions
           build-mode: none
       - uses: github/codeql-action/analyze@33d7b85da1a04171e211befe2c739303b9a4c066 # v4.39.3
+      # From the committed lock files only, with a pinned scanner: no restore, so no project a PR adds can change the
+      # result (#324). The build job's locked-mode restore keeps the lock files true to the projects.
       - name: Fail on vulnerable packages, transitive ones included
         run: |
-          dotnet restore Metaphor.sln
-          report="$(dotnet list Metaphor.sln package --vulnerable --include-transitive --format json)"
-          echo "$report"
-          # A clean project lists only its path; one with vulnerable packages lists them under "frameworks", and
-          # errors land under "problems". Either one fails, so a format change fails closed.
-          if grep -qE '"(frameworks|problems)"' <<<"$report"; then
-            echo "::error::A package has a known vulnerability, or the audit failed; see the report above"
-            exit 1
-          fi
+          bash scripts/vuln-audit.sh install "$RUNNER_TEMP/osv"
+          bash scripts/vuln-audit.sh scan "$RUNNER_TEMP/osv/osv-scanner"
 
   # Stage 2's time against its 5-minute budget (issue #1): each job's duration on the run's summary page, and a warning
   # annotation when the stage runs over. It only reports, so it runs after the others whatever their result.
