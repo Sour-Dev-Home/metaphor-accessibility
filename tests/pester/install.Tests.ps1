@@ -40,7 +40,8 @@ BeforeAll {
     # Git Bash beside git on Windows (git.exe in cmd\, bash.exe in bin\, as onboard.ps1's Find-GitBash looks), so a plain
     # pwsh never picks WSL's bash.exe from System32; bash elsewhere.
     function Find-Bash {
-        if (-not $IsWindows) { return 'bash' }
+        # $IsWindows is unset in Windows PowerShell 5.1, so ask the OS.
+        if ([Environment]::OSVersion.Platform -ne 'Win32NT') { return 'bash' }
         $git = Get-Command git -CommandType Application -ErrorAction SilentlyContinue | Select-Object -First 1
         if ($git) {
             $dir = Split-Path $git.Source
@@ -143,8 +144,8 @@ BeforeAll {
     # install.ps1 from the release folder in its own process, as a player runs it. With ANSWERS it's a scripted run;
     # with -NonInteractive, a run with no console and no answers. SHELL is pwsh or powershell (Windows PowerShell 5.1).
     # SWITCHES are the installer's test switches (Installer.psm1's Test-TestSwitch) to turn on: by default local file
-    # pins, no signature check on them (the stand-ins are unsigned), and running as admin (CI's runners are), which also
-    # sets CI=true, as on CI. ENVIRONMENT sets more variables for the run.
+    # pins, no signature check on them (the stand-ins are unsigned), and running as admin (CI's runners are). Any switch
+    # also sets CI=true, without which none counts. ENVIRONMENT sets more variables for the run.
     function Invoke-Install([string[]] $Answers = @(), [switch] $NonInteractive, [string] $Shell = $pwsh,
         [string] $Folder = $release, [string[]] $Switches = @('FILES', 'UNSIGNED', 'ALLOW_ADMIN'), [hashtable] $Environment = @{}) {
         $script = Join-Path $Folder 'install.ps1'
@@ -155,7 +156,7 @@ BeforeAll {
         foreach ($name in 'FILES', 'UNSIGNED', 'ALLOW_ADMIN') {
             $vars["METAPHOR_INSTALL_TEST_$name"] = if ($Switches -contains $name) { '1' } else { $null }
         }
-        if ($Switches -contains 'ALLOW_ADMIN') { $vars.CI = 'true' }
+        if ($Switches) { $vars.CI = 'true' }
         foreach ($name in $Environment.Keys) { $vars[$name] = $Environment[$name] }
         $saved = @{}
         foreach ($name in $vars.Keys) {
@@ -519,14 +520,67 @@ Describe 'Get-PinnedFile' {
         $pin = [pscustomobject]@{ name = 'stand-in'; url = ([Uri] (Join-Path $server 'file.zip')).AbsoluteUri
             fileName = 'file.zip'; sha256 = '0' * 64 }
         Mock -ModuleName Installer Get-StreamSha256 { throw 'hash failed' }
-        $saved = $env:METAPHOR_INSTALL_TEST_FILES
+        $saved = @{ FILES = $env:METAPHOR_INSTALL_TEST_FILES; CI = $env:CI }
         $env:METAPHOR_INSTALL_TEST_FILES = '1'
+        $env:CI = 'true'
         try {
             { InModuleScope Installer -Parameters @{ Pin = $pin; Work = $work } {
                     Get-PinnedFile ([pscustomobject]@{ WorkFolder = $Work }) $Pin } } | Should -Throw '*hash failed*'
         }
-        finally { $env:METAPHOR_INSTALL_TEST_FILES = $saved }
+        finally { $env:METAPHOR_INSTALL_TEST_FILES = $saved.FILES; $env:CI = $saved.CI }
         { [IO.File]::Open((Join-Path $work 'file.zip'), 'Open', 'ReadWrite', 'None').Dispose() } | Should -Not -Throw
+    }
+
+    It 'lets go of the download when checking its signature fails' {
+        $folder = (New-Item -ItemType Directory (Join-Path $TestDrive (New-Guid))).FullName
+        $server = (New-Item -ItemType Directory (Join-Path $folder 'server')).FullName
+        $work = (New-Item -ItemType Directory (Join-Path $folder 'work')).FullName
+        Set-Content -LiteralPath (Join-Path $server 'file.exe') -Value 'stand-in' -NoNewline
+        $pin = [pscustomobject]@{ name = 'stand-in'; url = ([Uri] (Join-Path $server 'file.exe')).AbsoluteUri
+            fileName = 'file.exe'; sha256 = (Get-Sha256 (Join-Path $server 'file.exe')); signer = 'CN=stand-in' }
+        # A certificate without a Subject, which strict mode refuses to read.
+        Mock -ModuleName Installer Get-AuthenticodeSignature {
+            [pscustomobject]@{ Status = 'Valid'; SignerCertificate = [pscustomobject]@{ Thumbprint = '0' } }
+        }
+        $saved = @{ FILES = $env:METAPHOR_INSTALL_TEST_FILES; CI = $env:CI }
+        $env:METAPHOR_INSTALL_TEST_FILES = '1'
+        $env:CI = 'true'
+        try {
+            { InModuleScope Installer -Parameters @{ Pin = $pin; Work = $work } {
+                    Get-PinnedFile ([pscustomobject]@{ WorkFolder = $Work }) $Pin } } | Should -Throw '*Subject*'
+        }
+        finally { $env:METAPHOR_INSTALL_TEST_FILES = $saved.FILES; $env:CI = $saved.CI }
+        { [IO.File]::Open((Join-Path $work 'file.exe'), 'Open', 'ReadWrite', 'None').Dispose() } | Should -Not -Throw
+    }
+}
+
+Describe 'Test-TestSwitch' {
+    BeforeAll {
+        $script:savedEnvironment = @{}
+        foreach ($name in 'METAPHOR_INSTALL_TEST_FILES', 'METAPHOR_INSTALL_TEST_UNSIGNED', 'CI') {
+            $savedEnvironment[$name] = [Environment]::GetEnvironmentVariable($name)
+        }
+    }
+    AfterAll { foreach ($name in $savedEnvironment.Keys) { [Environment]::SetEnvironmentVariable($name, $savedEnvironment[$name]) } }
+
+    It 'counts <Name> only on CI' -ForEach @(@{ Name = 'FILES' }, @{ Name = 'UNSIGNED' }) {
+        [Environment]::SetEnvironmentVariable("METAPHOR_INSTALL_TEST_$Name", '1')
+        foreach ($ci in $null, '1') {
+            $env:CI = $ci
+            InModuleScope Installer -Parameters @{ Name = $Name } { Test-TestSwitch $Name } | Should -BeFalse
+        }
+        $env:CI = 'true'
+        InModuleScope Installer -Parameters @{ Name = $Name } { Test-TestSwitch $Name } | Should -BeTrue
+    }
+}
+
+Describe 'Find-Bash' {
+    It 'finds the same Bash in Windows PowerShell 5.1, where $IsWindows is unset' -Skip:(
+        -not (Get-Command powershell.exe -ErrorAction SilentlyContinue)) {
+        $command = "function Find-Bash {${function:Find-Bash}}; Find-Bash"
+        $found = & powershell.exe -NoProfile -EncodedCommand ([Convert]::ToBase64String([Text.Encoding]::Unicode.GetBytes($command)))
+        $LASTEXITCODE | Should -Be 0
+        $found | Should -Be $bash
     }
 }
 
