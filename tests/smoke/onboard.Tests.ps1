@@ -44,7 +44,10 @@ $Body
 Add-Content $log "setup-wsl `$args"
 if (`$env:STUB_WSL -eq 'create') { Write-Host 'setup-wsl: created metaphor-checks.' }
 if (`$env:STUB_WSL -in 'ready', 'create') { Write-Host 'setup-wsl: metaphor-checks is ready.'; exit 0 }
-Write-Host 'setup-wsl: WSL is not installed. The check suites keep running in Git Bash.'; exit 1
+if (`$env:STUB_WSL -eq 'network') {
+    Write-Host 'setup-wsl: downloading Debian failed twice on a network error. Check the network and run .\scripts\setup-wsl.ps1 again. The check suites keep running in Git Bash.'; exit 1
+}
+Write-Host 'setup-wsl: WSL is not installed. The check suites keep running in Git Bash.'; exit 2
 "@
         Set-Content (Join-Path $scripts 'claude.ps1') @"
 Add-Content $log "claude.ps1 `$args"
@@ -344,7 +347,18 @@ Describe 'onboard.ps1' {
         $result.ExitCode | Should -Be 0
         $result.Output | Should -Match 'WSL is not installed'
         $result.Output | Should -Match '4 minutes'
+        $result.Output | Should -Match 'run wsl --install in an admin PowerShell'
         Get-Calls | Should -Contain 'check.sh fast'
+    }
+
+    It 'gives network advice, not install advice, when the WSL download failed on the network' {
+        $script:stub.STUB_WSL = 'network'
+        $result = Invoke-Onboard @('', 'y', 'y', 'n', 'n')
+
+        $result.ExitCode | Should -Be 0
+        $result.Output | Should -Match 'WSL: downloading Debian failed twice on a network error\.'
+        $result.Output | Should -Match 'Check the network and run \.\\scripts\\setup-wsl\.ps1 again'
+        $result.Output | Should -Not -Match 'wsl --install'
     }
 
     It 'says to ask the maintainer when the account can''t push, and carries on' {

@@ -4,36 +4,61 @@
 #   .\scripts\setup-wsl.ps1 -Update    also upgrade the distro's packages and reinstall the pinned docs tools
 #   .\scripts\setup-wsl.ps1 -Yes       don't ask before creating the distro (without a console and -Yes, it doesn't
 #                                      create it)
+#   -RetryDelaySeconds N               wait N seconds before retrying a download that failed on the network (default 15)
 # It never touches your other distros, WSL's settings or git's config, and never installs, converts or upgrades WSL
-# itself: on a machine without WSL 2 it stops with the reason, and the suites keep running in Git Bash. The tools,
+# itself: on a machine without WSL 2 it stops with the reason and $WslUnavailableExitCode (Interactive.psm1), and the
+# suites keep running in Git Bash. Any other failure exits 1, and onboard.ps1 gives the install advice only for the
+# first (#360). The tools,
 # listed in scripts/wsl-tools.txt, are installed as root inside the distro, so there's no sudo prompt.
 # Remove the distro with: wsl --unregister metaphor-checks
 [CmdletBinding()]
-param([switch]$Update, [switch]$Yes)
+param([switch]$Update, [switch]$Yes, [ValidateRange(0, 600)][int]$RetryDelaySeconds = 15)
 
 $ErrorActionPreference = 'Stop'
 $distro = 'metaphor-checks'
 $env:WSL_UTF8 = '1' # wsl.exe prints UTF-16 otherwise
 Import-Module (Join-Path $PSScriptRoot 'Interactive.psm1') -Force
 
-function Stop-Setup([string]$reason) {
+function Stop-Setup([string]$reason, [int]$code = 1) {
     Write-Host "setup-wsl: $reason The check suites keep running in Git Bash."
-    exit 1
+    exit $code
 }
 
 # Unsupported machines: say why and stop, changing nothing.
-if (-not (Get-Command wsl.exe -ErrorAction SilentlyContinue)) { Stop-Setup 'WSL is not installed.' }
+if (-not (Get-Command wsl.exe -ErrorAction SilentlyContinue)) {
+    Stop-Setup 'WSL is not installed.' $WslUnavailableExitCode
+}
 # The WSL from the Store answers --version; the old built-in one, WSL 1 only, doesn't. Windows PowerShell throws on a
 # native command's stderr under 'Stop', hence the catch.
 $storeWsl = $false
 try { $null = & wsl.exe --version 2>&1; $storeWsl = $LASTEXITCODE -eq 0 } catch { }
-if (-not $storeWsl) { Stop-Setup 'this WSL is the old built-in one, which runs WSL 1 only.' }
+if (-not $storeWsl) { Stop-Setup 'this WSL is the old built-in one, which runs WSL 1 only.' $WslUnavailableExitCode }
 $vmPlatform = Get-CimInstance Win32_OptionalFeature -Filter "Name='VirtualMachinePlatform'"
 if (-not $vmPlatform -or $vmPlatform.InstallState -ne 1) {
-    Stop-Setup "Windows' Virtual Machine Platform is off, so WSL 2 can't run."
+    Stop-Setup "Windows' Virtual Machine Platform is off, so WSL 2 can't run." $WslUnavailableExitCode
 }
 if (-not (Get-CimInstance Win32_ComputerSystem).HypervisorPresent) {
-    Stop-Setup 'virtualization is off in the firmware or Windows, so WSL 2 can''t run.'
+    Stop-Setup 'virtualization is off in the firmware or Windows, so WSL 2 can''t run.' $WslUnavailableExitCode
+}
+
+# Runs wsl.exe --install for the distro, printing WSL's own output as it comes; returns that output as lines. Under
+# 'Continue' a native command's stderr is output here, not a terminating error (Windows PowerShell).
+function Invoke-DistroInstall {
+    $ErrorActionPreference = 'Continue'
+    & wsl.exe --install Debian --name $distro --version 2 --no-launch 2>&1 | ForEach-Object {
+        $line = "$_"
+        Write-Host $line
+        $line
+    }
+}
+
+# A download that failed on the network, not on WSL. The one seen so far, on a fresh VM (#360,
+# docs/raw-sources/wsl-install-network-failure-2026-11-19.md): "Failed to fetch the distribution list from
+# '...DistributionInfo.json'. The server name or address could not be resolved", error code
+# Wsl/InstallDistro/WININET_E_NAME_NOT_RESOLVED. Matching any WININET_E_ code assumes WSL names WinINet's other
+# download errors the same way. [NEEDS VERIFICATION]
+function Test-NetworkFailure([string[]]$lines) {
+    return [bool](@($lines | Where-Object { $_ -match 'WININET_E_|Failed to fetch' }).Count -gt 0)
 }
 
 # The distro's row in `wsl --list --verbose`: "[*] NAME STATE VERSION".
@@ -56,7 +81,18 @@ if ($null -eq $version) {
             exit 1
         }
     }
-    & wsl.exe --install Debian --name $distro --version 2 --no-launch
+    Write-Host "setup-wsl: downloading Debian (about 100 MB) and making $distro from it; this takes a few minutes."
+    $lines = @(Invoke-DistroInstall)
+    if ($LASTEXITCODE -ne 0 -and (Test-NetworkFailure $lines)) {
+        # A passing network fault (#360): one more try, after a pause.
+        Write-Host "setup-wsl: the download failed on a network error; trying once more in $RetryDelaySeconds seconds."
+        Start-Sleep -Seconds $RetryDelaySeconds
+        $lines = @(Invoke-DistroInstall)
+        if ($LASTEXITCODE -ne 0 -and (Test-NetworkFailure $lines)) {
+            Stop-Setup ('downloading Debian failed twice on a network error. Check the network and run ' +
+                '.\scripts\setup-wsl.ps1 again.')
+        }
+    }
     if ($LASTEXITCODE -ne 0) { Stop-Setup "creating $distro failed (wsl.exe exit code $LASTEXITCODE)." }
     $version = Get-DistroVersion
     if ($null -eq $version) { Stop-Setup "WSL reported success but has no $distro distro." }
@@ -71,6 +107,11 @@ $root = Split-Path -Parent $PSScriptRoot
 $installArgs = @('--distribution', $distro, '--user', 'root', '--cd', $root, '--exec', '/bin/bash',
     'scripts/wsl-run.sh', 'install')
 if ($Update) { $installArgs += '--update' }
+Write-Host ("setup-wsl: installing the check tools in $distro (scripts/wsl-tools.txt) that are missing; the first " +
+    'run takes a few minutes, later ones seconds.')
 & wsl.exe @installArgs
-if ($LASTEXITCODE -ne 0) { Stop-Setup "installing the tools in $distro failed (exit code $LASTEXITCODE)." }
+if ($LASTEXITCODE -ne 0) {
+    Stop-Setup ("installing the tools in $distro failed (exit code $LASTEXITCODE). See the output above, then run " +
+        '.\scripts\setup-wsl.ps1 again.')
+}
 Write-Host "setup-wsl: $distro is ready; the check suites run in it from Git Bash."

@@ -30,4 +30,8 @@ function Confirm-Step([string] $Question) {
     return [bool]($null -ne $answer -and $answer -match '^\s*(y|yes)\s*$')
 }
 
-Export-ModuleMember -Function Test-Interactive, Read-Answer, Confirm-Step
+# setup-wsl.ps1's exit code when this machine can't run WSL 2 yet; onboard.ps1 then gives the advice to install WSL
+# (#360). Every other failure exits 1.
+$WslUnavailableExitCode = 2
+
+Export-ModuleMember -Function Test-Interactive, Read-Answer, Confirm-Step -Variable WslUnavailableExitCode
