@@ -1,6 +1,6 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
-  <!-- A stand-in for Reloaded-II's launcher and the game, so the smoke-test and deploy scripts' own tests
+  <!-- A stand-in for Reloaded-II's launcher and the game, so scripts/dev/session.ps1's own tests
        (tests/pester/) run without either. See Program.cs. -->
   <PropertyGroup>
     <!-- WinExe, not Exe: the script tests start it dozens of times, and a console program opens a window each time. -->

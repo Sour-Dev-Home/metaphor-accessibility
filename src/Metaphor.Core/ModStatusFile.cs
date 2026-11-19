@@ -16,7 +16,7 @@ public enum ModState
     Refused,
 }
 
-/// <summary>What a mod reports about its start, for the smoke test (scripts/dev/smoke-test.ps1) to read.</summary>
+/// <summary>What a mod reports about its start, for scripts/dev/session.ps1 to read.</summary>
 /// <param name="ModId">The mod's Reloaded-II mod ID.</param>
 /// <param name="State">Whether it installed its hooks.</param>
 /// <param name="GameBuildSha256">The SHA-256 of the game build it found running.</param>
@@ -48,7 +48,7 @@ public sealed record ModStatus(
 /// reader never sees half a file.</summary>
 public static class ModStatusFile
 {
-    /// <summary>The file name. scripts/dev/smoke-test.ps1 reads the same name; its tests fail if the two differ.</summary>
+    /// <summary>The file name. scripts/dev/session.ps1 reads the same name; its tests fail if the two differ.</summary>
     public const string FileName = "mod-status.json";
 
     private static readonly JsonSerializerOptions Options = new(JsonSerializerDefaults.Web);

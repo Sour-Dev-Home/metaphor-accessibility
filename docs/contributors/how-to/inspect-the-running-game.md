@@ -2,8 +2,8 @@
 
 A Debug build of the mod can answer read-only questions about the game's memory while you play: read bytes at an
 address or pointer path, name an object's class, and watch addresses for changes. An agent asks through
-[`scripts/dev/inspect.ps1`](../../../scripts/dev/inspect.ps1), so a finding can be checked at once instead of after the next
-capture. No debugger is attached ([ground rule 5](../../../AGENTS.md#ground-rules)).
+[`scripts/dev/session.ps1 inspect`](../../../scripts/dev/session.ps1), so a finding can be checked at once instead of after
+the next capture. No debugger is attached ([ground rule 5](../../../AGENTS.md#ground-rules)).
 
 The inspector ([`LiveInspector.cs`](../../../src/Metaphor.Hooks/LiveInspector.cs), #291) is compiled into Debug builds
 only, which an architecture test checks, and starts only with its opt-in file. It listens on the local named pipe
@@ -14,22 +14,31 @@ was read.
 
 ## Turn it on
 
-1. Deploy a Debug build ([deploy a dev build](deploy-a-dev-build.md)); a deploy replaces the mod's folder.
-2. Create an empty file named `opt-in-inspector.txt` in the deployed mod's folder (`<mods>\metaphor.accessibility`).
-   A Release build has no inspector and ignores the file.
-3. Start the game from Reloaded-II. Its log says `live inspector: listening on \\.\pipe\metaphor-accessibility-inspector`.
+1. Start a Debug session with its opt-in, which adds `opt-in-inspector.txt` to the deployed mod's folder for that
+   session ([run](deploy-a-dev-build.md#run)):
 
-To turn it off, delete the file and restart the game.
+   ```powershell
+   pwsh scripts/dev/session.ps1 run -Seconds 3600 -OptIn inspector
+   ```
+
+   A Release build has no inspector and ignores the file.
+2. Reloaded-II's log says `live inspector: listening on \\.\pipe\metaphor-accessibility-inspector`, and
+   `pwsh scripts/dev/session.ps1 status` says `inspector: listening`.
+
+It stops with the game, and the session removes the opt-in file when it ends.
 
 ## Ask it
 
+In a second terminal while the game runs:
+
 ```powershell
-pwsh scripts/dev/inspect.ps1 'base' 'read base+0x1000 16' 'follow base+0x2a8f0 0x8 0x10'
+pwsh scripts/dev/session.ps1 inspect 'base' 'read base+0x1000 16' 'follow base+0x2a8f0 0x8 0x10'
 ```
 
-Each argument is one request, sent in order on one connection; each prints one line, `ok ...` or `err ...`. The script
-exits 0 when every answer is `ok`, 1 when one is `err`, and 2 when there is no inspector to reach (not running, not
-opted in, a Release build, or another client connected: it serves one at a time).
+Each argument is one request, sent in order on one connection; each prints one line, `ok ...` or `err ...`, and a last
+line sums up, `ok: ...` or `failed: ...`. It exits 0 when every answer is `ok`, 1 when one is `err`, and 2 when there is
+no inspector to reach (not running, not opted in, a Release build, or another client connected: it serves one at a
+time).
 
 ## Commands
 

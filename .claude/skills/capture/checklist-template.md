@@ -5,9 +5,9 @@ Post as one comment on the evening issue, starting with the `This was generated 
 ```markdown
 ## Session checklist (kit: `<branch>` at `<sha>`, every listener reviewed and stamped)
 
-**Setup (Claude does this when asked):** run `scripts/dev/capture.ps1` with the opt-ins below (or deploy Debug from the
-kit and add them by hand) and confirm `hooks <n>/<m>` with no `skipped: opt-in` and every listener installed. Copy
-`message-log.txt` outside the repo before any later deploy.
+**Setup (Claude does this when asked):** run `scripts/dev/session.ps1 run -OptIn <names> -SaveLog <folder>` with the
+opt-ins below and confirm `hooks <n>/<m>` with no `skipped: opt-in` and every listener installed. Quitting the game
+saves `message-log.txt` and `transcript.txt` to the `-SaveLog` folder, outside the repo.
 
 | Opt-in file | For |
 |---|---|

@@ -159,7 +159,7 @@ public sealed class ModEntryPoint : IMod
         }
     }
 
-    /// <summary>Issue #21's spike: runs once, only when scripts/dev/signature-spike.ps1 put a probes file in the mod's
+    /// <summary>Issue #21's spike: runs once, only when scripts/dev/session.ps1 spike put a probes file in the mod's
     /// folder, and before any hook installs. Its result goes through <paramref name="log"/>, or
     /// <paramref name="logError"/> when it failed, so the report log has it too (#204).</summary>
     private static void ScanIfRequested(string folder, string build, Action<string> log, Action<string> logError)

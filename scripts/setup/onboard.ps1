@@ -25,7 +25,7 @@ says that nothing changed.
 7. GitHub: checks gh's login and whether the account can push to the repository.
 8. Game: finds the game and Reloaded-II (scripts/player/MetaphorInstall.psm1), shows what it found and asks before saving the
    game's path as METAPHOR_GAME_EXE for your Windows user. With both found, it offers a 30-second test deploy
-   (scripts/dev/listen.ps1 -Seconds 30 -Close) and reports the hooks.
+   (scripts/dev/session.ps1 run -Seconds 30) and reports the hooks.
 9. Extras: offers to build the Ghidra project (scripts/dev/ghidra.ps1 build, about 10 minutes).
 10. Runs bash scripts/check.sh fast, prints a ready summary and the prompt to paste into Claude, then starts
     scripts/setup/claude.ps1 unless -NoClaude.
@@ -34,7 +34,7 @@ Without a console (pwsh -NonInteractive, redirected input, no user session) it a
 Notepad nor Claude Code, and says so in the summary.
 
 It writes only inside the clone, except through the tools it calls (winget, git, Claude Code's plugin commands, setx
-for METAPHOR_GAME_EXE, WSL through setup-wsl.ps1, and Reloaded-II's mod folder through listen.ps1).
+for METAPHOR_GAME_EXE, WSL through setup-wsl.ps1, and Reloaded-II's mod folder through session.ps1).
 
 Exit codes: 0 it reached the summary (which lists anything left to do); 1 it stopped at a missing tool, or the private
 patterns aren't filled in.
@@ -547,14 +547,14 @@ try {
 
     if ($game -and $launcher -and (Read-YesNo ('Run a 30-second test deploy? It builds the mod, starts the game through ' +
                 'Reloaded-II and closes it after 30 seconds (unsaved progress is lost).'))) {
-        $deployLines = @(& (Join-Path $PSScriptRoot '../dev/listen.ps1') -GameExe $game -Seconds 30 -Close *>&1 |
+        $deployLines = @(& (Join-Path $PSScriptRoot '../dev/session.ps1') run -GameExe $game -Seconds 30 *>&1 |
                 ForEach-Object { Write-Host $_; "$_" })
         $deployPassed = $LASTEXITCODE -eq 0
         $hooks = @($deployLines | Select-String 'hooks (\d+/\d+)' | ForEach-Object { $_.Matches[0].Groups[1].Value })
         $hookText = if ($hooks) { "hooks $($hooks -join ', ')" } else { 'no hook report' }
         Write-Host "Test deploy: $hookText."
         if ($deployPassed) { Add-Item 'test deploy' $true $hookText }
-        else { Add-Item 'test deploy' $false "$hookText; see listen.ps1's output above" }
+        else { Add-Item 'test deploy' $false "$hookText; see session.ps1's output above" }
     }
 
     # --- 9. Extras ----------------------------------------------------------------------------------------------------

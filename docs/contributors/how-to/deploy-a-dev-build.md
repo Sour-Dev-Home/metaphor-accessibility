@@ -1,7 +1,8 @@
 # Deploy a dev build
 
-To try a change in the game, run `scripts/dev/deploy-dev.ps1`. It builds the mod, puts the build in your Reloaded-II mods
-folder, enables it for the game, launches the game and waits until the mod reports it loaded. The game stays running.
+To try a change in the game, run `scripts/dev/session.ps1 deploy`. It builds the mod, puts the build in your Reloaded-II
+mods folder, enables it for the game, launches the game, waits until the mod reports it loaded, then closes the game.
+`-KeepGame` leaves it running to play.
 
 You need the game registered as an application in Reloaded-II, and the game build in the
 [known-builds list](add-a-game-build.md). The script refuses to run on any other build.
@@ -11,15 +12,17 @@ You need the game registered as an application in Reloaded-II, and the game buil
 2. From the repository root, in PowerShell 7:
 
    ```powershell
-   pwsh scripts/dev/deploy-dev.ps1
+   pwsh scripts/dev/session.ps1 deploy -KeepGame
    ```
 
-   It finds Reloaded-II's launcher and the game from Reloaded-II's own config: `LauncherPath` in `ReloadedII.json`,
-   and the application registered as `metaphor.exe`. To use others, set `-LauncherExe` and `-GameExe`, or the
-   `METAPHOR_RELOADED_EXE` and `METAPHOR_GAME_EXE` environment variables.
+   It finds the game and Reloaded-II with the same locator the installer uses: the application registered as
+   `metaphor.exe`, then Steam's libraries, and `LauncherPath` in `ReloadedII.json`. The `METAPHOR_GAME_EXE` and
+   `METAPHOR_RELOADED_EXE` environment variables override that, and `-GameExe` and `-LauncherExe` override those.
+   `pwsh scripts/dev/session.ps1 status` shows what it found, without changing anything.
 
-It ends with `deployed and running` (exit code 0) when the mod is ready with all its hooks, and `deploy FAILED`
-(exit code 1) when it refused, timed out or the game exited. Exit code 2 means nothing was launched, and says why.
+Every verb of `session.ps1` ends with one line, `ok: ...` or `failed: ... - what to do`. Exit code 0 is ok, 1 means it
+failed after launching the game (the mod refused, timed out or the game exited), and 2 means it stopped before
+launching anything. The full list of verbs and options: `Get-Help scripts/dev/session.ps1 -Full`.
 
 What it changes in your Reloaded-II setup, and nothing else:
 
@@ -30,36 +33,50 @@ What it changes in your Reloaded-II setup, and nothing else:
   ([first run](../../raw-sources/mod-entry-point-first-run-2026-11-15.md)). The previous file is kept beside it as
   `AppConfig.json.deploy-backup`.
 
+Everything else is put back when the session ends, also after a failure or Ctrl+C: `ReloadedII.json` as it was, the
+game closed unless `-KeepGame`, and any opt-in file the session added removed. A session killed outright leaves
+`ReloadedII.json.session-backup`, which the next launching verb restores first.
+
 By default it builds the mod (`src/Metaphor.Hooks`, mod ID `metaphor.accessibility`). `-Project` builds another mod
 project, whose build output must hold a `ModConfig.json`, and `-Configuration Release` a Release build.
 
-The mod has no hooks yet, so a working deploy prints `ready on <game build>, hooks 0/0`. The mod also writes a line
-naming its commit and the game build to Reloaded-II's log for that run, the newest file in
-`%APPDATA%\Reloaded-Mod-Loader-II\Logs\`.
+A working deploy prints `ready on <game build>, hooks n/m`. The mod also writes a line naming its commit and the game
+build to Reloaded-II's log for that run, the newest file in `%APPDATA%\Reloaded-Mod-Loader-II\Logs\`.
 
-## Listening run
+## Run
 
-`scripts/dev/listen.ps1` deploys the Debug build the same way, lets the game run, and reports what the mod's development
+`run` deploys the Debug build the same way, with any opt-ins, lets the game run, and reports what the mod's development
 log saw, without printing any game text:
 
 ```powershell
-pwsh scripts/dev/listen.ps1 -Seconds 300 -Close
+pwsh scripts/dev/session.ps1 run -Seconds 300 -OptIn ui-text-panes,dialogue-window
 ```
 
-After the deploy it watches the game for `-Seconds` (default 120) and prints `the game is still running after <n> s`
-or `the game exited after <n> s`. `-Close` then kills the game, as the smoke test does, so a save in progress is lost: use it on a test save. Without
-it, the game is left running. Last, it counts
-the records in the mod's `message-log.txt` by type, and the requests by the function they came through:
+1. It deploys the Debug build and creates `opt-in-<name>.txt` in the mod's folder for each `-OptIn` name, before the one
+   launch. It accepts only the names the mod reads ([listed below](#files-a-run-can-leave-in-the-mods-folder));
+   `status` lists them, and any other name is refused with that list.
+2. It prints `hooks n/m` from `mod-status.json` and the mod's `skipped`, `failed` and ready lines from Reloaded-II's log
+   of that run, so a listener that didn't go in shows at once.
+3. It watches the game for `-Seconds` (default 120) and prints `the game is still running after <n> s` or
+   `the game exited after <n> s`. Then it closes the game, unless `-KeepGame`. Closing kills it (its window only asks
+   "Exit game?"), so a save in progress is lost: use a test save.
+4. It counts the records in the mod's `message-log.txt` by type, and the requests by the function they came through:
 
-```text
-message log: 12 compile (840 source lines), 310 lookup, 5 register, 44 request
-requests by function: MsgRequestById 4, MsgRequestByName 40
-```
+   ```text
+   message log: 12 compile (840 source lines), 310 lookup, 5 register, 44 request
+   requests by function: MsgRequestById 4, MsgRequestByName 40
+   ```
+
+5. It removes the opt-in files it added.
+
+With `-SaveLog <folder>`, quitting the game ends the run instead of failing it, and `message-log.txt` and
+`transcript.txt` are copied into a new timestamped folder there. Give `-Seconds` longer than you mean to play. It
+refuses a folder inside a git repository, since the logs hold game text.
 
 The log itself holds game text, so it stays in the mod's folder and is never printed or committed. Local paths in the
-output are shortened (`<mods>`, `<game>`, `~` and so on), so it can go into an issue or a raw source as it is. It takes
-the deploy's parameters except `-Configuration`, and exits 0 when the game survived and the mod wrote its log, 1 when
-the game exited, the deploy failed or there's no log, and 2 when the deploy couldn't start.
+output are shortened (`<mods>`, `<game>`, `~` and so on), so it can go into an issue or a raw source as it is. It exits
+0 when the game survived (or you quit it, with `-SaveLog`) and the mod wrote its log, 1 when the game exited, the mod
+wasn't ready or there's no log, and 2 when it stopped before launching.
 
 ### Summarise a log
 
@@ -77,36 +94,24 @@ start and the recording's start; times then also show as video times (log time m
 ### Files a run can leave in the mod's folder
 
 These files in the deployed mod's folder (`<mods>\metaphor.accessibility`) change what a Debug run does. The folder is
-outside the repository, so none is ever committed.
+outside the repository, so none is ever committed. `run -OptIn <name>` adds the `opt-in-<name>.txt` ones for one session.
 
 - `opt-in-create-msg-from-string.txt`: turns on the listener on `CreateMsgFromString` (#106), the first hook inside the
   exe's `.text1` section. It's off by default; only the file's presence counts, not its contents. Without it, Reloaded-II's
   log says `hook CreateMsgFromStringListener skipped: opt-in, and opt-in-create-msg-from-string.txt isn't in the mod's
   folder`, and the hook isn't counted in `hooks n/m`. With it, the hook still goes through the build check and signature
-  scan, and counts as expected like any other. Use it for one short, separate run, then delete it.
+  scan, and counts as expected like any other. Use it for one short, separate run.
 - `opt-in-ui-text-panes.txt`: the same, for the listener on the UI text pane's draw (#93), which runs every frame and
   logs drawn text (`docs/raw-sources/ui-focus-candidates-2026-11-16.md`).
 - `opt-in-dialogue-window.txt`: turns on the two dialogue window hooks, which only log (#232)
   ([turn on the dialogue window hooks](turn-on-the-dialogue-window-hooks.md)).
+- `opt-in-inspector.txt`: opens the live inspector's pipe in a Debug build
+  ([inspect the running game](inspect-the-running-game.md)).
 - `spike-player-name.txt`: the hero name you typed in the game, on its first line (trimmed, UTF-8). The listener compares
   each string with it and logs only `match=exact`, `contains` or `no`, never the name. Without the file it falls back to
   the `METAPHOR_SPIKE_PLAYER_NAME` environment variable, which Reloaded-II may not pass to the game.
 
-A deploy replaces the mod's folder, removing these files, and launches the game straight after. A capture run adds the
-opt-in files between the two (the listeners write to `message-log.txt` in the same folder).
-
-### Capture run
-
-```powershell
-pwsh scripts/dev/capture.ps1 -OptIns ui-text-panes,dialogue-window -SaveLog <folder outside the repo>
-```
-
-`scripts/dev/capture.ps1` deploys the Debug build, closes the game it launched, creates `opt-in-<name>.txt` for each name,
-and launches again through Reloaded-II. It prints `hooks n/m` from `mod-status.json` and the mod's `skipped`, `failed`
-and ready lines from Reloaded-II's log of that run, so a listener that didn't go in shows at once. Without `-SaveLog`
-the game is left running. With it, quit the game when the capture is done: the script then copies `message-log.txt` and
-`transcript.txt` into a new timestamped folder there and prints the log's record counts. It refuses a `-SaveLog` folder
-inside a git repository, since the logs hold game text. Exit codes are as for the listening run.
+A deploy replaces the mod's folder, removing any of these files left there.
 
 The spoken load message names each opt-in whose file it found, as `message strings`, `text panes` or `dialogue window`,
 for example "Metaphor accessibility loaded, dev opt-ins: text panes, dialogue window". An opt-in whose hooks didn't all

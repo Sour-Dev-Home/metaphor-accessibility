@@ -42,7 +42,7 @@ are CriFs V2 Hook's patterns for the release exe
 the mod's build. With the game and Reloaded-II closed, run:
 
 ```sh
-pwsh scripts/dev/signature-spike.ps1
+pwsh scripts/dev/session.ps1 spike
 ```
 
 It takes about as long as a smoke test, and:
@@ -50,11 +50,12 @@ It takes about as long as a smoke test, and:
 1. builds the mod with the probes file in its folder, which asks it for one scan;
 2. scans the exe on disk (`tools/Metaphor.SignatureCheck --probes`), giving each single match's file offset and, from
    the exe's headers, its address relative to the module (`rva`);
-3. runs the [smoke test](run-the-smoke-test.md) with only that mod enabled, so no other mod's hooks (CriFs V2 Hook
+3. runs a [smoke run](run-the-smoke-test.md) with only that mod enabled, so no other mod's hooks (CriFs V2 Hook
    rewrites the start of the functions probed) change the bytes. The mod copies the game's main module once,
    when Reloaded-II starts it and before it installs its own hooks, scans it and deletes the probes file. It only
    reads memory (ADR 0002): it skips pages that aren't committed and readable, and copies the rest through
-   `ReadProcessMemory`, which fails instead of faulting. The smoke test collects the report, closes the game and restores your Reloaded-II config;
+   `ReadProcessMemory`, which fails instead of faulting. The session collects the report, closes the game and restores
+   your Reloaded-II config;
 4. writes a raw-source draft to `artifacts/signature-spike/`: the game build, the steps, a table comparing each probe
    on disk and in memory (`same place`, `both once, different places`, `absent from both` or `differs`), and both raw
    outputs.
@@ -62,7 +63,7 @@ It takes about as long as a smoke test, and:
 Review the draft, save it under `docs/raw-sources/`, and record the result on the issue it answers.
 
 To scan for another set of signatures, pass its probes file:
-`pwsh scripts/dev/signature-spike.ps1 -Probes tools/Metaphor.SignatureCheck/mf-toolkit-message-probes.json` checks
+`pwsh scripts/dev/session.ps1 spike -Probes tools/Metaphor.SignatureCheck/mf-toolkit-message-probes.json` checks
 MF.Toolkit's message signatures (#55; [result](../../raw-sources/mf-toolkit-message-signatures-2026-11-15.md)).
 
 The scan runs once, early: when Reloaded-II starts our mod. If the game changes its code later, this scan won't see

@@ -126,8 +126,8 @@ $WslUnavailableExitCode = 2
 # Finds the game and Reloaded-II on this machine (#267), for onboard.ps1 and the players' installer (install.ps1, #303).
 # It reads only. The players' install check (#283) doesn't use it, so it ignores the developer variables.
 #
-# The game: METAPHOR_GAME_EXE, then the game registered in Reloaded-II (the precedence deploy-dev.ps1 and listen.ps1
-# use, through Resolve-LoaderPaths above), then METAPHOR.exe in Steam's libraries. How Steam lists its
+# The game: METAPHOR_GAME_EXE, then the game registered in Reloaded-II (the precedence scripts/dev/session.ps1
+# uses, through GameSession.psm1), then METAPHOR.exe in Steam's libraries. How Steam lists its
 # libraries: docs/raw-sources/steam-library-folders-2026-11-18.md.
 # Reloaded-II: METAPHOR_RELOADED_EXE, then LauncherPath in ReloadedII.json, which every launch rewrites
 # (docs/raw-sources/reloaded-ii-config-location-2026-11-13.md). There's no install folder to probe: Reloaded-II is a
@@ -1008,6 +1008,6 @@ Export-ModuleMember -Function Test-Elevated, New-InstallContext, Select-InstallG
     Initialize-ReloadedConfig, Install-DotnetRuntime, Install-VcRuntime, Install-HooksLibrary, Install-ModFiles, Enable-Mod,
     Install-Shortcut,
     Find-ScreenReader, Select-Speech, New-Voice, Get-InstallCheck, Get-InstallSummary, Format-Check, Format-SpokenCheck,
-    Test-Interactive, Read-Answer, Confirm-Step, Select-MetaphorGame, Find-ReloadedLauncher,
+    Test-Interactive, Read-Answer, Confirm-Step, Select-MetaphorGame, Find-MetaphorGame, Find-ReloadedLauncher,
     Read-Json, Resolve-AppLocation, Resolve-LoaderPaths, Get-GameBuild `
     -Variable ShortcutName, StatusFileName, WslUnavailableExitCode

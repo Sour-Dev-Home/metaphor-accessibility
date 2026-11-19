@@ -45,7 +45,7 @@ expect "a workflow change runs code jobs" true code pull_request .github/workflo
 expect "docs-only PR skips Pester" false scripts pull_request docs/a.md
 expect "a source-only PR skips Pester" false scripts pull_request src/a.cs
 expect "a script change runs Pester" true scripts pull_request scripts/x.sh
-expect "a smoke-test change runs Pester" true scripts pull_request tests/pester/a.Tests.ps1
+expect "a Pester test change runs Pester" true scripts pull_request tests/pester/a.Tests.ps1
 expect "the merge queue skips nothing (code)" true code merge_group docs/a.md
 expect "the merge queue skips nothing (scripts)" true scripts merge_group docs/a.md
 expect "a push to main skips nothing" true scripts push docs/a.md
