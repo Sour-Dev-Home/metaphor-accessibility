@@ -518,6 +518,78 @@ Describe 'Test-Elevated' {
     }
 }
 
+Describe 'Confirm-RunWindow' {
+    BeforeAll {
+        $script:said = [Collections.Generic.List[string]]::new()
+        $script:asked = [Collections.Generic.List[string]]::new()
+        $script:say = { param($Printed, $Spoken) $said.Add($Printed) }
+        Mock -ModuleName MetaphorInstall Test-Elevated { $true }
+
+        # Runs Confirm-RunWindow with ANSWER as the reply to its question; $null is no console to answer on.
+        function Invoke-Confirm($Answer) {
+            $script:answer = $Answer
+            Confirm-RunWindow -Say $say -Ask { param($Question) $asked.Add($Question); $script:answer }
+        }
+    }
+    BeforeEach { $said.Clear(); $asked.Clear() }
+
+    It 'goes on without asking in a normal window' {
+        Mock -ModuleName MetaphorInstall Test-Elevated { $false }
+        Invoke-Confirm 'n' | Should -BeTrue
+        $asked.Count | Should -Be 0
+    }
+
+    It 'refuses an administrator window without asking while UAC is on' {
+        Mock -ModuleName MetaphorInstall Test-UacEnabled { $true }
+        Invoke-Confirm 'y' | Should -BeFalse
+        $asked.Count | Should -Be 0
+        $said -join ' ' | Should -Match 'runs as administrator'
+    }
+
+    It 'goes on after a yes while UAC is off, having said who will own the files' {
+        Mock -ModuleName MetaphorInstall Test-UacEnabled { $false }
+        Invoke-Confirm 'y' | Should -BeTrue
+        $asked.Count | Should -Be 1
+        $said -join ' ' | Should -Match 'User Account Control is turned off.*owned by the administrator account'
+    }
+
+    It 'refuses after a no while UAC is off' {
+        Mock -ModuleName MetaphorInstall Test-UacEnabled { $false }
+        Invoke-Confirm 'n' | Should -BeFalse
+        Invoke-Confirm '' | Should -BeFalse
+    }
+
+    It 'refuses without a console to answer on while UAC is off' {
+        Mock -ModuleName MetaphorInstall Test-UacEnabled { $false }
+        Invoke-Confirm $null | Should -BeFalse
+        $asked.Count | Should -Be 1
+    }
+}
+
+Describe 'Test-UacEnabled' {
+    It 'counts UAC as on when EnableLUA is 1' {
+        Mock -ModuleName MetaphorInstall Get-ItemProperty { [pscustomobject] @{ EnableLUA = 1 } }
+        InModuleScope MetaphorInstall { Test-UacEnabled } | Should -BeTrue
+    }
+
+    It 'counts UAC as off when EnableLUA is 0' {
+        Mock -ModuleName MetaphorInstall Get-ItemProperty { [pscustomobject] @{ EnableLUA = 0 } }
+        InModuleScope MetaphorInstall { Test-UacEnabled } | Should -BeFalse
+    }
+
+    It 'counts UAC as on when EnableLUA is 0 but not a DWORD' {
+        Mock -ModuleName MetaphorInstall Get-ItemProperty { [pscustomobject] @{ EnableLUA = '0' } }
+        InModuleScope MetaphorInstall { Test-UacEnabled } | Should -BeTrue
+        Mock -ModuleName MetaphorInstall Get-ItemProperty { [pscustomobject] @{ EnableLUA = [long] 0 } }
+        InModuleScope MetaphorInstall { Test-UacEnabled } | Should -BeTrue
+    }
+
+    It 'counts UAC as on when EnableLUA is missing' {
+        Mock -ModuleName MetaphorInstall Get-ItemProperty { $null }
+        InModuleScope MetaphorInstall { Test-UacEnabled } | Should -BeTrue
+    }
+}
+
 Describe 'Get-PinnedFile' {
     It 'lets go of the download when hashing it fails' {
         $folder = (New-Item -ItemType Directory (Join-Path $TestDrive (New-Guid))).FullName
