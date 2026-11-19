@@ -83,9 +83,9 @@ check "review-gate.yml runs on pull_request_target and merge_group only" \
   [ "$(sort <<<"$gate_triggers" | tr '\n' ' ')" = "merge_group: pull_request_target: " ]
 gate_code="$(grep -vE '^[[:space:]]*#' "$GATE")"
 check "review-gate.yml writes nothing" bash -c '! grep -qiE "write" <<<"$1"' _ "$gate_code"
-check "review-gate.yml asks only for read access to contents and pull requests" \
+check "review-gate.yml asks only for read access to contents, pull requests and its runs" \
   bash -c '! awk "/^[[:space:]]*permissions:/ { on = 1; ind = match(\$0, /[^ ]/); next }
-    on && match(\$0, /[^ ]/) <= ind { on = 0 } on" <<<"$1" | grep -vE "^[[:space:]]+(contents|pull-requests): read[[:space:]]*(#.*)?$" | grep -q .' \
+    on && match(\$0, /[^ ]/) <= ind { on = 0 } on" <<<"$1" | grep -vE "^[[:space:]]+(contents|pull-requests|actions): read[[:space:]]*(#.*)?$" | grep -q .' \
   _ "$gate_code"
 check "review-gate.yml never checks out or fetches the PR's code" \
   bash -c '! grep -qE "(^|[^a-z_])ref:|head\.(ref|repo)|head_ref|merge_commit_sha|refs/pull|git (fetch|checkout|switch|pull|worktree|clone)|gh (pr|repo|run|release)|tarball|zipball|/contents/|raw\.githubusercontent|curl|wget" <<<"$1"' \

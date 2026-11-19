@@ -54,7 +54,9 @@ echo "$*" >> "$GH_LOG"
 if [ -f "$GH_DOWN" ]; then echo "HTTP 503: Service Unavailable (https://api.github.com/graphql)" >&2; exit 1; fi
 case "$1 $2" in
   "pr list") [ ! -f "$GH_LOG.pr" ] || echo 77 ;;
-  "pr create") touch "$GH_LOG.pr"; echo "https://github.com/example/repo/pull/77" ;;
+  # The URL, then gh's update notice on stderr, which ends in another URL (#321).
+  "pr create") touch "$GH_LOG.pr"; echo "https://github.com/example/repo/pull/77"
+    printf 'A new release of gh is available: 2.60.0 -> 2.61.0\nhttps://github.com/cli/cli/releases/tag/v2.61.0\n' >&2 ;;
   "pr merge") ;;
 esac
 EOF

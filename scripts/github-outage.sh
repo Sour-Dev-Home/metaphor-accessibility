@@ -26,7 +26,9 @@ classify() {
   local code="${1:-}" text
   text="$(cat)"
   [ "$code" != 0 ] || { echo ok; return 3; }
-  if grep -qiE 'permission denied|authentication failed|could not read (username|password)|bad credentials|HTTP (401|403|404|422)|\[(remote )?rejected\]|non-fast-forward|hook declined|pre-push|protected branch|checks? (failed|failing)' <<< "$text"; then
+  # The local check's own lines (check.sh) mean the push sat in a slow or waiting pre-push hook, so a dropped connection
+  # after them is that hook's doing, not GitHub's (#321).
+  if grep -qiE 'permission denied|authentication failed|could not read (username|password)|bad credentials|HTTP (401|403|404|422)|\[(remote )?rejected\]|non-fast-forward|hook declined|pre-push|protected branch|checks? (failed|failing)|every build slot is busy|waiting for another build check|^step times:' <<< "$text"; then
     echo real
     return 1
   fi
@@ -123,7 +125,14 @@ resume() {
           rc=1
           continue
         fi
-        pr="${out##*/}"
+        # The number from gh's URL line only: other output, such as its update notice, can hold URLs too (#321).
+        pr="$(grep -oE '^https://[^ ]+/pull/[0-9]+' <<< "${out//$'\r'/}" | head -n 1)"
+        pr="${pr##*/}"
+        if [ -z "$pr" ]; then
+          echo "$branch: PR opened, but gh printed no PR URL; still parked, the next resume finds it"
+          rc=1
+          continue
+        fi
       fi
       echo "$pr" > "$d/pr"
       done_step "$d" pr

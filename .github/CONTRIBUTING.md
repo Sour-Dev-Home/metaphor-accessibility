@@ -50,11 +50,15 @@ cp .claude/pii-patterns.example.txt .claude/pii-patterns.txt
 The hooks check each commit and push, running only what the change needs:
 
 - **Before a commit:** the repo rules on staged files, plus formatting, docs and hook signatures when those files are
-  staged. Signatures need `METAPHOR_GAME_EXE` set to the game's exe; without it the hook says how to run them.
+  staged. Signatures need `METAPHOR_GAME_EXE` set to the game's exe; without it the hook says how to run them. A merge
+  that commits itself runs the same checks.
 - **On the commit message:** its shape, and the security-review trailer when the commit touches hook or deploy code
   ([below](#security-review-and-deny-rules)).
 - **Before a push:** the Release build and the `Unit` and `RoundTrip` tests, when the pushed commits change code. The
   first push after a pull builds from cold and takes longer.
+
+Keep `core.hooksPath` relative, as above: git reads it from each worktree's root, so each worktree runs its own branch's
+hooks. `check.sh rules` and `full` warn about an absolute one.
 
 CI runs everything again, so it stays the authority. In `.claude/pii-patterns.txt`, replace
 the two example lines with your own private strings, such as your name and email, one per line. It's git-ignored, and
@@ -165,7 +169,8 @@ A commit touching it needs a review stamp:
    runs `scripts/security-stamp.sh`, which hashes the staged scope into a stamp under `.git/`.
 2. Commit. The pre-commit hook refuses the commit unless the stamp matches the staged scope, so any edit after the
    review needs a new one. The commit-msg hook appends `Security-Review: <hash>`. The stamp is single-use: the
-   post-commit and post-merge hooks remove it once a commit carries its trailer, and a refused commit keeps it for the retry.
+   post-commit and post-merge hooks remove it once a commit carries its trailer, or commits the stamped scope without one
+   (`--no-verify`), and a refused commit keeps it for the retry.
 3. CI checks only the pull request's HEAD commit, when the PR's diff touches the scope
    ([ADR 0012](../docs/adr/0012-review-trailer-covers-clean-merges.md), #174, #246). HEAD passes with a
    `Security-Review` trailer matching its own scope content, or through its first parent when HEAD leaves the scope as

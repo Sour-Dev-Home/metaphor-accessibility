@@ -26,6 +26,7 @@ jobs:
     permissions:
       contents: read
       pull-requests: read # the PR's files, timeline and head
+      actions: read # this workflow's runs: when the PR's head arrived, on another label's event (#321)
     steps:
       - name: Pass in the merge queue
         if: github.event_name == 'merge_group'
