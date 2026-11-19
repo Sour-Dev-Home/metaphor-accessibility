@@ -69,6 +69,53 @@ check "docs change doesn't ask for the solution" lacks "solution"
 out="$(sel Directory.Packages.props)"
 check "a build-wide file asks for the solution" has "solution Directory.Packages.props changed"
 
+# Dependents no test reaches (#332): a Core change must still compile the tools and the stand-in game
+out="$(sel src/Metaphor.Core/X.cs)"
+check "a core change builds a tool that references it" has "build tools/Metaphor.SessionLog/Metaphor.SessionLog.csproj"
+check "a core change builds the stand-in game" has "build tests/Metaphor.StandInGame/Metaphor.StandInGame.csproj"
+check "a dependent's build names the change" has \
+  "src/Metaphor.Core/X.cs changed (via Metaphor.Core, which it references; no test project covers it)"
+out="$(sel src/Metaphor.Core/README.md)"
+check "a docs file in a project builds nothing" lacks "build "
+out="$(sel tests/Metaphor.Core.Tests/A.cs)"
+check "a test-only change builds nothing extra" lacks "build "
+
+# Every project that references a changed one, directly or not, is built by some selected line: read from the
+# .csproj files here, so a new project can't slip past (#332).
+refs_of() { # refs_of PROJECT: the projects its .csproj references, as repository paths
+  grep -oE 'ProjectReference Include="[^"]+"' "$1" | sed -E 's/.*Include="([^"]+)"/\1/; s#\\#/#g' |
+    while read -r r; do realpath -m --relative-to=. "$(dirname "$1")/$r"; done
+}
+mapfile -t all_projects < <(git ls-files -- '*.csproj')
+declare -A refs
+for p in "${all_projects[@]}"; do refs[$p]="$(refs_of "$p" | tr '\n' ' ')"; done
+closure() { # closure PROJECT...: the projects and everything they reference, transitively, one per line
+  local -A seen=()
+  local todo=("$@") p q
+  while [ "${#todo[@]}" -gt 0 ]; do
+    p="${todo[0]}" todo=("${todo[@]:1}")
+    [ -z "${seen[$p]:-}" ] || continue
+    seen[$p]=1
+    for q in ${refs[$p]:-}; do todo+=("$q"); done
+  done
+  printf '%s\n' "${!seen[@]}"
+}
+every_dependent_built() {
+  local changed p q built missing=""
+  for changed in "${all_projects[@]}"; do
+    out="$(sel "$(dirname "$changed")/X.cs")"
+    # shellcheck disable=SC2046 # one project per word
+    built=" $(closure $(sed -nE 's/^(dotnet|build) ([^ ]+) .*/\2/p' <<< "$out") | tr '\n' ' ')"
+    for p in "${all_projects[@]}"; do
+      [[ " $(closure "$p" | tr '\n' ' ')" == *" $changed "* ]] || continue # p doesn't depend on the change
+      [[ "$built" == *" $p "* ]] || missing+=" $p (changed: $changed)"
+    done
+  done
+  [ -z "$missing" ] || echo "neither tested nor built:$missing"
+  [ -z "$missing" ]
+}
+check "every project reachable from a changed one is tested or built" every_dependent_built
+
 # Selection is local only
 out="$(GITHUB_ACTIONS=true sel docs/README.md)"
 check "CI selects every test project" has "Dialogue.Tests"

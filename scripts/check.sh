@@ -242,7 +242,8 @@ select_tests() {
 # build_selected SOLUTION ROOT UNKNOWN SELECTION: the pre-push build (#314). Builds the whole solution when the change
 # set is unknown, in CI or with METAPHOR_FULL_TESTS=1, when a build-wide file changed, and when the selection names
 # nothing to build (a code change the selector couldn't place). Otherwise builds just the selected test projects and
-# the changed projects no test reaches; a project's build brings the projects it references. Returns 1 on a failure.
+# the changed projects and their dependents that no test reaches (#332); a project's build brings the projects it
+# references. Returns 1 on a failure.
 build_selected() {
   local solution="$1" root="$2" unknown="$3" selection="$4" kind proj reason ok=0 any=0
   if whole_solution "$unknown" || grep -q '^solution ' <<< "$selection" || ! grep -qE '^(dotnet|build) ' <<< "$selection"; then

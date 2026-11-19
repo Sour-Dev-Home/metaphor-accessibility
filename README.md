@@ -54,7 +54,7 @@ One command runs every check, locally (Git Bash on Windows) and in CI:
 | `scripts/check.sh commits BASE..HEAD` | each commit's shape in a pull request, and a matching `Security-Review` or `Security-Review-Skipped` trailer on each one touching the scope | CI on Ubuntu |
 
 `full` prints each step's time (`restore`, `build`, `tests`, `format`, `pester`, `check-scripts`) and keeps them in the run log. Locally
-the pre-push build covers only the test projects the change selects (and a changed tool no test reaches); a build-wide
+the pre-push build covers only the test projects the change selects (and any changed project or dependent of one that no test reaches); a build-wide
 file or an unplaceable change builds the solution. `tests/check/test-check.sh` runs its tests in parallel
 (`METAPHOR_TEST_JOBS=1` runs them one at a time), as does `scripts/run-pester.sh`. These three print a line per step,
 test or file as it finishes (`[37/132] test_x ok (2.1 s)`) and write it to the clone's live log,
