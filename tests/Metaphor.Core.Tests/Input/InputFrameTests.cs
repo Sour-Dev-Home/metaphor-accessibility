@@ -1,0 +1,138 @@
+using Metaphor.Core.Input;
+using Metaphor.Core.Menus;
+
+namespace Metaphor.Core.Tests.Input;
+
+/// <summary>The per-frame input rules (#301) with stand-in controls: the frame reads the game state, hands each read to
+/// the menu controls and then the dialogue controls, and hands the game only input it read. The replays in
+/// Metaphor.Input.Tests run it with the real controls.</summary>
+[Trait("Category", "Unit")]
+public sealed class InputFrameTests
+{
+    private const int A = 0x1000;
+    private const int B = 0x2000;
+
+    private readonly Game game = new();
+    private readonly MenuScreens screens = new([]);
+    private readonly Controls menus = new();
+    private readonly WindowControls dialogue = new();
+
+    private InputFrame Frame() => new(game, screens, menus, dialogue);
+
+    private sealed class Game : IGameInputState
+    {
+        public long? Window { get; set; }
+
+        public bool Open { get; set; }
+
+        public long? DialogueWindow() => Window;
+
+        public bool MenusOpen() => Open;
+    }
+
+    private class Controls : IInputControls
+    {
+        public Func<int, int> OnPad { get; set; } = buttons => buttons;
+
+        public Func<IReadOnlyList<int>, IReadOnlyList<int>> OnKeys { get; set; } = keys => keys;
+
+        public List<string> Seen { get; } = [];
+
+        public int Pad(int pad, int buttons, bool made)
+        {
+            Seen.Add($"pad {pad} 0x{buttons:x} {made}");
+            return OnPad(buttons);
+        }
+
+        public IReadOnlyList<int> Keys(IReadOnlyList<int> keys)
+        {
+            Seen.Add($"keys {string.Join(",", keys)}");
+            return OnKeys(keys);
+        }
+    }
+
+    private sealed class WindowControls : Controls, IWindowInputControls
+    {
+        public List<long?> WindowReads { get; } = [];
+
+        public void WindowRead(long? currentMessage) => WindowReads.Add(currentMessage);
+    }
+
+    [Fact]
+    public void MissingPartsAreRefused()
+    {
+        Assert.Throws<ArgumentNullException>("game", () => new InputFrame(null!, screens, menus, dialogue));
+        Assert.Throws<ArgumentNullException>("screens", () => new InputFrame(game, null!, menus, dialogue));
+        Assert.Throws<ArgumentNullException>("menus", () => new InputFrame(game, screens, null!, dialogue));
+        Assert.Throws<ArgumentNullException>("dialogue", () => new InputFrame(game, screens, menus, null!));
+        Assert.Throws<ArgumentNullException>("keys", () => Frame().Keys(null!));
+    }
+
+    [Fact]
+    public void EachReadHandsOnTheGameStateItWasDecidedOn()
+    {
+        var frame = Frame();
+        game.Window = 0x55;
+        game.Open = true;
+
+        var pad = frame.Pad(0, A, made: true);
+
+        Assert.Equal(0x55, pad.Window);
+        Assert.Equal(new long?[] { 0x55 }, dialogue.WindowReads);
+        Assert.True(screens.MenusOpen);
+
+        game.Window = null;
+        game.Open = false;
+
+        var keys = frame.Keys([1]);
+
+        Assert.Null(keys.Window);
+        Assert.Equal(new long?[] { 0x55, null }, dialogue.WindowReads);
+        Assert.False(screens.MenusOpen);
+    }
+
+    [Fact]
+    public void TheDialogueControlsGetWhatTheMenuControlsLeave()
+    {
+        menus.OnPad = buttons => buttons & ~A;
+        menus.OnKeys = keys => [.. keys.Where(key => key != 1)];
+
+        var frame = Frame();
+        var pad = frame.Pad(2, A | B, made: false);
+        var keys = frame.Keys([1, 2]);
+
+        Assert.Equal(B, pad.Buttons);
+        Assert.Equal([2], keys.Keys);
+        Assert.Equal(["pad 2 0x3000 False", "keys 1,2"], menus.Seen);
+        Assert.Equal(["pad 2 0x2000 False", "keys 2"], dialogue.Seen);
+    }
+
+    [Fact]
+    public void ControlsCannotAddButtonsOrKeysTheGameDidNotRead()
+    {
+        dialogue.OnPad = buttons => buttons | B;
+        dialogue.OnKeys = keys => [3, .. keys, 4];
+
+        var frame = Frame();
+
+        Assert.Equal(A, frame.Pad(0, A, made: true).Buttons);
+        Assert.Equal([1, 2], frame.Keys([1, 2]).Keys);
+    }
+
+    [Fact]
+    public void KeysKeptAreInTheOrderTheGameReadThem()
+    {
+        dialogue.OnKeys = keys => [.. keys.Where(key => key != 2).Reverse()];
+
+        Assert.Equal([1, 3], Frame().Keys([1, 2, 3]).Keys);
+    }
+
+    [Fact]
+    public void WhenNoKeyIsDroppedTheReadItselfIsHandedBack()
+    {
+        IReadOnlyList<int> read = [1, 2];
+        dialogue.OnKeys = keys => [.. keys];
+
+        Assert.Same(read, Frame().Keys(read).Keys);
+    }
+}
