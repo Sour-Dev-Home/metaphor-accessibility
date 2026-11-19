@@ -177,7 +177,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        file: [capture, deploy-dev, fetch-prism, listen, signature-spike, smoke-test]
+        file: [capture, deploy-dev, fetch-prism, GameLocator, listen, onboard, signature-spike, smoke-test]
     defaults:
       run:
         shell: bash

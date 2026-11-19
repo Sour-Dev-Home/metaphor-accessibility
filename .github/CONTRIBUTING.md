@@ -9,6 +9,18 @@ the mechanical ones: no game content, no personal information, and a header on e
 For the whole path from your branch to `main` in one picture, see
 [how a change reaches main](../docs/contributors/explanation/how-a-change-reaches-main.md).
 
+## One command
+
+In PowerShell, from the root of your clone:
+
+```powershell
+.\scripts\onboard.ps1
+```
+
+It does steps 1 to 3 below and the rest of the setup, asks before installing anything, and ends with a ready summary
+and a prompt to paste into Claude. It's safe to run again. Its header in
+[`scripts/onboard.ps1`](../scripts/onboard.ps1) lists each step; the steps below are for doing them by hand.
+
 ## 1. Install the tools
 
 On Windows:
@@ -132,7 +144,8 @@ Your branch is deleted automatically after its PR merges. Delete your local copy
 
 **Must-run review.** The security-review scope, listed in [`scripts/security-stamp.sh`](../scripts/security-stamp.sh), is:
 
-- the hook layer, `src/Metaphor.Hooks/`, and the scripts that deploy, launch, package or fetch native code;
+- the hook layer, `src/Metaphor.Hooks/`, and the scripts that deploy, launch, package or fetch native code, including
+  `scripts/onboard.ps1`, its modules and the scripts it runs (it installs tools and runs a test deploy);
 - the guards that enforce the ground rules (#306): everything the checks, the git hooks and CI run, transitively, and
   what they read to decide. That is `scripts/check.sh` and every script it or a workflow calls, `scripts/githooks/`,
   the whole `.github/workflows/` folder, the check tests in `tests/check/` and `tests/scripts/` (CI runs them before

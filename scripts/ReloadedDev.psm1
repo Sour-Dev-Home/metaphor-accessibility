@@ -18,6 +18,13 @@ function Write-Json([string] $Path, $Value) {
     $Value | ConvertTo-Json -Depth 20 | Set-Content -LiteralPath $Path -Encoding utf8NoBOM
 }
 
+# Reloaded-II's root config, at a fixed AppData path the loader doesn't let us move
+# (reloaded-ii-config-location-2026-11-13.md). Scripts that take it as a parameter default spell it out, since a
+# default is evaluated before the module loads.
+function Get-ReloadedConfigPath {
+    Join-Path ([Environment]::GetFolderPath('ApplicationData')) 'Reloaded-Mod-Loader-II/ReloadedII.json'
+}
+
 # As Reloaded-II's ApplicationConfig.GetAbsoluteAppLocation: a relative AppLocation is relative to its AppConfig.json.
 function Resolve-AppLocation([string] $ConfigFile, [string] $Location) {
     $folder = Split-Path $ConfigFile
