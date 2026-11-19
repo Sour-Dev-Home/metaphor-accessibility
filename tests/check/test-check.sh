@@ -21,6 +21,8 @@ DOCS_TOOLS_PATH="$(cd "$ROOT" && bash scripts/install-docs-tools.sh --path)" || 
 source "$CHECK" || exit 2
 # shellcheck source=../../scripts/live-log.sh
 source "$ROOT/scripts/live-log.sh" || exit 2
+# shellcheck source=../../scripts/check/pool.sh
+source "$ROOT/scripts/check/pool.sh" || exit 2
 
 passed=0
 failed=0
@@ -1896,7 +1898,7 @@ test_maintainer_pr_uses_trailers_and_ignores_the_label() {
 }
 
 # The guards that enforce the ground rules are in the scope too (issue #306).
-GUARD_FILES=(scripts/check.sh scripts/check/report.sh scripts/check/run.sh scripts/game-content.sha256 scripts/tree-hash.sh scripts/ci-changes.sh
+GUARD_FILES=(scripts/check.sh scripts/check/report.sh scripts/check/run.sh scripts/check/pool.sh scripts/game-content.sha256 scripts/tree-hash.sh scripts/ci-changes.sh
   scripts/test-select.sh scripts/stage-timing.sh scripts/install-docs-tools.sh scripts/conflict-alert.sh
   scripts/integration-sync.sh scripts/check-status.sh scripts/run-pester.sh scripts/live-log.sh scripts/wsl-run.sh
   scripts/run-check-suites.sh scripts/wsl-tools.txt scripts/setup-wsl.ps1 scripts/githooks/pre-commit scripts/githooks/pre-push
@@ -2254,33 +2256,27 @@ test_rules_process_starts_do_not_grow_with_the_file_count() {
 # scripts/check-status.sh reads. Their output is shown whole, in test order, after all have finished.
 # METAPHOR_TEST_JOBS=1 runs one at a time and must give the same pass and fail counts. An optional argument runs only
 # the tests whose names match it (an extended regular expression).
-JOBS="${METAPHOR_TEST_JOBS:-}"
-if ! [[ "$JOBS" =~ ^[1-9][0-9]*$ ]]; then
-  JOBS="$(nproc 2> /dev/null || echo 4)"
-  [ "$JOBS" -le 4 ] || JOBS=4
-fi
+JOBS="$(pool_default_jobs)"
 RESULTS="$WORK/results"
 
-# run_test NAME: run one test in a subshell with its own folder and counters, its output and counts in $RESULTS.
+# run_test NAME: the pool's job (scripts/check/pool.sh), in its own subshell: run one test with its own folder and
+# counters, its counts in $RESULTS. The pool keeps its output.
 run_test() {
   local name="$1"
-  (
-    WORK="$WORK/t-$name"
-    passed=0 failed=0 current="$name"
-    "$name"
-    echo "$passed $failed" > "$RESULTS/$name.counts"
-  ) > "$RESULTS/$name.out" 2>&1
+  WORK="$WORK/t-$name"
+  passed=0 failed=0 current="$name"
+  "$name"
+  echo "$passed $failed" > "$RESULTS/$name.counts"
 }
 
-# finished NAME STARTED: print and log the test's progress line. STARTED is its $EPOCHREALTIME at launch.
+# finished NAME CODE SECONDS: the pool's callback; print and log the test's progress line. A test with no counts
+# stopped before it finished, and one whose subshell exited non-zero (a crash or a kill) failed.
 finished() {
-  local name="$1" p=0 f=1 tenths
+  local name="$1" p=0 f=1
   read -r p f < "$RESULTS/$name.counts" 2> /dev/null || f=1
-  # EPOCHREALTIME is "seconds.microseconds" (a comma in some locales); tenths of a second from the digits, without a
-  # `bc` or `awk` start.
-  tenths=$(((10#${EPOCHREALTIME//[.,]/} - 10#${2//[.,]/}) / 100000))
-  secs[$name]="$((tenths / 10)).$((tenths % 10))"
-  live_line "$name" "$f" "${secs[$name]}"
+  [ "$2" = 0 ] || [ "$f" -gt 0 ] || f=1
+  secs[$name]="$3"
+  live_line "$name" "$f" "$3"
 }
 
 names=()
@@ -2290,39 +2286,25 @@ done < <(declare -F)
 [ "${#names[@]}" -gt 0 ] || { echo "check tests: no test matches '${1:-}'"; exit 1; }
 # One mkdir for every test's folder, with short relative names.
 cd "$WORK" && mkdir -p results "${names[@]/#/t-}" && cd "$OLDPWD" || exit 2
-declare -A secs=() began=() running=()
+declare -A secs=()
 live_start test-check "${#names[@]}" "$ROOT"
 # Only this suite's own lines: the cases' runs of `main full` must not append to it.
 unset METAPHOR_LIVE_LOG
-for name in "${names[@]}"; do
-  if [ "$JOBS" -eq 1 ]; then
-    began[$name]=$EPOCHREALTIME
-    run_test "$name"
-    finished "$name" "${began[$name]}"
-    continue
-  fi
-  while [ "${#running[@]}" -ge "$JOBS" ]; do
-    wait -n -p done_pid
-    finished "${running[$done_pid]}" "${began[${running[$done_pid]}]}"
-    unset "running[$done_pid]"
-  done
-  began[$name]=$EPOCHREALTIME
-  run_test "$name" &
-  running[$!]="$name"
-done
-while [ "${#running[@]}" -gt 0 ]; do
-  wait -n -p done_pid
-  finished "${running[$done_pid]}" "${began[${running[$done_pid]}]}"
-  unset "running[$done_pid]"
-done
+pool_init "$RESULTS" "$JOBS" finished || exit 2
+for name in "${names[@]}"; do pool_run "$name" run_test "$name"; done
+pool_wait
 
 times=""
 for name in "${names[@]}"; do
-  IFS= read -r -d '' text < "$RESULTS/$name.out"
+  IFS= read -r -d '' text < "${pool_file[$name]}"
   printf '%s' "$text"
   if read -r p f < "$RESULTS/$name.counts" 2> /dev/null; then
     passed=$((passed + p))
     failed=$((failed + f))
+    if [ "${pool_code[$name]}" != 0 ] && [ "$f" -eq 0 ]; then
+      failed=$((failed + 1))
+      printf 'FAIL %s\n  the test exited with code %s\n' "$name" "${pool_code[$name]}"
+    fi
   else
     failed=$((failed + 1))
     printf 'FAIL %s\n  the test stopped before it finished\n' "$name"

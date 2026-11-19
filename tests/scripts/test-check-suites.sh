@@ -27,14 +27,23 @@ lacks() { [[ "$out" != *"$1"* ]]; }
 # A checkout of stand-in suites. Each records the live log's variables it sees in $SEEN/<name>, prints a summary line,
 # and fails when it's $FAIL_SUITE. helper.sh isn't a suite.
 FAKE="$WORK/checkout"
-mkdir -p "$FAKE/scripts" "$FAKE/tests/check" "$FAKE/tests/scripts" "$WORK/seen"
-cp "$ROOT/scripts/run-check-suites.sh" "$ROOT/scripts/wsl-run.sh" "$FAKE/scripts/"
+mkdir -p "$FAKE/scripts/check" "$FAKE/tests/check" "$FAKE/tests/scripts" "$WORK/seen"
+cp "$ROOT/scripts/run-check-suites.sh" "$ROOT/scripts/wsl-run.sh" "$ROOT/scripts/live-log.sh" "$FAKE/scripts/"
+cp "$ROOT/scripts/check/pool.sh" "$FAKE/scripts/check/"
+# Each also counts how many suites are running as it starts ($SEEN/concurrent), and is killed when it's $KILL_SUITE or
+# prints nothing when it's $EMPTY_SUITE.
 for suite in tests/check/test-check.sh tests/scripts/test-b.sh tests/scripts/test-a.sh; do
   cat > "$FAKE/$suite" <<'SUITE'
 #!/usr/bin/env bash
 name="${BASH_SOURCE[0]##*/}"
 echo "log ${METAPHOR_LIVE_LOG:-none}, pid ${METAPHOR_LIVE_PID:-none}" > "$SEEN/$name"
+: > "$SEEN/running.$name"
+ls "$SEEN" | grep -c '^running\.' >> "$SEEN/concurrent"
+sleep 0.3
+rm -f "$SEEN/running.$name"
+if [ "$name" = "${EMPTY_SUITE:-}" ]; then exit 0; fi
 echo "$name: a progress line"
+if [ "$name" = "${KILL_SUITE:-}" ]; then kill -9 $$; fi
 if [ "$name" = "${FAIL_SUITE:-}" ]; then echo "$name tests: 0 passed, 1 failed"; exit 1; fi
 echo "$name tests: 1 passed, 0 failed"
 SUITE
@@ -58,7 +67,7 @@ check "all pass: each suite's summary line" has "test-a.sh tests: 1 passed"
 check "all pass: test-check.sh's summary line" has "test-check.sh tests: 1 passed"
 check "all pass: no progress lines" lacks "a progress line"
 check "all pass: the total" has "check-script suites: 3 passed, 0 failed"
-check "all pass: every suite ran" [ "$(ls "$SEEN" | wc -l)" -eq 3 ]
+check "all pass: every suite ran" [ "$(ls "$SEEN" | grep -c '^test-.*\.sh$')" -eq 3 ]
 check "not a suite: helper.sh never ran" lacks "not a suite"
 
 FAIL_SUITE=test-b.sh run_fake
@@ -67,12 +76,38 @@ check "one fails: named" has "FAIL tests/scripts/test-b.sh"
 check "one fails: its whole output" has "test-b.sh: a progress line"
 check "one fails: the others' output stays short" lacks "test-a.sh: a progress line"
 check "one fails: the total" has "check-script suites: 2 passed, 1 failed"
+check "one fails: its progress line" has "tests/scripts/test-b.sh FAIL ("
 
+# The worker pool (#367): at most METAPHOR_TEST_JOBS suites at once, a progress line as each finishes, and a suite
+# that is killed or prints nothing fails.
+METAPHOR_TEST_JOBS=1 run_fake
+check "one at a time: passes" [ "$code" -eq 0 ]
+check "one at a time: never two at once" [ "$(sort -n "$SEEN/concurrent" | tail -n 1)" -eq 1 ]
+check "one at a time: every suite ran" [ "$(wc -l < "$SEEN/concurrent")" -eq 3 ]
+METAPHOR_TEST_JOBS=3 run_fake
+check "three at once: they overlap" [ "$(sort -n "$SEEN/concurrent" | tail -n 1)" -ge 2 ]
+progress='^\[[1-3]/3\] tests/[a-z]+/test-[a-z-]+\.sh ok \([0-9]+\.[0-9] s\)$'
+check "a progress line per suite" [ "$(grep -cE "$progress" <<< "$out")" -eq 3 ]
+KILL_SUITE=test-a.sh run_fake
+check "killed: exit 1" [ "$code" -eq 1 ]
+check "killed: named with its code" has "FAIL tests/scripts/test-a.sh (exit 137):"
+check "killed: its output up to the kill" has "  test-a.sh: a progress line"
+check "killed: the total" has "check-script suites: 2 passed, 1 failed"
+EMPTY_SUITE=test-a.sh run_fake
+check "empty: exit 1" [ "$code" -eq 1 ]
+check "empty: says so" has "FAIL tests/scripts/test-a.sh: printed nothing"
+check "empty: the total" has "check-script suites: 2 passed, 1 failed"
+
+: > "$WORK/live"
 METAPHOR_LIVE_LOG="$WORK/live" METAPHOR_LIVE_PID=42 run_fake
 out="$(cat "$SEEN/test-check.sh")"
 check "live log: test-check.sh appends to it" [ "$out" = "log $WORK/live, pid 42" ]
 out="$(cat "$SEEN/test-a.sh")"
 check "live log: the other suites don't see it" [ "$out" = "log none, pid none" ]
+out="$(cat "$WORK/live")"
+check "live log: the runner's start, under the caller's pid" grep -qE '^== start check-suites 3 [0-9]+ 42$' <<< "$out"
+check "live log: a progress line per suite" [ "$(grep -cE '^\[[1-3]/3\] tests/' <<< "$out")" -eq 3 ]
+check "live log: the runner's end" grep -qE '^== end check-suites 0 [0-9]+$' <<< "$out"
 
 # --select (`full`): in Git Bash without WSL, test-check.sh takes minutes, so it runs only when a check script or its
 # tests changed since origin/main (scripts/test-select.sh, #243). Elsewhere, in CI and without --select, every suite runs.

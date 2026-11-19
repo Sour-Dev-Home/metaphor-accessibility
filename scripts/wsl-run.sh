@@ -45,7 +45,13 @@ wsl_reexec() {
     live_dir="$(cd "${METAPHOR_LIVE_LOG%/*}" 2> /dev/null && { pwd -W 2> /dev/null || pwd; })"; then
     METAPHOR_LIVE_LOG="$live_dir/${METAPHOR_LIVE_LOG##*/}" live_env=":METAPHOR_LIVE_LOG/p"
   fi
-  METAPHOR_LIVE_PID=$$ MSYS_NO_PATHCONV=1 MSYS2_ARG_CONV_EXCL='*' \
+  # The worker pools' size (scripts/check/pool.sh) is set here, where the build slots' locks are visible; the distro
+  # has its own /tmp and can't see them.
+  if [ -z "${METAPHOR_TEST_JOBS:-}" ]; then
+    # shellcheck source=check/pool.sh
+    source "$ROOT/scripts/check/pool.sh" && METAPHOR_TEST_JOBS="$(pool_default_jobs)"
+  fi
+  METAPHOR_TEST_JOBS="${METAPHOR_TEST_JOBS:-}" METAPHOR_LIVE_PID=$$ MSYS_NO_PATHCONV=1 MSYS2_ARG_CONV_EXCL='*' \
     WSLENV="METAPHOR_TEST_JOBS:METAPHOR_LIVE_PID$live_env${WSLENV:+:$WSLENV}" \
     wsl.exe --distribution "$wsl_distro" --cd "$win_root" --exec /bin/bash scripts/wsl-run.sh inside \
     "${suite#"$ROOT/"}" "$@"
@@ -107,8 +113,7 @@ wsl_inside() {
     exit "$wsl_missing_code"
   fi
   wsl_versions
-  # Every core in WSL; Git Bash keeps the suites' default of 4.
-  [ -n "${METAPHOR_TEST_JOBS:-}" ] || export METAPHOR_TEST_JOBS="$(nproc)"
+  # The job count is the Git Bash side's (wsl_reexec); run directly, the pool's default applies (pool.sh).
   wsl_git_view "$@"
 }
 

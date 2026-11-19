@@ -25,8 +25,8 @@ starts() { [[ "$out" == "$1"* ]]; }
 
 # A checkout of its own: the wrapper, a tools list and a suite that sources the wrapper like the real ones do.
 FAKE="$WORK/checkout"
-mkdir -p "$FAKE/scripts" "$FAKE/tests" "$WORK/bin" "$WORK/nowsl"
-cp "$ROOT/scripts/wsl-run.sh" "$FAKE/scripts/"
+mkdir -p "$FAKE/scripts/check" "$FAKE/tests" "$WORK/bin" "$WORK/nowsl"
+cp "$ROOT/scripts/wsl-run.sh" "$FAKE/scripts/" && cp "$ROOT/scripts/check/pool.sh" "$FAKE/scripts/check/"
 cat > "$FAKE/tests/suite.sh" <<'SUITE'
 #!/usr/bin/env bash
 OSTYPE="${FAKE_OSTYPE:-$OSTYPE}"
@@ -41,7 +41,7 @@ cat > "$WORK/bin/wsl.exe" <<'STUB'
 #!/usr/bin/env bash
 if [ "$1" = --list ]; then printf '%s\r\n' $WSL_LIST | sed 's/./&\x0/g'; exit 0; fi
 printf '%s\n' "$@" > "$WSL_ARGS"
-printf 'WSLENV=%s\nLIVE=%s\n' "$WSLENV" "${METAPHOR_LIVE_LOG:-}" > "$WSL_ENV"
+printf 'WSLENV=%s\nLIVE=%s\nJOBS=%s\n' "$WSLENV" "${METAPHOR_LIVE_LOG:-}" "${METAPHOR_TEST_JOBS:-}" > "$WSL_ENV"
 exit "$WSL_CODE"
 STUB
 chmod +x "$WORK/bin/wsl.exe" "$FAKE/tests/suite.sh"
@@ -70,6 +70,14 @@ WSL_CODE=3 run_suite
 check "set up: a failing suite's code comes back" [ "$code" -eq 3 ]
 out="$(cat "$WSL_ENV" 2> /dev/null)"
 check "no live log: WSLENV doesn't carry one" lacks "METAPHOR_LIVE_LOG"
+# The job count: the pool's default (cores up to 8, shared among the runs holding a build slot), worked out on the Git
+# Bash side, where the slots' locks are; the distro can't see them.
+expected="$(source "$ROOT/scripts/check/pool.sh" && pool_default_jobs)"
+check "job count: the pool's default goes over" grep -qx "JOBS=$expected" <<< "$out"
+check "job count: capped at 8" [ "$expected" -le 8 ]
+METAPHOR_TEST_JOBS=3 run_suite
+out="$(cat "$WSL_ENV" 2> /dev/null)"
+check "job count: METAPHOR_TEST_JOBS goes over as it is" grep -qx "JOBS=3" <<< "$out"
 
 # A run inside `full` (#336): the live log reaches the distro as a path WSL translates, so test-check.sh appends to it.
 METAPHOR_LIVE_LOG="$WORK/live" run_suite
@@ -112,7 +120,7 @@ code=$?
 check "inside: returns the suite's code" [ "$code" -eq 7 ]
 check "inside: runs the suite with its arguments" has "with: a b c"
 check "inside: prints the versions first" starts "wsl: metaphor-checks"
-check "inside: every core by default" has "(jobs $(nproc))"
+check "inside: no job count of its own (the Git Bash side sets it)" has "(jobs unset)"
 out="$(cd "$FAKE" && METAPHOR_TEST_JOBS=2 bash scripts/wsl-run.sh inside tests/suite.sh 2>&1)"
 check "inside: METAPHOR_TEST_JOBS overrides the core count" has "(jobs 2)"
 out="$(cd "$FAKE" && METAPHOR_LIVE_PID=42 bash scripts/wsl-run.sh inside tests/suite.sh 2>&1)"

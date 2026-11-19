@@ -13,14 +13,15 @@
 #   folders), removed at the end. Tests already keep their games, configs and mod projects in their own folders, and
 #   find processes by full path, so nothing else is shared.
 # - In Git Bash, starting a process takes about 0.3 s and the starts don't overlap (#348), so the loop below starts
-#   nothing but the Pester processes themselves: one fork each, and builtins for the rest.
+#   nothing but the Pester processes themselves: one fork each, and builtins for the rest. They run in check.sh's
+#   worker pool (scripts/check/pool.sh), which keeps each process's output in its own file.
 #
 # A "[done/total] FILE ok|FAIL (seconds s)" line is printed, and written to the clone's live log (scripts/live-log.sh),
 # as each file's last process finishes. Then a summary line per file, with a failing file's whole output. A file fails
 # when a test fails, or when its processes ran fewer tests than it has. Exit 0 when every file passes, 1 when any
 # fails, 2 when Pester can't start.
 #
-#   bash scripts/run-pester.sh [FILE...]    METAPHOR_TEST_JOBS=N runs N processes at once (default: cores, up to 8)
+#   bash scripts/run-pester.sh [FILE...]    METAPHOR_TEST_JOBS=N runs N processes at once (default: pool_default_jobs)
 set -uo pipefail
 
 cd "$(dirname "${BASH_SOURCE[0]}")/.." || exit 2
@@ -29,11 +30,9 @@ files=("$@")
 [ "${#files[@]}" -gt 0 ] || mapfile -t files < <(git ls-files 'tests/smoke/*.Tests.ps1')
 [ "${#files[@]}" -gt 0 ] || { echo "run-pester: no test files" >&2; exit 2; }
 
-jobs="${METAPHOR_TEST_JOBS:-}"
-if ! [[ "$jobs" =~ ^[1-9][0-9]*$ ]]; then
-  jobs="$(nproc 2> /dev/null || echo 2)"
-  [ "$jobs" -le 8 ] || jobs=8
-fi
+# shellcheck source=check/pool.sh
+source scripts/check/pool.sh || exit 2
+jobs="$(pool_default_jobs)"
 batch="${METAPHOR_PESTER_BATCH:-}"
 [[ "$batch" =~ ^[1-9][0-9]*$ ]] || batch=4
 
@@ -102,14 +101,15 @@ pester='
 source scripts/live-log.sh || exit 2
 live_start run-pester "${#files[@]}"
 start=$SECONDS
-declare -A running=()
-unit_code=() unit_began=() unit_secs=() file_code=() file_secs=() file_summary=()
+unit_secs=() file_code=() file_secs=() file_summary=()
 
-finished() { # finished PID CODE: note a unit's result; when it was its file's last, check the file and print its line
-  local i="${running[$1]}" f j line p n r t pass=0 fail=0 ran=0 total=0 slowest=0
-  unset "running[$1]"
+# finished UNIT CODE SECONDS (the pool's callback): note a unit's result; when it was its file's last, check the file
+# and print its line. A unit that crashed or was killed has a non-zero code, and one that printed no counts ran none of
+# the file's tests, so either fails the file.
+finished() {
+  local i="$1" f j line p n r t pass=0 fail=0 ran=0 total=0 slowest=0
   f="${unit_file[i]}"
-  unit_code[i]="$2" unit_secs[i]=$((SECONDS - unit_began[i]))
+  unit_secs[i]="${3%.*}"
   [ "$2" = 0 ] || file_code[f]=1
   file_left[f]=$((file_left[f] - 1))
   [ "${file_left[f]}" -eq 0 ] || return 0
@@ -122,7 +122,7 @@ finished() { # finished PID CODE: note a unit's result; when it was its file's l
       [[ "$line" =~ ^pester-counts\ ([0-9]+)\ ([0-9]+)\ ([0-9]+)\ ([0-9]+)$ ]] || continue
       p="${BASH_REMATCH[1]}" n="${BASH_REMATCH[2]}" r="${BASH_REMATCH[3]}" t="${BASH_REMATCH[4]}"
       pass=$((pass + p)) fail=$((fail + n)) ran=$((ran + r)) total="$t"
-    done < "$tmp/$j.out"
+    done < "${pool_file[$j]}"
   done
   last["${files[f]}"]="$slowest"
   file_summary[f]="$pass passed, $fail failed, ${file_units[f]} processes, the slowest $slowest s"
@@ -133,22 +133,16 @@ finished() { # finished PID CODE: note a unit's result; when it was its file's l
   live_line "${files[f]}" "${file_code[f]:-0}" "${file_secs[f]}"
 }
 
-wait_one() { # wait_one: wait for any running unit and note it
-  local pid code
-  wait -n -p pid
-  code=$?
-  finished "$pid" "$code"
+run_unit() { # run_unit UNIT: the unit's Pester process, in place of the pool's job subshell (exec: no second fork)
+  local temp="$wtmp$sep$1.temp"
+  TEMP="$temp" TMP="$temp" FILE="${files[${unit_file[$1]}]}" LINES="${unit_lines[$1]}" \
+    exec pwsh -NoProfile -Command "$pester"
 }
 
-for i in "${order[@]}"; do
-  while [ "${#running[@]}" -ge "$jobs" ]; do wait_one; done
-  temp="$wtmp$sep$i.temp"
-  unit_began[i]=$SECONDS
-  TEMP="$temp" TMP="$temp" FILE="${files[${unit_file[i]}]}" LINES="${unit_lines[i]}" \
-    pwsh -NoProfile -Command "$pester" > "$tmp/$i.out" 2>&1 &
-  running[$!]="$i"
-done
-while [ "${#running[@]}" -gt 0 ]; do wait_one; done
+# The outputs go to the same folder as the units' temporary folders: N.out by start number, beside UNIT.temp.
+pool_init "$tmp" "$jobs" finished || exit 2
+for i in "${order[@]}"; do pool_run "$i" run_unit "$i"; done
+pool_wait
 
 failed=0
 for f in "${!files[@]}"; do
@@ -157,7 +151,7 @@ for f in "${!files[@]}"; do
   echo "== ${files[f]} $result: ${file_summary[f]} (${file_secs[f]} s)"
   [ "$result" = ok ] && continue
   for i in "${!unit_file[@]}"; do
-    [ "${unit_file[i]}" != "$f" ] || cat "$tmp/$i.out"
+    [ "${unit_file[i]}" != "$f" ] || cat "${pool_file[$i]}"
   done
 done
 [ "$times" = /dev/null ] || { for name in "${!last[@]}"; do echo "$name ${last[$name]}"; done | sort > "$tmp/times" &&
