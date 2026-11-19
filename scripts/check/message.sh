@@ -6,7 +6,7 @@
 # Private to this module: max_subject_chars, max_body_lines, scissors_re, trailer_re, char_count and
 # every_line_a_trailer.
 
-# The agreed shape's limits; scripts/check.sh's header describes the shape.
+# The agreed shape's limits; docs/contributors/reference/commit-messages.md describes the shape.
 max_subject_chars=72
 max_body_lines=5
 
