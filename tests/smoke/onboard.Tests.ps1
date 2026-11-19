@@ -1,7 +1,8 @@
 # Tests for scripts/onboard.ps1, run in a stand-in clone: a real git repository holding the script and stand-ins for
 # the scripts it calls (setup-wsl.ps1, claude.ps1, listen.ps1, ghidra.ps1, install-docs-tools.sh, check.sh), with
 # stand-ins for dotnet, gh, winget, npm, claude, setx and notepad first on PATH, a stand-in Steam library and a stand-in
-# Reloaded-II config. Real git and Git Bash run. Answers to the script's questions come through -Answers, in order.
+# Reloaded-II config, and a stand-in System32 for the Visual C++ runtime. Real git and Git Bash run. Answers to the
+# script's questions come through -Answers, in order.
 # Git Bash starts one process at a time at about 0.3 s each (#348), so the clone starts with the docs tools' stand-ins
 # installed, and only the test of their install pays for it.
 # Run: Invoke-Pester tests/smoke (Pester 5 or later).
@@ -72,6 +73,10 @@ exit 1
         [IO.File]::WriteAllText((Join-Path $scripts 'install-docs-tools.sh'), (@(
                 '#!/usr/bin/env bash', 'LYCHEE_VERSION=0.24.2', 'VALE_VERSION=3.25.1'
                 '[ "$1" != --path ] || { echo .tools/bin:.tools/bin:tools/docs/node_modules/.bin; exit 0; }', $shLog
+                # STUB_DOCS_INSTALL: silent, the installer before #385 (exit 0, nothing fixed); fail, after it.
+                '[ "${STUB_DOCS_INSTALL:-}" != silent ] || exit 0'
+                '[ "${STUB_DOCS_INSTALL:-}" != fail ] ||'
+                '  { echo "install-docs-tools: lychee doesn''t run" >&2; exit 1; }'
                 'mkdir -p .tools/bin tools/docs/node_modules/.bin'
                 'printf "#!/bin/sh\necho lychee %s\n" "$LYCHEE_VERSION" > .tools/bin/lychee'
                 'printf "#!/bin/sh\necho vale version %s\n" "$VALE_VERSION" > .tools/bin/vale'
@@ -83,10 +88,15 @@ exit 1
         [IO.File]::WriteAllText((Join-Path $clone '.tools/bin/lychee'), "#!/bin/sh`necho lychee 0.24.2`n")
         [IO.File]::WriteAllText((Join-Path $clone '.tools/bin/vale'), "#!/bin/sh`necho vale version 3.25.1`n")
         New-Item -ItemType File (Join-Path $clone 'tools/docs/node_modules/.bin/markdownlint-cli2') | Out-Null
+        # A System32 holding the Visual C++ runtime that lychee's Windows build loads (#385).
+        $script:system32 = (New-Item -ItemType Directory (Join-Path $root 'System32')).FullName
+        $script:vcRuntime = (New-Item -ItemType File (Join-Path $system32 'vcruntime140.dll')).FullName
 
         New-StandIn dotnet 'if "%1"=="--list-sdks" if not "%STUB_SDK%"=="" echo %STUB_SDK% [C:\stand-in\sdk]'
         New-StandIn gh "if `"%1`"==`"auth`" exit /b %STUB_GH_AUTH%`r`nif `"%1`"==`"api`" echo %STUB_GH_PUSH%"
-        New-StandIn winget 'exit /b %STUB_WINGET%'
+        # STUB_WINGET_CREATES: a file the install puts in place.
+        New-StandIn winget ("if not `"%STUB_WINGET_CREATES%`"==`"`" type nul >`"%STUB_WINGET_CREATES%`"`r`n" +
+            'exit /b %STUB_WINGET%')
         New-StandIn npm
         New-StandIn claude
         New-StandIn setx
@@ -108,7 +118,8 @@ exit 1
         $script:programFiles = (New-Item -ItemType Directory (Join-Path $root 'ProgramFiles')).FullName
         $script:stub = @{
             STUB_SDK = $sdk; STUB_GH_AUTH = '0'; STUB_GH_PUSH = 'true'; STUB_WSL = 'ready'; STUB_NOTEPAD = 'edit'
-            STUB_CHECK = '0'; STUB_WINGET = '0'; METAPHOR_GAME_EXE = $null; METAPHOR_RELOADED_EXE = $null
+            STUB_CHECK = '0'; STUB_WINGET = '0'; STUB_WINGET_CREATES = $null; STUB_DOCS_INSTALL = $null
+            METAPHOR_GAME_EXE = $null; METAPHOR_RELOADED_EXE = $null
             STUB_CALLS = (Join-Path $bin 'calls.log'); STUB_REAL_PWSH = $pwsh
         }
     }
@@ -155,13 +166,14 @@ static class Program {
             $script = Join-Path $clone 'scripts/onboard.ps1'
             if ($NonInteractive) {
                 $output = & $Shell -NoProfile -NonInteractive -File $script -SteamRoot $steam `
-                    -ReloadedConfig $reloadedConfig -ProgramFiles $programFiles 2>&1
+                    -ReloadedConfig $reloadedConfig -ProgramFiles $programFiles -SystemDirectory $system32 2>&1
             }
             else {
                 $list = ($Answers | ForEach-Object { ConvertTo-Literal $_ }) -join ','
                 $output = & $Shell -NoProfile -Command ("& $(ConvertTo-Literal $script) -NoClaude " +
                     "-SteamRoot $(ConvertTo-Literal $steam) -ReloadedConfig $(ConvertTo-Literal $reloadedConfig) " +
-                    "-ProgramFiles $(ConvertTo-Literal $programFiles) -Answers @($list); exit `$LASTEXITCODE") 2>&1
+                    "-ProgramFiles $(ConvertTo-Literal $programFiles) " +
+                    "-SystemDirectory $(ConvertTo-Literal $system32) -Answers @($list); exit `$LASTEXITCODE") 2>&1
             }
             $code = $LASTEXITCODE
         }
@@ -213,8 +225,8 @@ Describe 'onboard.ps1' {
         $first.Output | Should -Match 'Changed:'
         $first.Output | Should -Not -Match 'private-pattern-for-tests'
         $first.Output | Should -Match 'docs/agents/workflow.md'
-        foreach ($item in '.NET SDK', 'Git', 'PowerShell 7', 'GitHub CLI', 'Node.js', 'GitHub login', 'push access',
-            'git hooks', 'private patterns', 'skills', 'docs tools', 'WSL', 'game') {
+        foreach ($item in '.NET SDK', 'Git', 'PowerShell 7', 'GitHub CLI', 'Node.js', 'Visual C++ runtime',
+            'GitHub login', 'push access', 'git hooks', 'private patterns', 'skills', 'docs tools', 'WSL', 'game') {
             $first.Output | Should -Match ("(?m)^  \S $([regex]::Escape($item))")
         }
 
@@ -410,6 +422,57 @@ Describe 'onboard.ps1' {
         Get-Calls | Where-Object { $_ -like 'winget*' } | Should -BeNullOrEmpty
         $result.Output | Should -Match 'Node\.js: not installed, and the docs tools need it: .*nodejs\.org'
         Get-Calls | Should -Contain 'check.sh fast'
+    }
+
+    Context 'the Visual C++ runtime lychee needs (#385)' {
+        BeforeEach {
+            # A stand-in lychee that runs only while the runtime is there, as the MSVC build does: without it, Git Bash
+            # exits 127 and prints nothing.
+            Remove-Item -LiteralPath $vcRuntime
+            [IO.File]::WriteAllText((Join-Path $clone '.tools/bin/lychee'),
+                "#!/bin/sh`n[ -f '$vcRuntime' ] || exit 127`necho lychee 0.24.2`n")
+        }
+
+        It 'offers the runtime as a pinned install with an admin prompt, and after a yes the docs tools run' {
+            $script:stub.STUB_WINGET_CREATES = $vcRuntime
+            # Answers: install the runtime, Enter after the patterns, skills, the game found, no deploy, no Ghidra.
+            $result = Invoke-Onboard @('y', '', 'y', 'y', 'n', 'n')
+
+            $result.ExitCode | Should -Be 0 -Because $result.Output
+            $result.Output |
+                Should -Match 'Install Visual C\+\+ runtime 14\.52\.37029\.0 and accept its licence agreement\?'
+            $result.Output | Should -Match 'needs a Windows admin prompt'
+            Get-Calls | Should -Contain ('winget install --id Microsoft.VCRedist.2015+.x64 --exact --version ' +
+                '14.52.37029.0 --source winget --accept-package-agreements --accept-source-agreements')
+            $result.Output | Should -Not -Match 'new PowerShell window'
+            $result.Output | Should -Match '(?m)^  \S Visual C\+\+ runtime: installed'
+            $result.Output | Should -Match '(?m)^  \S docs tools: installed'
+            $result.Output | Should -Match 'Changed: .*installed the Visual C\+\+ runtime'
+            Get-Calls | Should -Not -Contain 'install-docs-tools.sh '
+        }
+
+        It 'installs nothing after a no, and the summary names lychee and the runtime it needs' {
+            $script:stub.STUB_DOCS_INSTALL = 'fail'
+            $result = Invoke-Onboard @('n', '', 'y', 'y', 'n', 'n')
+
+            $result.ExitCode | Should -Be 0 -Because $result.Output
+            Get-Calls | Where-Object { $_ -like 'winget*' } | Should -BeNullOrEmpty
+            Get-Calls | Should -Contain 'install-docs-tools.sh '
+            $result.Output | Should -Match "install-docs-tools: lychee doesn't run"
+            $result.Output | Should -Match ('(?m)^  \S docs tools: lychee did not run; it needs the Visual C\+\+ ' +
+                'Redistributable \(x64\)')
+            $result.Output | Should -Match '(?m)^  \S Visual C\+\+ runtime: not installed, and lychee'
+        }
+    }
+
+    It 'names the docs tool that does not run, even when the installer says nothing' {
+        [IO.File]::WriteAllText((Join-Path $clone '.tools/bin/lychee'), "#!/bin/sh`nexit 127`n")
+        $script:stub.STUB_DOCS_INSTALL = 'silent'
+        $result = Invoke-Onboard @('', 'y', 'y', 'n', 'n')
+
+        $result.ExitCode | Should -Be 0 -Because $result.Output
+        $result.Output | Should -Match "(?m)^  \S docs tools: lychee did not run; see install-docs-tools.sh's message"
+        $result.Output | Should -Not -Match 'Vale did not run|Vale, '
     }
 
     It 'shows the skills as optional without Claude Code' {

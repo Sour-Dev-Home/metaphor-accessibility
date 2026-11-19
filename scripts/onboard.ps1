@@ -12,11 +12,13 @@ says that nothing changed.
    PowerShell 7, the GitHub CLI and Node.js LTS (for the docs tools). For each one missing it offers a pinned winget
    install (an exact version; winget checks the installer against the hash in its manifest) and installs only after a
    yes. A no stops with what to do, except for Node.js, which only the docs tools need. When winget says a tool is
-   already installed that the script still doesn't find, it says what it looked for.
+   already installed that the script still doesn't find, it says what it looked for. Then the Visual C++
+   Redistributable (x64), which lychee needs (#385): the same offer, with the installer's own admin prompt, and the run
+   carries on after it.
 2. Git hooks: sets core.hooksPath to scripts/githooks for this clone.
 3. Private patterns: creates the git-ignored .claude/pii-patterns.txt from the example, opens it in Notepad, and stops
    while it still holds the example lines. It never prints the file.
-4. Docs tools: runs scripts/install-docs-tools.sh unless the pinned versions are already there.
+4. Docs tools: runs scripts/install-docs-tools.sh unless the pinned versions already run, and names any that don't.
 5. WSL: runs scripts/setup-wsl.ps1 (it asks before creating the metaphor-checks distro). Without that distro the
    check-script suites run in Git Bash, and a docs-only check.sh full takes about 4 minutes longer.
 6. Skills: asks, then adds Matt Pocock's skills through scripts/claude.ps1, unless they're already there.
@@ -53,7 +55,9 @@ param(
     # Reloaded-II's root config. Defaults to its fixed AppData path (ReloadedDev.psm1's Get-ReloadedConfigPath).
     [string] $ReloadedConfig = '',
     # The Program Files folder to look in for PowerShell 7 when pwsh isn't on PATH. Defaults to Windows' own.
-    [string] $ProgramFiles = $env:ProgramFiles
+    [string] $ProgramFiles = $env:ProgramFiles,
+    # The folder to look in for the Visual C++ runtime's vcruntime140.dll. Defaults to Windows' System32.
+    [string] $SystemDirectory = [Environment]::SystemDirectory
 )
 
 # This file must parse in Windows PowerShell 5.1 too, so it can say that PowerShell 7 is missing: no PowerShell 7-only
@@ -68,6 +72,8 @@ $gitPackage = @{ Id = 'Git.Git'; Version = '2.56.0.4' }
 $powerShellPackage = @{ Id = 'Microsoft.PowerShell'; Version = '7.6.10.0' }
 $ghPackage = @{ Id = 'GitHub.cli'; Version = '2.105.0' }
 $nodePackage = @{ Id = 'OpenJS.NodeJS.LTS'; Version = '26.13.1' }
+# docs/raw-sources/vc-redist-winget-pin-and-lychee-runtime-2026-11-19.md (#385).
+$vcRedistPackage = @{ Id = 'Microsoft.VCRedist.2015+.x64'; Version = '14.52.37029.0' }
 # winget's exit codes for a package that is already installed: PACKAGE_ALREADY_INSTALLED, UPDATE_NOT_APPLICABLE,
 # UPGRADE_VERSION_NOT_NEWER, INSTALL_ALREADY_INSTALLED and INSTALL_DOWNGRADE, as winget-cli's returnCodes.md lists them
 # (docs/raw-sources/onboard-winget-pins-and-return-codes-2026-11-19.md).
@@ -151,6 +157,7 @@ if (-not $interactive) {
     Write-Host 'No console to answer on: every question is answered no, and Notepad and Claude Code are not started.'
 }
 function Test-Command([string] $Name) { [bool](Get-Command $Name -ErrorAction SilentlyContinue) }
+function Test-VcRuntime { Test-Path -LiteralPath (Join-Path $SystemDirectory 'vcruntime140.dll') }
 
 # Git Bash next to git: Git for Windows keeps git.exe in cmd\ (on PATH) and bash.exe in bin\.
 function Find-GitBash {
@@ -203,6 +210,18 @@ $tools = @(
         Summary = 'not installed, and the docs tools need it: install Node.js LTS (https://nodejs.org), then run ' +
             '.\scripts\onboard.ps1 again'
     }
+    # lychee's Windows build loads vcruntime140.dll (#385). Nothing goes on PATH, so this run carries on after the
+    # install (SameWindow), and its installer raises its own admin prompt (Admin).
+    [pscustomobject]@{
+        Name = 'Visual C++ runtime'; Version = $vcRedistPackage.Version; Id = $vcRedistPackage.Id; Required = $false
+        Url = 'https://learn.microsoft.com/cpp/windows/latest-supported-vc-redist'; SameWindow = $true; Admin = $true
+        Test = { Test-VcRuntime }
+        Problem = 'vcruntime140.dll isn''t installed, and lychee, a docs tool, needs it'
+        Looks = "vcruntime140.dll in $SystemDirectory"
+        Summary = 'not installed, and lychee (a docs tool) needs it: run .\scripts\onboard.ps1 again and say yes to ' +
+            'it, or install the Visual C++ Redistributable (x64) from ' +
+            'https://learn.microsoft.com/cpp/windows/latest-supported-vc-redist'
+    }
 )
 $installed = @()
 $missing = @()
@@ -213,7 +232,11 @@ foreach ($tool in $tools) {
     Write-Host "winget can install $($tool.Name) $($tool.Version). A yes also accepts the package's licence agreement and"
     Write-Host "the winget source's terms on your behalf; read them first with:"
     Write-Host "  winget show --id $($tool.Id) --exact --version $($tool.Version)"
-    Write-Host 'The installer may show a Windows admin prompt.'
+    $sameWindow = [bool]$tool.PSObject.Properties['SameWindow']
+    if ($tool.PSObject.Properties['Admin']) {
+        Write-Host 'The installer needs a Windows admin prompt: answer yes to it too, or the install fails.'
+    }
+    else { Write-Host 'The installer may show a Windows admin prompt.' }
     if (-not (Read-YesNo "Install $($tool.Name) $($tool.Version) and accept its licence agreement?")) {
         $missing += $tool; continue
     }
@@ -221,6 +244,16 @@ foreach ($tool in $tools) {
     & winget install --id $tool.Id --exact --version $tool.Version --source winget --accept-package-agreements `
         --accept-source-agreements
     $code = $LASTEXITCODE
+    if ($code -eq 0 -and $sameWindow) {
+        # Nothing to put on PATH, so this run can use it straight away.
+        if (& $tool.Test) {
+            Write-Host "Installed $($tool.Name)."
+            $changes.Add("installed the $($tool.Name)")
+            continue
+        }
+        Write-Host "winget installed $($tool.Name), but onboarding still doesn't find $($tool.Looks)."
+        $missing += $tool; continue
+    }
     if ($code -eq 0) { $installed += $tool; continue }
     if ($wingetAlreadyInstalled -contains $code) {
         if (& $tool.Test) { Write-Host "$($tool.Name): found"; continue }
@@ -318,13 +351,17 @@ try {
     $installer = Get-Content -LiteralPath (Join-Path $root 'scripts/install-docs-tools.sh')
     $lychee = @($installer -match '^LYCHEE_VERSION=')[0] -replace '^LYCHEE_VERSION=', ''
     $vale = @($installer -match '^VALE_VERSION=')[0] -replace '^VALE_VERSION=', ''
-    # The clone's folders for the pinned tools (install-docs-tools.sh --path, #353): lychee, Vale, markdownlint.
-    function Test-DocsTool {
-        $versions = (& $bash -c 'IFS=: read -r l v m <<<"$(bash scripts/install-docs-tools.sh --path)" &&
-            "$l/lychee" --version && "$v/vale" --version && [ -e "$m/markdownlint-cli2" ] && echo markdownlint' 2>&1) -join "`n"
-        return $versions.Contains("lychee $lychee") -and $versions.Contains("version $vale") -and
-            $versions.Contains('markdownlint')
+    # The docs tools that don't run at their pins, from the clone's folders for them (install-docs-tools.sh --path,
+    # #353): lychee, Vale, markdownlint-cli2. Each one is tried, so a failing lychee doesn't hide Vale (#385).
+    function Get-FailingDocsTool {
+        $versions = (& $bash -c 'IFS=: read -r l v m <<<"$(bash scripts/install-docs-tools.sh --path)" || exit
+            "$l/lychee" --version; "$v/vale" --version
+            [ ! -e "$m/markdownlint-cli2" ] || echo markdownlint' 2>&1) -join "`n"
+        if (-not $versions.Contains("lychee $lychee")) { 'lychee' }
+        if (-not $versions.Contains("version $vale")) { 'Vale' }
+        if (-not $versions.Contains('markdownlint')) { 'markdownlint-cli2' }
     }
+    function Test-DocsTool { @(Get-FailingDocsTool).Count -eq 0 }
     if (Test-DocsTool) {
         Write-Host "lychee $lychee, Vale $vale and markdownlint-cli2 are installed."
         Add-Item 'docs tools' $true 'installed'
@@ -335,12 +372,25 @@ try {
     }
     else {
         & $bash scripts/install-docs-tools.sh
-        if ($LASTEXITCODE -eq 0 -and (Test-DocsTool)) {
+        $installCode = $LASTEXITCODE
+        $failing = @(Get-FailingDocsTool)
+        if ($installCode -eq 0 -and $failing.Count -eq 0) {
             Write-Host "Installed lychee $lychee, Vale $vale and markdownlint-cli2, so check.sh docs runs what CI runs."
             $changes.Add('installed the docs tools')
             Add-Item 'docs tools' $true 'installed'
         }
-        else { Add-Item 'docs tools' $false 'scripts/install-docs-tools.sh failed (see above); run it again in Git Bash' }
+        else {
+            # Name what failed, even when the installer said nothing (#385).
+            $what = if ($failing.Count -gt 0) { "$($failing -join ', ') did not run" }
+            else { "scripts/install-docs-tools.sh exited $installCode" }
+            $fix = 'see install-docs-tools.sh''s message above, then run bash scripts/install-docs-tools.sh in Git Bash'
+            if ($failing -contains 'lychee' -and -not (Test-VcRuntime)) {
+                $fix = 'it needs the Visual C++ Redistributable (x64): run .\scripts\onboard.ps1 again and say yes ' +
+                    'to it'
+            }
+            Write-Host "Docs tools: $what; $fix."
+            Add-Item 'docs tools' $false "$what; $fix"
+        }
     }
 
     # --- 5. WSL -------------------------------------------------------------------------------------------------------
