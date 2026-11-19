@@ -67,17 +67,12 @@ Bash, the check-script suites run in WSL when it's set up, in seconds instead of
 (`repo-rules`, `build`, `scripts`, `security`, and `review-gate`, the label gate run from `main`'s copy of
 [`review-gate.yml`](.github/workflows/review-gate.yml)):
 
-- **Pull requests** do the .NET work on Linux: `build` runs `full` there, minus the tests marked `WindowsOnly` (the
-  `Category` trait; `check.sh` adds that category on Windows only). The Pester script tests run in parallel `pester`
-  jobs on Windows, one per file under `tests/smoke/`; the `scripts` check waits for them all (#314). Each job starts with a `git diff` check (`scripts/ci-changes.sh`) and finishes green at once
-  when nothing it covers changed: `build` skips when only `docs/` or Markdown changed, and `scripts` skips unless
-  `scripts/`, `tests/smoke/`, the stand-in game or the workflows changed. `repo-rules` and `security` (CodeQL) always run.
-- **The merge queue and pushes to `main`** run everything, skipping nothing: `build` on Windows runs `full`, then
-  `scripts/build-release.sh` packages the build it tested (`scripts/package-mod.sh`), zips it reproducibly for players
-  (`scripts/zip-package.ps1`) with its `SHA256SUMS`, and rebuilds the mod in a second checkout at another path on the
-  same runner; the package and the zip must both match. Both are kept as workflow artifacts. On `main`, the `attest`
-  job signs that zip with a build-provenance attestation and verifies it with the command in
-  [Check a download](docs/players/how-to/check-a-download.md) (#308).
+- **Pull requests** do the .NET work on Linux, minus the tests marked `WindowsOnly`, and skip what a change doesn't
+  touch; the Pester script tests run on Windows. **The merge queue and pushes to `main`** run everything on Windows,
+  then package, zip and rebuild the mod reproducibly; on `main`, `attest` signs the zip
+  ([Check a download](docs/players/how-to/check-a-download.md)). The path-by-path detail is in
+  [how a change reaches main](docs/contributors/explanation/how-a-change-reaches-main.md) and
+  [ADR 0008](docs/adr/0008-ci-fast-path-and-windows-gate.md).
 - **A `v*` tag on a commit on `main`** runs the `Release` workflow (#310), which drafts an attested release:
   [Cut a release](docs/contributors/how-to/cut-a-release.md). Players' builds stay
   Windows-built, because a Linux build isn't byte-identical
@@ -90,17 +85,13 @@ Each stage is timed against its budget from [#1](https://github.com/Sour-Dev-Hom
 2 from the first job's start to the last one's finish (5 min); `slow.yml` lists stage 6's, which has no budget. A stage
 over budget prints a warning, and in CI an annotation on the run; it never fails the run.
 
-Turn on the committed git hooks once per clone:
-
-```sh
-git config core.hooksPath scripts/githooks
-```
+Turn on the git hooks and set up your private patterns once per clone:
+[CONTRIBUTING.md](.github/CONTRIBUTING.md#2-clone-and-set-up).
 
 The checks also fail a raw source without its header ([`docs/raw-sources/`](docs/raw-sources/README.md)) and a
 finding without its game build ([`docs/findings/`](docs/findings/README.md)).
 
-The checks block game content and personal information. For the second, copy `.claude/pii-patterns.example.txt` to
-`.claude/pii-patterns.txt` (git-ignored) and list your own private strings. CI checks general patterns on every pull
+The checks block game content and personal information. CI checks general patterns on every pull
 request and merge-queue run, and the private list on pushes to `main`, from a secret of the `main-push` environment,
 which only `main` may use. To set it, a maintainer runs:
 
@@ -131,8 +122,8 @@ by lock files). Every `main` build's zip is attested, and only CI's `attest` job
 ## Branch rules
 
 All changes reach `main` through pull requests that pass CI, then a merge queue that re-runs CI on each PR merged with
-the ones ahead of it, so a PR never has to be updated by hand when `main` moves. Auto-merge is on: `gh pr merge --auto
---squash` queues a PR as soon as its checks pass. The ruleset is exported in
+the ones ahead of it, so a PR never has to be updated by hand when `main` moves. Auto-merge is on: `gh pr merge --auto`
+queues a PR as soon as its checks pass. The ruleset is exported in
 [`.github/rulesets/main.json`](.github/rulesets/main.json), which is the source of truth. It requires no approving
 review, because a sole maintainer can't approve their own PR. Admins can bypass it, and GitHub logs each bypass in the
 ruleset's insights. [`.github/CODEOWNERS`](.github/CODEOWNERS) marks the code that needs the owner's review.

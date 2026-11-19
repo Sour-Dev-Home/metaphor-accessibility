@@ -8,9 +8,7 @@ single-context: one `GLOSSARY.md` and one `docs/adr/`, both at the root.
 - **`GLOSSARY.md`** at the repo root.
 - **`docs/adr/`**: read ADRs that touch the area you're about to work in.
 
-If any of these files don't exist, **proceed silently**. Don't flag their absence; don't suggest creating them upfront.
-The `/domain-modeling` skill (reached via `/grill-with-docs` and `/improve-codebase-architecture`) creates them lazily
-when terms or decisions get resolved.
+Add terms and decisions with the `/domain-modeling` skill.
 
 ## Use the glossary's vocabulary
 
@@ -24,4 +22,4 @@ doesn't use (reconsider) or there's a real gap (note it for `/domain-modeling`).
 
 If your output contradicts an existing ADR, surface it explicitly rather than silently overriding:
 
-> _Contradicts ADR-0007 (event-sourced orders), but worth reopening because…_
+> _Contradicts ADR-0007 (behaviour-changing hooks), but worth reopening because…_
