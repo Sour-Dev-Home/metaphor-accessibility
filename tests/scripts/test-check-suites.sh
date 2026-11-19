@@ -119,12 +119,13 @@ cp -r "$ROOT/scripts" "$GATE/"
 printf '#!/usr/bin/env bash\necho "ran $*" >> "$SUITES_LOG"\nexit "${SUITES_CODE:-0}"\n' \
   > "$GATE/scripts/run-check-suites.sh"
 printf '#!/usr/bin/env bash\nexit 0\n' > "$GATE/scripts/run-pester.sh"
+printf '#!/usr/bin/env bash\necho "docs tools $*" >> "$DOCS_LOG"\n' > "$GATE/scripts/install-docs-tools.sh"
 printf '#!/usr/bin/env bash\nexit 0\n' > "$WORK/bin/dotnet"
 chmod +x "$WORK/bin/dotnet"
-export PATH="$WORK/bin:$PATH" SUITES_LOG="$WORK/suites.log" METAPHOR_CHECK_LOCK="$WORK/lock"
+export PATH="$WORK/bin:$PATH" SUITES_LOG="$WORK/suites.log" DOCS_LOG="$WORK/docs-tools.log" METAPHOR_CHECK_LOCK="$WORK/lock"
 
 run_full() { # run_full: `full` in a new repo; sets out and code.
-  rm -rf "$WORK/repo" "$SUITES_LOG"
+  rm -rf "$WORK/repo" "$SUITES_LOG" "$DOCS_LOG"
   mkdir -p "$WORK/repo" && cd "$WORK/repo" || exit 2
   git init -q -b main
   git config user.name test && git config user.email test@example.invalid
@@ -137,7 +138,7 @@ run_full() { # run_full: `full` in a new repo; sets out and code.
   full_again
 }
 full_again() { # full_again: `full` again in the same repo; sets out and code.
-  rm -f "$SUITES_LOG"
+  rm -f "$SUITES_LOG" "$DOCS_LOG"
   out="$(cd "$WORK/repo" && bash "$GATE/scripts/check.sh" full 2>&1)"
   code=$?
 }
@@ -145,6 +146,8 @@ full_again() { # full_again: `full` again in the same repo; sets out and code.
 run_full
 check "full: passes" [ "$code" -eq 0 ]
 check "full: runs the suites, selecting where WSL is missing" [ "$(cat "$SUITES_LOG" 2> /dev/null)" = "ran --select" ]
+# The clone's docs tools (#353): installing them isn't a test, so a skipped full installs them too; CI installs its own.
+check "full: installs the docs tools" [ "$(cat "$DOCS_LOG" 2> /dev/null)" = "docs tools " ]
 check "full: times them" has "check-scripts="
 check "full: six steps in the live log" grep -q '^== start full 6 ' "$WORK/repo/.git/check-live-log"
 
@@ -155,6 +158,7 @@ check "full: says which runner to rerun" has "run: bash scripts/run-check-suites
 SKIP_SCRIPT_TESTS=1 run_full
 check "SKIP_SCRIPT_TESTS: passes" [ "$code" -eq 0 ]
 check "SKIP_SCRIPT_TESTS: skips the suites" [ ! -e "$SUITES_LOG" ]
+check "SKIP_SCRIPT_TESTS: still installs the docs tools" [ -e "$DOCS_LOG" ]
 SKIP_SCRIPT_TESTS=1 full_again
 check "SKIP_SCRIPT_TESTS: its pass serves a skipped full" has "reused"
 full_again
@@ -164,6 +168,8 @@ full_again
 check "a plain full's pass is reused" has "reused"
 SKIP_SCRIPT_TESTS=1 full_again
 check "a plain full's pass serves a skipped full" has "reused"
+SKIP_SCRIPT_TESTS=1 GITHUB_ACTIONS=true run_full
+check "CI: full leaves the docs tools to its own install step" [ ! -e "$DOCS_LOG" ]
 
 echo "check-suites tests: $passed passed, $failed failed"
 [ "$failed" -eq 0 ]

@@ -8,9 +8,13 @@ unset PII_PATTERNS REQUIRE_PRIVATE_PATTERNS REQUIRE_DOCS_TOOLS GITHUB_ACTIONS SE
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 # shellcheck source=../../scripts/wsl-run.sh
 source "$ROOT/scripts/wsl-run.sh" # in Git Bash, runs this suite in WSL instead when it's set up (#341)
-CHECK="$ROOT/scripts/check.sh"
 WORK="$(mktemp -d)"
 trap 'rm -rf "$WORK"' EXIT
+# A copy of the scripts whose docs-tools installer, which `full` runs (#353), does nothing.
+mkdir -p "$WORK/gate"
+cp -r "$ROOT/scripts" "$WORK/gate/"
+printf '#!/usr/bin/env bash\nexit 0\n' > "$WORK/gate/scripts/install-docs-tools.sh"
+CHECK="$WORK/gate/scripts/check.sh"
 passed=0
 failed=0
 export METAPHOR_CHECK_LOCK="$WORK/lock" METAPHOR_CHECK_POLL=1 SKIP_SCRIPT_TESTS=1

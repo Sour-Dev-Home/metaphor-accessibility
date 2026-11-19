@@ -14,6 +14,9 @@ trap 'rm -rf "$WORK"' EXIT
 # The check's functions: most cases run a stage with `main` in a subshell of this shell, which saves starting a bash and
 # reading the script each time (#328; Git Bash and real-time antivirus make every process start expensive).
 SOURCED_CHECK="$CHECK"
+# The folders holding this clone's docs tools at this checkout's pins (scripts/install-docs-tools.sh, #353), so the docs
+# cases' repos run the real tools. Under WSL, lychee and Vale come from the distro's PATH instead.
+DOCS_TOOLS_PATH="$(cd "$ROOT" && bash scripts/install-docs-tools.sh --path)" || DOCS_TOOLS_PATH=""
 # shellcheck source=../../scripts/check.sh
 source "$CHECK" || exit 2
 # shellcheck source=../../scripts/live-log.sh
@@ -724,7 +727,7 @@ docs_repo() {
   mkdir -p tools/docs
   cp "$ROOT/tools/docs/.vale.ini" "$ROOT/tools/docs/.markdownlint-cli2.jsonc" tools/docs/
   cp -r "$ROOT/tools/docs/.vale" tools/docs/
-  PATH="$ROOT/.tools/bin:$ROOT/tools/docs/node_modules/.bin:$PATH"
+  PATH="$DOCS_TOOLS_PATH:$PATH"
 }
 
 test_docs_stage_fails_on_a_broken_relative_link() {
@@ -864,6 +867,124 @@ test_docs_stage_fails_closed_on_a_missing_tool_in_ci() {
   git add .
   REQUIRE_DOCS_TOOLS=1 run_check_without_docs_tools docs
   expect 2 "lychee is not installed, but REQUIRE_DOCS_TOOLS=1"
+}
+
+# The docs tools live once per clone, under its common git dir, in one folder per pin (#353): every worktree finds them,
+# and a branch pinning another version or hash gets its own folder rather than another branch's binary.
+test_docs_tools_live_in_the_clone_keyed_by_pin() {
+  local main_path tree
+  new_repo
+  git commit -q --allow-empty -m "chore: start"
+  main_path="$(bash "$ROOT/scripts/install-docs-tools.sh" --path 2>&1)"
+  tree="$WORK/tree-$RANDOM-$RANDOM"
+  git worktree add -q "$tree" 2> /dev/null || { out="git worktree add failed" code=9 && expect 0; return; }
+  out="$(cd "$tree" && bash "$ROOT/scripts/install-docs-tools.sh" --path 2>&1)"
+  code=$?
+  local platform=WINDOWS vale_sha lychee_sha
+  [ "$(uname -s)" != Linux ] || platform=LINUX
+  vale_sha="$(sed -n "s/^VALE_SHA256_$platform=//p" "$ROOT/scripts/install-docs-tools.sh")"
+  lychee_sha="$(sed -n "s/^LYCHEE_SHA256_$platform=//p" "$ROOT/scripts/install-docs-tools.sh")"
+  [ "$out" = "$main_path" ] || code=1 out="worktree: $out; main checkout: $main_path"
+  expect 0 "$PWD/.git/docs-tools/lychee-" "$lychee_sha" ":$PWD/.git/docs-tools/vale-" "$vale_sha" \
+    ":$PWD/.git/docs-tools/markdownlint-"
+}
+
+test_docs_tools_with_another_pin_get_another_folder() {
+  local before after
+  new_repo
+  mkdir -p scripts tools/docs
+  cp "$ROOT/scripts/install-docs-tools.sh" scripts/
+  cp "$ROOT/tools/docs/package.json" "$ROOT/tools/docs/package-lock.json" tools/docs/
+  before="$(bash scripts/install-docs-tools.sh --path)"
+  sed -i 's/^\(VALE_SHA256_[A-Z]*=\).*/\1'"$(printf '0%.0s' {1..64})"'/' scripts/install-docs-tools.sh
+  printf '\n' >> tools/docs/package-lock.json
+  after="$(bash scripts/install-docs-tools.sh --path)"
+  code=0 out="before: $before; after: $after"
+  [ "${before%%:*}" = "${after%%:*}" ] || code=1 # lychee's pin didn't change
+  IFS=: read -r _ b_vale b_lint <<<"$before"
+  IFS=: read -r _ a_vale a_lint <<<"$after"
+  [ "$b_vale" != "$a_vale" ] || code=2
+  [ "$b_lint" != "$a_lint" ] || code=3
+  expect 0
+}
+
+# docs_tools_installed: fake a finished install of every docs tool in the current clone, marker and tool file each, and
+# set lint_dir to markdownlint's folder.
+docs_tools_installed() {
+  local dir exe="" lychee vale
+  [ "$(uname -s)" = Linux ] || exe=.exe
+  IFS=: read -r lychee vale lint_dir <<<"$(bash "$ROOT/scripts/install-docs-tools.sh" --path)"
+  lint_dir="${lint_dir%/node_modules/.bin}"
+  mkdir -p "$lint_dir/node_modules/.bin" && : > "$lint_dir/node_modules/.bin/markdownlint-cli2"
+  mkdir -p "$lychee" "$vale" && : > "$lychee/lychee$exe" && : > "$vale/vale$exe"
+  for dir in "$lychee" "$vale" "$lint_dir"; do echo "${dir##*/}" > "$dir/.installed"; done
+}
+
+# docs_tools_stubs: a folder with a curl and an npm that fail loudly, or, with npm=ok, an npm that installs a stand-in
+# markdownlint-cli2 into its --prefix folder. Prints the folder.
+docs_tools_stubs() {
+  local stubs="$WORK/stubs-$RANDOM-$RANDOM"
+  mkdir -p "$stubs"
+  printf '#!/bin/sh\necho "$0 must not run" >&2\nexit 7\n' | tee "$stubs/curl" > "$stubs/npm"
+  [ "${1:-}" != npm=ok ] ||
+    printf '#!/bin/sh\nmkdir -p "$3/node_modules/.bin" && : > "$3/node_modules/.bin/markdownlint-cli2"\n' > "$stubs/npm"
+  chmod +x "$stubs/curl" "$stubs/npm"
+  echo "$stubs"
+}
+
+# A re-run, or a full in another worktree, finds the clone's install and fetches nothing.
+test_docs_tools_install_skips_a_pin_already_in_the_clone() {
+  local lint_dir
+  new_repo
+  docs_tools_installed
+  out="$(PATH="$(docs_tools_stubs):$PATH" bash "$ROOT/scripts/install-docs-tools.sh" 2>&1)"
+  code=$?
+  [[ "$out" != *"must not run"* ]] || code=8
+  expect 0
+}
+
+# A folder with the pin's name but no marker, such as an empty one, is not an install: it gets replaced (#353 review).
+test_docs_tools_install_replaces_an_incomplete_folder() {
+  local lint_dir
+  new_repo
+  docs_tools_installed
+  rm -rf "$lint_dir" && mkdir -p "$lint_dir"
+  out="$(PATH="$(docs_tools_stubs npm=ok):$PATH" bash "$ROOT/scripts/install-docs-tools.sh" 2>&1)"
+  code=$?
+  [ -f "$lint_dir/node_modules/.bin/markdownlint-cli2" ] && [ "$(cat "$lint_dir/.installed")" = "${lint_dir##*/}" ] ||
+    code=8 out="$out; not reinstalled: $(ls -A "$lint_dir")"
+  expect 0
+}
+
+# A killed install leaves its .partial-* folder: the next install removes one over an hour old, not a running one's.
+test_docs_tools_install_removes_old_partial_folders() {
+  local lint_dir shared
+  new_repo
+  docs_tools_installed
+  shared="${lint_dir%/*}"
+  mkdir -p "$shared/.partial-old" "$shared/.partial-new"
+  touch -d '2 hours ago' "$shared/.partial-old"
+  out="$(PATH="$(docs_tools_stubs):$PATH" bash "$ROOT/scripts/install-docs-tools.sh" 2>&1)"
+  code=$?
+  [ ! -e "$shared/.partial-old" ] && [ -d "$shared/.partial-new" ] || code=8 out="$out; left: $(ls -A "$shared")"
+  expect 0
+}
+
+test_docs_stage_finds_the_tools_installed_for_the_clone() {
+  local tree vale_dir
+  new_repo
+  mkdir -p tools/docs
+  cp "$ROOT/tools/docs/.vale.ini" tools/docs/
+  printf '# Notes\n' > notes.md
+  git add . && git commit -q -m "docs: notes"
+  IFS=: read -r _ vale_dir _ <<<"$(bash "$ROOT/scripts/install-docs-tools.sh" --path)"
+  mkdir -p "$vale_dir"
+  printf '#!/bin/sh\necho "notes.md:1:1:Project.Stub:the clone'"'"'s vale ran"\n' > "$vale_dir/vale"
+  chmod +x "$vale_dir/vale"
+  tree="$WORK/tree-$RANDOM-$RANDOM"
+  git worktree add -q "$tree" 2> /dev/null && cd "$tree" || { out="git worktree add failed" code=9 && expect 0; return; }
+  run_check_without_docs_tools docs
+  expect 0 "notes.md:1: the clone's vale ran" "lychee is not installed"
 }
 
 test_docs_stage_passes_good_links_and_skips_raw_sources() {
