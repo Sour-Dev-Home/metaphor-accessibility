@@ -1,5 +1,6 @@
 using System.Diagnostics.CodeAnalysis;
 using Metaphor.Core.Announcements;
+using Metaphor.Core.Input;
 using Metaphor.Core.Menus;
 
 namespace Metaphor.Features.Menus;
@@ -33,9 +34,9 @@ public sealed record MenuBindings(int DetailsButtons, int DetailsKey)
 /// game's menus as open (#268) and has a screen entered and not left, by its own events (judgement rule 5); so in the
 /// field, a battle or dialogue, R3, Tab and the reader binding reach the game. A press is an up-to-down edge of a binding held on any pad or the keyboard, as for the
 /// dialogue controls, so a mirroring second pad can't fire it again. Menu speech goes through the reader, so it's
-/// silent while the reader is off. The hook layer hands it each pad and keyboard read from any of the game's threads.
-/// </summary>
-public sealed class MenuControls : IScreenObserver
+/// silent while the reader is off. The input frame (#301) hands it each pad and keyboard read from any of the game's
+/// threads.</summary>
+public sealed class MenuControls : IScreenObserver, IInputControls
 {
     private const int KeyboardSource = -1;
 

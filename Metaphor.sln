@@ -33,6 +33,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Metaphor.SessionFixture", "
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Metaphor.SessionLog", "tools\Metaphor.SessionLog\Metaphor.SessionLog.csproj", "{48895E71-337D-4380-80BA-700F60CAEF6F}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Metaphor.Input.Tests", "tests\Metaphor.Input.Tests\Metaphor.Input.Tests.csproj", "{1B683A53-14C1-412A-8A36-B41C04B5D47C}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -187,6 +189,18 @@ Global
 		{48895E71-337D-4380-80BA-700F60CAEF6F}.Release|x64.Build.0 = Release|Any CPU
 		{48895E71-337D-4380-80BA-700F60CAEF6F}.Release|x86.ActiveCfg = Release|Any CPU
 		{48895E71-337D-4380-80BA-700F60CAEF6F}.Release|x86.Build.0 = Release|Any CPU
+		{1B683A53-14C1-412A-8A36-B41C04B5D47C}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{1B683A53-14C1-412A-8A36-B41C04B5D47C}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{1B683A53-14C1-412A-8A36-B41C04B5D47C}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{1B683A53-14C1-412A-8A36-B41C04B5D47C}.Debug|x64.Build.0 = Debug|Any CPU
+		{1B683A53-14C1-412A-8A36-B41C04B5D47C}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{1B683A53-14C1-412A-8A36-B41C04B5D47C}.Debug|x86.Build.0 = Debug|Any CPU
+		{1B683A53-14C1-412A-8A36-B41C04B5D47C}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{1B683A53-14C1-412A-8A36-B41C04B5D47C}.Release|Any CPU.Build.0 = Release|Any CPU
+		{1B683A53-14C1-412A-8A36-B41C04B5D47C}.Release|x64.ActiveCfg = Release|Any CPU
+		{1B683A53-14C1-412A-8A36-B41C04B5D47C}.Release|x64.Build.0 = Release|Any CPU
+		{1B683A53-14C1-412A-8A36-B41C04B5D47C}.Release|x86.ActiveCfg = Release|Any CPU
+		{1B683A53-14C1-412A-8A36-B41C04B5D47C}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -204,5 +218,6 @@ Global
 		{3BAEC49B-E387-4516-9556-B7BFDBFE8F29} = {0AB3BF05-4346-4AA6-1389-037BE0695223}
 		{F8490AF0-DC26-40EE-B191-2F941EF6DA52} = {07C2787E-EAC7-C090-1BA3-A61EC2A24D84}
 		{48895E71-337D-4380-80BA-700F60CAEF6F} = {07C2787E-EAC7-C090-1BA3-A61EC2A24D84}
+		{1B683A53-14C1-412A-8A36-B41C04B5D47C} = {0AB3BF05-4346-4AA6-1389-037BE0695223}
 	EndGlobalSection
 EndGlobal

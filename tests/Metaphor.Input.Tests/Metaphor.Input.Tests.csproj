@@ -1,0 +1,30 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- The input frame (#301) with the menu and dialogue controls wired as the mod wires them. Its own project, so a
+       change to one feature still doesn't select the other feature's tests. -->
+  <PropertyGroup>
+    <TargetFramework>net9.0</TargetFramework>
+    <IsPackable>false</IsPackable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- Recorded sessions to replay (#149). -->
+    <None Include="..\fixtures\sessions\*.txt" LinkBase="sessions" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.NET.Test.Sdk" />
+    <PackageReference Include="xunit" />
+    <PackageReference Include="xunit.runner.visualstudio" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Using Include="Xunit" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\Metaphor.Features.Dialogue\Metaphor.Features.Dialogue.csproj" />
+    <ProjectReference Include="..\..\src\Metaphor.Features.Menus\Metaphor.Features.Menus.csproj" />
+  </ItemGroup>
+
+</Project>
