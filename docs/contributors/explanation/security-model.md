@@ -91,5 +91,5 @@ The rules are in [`CONTRIBUTING.md`](../../../.github/CONTRIBUTING.md#security-r
   write collaborator's doesn't. Revisit before adding one
   ([#330](https://github.com/Sour-Dev-Home/metaphor-accessibility/issues/330),
   [#309](https://github.com/Sour-Dev-Home/metaphor-accessibility/issues/309)).
-- Releases aren't yet built by CI and attested
-  ([#308](https://github.com/Sour-Dev-Home/metaphor-accessibility/issues/308)).
+- CI attests each `main` build's zip, but nothing yet turns a tag into a release
+  ([#310](https://github.com/Sour-Dev-Home/metaphor-accessibility/issues/310)).

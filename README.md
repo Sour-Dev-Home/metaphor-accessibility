@@ -73,7 +73,10 @@ Bash, the check-script suites run in WSL when it's set up, in seconds instead of
   `scripts/`, `tests/smoke/`, the stand-in game or the workflows changed. `repo-rules` and `security` (CodeQL) always run.
 - **The merge queue and pushes to `main`** run everything, skipping nothing: `build` on Windows runs `full`, then
   packages the build it tested (`scripts/package-mod.sh`), keeps it as a workflow artifact with its SHA-256 and rebuilds
-  the mod in a second checkout at another path on the same runner to check the bytes match. Players' builds stay
+  the mod in a second checkout at another path on the same runner to check the bytes match. It also zips the package
+  reproducibly for players (`scripts/zip-package.ps1`), with its `SHA256SUMS`, and the rebuild's zip must match too.
+  On `main`, the `attest` job signs that zip with a build-provenance attestation and verifies it with the command in
+  [Check a download](docs/players/how-to/check-a-download.md) (#308). Players' builds stay
   Windows-built, because a Linux build isn't byte-identical
   ([measurement](docs/raw-sources/linux-build-spike-2026-11-16.md)). A local package won't match CI's hash, because
   CI-only build settings remove machine paths; the CI artifact is the one that counts.
@@ -115,6 +118,10 @@ ruleset requires, runs CodeQL and fails on any package with a known vulnerabilit
 adds a high or critical CodeQL security alert; other alerts show in the Security tab without blocking. To unblock a
 false positive, dismiss the alert there with a reason.
 [Scorecard](.github/workflows/scorecard.yml) runs weekly as a report only; its results are in the Security tab.
+Bundled binaries are pinned by hash before they're packed (Prism by `scripts/fetch-prism.ps1`, ADR 0005; NuGet packages
+by lock files). Every `main` build's zip is attested, and only CI's `attest` job may ask for a signing token
+(`tests/scripts/test-release-integrity.sh`); the audit behind this is
+[release integrity](docs/raw-sources/release-integrity-audit-2026-11-18.md).
 `tests/scripts/test-repo-config.sh` checks these rules.
 
 ## Branch rules
