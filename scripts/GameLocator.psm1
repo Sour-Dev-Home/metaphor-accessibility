@@ -65,9 +65,11 @@ function Get-LoaderRecord([string] $ConfigPath) {
 function Test-File([string] $Path) { [bool]($Path -and (Test-Path -LiteralPath $Path -PathType Leaf)) }
 
 # Reloaded-II's launcher: METAPHOR_RELOADED_EXE, then the config's LauncherPath; $null when neither is a file named
-# Reloaded-II.exe, so a record pointing at another program is never started or linked to.
-function Find-ReloadedLauncher([string] $ConfigPath = (Get-ReloadedConfigPath)) {
-    foreach ($launcher in $env:METAPHOR_RELOADED_EXE, (Get-LoaderRecord $ConfigPath).LauncherExe) {
+# Reloaded-II.exe, so a record pointing at another program is never started or linked to. IGNOREENVIRONMENT skips
+# METAPHOR_RELOADED_EXE, a developer's override the players' installer never follows (#408).
+function Find-ReloadedLauncher([string] $ConfigPath = (Get-ReloadedConfigPath), [switch] $IgnoreEnvironment) {
+    $override = if ($IgnoreEnvironment) { $null } else { $env:METAPHOR_RELOADED_EXE }
+    foreach ($launcher in $override, (Get-LoaderRecord $ConfigPath).LauncherExe) {
         if ((Test-File $launcher) -and (Split-Path -Leaf $launcher) -eq 'Reloaded-II.exe') { return $launcher }
     }
     return $null

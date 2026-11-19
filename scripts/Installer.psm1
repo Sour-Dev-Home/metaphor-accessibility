@@ -39,12 +39,15 @@ function Get-Property($Object, [string] $Name) {
 
 # JSON as Reloaded-II writes it: UTF-8 without a byte order mark, which Windows PowerShell 5.1's Set-Content can't do.
 # Written beside the file first and then swapped in, so a failed write never leaves half a file; a file replaced is
-# kept as PATH.bak.
+# kept as PATH.bak. A PATH.bak already there is kept: it is the file from before the installer first changed it (#408).
 function Write-JsonFile([string] $Path, $Value) {
     New-Item -ItemType Directory -Force (Split-Path $Path) | Out-Null
     $temporary = "$Path.tmp"
     [IO.File]::WriteAllText($temporary, ($Value | ConvertTo-Json -Depth 20), (New-Object Text.UTF8Encoding $false))
-    if (Test-Path -LiteralPath $Path -PathType Leaf) { [IO.File]::Replace($temporary, $Path, "$Path.bak") }
+    if (Test-Path -LiteralPath $Path -PathType Leaf) {
+        $backup = if (Test-Path -LiteralPath "$Path.bak") { [NullString]::Value } else { "$Path.bak" }
+        [IO.File]::Replace($temporary, $Path, $backup)
+    }
     else { [IO.File]::Move($temporary, $Path) }
 }
 
@@ -58,9 +61,14 @@ function Test-TestSwitch([string] $Name) { [Environment]::GetEnvironmentVariable
 
 # True when this process runs as administrator. Reloaded-II isn't meant to run as admin, and nothing but the two
 # runtime installers needs it (they ask for it themselves), so install.ps1 refuses. The tests set
-# METAPHOR_INSTALL_TEST_ALLOW_ADMIN, since CI's runners are admin.
+# METAPHOR_INSTALL_TEST_ALLOW_ADMIN, since CI's runners are admin; it counts only with CI=true, as CI sets, so a player
+# can't turn the refusal off by accident (#408).
 function Test-Elevated {
-    if (Test-TestSwitch 'ALLOW_ADMIN') { return $false }
+    if ((Test-TestSwitch 'ALLOW_ADMIN') -and $env:CI -eq 'true') { return $false }
+    Test-AdministratorRole
+}
+
+function Test-AdministratorRole {
     ([Security.Principal.WindowsPrincipal] [Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole(
         [Security.Principal.WindowsBuiltInRole]::Administrator)
 }
@@ -120,7 +128,7 @@ function Get-PinnedFile($Context, $Pin) {
     }
     $stream = [IO.File]::Open($target, 'Open', 'Read', 'Read')
     $problem = $null
-    $sha256 = Get-StreamSha256 $stream
+    try { $sha256 = Get-StreamSha256 $stream } catch { $stream.Dispose(); throw }
     if ($sha256 -ne $Pin.sha256) { $problem = "SHA-256 $sha256, expected $($Pin.sha256)" }
     elseif ((Get-Property $Pin 'signer') -and -not ($uri.IsFile -and (Test-TestSwitch 'UNSIGNED'))) {
         $signature = $null
@@ -155,11 +163,12 @@ function Expand-PinnedArchive([string] $Archive, [string] $Destination) {
 # Asks QUESTION, a yes/no one where Enter means no.
 function Confirm-Install($Context, [string] $Question) { Test-Yes (& $Context.Ask "$Question [y/N]") }
 
-# 2. Reloaded-II: the one Reloaded-II or METAPHOR_RELOADED_EXE names (GameLocator.psm1), or one this installer put in
-# its folder before; else the pinned Release.zip, unpacked there after a yes. No admin rights needed.
+# 2. Reloaded-II: the one Reloaded-II's settings name (GameLocator.psm1, without the developer scripts'
+# METAPHOR_RELOADED_EXE), or one this installer put in its folder before; else the pinned Release.zip, unpacked there
+# after a yes. No admin rights needed.
 function Install-Reloaded($Context) {
     $pin = $Context.Pins.reloaded
-    $launcher = Find-ReloadedLauncher -ConfigPath $Context.ConfigPath
+    $launcher = Find-ReloadedLauncher -ConfigPath $Context.ConfigPath -IgnoreEnvironment
     $ours = Join-Path $Context.ReloadedFolder 'Reloaded-II.exe'
     if (-not $launcher -and (Test-Path -LiteralPath $ours -PathType Leaf)) { $launcher = $ours }
     if ($launcher -and -not (Test-LauncherName $launcher)) {
