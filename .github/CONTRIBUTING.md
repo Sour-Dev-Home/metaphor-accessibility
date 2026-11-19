@@ -19,6 +19,16 @@ your user (no admin needed; `RemoteSigned` is enough because `git clone` doesn't
 Set-ExecutionPolicy -Scope CurrentUser RemoteSigned
 ```
 
+Optional: install WSL 2 first, so `check.sh full` runs its check-script suites in a Linux distro instead of Git Bash
+(about 4 minutes faster). In PowerShell run as administrator, then restart Windows
+([Microsoft's guide](https://learn.microsoft.com/windows/wsl/install)):
+
+```powershell
+wsl --install
+```
+
+Onboard then sets up the distro the checks use. Without it, everything still works, only slower.
+
 Then, in PowerShell, from the root of your clone:
 
 ```powershell
