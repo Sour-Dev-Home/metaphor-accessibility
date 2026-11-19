@@ -26,7 +26,8 @@ scope=(src/Metaphor.Hooks/ scripts/deploy-dev.ps1 scripts/smoke-test.ps1 scripts
   scripts/ReloadedDev.psm1 scripts/capture.ps1 scripts/listen.ps1
   scripts/check.sh scripts/game-content.sha256 scripts/tree-hash.sh scripts/ci-changes.sh scripts/test-select.sh
   scripts/stage-timing.sh scripts/install-docs-tools.sh scripts/conflict-alert.sh scripts/integration-sync.sh
-  scripts/check-status.sh scripts/github-outage.sh scripts/run-pester.sh scripts/githooks/ scripts/security-stamp.sh
+  scripts/check-status.sh scripts/github-outage.sh scripts/run-pester.sh scripts/live-log.sh
+  scripts/githooks/ scripts/security-stamp.sh
   .github/workflows/ tests/check/ tests/scripts/ tools/docs/ tools/slow/ .config/dotnet-tools.json
   .claude/agents/security-reviewer.md
   *Directory.Build.* *Directory.Packages.props *Directory.Solution.* *.sln.targets global.json
@@ -50,12 +51,26 @@ scope_hash() {
   if [ -n "${1:-}" ]; then
     # Against the empty tree, which lists the same mode, blob and path as ls-tree, but takes wildcard pathspecs.
     listing="$(git diff-tree -r "$empty_tree" "$1" -- "${paths[@]}")" || die "could not list the scope in $1"
-    listing="$(awk -F'\t' '{ split($1, m, " "); print m[2], m[4], $2 }' <<<"$listing")"
+    listing="$(fields 1 3 <<<"$listing")"
   else
     listing="$(git ls-files -s -- "${scope[@]}")" || die "could not list the staged scope"
-    listing="$(awk -F'\t' '{ split($1, m, " "); print m[1], m[2], $2 }' <<<"$listing")"
+    listing="$(fields 0 1 <<<"$listing")"
   fi
-  printf '%s\n' "$listing" | sha256sum | cut -d' ' -f1
+  listing="$(sha256sum <<<"$listing")" || die "could not hash the scope"
+  echo "${listing%% *}"
+}
+
+# fields A B: for each "<words>\t<path>" line on stdin print "<word A> <word B> <path>" (words counted from 0), as
+# awk -F'\t' '{ split($1, m, " "); print m[A+1], m[B+1], $2 }' did, with builtins: under Git Bash each process start
+# costs a lot (#328). The hash depends on this text, so it stays byte for byte the same.
+fields() {
+  local line words path
+  while IFS= read -r line; do
+    path=""
+    [[ "$line" != *$'\t'* ]] || { path="${line#*$'\t'}" && path="${path%%$'\t'*}"; }
+    read -r -a words <<<"${line%%$'\t'*}"
+    printf '%s %s %s\n' "${words[$1]:-}" "${words[$2]:-}" "$path"
+  done
 }
 
 # touches [COMMIT]: exit 0 when the scope changed.
@@ -80,9 +95,13 @@ touches() {
   esac
 }
 
-root="$(git rev-parse --show-toplevel)" || die "not inside a git repository"
+# One rev-parse for the root and the git dir. The stamp lives in this worktree's own git dir, which is where
+# `git rev-parse --git-path security-review-stamp` points for a name git doesn't share between worktrees.
+dirs="$(git rev-parse --show-toplevel --absolute-git-dir)" || die "not inside a git repository"
+root="${dirs%%$'\n'*}"
+[ "$root" != "$dirs" ] || die "could not find the git folder"
+stamp_file="${dirs#*$'\n'}/security-review-stamp"
 cd "$root" || die "could not enter $root" # git lists paths relative to the current folder
-stamp_file="$(git rev-parse --git-path security-review-stamp)" || die "could not find the git folder"
 
 case "${1:-}" in
   "")
