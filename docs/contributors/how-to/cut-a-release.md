@@ -3,7 +3,7 @@
 For the maintainer. A release starts with a `v*` tag on a commit on `main`. The `Release` workflow
 ([`release.yml`](../../../.github/workflows/release.yml)) builds the tagged commit from scratch, rebuilds it to compare,
 attests the zip and attaches it with its `SHA256SUMS` to a draft release. You publish the draft. Only admins create
-`v*` tags ([CONTRIBUTING](../../../.github/CONTRIBUTING.md#security-review-and-deny-rules)).
+`v*` tags ([collaborators](../reference/security-review.md#collaborators)).
 
 You need the GitHub CLI signed in with an admin account, and a clone with `main` up to date.
 

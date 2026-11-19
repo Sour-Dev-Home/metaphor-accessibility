@@ -40,22 +40,29 @@ This is a public repository.
 
 ## Layout
 
+The [start-here map](docs/contributors/README.md) has the full layout, the
+[tool stack](docs/contributors/README.md#tool-stack), the environment variables and the workflow.
+
+- `src/`: the mod. `Metaphor.Core` and `Metaphor.Features.*` are plain libraries; `Metaphor.Hooks` is the hook layer.
+- `tests/`: xUnit projects, `pester/` for the PowerShell scripts, `bash/` and `check/` for the check scripts.
+- `scripts/`: `check.sh` and `check/`, `githooks/`, `ci/`, `release/`, `player/` (what the zip ships), `dev/`, `setup/`.
+- `tools/`: dev-only programs and the docs and slow-suite tool pins.
 - `docs/raw-sources/`: saved copies of the sources the notes rely on. Add to it; never edit what's there.
 - `docs/findings/`: one note per finding, from the template in its README.
 - `docs/players/` and `docs/contributors/`: docs by audience, then by Diátaxis type (`docs/README.md`).
 - `docs/coding-standards.md`: the judgement and architecture rules reviews check.
-- `.github/CONTRIBUTING.md`: setup and the change workflow. `docs/contributors/reference/checks.md`: the check command's stages.
+- Git-ignored output: `game/`, `extracted/`, `dumps/`, `captures/`, `out/ghidra/`, `artifacts/`, `bin/`, `obj/`.
 - This file holds every rule agents follow; `CLAUDE.md` only imports it. Put new rules here. Agent definitions
   (`.claude/agents/`) and skill settings (`docs/agents/`) live where their tools look for them.
 
 ## Claude Code setup
 
 This project runs with its own config directory, so the owner's other projects' settings, agents and plugins don't load
-here. Start it with `.\scripts\setup\claude.ps1` from the repository root, not `claude`. The only plugin is Matt Pocock's skills
-(`mattpocock-skills`). The one custom agent is `security-reviewer` (`.claude/agents/`): run it before a release, and on
-staged changes before any commit in the review scope (the hook layer, every script and the guards), listed in
-`scripts/ci/security-stamp.sh`. The stamp and the deny rules are in
-[`CONTRIBUTING.md`](.github/CONTRIBUTING.md#security-review-and-deny-rules). Never set `SECURITY_REVIEW_SKIP`, and never
+here. Start it with `.\scripts\setup\claude.ps1` from the repository root, not `claude`. The only plugin is Matt
+Pocock's skills (`mattpocock-skills`). The one custom agent is `security-reviewer` (`.claude/agents/`): run it before a
+release, and on staged changes before any commit in the review scope (the hook layer, every script and the guards),
+listed in `scripts/ci/security-stamp.sh`. The stamp and the deny rules are in
+[security review](docs/contributors/reference/security-review.md). Never set `SECURITY_REVIEW_SKIP`, and never
 force-push.
 
 ## Agent skills
@@ -64,7 +71,8 @@ Before committing or opening a PR, read `docs/agents/workflow.md`: branching, se
 
 ### Issue tracker
 
-Issues live in GitHub Issues on `Sour-Dev-Home/metaphor-accessibility`, managed with the `gh` CLI. See `docs/agents/issue-tracker.md`.
+Issues live in GitHub Issues on `Sour-Dev-Home/metaphor-accessibility`, managed with the `gh` CLI. See
+`docs/agents/issue-tracker.md`.
 
 ### Triage labels
 

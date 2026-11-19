@@ -50,7 +50,7 @@ Co-Authored-By: <co-author name and address>
 - **`Security-Review: <hash>`** is added by the `commit-msg` hook, not by hand, on a commit that touches the
   security-review scope (`scripts/ci/security-stamp.sh`). It needs the `security-reviewer` agent's stamp to match the
   staged scope. The hook replaces any such trailer already in the message. Details:
-  [CONTRIBUTING](../../../.github/CONTRIBUTING.md#security-review-and-deny-rules).
+  [security review](security-review.md#the-stamp).
 - **`Security-Review-Skipped: <reason>`** is written instead when the maintainer commits with `SECURITY_REVIEW_SKIP`. On
   any PR not by the maintainer, CI ignores a skip trailer.
 - A clean merge from `main` gets no review trailer ([ADR 0012](../../adr/0012-review-trailer-covers-clean-merges.md)).

@@ -34,5 +34,5 @@ fails to start until the maintainer adds it to the allowed list in the repositor
 a workflow around a new action, open an issue that names the action and why it's needed.
 
 A change under `.github/workflows/` is in the security-review scope
-([`CONTRIBUTING.md`](../../../.github/CONTRIBUTING.md#security-review-and-deny-rules)), so it needs a review stamp
+([security review](../reference/security-review.md#scope)), so it needs a review stamp
 like any other guard file.
