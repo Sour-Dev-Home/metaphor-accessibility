@@ -667,6 +667,117 @@ internal static class Rules
 
     private const string Text1Section = ".text1";
 
+    /// <summary>
+    /// #321, rule 16 (#300's globals): each <c>new GlobalSpec(…)</c> in the assembly (its primary constructor; a record's copy
+    /// constructor builds no new spec) points at a RIP-relative load in its
+    /// signature's pattern, by <paramref name="patternBySignature"/> from <c>hook-signatures.json</c>: a known
+    /// <c>[rip+disp32]</c> load opcode at <c>LoadOffset</c> (<see cref="RipRelativeLoads"/>), exactly four <c>??</c> bytes
+    /// at <c>DisplacementOffset</c> from there, and <c>InstructionLength</c> ending right after them. A typo there would
+    /// point a reader at the wrong address. A spec whose signature, offsets and length aren't constants passed in order
+    /// can't be checked, so it is a violation too, and so is a GlobalSpec constructor this rule doesn't know the shape
+    /// of. It checks each spec's shape against its pattern, not against a game build: the specs name their own builds,
+    /// and the loader's build check and exactly-once match decide those.
+    /// </summary>
+    public static IReadOnlyList<string> GlobalSpecsPointAtALoad(
+        AssemblyDefinition assembly, IReadOnlyDictionary<string, string> patternBySignature)
+    {
+        ArgumentNullException.ThrowIfNull(assembly);
+        ArgumentNullException.ThrowIfNull(patternBySignature);
+
+        var name = assembly.Name.Name;
+        var problems = new List<string>();
+        foreach (var method in Methods(assembly).Where(method => method.HasBody))
+        {
+            var code = method.Body.Instructions.Where(i => i.OpCode.Code != Mono.Cecil.Cil.Code.Nop).ToList();
+            for (var at = 0; at < code.Count; at++)
+            {
+                if (code[at] is { OpCode.Code: Mono.Cecil.Cil.Code.Newobj, Operand: MethodReference constructor } &&
+                    constructor.DeclaringType.FullName == GlobalSpecType && !IsCopyConstructor(constructor))
+                {
+                    var where = $"{name} {method.DeclaringType.FullName}";
+                    if (!HasGlobalSpecShape(constructor))
+                    {
+                        problems.Add($"{where} builds a GlobalSpec through a constructor this rule can't read: update " +
+                            "GlobalSpecProblem to the record's new shape (rule 16)");
+                    }
+                    else if (GlobalSpecProblem(code, at, patternBySignature) is { } problem)
+                    {
+                        problems.Add($"{where} declares a GlobalSpec {problem} (rule 16)");
+                    }
+                }
+            }
+        }
+        return problems;
+    }
+
+    private const string GlobalSpecType = "Metaphor.Core.GlobalSpec";
+
+    /// <summary>The primary constructor's parameters, in order, which <see cref="GlobalSpecProblem"/> reads the
+    /// arguments by.</summary>
+    private static readonly string[] GlobalSpecParameters =
+        ["Name", "GameBuilds", "SignatureName", "LoadOffset", "DisplacementOffset", "InstructionLength", "TurnsOff"];
+
+    // A reference into another assembly carries no parameter names, so this reads the definition; one that can't be
+    // resolved can't be read either.
+    private static bool HasGlobalSpecShape(MethodReference constructor) =>
+        constructor.Resolve() is { } definition &&
+        definition.Parameters.Select(parameter => parameter.Name).SequenceEqual(GlobalSpecParameters);
+
+    // A record's copy constructor (its synthesized Clone calls it) takes the record itself and builds no new spec.
+    private static bool IsCopyConstructor(MethodReference constructor) =>
+        constructor.Parameters is [{ ParameterType.FullName: GlobalSpecType }];
+
+    /// <summary>The <c>[rip+disp32]</c> loads a global can be read from: REX.W (<c>48</c>, or <c>4C</c> with REX.R for
+    /// r8-r15), <c>8B</c> (mov) or <c>8D</c> (lea), then a ModR/M byte with mod 00 and r/m 101, any register. Source:
+    /// docs/raw-sources/x86-rip-relative-loads-2026-11-19.md (sandpile.org's REX and ModR/M tables, and the Intel
+    /// manual's MOV and LEA opcode rows).</summary>
+    private static readonly HashSet<string> RipRelativeLoads =
+        [.. from rex in new[] { "48", "4C" }
+            from opcode in new[] { "8B", "8D" }
+            from register in Enumerable.Range(0, 8)
+            select $"{rex} {opcode} {(register << 3) | 5:X2}"];
+
+    /// <summary>What is wrong with the GlobalSpec built by the <c>newobj</c> at <paramref name="at"/>, or null. Its
+    /// arguments end <c>ldstr SignatureName; ldc LoadOffset; ldc DisplacementOffset; ldc InstructionLength; ldstr
+    /// TurnsOff</c>.</summary>
+    private static string? GlobalSpecProblem(
+        List<Mono.Cecil.Cil.Instruction> code, int at, IReadOnlyDictionary<string, string> patternBySignature)
+    {
+        if (at < 5 || code[at - 5] is not { OpCode.Code: Mono.Cecil.Cil.Code.Ldstr, Operand: string signature } ||
+            IntConstant(code[at - 4]) is not { } load || IntConstant(code[at - 3]) is not { } displacement ||
+            IntConstant(code[at - 2]) is not { } length)
+        {
+            return "whose signature, offsets and length aren't constants";
+        }
+        if (!patternBySignature.TryGetValue(signature, out var pattern))
+        {
+            return $"on {signature}, which isn't in hook-signatures.json";
+        }
+        var bytes = pattern.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+        var spec = $"on {signature} (load at {load}, disp32 at {displacement}, length {length})";
+        if (load < 0 || displacement < 0 || length != displacement + 4 || load + length > bytes.Length)
+        {
+            return $"{spec} whose disp32 isn't the last 4 bytes of a load inside the pattern";
+        }
+        if (!RipRelativeLoads.Contains(string.Join(' ', bytes[load..(load + displacement)])))
+        {
+            return $"{spec} that isn't at a [rip+disp32] mov or lea";
+        }
+        return bytes[(load + displacement)..(load + length)].All(b => b == "??")
+            ? null
+            : $"{spec} whose disp32 isn't 4 wildcard bytes";
+    }
+
+    private static int? IntConstant(Mono.Cecil.Cil.Instruction instruction) => instruction.OpCode.Code switch
+    {
+        Mono.Cecil.Cil.Code.Ldc_I4_M1 => -1,
+        >= Mono.Cecil.Cil.Code.Ldc_I4_0 and <= Mono.Cecil.Cil.Code.Ldc_I4_8 =>
+            instruction.OpCode.Code - Mono.Cecil.Cil.Code.Ldc_I4_0,
+        Mono.Cecil.Cil.Code.Ldc_I4_S => (sbyte)instruction.Operand,
+        Mono.Cecil.Cil.Code.Ldc_I4 => (int)instruction.Operand,
+        _ => null,
+    };
+
     /// <summary>The namespace and name prefix of the interfaces, one per parameter shape, a hook observes through.</summary>
     public const string ShapePrefix = "Metaphor.Hooks.IObserves";
 

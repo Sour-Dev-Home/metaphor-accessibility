@@ -12,7 +12,8 @@
 #   stamped                        exit 0 when the stamp matches the staged scope
 #   clean-merge [COMMIT]           exit 0 when the merge being committed (or COMMIT) is a clean merge from main, which
 #                                  needs no stamp (docs/adr/0012-review-trailer-covers-clean-merges.md)
-#   spend                          remove the stamp once HEAD carries its trailer (the post-commit and post-merge hooks)
+#   spend                          remove the stamp once HEAD carries its trailer or commits the stamped scope (the
+#                                  post-commit and post-merge hooks)
 # The yes-or-no commands exit 1 for no.
 #
 # The hash is the SHA-256 of "<mode> <blob> <path>" for each scope file, so the index and a commit with the same scope
@@ -227,11 +228,14 @@ case "${1:-}" in
   clean-merge) clean_merge "${2:-}" ;;
   spend)
     # The post-commit hook: a stamp is single-use, so the commit carrying its trailer removes it (#246). A commit
-    # refused at commit-msg never gets here, and keeps the stamp for the retry.
+    # refused at commit-msg never gets here, and keeps the stamp for the retry. `--no-verify` skips commit-msg but not
+    # this hook: a commit that changes the scope to the stamped content spends it too, trailer or not (#321).
     [ -f "$stamp_file" ] || exit 0
     hash="$(tr -d '\r\n' < "$stamp_file")"
     trailers="$(git log -1 --format='%(trailers:key=Security-Review,valueonly)' HEAD)" || die "could not read HEAD"
     if [ -n "$hash" ] && grep -qxF -- "$hash" <<<"$trailers"; then
+      rm -f "$stamp_file" || die "could not remove $stamp_file"
+    elif touches HEAD && [ "$(scope_hash HEAD)" = "$hash" ]; then
       rm -f "$stamp_file" || die "could not remove $stamp_file"
     fi ;;
   *) echo "usage: scripts/security-stamp.sh [hash [COMMIT] | accepted COMMIT | touches [COMMIT | BASE..HEAD] | stamped | clean-merge [COMMIT] | spend]" >&2

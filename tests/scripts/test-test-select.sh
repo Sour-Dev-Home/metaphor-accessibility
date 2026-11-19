@@ -116,6 +116,19 @@ every_dependent_built() {
 }
 check "every project reachable from a changed one is tested or built" every_dependent_built
 
+# A reference cycle (#321): reaches_test walks each project once, so it ends without nesting functions ever deeper.
+cycle="$(mktemp -d)"
+git init -q "$cycle"
+mkdir -p "$cycle/src/A" "$cycle/src/B"
+printf '<Project><ItemGroup><ProjectReference Include="..\\B\\B.csproj" /></ItemGroup></Project>\n' > "$cycle/src/A/A.csproj"
+printf '<Project><ItemGroup><ProjectReference Include="..\\A\\A.csproj" /></ItemGroup></Project>\n' > "$cycle/src/B/B.csproj"
+git -C "$cycle" add .
+out="$(cd "$cycle" && printf 'src/A/X.cs\n' | FUNCNEST=50 timeout 60 bash "$ROOT/scripts/test-select.sh" 2>&1)"
+check "a reference cycle ends" test $? -eq 0
+check "a reference cycle nests no function deeper than the graph" lacks "nesting level"
+check "a reference cycle builds both projects" has "build src/B/B.csproj"
+rm -rf "$cycle"
+
 # Selection is local only
 out="$(GITHUB_ACTIONS=true sel docs/README.md)"
 check "CI selects every test project" has "Dialogue.Tests"

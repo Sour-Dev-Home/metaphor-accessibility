@@ -29,3 +29,10 @@ HTTP 422: Validation Failed (https://api.github.com/repos/example/repo/pulls)
 === real hook-failed
 pre-push: checks failed: the Release build has errors
 error: failed to push some refs to 'origin'
+=== real pre-push-slots-busy
+check: every build slot is busy (see scripts/check-status.sh), so this push would wait with its connection open and be cut. Run 'bash scripts/check.sh full' first, then push: the hook reuses the recorded pass.
+error: failed to push some refs to 'https://github.com/example/repo.git'
+=== real pre-push-slow-check
+check: waiting for another build check to finish (/tmp/metaphor-check.lock, 2 slots)
+step times: restore=40s build=310s tests=95s
+fatal: the remote end hung up unexpectedly

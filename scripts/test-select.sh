@@ -53,9 +53,16 @@ mark() { # mark PROJECT REASON REASON: add the project and everything that refer
 }
 
 reaches_test() { # reaches_test PROJECT: the project, or one referencing it (transitively), is a test project
-  local p="$1" q
-  [[ "$p" == tests/*Tests.csproj ]] && return 0
-  for q in ${rdeps[$p]:-}; do reaches_test "$q" && return 0; done
+  # A walk with a visited set, so a reference cycle ends and a shared dependent is read once (#321).
+  local -A seen=()
+  local todo=("$1") p q
+  while [ "${#todo[@]}" -gt 0 ]; do
+    p="${todo[0]}" todo=("${todo[@]:1}")
+    [ -z "${seen[$p]:-}" ] || continue
+    seen[$p]=1
+    [[ "$p" == tests/*Tests.csproj ]] && return 0
+    for q in ${rdeps[$p]:-}; do todo+=("$q"); done
+  done
   return 1
 }
 

@@ -26,7 +26,12 @@ internal static class Scanned
 
     /// <summary>The exe section of each signature in the hook signatures list embedded in the scanned Core assembly, by
     /// signature name. Core's own tests validate the list; this reads only names and sections.</summary>
-    public static IReadOnlyDictionary<string, string> SignatureSections()
+    public static IReadOnlyDictionary<string, string> SignatureSections() => SignatureField("section");
+
+    /// <summary>The byte pattern of each signature in the same list, by signature name (#321).</summary>
+    public static IReadOnlyDictionary<string, string> SignaturePatterns() => SignatureField("pattern");
+
+    private static Dictionary<string, string> SignatureField(string field)
     {
         var resource = Load("Metaphor.Core").MainModule.Resources
             .OfType<EmbeddedResource>()
@@ -34,7 +39,7 @@ internal static class Scanned
         using var json = JsonDocument.Parse(resource.GetResourceData());
         return json.RootElement.EnumerateArray().ToDictionary(
             signature => signature.GetProperty("name").GetString()!,
-            signature => signature.GetProperty("section").GetString()!,
+            signature => signature.GetProperty(field).GetString()!,
             StringComparer.Ordinal);
     }
 

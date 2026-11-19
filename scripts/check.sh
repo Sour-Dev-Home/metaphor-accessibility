@@ -3,6 +3,9 @@
 #
 #   scripts/check.sh fast    repo rules on staged files
 #   scripts/check.sh pre-commit   fast, then formatting, docs and signatures when their files are staged (the hook)
+#   scripts/check.sh pre-merge-commit   pre-commit for a merge git commits on its own (the hook, #321), without the
+#                                 early security-review gate: git writes MERGE_HEAD after this hook, so a clean merge
+#                                 can't be told here, and commit-msg, which runs next, judges it
 #   scripts/check.sh pre-push     build, Unit and RoundTrip tests when pushed commits change code (the hook; refs on stdin)
 #                                 (a passing full or pre-push is recorded per clone by tree hash; the same tree reuses it)
 #                                 Tests are selected from the changed files and the project references (test-select.sh,
@@ -650,12 +653,30 @@ the label"; return; }
     report "security-reviewed was added before the PR's latest push ($pushed): review the new commits and add the label again"
 }
 
+# head_arrived SHA REF REPO: print when SHA became the head of the PR from branch REF of repository REPO, from the
+# review-gate workflow's runs, whose creation times GitHub sets, where a commit date can be backdated (#321). Every push
+# starts a run, so it is the oldest run in the newest unbroken stretch of runs at SHA on that branch: a run at another
+# head ends the stretch. Reading only the latest 100 can only make the time later, which fails closed. Fails when no run
+# at SHA is listed, or when the workflow's file is renamed, so the gate fails closed then too.
+head_arrived() {
+  local runs sha created repo arrived=""
+  runs="$(gh api -X GET "repos/$GITHUB_REPOSITORY/actions/workflows/review-gate.yml/runs" -f event=pull_request_target \
+    -f branch="$2" -F per_page=100 \
+    --jq '.workflow_runs[] | "\(.head_sha)\t\(.created_at)\t\(.head_repository.full_name // "")"')" || return 1
+  while IFS=$'\t' read -r sha created repo; do
+    [ "$repo" = "$3" ] || continue
+    [ "$sha" = "$1" ] || break
+    arrived="$created"
+  done < <(sort -t $'\t' -k2,2r <<<"$runs")
+  [ -n "$arrived" ] && echo "$arrived"
+}
+
 # review_label_stage FILE: the review gate the review-gate workflow runs from main's copy (#330), so a PR can't edit the
 # check that judges it. FILE lists the PR's changed files as the API gives them, never the PR's code: one per line, the
 # path, then a tab and the old path for a rename. The event gives PR_CHANGED_FILES, PR_UPDATED_AT, PR_HEAD_SHA,
 # PR_EVENT_ACTION and PR_EVENT_LABEL, beside what maintainer_pr and require_review_label read.
 review_label_stage() {
-  local path previous count=0 outside="" pushed="${PR_UPDATED_AT:-}" head
+  local path previous count=0 outside="" pushed="${PR_UPDATED_AT:-}" head head_ref head_repo created
   [ -f "$1" ] || die "review-label stage needs the file listing the PR's changed files"
   [[ "${PR_CHANGED_FILES:-}" =~ ^[0-9]+$ ]] || die "review-label stage needs PR_CHANGED_FILES, the event's file count"
   while IFS=$'\t' read -r path previous; do
@@ -667,15 +688,27 @@ review_label_stage() {
   [ -n "$outside" ] && ! maintainer_pr || return 0
   [ -n "${GITHUB_REPOSITORY:-}" ] && [ -n "${PR_NUMBER:-}" ] ||
     die "a PR not by the maintainer needs GITHUB_REPOSITORY and PR_NUMBER to read its timeline"
-  # A labeled event's updated_at is no older than the label, so the label's own run checks the push another way: the
-  # event's payload names the head when the label went on, and that head is still the PR's head.
-  if [ "${PR_EVENT_ACTION:-}" = labeled ] && [ "${PR_EVENT_LABEL:-}" = security-reviewed ]; then
-    head="$(gh api "repos/$GITHUB_REPOSITORY/pulls/$PR_NUMBER" --jq .head.sha)" ||
+  # A label event's updated_at is the event's own time, no older than the review label, so any label's run checks the
+  # push another way (#321), never by skipping, which would count as a pass. The event's payload names the head when the
+  # label changed, and that head must still be the PR's head. Adding security-reviewed then needs nothing more: it went
+  # on at this head. Any other label event reads when this head arrived (head_arrived).
+  if [ "${PR_EVENT_ACTION:-}" = labeled ] || [ "${PR_EVENT_ACTION:-}" = unlabeled ]; then
+    head="$(gh api "repos/$GITHUB_REPOSITORY/pulls/$PR_NUMBER" \
+      --jq '[.head.sha, .head.ref, (.head.repo.full_name // ""), .created_at] | @tsv')" ||
       die "could not read the head of PR #$PR_NUMBER"
+    IFS=$'\t' read -r head head_ref head_repo created <<<"$head"
     [ -n "${PR_HEAD_SHA:-}" ] && [ "$head" = "$PR_HEAD_SHA" ] ||
       { report "PR #$PR_NUMBER was pushed to after security-reviewed was added: review the new commits and add the \
 label again"; return; }
     pushed=""
+    if [ "$PR_EVENT_ACTION" != labeled ] || [ "${PR_EVENT_LABEL:-}" != security-reviewed ]; then
+      pushed="$(head_arrived "$head" "$head_ref" "$head_repo")" ||
+        die "could not tell when the head of PR #$PR_NUMBER arrived from the review-gate runs"
+      # The runs are the branch's, not the PR's: on a reused branch name an older PR's run could date the head too
+      # early, so it arrived no sooner than this PR was opened.
+      [ -n "$created" ] || die "could not read when PR #$PR_NUMBER was opened"
+      [[ "$created" < "$pushed" ]] || pushed="$created"
+    fi
   else
     [ -n "$pushed" ] || die "a PR not by the maintainer needs PR_UPDATED_AT, the event's update time"
   fi
@@ -719,6 +752,7 @@ log_run() { # log_run EXIT_CODE
 finish() {
   local code=$?
   rm -rf "${tmp:-}"
+  # github-outage.sh's classify matches this line's start (#321).
   [ "${#step_times[@]}" -eq 0 ] || echo "step times: ${step_times[*]}"
   [ -z "$run_logged" ] || log_run "$code" || true
   [ -z "${waited:-}" ] || rm -f "${METAPHOR_CHECK_LOCK:-${TMPDIR:-/tmp}/metaphor-check.lock}.waiting/$BASHPID"
@@ -756,6 +790,8 @@ take_lock() {
     done
     [ -z "$lock" ] || break
     # The pre-push hook must not wait: GitHub closes an idle push connection and git exits 141 (#284).
+    # github-outage.sh's classify matches "every build slot is busy", "waiting for another build check" and "step
+    # times:" to call a push cut after them a real failure, not an outage (#321): keep that wording in step.
     [ "${1:-}" != nowait ] || die "every build slot is busy (see scripts/check-status.sh), so this push would wait with its connection open and be cut. Run 'bash scripts/check.sh full' first, then push: the hook reuses the recorded pass."
     if [ -z "${waited:-}" ]; then
       echo "check: waiting for another build check to finish ($base, $slots slots)" >&2
@@ -816,7 +852,9 @@ changed_entries() {
 
 # main STAGE [ARG]: run one stage, then exit through `finish`.
 main() {
+  local merge_hook=""
   stage="${1:-}"
+  [ "$stage" != pre-merge-commit ] || stage=pre-commit merge_hook=merge
   failures=0 warnings=0 reused=built step_times=() tmp="" locked="" waited="" live_log="" full_tree_id=""
   scan_scope="" maintainer_pr_result=""
   started=$EPOCHSECONDS
@@ -896,7 +934,7 @@ main() {
       pre_push_stage
       [ "$failures" -eq 0 ]
       exit ;;
-    *) echo "usage: scripts/check.sh fast|pre-commit|pre-push|rules|full|docs|slow | signatures [EXE] | commit-msg FILE | commits BASE..HEAD | review-label FILE | pr-body FILE" >&2
+    *) echo "usage: scripts/check.sh fast|pre-commit|pre-merge-commit|pre-push|rules|full|docs|slow | signatures [EXE] | commit-msg FILE | commits BASE..HEAD | review-label FILE | pr-body FILE" >&2
        exit 2 ;;
   esac
 
@@ -914,9 +952,21 @@ main() {
     command -v dotnet > /dev/null || die "full stage needs the .NET SDK (dotnet) on PATH"
   fi
   scan_files
-  [ "$stage" != pre-commit ] || pre_commit_checks
+  case "$stage" in rules | full) hooks_path_check ;; esac
+  [ "$stage" != pre-commit ] || pre_commit_checks "$merge_hook"
   [ "$stage" != full ] || full_dotnet_checks
   [ "$failures" -eq 0 ]
+}
+
+# hooks_path_check: warn when core.hooksPath is absolute (#321). Git reads a relative one from each worktree's root, so
+# each worktree runs its own branch's hooks; an absolute one makes every worktree run that one checkout's hooks, and a
+# hook changed on a branch isn't exercised until that checkout has it.
+hooks_path_check() {
+  local hooks
+  hooks="$(git config --get core.hooksPath)" || return 0
+  [[ "$hooks" == /* || "$hooks" =~ ^[A-Za-z]:[\\/] ]] || return 0
+  warn "core.hooksPath is an absolute path ($hooks), so every worktree runs that checkout's hooks, not its own: run \
+git config core.hooksPath scripts/githooks"
 }
 
 # commits_stage BASE..HEAD: every non-merge commit's message, then HEAD's security review (check_head_review). Merge
@@ -1187,7 +1237,7 @@ scan_files() {
   esac
 }
 
-# pre_commit_checks: the pre-commit hook's extra checks, each only when its files are staged, so a commit that doesn't
+# pre_commit_checks [merge]: the pre-commit hook's extra checks, each only when its files are staged, so a commit that doesn't
 # touch them stays instant. Formatting reads the working tree, not the index: close enough for a hook, and CI checks the
 # commit itself.
 pre_commit_checks() {
@@ -1218,7 +1268,9 @@ pre_commit_checks() {
       warn "hook signatures changed: set METAPHOR_GAME_EXE to check them against the game, or run: scripts/check.sh signatures EXE"
     fi
   fi
-  if in_scope; then
+  # A merge git commits on its own (the pre-merge-commit hook) skips the early review gate: git writes MERGE_HEAD only
+  # after that hook, so a clean merge can't be told here, and commit-msg judges it.
+  if [ "${1:-}" != merge ] && in_scope; then
     review_gate && skipping &&
       echo "security review: skipped (${SECURITY_REVIEW_SKIP}); the commit records the reason"
   fi
