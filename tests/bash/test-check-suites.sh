@@ -110,8 +110,8 @@ check "live log: a progress line per suite" [ "$(grep -cE '^\[[1-3]/3\] tests/' 
 check "live log: the runner's end" grep -qE '^== end check-suites 0 [0-9]+$' <<< "$out"
 
 # --select (`full`): in Git Bash without WSL, test-check.sh takes minutes, so it runs only when a check script or its
-# tests changed since origin/main (scripts/ci/test-select.sh, #243). Elsewhere, in CI and without --select, every suite runs.
-cp "$ROOT/scripts/ci/test-select.sh" "$FAKE/scripts/ci/"
+# tests changed since origin/main (scripts/ci/what-runs.sh, #243). Elsewhere, in CI and without --select, every suite runs.
+cp "$ROOT/scripts/ci/what-runs.sh" "$FAKE/scripts/ci/"
 (cd "$FAKE" && git init -q -b main && git config user.name test && git config user.email test@example.invalid &&
   git config core.autocrlf false && git config commit.gpgsign false && echo one > notes.md && echo one > scripts/x.sh &&
   git add -A && git commit -q -m "chore: seed" && git update-ref refs/remotes/origin/main HEAD) || exit 2
@@ -128,6 +128,8 @@ OSTYPE=linux-gnu run_fake --select
 check "Linux or WSL: runs test-check.sh" [ -e "$SEEN/test-check.sh" ]
 OSTYPE=msys GITHUB_ACTIONS=true run_fake --select
 check "CI: runs test-check.sh" [ -e "$SEEN/test-check.sh" ]
+OSTYPE=msys METAPHOR_FULL_TESTS=1 run_fake --select
+check "METAPHOR_FULL_TESTS: runs test-check.sh" [ -e "$SEEN/test-check.sh" ]
 echo two >> "$FAKE/scripts/x.sh"
 OSTYPE=msys run_fake --select
 check "no WSL, a check script changed: runs test-check.sh" [ -e "$SEEN/test-check.sh" ]
