@@ -1,36 +1,19 @@
-# Reloaded-II helpers shared by smoke-test.ps1, deploy-dev.ps1, listen.ps1 and capture.ps1.
+# Reloaded-II helpers shared by smoke-test.ps1, deploy-dev.ps1, listen.ps1 and capture.ps1: the read-only ones from
+# ReloadedRead.psm1 (re-exported here), and the developer ones, which write configs and start the game.
 # Loader facts: docs/raw-sources/reloaded-ii-config-location-2026-11-13.md and
 # reloaded-ii-app-and-mod-config-2026-11-15.md.
 
 Set-StrictMode -Version Latest
+Import-Module (Join-Path $PSScriptRoot 'ReloadedRead.psm1')
 
-$StatusFileName = 'mod-status.json' # Metaphor.Core.ModStatusFile.FileName
 $PollMilliseconds = 100
 # How long the game must stay gone before a wait counts it as exited: at least the grace that two missed polls 500 ms
 # apart gave before #339 made polling faster.
 $GameGoneMilliseconds = 1000
 
-# Dates stay strings, so a config written back keeps them as the loader wrote them.
-function Read-Json([string] $Path) { Get-Content -Raw -LiteralPath $Path | ConvertFrom-Json -DateKind String }
-
 function Write-Json([string] $Path, $Value) {
     New-Item -ItemType Directory -Force (Split-Path $Path) | Out-Null
     $Value | ConvertTo-Json -Depth 20 | Set-Content -LiteralPath $Path -Encoding utf8NoBOM
-}
-
-# Reloaded-II's root config, at a fixed AppData path the loader doesn't let us move
-# (reloaded-ii-config-location-2026-11-13.md). Scripts that take it as a parameter default spell it out, since a
-# default is evaluated before the module loads.
-function Get-ReloadedConfigPath {
-    Join-Path ([Environment]::GetFolderPath('ApplicationData')) 'Reloaded-Mod-Loader-II/ReloadedII.json'
-}
-
-# As Reloaded-II's ApplicationConfig.GetAbsoluteAppLocation: a relative AppLocation is relative to its AppConfig.json.
-function Resolve-AppLocation([string] $ConfigFile, [string] $Location) {
-    $folder = Split-Path $ConfigFile
-    if (-not [IO.Path]::IsPathRooted($Location)) { $Location = Join-Path $folder $Location }
-    elseif ([IO.Path]::GetPathRoot($Location) -eq '\') { $Location = Join-Path ([IO.Path]::GetPathRoot($folder)) $Location.TrimStart('\') }
-    [IO.Path]::GetFullPath($Location)
 }
 
 # The running processes started from this exe. Only those with the exe's name are asked for their path: asking all of
@@ -38,12 +21,6 @@ function Resolve-AppLocation([string] $ConfigFile, [string] $Location) {
 # without ".exe".
 function Get-Game([string] $Path) {
     [Diagnostics.Process]::GetProcessesByName(([IO.Path]::GetFileName($Path) -replace '\.exe$')) | Where-Object { $_.Path -eq $Path }
-}
-
-# The game exe's SHA-256, and its entry in the known-builds list ($null when it isn't listed).
-function Get-GameBuild([string] $GameExe, [string] $KnownBuilds) {
-    $sha256 = (Get-FileHash -LiteralPath $GameExe -Algorithm SHA256).Hash.ToLowerInvariant()
-    [pscustomobject]@{ Sha256 = $sha256; Known = @(Read-Json $KnownBuilds) | Where-Object sha256 -EQ $sha256 }
 }
 
 # The AppConfig.json file registered for the game exe, as --launch finds it ($null when none is).
@@ -59,8 +36,7 @@ function Find-Application($Loader, [string] $GameExe) {
 function Resolve-LoaderPaths($Loader, [string] $GameExe, [string] $LauncherExe) {
     if (-not $LauncherExe -and $Loader.PSObject.Properties['LauncherPath']) { $LauncherExe = $Loader.LauncherPath }
     if (-not $GameExe) {
-        $game = Get-ChildItem -LiteralPath $Loader.ApplicationConfigDirectory -Filter AppConfig.json -Recurse -Depth 1 |
-            Where-Object { (Read-Json $_.FullName).AppId -eq 'metaphor.exe' } | Select-Object -First 1
+        $game = Find-MetaphorApplication $Loader
         if ($game) { $GameExe = Resolve-AppLocation $game.FullName (Read-Json $game.FullName).AppLocation }
     }
     [pscustomobject]@{ GameExe = $GameExe; LauncherExe = $LauncherExe }

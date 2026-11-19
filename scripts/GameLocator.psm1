@@ -1,5 +1,6 @@
-# Finds the game and Reloaded-II on this machine (#267). One module for every script that needs them: onboard.ps1 now,
-# and the players' install check (#283) and installer (#303) when they come.
+# Finds the game and Reloaded-II on this machine (#267), for developer scripts: onboard.ps1 now, and the installer (#303)
+# when it comes. The players' install check (#283) reads ReloadedRead.psm1 instead, which ignores the developer
+# variables.
 #
 # The game: METAPHOR_GAME_EXE, then the game registered in Reloaded-II (the precedence deploy-dev.ps1 and listen.ps1
 # use, through ReloadedDev.psm1's Resolve-LoaderPaths), then METAPHOR.exe in Steam's libraries. How Steam lists its

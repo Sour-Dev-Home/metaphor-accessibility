@@ -35,6 +35,16 @@
           CopyToPublishDirectory="PreserveNewest" />
   </ItemGroup>
 
+  <!-- The players' install check (#283) and what it reads: the same known-builds list and Prism pin the mod embeds. It
+       runs from the mod folder, so the scripts and modules it imports sit at the package's root. Read-only modules
+       only: the developer ones (ReloadedDev.psm1, GameLocator.psm1) don't ship. -->
+  <ItemGroup>
+    <None Include="../Metaphor.Core/known-game-builds.json" Link="known-game-builds.json" CopyToPublishDirectory="PreserveNewest" />
+    <None Include="prism.json" CopyToPublishDirectory="PreserveNewest" />
+    <None Include="../../scripts/check-install.ps1;../../scripts/InstallCheck.psm1;../../scripts/ReloadedRead.psm1;../../scripts/Interactive.psm1"
+          Link="%(Filename)%(Extension)" CopyToPublishDirectory="PreserveNewest" />
+  </ItemGroup>
+
   <!-- Every publish (the package, deploy-dev) fetches the pinned prism.dll and its licences and ships them; plain builds
        and tests don't download anything. -->
   <Target Name="FetchPrism" AfterTargets="ComputeResolvedFilesToPublishList">

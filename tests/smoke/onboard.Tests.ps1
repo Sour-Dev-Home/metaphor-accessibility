@@ -33,7 +33,7 @@ $Body
         $script:bin = (New-Item -ItemType Directory (Join-Path $root 'bin')).FullName
         git -C $clone init -q
         $scripts = New-Item -ItemType Directory (Join-Path $clone 'scripts')
-        Copy-Item @('onboard.ps1', 'GameLocator.psm1', 'ReloadedDev.psm1', 'Interactive.psm1' |
+        Copy-Item @('onboard.ps1', 'GameLocator.psm1', 'ReloadedDev.psm1', 'ReloadedRead.psm1', 'Interactive.psm1' |
                 ForEach-Object { Join-Path $repo "scripts/$_" }) $scripts
         Copy-Item (Join-Path $repo 'global.json') $clone
         New-Item -ItemType Directory (Join-Path $clone '.claude') | Out-Null

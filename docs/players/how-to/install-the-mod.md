@@ -110,6 +110,32 @@ You may hear nothing if your screen reader or Windows speech isn't reachable. Th
 `%APPDATA%\Reloaded-Mod-Loader-II\Logs\`, which lists the mod by its ID, `metaphor.accessibility`. If you hear the first
 message, the install worked.
 
+## If the mod says nothing: run the install check
+
+The mod folder holds `check-install.ps1`, which says why the mod didn't load. It prints each result. With no screen
+reader running, it also speaks each one with Windows' own voice, so it works when the mod's speech doesn't. With NVDA,
+JAWS or ZoomText running it only prints, and your screen reader reads the window. Spoken lines leave out folder paths
+and long codes; the printed lines keep them. It changes no file or setting and reads nothing over the network. In
+Windows PowerShell 5.1 it writes temporary files in your temp folder while it looks for JAWS and ZoomText, and removes
+them.
+
+1. Press `Windows+R`, type the line below with the path to your mod folder, and press `Enter`:
+
+   `powershell -ExecutionPolicy Bypass -NoExit -File "<mods folder>\metaphor.accessibility\check-install.ps1"`
+
+   The unzipped folder you downloaded works too.
+2. It checks, in order: Reloaded-II is set up; the mod is in its mods folder; the game is added and the mod turned on
+   for it; the game's version is one the mod knows; the speech library, `prism.dll`, is in place; how the mod last
+   started. Each line starts with "Pass", "Problem" or "Not checked". A last "Note" says when no screen reader the
+   mod supports is running; that isn't counted as a problem, since the mod then uses Windows' own voice.
+3. The last line names the first thing to fix. Fix it, then run the check again.
+4. To hear Windows' voice as well as your screen reader, add `-Speak` at the end of the line. To turn Windows' voice
+   off, add `-NoSpeech`.
+
+`[NEEDS VERIFICATION]` By ear with NVDA, and whether Windows asks before running a script from a downloaded zip. If the
+check finds nothing wrong and the mod is still silent, send its output with the
+[alpha feedback form](#report-a-problem).
+
 ## Keys and buttons
 
 Everything the mod reads is here. The mod reads no mouse input.
