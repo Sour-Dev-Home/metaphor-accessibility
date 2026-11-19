@@ -363,9 +363,13 @@ try {
         elseif ($last -and $last[0] -match 'nothing changed') { $reason = 'you chose not to create the distro.' }
         elseif ($last -and $last[0] -match '^setup-wsl: (.+?\.)(\s|$)') { $reason = $Matches[1] }
         Write-Host 'Without the metaphor-checks distro the check-script suites run in Git Bash, which is slow: a'
-        Write-Host 'docs-only check.sh full takes about 4 minutes longer. To get WSL 2, run wsl --install in an admin'
-        Write-Host 'PowerShell and restart Windows (https://learn.microsoft.com/windows/wsl/install); then run'
-        Write-Host '.\scripts\setup-wsl.ps1.'
+        Write-Host 'docs-only check.sh full takes about 4 minutes longer.'
+        # $WslUnavailableExitCode (Interactive.psm1): this machine can't run WSL 2 yet. Any other failure (a network
+        # error, say) isn't fixed by installing WSL (#360).
+        if ($wslCode -eq $WslUnavailableExitCode) {
+            Write-Host 'To get WSL 2, run wsl --install in an admin PowerShell and restart Windows'
+            Write-Host '(https://learn.microsoft.com/windows/wsl/install); then run .\scripts\setup-wsl.ps1.'
+        }
         Add-Item 'WSL' $false ("$reason Fix that, then run .\scripts\setup-wsl.ps1; until then check.sh full is about " +
             '4 minutes slower')
     }
