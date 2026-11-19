@@ -127,8 +127,9 @@ stops with the reason and changes nothing.
 
 From then on, a suite started in Git Bash runs itself in `metaphor-checks`, from your checkout through `/mnt/c`, with
 its temporary repositories in the distro's `/tmp`, and exits with the suite's code. Its first line names the tools'
-versions. `test-check.sh` uses every core there (`nproc`) instead of Git Bash's 4; `METAPHOR_TEST_JOBS` overrides
-both. CI already runs the suites on Linux and doesn't use WSL.
+versions. The suites, and `test-check.sh`'s tests, run in a bounded pool ([`pool.sh`](../scripts/check/pool.sh)) of
+the same size in WSL and Git Bash; `METAPHOR_TEST_JOBS` overrides it. CI already runs the suites on Linux and doesn't
+use WSL.
 
 When WSL, the distro or a tool is missing, the suite runs in Git Bash as before and prints a one-line notice naming the
 setup command. `METAPHOR_NO_WSL=1` makes it run in Git Bash on purpose. `full` then runs `test-check.sh` only when a

@@ -56,7 +56,8 @@ One command runs every check, locally (Git Bash on Windows) and in CI:
 `full` prints each step's time (`restore`, `build`, `tests`, `format`, `pester`, `check-scripts`) and keeps them in the run log. Locally
 the pre-push build covers only the test projects the change selects (and any changed project or dependent of one that no test reaches); a build-wide
 file or an unplaceable change builds the solution. `tests/check/test-check.sh` runs its tests in parallel
-(`METAPHOR_TEST_JOBS=1` runs them one at a time), as does `scripts/run-pester.sh`. These three print a line per step,
+(`METAPHOR_TEST_JOBS=1` runs them one at a time), as does `scripts/run-pester.sh`, and `scripts/run-check-suites.sh` runs
+the suites in the same bounded pool ([`pool.sh`](scripts/check/pool.sh)). These print a line per step,
 test or file as it finishes (`[37/132] test_x ok (2.1 s)`) and write it to the clone's live log,
 `<git dir>/check-live-log`, which `scripts/check-status.sh` reads (`test-check: 37/132, 12 min`). Started from Git
 Bash, the check-script suites run in WSL when it's set up, in seconds instead of minutes

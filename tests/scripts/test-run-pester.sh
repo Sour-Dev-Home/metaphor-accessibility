@@ -25,8 +25,9 @@ lacks() { [[ "$out" != *"$1"* ]]; }
 # A checkout with three Pester files: split.Tests.ps1 (three tests, file-level BeforeAll only), shared.Tests.ps1 (a
 # Describe-level BeforeAll its two tests share) and one.Tests.ps1 (a single test).
 FAKE="$WORK/checkout"
-mkdir -p "$FAKE/scripts" "$FAKE/tests/smoke" "$WORK/bin" "$WORK/seen"
+mkdir -p "$FAKE/scripts/check" "$FAKE/tests/smoke" "$WORK/bin" "$WORK/seen"
 cp "$ROOT/scripts/run-pester.sh" "$ROOT/scripts/live-log.sh" "$FAKE/scripts/"
+cp "$ROOT/scripts/check/pool.sh" "$FAKE/scripts/check/"
 cat > "$FAKE/tests/smoke/split.Tests.ps1" <<'PS1'
 BeforeAll {
     function Get-Thing { 1 }
@@ -71,6 +72,8 @@ total="$(grep -ciE '^[[:space:]]*It[[:space:]]' "$FILE")"
 ran="$total"
 [ -z "${LINES:-}" ] || ran="$(wc -w <<< "$LINES")"
 # The last line ends in CRLF, as pwsh writes it on Windows.
+if [ -n "${KILL_FILE:-}" ] && [[ "$FILE" == *"$KILL_FILE" ]]; then kill -9 $$; fi
+if [ -n "${EMPTY_FILE:-}" ] && [[ "$FILE" == *"$EMPTY_FILE" ]]; then exit 0; fi
 if [ -n "${FAIL_FILE:-}" ] && [[ "$FILE" == *"$FAIL_FILE" ]]; then printf 'pester-counts 0 %s %s %s\r\n' "$ran" "$ran" "$total"; exit 1; fi
 if [ -n "${MISS_FILE:-}" ] && [[ "$FILE" == *"$MISS_FILE" ]]; then ran=$((ran - 1)); fi
 printf 'pester-counts %s 0 %s %s\r\n' "$ran" "$ran" "$total"
@@ -122,6 +125,16 @@ MISS_FILE=one.Tests.ps1 run_fake
 check "a test that didn't run: exit 1" [ "$code" -eq 1 ]
 check "a test that didn't run: says so" has "== tests/smoke/one.Tests.ps1 FAIL: 0 passed, 0 failed, 1 processes"
 check "a test that didn't run: how many ran" has "; ran 0 of its 1 tests"
+
+# A process that is killed or prints nothing fails its file (#367: the shared pool keeps #348's failure modes).
+KILL_FILE=one.Tests.ps1 run_fake
+check "a killed process: exit 1" [ "$code" -eq 1 ]
+check "a killed process: its file fails" has "== tests/smoke/one.Tests.ps1 FAIL"
+check "a killed process: the others still run" has "== tests/smoke/split.Tests.ps1 ok"
+check "a killed process: the total" has "run-pester: 2 files passed, 1 failed"
+EMPTY_FILE=one.Tests.ps1 run_fake
+check "an empty process: exit 1" [ "$code" -eq 1 ]
+check "an empty process: its file fails, having run nothing" has "== tests/smoke/one.Tests.ps1 FAIL: 0 passed, 0 failed, 1 processes"
 
 METAPHOR_PESTER_BATCH=2 run_fake
 check "two per process: dealt in turn, each test once" [ "$(lines_of split.Tests.ps1)" = "$(printf '%s\n' '6 10' 7)" ]

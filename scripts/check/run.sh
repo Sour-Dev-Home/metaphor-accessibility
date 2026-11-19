@@ -4,7 +4,8 @@
 # it uses die from report.sh, and live_line and live_end from scripts/live-log.sh once full has loaded it.
 #
 # Run globals, all set by check.sh's main each run: reads `stage`, `tmp`, `started`, `reused` (main also sets it to
-# reused), `run_logged`, `timed` and `live_log`; appends to `step_times`; sets `locked` and `waited`, which main resets.
+# reused), `run_logged`, `timed` and `live_log`; appends to `step_times`; sets `locked` and `waited`, which main resets,
+# and exports METAPHOR_CHECK_HELD, the slot it holds.
 # `check_dir` is check.sh's constant: `timing_script` is computed from it when this file is sourced, so check.sh sets
 # check_dir before loading it. Reads SKIP_SCRIPT_TESTS, METAPHOR_CHECK_LOCK, METAPHOR_CHECK_SLOTS, METAPHOR_CHECK_POLL
 # and TMPDIR.
@@ -129,4 +130,6 @@ take_lock() {
   echo "$EPOCHSECONDS" > "$lock/since"
   echo "$BASHPID" > "$lock/pid"
   locked="$lock"
+  # The runners this run starts size their worker pools by the slots others hold (pool_default_jobs, pool.sh).
+  export METAPHOR_CHECK_HELD="$lock"
 }
