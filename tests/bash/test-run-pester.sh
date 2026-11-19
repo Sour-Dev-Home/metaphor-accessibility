@@ -21,12 +21,15 @@ check() { # check NAME CONDITION...
 }
 has() { [[ "$out" == *"$1"* ]]; }
 lacks() { [[ "$out" != *"$1"* ]]; }
+lacks_in_command() { ! grep -qF -- "$1" "$SEEN/command"; }
 
 # A checkout with three Pester files: split.Tests.ps1 (three tests, file-level BeforeAll only), shared.Tests.ps1 (a
 # Describe-level BeforeAll its two tests share) and one.Tests.ps1 (a single test).
 FAKE="$WORK/checkout"
-mkdir -p "$FAKE/scripts/check" "$FAKE/tests/pester" "$WORK/bin" "$WORK/seen"
+mkdir -p "$FAKE/scripts/check" "$FAKE/scripts/setup" "$FAKE/tests/pester" "$WORK/bin" "$WORK/seen"
 cp "$ROOT/scripts/check/run-pester.sh" "$ROOT/scripts/check/live-log.sh" "$ROOT/scripts/check/pool.sh" "$FAKE/scripts/check/"
+# The Pester pin, where run-pester.sh reads it: onboard.ps1's line, CRLF-ended as a Windows checkout has it.
+printf "\$pesterVersion = '6.2.0'\r\n" > "$FAKE/scripts/setup/onboard.ps1"
 cat > "$FAKE/tests/pester/split.Tests.ps1" <<'PS1'
 BeforeAll {
     function Get-Thing { 1 }
@@ -58,6 +61,9 @@ PS1
 # fails when FILE ends in $FAIL_FILE. dotnet: records each call.
 cat > "$WORK/bin/pwsh" <<'STUB'
 #!/usr/bin/env bash
+# The precheck asks for the Pester versions installed: PESTER_VERSIONS (default 6.2.0, the pin; empty for none), CRLF-ended.
+case "$*" in *ListAvailable*) for v in ${PESTER_VERSIONS-6.2.0}; do printf '%s\r\n' "$v"; done; exit 0 ;; esac
+printf '%s\n' "$*" > "$SEEN/command"
 temp_ok=no
 [ -d "$TEMP" ] && [ "$TEMP" = "$TMP" ] && temp_ok=yes
 echo "${FILE}|${LINES:-}|${METAPHOR_STANDIN_BUILT:-}|$TEMP|$temp_ok" >> "$SEEN/pwsh.$BASHPID"
@@ -148,6 +154,27 @@ DOTNET_CODE=1 run_fake
 check "the stand-in game fails to build: exit 1" [ "$code" -eq 1 ]
 check "the stand-in game fails to build: says so" has "the stand-in game didn't build"
 check "the stand-in game fails to build: runs nothing" [ -z "$calls" ]
+
+# Pester 5 or later (#456): Windows PowerShell's Pester 3 is on pwsh's module path too. Without a newer one it stops
+# before building or running anything, says what it found and how to install the pin. Another version than the pin
+# only warns.
+PESTER_VERSIONS='3.4.0' run_fake
+check "only Pester 3: exit 2" [ "$code" -eq 2 ]
+check "only Pester 3: says so" has "run-pester: the tests need Pester 5 or later, and it isn't installed (found: 3.4.0)"
+check "only Pester 3: says how to install the pin" has "onboard.ps1 (in PowerShell), which offers the pinned 6.2.0"
+check "only Pester 3: runs nothing" [ -z "$calls" ]
+check "only Pester 3: builds nothing" [ ! -e "$SEEN/dotnet" ]
+PESTER_VERSIONS='' run_fake
+check "no Pester at all: exit 2" [ "$code" -eq 2 ]
+check "no Pester at all: says so" has "it isn't installed (found: none)"
+PESTER_VERSIONS='3.4.0 5.7.1' run_fake
+check "Pester 5 off the pin: runs" [ "$code" -eq 0 ]
+check "Pester 5 off the pin: warns" has "run-pester: warning: Pester 5.7.1 loads, not the pinned 6.2.0"
+PESTER_VERSIONS='3.4.0 5.9.1 6.2.0' run_fake
+check "the pin: runs" [ "$code" -eq 0 ]
+check "the pin: no warning" lacks "warning"
+check "imports any Pester 5 or later" grep -qF -- 'Import-Module Pester -MinimumVersion 5.0' "$SEEN/command"
+check "imports with no upper bound" lacks_in_command "MaximumVersion"
 
 METAPHOR_TEST_JOBS=1 run_fake
 check "one job: still passes" [ "$code" -eq 0 ]

@@ -19,7 +19,7 @@
 # A "[done/total] FILE ok|FAIL (seconds s)" line is printed, and written to the clone's live log (scripts/check/live-log.sh),
 # as each file's last process finishes. Then a summary line per file, with a failing file's whole output. A file fails
 # when a test fails, or when its processes ran fewer tests than it has. Exit 0 when every file passes, 1 when any
-# fails, 2 when Pester can't start.
+# fails, 2 when Pester can't start (no pwsh, or no Pester 5 or later: it says what it found and how to install it).
 #
 #   bash scripts/check/run-pester.sh [FILE...]    METAPHOR_TEST_JOBS=N runs N processes at once (default: pool_default_jobs)
 set -uo pipefail
@@ -29,6 +29,24 @@ command -v pwsh > /dev/null || { echo "run-pester: pwsh isn't on PATH" >&2; exit
 files=("$@")
 [ "${#files[@]}" -gt 0 ] || mapfile -t files < <(git ls-files 'tests/pester/*.Tests.ps1')
 [ "${#files[@]}" -gt 0 ] || { echo "run-pester: no test files" >&2; exit 2; }
+
+# Pester 5 or later (#456): Windows PowerShell's Pester 3 is on pwsh's module path too, and without a newer one its
+# Invoke-Pester loads and fails every file. Checked once here, so a missing one is one clear message. The import below
+# loads the newest; one other than the pin onboarding installs (and CI uses) only gets a warning.
+pin="$(sed -n "s/^\$pesterVersion = '\([0-9.]*\)'.*/\1/p" scripts/setup/onboard.ps1 2> /dev/null)"
+mapfile -t pesters < <(pwsh -NoProfile -Command \
+  'Get-Module Pester -ListAvailable | Sort-Object Version -Unique | ForEach-Object { $_.Version.ToString() }')
+pesters=("${pesters[@]//[[:space:]]/}") pin="${pin//[[:space:]]/}" newest=""
+[ "${#pesters[@]}" -eq 0 ] || newest="${pesters[-1]}"
+if ! [[ "$newest" =~ ^([0-9]+)\. ]] || [ "${BASH_REMATCH[1]}" -lt 5 ]; then
+  found="${pesters[*]}"
+  found="${found// /, }"
+  echo "run-pester: the tests need Pester 5 or later, and it isn't installed (found: ${found:-none})." >&2
+  echo "Install it with .\\scripts\\setup\\onboard.ps1 (in PowerShell), which offers the pinned ${pin:-version}." >&2
+  exit 2
+fi
+[ -z "$pin" ] || [ "$newest" = "$pin" ] ||
+  echo "run-pester: warning: Pester $newest loads, not the pinned $pin that CI runs (.\\scripts\\setup\\onboard.ps1 offers it)"
 
 # shellcheck source=pool.sh
 source scripts/check/pool.sh || exit 2

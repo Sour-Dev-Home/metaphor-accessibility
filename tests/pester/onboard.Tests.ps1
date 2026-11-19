@@ -13,6 +13,8 @@ BeforeAll {
     $windowsPowerShell = Join-Path $env:SystemRoot 'System32/WindowsPowerShell/v1.0/powershell.exe'
     $gitDir = Split-Path (Get-Command git -CommandType Application | Select-Object -First 1).Source
     $sdk = (Get-Content -Raw (Join-Path $repo 'global.json') | ConvertFrom-Json).sdk.version
+    $pesterPin = [regex]::Match((Get-Content -Raw (Join-Path $repo 'scripts/setup/onboard.ps1')),
+        "(?m)^\`$pesterVersion = '([\d.]+)'").Groups[1].Value
 
     # A stand-in Windows command: a .cmd file that logs its name and arguments to calls.log, then runs BODY.
     function New-StandIn([string] $Name, [string] $Body = '') {
@@ -123,18 +125,25 @@ exit 1
         @{ LauncherPath = $launcher; ApplicationConfigDirectory = $apps.FullName } | ConvertTo-Json |
             Set-Content -LiteralPath $reloadedConfig
 
-        # An empty Program Files, so no PowerShell 7 is at its default path unless a test puts one there.
+        # An empty Program Files, so no PowerShell 7 is at its default path unless a test puts one there, and an empty
+        # Program Files (x86).
         $script:programFiles = (New-Item -ItemType Directory (Join-Path $root 'ProgramFiles')).FullName
+        $script:programFilesX86 = (New-Item -ItemType Directory (Join-Path $root 'ProgramFilesX86')).FullName
+        # A module folder holding the pinned Pester, as onboarding installs it.
+        $script:modules = (New-Item -ItemType Directory (Join-Path $root 'Modules')).FullName
+        New-Item -ItemType File -Force (Join-Path $modules "Pester/$pesterPin/Pester.psd1") | Out-Null
         $script:stub = @{
             STUB_SDK = $sdk; STUB_GH_AUTH = '0'; STUB_GH_PUSH = 'true'; STUB_WSL = 'ready'; STUB_NOTEPAD = 'edit'
             STUB_CHECK = '0'; STUB_WINGET = '0'; STUB_WINGET_CREATES = $null; STUB_DOCS_INSTALL = $null
+            STUB_PWSH_CREATES = $null
             METAPHOR_GAME_EXE = $null; METAPHOR_RELOADED_EXE = $null
             STUB_CALLS = (Join-Path $bin 'calls.log'); STUB_REAL_PWSH = $pwsh
         }
     }
 
     # A stand-in pwsh.exe in FOLDER: it logs its arguments to calls.log, then hands them to the real pwsh and returns
-    # its exit code. Compiled once with the .NET Framework's csc, which every Windows has.
+    # its exit code; with STUB_PWSH_CREATES set, it creates that file instead and exits 0. Compiled once with the .NET
+    # Framework's csc, which every Windows has.
     function Install-PwshStandIn([string] $Folder) {
         $exe = Join-Path $TestDrive 'pwsh-stand-in/pwsh.exe'
         if (-not (Test-Path $exe)) {
@@ -147,6 +156,12 @@ static class Program {
         int start = line.StartsWith("\"") ? line.IndexOf('"', 1) + 1 : line.IndexOf(' ');
         string rest = start <= 0 || start >= line.Length ? "" : line.Substring(start).TrimStart();
         File.AppendAllText(Environment.GetEnvironmentVariable("STUB_CALLS"), "pwsh " + rest + Environment.NewLine);
+        string creates = Environment.GetEnvironmentVariable("STUB_PWSH_CREATES");
+        if (!string.IsNullOrEmpty(creates)) {
+            Directory.CreateDirectory(Path.GetDirectoryName(creates));
+            File.WriteAllText(creates, "");
+            return 0;
+        }
         var info = new ProcessStartInfo(Environment.GetEnvironmentVariable("STUB_REAL_PWSH"), rest) { UseShellExecute = false };
         using (var process = Process.Start(info)) { process.WaitForExit(); return process.ExitCode; }
     }
@@ -175,13 +190,16 @@ static class Program {
             $script = Join-Path $clone 'scripts/setup/onboard.ps1'
             if ($NonInteractive) {
                 $output = & $Shell -NoProfile -NonInteractive -File $script -SteamRoot $steam `
-                    -ReloadedConfig $reloadedConfig -ProgramFiles $programFiles -SystemDirectory $system32 2>&1
+                    -ReloadedConfig $reloadedConfig -ProgramFiles $programFiles -ProgramFilesX86 $programFilesX86 `
+                    -PesterModulePath $modules -SystemDirectory $system32 2>&1
             }
             else {
                 $list = ($Answers | ForEach-Object { ConvertTo-Literal $_ }) -join ','
                 $output = & $Shell -NoProfile -Command ("& $(ConvertTo-Literal $script) -NoClaude " +
                     "-SteamRoot $(ConvertTo-Literal $steam) -ReloadedConfig $(ConvertTo-Literal $reloadedConfig) " +
                     "-ProgramFiles $(ConvertTo-Literal $programFiles) " +
+                    "-ProgramFilesX86 $(ConvertTo-Literal $programFilesX86) " +
+                    "-PesterModulePath $(ConvertTo-Literal $modules) " +
                     "-SystemDirectory $(ConvertTo-Literal $system32) -Answers @($list); exit `$LASTEXITCODE") 2>&1
             }
             $code = $LASTEXITCODE
@@ -287,6 +305,53 @@ Describe 'onboard.ps1' {
         $result.Output | Should -Match 'accept its licence agreement\?'
         $result.Output | Should -Match ([regex]::Escape("winget show --id Microsoft.DotNet.SDK.$major --exact --version $sdk"))
         $result.Output | Should -Match 'new PowerShell window'
+    }
+
+    # #456: an x86 dotnet first on PATH lists no 64-bit SDK, and winget then says the SDK is already installed.
+    It 'says when the dotnet first on PATH is the 32-bit one, names the 64-bit one, and offers no install' {
+        $x86 = (New-Item -ItemType Directory (Join-Path $programFilesX86 'dotnet')).FullName
+        Set-Content -LiteralPath (Join-Path $x86 'dotnet.cmd') -Encoding ascii -Value '@echo off'
+        $result = Invoke-Onboard @('y') -Path @($x86, $script:bin, $gitDir)
+
+        $result.ExitCode | Should -Be 1
+        $result.Output | Should -Match ([regex]::Escape("The dotnet first on PATH, $(Join-Path $x86 'dotnet.cmd'), is the 32-bit one"))
+        $result.Output | Should -Match ([regex]::Escape("put $(Join-Path $programFiles 'dotnet') before $x86 in PATH"))
+        Get-Calls | Where-Object { $_ -like 'winget*' } | Should -BeNullOrEmpty
+    }
+
+    # #456: Windows PowerShell's Pester 3 is on pwsh's module path too, and the tests need Pester 5 or later.
+    Context 'Pester' {
+        BeforeEach {
+            Remove-Item -Recurse (Join-Path $modules 'Pester')
+            New-Item -ItemType File -Force (Join-Path $modules 'Pester/3.4.0/Pester.psd1') | Out-Null
+            # The install's pwsh, at PowerShell 7's default path, which onboarding takes first: it puts the module where
+            # Install-PSResource would, and never runs the real install.
+            Install-PwshStandIn (Join-Path $programFiles 'PowerShell/7')
+            $script:stub.STUB_PWSH_CREATES = Join-Path $modules "Pester\$pesterPin\Pester.psd1"
+        }
+
+        It 'offers the pinned Pester when only Pester 3 is installed, and installs it for the user after a yes' {
+            $result = Invoke-Onboard @('y', '', 'y', 'n')
+
+            $result.ExitCode | Should -Be 0 -Because $result.Output
+            $result.Output | Should -Match ([regex]::Escape("Pester: version $pesterPin isn't installed (found: 3.4.0)"))
+            $result.Output | Should -Match ([regex]::Escape("Install Pester $pesterPin for your user from the PowerShell Gallery?"))
+            @(Get-Calls) -match ("^pwsh -NoProfile -NonInteractive -Command `"Install-PSResource -Name Pester -Version " +
+                "'\[$([regex]::Escape($pesterPin))\]' -Scope CurrentUser -Repository PSGallery -TrustRepository") |
+                Should -HaveCount 1
+            $result.Output | Should -Match ([regex]::Escape("Installed Pester $pesterPin."))
+            $result.Output | Should -Match '(?m)^  \S Pester'
+        }
+
+        It 'stops with what to do when the pinned Pester is missing and the install is declined' {
+            $result = Invoke-Onboard @('n')
+
+            $result.ExitCode | Should -Be 1
+            $result.Output | Should -Match ([regex]::Escape("Pester $pesterPin"))
+            $result.Output | Should -Match ([regex]::Escape("Install-PSResource -Name Pester -Version '[$pesterPin]' -Scope CurrentUser"))
+            Get-Calls | Where-Object { $_ -like 'pwsh*' } | Should -BeNullOrEmpty
+            git -C $clone config --local --get core.hooksPath | Should -BeNullOrEmpty
+        }
     }
 
     It 'stops with what to do when Git is missing and the install is declined' {
@@ -612,5 +677,25 @@ Describe 'Find-GitBash' {
         }
 
         Invoke-FindGitBash $drive $_ | Should -BeNullOrEmpty
+    }
+}
+
+# #456: the docs' Git Bash command finds bash.exe from git's own --exec-path, wherever Git is installed.
+Describe 'the Git Bash command in set-up-a-clone.md' {
+    It 'finds bash.exe in a Git installed outside Program Files, from git in <_>' -ForEach @('mingw64', 'ucrt64') {
+        $line = Select-String -LiteralPath (Join-Path $repo 'docs/contributors/how-to/set-up-a-clone.md') -Pattern '^\s*\$bash = ' |
+            Select-Object -First 1
+        $line | Should -Not -BeNullOrEmpty
+        $gitRoot = Join-Path $TestDrive "$(New-Guid)/scoop/apps/git/current"
+        $expected = Join-Path (New-Item -ItemType Directory -Force (Join-Path $gitRoot 'bin')) 'bash.exe'
+        New-Item -ItemType File $expected | Out-Null
+        # git --exec-path, as Git for Windows prints it: forward slashes, in its MSYS2 environment's libexec\git-core.
+        $execPath = "$($gitRoot -replace '\\', '/')/$_/libexec/git-core"
+        function git { if ("$args" -eq '--exec-path') { $execPath } else { throw "unexpected git $args" } }
+
+        $bash = $null
+        Invoke-Expression $line.Line.Trim()
+        [IO.Path]::GetFullPath($bash) | Should -Be $expected
+        $bash | Should -Exist
     }
 }

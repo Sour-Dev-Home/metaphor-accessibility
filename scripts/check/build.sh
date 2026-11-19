@@ -135,10 +135,15 @@ run_selected_tests() {
     return 0
   fi
   while read -r kind proj reason; do
-    if [ "$kind" = pester ] && [ -z "${SKIP_SCRIPT_TESTS:-}" ] && command -v pwsh > /dev/null; then
-      echo "tests: Pester smoke tests because $proj $reason"
-      timed_step pester bash "$check_dir/check/run-pester.sh" ||
-        report "tests: smoke or deploy script tests failed (run: bash scripts/check/run-pester.sh)"
+    if [ "$kind" = pester ] && [ -z "${SKIP_SCRIPT_TESTS:-}" ]; then
+      if ! command -v pwsh > /dev/null; then
+        # Not silent (#456): CI's scripts job still runs them, and fails where this push passed.
+        warn "pwsh isn't on PATH, so the Pester tests didn't run (CI runs them): install PowerShell 7, or put it on PATH"
+      else
+        echo "tests: Pester smoke tests because $proj $reason"
+        timed_step pester bash "$check_dir/check/run-pester.sh" ||
+          report "tests: smoke or deploy script tests failed (run: bash scripts/check/run-pester.sh)"
+      fi
       ran=1
     fi
     [ "$kind" = dotnet ] || continue

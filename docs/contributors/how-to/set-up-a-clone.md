@@ -41,14 +41,25 @@ On Windows:
 
 - [Git for Windows](https://git-scm.com/download/win), which includes Git Bash. Every script runs in Git Bash.
   In PowerShell, plain `bash` may start WSL's Linux bash instead, which has no git and fails with
-  `git: command not found`. Open a Git Bash window, or call it by path:
-  `& "C:\Program Files\Git\bin\bash.exe" scripts/check.sh full`. The same applies to every `bash scripts/...` command
-  in these docs. The [`metaphor-checks` distro](#run-the-check-script-suites-in-wsl) doesn't change this: the suites
+  `git: command not found`. Open a Git Bash window, or call it by path. Git names its own install, wherever it is
+  (a user-scope, Scoop or Chocolatey install too): `git --exec-path` is its `libexec\git-core` folder, three levels
+  below the Git root that holds `bin\bash.exe`:
+
+  ```powershell
+  $bash = Join-Path (git --exec-path) '..\..\..\bin\bash.exe'
+  & $bash scripts/check.sh full
+  ```
+
+  The same applies to every `bash scripts/...` command in these docs. The [`metaphor-checks` distro](#run-the-check-script-suites-in-wsl) doesn't change this: the suites
   reach it from Git Bash on their own. If it's your only distro, WSL makes it the default, and plain `bash` then opens
   it as root; still use Git Bash.
 - The .NET SDK version pinned in [`global.json`](../../../global.json), from
   [dotnet.microsoft.com](https://dotnet.microsoft.com/download/dotnet). Roll-forward is off, so a newer SDK won't do.
   `dotnet --list-sdks` shows what you have.
+- Pester 5 or later, for the scripts' tests; CI runs the version
+  [`onboard.ps1`](../../../scripts/setup/onboard.ps1) pins (`$pesterVersion`), and another one only gets a warning.
+  Windows PowerShell's built-in Pester 3 doesn't run them. In PowerShell 7, install the pin for your user:
+  `Install-PSResource -Name Pester -Version '[6.2.0]' -Scope CurrentUser -Repository PSGallery`.
 - Optional: the [GitHub CLI](https://cli.github.com/) (`gh`) for issues and pull requests.
 
 ## 2. Clone and set up
