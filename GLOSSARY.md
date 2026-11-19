@@ -59,3 +59,64 @@ _Avoid_: selection, highlight, hover
 **Details key**:
 The one key, the same on every screen, that reads the rest of the focused item's panel beyond what a focus move says.
 _Avoid_: info key, read-more key
+
+### Review and CI
+
+**Security-review scope**:
+The files whose changes must be reviewed by the `security-reviewer` agent before they are committed: the hook layer, the
+scripts that deploy, launch, package or fetch native code, and the guards that enforce the ground rules. The list lives
+in `scripts/security-stamp.sh`.
+_Avoid_: review list, protected files
+
+**Stamp**:
+The record that the `security-reviewer` agent found nothing critical in the staged security-review scope. It is a hash of
+that scope, so any edit after the review voids it, and a commit uses it once.
+_Avoid_: approval, sign-off, review token
+
+**Review trailer**:
+The `Security-Review` line a commit message carries to show its security-review scope was reviewed. CI accepts it when it
+matches that commit's scope.
+_Avoid_: review tag, review footer
+
+**Clean merge**:
+A merge from `main` whose second parent is already on `main` and whose every security-review scope file is the first
+parent's where `main` left it unchanged, or the second's where the branch did (ADR 0012). It needs no stamp; a conflict
+resolution or one side kept over the other's change is not clean.
+_Avoid_: trivial merge, fast merge
+
+**Carried review**:
+The way a commit whose security-review scope is identical to each parent's needs no trailer of its own: its first
+parent's review carries over to it (ADR 0012).
+_Avoid_: pass-through, skip, inherited review
+
+**Pass-through**:
+A hook adapter that always calls the original game function and never changes what the game does. A hook that does
+change it is written outside these adapters (ADR 0007).
+_Avoid_: forwarder, wrapper
+
+**Review gate**:
+The CI check that a pull request from anyone but the maintainer, if it changes anything outside `docs/`, has been
+reviewed and carries the `security-reviewed` label added by an admin after its latest push.
+_Avoid_: approval check, label check
+
+**Recorded pass**:
+The note a passing `check.sh full` keeps, per clone, for one exact tree. A later `full` or `pre-push` on that same tree
+reuses it instead of running the checks again.
+_Avoid_: cache, check result
+
+**Attestation**:
+A record, signed by GitHub, of which repository, workflow and branch or tag built a release zip's exact bytes. A player
+verifies it before installing.
+_Avoid_: signature, checksum, provenance file
+
+### Working and testing
+
+**Lane**:
+One agent session's assigned slice of work: a single issue, built on its own branch and handed back for review. Parallel
+lanes touch different files.
+_Avoid_: track, worker, thread
+
+**Stand-in game**:
+A small program that plays the game and the mod loader's launcher in the scripts' own tests, so they run with no game
+installed. It is never game content.
+_Avoid_: mock game, fake game, dummy game

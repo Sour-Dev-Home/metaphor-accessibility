@@ -114,7 +114,7 @@ go in is said with `not active`; the log says why (#223).
 
 ## The scripts' own tests
 
-The scripts' own tests run against a stand-in launcher and game, with no game needed:
+The scripts' own tests run against the [stand-in game](../../../GLOSSARY.md#working-and-testing), with no game needed:
 
 ```powershell
 Invoke-Pester tests/smoke

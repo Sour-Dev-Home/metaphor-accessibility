@@ -44,7 +44,7 @@ What we ship runs inside the game, where a mistake crashes it, corrupts a save o
   audit of the committed lock files as required checks, and the files that decide `dotnet restore` in the review
   scope, so a changed feed can't hide a package from the lock files. [README](../../../README.md#supply-chain)
 
-## The review gate
+## The security review
 
 ```mermaid
 flowchart LR
@@ -60,13 +60,13 @@ flowchart LR
 
 - **The guards are in the review scope,** not only the hook code: the check scripts, git hooks, workflows, check tests,
   pinned tools and the reviewer itself. Otherwise a change to CI merges with only CI passing, and CI is what changed.
-- **The stamp is a hash of what was reviewed.** An edit after the review voids it, and CI refuses a scope commit
-  without a matching trailer.
+- **An edit after the review voids the [stamp](../../../GLOSSARY.md#review-and-ci),** and CI refuses a scope commit
+  without a matching [review trailer](../../../GLOSSARY.md#review-and-ci).
 - **Only the maintainer can skip review, and the skip is recorded** in a trailer. Agents are denied it.
 - **Everyone else's pull requests need an admin's `security-reviewed` label after their latest push,** checked by the
   `review-gate` workflow from `main`'s copy, so a PR can't edit the check that judges it. It reads the PR through the
   API and never runs its code.
-- **A clean merge from `main` keeps its review; a conflict resolution in the scope needs a new one.**
+- **A [clean merge](../../../GLOSSARY.md#review-and-ci) from `main` keeps its review; a conflict resolution in the scope needs a new one.**
   [ADR 0012](../../adr/0012-review-trailer-covers-clean-merges.md)
 
 The rules are in [`CONTRIBUTING.md`](../../../.github/CONTRIBUTING.md#security-review-and-deny-rules).

@@ -79,7 +79,7 @@ bash scripts/check.sh full
 
 `fast` checks the staged files, so with nothing staged it passes at once. `full` checks the files changed since `origin/main`
 (CI checks every tracked file), then builds,
-runs the `Unit` and `RoundTrip` tests, checks formatting and runs the script tests. Both end with exit code 0 when everything passes. A passing `full` is recorded per clone (in the git dir) against the
+runs the `Unit` and `RoundTrip` tests, checks formatting and runs the script tests. Both end with exit code 0 when everything passes. A passing `full` leaves a [recorded pass](../GLOSSARY.md#review-and-ci) in the git dir, keyed by the
 index's tree hash; `full` or `pre-push` on an identical tree says it reused the pass and skips the work. `pre-push`
 takes a machine-wide build slot only when it builds, so a docs-only push never waits on it. Run `full`, then push: with
 no recorded pass and every slot busy, `pre-push` stops at once instead of waiting, since a waiting push is cut (exit 141).
@@ -170,7 +170,7 @@ Your branch is deleted automatically after its PR merges. Delete your local copy
   file must match its project. Only the root `Directory.Build.props` may set the lock-file properties. `markdownlint` configs may live only in `tools/docs/`: `check.sh docs` fails on any
   other, in any case, because markdownlint loads one from each linted folder and a `.cjs` or `.mjs` one runs code.
 
-A commit touching it needs a review stamp:
+A commit touching it needs a [stamp](../GLOSSARY.md#review-and-ci):
 
 1. Stage the change, then run the `security-reviewer` agent. When it finds nothing critical or important, its last step
    runs `scripts/security-stamp.sh`, which hashes the staged scope into a stamp under `.git/`.
@@ -185,9 +185,8 @@ A commit touching it needs a review stamp:
    merges without a trailer don't fail a branch. A commit stamped before the guards joined the scope carries a hash of
    the old scope only; CI still accepts it when the commit changes no guard file, so earlier reviews stay valid.
 
-A **clean merge from `main`** needs no stamp, and the commit-msg hook says so and adds no trailer. Its second parent is
-already on `origin/main`, and each scope file is either the second parent's version where the branch left it as their
-merge base had it, or the first parent's where `main` left it alone. A scope conflict you resolve, a file git merges
+A [clean merge](../GLOSSARY.md#review-and-ci) from `main` needs no stamp, and the commit-msg hook says so and adds no
+trailer. A scope conflict you resolve, a file git merges
 from both sides' changes, and a side kept over the other's change (`-s ours`, `checkout --ours` or `--theirs`) all
 need a stamp.
 
