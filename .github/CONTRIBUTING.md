@@ -164,7 +164,7 @@ To remove the distro and everything in it: `wsl --unregister metaphor-checks`.
 2. Work on a branch. `main` only takes pull requests that pass CI.
 3. Follow the [coding standards](https://github.com/Sour-Dev-Home/metaphor-accessibility/blob/main/docs/coding-standards.md).
 4. Commit with a typed subject such as `feat: ...`, and a short body that says why. The commit-msg hook checks the
-   shape; the rules are in the header of [`scripts/check.sh`](https://github.com/Sour-Dev-Home/metaphor-accessibility/blob/main/scripts/check.sh).
+   shape; the rules are in [commit messages](../docs/contributors/reference/commit-messages.md).
 5. Open a pull request that says what changed and why. A PR that touches hooking, loading or injection includes
    in-game evidence on a named game build.
 6. Editing a workflow? Actions are pinned by commit SHA, and only an allowed list may run:
