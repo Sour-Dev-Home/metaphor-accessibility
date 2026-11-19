@@ -91,6 +91,24 @@ expect() {
   fi
 }
 
+# A hook in a worktree gets GIT_DIR and GIT_INDEX_FILE for the worktree's git dir. Inherited by the Pester suites, they
+# made a `git -C <scratch> init` set core.bare=true in the shared config, breaking every checkout. A step (timed_step)
+# runs without them; here the hook's repository and its worktree are scratch ones.
+test_steps_run_without_the_hooks_git_environment() {
+  new_repo
+  local repo="$PWD" wt="$WORK/wt-$RANDOM-$RANDOM" scratch="$WORK/scratch-$RANDOM-$RANDOM"
+  git commit -q --allow-empty -m init && git worktree add -q "$wt" && mkdir "$scratch" || exit 2
+  out="$(
+    export GIT_DIR="$repo/.git/worktrees/${wt##*/}" GIT_INDEX_FILE="$repo/.git/worktrees/${wt##*/}/index"
+    live_log="" step_times=()
+    timed_step init git -C "$scratch" init -q 2>&1
+    echo "core.bare=$(git --git-dir="$repo/.git" config --get core.bare)"
+    [ -d "$scratch/.git" ] && echo "scratch initialised"
+  )"
+  code=$?
+  expect 0 "core.bare=false" "scratch initialised"
+}
+
 # #321: an absolute core.hooksPath makes every worktree run one checkout's hooks, not its own branch's.
 test_rules_warn_about_an_absolute_hooks_path() {
   local path
