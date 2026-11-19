@@ -6,9 +6,13 @@ Takes a new contributor from a fresh clone to a working setup (#267), then print
 Run it from the repository root in PowerShell: .\scripts\onboard.ps1. Every step is safe to re-run, and a second run
 says that nothing changed.
 
+0. Run from Windows PowerShell with PowerShell 7 installed (on PATH, or at its default path when PATH hasn't caught up
+   yet), it says so and runs itself again under pwsh, with the same arguments, in the same window.
 1. Tools: the .NET SDK in global.json (roll-forward is off, so exactly that version), Git for Windows with Git Bash,
-   PowerShell 7 and the GitHub CLI. For each one missing it offers a pinned winget install (an exact version; winget
-   checks the installer against the hash in its manifest) and installs only after a yes. A no stops with what to do.
+   PowerShell 7, the GitHub CLI and Node.js LTS (for the docs tools). For each one missing it offers a pinned winget
+   install (an exact version; winget checks the installer against the hash in its manifest) and installs only after a
+   yes. A no stops with what to do, except for Node.js, which only the docs tools need. When winget says a tool is
+   already installed that the script still doesn't find, it says what it looked for.
 2. Git hooks: sets core.hooksPath to scripts/githooks for this clone.
 3. Private patterns: creates the git-ignored .claude/pii-patterns.txt from the example, opens it in Notepad, and stops
    while it still holds the example lines. It never prints the file.
@@ -47,7 +51,9 @@ param(
     # Steam's folder. Defaults to the one in the registry.
     [string] $SteamRoot = '',
     # Reloaded-II's root config. Defaults to its fixed AppData path (ReloadedDev.psm1's Get-ReloadedConfigPath).
-    [string] $ReloadedConfig = ''
+    [string] $ReloadedConfig = '',
+    # The Program Files folder to look in for PowerShell 7 when pwsh isn't on PATH. Defaults to Windows' own.
+    [string] $ProgramFiles = $env:ProgramFiles
 )
 
 # This file must parse in Windows PowerShell 5.1 too, so it can say that PowerShell 7 is missing: no PowerShell 7-only
@@ -56,10 +62,16 @@ Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 
 $repoSlug = 'Sour-Dev-Home/metaphor-accessibility'
-# Pinned winget packages. To update one, pick a version from `winget show --id <id> --versions`.
+# Pinned winget packages, each checked with winget show
+# (docs/raw-sources/onboard-winget-pins-and-return-codes-2026-11-19.md). To update one, pick a version from `winget show --id <id> --versions` and record the check there or in a new source.
 $gitPackage = @{ Id = 'Git.Git'; Version = '2.56.0.4' }
 $powerShellPackage = @{ Id = 'Microsoft.PowerShell'; Version = '7.6.10.0' }
 $ghPackage = @{ Id = 'GitHub.cli'; Version = '2.105.0' }
+$nodePackage = @{ Id = 'OpenJS.NodeJS.LTS'; Version = '26.13.1' }
+# winget's exit codes for a package that is already installed: PACKAGE_ALREADY_INSTALLED, UPDATE_NOT_APPLICABLE,
+# UPGRADE_VERSION_NOT_NEWER, INSTALL_ALREADY_INSTALLED and INSTALL_DOWNGRADE, as winget-cli's returnCodes.md lists them
+# (docs/raw-sources/onboard-winget-pins-and-return-codes-2026-11-19.md).
+$wingetAlreadyInstalled = @(0x8A150061, 0x8A15002B, 0x8A15004F, 0x8A15010D, 0x8A15010E)
 
 $root = Split-Path -Parent $PSScriptRoot
 $ok = [string][char]0x2713
@@ -68,7 +80,8 @@ $summary = [Collections.Generic.List[object]]::new()
 $changes = [Collections.Generic.List[string]]::new()
 
 function Write-Step([string] $Title) { Write-Host ''; Write-Host "== $Title" }
-function Add-Item([string] $Name, [bool] $Ready, [string] $Detail) {
+# READY is $true, $false, or 'optional' for an item nothing else needs.
+function Add-Item([string] $Name, [object] $Ready, [string] $Detail) {
     $summary.Add([pscustomobject]@{ Name = $Name; Ready = $Ready; Detail = $Detail })
 }
 Import-Module (Join-Path $PSScriptRoot 'Interactive.psm1') -Force
@@ -89,6 +102,51 @@ function Read-YesNo([string] $Question) {
     $answer = Read-OnboardAnswer "$Question [y/N]"
     return [bool]($null -ne $answer -and $answer -match '^\s*(y|yes)\s*$')
 }
+
+# PowerShell 7's pwsh.exe: at the installer's default path first (a window opened before the install doesn't have it on
+# PATH yet, and a pwsh.exe earlier on PATH could be anything), else on PATH (#358).
+function Find-PowerShell7 {
+    if ($ProgramFiles) {
+        $default = Join-Path $ProgramFiles 'PowerShell\7\pwsh.exe'
+        if (Test-Path -LiteralPath $default) { return $default }
+    }
+    $onPath = Get-Command pwsh -CommandType Application -ErrorAction SilentlyContinue | Select-Object -First 1
+    if ($onPath) { return $onPath.Source }
+    return $null
+}
+# --- 0. Windows PowerShell with PowerShell 7 installed: carry on under pwsh, in this window --------------------------
+if ($PSVersionTable.PSVersion.Major -lt 7) {
+    $powerShell7 = Find-PowerShell7
+    if ($powerShell7) {
+        Write-Host "PowerShell 7 is installed ($powerShell7), and this window is Windows PowerShell, so onboarding"
+        Write-Host 'carries on under PowerShell 7 in this window. Next time, start it from pwsh.'
+        # The same arguments as a command, every value a single-quoted literal escaped by PowerShell's own
+        # CodeGeneration (it doubles the typographic single quotes too, which PowerShell also ends a string on).
+        # -File can't pass -Answers' array, and Windows PowerShell drops empty arguments, so the command goes
+        # base64-encoded: no command-line quoting is involved. -OutputFormat Text keeps the output as -Command gives it
+        # (without it, redirected host output also reaches the console).
+        $quote = {
+            param($Text)
+            "'" + [Management.Automation.Language.CodeGeneration]::EscapeSingleQuotedStringContent("$Text") + "'"
+        }
+        $command = '& ' + (& $quote $PSCommandPath)
+        foreach ($name in $PSBoundParameters.Keys) {
+            if ($name -notmatch '^\w+$') { continue }
+            $value = $PSBoundParameters[$name]
+            if ($value -is [switch]) { if ($value.IsPresent) { $command += " -$name" } }
+            elseif ($value -is [array]) {
+                $command += " -$name @(" + (@($value | ForEach-Object { & $quote $_ }) -join ',') + ')'
+            }
+            else { $command += " -$name " + (& $quote $value) }
+        }
+        $command += '; exit $LASTEXITCODE'
+        $flags = @('-NoProfile', '-OutputFormat', 'Text')
+        if (-not $interactive) { $flags += '-NonInteractive' }
+        & $powerShell7 @flags -EncodedCommand ([Convert]::ToBase64String([Text.Encoding]::Unicode.GetBytes($command)))
+        exit $LASTEXITCODE
+    }
+}
+
 if (-not $interactive) {
     Write-Host 'No console to answer on: every question is answered no, and Notepad and Claude Code are not started.'
 }
@@ -110,45 +168,70 @@ function Find-GitBash {
 Write-Step 'Tools'
 $sdkVersion = (Get-Content -Raw -LiteralPath (Join-Path $root 'global.json') | ConvertFrom-Json).sdk.version
 $sdkMajor = $sdkVersion.Split('.')[0]
+# Each tool: its pinned winget package, TEST to find it, PROBLEM when it's missing, LOOKS for what TEST looks for, and
+# whether the rest of onboarding needs it. Node.js only serves the docs tools: missing, it gets a SUMMARY line instead.
 $tools = @(
     [pscustomobject]@{
-        Name = '.NET SDK'; Version = $sdkVersion; Id = "Microsoft.DotNet.SDK.$sdkMajor"
+        Name = '.NET SDK'; Version = $sdkVersion; Id = "Microsoft.DotNet.SDK.$sdkMajor"; Required = $true
         Url = "https://dotnet.microsoft.com/download/dotnet/$sdkMajor.0"
-        Found = (Test-Command dotnet) -and (@(& dotnet --list-sdks) -match "^$([regex]::Escape($sdkVersion)) ").Count -gt 0
+        Test = {
+            (Test-Command dotnet) -and (@(& dotnet --list-sdks) -match "^$([regex]::Escape($sdkVersion)) ").Count -gt 0
+        }
         Problem = "version $sdkVersion (global.json pins it exactly) isn't installed"
+        Looks = "exactly $sdkVersion in dotnet --list-sdks, as global.json pins it; another version doesn't count"
     }
     [pscustomobject]@{
         Name = 'Git'; Version = $gitPackage.Version; Id = $gitPackage.Id; Url = 'https://git-scm.com/download/win'
-        Found = [bool](Find-GitBash); Problem = 'Git for Windows with Git Bash isn''t installed'
+        Required = $true; Test = { [bool](Find-GitBash) }; Problem = 'Git for Windows with Git Bash isn''t installed'
+        Looks = 'bash.exe beside the git on PATH (Git for Windows with Git Bash)'
     }
     [pscustomobject]@{
-        Name = 'PowerShell 7'; Version = $powerShellPackage.Version; Id = $powerShellPackage.Id
+        Name = 'PowerShell 7'; Version = $powerShellPackage.Version; Id = $powerShellPackage.Id; Required = $true
         Url = 'https://github.com/PowerShell/PowerShell/releases'
-        Found = $PSVersionTable.PSVersion.Major -ge 7; Problem = 'this is Windows PowerShell, and the scripts need 7'
+        Test = { $PSVersionTable.PSVersion.Major -ge 7 -or [bool](Find-PowerShell7) }
+        Problem = 'this is Windows PowerShell, and the scripts need 7'
+        Looks = 'pwsh on PATH, or pwsh.exe in Program Files\PowerShell\7'
     }
     [pscustomobject]@{
         Name = 'GitHub CLI'; Version = $ghPackage.Version; Id = $ghPackage.Id; Url = 'https://cli.github.com/'
-        Found = (Test-Command gh); Problem = 'gh isn''t installed'
+        Required = $true; Test = { Test-Command gh }; Problem = 'gh isn''t installed'; Looks = 'gh on PATH'
+    }
+    [pscustomobject]@{
+        Name = 'Node.js'; Version = $nodePackage.Version; Id = $nodePackage.Id; Url = 'https://nodejs.org'
+        Required = $false; Test = { Test-Command npm }; Looks = 'npm on PATH'
+        Problem = 'npm isn''t on PATH, and the docs tools need Node.js for markdownlint'
+        Summary = 'not installed, and the docs tools need it: install Node.js LTS (https://nodejs.org), then run ' +
+            '.\scripts\onboard.ps1 again'
     }
 )
 $installed = @()
-$todo = @()
+$missing = @()
 foreach ($tool in $tools) {
-    if ($tool.Found) { Write-Host "$($tool.Name): found"; continue }
+    if (& $tool.Test) { Write-Host "$($tool.Name): found"; continue }
     Write-Host "$($tool.Name): $($tool.Problem)."
-    if (-not (Test-Command winget)) { $todo += $tool; continue }
+    if (-not (Test-Command winget)) { $missing += $tool; continue }
     Write-Host "winget can install $($tool.Name) $($tool.Version). A yes also accepts the package's licence agreement and"
     Write-Host "the winget source's terms on your behalf; read them first with:"
     Write-Host "  winget show --id $($tool.Id) --exact --version $($tool.Version)"
     Write-Host 'The installer may show a Windows admin prompt.'
     if (-not (Read-YesNo "Install $($tool.Name) $($tool.Version) and accept its licence agreement?")) {
-        $todo += $tool; continue
+        $missing += $tool; continue
     }
     # Only behind that yes: the flags accept the agreements the question named.
     & winget install --id $tool.Id --exact --version $tool.Version --source winget --accept-package-agreements `
         --accept-source-agreements
-    if ($LASTEXITCODE -eq 0) { $installed += $tool } else { $todo += $tool }
+    $code = $LASTEXITCODE
+    if ($code -eq 0) { $installed += $tool; continue }
+    if ($wingetAlreadyInstalled -contains $code) {
+        if (& $tool.Test) { Write-Host "$($tool.Name): found"; continue }
+        # Installing it again would only repeat this, so say what's missing instead.
+        Write-Host "winget says $($tool.Name) is already installed, but onboarding still doesn't find it: it looks for"
+        Write-Host "$($tool.Looks). If it was installed only just now, open a new PowerShell window, so it's on PATH,"
+        Write-Host "and run .\scripts\onboard.ps1 again there; otherwise install it by hand: $($tool.Url)"
+    }
+    $missing += $tool
 }
+$todo = @($missing | Where-Object { $_.Required })
 if ($todo.Count -gt 0) {
     Write-Host ''
     Write-Host 'Install these, then run .\scripts\onboard.ps1 again:'
@@ -162,7 +245,10 @@ if ($installed.Count -gt 0) {
     Write-Host 'PowerShell 7, start it with pwsh).'
     exit 1
 }
-foreach ($tool in $tools) { Add-Item $tool.Name $true 'installed' }
+foreach ($tool in $tools) {
+    if ($missing -contains $tool) { Add-Item $tool.Name $false $tool.Summary }
+    else { Add-Item $tool.Name $true 'installed' }
+}
 $bash = Find-GitBash
 
 Push-Location $root
@@ -300,7 +386,8 @@ try {
     }
     if (-not (Test-Command claude)) {
         Write-Host 'Claude Code is not installed.'
-        Add-Item 'skills' $false 'install Claude Code (https://claude.com/claude-code), then run .\scripts\onboard.ps1 again'
+        Add-Item 'skills' 'optional' ('optional: install Claude Code (https://claude.com/claude-code), then run ' +
+            '.\scripts\onboard.ps1 again; contributing works without it')
     }
     elseif (Test-Skill) {
         Write-Host 'Matt Pocock''s skills are installed.'
@@ -374,7 +461,9 @@ try {
         }
     }
     if ($game) { Add-Item 'game path' $true 'METAPHOR_GAME_EXE is set' }
-    else { Add-Item 'game path' $false 'optional: set METAPHOR_GAME_EXE to the game''s exe, or run .\scripts\onboard.ps1 again' }
+    else {
+        Add-Item 'game path' 'optional' 'optional: set METAPHOR_GAME_EXE to the game''s exe, or run .\scripts\onboard.ps1 again'
+    }
 
     $locate.Remove('SteamRoot')
     $launcher = Find-ReloadedLauncher @locate
@@ -382,7 +471,7 @@ try {
     else {
         Write-Host 'Did not find Reloaded-II (no METAPHOR_RELOADED_EXE, and no launcher in its ReloadedII.json). You need'
         Write-Host 'it only to run the mod.'
-        Add-Item 'Reloaded-II' $false 'optional: install Reloaded-II and launch it once, to run the mod'
+        Add-Item 'Reloaded-II' 'optional' 'optional: install Reloaded-II and launch it once, to run the mod'
     }
 
     if ($game -and $launcher -and (Read-YesNo ('Run a 30-second test deploy? It builds the mod, starts the game through ' +
@@ -416,8 +505,8 @@ try {
 
     Write-Step 'Ready summary'
     foreach ($item in $summary) {
-        if ($item.Ready) { Write-Host "  $ok $($item.Name): $($item.Detail)" }
-        else { Write-Host "  $notOk $($item.Name): $($item.Detail)" }
+        $mark = if ('optional' -eq $item.Ready) { '-' } elseif ($item.Ready) { $ok } else { $notOk }
+        Write-Host "  $mark $($item.Name): $($item.Detail)"
     }
     Write-Host ''
     if ($changes.Count -gt 0) { Write-Host "Changed: $($changes -join '; ')." }
