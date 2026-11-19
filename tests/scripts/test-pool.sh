@@ -118,16 +118,19 @@ out="${pool_file[two words]}"
 check "ids: a file inside the pool's folder" [ -f "$WORK/out/${out#"$WORK/out/"}" ]
 check "ids: holding the job's output" [ "$(cat "$out")" = b ]
 
-# A job something else waited for (here the callback, as no caller should) has lost its code: it fails, rather than
-# hanging the pool or passing.
+# A job something else waited for (here the callback, as no caller should) gets either its own code, when bash still
+# has it, or 127: never a pass for a job that failed, and no hang. Which one is bash's choice: it sometimes keeps the
+# last-started job's ($!) code after a bare `wait` and drops the others' (#379 failed on Ubuntu on that), so the jobs
+# fail with codes of their own and either answer is accepted.
 reaper() { [ "$1" != first ] || wait; }
+slow_fail() { sleep 2; return "$1"; } # long enough to be running still when first's callback waits, on a loaded machine
 new_pool 3 reaper
 pool_run first true
-pool_run second busy second 2 # long enough to be running still when first's callback waits, on a loaded machine
-pool_run third busy third 2
+pool_run second slow_fail 5
+pool_run third slow_fail 6
 pool_wait 2> /dev/null # bash's "not a child of this shell"
-check "lost: a job whose code is gone fails" [ "${pool_code[second]:-unset}" = 127 ]
-check "lost: every one of them" [ "${pool_code[third]:-unset}" = 127 ]
+check "lost: a failed job never passes" matches "${pool_code[second]:-unset}" '^(5|127)$'
+check "lost: nor does the last one started" matches "${pool_code[third]:-unset}" '^(6|127)$'
 
 # A PID given out again while an unseen job still holds it in the list: that old job fails with 127, and the new one is
 # tracked. The reuse can't be forced, so the stale entry is planted under a running job's PID.
