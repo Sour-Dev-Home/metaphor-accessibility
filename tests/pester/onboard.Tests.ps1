@@ -283,6 +283,28 @@ Describe 'onboard.ps1' {
         $result.Output | Should -Match 'git-scm.com'
     }
 
+    It 'finds Git Bash when the git first on PATH is the one in libexec\git-core, as inside a git hook' {
+        $execPath = git --exec-path
+        Test-Path -LiteralPath (Join-Path $execPath 'git.exe') | Should -BeTrue -Because "$execPath holds git.exe"
+        $result = Invoke-Onboard @('', 'y', 'n') -Path @($script:bin, $execPath)
+
+        $result.ExitCode | Should -Be 0 -Because $result.Output
+        $result.Output | Should -Not -Match 'Git Bash isn''t installed'
+    }
+
+    It 'never takes a bash.exe from outside the Git install when Git\bin\bash.exe is missing' {
+        $cmd = New-Item -ItemType Directory (Join-Path $root 'drive/outer/Git/cmd')
+        New-Item -ItemType File (Join-Path $cmd 'git.cmd') | Out-Null
+        foreach ($decoy in 'drive/outer/bin', 'drive/bin') { # one and two levels above the Git root
+            New-Item -ItemType File (Join-Path (New-Item -ItemType Directory -Force (Join-Path $root $decoy)) 'bash.exe') |
+                Out-Null
+        }
+        $result = Invoke-Onboard -Answers @('n') -Path @($script:bin, $cmd.FullName)
+
+        $result.ExitCode | Should -Be 1
+        $result.Output | Should -Match 'Git Bash isn''t installed'
+    }
+
     It 'stops while the private patterns file still holds the example lines, without printing it' {
         $script:stub.STUB_NOTEPAD = 'none'
         $result = Invoke-Onboard @('')
