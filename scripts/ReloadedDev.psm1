@@ -5,7 +5,10 @@
 Set-StrictMode -Version Latest
 
 $StatusFileName = 'mod-status.json' # Metaphor.Core.ModStatusFile.FileName
-$PollMilliseconds = 500
+$PollMilliseconds = 100
+# How long the game must stay gone before a wait counts it as exited: at least the grace that two missed polls 500 ms
+# apart gave before #339 made polling faster.
+$GameGoneMilliseconds = 1000
 
 # Dates stay strings, so a config written back keeps them as the loader wrote them.
 function Read-Json([string] $Path) { Get-Content -Raw -LiteralPath $Path | ConvertFrom-Json -DateKind String }
@@ -23,9 +26,11 @@ function Resolve-AppLocation([string] $ConfigFile, [string] $Location) {
     [IO.Path]::GetFullPath($Location)
 }
 
-# The running processes started from this exe.
+# The running processes started from this exe. Only those with the exe's name are asked for their path: asking all of
+# them took up to 1.7 s on a busy machine, against about 6 ms this way (#339). A process's name is its exe's file name
+# without ".exe".
 function Get-Game([string] $Path) {
-    Get-Process -ErrorAction SilentlyContinue | Where-Object { $_.Path -eq $Path }
+    [Diagnostics.Process]::GetProcessesByName(([IO.Path]::GetFileName($Path) -replace '\.exe$')) | Where-Object { $_.Path -eq $Path }
 }
 
 # The game exe's SHA-256, and its entry in the known-builds list ($null when it isn't listed).
@@ -58,12 +63,15 @@ function Resolve-LoaderPaths($Loader, [string] $GameExe, [string] $LauncherExe) 
 # one line per mod. True when every mod is ready on $Build with all its hooks.
 function Wait-ModStatus($Mods, [string] $GameExe, [string] $Build, [datetime] $Deadline, [int] $TimeoutSeconds) {
     $passed = $true
-    $missedPolls = 0
+    $goneFor = $null
     do {
         $pending = @($Mods | Where-Object { -not (Test-Path -LiteralPath (Join-Path $_.Folder $StatusFileName)) })
         if ($pending.Count -eq 0) { break }
-        $missedPolls = if (Get-Game $GameExe) { 0 } else { $missedPolls + 1 }
-        if ($missedPolls -ge 2) { Write-Host 'the game exited before every mod reported'; $passed = $false; break }
+        if (Get-Game $GameExe) { $goneFor = $null }
+        elseif (-not $goneFor) { $goneFor = [Diagnostics.Stopwatch]::StartNew() }
+        elseif ($goneFor.ElapsedMilliseconds -ge $GameGoneMilliseconds) {
+            Write-Host 'the game exited before every mod reported'; $passed = $false; break
+        }
         Start-Sleep -Milliseconds $PollMilliseconds
     } while ((Get-Date) -lt $Deadline)
 

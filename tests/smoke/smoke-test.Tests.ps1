@@ -26,7 +26,8 @@ BeforeAll {
         [pscustomobject]@{ ExitCode = $LASTEXITCODE; Output = ($output -join "`n") }
     }
 
-    function Get-Game { Get-Process -ErrorAction SilentlyContinue | Where-Object Path -EQ $script:gameExe }
+    # By name first, as scripts/ReloadedDev.psm1's Get-Game: reading every process's path is slow on a busy machine.
+    function Get-Game { [Diagnostics.Process]::GetProcessesByName('METAPHOR') | Where-Object Path -EQ $script:gameExe }
 }
 
 Describe 'smoke-test.ps1' {
@@ -118,12 +119,15 @@ Describe 'smoke-test.ps1' {
         $result.ExitCode | Should -Be 0
         Join-Path $collected 'metaphor.smoke/signature-scan.json' | Should -Exist
         (Get-FileHash $script:config).Hash | Should -Be $script:configBefore.Hash
+        Get-Game | Should -BeNullOrEmpty
     }
 
     It 'fails when a test mod never writes a file it should, and still cleans up' {
         $collected = Join-Path $TestDrive "collected-$([guid]::NewGuid())"
 
-        $result = Invoke-SmokeTest -Extra '-CollectFiles', 'signature-scan.json', '-CollectTo', $collected
+        # The game exits a second after the status, which ends the wait for the file at once. A game that keeps
+        # running would hold the test to the whole timeout (#339); the test above checks the game is closed.
+        $result = Invoke-SmokeTest -Behaviour exitlater -Extra '-CollectFiles', 'signature-scan.json', '-CollectTo', $collected
 
         $result.ExitCode | Should -Be 1
         $result.Output | Should -Match 'metaphor\.smoke: no signature-scan\.json'
@@ -139,10 +143,10 @@ Describe 'smoke-test.ps1' {
     }
 
     It 'times out when a mod never reports, then restores the config and closes the game' {
-        $result = Invoke-SmokeTest -Behaviour silent -TimeoutSeconds 5
+        $result = Invoke-SmokeTest -Behaviour silent -TimeoutSeconds 3
 
         $result.ExitCode | Should -Be 1
-        $result.Output | Should -Match 'metaphor\.smoke: no status within 5 s'
+        $result.Output | Should -Match 'metaphor\.smoke: no status within 3 s'
         (Get-FileHash $script:config).Hash | Should -Be $script:configBefore.Hash
         Get-Game | Should -BeNullOrEmpty
     }
@@ -174,10 +178,10 @@ Describe 'smoke-test.ps1' {
                 modId = 'metaphor.smoke'; state = 'ready'; gameBuildSha256 = $script:build; hooksLoaded = 1; hooksExpected = 1
             } | ConvertTo-Json)
 
-        $result = Invoke-SmokeTest -Behaviour silent -TimeoutSeconds 5
+        $result = Invoke-SmokeTest -Behaviour silent -TimeoutSeconds 3
 
         $result.ExitCode | Should -Be 1
-        $result.Output | Should -Match 'metaphor\.smoke: no status within 5 s'
+        $result.Output | Should -Match 'metaphor\.smoke: no status within 3 s'
     }
 
     It 'refuses to start while the game is already running, and leaves it running' {
