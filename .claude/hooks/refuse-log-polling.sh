@@ -17,6 +17,6 @@ case "$input" in
   *.log*) ;;
   *) exit 0 ;;
 esac
-echo "Refused: a sleep loop that waits on a log file. Run the command itself in the foreground with the" \
-  "600000 ms timeout and read its output when it returns (docs/agents/workflow.md, Start step 4)." >&2
+echo "Refused: a sleep loop that waits on a log file. Run the command itself, alone in its own call, and read" \
+  "its output when it returns or its completion notification arrives (docs/agents/workflow.md, Start step 4)." >&2
 exit 2
