@@ -601,8 +601,8 @@ function Confirm-RunWindow([scriptblock] $Say, [scriptblock] $Ask) {
         & $Say 'This window runs as administrator, so the installer stopped without changing anything. Run it from a normal PowerShell window: it asks Windows for permission itself where a step needs it.'
         return $false
     }
-    & $Say 'User Account Control is turned off on this computer, so every window runs as administrator, and the files the installer puts in place will be owned by the administrator account.'
-    if (Test-Yes (& $Ask 'Install as administrator anyway? [y/N]')) { return $true }
+    & $Say 'User Account Control is turned off on this computer, so every window runs as administrator, and the files the installer puts in place will be owned by the administrator account. Reloaded-II and the mod may then need administrator rights to update themselves later.'
+    if (Test-Yes (& $Ask 'Install as administrator anyway? Type yes and press Enter to go on, or press Enter alone to stop.')) { return $true }
     & $Say 'The installer stopped without changing anything, because the answer was no.'
     return $false
 }

@@ -551,6 +551,14 @@ Describe 'Confirm-RunWindow' {
         Invoke-Confirm 'y' | Should -BeTrue
         $asked.Count | Should -Be 1
         $said -join ' ' | Should -Match 'User Account Control is turned off.*owned by the administrator account'
+        $said -join ' ' | Should -Match 'administrator rights to update themselves later'
+    }
+
+    It 'asks for the word yes in a sentence a screen reader can read, and takes it typed in full' {
+        Mock -ModuleName MetaphorInstall Test-UacEnabled { $false }
+        Invoke-Confirm 'yes' | Should -BeTrue
+        $asked[0] | Should -Match 'Type yes and press Enter to go on, or press Enter alone to stop\.'
+        $asked[0] | Should -Not -Match '\[y/N\]'
     }
 
     It 'refuses after a no while UAC is off' {
