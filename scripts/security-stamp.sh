@@ -28,7 +28,7 @@ set -uo pipefail
 # where * also matches /; noglob keeps bash from expanding them, and other scripts read this list as text.
 set -f
 scope=(src/Metaphor.Hooks/ scripts/deploy-dev.ps1 scripts/smoke-test.ps1 scripts/package-mod.sh scripts/fetch-prism.ps1
-  scripts/zip-package.ps1 scripts/ReloadedDev.psm1 scripts/capture.ps1 scripts/listen.ps1
+  scripts/zip-package.ps1 scripts/build-release.sh scripts/ReloadedDev.psm1 scripts/capture.ps1 scripts/listen.ps1
   scripts/onboard.ps1 scripts/GameLocator.psm1 scripts/Interactive.psm1 scripts/claude.ps1 scripts/ghidra.ps1
   scripts/check.sh scripts/game-content.sha256 scripts/tree-hash.sh scripts/ci-changes.sh scripts/test-select.sh
   scripts/stage-timing.sh scripts/install-docs-tools.sh scripts/conflict-alert.sh scripts/integration-sync.sh
