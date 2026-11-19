@@ -35,11 +35,11 @@ function Test-Complete {
     (Test-Path -LiteralPath $dll) -and (Get-Sha256 $dll) -eq $pinned.dllSha256 -and
     (Test-Path -LiteralPath (Join-Path $licences 'prism/mpl-2.0.txt')) -and (Test-Path -LiteralPath (Join-Path $licences 'SOURCE.md'))
 }
-if (Test-Complete) { exit 0 }
 
 # One fetch at a time per cache (#333): parallel mod builds in one checkout share the cache's partial file and the output
 # folder. The lock is an exclusive handle on a file in the cache, which the OS releases if this process dies; whoever
-# waited then finds the files in place and stops there.
+# waited then finds the files in place and stops there. Even the first look at the files waits for it (#338): hashing the
+# old DLL holds it open, so the fetch replacing it after a pin bump can't delete it.
 New-Item -ItemType Directory -Force $Cache | Out-Null
 $lockPath = Join-Path $Cache 'fetch-prism.lock'
 $waitUntil = [DateTime]::UtcNow.AddMinutes(10)

@@ -139,6 +139,36 @@ Describe 'fetch-prism.ps1' {
         @(Get-ChildItem -LiteralPath $script:cache -File -Filter '*.part').Count | Should -Be 0
     }
 
+    It 'gives every one of several fetches started at once after a pin bump the new files (#338)' {
+        # The old DLL is in place and large, so a fetch still hashing it overlaps the one replacing the output folder.
+        $oldZip = Join-Path $root 'old.zip'
+        $oldDll = 'old dll ' * 4MB
+        New-ReleaseZip $oldZip -DllText $oldDll
+        $oldZipSha = Get-Sha256 $oldZip
+        Set-Content -LiteralPath (Join-Path $root 'old-dll') -Value $oldDll -NoNewline
+        Copy-Item $oldZip (Join-Path $script:cache "prism-$oldZipSha.zip")
+        Write-Pin -DllSha (Get-Sha256 (Join-Path $root 'old-dll')) -ZipSha $oldZipSha
+        (Invoke-Fetch $script:pin $script:out $script:cache).ExitCode | Should -Be 0
+        Write-Pin -Url $script:zipUrl
+        Remove-Item -LiteralPath (Join-Path $script:cache "prism-$script:zipSha.zip")
+        $logs = Join-Path $root 'logs'
+        New-Item -ItemType Directory $logs | Out-Null
+
+        $fetches = foreach ($i in 1..8) {
+            Start-Process pwsh -NoNewWindow -PassThru -RedirectStandardOutput (Join-Path $logs "$i.out") `
+                -RedirectStandardError (Join-Path $logs "$i.err") -ArgumentList @(
+                '-NoProfile', '-NonInteractive', '-File', "`"$script:fetch`"", '-Pin', "`"$script:pin`"",
+                '-OutDir', "`"$script:out`"", '-Cache', "`"$script:cache`"")
+        }
+        $fetches | ForEach-Object { $_.WaitForExit() }
+
+        foreach ($i in 1..8) {
+            $fetches[$i - 1].ExitCode | Should -Be 0 -Because (Get-Content -Raw (Join-Path $logs "$i.*"))
+        }
+        Get-Sha256 (Join-Path $script:out 'prism.dll') | Should -Be $script:dllSha
+        @(Get-ChildItem -LiteralPath $script:out -Recurse -File).Count | Should -Be 4
+    }
+
     It 'does nothing when the pinned DLL is already in place' {
         Invoke-Fetch $script:pin $script:out $script:cache | Out-Null
         Remove-Item -LiteralPath $script:cache -Recurse -Force
@@ -146,6 +176,7 @@ Describe 'fetch-prism.ps1' {
         $result = Invoke-Fetch $script:pin $script:out $script:cache
 
         $result.ExitCode | Should -Be 0
-        $script:cache | Should -Not -Exist
+        # Only the lock file: nothing fetched.
+        @(Get-ChildItem -LiteralPath $script:cache -Name) | Should -Be @('fetch-prism.lock')
     }
 }
