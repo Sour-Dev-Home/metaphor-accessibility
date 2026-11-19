@@ -1898,7 +1898,7 @@ test_maintainer_pr_uses_trailers_and_ignores_the_label() {
 }
 
 # The guards that enforce the ground rules are in the scope too (issue #306).
-GUARD_FILES=(scripts/check.sh scripts/check/report.sh scripts/check/run.sh scripts/check/pool.sh scripts/check/docs.sh scripts/check/build.sh scripts/game-content.sha256 scripts/tree-hash.sh scripts/ci-changes.sh
+GUARD_FILES=(scripts/check.sh scripts/check/report.sh scripts/check/run.sh scripts/check/pool.sh scripts/check/docs.sh scripts/check/build.sh scripts/check/message.sh scripts/check/review.sh scripts/game-content.sha256 scripts/tree-hash.sh scripts/ci-changes.sh
   scripts/test-select.sh scripts/stage-timing.sh scripts/install-docs-tools.sh scripts/conflict-alert.sh
   scripts/integration-sync.sh scripts/check-status.sh scripts/run-pester.sh scripts/live-log.sh scripts/wsl-run.sh
   scripts/run-check-suites.sh scripts/wsl-tools.txt scripts/setup-wsl.ps1 scripts/githooks/pre-commit scripts/githooks/pre-push
