@@ -2,7 +2,8 @@
 # PowerShell in the repository root:
 #   .\scripts\setup-wsl.ps1            create the distro from Debian (it asks first), then install what's missing
 #   .\scripts\setup-wsl.ps1 -Update    also upgrade the distro's packages and reinstall the pinned docs tools
-#   .\scripts\setup-wsl.ps1 -Yes       don't ask before creating the distro
+#   .\scripts\setup-wsl.ps1 -Yes       don't ask before creating the distro (without a console and -Yes, it doesn't
+#                                      create it)
 # It never touches your other distros, WSL's settings or git's config, and never installs, converts or upgrades WSL
 # itself: on a machine without WSL 2 it stops with the reason, and the suites keep running in Git Bash. The tools,
 # listed in scripts/wsl-tools.txt, are installed as root inside the distro, so there's no sudo prompt.
@@ -13,6 +14,7 @@ param([switch]$Update, [switch]$Yes)
 $ErrorActionPreference = 'Stop'
 $distro = 'metaphor-checks'
 $env:WSL_UTF8 = '1' # wsl.exe prints UTF-16 otherwise
+Import-Module (Join-Path $PSScriptRoot 'Interactive.psm1') -Force
 
 function Stop-Setup([string]$reason) {
     Write-Host "setup-wsl: $reason The check suites keep running in Git Bash."
@@ -46,13 +48,19 @@ function Get-DistroVersion {
 $version = Get-DistroVersion
 if ($null -eq $version) {
     if (-not $Yes) {
-        $answer = Read-Host "Create the WSL distro '$distro' from Debian? It downloads Debian (about 100 MB). [y/N]"
-        if ($answer -notmatch '^(y|yes)$') { Write-Host 'setup-wsl: nothing changed.'; exit 1 }
+        # Without a console Confirm-Step answers no (Interactive.psm1), so a scripted run never hangs here.
+        $console = Test-Interactive
+        if (-not (Confirm-Step "Create the WSL distro '$distro' from Debian? It downloads Debian (about 100 MB).")) {
+            if ($console) { Write-Host 'setup-wsl: nothing changed.' }
+            else { Write-Host 'setup-wsl: nothing changed. Run it in a PowerShell window, or with -Yes.' }
+            exit 1
+        }
     }
     & wsl.exe --install Debian --name $distro --version 2 --no-launch
     if ($LASTEXITCODE -ne 0) { Stop-Setup "creating $distro failed (wsl.exe exit code $LASTEXITCODE)." }
     $version = Get-DistroVersion
     if ($null -eq $version) { Stop-Setup "WSL reported success but has no $distro distro." }
+    Write-Host "setup-wsl: created $distro."
 }
 if ($version -ne '2') {
     Stop-Setup "$distro runs under WSL $version, not 2. Remove it (wsl --unregister $distro) and run this again."

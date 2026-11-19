@@ -1,6 +1,8 @@
 # Contributor docs
 
-For people working on the code, the notes or the docs. Start with [`CONTRIBUTING.md`](../../.github/CONTRIBUTING.md).
+For people working on the code, the notes or the docs. Start with [`CONTRIBUTING.md`](../../.github/CONTRIBUTING.md):
+in PowerShell, `.\scripts\onboard.ps1` sets up a fresh clone in one command
+([how](../../.github/CONTRIBUTING.md#one-command)).
 [`../README.md`](../README.md) says which type of page goes in which folder.
 
 How-tos: [add a hook](how-to/add-a-hook.md), [deploy a dev build](how-to/deploy-a-dev-build.md), [run the smoke test](how-to/run-the-smoke-test.md),
