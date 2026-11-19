@@ -10,7 +10,12 @@
 //   callees <target>            functions it calls
 //   offset <offset> [<target>]  instructions with a memory operand at that displacement ([reg + offset], not RSP or
 //                               RIP), in one function or in all analysed code, marked read, write, addr (lea) or call
-//   rtti <target>               the RTTI class of a vtable, of an object holding a vtable pointer, or of each vtable
+//   global <target>             instructions whose RIP-relative operand is that global ([rip + disp32] resolving to
+//                               it), in all analysed code, marked read, write, rw, addr (lea) or call (a call or
+//                               jump through it). It
+//                               scans the instructions rather than trusting the reference table, so it doesn't depend
+//                               on which references auto-analysis made.
+//   rtti <target>              the RTTI class of a vtable, of an object holding a vtable pointer, or of each vtable
 //                               holding a pointer to a function
 //   vtable <target>             a vtable's class and slots; the target is the vtable or a class name
 //
@@ -35,6 +40,7 @@ import ghidra.program.model.listing.Instruction;
 import ghidra.program.model.mem.MemoryBlock;
 import ghidra.program.model.scalar.Scalar;
 import ghidra.program.model.symbol.Reference;
+import ghidra.program.model.symbol.SourceType;
 import ghidra.program.model.symbol.Symbol;
 
 public class MetaphorQuery extends GhidraScript {
@@ -42,6 +48,7 @@ public class MetaphorQuery extends GhidraScript {
 	private static final int MAX_LINES = 500;
 	private static final int MAX_SLOTS = 1024;
 	private static final int ON_DEMAND_BYTES = 0x10000;
+	private static final int NAME_REACH = 0x400;
 
 	private PrintWriter out;
 	private long imageBase;
@@ -63,6 +70,7 @@ public class MetaphorQuery extends GhidraScript {
 					case "callers" -> callers(function(args[2]));
 					case "callees" -> callees(function(args[2]));
 					case "offset" -> offset(parseNumber(args[2]), extra == null ? null : function(extra));
+					case "global" -> global(address(args[2]));
 					case "rtti" -> rtti(address(args[2]));
 					case "vtable" -> {
 						for (Address start : vtableAddresses(args[2])) {
@@ -257,6 +265,97 @@ public class MetaphorQuery extends GhidraScript {
 			}
 		}
 		return register && match;
+	}
+
+	private void global(Address target) {
+		out.printf("# instructions addressing the global %s in all analysed code%n", rva(target));
+		int lines = 0;
+		for (Instruction instruction : currentProgram.getListing().getInstructions(true)) {
+			if (monitor.isCancelled()) {
+				break;
+			}
+			for (int i = 0; i < instruction.getNumOperands(); i++) {
+				if (!addresses(instruction, i, target)) {
+					continue;
+				}
+				if (++lines > MAX_LINES) {
+					out.println("# stopped after " + MAX_LINES + " matches");
+					return;
+				}
+				out.printf("%s  %-5s %-40s %s%n", rva(instruction.getAddress()), access(instruction, i, target),
+					instruction, container(instruction.getAddress()));
+				break;
+			}
+		}
+		if (lines == 0) {
+			out.println("# none found");
+		}
+	}
+
+	// The function holding an instruction. Code reached only by a jump (such as a script function's body) has none, so
+	// then the nearest name before it that the build or a person gave, such as a hook-signatures.json name, if close.
+	private String container(Address at) {
+		Function function = getFunctionContaining(at);
+		if (function != null) {
+			return describe(function);
+		}
+		var symbols = currentProgram.getSymbolTable().getSymbolIterator(at, false);
+		while (symbols.hasNext()) {
+			Symbol symbol = symbols.next();
+			if (at.subtract(symbol.getAddress()) > NAME_REACH) {
+				break;
+			}
+			if (symbol.getSource() != SourceType.DEFAULT) {
+				return "(no function; " + symbol.getName(true) + " @ " + rva(symbol.getAddress()) + ")";
+			}
+		}
+		return "(no function)";
+	}
+
+	// True when operand i is a memory operand or address at the target: Ghidra resolves [rip + disp32] to the absolute
+	// address, as an Address operand object or as the operand's reference.
+	private static boolean addresses(Instruction instruction, int i, Address target) {
+		for (Reference reference : instruction.getOperandReferences(i)) {
+			if (reference.getToAddress().equals(target)) {
+				return true;
+			}
+		}
+		boolean memory = (instruction.getOperandType(i) & (OperandType.ADDRESS | OperandType.DYNAMIC)) != 0;
+		for (Object part : instruction.getOpObjects(i)) {
+			if (part instanceof Address a && a.equals(target)
+				|| memory && part instanceof Scalar s && s.getUnsignedValue() == target.getOffset()) {
+				return true;
+			}
+		}
+		return false;
+	}
+
+	// lea takes the address; a call through it reads it as a pointer. Otherwise the operand's reference type says, and
+	// when there is none, the destination operand of a two-operand instruction other than cmp and test is written.
+	private static String access(Instruction instruction, int i, Address target) {
+		String mnemonic = instruction.getMnemonicString().toUpperCase();
+		if (mnemonic.equals("LEA")) {
+			return "addr";
+		}
+		if (instruction.getFlowType().isCall() || instruction.getFlowType().isJump()) {
+			return "call";
+		}
+		for (Reference reference : instruction.getOperandReferences(i)) {
+			if (reference.getToAddress().equals(target)) {
+				var type = reference.getReferenceType();
+				if (type.isRead() && type.isWrite()) {
+					return "rw";
+				}
+				if (type.isWrite()) {
+					return "write";
+				}
+				if (type.isRead()) {
+					return "read";
+				}
+			}
+		}
+		boolean compares = mnemonic.startsWith("CMP") || mnemonic.equals("TEST");
+		return i == 0 && instruction.getNumOperands() > 1 && !compares ? "write" : "read";
 	}
 
 	private void rtti(Address address) throws Exception {
