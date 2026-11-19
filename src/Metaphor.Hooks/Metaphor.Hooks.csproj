@@ -20,7 +20,7 @@
   <ItemGroup>
     <!-- What Reloaded-II reads to load the mod. Its ModDll must name this project's assembly. -->
     <Content Include="ModConfig.json" CopyToOutputDirectory="Always" />
-    <!-- The pinned Prism release (ADR 0005): scripts/fetch-prism.ps1 fetches by it, and the mod checks prism.dll by it. -->
+    <!-- The pinned Prism release (ADR 0005): scripts/dev/fetch-prism.ps1 fetches by it, and the mod checks prism.dll by it. -->
     <EmbeddedResource Include="prism.json" LogicalName="Metaphor.Hooks.prism.json" />
     <!-- The mod's own licence (GPL-3.0), which LGPL-3.0 builds on; Reloaded.Hooks' licences (both packages, LGPL-3.0)
          and where its source is (ADR 0006). -->
@@ -42,14 +42,14 @@
   <ItemGroup>
     <None Include="../Metaphor.Core/known-game-builds.json" Link="known-game-builds.json" CopyToPublishDirectory="PreserveNewest" />
     <None Include="prism.json" CopyToPublishDirectory="PreserveNewest" />
-    <None Include="../../scripts/check-install.ps1;../../scripts/InstallCheck.psm1;../../scripts/ReloadedRead.psm1;../../scripts/Interactive.psm1;../../scripts/install.ps1;../../scripts/Installer.psm1;../../scripts/GameLocator.psm1;../../scripts/install-pins.json"
+    <None Include="../../scripts/player/check-install.ps1;../../scripts/player/InstallCheck.psm1;../../scripts/player/ReloadedRead.psm1;../../scripts/player/Interactive.psm1;../../scripts/player/install.ps1;../../scripts/player/Installer.psm1;../../scripts/player/GameLocator.psm1;../../scripts/player/install-pins.json"
           Link="%(Filename)%(Extension)" CopyToPublishDirectory="PreserveNewest" />
   </ItemGroup>
 
   <!-- Every publish (the package, deploy-dev) fetches the pinned prism.dll and its licences and ships them; plain builds
        and tests don't download anything. -->
   <Target Name="FetchPrism" AfterTargets="ComputeResolvedFilesToPublishList">
-    <Exec Command="pwsh -NoProfile -NonInteractive -File &quot;$(MSBuildThisFileDirectory)../../scripts/fetch-prism.ps1&quot;" />
+    <Exec Command="pwsh -NoProfile -NonInteractive -File &quot;$(MSBuildThisFileDirectory)../../scripts/dev/fetch-prism.ps1&quot;" />
     <PropertyGroup>
       <PrismFolder>$(MSBuildThisFileDirectory)../../artifacts/native/prism/</PrismFolder>
     </PropertyGroup>

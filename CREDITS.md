@@ -17,12 +17,12 @@ Build and test tools, not shipped: CsCheck, Mono.Cecil, Microsoft.CodeAnalysis.C
 [NEEDS VERIFICATION: not saved under `docs/raw-sources/`].
 Check tools, pinned and not shipped ([licences](docs/raw-sources/check-tool-licences-2026-11-19.md)):
 [OSV-Scanner](https://github.com/google/osv-scanner) 2.7.1 (Apache-2.0), CI's vulnerability audit
-(`scripts/vuln-audit.sh`); [lychee](https://github.com/lycheeverse/lychee) 0.24.2 (Apache-2.0, with an MIT licence
+(`scripts/ci/vuln-audit.sh`); [lychee](https://github.com/lycheeverse/lychee) 0.24.2 (Apache-2.0, with an MIT licence
 file too), [Vale](https://github.com/errata-ai/vale) 3.25.1 (MIT) and
 [markdownlint-cli2](https://github.com/DavidAnson/markdownlint-cli2) 0.24.1 (MIT), the docs checks
-(`scripts/install-docs-tools.sh`, `tools/docs/`).
+(`scripts/setup/install-docs-tools.sh`, `tools/docs/`).
 [Ghidra](https://github.com/NationalSecurityAgency/ghidra) 12.2 (Apache-2.0), installed locally and not shipped, runs
-the local exe project (`scripts/ghidra.ps1`, `tools/ghidra/`) and its RTTI analyzer labels the vtables we name; the RTTI
+the local exe project (`scripts/dev/ghidra.ps1`, `tools/ghidra/`) and its RTTI analyzer labels the vtables we name; the RTTI
 layout `MetaphorQuery.java` reads comes from its `Rtti4Model.java` and `TypeDescriptorModel.java`
 (`ghidra-and-jdk-install-2026-11-17.md`).
 
@@ -40,9 +40,9 @@ No code is copied from these; we took signatures, byte patterns and techniques.
 
 | Project | Author | Licence | What we took, and where |
 |---|---|---|---|
-| [Persona-4-Golden-Access](https://github.com/AquaRose7/Persona-4-Golden-Access) at `dcff255` | AquaRose7 | GPL-3.0 | The short history of spoken dialogue lines (#126; `src/Metaphor.Core/Messages/DialogueHistory.cs`) and the output-then-speak fallback (#115; `src/Metaphor.Core/Announcements/OutputRoute.cs`); an installer that also installs Reloaded-II and turns the mod on without Reloaded-II's window (#303; `scripts/install.ps1`, `scripts/Installer.psm1`). No code copied; its installer's source isn't published ([note](docs/raw-sources/persona-4-golden-access-2026-11-16.md)) |
+| [Persona-4-Golden-Access](https://github.com/AquaRose7/Persona-4-Golden-Access) at `dcff255` | AquaRose7 | GPL-3.0 | The short history of spoken dialogue lines (#126; `src/Metaphor.Core/Messages/DialogueHistory.cs`) and the output-then-speak fallback (#115; `src/Metaphor.Core/Announcements/OutputRoute.cs`); an installer that also installs Reloaded-II and turns the mod on without Reloaded-II's window (#303; `scripts/player/install.ps1`, `scripts/player/Installer.psm1`). No code copied; its installer's source isn't published ([note](docs/raw-sources/persona-4-golden-access-2026-11-16.md)) |
 | [Arcana](https://github.com/ChipsAhoiMcCoy/arcana) tag `v0.1.0-alpha.3` (`c7b8a908`) | ChipsAhoiMcCoy | Zlib | Design ideas for dialogue and menu accessibility, studied for #57, #58, #59, #83 and #115 (repeat key, announce a focus change once, duplicate suppression, voiced-line handling). No code copied; no code comment cites it yet [NEEDS VERIFICATION: which ideas shipped] ([note](docs/raw-sources/arcana-v0.1.0-alpha.3-2026-11-16.md)) |
-| [BMMValidator](https://gitlab.com/BMMProject/Tools/BMMValidator) at `d69404ee` | BMMProject | Apache-2.0 | The idea of a checker players run on their install that says what's wrong (#283; `scripts/check-install.ps1`, `scripts/InstallCheck.psm1`). No code read or copied ([note](docs/raw-sources/install-check-sources-2026-11-19.md)) |
+| [BMMValidator](https://gitlab.com/BMMProject/Tools/BMMValidator) at `d69404ee` | BMMProject | Apache-2.0 | The idea of a checker players run on their install that says what's wrong (#283; `scripts/player/check-install.ps1`, `scripts/player/InstallCheck.psm1`). No code read or copied ([note](docs/raw-sources/install-check-sources-2026-11-19.md)) |
 | [AccessMods](https://github.com/AccessMods) mods and [UnityAccessibilityLib](https://github.com/AccessMods/UnityAccessibilityLib) at `958e20c` | AccessMods organisation | MIT | Practice from their accessibility mods, mainly a blind player's report that names and highlighted words must be spoken (#83). No code copied; the code-level use is [NEEDS VERIFICATION] ([note](docs/raw-sources/accessmods-org-survey-2026-11-16.md)) |
 
 Arcana itself builds on Grim Dark (Austin Hicks) and Dark Vision (Bradley Renshaw), both Zlib.

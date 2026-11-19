@@ -16,7 +16,7 @@ over the other's change (`-s ours`) could drop a fix unseen, and a conflict reso
 stamp. Code from `main` was reviewed there; a fresh review on every merge (2026-11-17, `capture-1` and #226) cost a
 round for nothing new.
 
-The stamp stays a hash of the scope's state (`scripts/security-stamp.sh`). Only the walk from HEAD is checked, so old
+The stamp stays a hash of the scope's state (`scripts/ci/security-stamp.sh`). Only the walk from HEAD is checked, so old
 trailerless merges deeper in a branch don't fail it.
 
 ## Considered options

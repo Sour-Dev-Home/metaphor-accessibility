@@ -78,7 +78,7 @@ code_path_re='(\.(cs|csproj|props|targets|sln|json|editorconfig)|(^|/)global\.js
 whole_solution() { [ "$1" -eq 1 ] || [ "${GITHUB_ACTIONS:-}" = true ] || [ -n "${METAPHOR_FULL_TESTS:-}" ]; }
 select_tests() {
   whole_solution "$1" && return 0
-  sed '/^$/d' <<< "$2" | bash "$check_dir/test-select.sh"
+  sed '/^$/d' <<< "$2" | bash "$check_dir/ci/test-select.sh"
 }
 
 # build_selected SOLUTION ROOT UNKNOWN SELECTION: the pre-push build (#314). Builds the whole solution when the change
@@ -101,7 +101,7 @@ build_selected() {
   return "$ok"
 }
 
-# run_selected_tests SOLUTION UNKNOWN SELECTION: local test selection (issue #243, scripts/test-select.sh). Runs only the
+# run_selected_tests SOLUTION UNKNOWN SELECTION: local test selection (issue #243, scripts/ci/test-select.sh). Runs only the
 # test projects the changed files can affect and says which ran and why. With an unknown change set, in CI, or with
 # METAPHOR_FULL_TESTS=1 it runs the whole solution. `full` (CI, merge queue) never calls this.
 run_selected_tests() {
@@ -115,8 +115,8 @@ run_selected_tests() {
   while read -r kind proj reason; do
     if [ "$kind" = pester ] && [ -z "${SKIP_SCRIPT_TESTS:-}" ] && command -v pwsh > /dev/null; then
       echo "tests: Pester smoke tests because $proj $reason"
-      timed_step pester bash "$check_dir/run-pester.sh" ||
-        report "tests: smoke or deploy script tests failed (run: bash scripts/run-pester.sh)"
+      timed_step pester bash "$check_dir/check/run-pester.sh" ||
+        report "tests: smoke or deploy script tests failed (run: bash scripts/check/run-pester.sh)"
       ran=1
     fi
     [ "$kind" = dotnet ] || continue
@@ -197,14 +197,14 @@ full_dotnet_checks() {
   timed_step format dotnet format whitespace "$solution" --verify-no-changes ||
     report "format: files need formatting (run: dotnet format whitespace Metaphor.sln)"
   # The smoke-test and deploy scripts' own tests, against the stand-in game (no game needed). Pester 5 or later, every
-  # test of every file, each file split across processes run at once (scripts/run-pester.sh). Then the check-script
-  # suites (scripts/run-check-suites.sh).
+  # test of every file, each file split across processes run at once (scripts/check/run-pester.sh). Then the check-script
+  # suites (scripts/check/run-check-suites.sh).
   # CI sets SKIP_SCRIPT_TESTS=1 because its own jobs run both.
   if [ -z "${SKIP_SCRIPT_TESTS:-}" ]; then
-    timed_step pester bash "$check_dir/run-pester.sh" ||
-      report "tests: smoke or deploy script tests failed (run: bash scripts/run-pester.sh)"
-    timed_step check-scripts bash "$check_dir/run-check-suites.sh" --select ||
-      report "tests: check-script suites failed (run: bash scripts/run-check-suites.sh)"
+    timed_step pester bash "$check_dir/check/run-pester.sh" ||
+      report "tests: smoke or deploy script tests failed (run: bash scripts/check/run-pester.sh)"
+    timed_step check-scripts bash "$check_dir/check/run-check-suites.sh" --select ||
+      report "tests: check-script suites failed (run: bash scripts/check/run-check-suites.sh)"
   fi
   # Record only a clean pass of an unchanged tree (nothing edited while the checks ran), under the kind full_kinds reads.
   if [ "$failures" -eq 0 ] && [ -n "${full_tree_id:-}" ] && [ "$(full_tree)" = "$full_tree_id" ]; then

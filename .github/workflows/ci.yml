@@ -55,18 +55,18 @@ jobs:
             [ "$permission" != admin ] || gate=scripts
           fi
           if [ "$gate" != scripts ]; then
-            mkdir -p "$gate/check"
+            mkdir -p "$gate/check" "$gate/ci"
             # check.sh's modules (ADR 0013) as the base branch has them.
             modules="$(git ls-tree --name-only "$BASE" scripts/check/ | sed 's|^scripts/||')" || exit 1
-            for script in check.sh security-stamp.sh stage-timing.sh $modules; do
+            for script in check.sh ci/security-stamp.sh $modules; do
               git show "$BASE:scripts/$script" > "$gate/$script" || exit 1
             done
           fi
           bash "$gate/check.sh" commits "$BASE..$HEAD"
       - name: Install the docs tools
-        run: bash scripts/install-docs-tools.sh
+        run: bash scripts/setup/install-docs-tools.sh
       - name: Test the check scripts
-        run: bash scripts/run-check-suites.sh
+        run: bash scripts/check/run-check-suites.sh
       - name: Check every tracked file
         env:
           # The private list reaches pushes to this repository's main only, never a pull request, so a fork's code
@@ -114,7 +114,7 @@ jobs:
           EVENT_NAME: ${{ github.event_name }}
           BASE: ${{ github.event.pull_request.base.sha }}
           HEAD: ${{ github.event.pull_request.head.sha }}
-        run: bash scripts/ci-changes.sh code "$BASE" "$HEAD"
+        run: bash scripts/ci/ci-changes.sh code "$BASE" "$HEAD"
       - uses: actions/setup-dotnet@0f4a354dd5547a28c70b7853dbd95d5b67886e73 # v6.1.0
         if: steps.changes.outputs.run == 'true'
         with:
@@ -128,15 +128,15 @@ jobs:
         env:
           SKIP_SCRIPT_TESTS: "1"
         run: bash scripts/check.sh full
-      # The players' download (#308), by the recipe releases use too (scripts/build-release.sh): package the Release
+      # The players' download (#308), by the recipe releases use too (scripts/release/build-release.sh): package the Release
       # build the step above built and tested, check it names this commit as clean, zip it reproducibly with its
       # SHA256SUMS, then rebuild in a second checkout and compare. The attest job signs the zip on main.
-      # Publishing fetches the pinned prism.dll (ADR 0005, scripts/fetch-prism.ps1); both checkouts share one download.
+      # Publishing fetches the pinned prism.dll (ADR 0005, scripts/dev/fetch-prism.ps1); both checkouts share one download.
       - name: Package, zip, rebuild and compare
         if: github.event_name != 'pull_request'
         env:
           PRISM_CACHE: ${{ runner.temp }}/prism-cache
-        run: bash scripts/build-release.sh --no-build "metaphor-accessibility-$GITHUB_SHA" artifacts
+        run: bash scripts/release/build-release.sh --no-build "metaphor-accessibility-$GITHUB_SHA" artifacts
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         if: github.event_name != 'pull_request'
         with:
@@ -181,7 +181,7 @@ jobs:
           gh attestation verify "$zip" --repo "$GITHUB_REPOSITORY" --signer-workflow "$GITHUB_REPOSITORY/.github/workflows/ci.yml" --source-ref refs/heads/main --deny-self-hosted-runners
 
   # The smoke-test and deploy scripts' Pester tests, in parallel with build. They need Windows (PowerShell scripts against
-  # the stand-in game) and run when a change touches scripts, tests/smoke, the stand-in game or the workflows. One job
+  # the stand-in game) and run when a change touches scripts, tests/pester, the stand-in game or the workflows. One job
   # per test file (#314: the files ran one after another in a single job, over 5 of its 6 minutes); each job builds the
   # stand-in game on its own runner, so the files can't collide on its obj folder.
   pester:
@@ -190,7 +190,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        file: [capture, check-install, deploy-dev, fetch-prism, GameLocator, inspect, install, listen, onboard, setup-wsl, signature-spike, smoke-test, zip-package]
+        file: [capture, check-install, deploy-dev, fetch-prism, GameLocator, ghidra, inspect, install, listen, onboard, setup-wsl, signature-spike, smoke-test, zip-package]
     defaults:
       run:
         shell: bash
@@ -205,7 +205,7 @@ jobs:
           EVENT_NAME: ${{ github.event_name }}
           BASE: ${{ github.event.pull_request.base.sha }}
           HEAD: ${{ github.event.pull_request.head.sha }}
-        run: bash scripts/ci-changes.sh scripts "$BASE" "$HEAD"
+        run: bash scripts/ci/ci-changes.sh scripts "$BASE" "$HEAD"
       # No package cache: most test files restore no packages, so on a cache miss the save step finds no folder and
       # fails the job (as in the security job).
       - uses: actions/setup-dotnet@0f4a354dd5547a28c70b7853dbd95d5b67886e73 # v6.1.0
@@ -215,13 +215,13 @@ jobs:
       - name: Run the Pester tests
         if: steps.changes.outputs.run == 'true'
         env:
-          TEST_FILE: tests/smoke/${{ matrix.file }}.Tests.ps1
+          TEST_FILE: tests/pester/${{ matrix.file }}.Tests.ps1
         run: |
           pwsh -NoProfile -Command 'Import-Module Pester -MinimumVersion 5.0; $r = Invoke-Pester $env:TEST_FILE -PassThru -Output Normal; exit $r.FailedCount'
 
   # The required check named `scripts` (the ruleset asks for it by name): it passes when every Pester job passed or was
-  # skipped, and fails when any failed or was cancelled. Add a test file under tests/smoke and to the matrix above;
-  # tests/scripts/test-ci-matrix.sh fails when the two disagree.
+  # skipped, and fails when any failed or was cancelled. Add a test file under tests/pester and to the matrix above;
+  # tests/bash/test-ci-matrix.sh fails when the two disagree.
   scripts:
     needs: [pester]
     if: always()
@@ -265,8 +265,8 @@ jobs:
       # result (#324). The build job's locked-mode restore keeps the lock files true to the projects.
       - name: Fail on vulnerable packages, transitive ones included
         run: |
-          bash scripts/vuln-audit.sh install "$RUNNER_TEMP/osv"
-          bash scripts/vuln-audit.sh scan "$RUNNER_TEMP/osv/osv-scanner"
+          bash scripts/ci/vuln-audit.sh install "$RUNNER_TEMP/osv"
+          bash scripts/ci/vuln-audit.sh scan "$RUNNER_TEMP/osv/osv-scanner"
 
   # Stage 2's time against its 5-minute budget (issue #1): each job's duration on the run's summary page, and a warning
   # annotation when the stage runs over. It only reports, so it runs after the others whatever their result.
@@ -281,7 +281,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-          sparse-checkout: scripts/stage-timing.sh
+          sparse-checkout: scripts/check/stage-timing.sh
           sparse-checkout-cone-mode: false
       - name: Time stage 2
         env:
@@ -290,4 +290,4 @@ jobs:
           gh api --paginate "repos/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID/attempts/$GITHUB_RUN_ATTEMPT/jobs" \
             --jq '.jobs[] | select(.status == "completed" and .conclusion != "skipped")
               | [.name, .started_at, .completed_at] | @tsv' > "$RUNNER_TEMP/jobs.tsv"
-          bash scripts/stage-timing.sh jobs "stage 2 (CI)" 300 "$RUNNER_TEMP/jobs.tsv"
+          bash scripts/check/stage-timing.sh jobs "stage 2 (CI)" 300 "$RUNNER_TEMP/jobs.tsv"

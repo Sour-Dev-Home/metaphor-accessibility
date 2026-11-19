@@ -74,7 +74,7 @@ Deploy a Debug build with `opt-in-inspector.txt`
 ([how-to](../contributors/how-to/inspect-the-running-game.md)). `follow` reads the pointer and then adds the offset,
 so `follow base+0x272e310 0x25460` is `G+0x25460`.
 
-1. **Field, before a fight:** `pwsh scripts/inspect.ps1 'follow base+0x272e310 0x25460' 'follow base+0x2ca3248 0x1b8'`.
+1. **Field, before a fight:** `pwsh scripts/dev/inspect.ps1 'follow base+0x272e310 0x25460' 'follow base+0x2ca3248 0x1b8'`.
    The first should print `base+0x2ccbb50`. Then `read` 8 bytes at the second address to get the mask `m`.
 2. **Player turn start, 4 icons:** `read <G+0x25460> 12`, then `watch <G+0x25460> 12`. Expected: side, then A = 4.
 3. **After a weakness hit (a half icon):** `changes`. Expect A down by one and B up by one. Repeat after Pass, a miss
@@ -92,8 +92,8 @@ so `follow base+0x272e310 0x25460` is `G+0x25460`.
 
 ## Steps
 
-Ghidra 12.2 (`ghidra_12.2_PUBLIC`) with JDK 25.0.5+8, the shared project from `pwsh scripts/ghidra.ps1 build` on the
-build above, Windows 11 x64, 2026-11-19. Each line is one `pwsh scripts/ghidra.ps1` query.
+Ghidra 12.2 (`ghidra_12.2_PUBLIC`) with JDK 25.0.5+8, the shared project from `pwsh scripts/dev/ghidra.ps1 build` on the
+build above, Windows 11 x64, 2026-11-19. Each line is one `pwsh scripts/dev/ghidra.ps1` query.
 
 1. `decompile 0x90a510`, then `0x3b0c30`: `GetMoney` reads `G+0x22c58`. `global 0x272e310`: no write. The 8 bytes at
    file offset `0x272e310 - 0x2729000 + 0x2727000` (`.debug`'s virtual and raw starts, from the PE section table) hold

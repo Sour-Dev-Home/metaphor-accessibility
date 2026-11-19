@@ -1,6 +1,6 @@
 # Outage output fixtures
 
-Message shapes for `tests/scripts/test-github-outage.sh` (issue #312). `shapes.txt` holds one block per shape, headed
+Message shapes for `tests/bash/test-github-outage.sh` (issue #312). `shapes.txt` holds one block per shape, headed
 `=== outage <name>` or `=== real <name>`. Hosts and repositories are placeholders.
 
 - `push-*`: git over HTTPS. The `RPC failed; HTTP <code> curl 22 ...` and `hung up unexpectedly` lines come from git's

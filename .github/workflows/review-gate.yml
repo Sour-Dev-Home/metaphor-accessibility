@@ -3,7 +3,7 @@ name: Review gate
 # The security-reviewed label gate (#127, #309) on a PR not by the maintainer, run from main's copy of this workflow
 # (#330): pull_request_target runs the base branch's copy, so a PR can't edit or delete the check that judges it. Its
 # token can read the PR, so the job never checks out, fetches or runs the PR's code. It lists the PR's files through the
-# API and runs main's scripts/check.sh on that list. tests/scripts/test-repo-config.sh holds the workflow to this.
+# API and runs main's scripts/check.sh on that list. tests/bash/test-repo-config.sh holds the workflow to this.
 on:
   pull_request_target:
     types: [opened, synchronize, reopened, labeled, unlabeled]

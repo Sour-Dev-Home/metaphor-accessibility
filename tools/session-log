@@ -1,3 +1,0 @@
-#!/usr/bin/env bash
-# Summarise a message log without printing game text (#244). Options: tools/Metaphor.SessionLog/Program.cs.
-exec dotnet run --project "$(dirname "$0")/Metaphor.SessionLog" -c Release -v q -- "$@"

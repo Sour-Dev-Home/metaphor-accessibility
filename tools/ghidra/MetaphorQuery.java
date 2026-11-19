@@ -1,4 +1,4 @@
-// Answers one question about the local Ghidra project of the game exe (#290). Run by scripts/ghidra.ps1 on a project
+// Answers one question about the local Ghidra project of the game exe (#290). Run by scripts/dev/ghidra.ps1 on a project
 // opened read-only, so nothing a query does (such as disassembling a function in a section auto-analysis skipped) is
 // saved. Arguments: <output file> <command> <target> [<extra>]. A target is an address, as an RVA (0x21e1c0, the form
 // the raw sources use) or a full address (0x14021e1c0), or a symbol name (CursorManagerInput, Package::vftable).
@@ -80,7 +80,7 @@ public class MetaphorQuery extends GhidraScript {
 				}
 			}
 			catch (IllegalArgumentException e) {
-				// A bad target: scripts/ghidra.ps1 prints this line and exits 1.
+				// A bad target: scripts/dev/ghidra.ps1 prints this line and exits 1.
 				out.println("# error: " + e.getMessage());
 			}
 		}

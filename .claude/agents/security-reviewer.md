@@ -25,7 +25,7 @@ the surrounding code too, not just the changed lines.
 2. **Game content.** Nothing from the game may be committed or released (`AGENTS.md` rule 4). The checks catch game
    files by folder, extension, size and known hash; look for what they can't see: decompiled output beyond a short
    explanatory snippet in a note, assets renamed or converted, and release or packaging scripts that could sweep in
-   files from `game/`, `extracted/`, `dumps/` or `ghidra/`.
+   files from `game/`, `extracted/`, `dumps/`, `ghidra/` or `out/ghidra/`.
 3. **Secrets.** No tokens or keys in committed files or CI workflows. `.env` is git-ignored.
 
 ## Native-code risks
@@ -86,9 +86,9 @@ nothing, say so plainly; don't pad the report.
 ## Stamp
 
 A commit touching the security-review scope (the hook layer, every script and the guards, listed in
-`scripts/security-stamp.sh`) needs your stamp, or the pre-commit hook refuses it. The stamp covers the staged scope, so
+`scripts/ci/security-stamp.sh`) needs your stamp, or the pre-commit hook refuses it. The stamp covers the staged scope, so
 review what `git diff --cached` shows for it, and say if unstaged changes to it differ.
 
-As your last step, only when you found nothing critical or important, run `bash scripts/security-stamp.sh` and put the
+As your last step, only when you found nothing critical or important, run `bash scripts/ci/security-stamp.sh` and put the
 hash it prints in your report. Never stamp after any critical or important finding, after a review you couldn't finish,
 or when the scope isn't staged. Never set `SECURITY_REVIEW_SKIP`; that override is the maintainer's.

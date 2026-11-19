@@ -68,7 +68,7 @@ which the inspector has no path to.
 Deploy a Debug build with `opt-in-inspector.txt` ([how-to](../contributors/how-to/inspect-the-running-game.md)).
 
 1. **Main menu, then Y for the Archetype Tree, pick a character, then the tree on screen:**
-   `pwsh scripts/inspect.ps1 'follow base+0x2ee7338 0x48 0x0 0x8 0x40'`, then `read` 8 bytes there for the mask `m`.
+   `pwsh scripts/dev/inspect.ps1 'follow base+0x2ee7338 0x48 0x0 0x8 0x40'`, then `read` 8 bytes there for the mask `m`.
 2. Bucket offset = `(0x11 & m) × 0x10 + 8`. Run
    `'follow base+0x2ee7338 0x48 0x0 0x8 0x28 <offset> 0x10'` and `read` 4 bytes: expect 0x11, little-endian.
    Then `'follow base+0x2ee7338 0x48 0x0 0x8 0x28 <offset> 0x18 0x0'` and `rtti` on the result: expect
@@ -82,8 +82,8 @@ Deploy a Debug build with `opt-in-inspector.txt` ([how-to](../contributors/how-t
 
 ## Steps
 
-Ghidra 12.2 (`ghidra_12.2_PUBLIC`) with JDK 25.0.5+8, the shared project built by `pwsh scripts/ghidra.ps1 build` on
-the build above, Windows 11 x64, 2026-11-19. Each line is one `pwsh scripts/ghidra.ps1` query.
+Ghidra 12.2 (`ghidra_12.2_PUBLIC`) with JDK 25.0.5+8, the shared project built by `pwsh scripts/dev/ghidra.ps1 build` on
+the build above, Windows 11 x64, 2026-11-19. Each line is one `pwsh scripts/dev/ghidra.ps1` query.
 
 1. `decompile 0x902e80` and `0x902e60`: Academia's script state uses `CampStatusIsOpenBody` and `0x3b0ab0`.
 2. `global 0x2c060d8` (`fclAcademiaTree`'s type descriptor), `global 0x2c32fd8` (`Tree`'s), `global 0x2c06d38`

@@ -1,4 +1,4 @@
 #!/usr/bin/env bash
 # Spends the security-review stamp once a merge git committed on its own carries its trailer (post-commit covers
 # `git commit`). Turn on with: git config core.hooksPath scripts/githooks
-exec bash "$(git rev-parse --show-toplevel)/scripts/security-stamp.sh" spend
+exec bash "$(git rev-parse --show-toplevel)/scripts/ci/security-stamp.sh" spend

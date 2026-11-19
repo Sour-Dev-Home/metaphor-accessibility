@@ -37,7 +37,7 @@ public sealed record SignatureScanReport(
 /// reads the memory; this only searches it.</summary>
 public static class SignatureScan
 {
-    /// <summary>The probes file in the mod's folder that asks for one scan. <c>scripts/signature-spike.ps1</c>
+    /// <summary>The probes file in the mod's folder that asks for one scan. <c>scripts/dev/signature-spike.ps1</c>
     /// copies it there; the scan deletes it, so the next launch doesn't scan again. The probes never ship in the mod.</summary>
     public const string RequestFileName = "signature-probes.json";
 

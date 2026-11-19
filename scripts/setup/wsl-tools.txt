@@ -1,0 +1,12 @@
+# The tools the check-script suites need in the metaphor-checks WSL distro (#341). scripts/setup/setup-wsl.ps1 installs
+# them; scripts/check/wsl-run.sh runs a suite in WSL only when every command here is present, and prints their versions.
+# One per line: <command> <where it comes from>, a Debian package (Debian stable's current version, not pinned) or
+# install-docs-tools (scripts/setup/install-docs-tools.sh, at its pinned version). Debian's base image has the rest.
+git git
+perl perl
+curl curl
+update-ca-certificates ca-certificates
+node nodejs
+ps procps
+lychee install-docs-tools
+vale install-docs-tools

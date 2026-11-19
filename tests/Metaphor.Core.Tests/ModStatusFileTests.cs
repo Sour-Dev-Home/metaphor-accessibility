@@ -11,7 +11,7 @@ public sealed class ModStatusFileTests : IDisposable
 
     private string Written => File.ReadAllText(Path.Combine(_folder.FullName, ModStatusFile.FileName));
 
-    // scripts/smoke-test.ps1 parses these exact property names and values.
+    // scripts/dev/smoke-test.ps1 parses these exact property names and values.
     [Fact]
     public void AReadyModWritesTheShapeTheSmokeTestReads()
     {

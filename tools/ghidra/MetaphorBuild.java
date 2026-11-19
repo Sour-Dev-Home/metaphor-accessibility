@@ -1,5 +1,5 @@
 // Builds the local Ghidra project of the game exe (#290): auto-analysis of the game's own code, then the names we know.
-// Run by scripts/ghidra.ps1, one step per headless run so each saves its work: "analyse" right after an import with
+// Run by scripts/dev/ghidra.ps1, one step per headless run so each saves its work: "analyse" right after an import with
 // -noanalysis, then "names <hook-signatures.json> <game build>", then "vtables". On a built project it runs "names"
 // alone, which adds only the signatures added since.
 //

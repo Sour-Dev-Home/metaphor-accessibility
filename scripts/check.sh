@@ -30,7 +30,7 @@
 # line and a body of at most 5 lines. A final paragraph of trailers (Co-Authored-By: ...) doesn't count. Subjects git
 # writes itself (Revert "...", fixup!) pass.
 #
-# A commit touching the security-review scope (scripts/security-stamp.sh) needs the security-reviewer agent's stamp
+# A commit touching the security-review scope (scripts/ci/security-stamp.sh) needs the security-reviewer agent's stamp
 # matching the staged scope; the commit-msg hook then appends "Security-Review: <hash>". SECURITY_REVIEW_SKIP="<reason>"
 # lets it through and records "Security-Review-Skipped: <reason>" instead. Clean merges from main and CI's HEAD-only
 # check: docs/adr/0012-review-trailer-covers-clean-merges.md.
@@ -77,7 +77,7 @@ main() {
   local merge_hook=""
   stage="${1:-}"
   [ "$stage" != pre-merge-commit ] || stage=pre-commit merge_hook=merge
-  # live_log is set only once full sources scripts/live-log.sh; empty, it tells timed_step and finish (which every stage
+  # live_log is set only once full sources scripts/check/live-log.sh; empty, it tells timed_step and finish (which every stage
   # reaches, under set -u) that there is no live log to write.
   failures=0 warnings=0 reused=built step_times=() tmp="" locked="" waited="" live_log="" full_tree_id=""
   scan_scope="" maintainer_pr_result=""
@@ -103,7 +103,7 @@ main() {
       fi
       take_lock
       # Only full reads the live log's helpers, so CI's copy of this script for the commits stage needs no more files.
-      source "$check_dir/live-log.sh" || die "could not load $check_dir/live-log.sh"
+      source "$check_dir/check/live-log.sh" || die "could not load $check_dir/check/live-log.sh"
       local steps=6
       [ -z "${SKIP_SCRIPT_TESTS:-}" ] || steps=4
       live_start full "$steps" ;;
@@ -178,8 +178,8 @@ main() {
     # The docs tools, which the check-script suites and a pre-commit's docs checks run. The clone shares one install
     # per pin (#353), so this fetches only on a clone's first full, or after a pin changes. CI installs its own.
     if [ "${GITHUB_ACTIONS:-}" != true ]; then
-      bash "$check_dir/install-docs-tools.sh" ||
-        die "could not install the docs tools (run: bash scripts/install-docs-tools.sh)"
+      bash "$check_dir/setup/install-docs-tools.sh" ||
+        die "could not install the docs tools (run: bash scripts/setup/install-docs-tools.sh)"
     fi
   fi
   scan_files

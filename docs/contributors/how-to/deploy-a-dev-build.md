@@ -1,6 +1,6 @@
 # Deploy a dev build
 
-To try a change in the game, run `scripts/deploy-dev.ps1`. It builds the mod, puts the build in your Reloaded-II mods
+To try a change in the game, run `scripts/dev/deploy-dev.ps1`. It builds the mod, puts the build in your Reloaded-II mods
 folder, enables it for the game, launches the game and waits until the mod reports it loaded. The game stays running.
 
 You need the game registered as an application in Reloaded-II, and the game build in the
@@ -11,7 +11,7 @@ You need the game registered as an application in Reloaded-II, and the game buil
 2. From the repository root, in PowerShell 7:
 
    ```powershell
-   pwsh scripts/deploy-dev.ps1
+   pwsh scripts/dev/deploy-dev.ps1
    ```
 
    It finds Reloaded-II's launcher and the game from Reloaded-II's own config: `LauncherPath` in `ReloadedII.json`,
@@ -39,11 +39,11 @@ naming its commit and the game build to Reloaded-II's log for that run, the newe
 
 ## Listening run
 
-`scripts/listen.ps1` deploys the Debug build the same way, lets the game run, and reports what the mod's development
+`scripts/dev/listen.ps1` deploys the Debug build the same way, lets the game run, and reports what the mod's development
 log saw, without printing any game text:
 
 ```powershell
-pwsh scripts/listen.ps1 -Seconds 300 -Close
+pwsh scripts/dev/listen.ps1 -Seconds 300 -Close
 ```
 
 After the deploy it watches the game for `-Seconds` (default 120) and prints `the game is still running after <n> s`
@@ -63,10 +63,10 @@ the game exited, the deploy failed or there's no log, and 2 when the deploy coul
 
 ### Summarise a log
 
-`tools/session-log` summarises `message-log.txt` without printing game text:
+`tools/Metaphor.SessionLog` summarises `message-log.txt` without printing game text:
 
 ```bash
-tools/session-log <message-log.txt> [--from <ms>] [--to <ms>] [--offset <ms>]
+dotnet run --project tools/Metaphor.SessionLog -c Release -v q -- <message-log.txt> [--from <ms>] [--to <ms>] [--offset <ms>]
 ```
 
 It prints the record count by kind, each screen class with its first and last time, its `screen` records and its cursor
@@ -98,10 +98,10 @@ opt-in files between the two (the listeners write to `message-log.txt` in the sa
 ### Capture run
 
 ```powershell
-pwsh scripts/capture.ps1 -OptIns ui-text-panes,dialogue-window -SaveLog <folder outside the repo>
+pwsh scripts/dev/capture.ps1 -OptIns ui-text-panes,dialogue-window -SaveLog <folder outside the repo>
 ```
 
-`scripts/capture.ps1` deploys the Debug build, closes the game it launched, creates `opt-in-<name>.txt` for each name,
+`scripts/dev/capture.ps1` deploys the Debug build, closes the game it launched, creates `opt-in-<name>.txt` for each name,
 and launches again through Reloaded-II. It prints `hooks n/m` from `mod-status.json` and the mod's `skipped`, `failed`
 and ready lines from Reloaded-II's log of that run, so a listener that didn't go in shows at once. Without `-SaveLog`
 the game is left running. With it, quit the game when the capture is done: the script then copies `message-log.txt` and
@@ -117,5 +117,5 @@ go in is said with `not active`; the log says why (#223).
 The scripts' own tests run against the [stand-in game](../../../GLOSSARY.md#working-and-testing), with no game needed:
 
 ```powershell
-Invoke-Pester tests/smoke
+Invoke-Pester tests/pester
 ```

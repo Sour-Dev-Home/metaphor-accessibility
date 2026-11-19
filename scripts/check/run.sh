@@ -1,7 +1,7 @@
 # shellcheck shell=bash
 # check.sh's run bookkeeping (ADR 0013): the pass cache, the machine-wide build slots and their locks, step timing, the
 # run log, the live-log hooks and `finish`, the EXIT trap every stage leaves through. Sourced by scripts/check.sh only;
-# it uses die from report.sh, and live_line and live_end from scripts/live-log.sh once full has loaded it.
+# it uses die from report.sh, and live_line and live_end from scripts/check/live-log.sh once full has loaded it.
 #
 # Run globals, all set by check.sh's main each run: reads `stage`, `tmp`, `started`, `reused` (main also sets it to
 # reused), `run_logged`, `timed` and `live_log`; appends to `step_times`; sets `locked` and `waited`, which main resets,
@@ -37,14 +37,14 @@ full_tree() {
 }
 
 # Stages with a budget from issue #1 print their duration on exit, and a warning when over budget (stage-timing.sh).
-timing_script="$check_dir/stage-timing.sh"
+timing_script="$check_dir/check/stage-timing.sh"
 current_branch() {
   local branch
   branch="$(git branch --show-current 2> /dev/null)"
   echo "${branch:-detached}"
 }
 # The run log (issue #269): one line per building run in this clone's git dir, newest first, the last 50.
-# "<stage> <branch> <start> <end> <pass|fail> <built|reused>"; read by scripts/check-status.sh.
+# "<stage> <branch> <start> <end> <pass|fail> <built|reused>"; read by scripts/check/check-status.sh.
 # Per-step times of a building stage (#314): "restore=12s build=80s ...", printed when the run ends and kept as the run
 # log line's last field, so a slow step is named by data.
 timed_step() { # timed_step NAME COMMAND...: run COMMAND and note how long it took; its exit code is returned
@@ -53,7 +53,7 @@ timed_step() { # timed_step NAME COMMAND...: run COMMAND and note how long it to
   "$@"
   code=$?
   step_times+=("$name=$((SECONDS - began))s")
-  # full's steps go to the live log (scripts/live-log.sh) as they finish.
+  # full's steps go to the live log (scripts/check/live-log.sh) as they finish.
   [ -z "$live_log" ] || live_line "$name" "$code" "$((SECONDS - began))"
   return "$code"
 }
@@ -113,7 +113,7 @@ take_lock() {
     # The pre-push hook must not wait: GitHub closes an idle push connection and git exits 141 (#284).
     # github-outage.sh's classify matches "every build slot is busy", "waiting for another build check" and "step
     # times:" to call a push cut after them a real failure, not an outage (#321): keep that wording in step.
-    [ "${1:-}" != nowait ] || die "every build slot is busy (see scripts/check-status.sh), so this push would wait with its connection open and be cut. Run 'bash scripts/check.sh full' first, then push: the hook reuses the recorded pass."
+    [ "${1:-}" != nowait ] || die "every build slot is busy (see scripts/check/check-status.sh), so this push would wait with its connection open and be cut. Run 'bash scripts/check.sh full' first, then push: the hook reuses the recorded pass."
     if [ -z "${waited:-}" ]; then
       echo "check: waiting for another build check to finish ($base, $slots slots)" >&2
       local now
@@ -124,7 +124,7 @@ take_lock() {
     sleep "${METAPHOR_CHECK_POLL:-5}"
   done
   rm -f "$base.waiting/$BASHPID"
-  # scripts/check-status.sh reads these; pid goes last, since a lock with no pid yet is never taken over. $BASHPID is $$
+  # scripts/check/check-status.sh reads these; pid goes last, since a lock with no pid yet is never taken over. $BASHPID is $$
   # in a run of the script, and the subshell's own pid when the tests run main in one.
   current_branch > "$lock/branch"
   echo "$EPOCHSECONDS" > "$lock/since"

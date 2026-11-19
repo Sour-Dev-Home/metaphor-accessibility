@@ -42,7 +42,7 @@ are CriFs V2 Hook's patterns for the release exe
 the mod's build. With the game and Reloaded-II closed, run:
 
 ```sh
-pwsh scripts/signature-spike.ps1
+pwsh scripts/dev/signature-spike.ps1
 ```
 
 It takes about as long as a smoke test, and:
@@ -62,7 +62,7 @@ It takes about as long as a smoke test, and:
 Review the draft, save it under `docs/raw-sources/`, and record the result on the issue it answers.
 
 To scan for another set of signatures, pass its probes file:
-`pwsh scripts/signature-spike.ps1 -Probes tools/Metaphor.SignatureCheck/mf-toolkit-message-probes.json` checks
+`pwsh scripts/dev/signature-spike.ps1 -Probes tools/Metaphor.SignatureCheck/mf-toolkit-message-probes.json` checks
 MF.Toolkit's message signatures (#55; [result](../../raw-sources/mf-toolkit-message-signatures-2026-11-15.md)).
 
 The scan runs once, early: when Reloaded-II starts our mod. If the game changes its code later, this scan won't see

@@ -85,7 +85,7 @@ mod on every merge and keeps it as a workflow artifact with a SHA-256 hash
    yet. `[NEEDS VERIFICATION]` Enabling the mod by ear in the window: find the game's mod list with the review cursor,
    move to `metaphor.accessibility`, and click it.
 
-Developers can skip all of this with `scripts/deploy-dev.ps1`
+Developers can skip all of this with `scripts/dev/deploy-dev.ps1`
 ([deploy a dev build](../../contributors/how-to/deploy-a-dev-build.md)).
 
 ## Make a desktop shortcut that starts the game with the mod

@@ -2,7 +2,7 @@
 
 A Debug build of the mod can answer read-only questions about the game's memory while you play: read bytes at an
 address or pointer path, name an object's class, and watch addresses for changes. An agent asks through
-[`scripts/inspect.ps1`](../../../scripts/inspect.ps1), so a finding can be checked at once instead of after the next
+[`scripts/dev/inspect.ps1`](../../../scripts/dev/inspect.ps1), so a finding can be checked at once instead of after the next
 capture. No debugger is attached ([ground rule 5](../../../AGENTS.md#ground-rules)).
 
 The inspector ([`LiveInspector.cs`](../../../src/Metaphor.Hooks/LiveInspector.cs), #291) is compiled into Debug builds
@@ -24,7 +24,7 @@ To turn it off, delete the file and restart the game.
 ## Ask it
 
 ```powershell
-pwsh scripts/inspect.ps1 'base' 'read base+0x1000 16' 'follow base+0x2a8f0 0x8 0x10'
+pwsh scripts/dev/inspect.ps1 'base' 'read base+0x1000 16' 'follow base+0x2a8f0 0x8 0x10'
 ```
 
 Each argument is one request, sent in order on one connection; each prints one line, `ok ...` or `err ...`. The script

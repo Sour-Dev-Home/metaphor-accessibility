@@ -5,8 +5,8 @@ set -uo pipefail
 unset PII_PATTERNS REQUIRE_PRIVATE_PATTERNS REQUIRE_DOCS_TOOLS GITHUB_ACTIONS SECURITY_REVIEW_SKIP # set per run
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
-# shellcheck source=../../scripts/wsl-run.sh
-source "$ROOT/scripts/wsl-run.sh" # in Git Bash, runs this suite in WSL instead when it's set up (#341)
+# shellcheck source=../../scripts/check/wsl-run.sh
+source "$ROOT/scripts/check/wsl-run.sh" # in Git Bash, runs this suite in WSL instead when it's set up (#341)
 CHECK="$ROOT/scripts/check.sh"
 WORK="$(mktemp -d)"
 trap 'rm -rf "$WORK"' EXIT
@@ -14,13 +14,13 @@ trap 'rm -rf "$WORK"' EXIT
 # The check's functions: most cases run a stage with `main` in a subshell of this shell, which saves starting a bash and
 # reading the script each time (#328; Git Bash and real-time antivirus make every process start expensive).
 SOURCED_CHECK="$CHECK"
-# The folders holding this clone's docs tools at this checkout's pins (scripts/install-docs-tools.sh, #353), so the docs
+# The folders holding this clone's docs tools at this checkout's pins (scripts/setup/install-docs-tools.sh, #353), so the docs
 # cases' repos run the real tools. Under WSL, lychee and Vale come from the distro's PATH instead.
-DOCS_TOOLS_PATH="$(cd "$ROOT" && bash scripts/install-docs-tools.sh --path)" || DOCS_TOOLS_PATH=""
+DOCS_TOOLS_PATH="$(cd "$ROOT" && bash scripts/setup/install-docs-tools.sh --path)" || DOCS_TOOLS_PATH=""
 # shellcheck source=../../scripts/check.sh
 source "$CHECK" || exit 2
-# shellcheck source=../../scripts/live-log.sh
-source "$ROOT/scripts/live-log.sh" || exit 2
+# shellcheck source=../../scripts/check/live-log.sh
+source "$ROOT/scripts/check/live-log.sh" || exit 2
 # shellcheck source=../../scripts/check/pool.sh
 source "$ROOT/scripts/check/pool.sh" || exit 2
 
@@ -183,11 +183,11 @@ test_blocks_file_inside_ghidra_project_folder() {
 
 test_blocks_query_output_in_the_ghidra_folder() {
   new_repo
-  mkdir -p ghidra/out
-  printf 'void FUN_14021e1c0(void) {}\n' > ghidra/out/decompiled.txt
-  git add -f ghidra/out/decompiled.txt
+  mkdir -p out/ghidra/out
+  printf 'void FUN_14021e1c0(void) {}\n' > out/ghidra/out/decompiled.txt
+  git add -f out/ghidra/out/decompiled.txt
   run_check fast
-  expect 1 "game content" "ghidra/out/decompiled.txt" "game folder"
+  expect 1 "game content" "out/ghidra/out/decompiled.txt" "game folder"
 }
 
 test_blocks_large_binary_with_harmless_name() {
@@ -200,12 +200,12 @@ test_blocks_large_binary_with_harmless_name() {
 
 test_blocks_small_file_whose_hash_is_listed() {
   new_repo
-  mkdir -p scripts
+  mkdir -p scripts/ci
   # SHA-256 of the three bytes "abc" (FIPS 180-2 test vector).
   printf '# known game files\nBA7816BF8F01CFEA414140DE5DAE2223B00361A396177A9CB410FF61F20015AD  some game file\n' \
-    > scripts/game-content.sha256
+    > scripts/ci/game-content.sha256
   printf 'abc' > readme-snippet.txt
-  git add scripts/game-content.sha256 readme-snippet.txt
+  git add scripts/ci/game-content.sha256 readme-snippet.txt
   run_check fast
   expect 1 "game content" "readme-snippet.txt" "hash"
 }
@@ -265,10 +265,10 @@ test_fails_closed_outside_a_git_repo() {
 
 test_matches_hash_only_line_with_crlf_ending() {
   new_repo
-  mkdir -p scripts
-  printf 'ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad\r\n' > scripts/game-content.sha256
+  mkdir -p scripts/ci
+  printf 'ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad\r\n' > scripts/ci/game-content.sha256
   printf 'abc' > snippet.txt
-  git add scripts/game-content.sha256 snippet.txt
+  git add scripts/ci/game-content.sha256 snippet.txt
   run_check fast
   expect 1 "game content" "snippet.txt" "hash"
 }
@@ -877,15 +877,15 @@ test_docs_tools_live_in_the_clone_keyed_by_pin() {
   local main_path tree
   new_repo
   git commit -q --allow-empty -m "chore: start"
-  main_path="$(bash "$ROOT/scripts/install-docs-tools.sh" --path 2>&1)"
+  main_path="$(bash "$ROOT/scripts/setup/install-docs-tools.sh" --path 2>&1)"
   tree="$WORK/tree-$RANDOM-$RANDOM"
   git worktree add -q "$tree" 2> /dev/null || { out="git worktree add failed" code=9 && expect 0; return; }
-  out="$(cd "$tree" && bash "$ROOT/scripts/install-docs-tools.sh" --path 2>&1)"
+  out="$(cd "$tree" && bash "$ROOT/scripts/setup/install-docs-tools.sh" --path 2>&1)"
   code=$?
   local platform=WINDOWS vale_sha lychee_sha
   [ "$(uname -s)" != Linux ] || platform=LINUX
-  vale_sha="$(sed -n "s/^VALE_SHA256_$platform=//p" "$ROOT/scripts/install-docs-tools.sh")"
-  lychee_sha="$(sed -n "s/^LYCHEE_SHA256_$platform=//p" "$ROOT/scripts/install-docs-tools.sh")"
+  vale_sha="$(sed -n "s/^VALE_SHA256_$platform=//p" "$ROOT/scripts/setup/install-docs-tools.sh")"
+  lychee_sha="$(sed -n "s/^LYCHEE_SHA256_$platform=//p" "$ROOT/scripts/setup/install-docs-tools.sh")"
   [ "$out" = "$main_path" ] || code=1 out="worktree: $out; main checkout: $main_path"
   expect 0 "$PWD/.git/docs-tools/lychee-" "$lychee_sha" ":$PWD/.git/docs-tools/vale-" "$vale_sha" \
     ":$PWD/.git/docs-tools/markdownlint-"
@@ -894,13 +894,13 @@ test_docs_tools_live_in_the_clone_keyed_by_pin() {
 test_docs_tools_with_another_pin_get_another_folder() {
   local before after
   new_repo
-  mkdir -p scripts tools/docs
-  cp "$ROOT/scripts/install-docs-tools.sh" scripts/
+  mkdir -p scripts/setup tools/docs
+  cp "$ROOT/scripts/setup/install-docs-tools.sh" scripts/setup/
   cp "$ROOT/tools/docs/package.json" "$ROOT/tools/docs/package-lock.json" tools/docs/
-  before="$(bash scripts/install-docs-tools.sh --path)"
-  sed -i 's/^\(VALE_SHA256_[A-Z]*=\).*/\1'"$(printf '0%.0s' {1..64})"'/' scripts/install-docs-tools.sh
+  before="$(bash scripts/setup/install-docs-tools.sh --path)"
+  sed -i 's/^\(VALE_SHA256_[A-Z]*=\).*/\1'"$(printf '0%.0s' {1..64})"'/' scripts/setup/install-docs-tools.sh
   printf '\n' >> tools/docs/package-lock.json
-  after="$(bash scripts/install-docs-tools.sh --path)"
+  after="$(bash scripts/setup/install-docs-tools.sh --path)"
   code=0 out="before: $before; after: $after"
   [ "${before%%:*}" = "${after%%:*}" ] || code=1 # lychee's pin didn't change
   IFS=: read -r _ b_vale b_lint <<<"$before"
@@ -916,7 +916,7 @@ test_docs_tools_with_another_pin_get_another_folder() {
 docs_tools_installed() {
   local dir exe="" lychee vale
   [ "$(uname -s)" = Linux ] || exe=.exe
-  IFS=: read -r lychee vale lint_dir <<<"$(bash "$ROOT/scripts/install-docs-tools.sh" --path)"
+  IFS=: read -r lychee vale lint_dir <<<"$(bash "$ROOT/scripts/setup/install-docs-tools.sh" --path)"
   lint_dir="${lint_dir%/node_modules/.bin}"
   mkdir -p "$lint_dir/node_modules/.bin" && : > "$lint_dir/node_modules/.bin/markdownlint-cli2"
   lychee_bin="$lychee/lychee$exe"
@@ -942,7 +942,7 @@ test_docs_tools_install_skips_a_pin_already_in_the_clone() {
   local lint_dir
   new_repo
   docs_tools_installed
-  out="$(PATH="$(docs_tools_stubs):$PATH" bash "$ROOT/scripts/install-docs-tools.sh" 2>&1)"
+  out="$(PATH="$(docs_tools_stubs):$PATH" bash "$ROOT/scripts/setup/install-docs-tools.sh" 2>&1)"
   code=$?
   [[ "$out" != *"must not run"* ]] || code=8
   expect 0
@@ -955,7 +955,7 @@ test_docs_tools_install_fails_when_a_tool_does_not_run() {
   new_repo
   docs_tools_installed
   printf '#!/bin/sh\nexit 127\n' > "$lychee_bin"
-  out="$(PATH="$(docs_tools_stubs):$PATH" bash "$ROOT/scripts/install-docs-tools.sh" 2>&1)"
+  out="$(PATH="$(docs_tools_stubs):$PATH" bash "$ROOT/scripts/setup/install-docs-tools.sh" 2>&1)"
   code=$?
   [[ "$out" != *"must not run"* ]] || code=8
   [[ "$out" != *"vale is installed"* ]] || code=9
@@ -968,7 +968,7 @@ test_docs_tools_install_replaces_an_incomplete_folder() {
   new_repo
   docs_tools_installed
   rm -rf "$lint_dir" && mkdir -p "$lint_dir"
-  out="$(PATH="$(docs_tools_stubs npm=ok):$PATH" bash "$ROOT/scripts/install-docs-tools.sh" 2>&1)"
+  out="$(PATH="$(docs_tools_stubs npm=ok):$PATH" bash "$ROOT/scripts/setup/install-docs-tools.sh" 2>&1)"
   code=$?
   [ -f "$lint_dir/node_modules/.bin/markdownlint-cli2" ] && [ "$(cat "$lint_dir/.installed")" = "${lint_dir##*/}" ] ||
     code=8 out="$out; not reinstalled: $(ls -A "$lint_dir")"
@@ -983,7 +983,7 @@ test_docs_tools_install_removes_old_partial_folders() {
   shared="${lint_dir%/*}"
   mkdir -p "$shared/.partial-old" "$shared/.partial-new"
   touch -d '2 hours ago' "$shared/.partial-old"
-  out="$(PATH="$(docs_tools_stubs):$PATH" bash "$ROOT/scripts/install-docs-tools.sh" 2>&1)"
+  out="$(PATH="$(docs_tools_stubs):$PATH" bash "$ROOT/scripts/setup/install-docs-tools.sh" 2>&1)"
   code=$?
   [ ! -e "$shared/.partial-old" ] && [ -d "$shared/.partial-new" ] || code=8 out="$out; left: $(ls -A "$shared")"
   expect 0
@@ -996,7 +996,7 @@ test_docs_stage_finds_the_tools_installed_for_the_clone() {
   cp "$ROOT/tools/docs/.vale.ini" tools/docs/
   printf '# Notes\n' > notes.md
   git add . && git commit -q -m "docs: notes"
-  IFS=: read -r _ vale_dir _ <<<"$(bash "$ROOT/scripts/install-docs-tools.sh" --path)"
+  IFS=: read -r _ vale_dir _ <<<"$(bash "$ROOT/scripts/setup/install-docs-tools.sh" --path)"
   mkdir -p "$vale_dir"
   printf '#!/bin/sh\necho "notes.md:1:1:Project.Stub:the clone'"'"'s vale ran"\n' > "$vale_dir/vale"
   chmod +x "$vale_dir/vale"
@@ -1167,7 +1167,7 @@ test_pre_push_reuses_a_recorded_pass_without_taking_the_lock() {
 
 # The must-run security review: real commits through hooks that run the check, as scripts/githooks does.
 
-STAMP="$ROOT/scripts/security-stamp.sh"
+STAMP="$ROOT/scripts/ci/security-stamp.sh"
 HOOKS="$WORK/hooks"
 mkdir -p "$HOOKS"
 printf '#!/usr/bin/env bash\nexec bash "%s" pre-commit\n' "$CHECK" > "$HOOKS/pre-commit"
@@ -1223,7 +1223,7 @@ test_review_refuses_a_scope_commit_without_a_stamp() {
 
 test_review_passes_a_stamped_scope_commit_and_adds_its_trailer() {
   local hash
-  review_repo scripts/deploy-dev.ps1
+  review_repo scripts/dev/deploy-dev.ps1
   bash "$STAMP" > /dev/null
   hash="$(bash "$STAMP" hash)"
   commit "feat: reviewed deploy script"
@@ -1381,7 +1381,7 @@ test_commits_stage_passes_reviewed_skipped_and_unscoped_commits() {
   base="$(git rev-parse HEAD)"
   bash "$STAMP" > /dev/null
   commit "feat: reviewed"
-  stage_file scripts/smoke-test.ps1
+  stage_file scripts/dev/smoke-test.ps1
   SECURITY_REVIEW_SKIP="by hand" git commit -q -m "fix: skipped" > /dev/null 2>&1
   stage_file docs/notes.txt
   commit "docs: unscoped"
@@ -1867,9 +1867,9 @@ test_outside_pr_merge_commit_cannot_hide_a_scope_change() {
 test_outside_pr_gate_runs_from_a_copy_outside_the_repository() {
   local gate="$WORK/base-scripts" script
   outside_repo
-  mkdir -p "$gate/check"
-  # What CI copies from the base branch: these three and check.sh's modules.
-  for script in check.sh security-stamp.sh stage-timing.sh $(cd "$(dirname "$CHECK")" && echo check/*.sh); do
+  mkdir -p "$gate/check" "$gate/ci"
+  # What CI copies from the base branch: these two and check.sh's modules.
+  for script in check.sh ci/security-stamp.sh $(cd "$(dirname "$CHECK")" && echo check/*.sh); do
     cp "$(dirname "$CHECK")/$script" "$gate/$script"
   done
   TIMELINE=""
@@ -1908,24 +1908,28 @@ test_maintainer_pr_uses_trailers_and_ignores_the_label() {
   FAKE_PERMISSION_FAIL=maint PR_AUTHOR=maint run_pr MEMBER
   expect 2 "could not read the permission of maint"
   git commit -q --no-verify --allow-empty -m "fix: no trailer"
-  stage_file scripts/smoke-test.ps1
+  stage_file scripts/dev/smoke-test.ps1
   git commit -q --no-verify -m "fix: scope without trailer"
   run_pr OWNER
   expect 1 "touches the security-review scope without a Security-Review trailer"
 }
 
 # The guards that enforce the ground rules are in the scope too (issue #306).
-GUARD_FILES=(scripts/check.sh scripts/check/report.sh scripts/check/run.sh scripts/check/pool.sh scripts/check/docs.sh scripts/check/build.sh scripts/check/message.sh scripts/check/review.sh scripts/check/rules.sh scripts/game-content.sha256 scripts/tree-hash.sh scripts/ci-changes.sh
-  scripts/test-select.sh scripts/stage-timing.sh scripts/install-docs-tools.sh scripts/conflict-alert.sh
-  scripts/integration-sync.sh scripts/check-status.sh scripts/run-pester.sh scripts/live-log.sh scripts/wsl-run.sh
-  scripts/run-check-suites.sh scripts/wsl-tools.txt scripts/setup-wsl.ps1 scripts/githooks/pre-commit scripts/githooks/pre-push
+GUARD_FILES=(scripts/check.sh scripts/check/report.sh scripts/check/run.sh scripts/check/pool.sh scripts/check/docs.sh
+  scripts/check/build.sh scripts/check/message.sh scripts/check/review.sh scripts/check/rules.sh
+  scripts/ci/game-content.sha256 scripts/check/tree-hash.sh scripts/ci/ci-changes.sh
+  scripts/ci/test-select.sh scripts/check/stage-timing.sh scripts/setup/install-docs-tools.sh scripts/ci/conflict-alert.sh
+  scripts/ci/integration-sync.sh scripts/check/check-status.sh scripts/check/run-pester.sh scripts/check/live-log.sh
+  scripts/check/wsl-run.sh scripts/check/run-check-suites.sh scripts/setup/wsl-tools.txt scripts/setup/setup-wsl.ps1
+  scripts/githooks/pre-commit scripts/githooks/pre-push
   scripts/githooks/commit-msg scripts/githooks/post-commit scripts/githooks/post-merge scripts/githooks/pre-merge-commit
-  scripts/security-stamp.sh scripts/github-outage.sh .github/workflows/ci.yml
+  scripts/ci/security-stamp.sh scripts/ci/github-outage.sh .github/workflows/ci.yml
   .github/workflows/slow.yml .github/workflows/a-new-one.yml .claude/agents/security-reviewer.md
-  tests/check/test-check.sh tests/scripts/test-anything.sh tools/slow/survivors.mjs tools/docs/package-lock.json
-  .config/dotnet-tools.json scripts/listen.ps1 scripts/onboard.ps1 scripts/GameLocator.psm1 scripts/Interactive.psm1
-  scripts/claude.ps1 scripts/ghidra.ps1 scripts/check-install.ps1 scripts/InstallCheck.psm1
-  scripts/ReloadedRead.psm1 scripts/install.ps1 scripts/Installer.psm1 scripts/install-pins.json)
+  tests/check/test-check.sh tests/bash/test-anything.sh tools/slow/survivors.mjs tools/docs/package-lock.json
+  .config/dotnet-tools.json scripts/dev/listen.ps1 scripts/setup/onboard.ps1 scripts/player/GameLocator.psm1
+  scripts/player/Interactive.psm1 scripts/setup/claude.ps1 scripts/dev/ghidra.ps1 scripts/player/check-install.ps1
+  scripts/player/InstallCheck.psm1 scripts/player/ReloadedRead.psm1 scripts/player/install.ps1 scripts/player/Installer.psm1
+  scripts/player/install-pins.json)
 
 # Every script the gate runs, transitively from check.sh, the git hooks and the workflows, is in the scope, so a change
 # to one can't take over the CI steps after it (BASH_ENV or PATH through $GITHUB_ENV) without a review.
@@ -1960,9 +1964,9 @@ test_scope_covers_every_script_the_gate_runs() {
 # appear nowhere in the stamp script, and inspect.ps1 and signature-spike.ps1 joined the scope with this change.
 test_stamp_touches_a_new_file_in_each_scoped_directory() {
   local file
-  for file in scripts/inspect.ps1 scripts/signature-spike.ps1 scripts/never-listed.ps1 scripts/never-listed/tool.psm1 \
+  for file in scripts/dev/inspect.ps1 scripts/dev/signature-spike.ps1 scripts/never-listed.ps1 scripts/never-listed/tool.psm1 \
     src/Metaphor.Hooks/NeverListed.cs .github/workflows/never-listed.yml tests/check/never-listed.sh \
-    tests/scripts/test-never-listed.sh tools/docs/never-listed.mjs tools/slow/never-listed.mjs; do
+    tests/bash/test-never-listed.sh tools/docs/never-listed.mjs tools/slow/never-listed.mjs; do
     review_repo "$file"
     out="$file" code=0
     bash "$STAMP" touches || code=$?
@@ -2043,8 +2047,8 @@ test_commits_stage_fails_a_guard_commit_without_a_review_trailer() {
 
 # legacy_hash: the scope hash a commit stamped before #306 carries, over the old scope's files in HEAD.
 legacy_hash() {
-  git ls-tree -r HEAD -- src/Metaphor.Hooks/ scripts/deploy-dev.ps1 scripts/smoke-test.ps1 scripts/package-mod.sh \
-    scripts/fetch-prism.ps1 scripts/ReloadedDev.psm1 scripts/capture.ps1 |
+  git ls-tree -r HEAD -- src/Metaphor.Hooks/ scripts/dev/deploy-dev.ps1 scripts/dev/smoke-test.ps1 scripts/release/package-mod.sh \
+    scripts/dev/fetch-prism.ps1 scripts/dev/ReloadedDev.psm1 scripts/dev/capture.ps1 |
     awk -F'\t' '{ split($1, m, " "); print m[1], m[3], $2 }' | sha256sum | cut -d' ' -f1
 }
 
@@ -2087,7 +2091,7 @@ test_stamp_script_rejects_unknown_arguments() {
   new_repo
   out="$(bash "$STAMP" nope 2>&1)"
   code=$?
-  expect 2 "usage: scripts/security-stamp.sh"
+  expect 2 "usage: scripts/ci/security-stamp.sh"
 }
 
 # --- The batched file scan (issue #297) ---
@@ -2095,9 +2099,9 @@ test_stamp_script_rejects_unknown_arguments() {
 # every_rule_fixture: commit a tree where every file rule trips at least once, beside files that pass.
 every_rule_fixture() {
   new_repo
-  mkdir -p scripts game tools/x.rep docs/raw-sources docs/findings "with space"
+  mkdir -p scripts/ci game tools/x.rep docs/raw-sources docs/findings "with space"
   printf 'BA7816BF8F01CFEA414140DE5DAE2223B00361A396177A9CB410FF61F20015AD  some game file\n' \
-    > scripts/game-content.sha256
+    > scripts/ci/game-content.sha256
   printf 'abc' > hashed.txt
   printf 'x' > game/a.txt
   printf 'x' > tools/x.rep/00.prp
@@ -2195,9 +2199,9 @@ test_rules_scans_the_whole_tree_when_the_rules_change() {
   printf 'x' > old.cpk
   git add old.cpk
   with_origin_main
-  mkdir -p scripts
-  printf '# none yet\n' > scripts/game-content.sha256
-  git add scripts/game-content.sha256
+  mkdir -p scripts/ci
+  printf '# none yet\n' > scripts/ci/game-content.sha256
+  git add scripts/ci/game-content.sha256
   run_check rules
   expect 1 "old.cpk" "scan: every tracked file"
 }
@@ -2272,8 +2276,8 @@ count_starts() {
     chmod +x "$shims/$tool"
   done
   new_repo
-  mkdir -p scripts docs/findings
-  printf '0000000000000000000000000000000000000000000000000000000000000000  nothing\n' > scripts/game-content.sha256
+  mkdir -p scripts/ci docs/findings
+  printf '0000000000000000000000000000000000000000000000000000000000000000  nothing\n' > scripts/ci/game-content.sha256
   for ((i = 0; i < files; i++)); do
     printf 'text %s\n' "$i" > "file$i.txt"
     printf '# F\n\n- **Game build:** 1.0\n' > "docs/findings/f$i.md"
@@ -2297,8 +2301,8 @@ test_rules_process_starts_do_not_grow_with_the_file_count() {
 
 # Each test runs in its own subshell, with its own temp folder and its own counters, several at a time (#314: the suite
 # took tens of minutes in one process on Windows, where every git and bash start is slow). Each prints
-# "[done/total] NAME ok|FAIL (seconds s)" as it finishes, also into the clone's live log (scripts/live-log.sh), which
-# scripts/check-status.sh reads. Their output is shown whole, in test order, after all have finished.
+# "[done/total] NAME ok|FAIL (seconds s)" as it finishes, also into the clone's live log (scripts/check/live-log.sh), which
+# scripts/check/check-status.sh reads. Their output is shown whole, in test order, after all have finished.
 # METAPHOR_TEST_JOBS=1 runs one at a time and must give the same pass and fail counts. An optional argument runs only
 # the tests whose names match it (an extended regular expression).
 JOBS="$(pool_default_jobs)"

@@ -17,7 +17,7 @@ updates:
       - dependency-name: "dotnet-stryker"
         versions: [">=5.0.0"]
 
-  # The docs tools' lockfile. lychee and Vale are pinned in scripts/install-docs-tools.sh, which Dependabot can't read.
+  # The docs tools' lockfile. lychee and Vale are pinned in scripts/setup/install-docs-tools.sh, which Dependabot can't read.
   - package-ecosystem: "npm"
     directory: "/tools/docs"
     schedule:

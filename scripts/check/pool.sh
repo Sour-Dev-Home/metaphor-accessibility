@@ -1,5 +1,5 @@
 # shellcheck shell=bash
-# The check runners' one worker pool (ADR 0013, #367): scripts/run-pester.sh, scripts/run-check-suites.sh and
+# The check runners' one worker pool (ADR 0013, #367): scripts/check/run-pester.sh, scripts/check/run-check-suites.sh and
 # tests/check/test-check.sh run their jobs through it. Sourced; it defines functions only, and they use builtins alone
 # past the job starts (a process start costs about 0.3 s in Git Bash, #348). Needs bash 5.1 for `wait -n -p`.
 #

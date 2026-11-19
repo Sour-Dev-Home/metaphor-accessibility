@@ -9,7 +9,7 @@
 # Module global read outside it: `max_pr_words`, which check.sh's pr-body code in main reads.
 # Private to this module: `docs_tool_dirs`, which find_docs_tool_dirs sets, and fence_re and heading_re.
 
-# find_tool NAME: print the path of a docs tool, looking first where scripts/install-docs-tools.sh puts it for this
+# find_tool NAME: print the path of a docs tool, looking first where scripts/setup/install-docs-tools.sh puts it for this
 # script's pins: the current clone's common git dir, shared by its worktrees, one folder per pin (#353).
 find_tool() {
   local candidate dir
@@ -25,7 +25,7 @@ find_tool() {
 
 # find_docs_tool_dirs: set docs_tool_dirs to the current clone's docs tool folders, colon-separated, or to nothing.
 find_docs_tool_dirs() {
-  docs_tool_dirs="$(bash "$check_dir/install-docs-tools.sh" --path 2> /dev/null)" || docs_tool_dirs=""
+  docs_tool_dirs="$(bash "$check_dir/setup/install-docs-tools.sh" --path 2> /dev/null)" || docs_tool_dirs=""
 }
 
 # docs_stage: the docs checks, on the working tree's tracked Markdown files. A broken relative link or anchor fails the
@@ -149,8 +149,8 @@ check_style() {
 # missing_tool NAME: skip a docs tool that isn't installed, or fail when CI requires it.
 missing_tool() {
   [ "${REQUIRE_DOCS_TOOLS:-}" = 1 ] &&
-    die "$1 is not installed, but REQUIRE_DOCS_TOOLS=1 (run scripts/install-docs-tools.sh)"
-  warn "$1 is not installed, so its checks were skipped (run scripts/install-docs-tools.sh)"
+    die "$1 is not installed, but REQUIRE_DOCS_TOOLS=1 (run scripts/setup/install-docs-tools.sh)"
+  warn "$1 is not installed, so its checks were skipped (run scripts/setup/install-docs-tools.sh)"
 }
 
 # check_links LYCHEE FILE...: report each broken relative link or anchor. Offline, so outside sites can't fail the run.
