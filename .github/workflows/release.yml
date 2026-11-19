@@ -19,7 +19,8 @@ concurrency:
 
 jobs:
   # Before anything is built: a tag must name a version and point at a commit on main, and a run by hand must be on
-  # main itself. It runs git only, never the repository's code, and hands the build the exact commit it checked.
+  # main itself. It runs git only, never the repository's code. Every job checks out the run's own commit
+  # (github.sha); the gate checks the tag resolves to it, and the release job checks that again before it drafts.
   gate:
     runs-on: ubuntu-latest
     timeout-minutes: 5
@@ -38,10 +39,18 @@ jobs:
         env:
           EVENT_NAME: ${{ github.event_name }}
         run: |
-          commit="$(git rev-parse HEAD)"
+          commit="$(git rev-parse "$GITHUB_SHA^{commit}")"
+          if [ "$(git rev-parse HEAD)" != "$commit" ]; then
+            echo "::error::The checkout isn't the run's commit $commit"
+            exit 1
+          fi
           if [ "$EVENT_NAME" = push ]; then
             if [[ ! "$GITHUB_REF" =~ ^refs/tags/v[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.]+)?$ ]]; then
               echo "::error::$GITHUB_REF isn't a version tag such as refs/tags/v1.2.3 or refs/tags/v1.2.3-beta.1"
+              exit 1
+            fi
+            if [ "$(git rev-parse "$GITHUB_REF^{commit}")" != "$commit" ]; then
+              echo "::error::Tag $GITHUB_REF_NAME no longer points at the run's commit $commit"
               exit 1
             fi
             if ! git merge-base --is-ancestor "$commit" origin/main; then
@@ -77,7 +86,6 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-          ref: ${{ needs.gate.outputs.commit }}
       - uses: actions/setup-dotnet@0f4a354dd5547a28c70b7853dbd95d5b67886e73 # v6.1.0
         with:
           global-json-file: global.json
@@ -143,8 +151,19 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           NAME: ${{ needs.gate.outputs.name }}
+          COMMIT: ${{ needs.gate.outputs.commit }}
           TAG: ${{ github.ref_name }}
         run: |
+          # The tag may have moved since the gate: peel it on GitHub (an annotated tag points at a tag object) and
+          # draft only if it still names the commit that was built.
+          read -r type tagged < <(gh api "repos/$GITHUB_REPOSITORY/git/ref/tags/$TAG" --jq '.object.type + " " + .object.sha')
+          while [ "$type" = tag ]; do
+            read -r type tagged < <(gh api "repos/$GITHUB_REPOSITORY/git/tags/$tagged" --jq '.object.type + " " + .object.sha')
+          done
+          if [ "$type" != commit ] || [ "$tagged" != "$COMMIT" ]; then
+            echo "::error::Tag $TAG now names $type $tagged, not the built commit $COMMIT"
+            exit 1
+          fi
           notes="Check the zip before you install it: https://github.com/$GITHUB_REPOSITORY/blob/main/docs/players/how-to/check-a-download.md"
           gh release create "$TAG" "release/$NAME.zip" release/SHA256SUMS --repo "$GITHUB_REPOSITORY" --draft --verify-tag --title "$TAG" --notes "$notes"
           echo "Drafted release \`$TAG\` with \`$NAME.zip\` and \`SHA256SUMS\`; publish it from the Releases page." >> "$GITHUB_STEP_SUMMARY"

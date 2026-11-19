@@ -83,11 +83,16 @@ check "gate fails a tag whose commit isn't on main" has "$gate" 'git merge-base 
 check "gate takes a run by hand from main only" has "$gate" '"\$GITHUB_REF" != refs/heads/main'
 check "gate takes only version tags" has "$gate" '\^refs/tags/v\[0-9\]\+\\\.\[0-9\]\+\\\.\[0-9\]\+'
 check "build waits for the gate" has "$rbuild" '^    needs: \[?gate\]?$'
-check "build checks out the commit the gate passed, not the tag again" \
-  has "$rbuild" '^ +ref: \$\{\{ needs\.gate\.outputs\.commit \}\}$'
+# Every checkout takes the run's own commit: a ref computed in the run is code a job's output chose, which CodeQL's
+# cache-poisoning query flags. The gate pins the tag to the run's commit instead, and release checks it again.
+check "no checkout in release.yml takes a ref" lacks "$release_code" '^[[:space:]]+ref:'
+check "gate peels the run's commit" has "$gate" 'commit="\$\(git rev-parse "\$GITHUB_SHA\^\{commit\}"\)"'
+check "gate fails a checkout that isn't the run's commit" has "$gate" '"\$\(git rev-parse HEAD\)" != "\$commit"'
+check "gate fails a tag that doesn't resolve to the run's commit" \
+  has "$gate" '"\$\(git rev-parse "\$GITHUB_REF\^\{commit\}"\)" != "\$commit"'
 check "build builds from scratch with the release recipe" \
   has "$rbuild" '^ +run: bash scripts/build-release\.sh "\$NAME" artifacts$'
-check "build restores no cache another run wrote" lacks "$rbuild" 'cache:[[:space:]]*true'
+check "release.yml uses no cache" lacks "$release_code" 'actions/cache|cache:'
 check "every checkout in release.yml keeps no credentials" \
   [ "$(grep -c 'uses:[[:space:]]*actions/checkout@' <<<"$release_code")" = "$(grep -cE 'persist-credentials:[[:space:]]*false' <<<"$release_code")" ]
 
@@ -108,6 +113,11 @@ check "release runs on a pushed v* tag only" \
   has "$rrelease" "^    if: github\\.event_name == 'push' && startsWith\\(github\\.ref, 'refs/tags/v'\\)$"
 check "release drafts, never publishes, and only for a tag that exists" \
   has "$rrelease" 'gh release create "\$TAG" .*--draft --verify-tag'
+tag_check="$(grep -nF 'repos/$GITHUB_REPOSITORY/git/ref/tags/$TAG' <<<"$rrelease" | head -n1 | cut -d: -f1)"
+create_line="$(grep -nF 'gh release create' <<<"$rrelease" | head -n1 | cut -d: -f1)"
+check "release checks the tag still names the gate's commit before it drafts" \
+  [ "${tag_check:-9999}" -lt "${create_line:-0}" ]
+check "release compares the tag's commit with the gate's" has "$rrelease" '"\$tagged" != "\$COMMIT"'
 check "only the release job in release.yml creates a release" \
   lacks "$(grep -v -F -x -f <(printf '%s\n' "$rrelease") <<<"$release_code")" 'gh release'
 check "release.yml splices no expression into a script" \
