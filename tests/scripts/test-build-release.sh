@@ -92,7 +92,7 @@ check "it prints the zip's SHA-256 last" [ "$(tail -n1 <<<"$out")" = "$zip_sha" 
 check "SHA256SUMS holds the zip's hash and name, as sha256sum --check reads it" \
   [ "$(cat "$WORK/out/release/SHA256SUMS" 2> /dev/null)" = "$zip_sha  $NAME.zip" ]
 check "the release folder holds only the zip and SHA256SUMS" \
-  [ "$(ls "$WORK/out/release" 2> /dev/null | tr '\n' ' ')" = "$NAME.zip SHA256SUMS " ]
+  [ "$(ls -A "$WORK/out/release" 2> /dev/null | LC_ALL=C sort | tr '\n' ' ')" = "SHA256SUMS $NAME.zip " ] # ls sorts by locale
 check "both zips take the commit's time" [ "$(grep -c '^pwsh .* 1700000000$' "$FAKE_LOG")" -eq 2 ]
 check "it builds twice: the package and the rebuild" [ "$(grep -c '^dotnet publish' "$FAKE_LOG")" -eq 2 ]
 check "the rebuild zips with its own checkout's script" \
