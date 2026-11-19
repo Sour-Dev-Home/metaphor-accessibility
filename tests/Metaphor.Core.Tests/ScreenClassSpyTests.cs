@@ -102,6 +102,76 @@ public sealed class ScreenClassSpyTests
     }
 
     [Fact]
+    public void OnlyClassAndStructTypesAreNamed()
+    {
+        var memory = new FakeMemory();
+        memory.Pointer(0x5000, Class(memory, 0x21f10b0, 0x1a00000, 0x2b00000, ".?AUListState@ui@app@@"));
+        memory.Pointer(0x5100, Class(memory, 0x21f20b0, 0x1a00100, 0x2b00100, ".?AVBare"));
+        memory.Pointer(0x5200, Class(memory, 0x21f30b0, 0x1a00200, 0x2b00200, ".?AW4Mode@ui@app@@"));
+
+        Assert.Equal("ListState@ui@app", memory.ClassNameOf(0x5000));
+        Assert.Equal("Bare", memory.ClassNameOf(0x5100));
+        Assert.Null(memory.ClassNameOf(0x5200));
+    }
+
+    [Fact]
+    public void TypeInformationAtTheModulesFirstByteIsInTheModule()
+    {
+        var memory = new FakeMemory();
+        memory.Pointer(0x5000, Class(memory, 0x21f10b0, 0x1a00000, descriptorRva: 0, ".?AVFirst@@"));
+
+        Assert.Equal("First", memory.ClassNameOf(0x5000));
+    }
+
+    [Fact]
+    public void AVtableOutsideTheModuleIsNotFollowed()
+    {
+        var memory = new FakeMemory();
+        var inside = Class(memory, 0x21f10b0, 0x1a00000, 0x2b00000, ".?AVTitleMenuChoice@ope@ui@app@@");
+        // Both point back at a valid locator, so only the module bounds keep them unnamed.
+        memory.Pointer(ModuleBase - 0x1000 - 8, ModuleBase + 0x1a00000);
+        memory.Pointer(ModuleBase + ModuleSize - 8, ModuleBase + 0x1a00000);
+        memory.Pointer(0x5000, inside);
+        memory.Pointer(0x5100, ModuleBase - 0x1000);
+        memory.Pointer(0x5200, ModuleBase + ModuleSize);
+
+        Assert.NotNull(memory.ClassNameOf(0x5000));
+        Assert.Null(memory.ClassNameOf(0x5100));
+        Assert.Null(memory.ClassNameOf(0x5200));
+    }
+
+    [Fact]
+    public void AMissingMemoryReaderIsRefused()
+    {
+        var memory = new FakeMemory();
+
+        Assert.Throws<ArgumentNullException>("readPointer",
+            () => RttiName.Of(0x5000, ModuleBase, ModuleSize, null!, memory.ReadInt32, memory.ReadAnsi));
+        Assert.Throws<ArgumentNullException>("readInt32",
+            () => RttiName.Of(0x5000, ModuleBase, ModuleSize, memory.ReadPointer, null!, memory.ReadAnsi));
+        Assert.Throws<ArgumentNullException>("readAnsi",
+            () => RttiName.Of(0x5000, ModuleBase, ModuleSize, memory.ReadPointer, memory.ReadInt32, null!));
+    }
+
+    [Fact]
+    public void AFullTableOfManagersStartsAfreshForANewOne()
+    {
+        var owners = new CursorOwners();
+        for (var manager = 0; manager < CursorOwners.MaxManagers; manager++)
+        {
+            owners.Saw(owner: 0x100, manager);
+        }
+
+        owners.Saw(owner: 0x200, manager: 0);
+        Assert.Equal(0x200, owners.OwnerOf(0));
+        Assert.Equal(0x100, owners.OwnerOf(CursorOwners.MaxManagers - 1));
+
+        owners.Saw(owner: 0x300, manager: CursorOwners.MaxManagers);
+        Assert.Equal(0x300, owners.OwnerOf(CursorOwners.MaxManagers));
+        Assert.Null(owners.OwnerOf(0));
+    }
+
+    [Fact]
     public void AManagerIsOwnedByTheLastChoiceThatHandedItOut()
     {
         var owners = new CursorOwners();

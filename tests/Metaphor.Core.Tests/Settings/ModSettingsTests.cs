@@ -43,10 +43,43 @@ public sealed class ModSettingsTests
         Assert.Single(logged);
     }
 
+    [Theory]
+    [InlineData("{ \"voicedLines\": \"loud\" }", "\"voicedLines\" is not one of auto, nameOnly, fullLine, nothing; using auto")]
+    [InlineData("{ not json", "is not valid JSON")]
+    [InlineData("[]", "is not a JSON object; using defaults")]
+    public void TheLogSaysWhatWasWrong(string json, string reason)
+    {
+        Parse(json);
+
+        Assert.Contains(reason, Assert.Single(logged), StringComparison.Ordinal);
+    }
+
     [Fact]
     public void AMissingKeyIsTheDefault()
     {
         Assert.Equal(VoicedLinesMode.Auto, Parse("{}").VoicedLines);
+        Assert.Empty(logged);
+    }
+
+    // People edit the file by hand.
+    [Fact]
+    public void CommentsAndTrailingCommasAreAllowed()
+    {
+        var json = """
+            {
+              // what the reader speaks
+              "voicedLines": "nameOnly",
+            }
+            """;
+
+        Assert.Equal(VoicedLinesMode.NameOnly, Parse(json).VoicedLines);
+        Assert.Empty(logged);
+    }
+
+    [Fact]
+    public void AMissingLogIsRefused()
+    {
+        Assert.Throws<ArgumentNullException>("log", () => ModSettings.Parse(null, null!));
     }
 
     // #58's key bindings and #115's braille switches will share the file.

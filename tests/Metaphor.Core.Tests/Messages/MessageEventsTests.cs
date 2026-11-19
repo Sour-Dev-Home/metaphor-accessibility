@@ -96,4 +96,12 @@ public sealed class MessageEventsTests
 
         Assert.Empty(seen);
     }
+
+    [Fact]
+    public void AMissingObserverIsRefusedWhenAdded()
+    {
+        Assert.Throws<ArgumentNullException>("observer", () => events.ObserveFiles(null!));
+        Assert.Throws<ArgumentNullException>("observer", () => events.ObserveLines(null!));
+        Assert.Throws<ArgumentNullException>("observer", () => events.ObserveChoices(null!));
+    }
 }
