@@ -7,7 +7,7 @@ status: accepted
 Decided by the maintainer on 2026-11-17 (#174, option (a)) and 2026-11-18 (#246, this ADR's rule). When a PR's diff
 touches the security-review scope, CI checks its HEAD commit, not each commit: HEAD passes when it carries a
 `Security-Review` trailer matching HEAD's scope hash, or when it is a clean merge from `main` whose first parent passes.
-A commit whose scope equals every parent's is a carried review: its first parent's review covers it, and the walk
+A commit whose scope equals every parent's is a carried review: its first parent's review covers it; the walk
 passes at a commit on the base branch.
 
 A merge is clean when its second parent is already on `main` and each scope file, compared with the parents' merge
