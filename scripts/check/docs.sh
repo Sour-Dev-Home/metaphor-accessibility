@@ -6,6 +6,7 @@
 # Run globals: check_lint, check_style and check_links read `root` (docs_stage sets its own local one; main sets it for
 # pr-body); report and warn update `failures` and `warnings`. `check_dir` is check.sh's constant, which
 # find_docs_tool_dirs reads. Reads REQUIRE_DOCS_TOOLS.
+# Module global read outside it: `max_pr_words`, which check.sh's pr-body code in main reads.
 # Private to this module: `docs_tool_dirs`, which find_docs_tool_dirs sets, and fence_re and heading_re.
 
 # find_tool NAME: print the path of a docs tool, looking first where scripts/install-docs-tools.sh puts it for this
@@ -147,7 +148,8 @@ check_style() {
 
 # missing_tool NAME: skip a docs tool that isn't installed, or fail when CI requires it.
 missing_tool() {
-  [ "${REQUIRE_DOCS_TOOLS:-}" = 1 ] && die "$1 is not installed, but REQUIRE_DOCS_TOOLS=1 (run scripts/install-docs-tools.sh)"
+  [ "${REQUIRE_DOCS_TOOLS:-}" = 1 ] &&
+    die "$1 is not installed, but REQUIRE_DOCS_TOOLS=1 (run scripts/install-docs-tools.sh)"
   warn "$1 is not installed, so its checks were skipped (run scripts/install-docs-tools.sh)"
 }
 
