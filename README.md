@@ -72,11 +72,13 @@ Bash, the check-script suites run in WSL when it's set up, in seconds instead of
   when nothing it covers changed: `build` skips when only `docs/` or Markdown changed, and `scripts` skips unless
   `scripts/`, `tests/smoke/`, the stand-in game or the workflows changed. `repo-rules` and `security` (CodeQL) always run.
 - **The merge queue and pushes to `main`** run everything, skipping nothing: `build` on Windows runs `full`, then
-  packages the build it tested (`scripts/package-mod.sh`), keeps it as a workflow artifact with its SHA-256 and rebuilds
-  the mod in a second checkout at another path on the same runner to check the bytes match. It also zips the package
-  reproducibly for players (`scripts/zip-package.ps1`), with its `SHA256SUMS`, and the rebuild's zip must match too.
-  On `main`, the `attest` job signs that zip with a build-provenance attestation and verifies it with the command in
-  [Check a download](docs/players/how-to/check-a-download.md) (#308). Players' builds stay
+  `scripts/build-release.sh` packages the build it tested (`scripts/package-mod.sh`), zips it reproducibly for players
+  (`scripts/zip-package.ps1`) with its `SHA256SUMS`, and rebuilds the mod in a second checkout at another path on the
+  same runner; the package and the zip must both match. Both are kept as workflow artifacts. On `main`, the `attest`
+  job signs that zip with a build-provenance attestation and verifies it with the command in
+  [Check a download](docs/players/how-to/check-a-download.md) (#308).
+- **A `v*` tag on a commit on `main`** runs the `Release` workflow (#310), which drafts an attested release:
+  [Cut a release](docs/contributors/how-to/cut-a-release.md). Players' builds stay
   Windows-built, because a Linux build isn't byte-identical
   ([measurement](docs/raw-sources/linux-build-spike-2026-11-16.md)). A local package won't match CI's hash, because
   CI-only build settings remove machine paths; the CI artifact is the one that counts.
