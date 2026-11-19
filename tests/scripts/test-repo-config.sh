@@ -114,6 +114,16 @@ check "review-gate.yml splices no expression into a script, only into keys such 
   bash -c '! grep -F "\${{" <<<"$1" | grep -vE "^[[:space:]]*(-[[:space:]]+)?[A-Za-z_][A-Za-z0-9_-]*:[[:space:]]" | grep -q . &&
     ! grep -F "\${{" <<<"$1" | grep -qE "^[[:space:]]*(-[[:space:]]+)?run:"' _ "$gate_code"
 
+# check.sh loads its modules from scripts/check/ (ADR 0013), so the workflows that run the base branch's copy fetch
+# that folder too, or the stage stops on a missing function.
+check "review-gate.yml's sparse checkout takes check.sh's modules" \
+  bash -c 'grep -qxE "[[:space:]]+scripts/check/" <<<"$1"' _ "$gate_code"
+check "ci.yml's commits step copies check.sh's modules from the base branch" \
+  grep -qF 'git ls-tree --name-only "$BASE" scripts/check/' "$CI"
+# Actions runs bash -e without pipefail, so the step sets it before that pipe, or a failed git ls-tree goes unseen.
+check "ci.yml's commits step sets pipefail before listing the modules" \
+  bash -c 'awk "/set -o pipefail/ { on = 1 } /git ls-tree/ { found = on; exit } END { exit !found }" "$1"' _ "$CI"
+
 # The slow suite reports and never gates: it runs on a schedule or by hand, never on a push or pull request, so it
 # can't become a check a merge waits for.
 SLOW="$WORKFLOWS/slow.yml"

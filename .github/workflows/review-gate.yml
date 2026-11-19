@@ -31,12 +31,14 @@ jobs:
       - name: Pass in the merge queue
         if: github.event_name == 'merge_group'
         run: echo "The queue took each PR only once its own review-gate run, from main's copy, passed."
-      # main's check.sh only: the base branch's tip, never the PR's head or merge ref.
+      # main's check.sh and its modules (ADR 0013) only: the base branch's tip, never the PR's head or merge ref.
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         if: github.event_name == 'pull_request_target'
         with:
           persist-credentials: false
-          sparse-checkout: scripts/check.sh
+          sparse-checkout: |
+            scripts/check.sh
+            scripts/check/
           sparse-checkout-cone-mode: false
       # Dependabot's PRs skip the label, as in CI's commits step; the maintainer merges them.
       - name: Require the security-reviewed label
