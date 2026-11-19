@@ -31,8 +31,10 @@ internal sealed class LiveInspector
     private LiveInspector(NamedPipeServerStream pipe, nint moduleBase, long moduleSize, Action<string> log, Action<string> logError)
     {
         this.pipe = pipe;
+        // The client names any address, so a read that would touch a guard page or an uncommitted one is refused
+        // rather than tried (#393).
         commands = new InspectorCommands(moduleBase, moduleSize,
-            (address, buffer) => ModuleMemoryReader.ReadBytes((nint)address, buffer));
+            (address, buffer) => ModuleMemoryReader.ReadBytesAvoidingGuardPages((nint)address, buffer));
         this.log = log;
         this.logError = logError;
     }

@@ -31,8 +31,11 @@ param(
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 
+# Identification: the server may learn who connected but can't act as this user (#393).
+# https://learn.microsoft.com/dotnet/api/system.security.principal.tokenimpersonationlevel
 $pipe = [System.IO.Pipes.NamedPipeClientStream]::new(
-    '.', $PipeName, [System.IO.Pipes.PipeDirection]::InOut, [System.IO.Pipes.PipeOptions]::CurrentUserOnly)
+    '.', $PipeName, [System.IO.Pipes.PipeDirection]::InOut, [System.IO.Pipes.PipeOptions]::CurrentUserOnly,
+    [System.Security.Principal.TokenImpersonationLevel]::Identification)
 try {
     try {
         $pipe.Connect($TimeoutMilliseconds)

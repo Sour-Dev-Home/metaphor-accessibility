@@ -9,12 +9,6 @@ namespace Metaphor.Hooks;
 /// patched or reprotected, which ADR 0002 allows ("Our own Reloaded-II mod reading the running game's memory").</summary>
 internal static unsafe class ModuleMemoryReader
 {
-    // Values from https://learn.microsoft.com/windows/win32/memory/memory-protection-constants and
-    // https://learn.microsoft.com/windows/win32/api/winnt/ns-winnt-memory_basic_information.
-    private const uint MemCommit = 0x1000;
-    private const uint PageGuard = 0x100;
-    private const uint ReadableProtections = 0x02 | 0x04 | 0x08 | 0x20 | 0x40 | 0x80; // READONLY .. EXECUTE_WRITECOPY
-
     // GetCurrentProcess's pseudo-handle, so no real handle to the game is opened.
     // https://learn.microsoft.com/windows/win32/api/processthreadsapi/nf-processthreadsapi-getcurrentprocess
     private static readonly nint CurrentProcess = -1;
@@ -92,6 +86,16 @@ internal static unsafe class ModuleMemoryReader
     /// <summary>Fills <paramref name="buffer"/> from <paramref name="address"/>; false unless every byte arrived.</summary>
     public static bool ReadBytes(nint address, Span<byte> buffer) => Copy(address, buffer);
 
+    /// <summary>Fills <paramref name="buffer"/> from <paramref name="address"/> as <see cref="ReadBytes"/> does, but only
+    /// when <c>VirtualQuery</c> says every byte is committed, readable and unguarded; false otherwise, without touching
+    /// the memory. For addresses nobody vouches for, such as the live inspector's (#393): Microsoft documents that a system
+    /// service touching a guard page fails and clears the guard, so a guard page is never handed to
+    /// <c>ReadProcessMemory</c>, although one Windows build was seen to leave it guarded
+    /// (docs/raw-sources/windows-guard-pages-and-virtualquery-2026-11-19.md). A page that changes between the query and
+    /// the copy is not covered.</summary>
+    public static bool ReadBytesAvoidingGuardPages(nint address, Span<byte> buffer) =>
+        PageRegion.AllReadable(address, buffer.Length, Query) && Copy(address, buffer);
+
     /// <summary>Reads a NUL-terminated ANSI string at <paramref name="address"/>, up to <paramref name="maxBytes"/>,
     /// as <see cref="MemoryText.ReadAnsi"/> does; null when its start can't be read.</summary>
     public static string? ReadAnsiString(nint address, int maxBytes = 512) => MemoryText.ReadAnsi(CopyAt, address, maxBytes);
@@ -113,6 +117,19 @@ internal static unsafe class ModuleMemoryReader
         }
     }
 
+    /// <summary>The region holding <paramref name="address"/>, or null when <c>VirtualQuery</c> fails, as it does above
+    /// the highest address the process can reach.
+    /// https://learn.microsoft.com/windows/win32/api/memoryapi/nf-memoryapi-virtualquery</summary>
+    private static PageRegion? Query(long address)
+    {
+        if (VirtualQuery((nint)address, out var region, (nuint)sizeof(MemoryBasicInformation)) == 0)
+        {
+            return null;
+        }
+        // A region's size never reaches 2^63 bytes in a 64-bit address space, so the cast can't wrap.
+        return new PageRegion(region.BaseAddress, (long)region.RegionSize, region.State, region.Protect);
+    }
+
     /// <summary>The committed, readable, unguarded stretches of [<paramref name="start"/>, <paramref name="end"/>),
     /// with touching regions merged.</summary>
     private static List<(nint Start, int Length)> ReadableSpans(nint start, nint end)
@@ -121,13 +138,10 @@ internal static unsafe class ModuleMemoryReader
         nint spanStart = 0, spanEnd = 0;
         for (var address = start; address < end;)
         {
-            if (VirtualQuery(address, out var region, (nuint)sizeof(MemoryBasicInformation)) == 0)
-            {
+            var region = Query(address) ??
                 throw new InvalidOperationException($"VirtualQuery failed at module offset 0x{address - start:x}");
-            }
-            var regionEnd = (nint)Math.Min((long)region.BaseAddress + (long)region.RegionSize, end);
-            var readable = region.State == MemCommit && (region.Protect & PageGuard) == 0 &&
-                (region.Protect & ReadableProtections) != 0;
+            var regionEnd = (nint)Math.Min(region.Base + region.Size, end);
+            var readable = region.IsReadable;
             if (readable && address == spanEnd && spanEnd != 0)
             {
                 spanEnd = regionEnd;

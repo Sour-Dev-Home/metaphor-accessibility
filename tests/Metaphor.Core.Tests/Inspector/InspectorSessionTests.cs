@@ -49,6 +49,10 @@ public sealed class InspectorSessionTests
         Assert.Equal(["base"], seen);
     }
 
+    [Fact]
+    public void ControlCharactersInAResponseCannotSplitItIntoTwoLines() =>
+        Assert.Equal(("ok A?B?C?\nok A?B?C?\n", 2), Serve("rtti 0x1\nrtti 0x2\n", _ => "ok A\nB\rC\u007f"));
+
     /// <summary>Reads from a fixed input and records what is written, as one end of a pipe does.</summary>
     private sealed class DuplexStream(byte[] input) : Stream
     {
