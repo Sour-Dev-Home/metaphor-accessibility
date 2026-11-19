@@ -37,11 +37,32 @@ if command -v dotnet > /dev/null; then
     { cat "$tmp/standin.out"; echo "run-pester: the stand-in game didn't build" >&2; exit 1; }
 fi
 
+# Each file's "[done/total] FILE ok|FAIL (seconds s)" line is printed, and written to the clone's live log
+# (scripts/live-log.sh), as it finishes.
+# shellcheck source=live-log.sh
+source scripts/live-log.sh || exit 2
+live_start run-pester "${#files[@]}"
+declare -A running=()
+finished() { # finished INDEX
+  local code=1 secs=0
+  read -r code < "$tmp/$1.code" 2> /dev/null || code=1
+  read -r secs < "$tmp/$1.secs" 2> /dev/null || secs=0
+  live_line "${files[$1]}" "$code" "$secs"
+}
 for i in "${!files[@]}"; do
-  while [ "$(jobs -rp | wc -l)" -ge "$jobs" ]; do wait -n; done
+  while [ "${#running[@]}" -ge "$jobs" ]; do
+    wait -n -p done_pid
+    finished "${running[$done_pid]}"
+    unset "running[$done_pid]"
+  done
   run_one "$i" "${files[$i]}" &
+  running[$!]="$i"
 done
-wait
+while [ "${#running[@]}" -gt 0 ]; do
+  wait -n -p done_pid
+  finished "${running[$done_pid]}"
+  unset "running[$done_pid]"
+done
 
 failed=0
 for i in "${!files[@]}"; do
@@ -50,4 +71,5 @@ for i in "${!files[@]}"; do
   [ "$(cat "$tmp/$i.code")" = 0 ] || failed=$((failed + 1))
 done
 [ "$failed" -eq 0 ] || echo "run-pester: $failed of ${#files[@]} test files failed"
+live_end "$((failed > 0))"
 [ "$failed" -eq 0 ]

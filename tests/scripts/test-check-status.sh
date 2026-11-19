@@ -123,6 +123,32 @@ out="12 worktrees: $(((t1 - t0) / 1000000)) ms"
 check "12 worktrees list in under 6 s" test $(((t1 - t0) / 1000000)) -lt 6000
 for n in $(seq 1 12); do git worktree remove --force "$WORK/wt$n"; done
 
+# A long run still going (#328): its live log names the run, its pid and start; each line is an item done. The views
+# show the count, the total and the minutes, and stop once the pid is gone or the run ended. A nested run (full's
+# Pester) shows after its parent.
+live="$(git rev-parse --absolute-git-dir)/check-live-log"
+printf '== start test-check 132 9280 %s\n[1/132] test_a ok (1.0 s)\n[37/132] test_b FAIL (2.1 s)\n' "$$" > "$live"
+status
+check "running suite listed" has "running: test-check: 37/132, 12 min (log: $live)"
+status --short
+check "running suite in the short form" has "lock: free · test-check: 37/132, 12 min"
+printf '== start full 5 9880 %s\n[2/5] build ok (80 s)\n== start run-pester 9 9940 %s\n[3/9] a.Tests.ps1 ok (4 s)\n' \
+  "$$" "$$" > "$live"
+status --short
+check "nested runs, innermost last" has "full: 2/5, 2 min > run-pester: 3/9, 1 min"
+printf '== end run-pester 0 60\n[3/5] tests ok (40 s)\n' >> "$live"
+status --short
+check "an ended inner run drops out" test "${out#*· }" = "full: 3/5, 2 min"
+printf '== start test-check 132 9280 999999\n[37/132] test_b ok (2.1 s)\n' > "$live"
+status
+check "a run whose pid is gone isn't shown" lacks "running:"
+status --short
+check "nor in the short form" test "$out" = "lock: free"
+printf '== start test-check 2 9280 %s\n[2/2] test_b ok (2.1 s)\n== end test-check 0 60\n' "$$" > "$live"
+status --short
+check "an ended run isn't shown" test "$out" = "lock: free"
+rm -f "$live"
+
 # Idle workers, and the shutdown command.
 printf '  1234 MSBuild.exe /nodeReuse:true\n  1235 VBCSCompiler.exe\n  1300 bash\n' > "$WORK/ps.txt"
 status

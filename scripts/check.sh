@@ -36,11 +36,21 @@
 # Every step runs even after a failure, so one run shows every problem.
 # Exit 0 when everything passes (warnings don't fail), 1 when something fails, 2 on a usage error or when a tool is
 # missing or fails to run. The docs stage skips a missing docs tool with a warning unless REQUIRE_DOCS_TOOLS=1 (CI).
+#
+# Sourced rather than run, the script only defines its functions; `main STAGE [ARG]` then runs a stage, in a subshell
+# of the caller since it exits and sets an EXIT trap. tests/check/test-check.sh does so, which saves a bash start per
+# case (#328).
 set -uo pipefail
+
+# This script's folder, from builtins: under Git Bash each process start costs a lot, and a `cd`/`dirname` subshell is
+# two (#328). Git hands the hooks a C:/... path.
+check_dir="${BASH_SOURCE[0]%/*}"
+[ "$check_dir" != "${BASH_SOURCE[0]}" ] || check_dir=.
+[[ "$check_dir" == /* || "$check_dir" =~ ^[A-Za-z]: ]] || check_dir="$PWD/$check_dir"
 
 # The test categories to run. WindowsOnly tests pin down Windows behaviour (the mod only runs there), so they run on
 # Windows alone; on Linux (the pull-request build in CI) they are left out.
-test_filter() {
+category_filter() {
   case "$(uname -s)" in
     MINGW* | MSYS* | CYGWIN*) echo "Category=Unit|Category=RoundTrip|Category=WindowsOnly" ;;
     *) echo "Category=Unit|Category=RoundTrip" ;;
@@ -219,7 +229,7 @@ full_tree() {
 whole_solution() { [ "$1" -eq 1 ] || [ "${GITHUB_ACTIONS:-}" = true ] || [ -n "${METAPHOR_FULL_TESTS:-}" ]; }
 select_tests() {
   whole_solution "$1" && return 0
-  sed '/^$/d' <<< "$2" | bash "$(dirname "${BASH_SOURCE[0]}")/test-select.sh"
+  sed '/^$/d' <<< "$2" | bash "$check_dir/test-select.sh"
 }
 
 # build_selected SOLUTION ROOT UNKNOWN SELECTION: the pre-push build (#314). Builds the whole solution when the change
@@ -248,21 +258,21 @@ run_selected_tests() {
   local solution="$1" unknown="$2" selection="$3" kind proj reason ran=0
   if whole_solution "$unknown"; then
     echo "tests: all suites (change set unknown, CI, or METAPHOR_FULL_TESTS)"
-    timed_step tests dotnet test "$solution" -c Release --no-build -v q --filter "$(test_filter)" ||
+    timed_step tests dotnet test "$solution" -c Release --no-build -v q --filter "$(category_filter)" ||
       report "tests: Unit or RoundTrip tests failed"
     return 0
   fi
   while read -r kind proj reason; do
     if [ "$kind" = pester ] && [ -z "${SKIP_SCRIPT_TESTS:-}" ] && command -v pwsh > /dev/null; then
       echo "tests: Pester smoke tests because $proj $reason"
-      timed_step pester bash "$(dirname "${BASH_SOURCE[0]}")/run-pester.sh" ||
+      timed_step pester bash "$check_dir/run-pester.sh" ||
         report "tests: smoke or deploy script tests failed (run: bash scripts/run-pester.sh)"
       ran=1
     fi
     [ "$kind" = dotnet ] || continue
     ran=1
     echo "tests: $proj because $reason"
-    timed_step "tests:$(basename "$proj" .csproj)" dotnet test "$proj" -c Release --no-build -v q --filter "$(test_filter)" ||
+    timed_step "tests:$(basename "$proj" .csproj)" dotnet test "$proj" -c Release --no-build -v q --filter "$(category_filter)" ||
       report "tests: $proj failed"
   done <<< "$selection"
   [ "$ran" -eq 1 ] || echo "tests: no test project is affected by this change"
@@ -324,9 +334,22 @@ max_pr_words=300
 
 # prose_words: count the words on stdin, leaving out headings and fenced code blocks, which hold diagrams and sketches
 # rather than prose.
+# Builtins only: the docs stage runs it once per ADR, where tr, awk, wc and tr were four starts each (#328).
+fence_re='^[[:space:]]*(```|~~~)'
+heading_re='^#+ '
 prose_words() {
-  tr -d '\r' | awk '/^[[:space:]]*(```|~~~)/ { code = !code; next } !code && !/^#+ /' | wc -w |
-    tr -d '[:space:]'
+  local line code=0 count=0 words
+  while IFS= read -r line || [ -n "$line" ]; do
+    line="${line//$'\r'/}"
+    if [[ "$line" =~ $fence_re ]]; then
+      code=$((1 - code))
+      continue
+    fi
+    [ "$code" -eq 0 ] && ! [[ "$line" =~ $heading_re ]] || continue
+    read -r -a words <<< "$line"
+    count=$((count + ${#words[@]}))
+  done
+  echo "$count"
 }
 
 # check_lint MARKDOWNLINT FILE...: warn on each markdownlint finding (settings in tools/docs/.markdownlint-cli2.jsonc).
@@ -397,11 +420,31 @@ check_links() {
 max_subject_chars=72
 max_body_lines=5
 
+# Builtins throughout, where a sed, a wc and two greps were four starts per message (#328).
+scissors_re='^# -* >8 -*$'
+trailer_re='^[A-Za-z][A-Za-z0-9-]*: '
+
+# char_count VAR TEXT: set VAR to TEXT's length in UTF-8 characters, not bytes.
+char_count() {
+  local LC_ALL=C.UTF-8
+  printf -v "$1" '%s' "${#2}"
+}
+
+# every_line_a_trailer TEXT: exit 0 when every line of TEXT reads "Key: value".
+every_line_a_trailer() {
+  local line
+  while IFS= read -r line; do [[ "$line" =~ $trailer_re ]] || return 1; done <<< "$1"
+}
 check_message() {
-  local label="$1" message subject body last length lines
-  # Like git: drop CR, trailing spaces, comment lines and everything below the scissors line. $(...) also drops
-  # trailing blank lines.
-  message="$(sed -e 's/\r$//' -e 's/[[:space:]]*$//' -e '/^# -* >8 -*$/,$d' -e '/^#/d')"
+  local label="$1" message="" line subject body last length lines
+  # Like git: drop CR, trailing spaces, comment lines and everything below the scissors line, then trailing and leading
+  # blank lines.
+  while IFS= read -r line || [ -n "$line" ]; do
+    line="${line%$'\r'}" && line="${line%"${line##*[![:space:]]}"}"
+    [[ "$line" =~ $scissors_re ]] && break
+    [ "${line:0:1}" = "#" ] || message+="$line"$'\n'
+  done
+  message="${message%"${message##*[!$'\n']}"}" # trailing blank lines
   message="${message#"${message%%[!$'\n']*}"}" # leading blank lines
   if [ -z "$message" ]; then
     report "$label: message is empty"
@@ -416,8 +459,7 @@ check_message() {
   if ! [[ "$subject" =~ ^(Revert\ \"|fixup!\ |squash!\ |amend!\ ) ]]; then
     [[ "$subject" =~ ^(feat|fix|docs|test|refactor|perf|build|ci|chore|style|revert)(\([^\)]+\))?!?:\ [^[:space:]] ]] ||
       report "$label: subject needs a type prefix, such as \"feat: \" or \"fix(check): \""
-    length="$(printf '%s' "$subject" | LC_ALL=C.UTF-8 wc -m)"
-    length="${length//[[:space:]]/}"
+    char_count length "$subject"
     [ "$length" -le "$max_subject_chars" ] ||
       report "$label: subject is $length characters; the limit is $max_subject_chars"
   fi
@@ -428,15 +470,16 @@ check_message() {
   # them. They don't count, even when they are the whole body.
   body="${body#$'\n'}"
   last="${body##*$'\n\n'}"
-  if ! grep -qvE '^[A-Za-z][A-Za-z0-9-]*: ' <<<"$last"; then
+  if every_line_a_trailer "$last"; then
     [ "$last" = "$body" ] && body="" || body="${body%$'\n\n'*}"
   fi
-  lines="$(grep -c '[^[:space:]]' <<<"$body")"
+  lines=0
+  while IFS= read -r line; do [[ "$line" != *[^[:space:]]* ]] || lines=$((lines + 1)); done <<< "$body"
   [ "$lines" -le "$max_body_lines" ] || report "$label: body has $lines lines; the limit is $max_body_lines"
 }
 
 # The security review's stamp script answers for the repository in the current folder.
-stamp_script="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/security-stamp.sh"
+stamp_script="$check_dir/security-stamp.sh"
 
 # in_scope [COMMIT]: exit 0 when the staged changes (or COMMIT) touch the security-review scope, 1 when they don't.
 in_scope() {
@@ -490,8 +533,13 @@ check_review_trailer() {
   local sha="$1" want reviewed skipped hash
   in_scope "$sha" || return 0
   want="$(bash "$stamp_script" accepted "$sha")" || die "could not hash the security-review scope of $sha"
-  reviewed="$(git log -1 --format='%(trailers:key=Security-Review,valueonly)' "$sha")" || die "could not read $sha"
-  skipped="$(git log -1 --format='%(trailers:key=Security-Review-Skipped,valueonly)' "$sha")" || die "could not read $sha"
+  # Both trailers from one git start, split at a \x01 byte. A trailer holding one of its own would move the split, so
+  # more than one fails closed.
+  local format='%(trailers:key=Security-Review,valueonly)%x01%(trailers:key=Security-Review-Skipped,valueonly)'
+  reviewed="$(git log -1 --format="$format" "$sha")" || die "could not read $sha"
+  skipped="${reviewed#*$'\x01'}"
+  [[ "$skipped" != *$'\x01'* && "$reviewed" == *$'\x01'* ]] || die "could not read the trailers of $sha"
+  reviewed="${reviewed%%$'\x01'*}"
   for hash in $want; do
     grep -qxF "$hash" <<<"$reviewed" && return 0
   done
@@ -567,38 +615,37 @@ the label"; return; }
     report "security-reviewed was added before the PR's latest push ($pushed): review the new commits and add the label again"
 }
 
-stage="${1:-}"
 # Stages with a budget from issue #1 print their duration on exit, and a warning when over budget (stage-timing.sh).
-started="$(date +%s)" timing_script="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/stage-timing.sh"
-case "$stage" in
-  fast | pre-commit) timed=("stage 1 ($stage)" 10) ;;
-  signatures) timed=("stage 4 (signatures)" 30 "commit $(git rev-parse --short HEAD 2> /dev/null || echo none)") ;;
-  *) timed=() ;;
-esac
-current_branch() { git branch --show-current 2> /dev/null | grep . || echo "detached"; }
+timing_script="$check_dir/stage-timing.sh"
+current_branch() {
+  local branch
+  branch="$(git branch --show-current 2> /dev/null)"
+  echo "${branch:-detached}"
+}
 # The run log (issue #269): one line per building run in this clone's git dir, newest first, the last 50.
 # "<stage> <branch> <start> <end> <pass|fail> <built|reused>"; read by scripts/check-status.sh.
-reused=built
-case "$stage" in full | slow | signatures | pre-push) run_logged=1 ;; *) run_logged="" ;; esac
 # Per-step times of a building stage (#314): "restore=12s build=80s ...", printed when the run ends and kept as the run
 # log line's last field, so a slow step is named by data.
-step_times=()
 timed_step() { # timed_step NAME COMMAND...: run COMMAND and note how long it took; its exit code is returned
   local name="$1" began=$SECONDS code
   shift
   "$@"
   code=$?
   step_times+=("$name=$((SECONDS - began))s")
+  # full's steps go to the live log (scripts/live-log.sh) as they finish.
+  [ -z "$live_log" ] || live_line "$name" "$code" "$((SECONDS - began))"
   return "$code"
 }
 log_run() { # log_run EXIT_CODE
-  local file result=pass times=""
+  local file result=pass times="" from to
   [ "$1" -eq 0 ] || result=fail
   [ "${#step_times[@]}" -eq 0 ] || times=" ${step_times[*]}"
   file="$(git rev-parse --absolute-git-dir 2> /dev/null)/check-run-log" || return 0
   [ "$file" != "/check-run-log" ] || return 0
+  TZ=UTC0 printf -v from '%(%Y-%m-%dT%H:%M:%SZ)T' "$started"
+  TZ=UTC0 printf -v to '%(%Y-%m-%dT%H:%M:%SZ)T' -1
   {
-    echo "$stage $(current_branch) $(date -u -d "@$started" +%Y-%m-%dT%H:%M:%SZ) $(date -u +%Y-%m-%dT%H:%M:%SZ) $result $reused$times"
+    echo "$stage $(current_branch) $from $to $result $reused$times"
     cat "$file" 2> /dev/null || true
   } | head -n 50 > "$file.new" && mv "$file.new" "$file"
 }
@@ -607,16 +654,14 @@ finish() {
   rm -rf "${tmp:-}"
   [ "${#step_times[@]}" -eq 0 ] || echo "step times: ${step_times[*]}"
   [ -z "$run_logged" ] || log_run "$code" || true
-  [ -z "${waited:-}" ] || rm -f "${METAPHOR_CHECK_LOCK:-${TMPDIR:-/tmp}/metaphor-check.lock}.waiting/$$"
+  [ -z "${waited:-}" ] || rm -f "${METAPHOR_CHECK_LOCK:-${TMPDIR:-/tmp}/metaphor-check.lock}.waiting/$BASHPID"
   [ -z "${locked:-}" ] || rm -rf "$locked"
+  [ -z "$live_log" ] || live_end "$code"
   [ "${#timed[@]}" -eq 0 ] ||
-    bash "$timing_script" report "${timed[0]}" "${timed[1]}" "$started" "$(date +%s)" \
+    bash "$timing_script" report "${timed[0]}" "${timed[1]}" "$started" "$EPOCHSECONDS" \
       "${timed[@]:2}"
   exit "$code"
 }
-
-tmp="$(mktemp -d)" || die "could not create a temporary folder"
-trap finish EXIT
 
 # Stages that build take turns through one lock per machine, with no shared MSBuild nodes: several worktrees building
 # at once stalled each other for over an hour (2026-11-17). METAPHOR_CHECK_SLOTS (default 2) runs may build at once, one
@@ -647,150 +692,225 @@ take_lock() {
     [ "${1:-}" != nowait ] || die "every build slot is busy (see scripts/check-status.sh), so this push would wait with its connection open and be cut. Run 'bash scripts/check.sh full' first, then push: the hook reuses the recorded pass."
     if [ -z "${waited:-}" ]; then
       echo "check: waiting for another build check to finish ($base, $slots slots)" >&2
-      mkdir -p "$base.waiting" 2> /dev/null && echo "$(current_branch) $(date +%s)" > "$base.waiting/$$"
+      local now
+      printf -v now '%(%s)T' -1
+      mkdir -p "$base.waiting" 2> /dev/null && echo "$(current_branch) $now" > "$base.waiting/$BASHPID"
     fi
     waited=1
     sleep "${METAPHOR_CHECK_POLL:-5}"
   done
-  rm -f "$base.waiting/$$"
-  # scripts/check-status.sh reads these; pid goes last, since a lock with no pid yet is never taken over.
+  rm -f "$base.waiting/$BASHPID"
+  # scripts/check-status.sh reads these; pid goes last, since a lock with no pid yet is never taken over. $BASHPID is $$
+  # in a run of the script, and the subshell's own pid when the tests run main in one.
   current_branch > "$lock/branch"
-  date +%s > "$lock/since"
-  echo "$$" > "$lock/pid"
+  echo "$EPOCHSECONDS" > "$lock/since"
+  echo "$BASHPID" > "$lock/pid"
   locked="$lock"
 }
-# pre-push takes the lock itself, only once it knows it will build (a docs-only push never waits).
-case "$stage" in
-  full)
-    full_tree_id="$(full_tree)" || full_tree_id=""
-    if [ -n "$full_tree_id" ] && cached_pass "$full_tree_id" full; then
-      reused=reused
-      echo "full: reused the recorded pass for tree $full_tree_id; no checks ran (change the tree to run them again)"
-      exit 0
-    fi
-    take_lock ;;
-  slow | signatures) take_lock ;;
-esac
 
 # list_entries prints "<mode> <blob> <stage>\t<path>\0" for each file to check, in `git ls-files -s -z` form. Changed
 # files are every change but a deletion (--diff-filter=d), so a symlink turned into a file is scanned too. They are
 # listed in $tmp/changed, with paths from the repository root: the script runs from there.
-case "$stage" in
-  fast | pre-commit)
-    list_entries() {
-      git diff --cached --name-only --diff-filter=d -z > "$tmp/changed" &&
-        xargs -0 -r git --literal-pathspecs ls-files -s -z -- < "$tmp/changed"
-    } ;;
-  # CI, or METAPHOR_SCAN_ALL=1, scans every tracked file: CI does so before anything merges. Elsewhere the scan covers
-  # the files changed since the merge-base with origin/main, staged changes included (issue #297). Without origin/main,
-  # or when the rules themselves change, it scans every file.
-  rules | full)
-    list_entries() {
-      local base
+# fast and pre-commit scan the staged changes. Elsewhere CI, or METAPHOR_SCAN_ALL=1, scans every tracked file: CI does
+# so before anything merges. Otherwise the scan covers the files changed since the merge-base with origin/main, staged
+# changes included (issue #297). Without origin/main, or when the rules themselves change, it scans every file.
+list_entries() {
+  local base
+  case "$stage" in
+    fast | pre-commit)
+      git diff --cached --name-only --diff-filter=d -z > "$tmp/changed" && changed_entries ;;
+    *)
       if [ "${GITHUB_ACTIONS:-}" != true ] && [ -z "${METAPHOR_SCAN_ALL:-}" ] &&
         base="$(git merge-base HEAD origin/main 2> /dev/null)" &&
         git diff --cached --name-only --diff-filter=d -z "$base" -- > "$tmp/changed" &&
         ! grep -qzxE 'scripts/(check\.sh|game-content\.sha256)' "$tmp/changed"; then
         scan_scope="changed since origin/main"
-        xargs -0 -r git --literal-pathspecs ls-files -s -z -- < "$tmp/changed"
+        changed_entries
       else
         scan_scope=all
         git ls-files -s -z
-      fi
-    } ;;
-  commit-msg)
-    [ -f "${2:-}" ] || die "commit-msg stage needs the message file"
-    review_trailer "$2"
-    check_message "commit message" < "$2"
-    [ "$failures" -eq 0 ]
-    exit ;;
-  commits)
-    # Merge commits are skipped: git writes their messages, and PRs are squash-merged.
-    shas="$(git rev-list --no-merges "${2:-}" --)" || die "could not list the commits in ${2:-}"
-    for sha in $shas; do
-      git log -1 --format=%B "$sha" > "$tmp/message" || die "could not read commit $sha"
-      check_message "commit $(git rev-parse --short "$sha")" < "$tmp/message"
-      check_review_trailer "$sha"
-    done
-    # A PR not by the maintainer is judged by its whole diff, so a change inside a merge commit still needs the label.
-    if [ -n "${PR_AUTHOR_ASSOCIATION:-}" ] && changes_outside_docs "${2:-}" && ! maintainer_pr; then
-      require_review_label
-    fi
-    [ "$failures" -eq 0 ]
-    exit ;;
-  pr-body)
-    [ -f "${2:-}" ] || die "pr-body stage needs the file holding the PR description"
-    # The Evidence section holds output and screenshots, so it doesn't count (the /pr template's sections).
-    count="$(awk '/^## / { evidence = ($0 ~ /^## +Evidence[[:space:]]*$/) } !evidence' "$2" | prose_words)"
-    [ "$count" -le "$max_pr_words" ] ||
-      warn "PR description: $count words outside Evidence; descriptions aim for at most $max_pr_words"
-    root="$(git rev-parse --show-toplevel)" || die "could not find the repository root"
-    if tool="$(find_tool vale)"; then
-      # A short relative name, so the warnings read "pr-description.md:LINE" on every platform.
-      cp "$2" "$tmp/pr-description.md" && cd "$tmp" || die "could not copy $2"
-      check_style "$tool" pr-description.md
-    else
-      missing_tool vale
-    fi
-    exit 0 ;;
-  docs)
-    docs_stage
-    [ "$warnings" -eq 0 ] || echo "$warnings warning(s); they don't fail the run"
-    [ "$failures" -eq 0 ]
-    exit ;;
-  slow)
-    slow_stage
-    [ "$failures" -eq 0 ]
-    exit ;;
-  signatures)
-    signatures_stage "${2:-}"
-    [ "$failures" -eq 0 ]
-    exit ;;
-  pre-push)
-    pre_push_stage
-    [ "$failures" -eq 0 ]
-    exit ;;
-  *) echo "usage: scripts/check.sh fast|pre-commit|pre-push|rules|full|docs|slow | signatures [EXE] | commit-msg FILE | commits BASE..HEAD | pr-body FILE" >&2
-     exit 2 ;;
-esac
+      fi ;;
+  esac
+}
 
-# From the root, so a run from a subfolder lists the same files: git diff prints paths from the root, which ls-files
-# would otherwise read from the current folder.
-root="$(git rev-parse --show-toplevel)" || die "could not list files (is this a git repository?)"
-cd "$root" || die "could not enter $root"
-: > "$tmp/changed"
-list_entries > "$tmp/entries" || die "could not list files (is this a git repository?)"
-# A change that lists no files means the listing went wrong; passing it would record a pass that scanned nothing.
-[ ! -s "$tmp/changed" ] || [ -s "$tmp/entries" ] || die "could not list the changed files"
-solution="$root/Metaphor.sln"
-if [ "$stage" = full ]; then
-  [ -f "$solution" ] || die "full stage needs $(basename "$solution") at the repository root"
-  command -v dotnet > /dev/null || die "full stage needs the .NET SDK (dotnet) on PATH"
-fi
+# changed_entries: print the index entries of the paths in $tmp/changed. One `git ls-files` of the whole index, kept
+# when the path is listed, instead of an xargs and a `git ls-files` per batch (#328): the changed paths are files, so
+# matching them exactly lists what a literal pathspec per path would, in the same index order.
+changed_entries() {
+  local path entry
+  local -A wanted=()
+  [ -s "$tmp/changed" ] || return 0
+  while IFS= read -r -d '' path; do wanted[$path]=1; done < "$tmp/changed"
+  git ls-files -s -z > "$tmp/index" || return
+  while IFS= read -r -d '' entry; do
+    [ -z "${wanted[${entry#*$'\t'}]:-}" ] || printf '%s\0' "$entry"
+  done < "$tmp/index"
+}
+
+# main STAGE [ARG]: run one stage, then exit through `finish`.
+main() {
+  stage="${1:-}"
+  failures=0 warnings=0 reused=built step_times=() tmp="" locked="" waited="" live_log="" full_tree_id=""
+  scan_scope="" maintainer_pr_result=""
+  started=$EPOCHSECONDS
+  case "$stage" in
+    fast | pre-commit) timed=("stage 1 ($stage)" 10) ;;
+    signatures) timed=("stage 4 (signatures)" 30 "commit $(git rev-parse --short HEAD 2> /dev/null || echo none)") ;;
+    *) timed=() ;;
+  esac
+  case "$stage" in full | slow | signatures | pre-push) run_logged=1 ;; *) run_logged="" ;; esac
+
+  tmp="$(mktemp -d)" || die "could not create a temporary folder"
+  trap finish EXIT
+  # pre-push takes the lock itself, only once it knows it will build (a docs-only push never waits).
+  case "$stage" in
+    full)
+      full_tree_id="$(full_tree)" || full_tree_id=""
+      if [ -n "$full_tree_id" ] && cached_pass "$full_tree_id" full; then
+        reused=reused
+        echo "full: reused the recorded pass for tree $full_tree_id; no checks ran (change the tree to run them again)"
+        exit 0
+      fi
+      take_lock
+      # Only full reads the live log's helpers, so CI's copy of this script for the commits stage needs no more files.
+      source "$check_dir/live-log.sh" || die "could not load $check_dir/live-log.sh"
+      local steps=5
+      [ -z "${SKIP_SCRIPT_TESTS:-}" ] || steps=4
+      live_start full "$steps" ;;
+    slow | signatures) take_lock ;;
+  esac
+
+  case "$stage" in
+    fast | pre-commit | rules | full) ;;
+    commit-msg)
+      [ -f "${2:-}" ] || die "commit-msg stage needs the message file"
+      review_trailer "$2"
+      check_message "commit message" < "$2"
+      [ "$failures" -eq 0 ]
+      exit ;;
+    commits)
+      commits_stage "${2:-}"
+      [ "$failures" -eq 0 ]
+      exit ;;
+    pr-body)
+      [ -f "${2:-}" ] || die "pr-body stage needs the file holding the PR description"
+      # The Evidence section holds output and screenshots, so it doesn't count (the /pr template's sections).
+      count="$(awk '/^## / { evidence = ($0 ~ /^## +Evidence[[:space:]]*$/) } !evidence' "$2" | prose_words)"
+      [ "$count" -le "$max_pr_words" ] ||
+        warn "PR description: $count words outside Evidence; descriptions aim for at most $max_pr_words"
+      root="$(git rev-parse --show-toplevel)" || die "could not find the repository root"
+      if tool="$(find_tool vale)"; then
+        # A short relative name, so the warnings read "pr-description.md:LINE" on every platform.
+        cp "$2" "$tmp/pr-description.md" && cd "$tmp" || die "could not copy $2"
+        check_style "$tool" pr-description.md
+      else
+        missing_tool vale
+      fi
+      exit 0 ;;
+    docs)
+      docs_stage
+      [ "$warnings" -eq 0 ] || echo "$warnings warning(s); they don't fail the run"
+      [ "$failures" -eq 0 ]
+      exit ;;
+    slow)
+      slow_stage
+      [ "$failures" -eq 0 ]
+      exit ;;
+    signatures)
+      signatures_stage "${2:-}"
+      [ "$failures" -eq 0 ]
+      exit ;;
+    pre-push)
+      pre_push_stage
+      [ "$failures" -eq 0 ]
+      exit ;;
+    *) echo "usage: scripts/check.sh fast|pre-commit|pre-push|rules|full|docs|slow | signatures [EXE] | commit-msg FILE | commits BASE..HEAD | pr-body FILE" >&2
+       exit 2 ;;
+  esac
+
+  # From the root, so a run from a subfolder lists the same files: git diff prints paths from the root, which ls-files
+  # would otherwise read from the current folder.
+  root="$(git rev-parse --show-toplevel)" || die "could not list files (is this a git repository?)"
+  cd "$root" || die "could not enter $root"
+  : > "$tmp/changed"
+  list_entries > "$tmp/entries" || die "could not list files (is this a git repository?)"
+  # A change that lists no files means the listing went wrong; passing it would record a pass that scanned nothing.
+  [ ! -s "$tmp/changed" ] || [ -s "$tmp/entries" ] || die "could not list the changed files"
+  solution="$root/Metaphor.sln"
+  if [ "$stage" = full ]; then
+    [ -f "$solution" ] || die "full stage needs $(basename "$solution") at the repository root"
+    command -v dotnet > /dev/null || die "full stage needs the .NET SDK (dotnet) on PATH"
+  fi
+  scan_files
+  [ "$stage" != pre-commit ] || pre_commit_checks
+  [ "$stage" != full ] || full_dotnet_checks
+  [ "$failures" -eq 0 ]
+}
+
+# commits_stage BASE..HEAD: every non-merge commit's message and security-review trailer. Merge commits are skipped:
+# git writes their messages, and PRs are squash-merged.
+commits_stage() {
+  local shas sha
+  shas="$(git rev-list --no-merges "$1" --)" || die "could not list the commits in $1"
+  local short
+  for sha in $shas; do
+    # The short hash on the first line, then the message: one git start where two were.
+    git log -1 --format=%h%n%B "$sha" > "$tmp/message" || die "could not read commit $sha"
+    { read -r short && check_message "commit $short"; } < "$tmp/message"
+    check_review_trailer "$sha"
+  done
+  # A PR not by the maintainer is judged by its whole diff, so a change inside a merge commit still needs the label.
+  if [ -n "${PR_AUTHOR_ASSOCIATION:-}" ] && changes_outside_docs "$1" && ! maintainer_pr; then
+    require_review_label
+  fi
+}
 
 # Policy, not a measurement: our code and notes have no reason to exceed this, so anything bigger needs a look.
 max_bytes=$((1024 * 1024))
 
-# Known game-file hashes, read from the index: one SHA-256 per line, then a label naming its game build.
-known_hashes=""
-if git cat-file -e :scripts/game-content.sha256 2>/dev/null; then
-  known_hashes="$(git show :scripts/game-content.sha256 | tr -d '\r' | sed 's/#.*//' | awk 'NF { print tolower($1) }')" ||
-    die "could not read scripts/game-content.sha256"
-fi
+# read_known_hashes: set known_hashes to the known game-file hashes in the index's scripts/game-content.sha256, lower
+# case, one per line. The file holds one SHA-256 per line, then a label naming its game build; '#' starts a comment.
+# One `git cat-file --batch` and builtins, where a `git cat-file -e`, `git show`, tr, sed and awk were five starts (#328).
+read_known_hashes() {
+  local listing head line
+  known_hashes=""
+  listing="$(git cat-file --batch <<< :scripts/game-content.sha256)" || die "could not read scripts/game-content.sha256"
+  head="${listing%%$'\n'*}"
+  [[ "$head" == *" missing" ]] && return 0
+  [[ "$head" =~ ^[0-9a-f]+\ blob\ [0-9]+$ ]] || die "could not read scripts/game-content.sha256"
+  [ "$listing" != "$head" ] || return 0 # an empty file
+  while IFS= read -r line; do
+    line="${line//$'\r'/}" && line="${line%%#*}"
+    [[ "$line" =~ ^[[:blank:]]*([^[:blank:]]+) ]] && known_hashes+="${BASH_REMATCH[1],,}"$'\n'
+  done <<< "${listing#*$'\n'}"
+}
 
-# Private personal-information patterns, matched as fixed strings so special characters can't break the scan.
-# The git-ignored .claude/pii-patterns.txt holds them locally; CI passes them in PII_PATTERNS. One per line, '#' comments.
-if [ -n "${PII_PATTERNS:-}" ]; then
-  printf '%s\n' "$PII_PATTERNS"
-elif [ -f "$root/.claude/pii-patterns.txt" ]; then
-  cat "$root/.claude/pii-patterns.txt"
-fi | tr -d '\r' | sed 's/^[[:space:]]*//; s/[[:space:]]*$//' | grep -v -e '^#' -e '^$' > "$tmp/private"
-if [ ! -s "$tmp/private" ]; then
-  # CI sets REQUIRE_PRIVATE_PATTERNS on pushes to main, where a missing secret must not pass quietly.
-  [ "${REQUIRE_PRIVATE_PATTERNS:-}" = 1 ] && die "no private patterns, but REQUIRE_PRIVATE_PATTERNS=1 (is the secret set?)"
-  echo "warning: no private patterns, so personal information is checked against general patterns only." \
-    "Copy .claude/pii-patterns.example.txt to .claude/pii-patterns.txt and fill it in." >&2
-fi
+# pattern_lines: copy stdin's lines to stdout without CRs, leading or trailing spaces, comments or blank lines.
+pattern_lines() {
+  local line
+  while IFS= read -r line || [ -n "$line" ]; do
+    line="${line//$'\r'/}"
+    line="${line#"${line%%[![:space:]]*}"}" && line="${line%"${line##*[![:space:]]}"}"
+    [ -z "$line" ] || [ "${line:0:1}" = "#" ] || printf '%s\n' "$line"
+  done
+}
+
+# read_private_patterns: write the private personal-information patterns to $tmp/private, one per line. They are
+# matched as fixed strings so special characters can't break the scan. The git-ignored .claude/pii-patterns.txt holds
+# them locally; CI passes them in PII_PATTERNS. One per line, '#' comments.
+read_private_patterns() {
+  if [ -n "${PII_PATTERNS:-}" ]; then
+    pattern_lines <<< "$PII_PATTERNS"
+  elif [ -f "$root/.claude/pii-patterns.txt" ]; then
+    pattern_lines < "$root/.claude/pii-patterns.txt"
+  fi > "$tmp/private"
+  if [ ! -s "$tmp/private" ]; then
+    # CI sets REQUIRE_PRIVATE_PATTERNS on pushes to main, where a missing secret must not pass quietly.
+    [ "${REQUIRE_PRIVATE_PATTERNS:-}" = 1 ] && die "no private patterns, but REQUIRE_PRIVATE_PATTERNS=1 (is the secret set?)"
+    echo "warning: no private patterns, so personal information is checked against general patterns only." \
+      "Copy .claude/pii-patterns.example.txt to .claude/pii-patterns.txt and fill it in." >&2
+  fi
+}
 
 report_game_content() {
   report "game content: $1: $2"
@@ -810,8 +930,7 @@ not_email_re+='|^git@|@[0-9]+x\.[a-z]+$'
 # The scan (issue #297). Process starts dominate the run time in Git Bash, so nothing starts once per file: one
 # `git cat-file --batch` writes every blob to $blobs/<n> (n is its index in `paths`), one sha256sum pass hashes them,
 # and each rule runs one grep over all of them. Findings are gathered per file, then printed file by file in index
-# order, exactly as a per-file loop would print them.
-blobs="$tmp/blobs"
+# order, exactly as a per-file loop would print them. scan_files sets blobs to $tmp/blobs.
 
 # scan_lines FOUND REASON SKIP-RE GREP-ARGS...: add a finding to the array named FOUND, per file, for each line where
 # grep finds a match, ignoring matches that SKIP-RE (lower case; empty skips nothing) accepts. Only the line number is
@@ -820,12 +939,12 @@ scan_lines() {
   local -n found_in="$1"
   local reason="$2" skip="$3" status line n rest number text last=""
   shift 3
-  (cd "$blobs" && grep -rnao "$@" -- .) > "$tmp/matches"
+  grep -rnao "$@" -- "$blobs" > "$tmp/matches"
   status=$?
   [ "$status" -le 1 ] || die "could not scan the files to check"
   # grep reads one file at a time, so a file's matches are together and in line order.
   while IFS= read -r line; do
-    line="${line#./}" && n="${line%%:*}" && rest="${line#*:}" && number="${rest%%:*}" && text="${rest#*:}"
+    line="${line#"$blobs"/}" && n="${line%%:*}" && rest="${line#*:}" && number="${rest%%:*}" && text="${rest#*:}"
     [ -n "$skip" ] && [[ "${text,,}" =~ $skip ]] && continue
     [ "$n:$number" = "$last" ] && continue
     last="$n:$number"
@@ -856,139 +975,160 @@ emit() {
   done
 }
 
-scan_started=$SECONDS
-paths=() ids=() sizes=() notes=()
-declare -A known=()
-for hash in $known_hashes; do known[$hash]=1; done
-found_hash=() found_user=() found_email=() found_name=() found_private=() has_source=() has_saved=() has_build=()
-has_sha=()
-while IFS= read -r -d '' entry; do
-  meta="${entry%%$'\t'*}" # "<mode> <blob> <stage>"
-  [ "${meta%% *}" = 160000 ] && continue # a submodule: its content lives in another repository
-  meta="${meta#* }"
-  paths+=("${entry#*$'\t'}") ids+=("${meta%% *}")
-done < "$tmp/entries"
+# scan_files: the file rules on the entries list_entries wrote to $tmp/entries.
+scan_files() {
+  local scan_started=$SECONDS entry meta hash size i n path lower line idlist hash_them=0
+  local -A known=()
+  blobs="$tmp/blobs"
+  read_known_hashes
+  read_private_patterns
+  for hash in $known_hashes; do known[$hash]=1; done
+  paths=() ids=() sizes=() notes=()
+  found_hash=() found_user=() found_email=() found_name=() found_private=() has_source=() has_saved=() has_build=()
+  has_sha=()
+  while IFS= read -r -d '' entry; do
+    meta="${entry%%$'\t'*}" # "<mode> <blob> <stage>"
+    [ "${meta%% *}" = 160000 ] && continue # a submodule: its content lives in another repository
+    meta="${meta#* }"
+    paths+=("${entry#*$'\t'}") ids+=("${meta%% *}")
+  done < "$tmp/entries"
 
-if [ "${#paths[@]}" -gt 0 ]; then
-  command -v perl > /dev/null || die "the file scan needs perl (Git for Windows and Linux include it)"
-  mkdir "$blobs" || die "could not create $blobs"
-  # Each blob as "<id> blob <size>\n<content>\n"; perl writes the content to $blobs/<n> and prints its size.
-  printf '%s\n' "${ids[@]}" | git cat-file --batch | perl -e '
-    binmode STDIN;
-    my ($dir, $n) = ($ARGV[0], 0);
-    while (defined(my $head = <STDIN>)) {
-      my ($id, $type, $size) = split / /, $head;
-      die "check: object $id is missing\n" unless defined $size && $type eq "blob";
-      chomp $size;
-      my $data = "";
-      while (length($data) < $size) {
-        read(STDIN, $data, $size - length($data), length($data)) or die "check: object $id is cut short\n";
+  if [ "${#paths[@]}" -gt 0 ]; then
+    command -v perl > /dev/null || die "the file scan needs perl (Git for Windows and Linux include it)"
+    # Notes cite their sources and pin their game build (AGENTS.md ground rules 1 and 2).
+    for i in "${!paths[@]}"; do
+      case "${paths[i]}" in
+        docs/raw-sources/README.md | docs/findings/README.md) ;;
+        docs/raw-sources/*.md | docs/findings/*.md) notes+=("$i") ;;
+      esac
+    done
+    [ -z "$known_hashes" ] || hash_them=1
+    # Each blob as "<id> blob <size>\n<content>\n". perl writes the content to $blobs/<n>, prints its size (and its
+    # SHA-256 when there are known hashes to match), and writes each note's header lines (those before its first "## "
+    # heading) to $tmp/headers as "<n>:<line>". One perl start where a sha256sum and an awk pass, each behind an xargs
+    # and two subshells, were eight (#328).
+    printf -v idlist '%s\n' "${ids[@]}"
+    git cat-file --batch <<< "${idlist%$'\n'}" | perl -e '
+      binmode STDIN;
+      my ($dir, $hash_them, $headers, @notes) = @ARGV;
+      my %note = map { $_ => 1 } @notes;
+      require Digest::SHA if $hash_them;
+      mkdir($dir) or die "check: could not create $dir: $!\n";
+      open(my $hdr, ">:raw", $headers) or die "check: $headers: $!\n";
+      my $n = 0;
+      while (defined(my $head = <STDIN>)) {
+        my ($id, $type, $size) = split / /, $head;
+        die "check: object $id is missing\n" unless defined $size && $type eq "blob";
+        chomp $size;
+        my $data = "";
+        while (length($data) < $size) {
+          read(STDIN, $data, $size - length($data), length($data)) or die "check: object $id is cut short\n";
+        }
+        getc(STDIN);
+        open(my $out, ">:raw", "$dir/$n") or die "check: $dir/$n: $!\n";
+        print $out $data;
+        close($out) or die "check: $dir/$n: $!\n";
+        if ($note{$n}) {
+          open(my $in, "<", \$data) or die "check: note $n: $!\n";
+          while (defined(my $line = <$in>)) {
+            chomp $line;
+            last if $line =~ /^## /;
+            print $hdr "$n:$line\n";
+          }
+        }
+        print $hash_them ? "$size " . Digest::SHA::sha256_hex($data) . "\n" : "$size\n";
+        $n++;
       }
-      getc(STDIN);
-      open(my $out, ">:raw", "$dir/$n") or die "check: $dir/$n: $!\n";
-      print $out $data;
-      close($out) or die "check: $dir/$n: $!\n";
-      print "$size\n";
-      $n++;
-    }' "$blobs" > "$tmp/sizes" || die "could not read the files to check"
-  mapfile -t sizes < "$tmp/sizes"
-  [ "${#sizes[@]}" -eq "${#paths[@]}" ] || die "could not read the files to check"
+      close($hdr) or die "check: $headers: $!\n";' "$blobs" "$hash_them" "$tmp/headers" "${notes[@]}" > "$tmp/sizes" ||
+      die "could not read the files to check"
+    n=0
+    while read -r size hash; do
+      sizes+=("$size")
+      [ "$hash_them" -eq 0 ] || [ -z "${known[$hash]:-}" ] || found_hash[n]=1
+      n=$((n + 1))
+    done < "$tmp/sizes"
+    [ "${#sizes[@]}" -eq "${#paths[@]}" ] || die "could not read the files to check"
 
-  if [ -n "$known_hashes" ]; then
-    (cd "$blobs" && printf '%s\0' * | xargs -0 sha256sum) > "$tmp/hashes" || die "could not hash the files to check"
-    while read -r hash name; do
-      name="${name#\*}" && name="${name#./}"
-      [ -z "${known[$hash]:-}" ] || found_hash[name]=1
-    done < "$tmp/hashes"
+    if [ "${#notes[@]}" -gt 0 ]; then
+      header_has has_source Source '[[:alnum:]]'
+      header_has has_saved Saved '[0-9]{4}-[0-9]{2}-[0-9]{2}([^0-9a-z]|$)'
+      header_has has_build "Game build" '[[:alnum:]]'
+      # A finding names its game build by the executable's SHA-256 (GLOSSARY.md).
+      header_has has_sha "Game build" '[0-9a-f]{64}([^0-9a-f]|$)'
+    fi
+
+    scan_lines found_user "local user path" "" -E "$user_path_re"
+    scan_lines found_email "email address" "$not_email_re" -iE "$email_re"
+    if [ -s "$tmp/private" ]; then
+      # One name per line, so grep's line number is the file's index plus one.
+      printf '%s\n' "${paths[@]//$'\n'/ }" > "$tmp/names"
+      grep -naiF -f "$tmp/private" "$tmp/names" > "$tmp/name-matches" # -a as in header_has
+      [ $? -le 1 ] || die "could not scan the file names"
+      while IFS= read -r line; do found_name[${line%%:*} - 1]=1; done < "$tmp/name-matches"
+      scan_lines found_private "matches a private pattern" "" -iF -f "$tmp/private"
+    fi
   fi
 
-  # Notes cite their sources and pin their game build (AGENTS.md ground rules 1 and 2).
   for i in "${!paths[@]}"; do
-    case "${paths[i]}" in
-      docs/raw-sources/README.md | docs/findings/README.md) ;;
-      docs/raw-sources/*.md | docs/findings/*.md) notes+=("$i") ;;
+    path="${paths[i]}"
+    # Game folders are the git-ignored ones at the repo root. Lower-cased because Windows paths are case-insensitive.
+    lower="${path,,}"
+    case "$lower" in
+      game/* | extracted/* | dumps/* | captures/* | ghidra/*) report_game_content "$path" "inside a game folder" ;;
     esac
+    case "/$lower" in
+      *.rep/*) report_game_content "$path" "inside a disassembler project folder" ;;
+      *.cpk | *.pak) report_game_content "$path" "game archive extension" ;;
+      # Our own builds are blocked too: they live as CI artifacts tied to a commit, never in the repository.
+      *.exe | *.dll | *.asi) report "game content or build output: $path: executable extension" ;;
+      *.dmp | *.mdmp) report_game_content "$path" "memory dump extension" ;;
+      *.gpr | *.gzf | *.gbf | *.idb | *.i64 | *.til | *.nam | *.id0 | *.id1 | *.id2 | *.bndb | *.dd64)
+        report_game_content "$path" "disassembler database extension" ;;
+    esac
+
+    size="${sizes[i]}"
+    [ "$size" -le "$max_bytes" ] || report_game_content "$path" "larger than $max_bytes bytes ($size)"
+    [ -z "${found_hash[i]:-}" ] || report_game_content "$path" "hash matches a known game file"
+
+    case "$path" in
+      docs/raw-sources/README.md | docs/findings/README.md) ;;
+      docs/raw-sources/*.md)
+        [ -n "${has_source[i]:-}" ] || report "raw source: $path: header has no Source line"
+        [ -n "${has_saved[i]:-}" ] || report "raw source: $path: header has no Saved line with a YYYY-MM-DD date"
+        [ -n "${has_build[i]:-}" ] || report "raw source: $path: header has no Game build line" ;;
+      docs/findings/*.md)
+        [ -n "${has_sha[i]:-}" ] ||
+          report "finding: $path: header has no Game build line naming the executable's SHA-256" ;;
+      docs/raw-sources/*) report "raw source: $path: not a .md file" ;;
+      docs/findings/*) report "finding: $path: not a .md file" ;;
+    esac
+
+    emit "${found_user[i]:-}"
+    emit "${found_email[i]:-}"
+    [ -z "${found_name[i]:-}" ] || report "personal information: $path: file name matches a private pattern"
+    emit "${found_private[i]:-}"
   done
-  if [ "${#notes[@]}" -gt 0 ]; then
-    (cd "$blobs" && printf '%s\0' "${notes[@]}" |
-      xargs -0 awk 'FNR == 1 { head = 1 } /^## / { head = 0 } head { print FILENAME ":" $0 }') > "$tmp/headers" ||
-      die "could not read the note headers"
-    header_has has_source Source '[[:alnum:]]'
-    header_has has_saved Saved '[0-9]{4}-[0-9]{2}-[0-9]{2}([^0-9a-z]|$)'
-    header_has has_build "Game build" '[[:alnum:]]'
-    # A finding names its game build by the executable's SHA-256 (GLOSSARY.md).
-    header_has has_sha "Game build" '[0-9a-f]{64}([^0-9a-f]|$)'
-  fi
-
-  scan_lines found_user "local user path" "" -E "$user_path_re"
-  scan_lines found_email "email address" "$not_email_re" -iE "$email_re"
-  if [ -s "$tmp/private" ]; then
-    # One name per line, so grep's line number is the file's index plus one.
-    printf '%s\n' "${paths[@]//$'\n'/ }" > "$tmp/names"
-    grep -naiF -f "$tmp/private" "$tmp/names" > "$tmp/name-matches" # -a as in header_has
-    [ $? -le 1 ] || die "could not scan the file names"
-    while IFS= read -r line; do found_name[${line%%:*} - 1]=1; done < "$tmp/name-matches"
-    scan_lines found_private "matches a private pattern" "" -iF -f "$tmp/private"
-  fi
-fi
-
-for i in "${!paths[@]}"; do
-  path="${paths[i]}"
-  # Game folders are the git-ignored ones at the repo root. Lower-cased because Windows paths are case-insensitive.
-  lower="${path,,}"
-  case "$lower" in
-    game/* | extracted/* | dumps/* | captures/* | ghidra/*) report_game_content "$path" "inside a game folder" ;;
+  case "$stage" in
+    rules | full)
+      if [ "$scan_scope" = all ]; then
+        echo "scan: every tracked file (${#paths[@]}) in $((SECONDS - scan_started)) s"
+      else
+        echo "scan: ${#paths[@]} files $scan_scope in $((SECONDS - scan_started)) s" \
+          "(CI scans every tracked file; METAPHOR_SCAN_ALL=1 does so here)"
+      fi ;;
   esac
-  case "/$lower" in
-    *.rep/*) report_game_content "$path" "inside a disassembler project folder" ;;
-    *.cpk | *.pak) report_game_content "$path" "game archive extension" ;;
-    # Our own builds are blocked too: they live as CI artifacts tied to a commit, never in the repository.
-    *.exe | *.dll | *.asi) report "game content or build output: $path: executable extension" ;;
-    *.dmp | *.mdmp) report_game_content "$path" "memory dump extension" ;;
-    *.gpr | *.gzf | *.gbf | *.idb | *.i64 | *.til | *.nam | *.id0 | *.id1 | *.id2 | *.bndb | *.dd64)
-      report_game_content "$path" "disassembler database extension" ;;
-  esac
+}
 
-  size="${sizes[i]}"
-  [ "$size" -le "$max_bytes" ] || report_game_content "$path" "larger than $max_bytes bytes ($size)"
-  [ -z "${found_hash[i]:-}" ] || report_game_content "$path" "hash matches a known game file"
-
-  case "$path" in
-    docs/raw-sources/README.md | docs/findings/README.md) ;;
-    docs/raw-sources/*.md)
-      [ -n "${has_source[i]:-}" ] || report "raw source: $path: header has no Source line"
-      [ -n "${has_saved[i]:-}" ] || report "raw source: $path: header has no Saved line with a YYYY-MM-DD date"
-      [ -n "${has_build[i]:-}" ] || report "raw source: $path: header has no Game build line" ;;
-    docs/findings/*.md)
-      [ -n "${has_sha[i]:-}" ] ||
-        report "finding: $path: header has no Game build line naming the executable's SHA-256" ;;
-    docs/raw-sources/*) report "raw source: $path: not a .md file" ;;
-    docs/findings/*) report "finding: $path: not a .md file" ;;
-  esac
-
-  emit "${found_user[i]:-}"
-  emit "${found_email[i]:-}"
-  [ -z "${found_name[i]:-}" ] || report "personal information: $path: file name matches a private pattern"
-  emit "${found_private[i]:-}"
-done
-case "$stage" in
-  rules | full)
-    if [ "$scan_scope" = all ]; then
-      echo "scan: every tracked file (${#paths[@]}) in $((SECONDS - scan_started)) s"
-    else
-      echo "scan: ${#paths[@]} files $scan_scope in $((SECONDS - scan_started)) s" \
-        "(CI scans every tracked file; METAPHOR_SCAN_ALL=1 does so here)"
-    fi ;;
-esac
-
-# The pre-commit hook's extra checks, each only when its files are staged, so a commit that doesn't touch them stays
-# instant. Formatting reads the working tree, not the index: close enough for a hook, and CI checks the commit itself.
-if [ "$stage" = pre-commit ]; then
-  git diff --cached --name-only --diff-filter=ACMR > "$tmp/staged" || die "could not list the staged files"
-  mapfile -t staged_cs < <(grep -E '\.cs$' "$tmp/staged")
+# pre_commit_checks: the pre-commit hook's extra checks, each only when its files are staged, so a commit that doesn't
+# touch them stays instant. Formatting reads the working tree, not the index: close enough for a hook, and CI checks the
+# commit itself.
+pre_commit_checks() {
+  local staged staged_cs=() line
+  staged="$(git diff --cached --name-only --diff-filter=ACMR)" || die "could not list the staged files"
+  while IFS= read -r line; do [[ "$line" != *.cs ]] || staged_cs+=("$line"); done <<< "$staged"
   if [ "${#staged_cs[@]}" -gt 0 ]; then
     if [ ! -f "$solution" ]; then
-      warn "no $(basename "$solution") at the repository root, so formatting wasn't checked"
+      warn "no ${solution##*/} at the repository root, so formatting wasn't checked"
     elif ! command -v dotnet > /dev/null; then
       warn "dotnet isn't on PATH, so formatting wasn't checked (CI checks it)"
     else
@@ -997,11 +1137,12 @@ if [ "$stage" = pre-commit ]; then
         report "format: files need formatting (run: dotnet format whitespace Metaphor.sln)"
     fi
   fi
-  if grep -qE '\.md$' "$tmp/staged"; then
+  # Builtin matches on the list, where a grep per check was a start each (#328).
+  if [[ $'\n'"$staged"$'\n' == *.md$'\n'* ]]; then
     # In a subshell, which starts its own count: docs_stage changes directory, and an earlier failure isn't a docs one.
     (failures=0 && docs_stage && [ "$failures" -eq 0 ]) || report "docs: see the problems above"
   fi
-  if grep -qxF src/Metaphor.Core/hook-signatures.json "$tmp/staged"; then
+  if [[ $'\n'"$staged"$'\n' == *$'\n'src/Metaphor.Core/hook-signatures.json$'\n'* ]]; then
     if [ -n "${METAPHOR_GAME_EXE:-}" ]; then
       (failures=0 && signatures_stage "$METAPHOR_GAME_EXE" && [ "$failures" -eq 0 ]) ||
         report "signatures: see the problems above"
@@ -1013,14 +1154,15 @@ if [ "$stage" = pre-commit ]; then
     review_gate && skipping &&
       echo "security review: skipped (${SECURITY_REVIEW_SKIP}); the commit records the reason"
   fi
-fi
+}
 
-# The .NET part of the full stage. Tests and formatting still run after a failed build, so one run shows everything.
-if [ "$stage" = full ]; then
+# full_dotnet_checks: the .NET part of the full stage. Tests and formatting still run after a failed build, so one run
+# shows everything.
+full_dotnet_checks() {
   export DOTNET_CLI_TELEMETRY_OPTOUT=1 DOTNET_NOLOGO=1
   timed_step restore dotnet restore "$solution" -v q || report "build: restore failed, see the errors above"
   timed_step build dotnet build "$solution" -c Release --no-restore -v q || report "build: failed, see the errors above"
-  timed_step tests dotnet test "$solution" -c Release --no-build -v q --filter "$(test_filter)" ||
+  timed_step tests dotnet test "$solution" -c Release --no-build -v q --filter "$(category_filter)" ||
     report "tests: Unit or RoundTrip tests failed"
   timed_step format dotnet format whitespace "$solution" --verify-no-changes ||
     report "format: files need formatting (run: dotnet format whitespace Metaphor.sln)"
@@ -1028,13 +1170,14 @@ if [ "$stage" = full ]; then
   # process per file, a few at a time (scripts/run-pester.sh). CI sets SKIP_SCRIPT_TESTS=1 because its own `pester`
   # jobs run them in parallel.
   if [ -z "${SKIP_SCRIPT_TESTS:-}" ]; then
-    timed_step pester bash "$(dirname "${BASH_SOURCE[0]}")/run-pester.sh" ||
+    timed_step pester bash "$check_dir/run-pester.sh" ||
       report "tests: smoke or deploy script tests failed (run: bash scripts/run-pester.sh)"
   fi
   # Record only a clean pass of an unchanged tree (nothing edited while the checks ran).
   if [ "$failures" -eq 0 ] && [ -n "${full_tree_id:-}" ] && [ "$(full_tree)" = "$full_tree_id" ]; then
     record_pass full "$full_tree_id"
   fi
-fi
+}
 
-[ "$failures" -eq 0 ]
+# Run when executed; when sourced, stop at the definitions.
+if [ "${BASH_SOURCE[0]}" = "$0" ]; then main "$@"; fi
