@@ -42,7 +42,7 @@ What we ship runs inside the game, where a mistake crashes it, corrupts a save o
   fast path alone. [ADR 0008](../../adr/0008-ci-fast-path-and-windows-gate.md)
 - **Supply chain:** read-only workflow tokens by default, every action pinned to a commit, CodeQL and a vulnerability
   audit of the committed lock files as required checks, and the files that decide `dotnet restore` in the review
-  scope, so a changed feed can't hide a package from the lock files. [README](../../../README.md#supply-chain)
+  scope, so a changed feed can't hide a package from the lock files. [Supply chain](../reference/supply-chain.md)
 
 ## The security review
 

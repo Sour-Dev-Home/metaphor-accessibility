@@ -28,7 +28,7 @@ This is a public repository.
    other players. If a protection blocks a technique, stop, note it, and look for another approach.
 6. **No personal information or local paths in committed files.** That means no real name, email or phone number, and no
    absolute path like `C:\Users\...`. Use paths relative to the repository or environment variables. The checks scan
-   for both, with your private patterns set up as in `README.md#checks`.
+   for both, with your private patterns set up as in `docs/contributors/reference/checks.md`.
 7. **Credit what you borrow.** Any idea or code taken from another project is credited by name, repository, licence,
    commit and file, in a code comment where it's used and in `CREDITS.md`. Copied code keeps its licence notice and
    must be under a GPL-3.0-compatible licence.
@@ -44,7 +44,7 @@ This is a public repository.
 - `docs/findings/`: one note per finding, from the template in its README.
 - `docs/players/` and `docs/contributors/`: docs by audience, then by Diátaxis type (`docs/README.md`).
 - `docs/coding-standards.md`: the judgement and architecture rules reviews check.
-- `.github/CONTRIBUTING.md`: setup and the change workflow. `README.md#checks`: the check command's stages.
+- `.github/CONTRIBUTING.md`: setup and the change workflow. `docs/contributors/reference/checks.md`: the check command's stages.
 - This file holds every rule agents follow; `CLAUDE.md` only imports it. Put new rules here. Agent definitions
   (`.claude/agents/`) and skill settings (`docs/agents/`) live where their tools look for them.
 
