@@ -10,8 +10,8 @@ Mods, tools and reverse-engineering notes for Metaphor: ReFantazio on PC.
 > The mod is and stays free for everyone.
 
 Status: early development, no release yet. Testers can try dev builds that read the game's dialogue window aloud through
-a screen reader, with a spoken installer and a setting for voiced lines; menu reading is in progress. [NEEDS
-VERIFICATION: what works in the game today.] Start with [the player docs](docs/players/README.md).
+a screen reader, with a spoken installer and a setting for voiced lines; menu reading is in progress. Start
+with [the player docs](docs/players/README.md).
 
 ## What's here, and what isn't
 
