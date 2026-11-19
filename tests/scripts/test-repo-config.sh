@@ -25,10 +25,13 @@ check "the ruleset export exists" [ -f "$RULESET" ]
 check "CODEOWNERS exists" [ -f "$CODEOWNERS" ]
 
 # A job's check is named after its id unless the job sets a name, so job-level names are refused.
+GATE="$ROOT/.github/workflows/review-gate.yml"
+check "review-gate.yml exists" [ -f "$GATE" ]
 ci_jobs_section="$(sed -n '/^jobs:/,$p' "$CI")"
-ci_jobs="$(sed -nE 's/^  ([A-Za-z0-9_-]+):[[:space:]]*$/\1/p' <<<"$ci_jobs_section")"
+gate_jobs_section="$(sed -n '/^jobs:/,$p' "$GATE")"
+ci_jobs="$(sed -nE 's/^  ([A-Za-z0-9_-]+):[[:space:]]*$/\1/p' <<<"$ci_jobs_section"$'\n'"$gate_jobs_section")"
 check "no CI job sets a name, so checks are named by job id" \
-  bash -c '! grep -qE "^    name:" <<<"$1"' _ "$ci_jobs_section"
+  bash -c '! grep -qE "^    name:" <<<"$1"' _ "$ci_jobs_section"$'\n'"$gate_jobs_section"
 contexts="$(grep -oE '"context"[[:space:]]*:[[:space:]]*"[^"]*"' "$RULESET" | sed -E 's/.*"([^"]*)"$/\1/')"
 
 check "the ruleset requires at least one check" [ -n "$contexts" ]
@@ -39,7 +42,7 @@ done <<<"$contexts"
 
 # Every CI job that gates a merge is required, so a skipped or split job can't drop out of the ruleset (#100). The
 # change-detection step makes a skipped job report success, so a required check is never missing.
-for required in repo-rules build scripts security; do
+for required in repo-rules build scripts security review-gate; do
   check "'$required' is a required check" grep -qxF -- "$required" <<<"$contexts"
 done
 check "the build job runs on Linux for pull requests and on Windows otherwise" \
@@ -71,6 +74,32 @@ for workflow in "$WORKFLOWS"/*.yml "$WORKFLOWS"/*.yaml; do
     check "$name: '$ref' is pinned to a commit" bash -c '[[ "$1" == ./* || "$1" =~ @[0-9a-f]{40}$ ]]' _ "$ref"
   done < <(sed -nE "s/^[[:space:]]*(-[[:space:]]+)?uses:[[:space:]]*['\"]?([^'\" #]+).*/\2/p" "$workflow")
 done
+
+# The review gate (#330) runs main's copy of its workflow through pull_request_target, with a token that can read the
+# PR. It must never run the PR's code: no checkout of the PR's head or merge ref, no fetch of its commits, no action
+# but checkout, no expression spliced into a script, no secrets and nothing written.
+gate_triggers="$(awk '/^on:/ { on = 1; next } on && /^[^[:space:]#]/ { on = 0 } on && /^  [a-z_]+:/ { print $1 }' "$GATE")"
+check "review-gate.yml runs on pull_request_target and merge_group only" \
+  [ "$(sort <<<"$gate_triggers" | tr '\n' ' ')" = "merge_group: pull_request_target: " ]
+gate_code="$(grep -vE '^[[:space:]]*#' "$GATE")"
+check "review-gate.yml writes nothing" bash -c '! grep -qiE "write" <<<"$1"' _ "$gate_code"
+check "review-gate.yml asks only for read access to contents and pull requests" \
+  bash -c '! awk "/^[[:space:]]*permissions:/ { on = 1; ind = match(\$0, /[^ ]/); next }
+    on && match(\$0, /[^ ]/) <= ind { on = 0 } on" <<<"$1" | grep -vE "^[[:space:]]+(contents|pull-requests): read[[:space:]]*(#.*)?$" | grep -q .' \
+  _ "$gate_code"
+check "review-gate.yml never checks out or fetches the PR's code" \
+  bash -c '! grep -qE "(^|[^a-z_])ref:|head\.(ref|repo)|head_ref|merge_commit_sha|refs/pull|git (fetch|checkout|switch|pull|worktree|clone)|gh (pr|repo|run|release)|tarball|zipball|/contents/|raw\.githubusercontent|curl|wget" <<<"$1"' \
+  _ "$gate_code"
+check "review-gate.yml uses no action but checkout" \
+  bash -c '! grep -E "uses:" <<<"$1" | grep -vqE "uses:[[:space:]]*actions/checkout@"' _ "$gate_code"
+check "review-gate.yml's checkouts keep no credentials" \
+  bash -c '[ "$(grep -c "uses:[[:space:]]*actions/checkout@" <<<"$1")" = "$(grep -cE "persist-credentials:[[:space:]]*false" <<<"$1")" ]' \
+  _ "$gate_code"
+check "review-gate.yml reads no secrets and uses no environment" \
+  bash -c '! grep -qE "secrets\.|^[[:space:]]+environment:" <<<"$1"' _ "$gate_code"
+check "review-gate.yml splices no expression into a script, only into keys such as env" \
+  bash -c '! grep -F "\${{" <<<"$1" | grep -vE "^[[:space:]]*(-[[:space:]]+)?[A-Za-z_][A-Za-z0-9_-]*:[[:space:]]" | grep -q . &&
+    ! grep -F "\${{" <<<"$1" | grep -qE "^[[:space:]]*(-[[:space:]]+)?run:"' _ "$gate_code"
 
 # The slow suite reports and never gates: it runs on a schedule or by hand, never on a push or pull request, so it
 # can't become a check a merge waits for.

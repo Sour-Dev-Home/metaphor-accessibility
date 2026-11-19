@@ -191,14 +191,19 @@ is the repository's owner or has admin permission (in an organization's reposito
 - If it changes anything outside `docs/`, CI also fails until a maintainer reviews it (running the `security-reviewer`
   agent when it touches the scope) and adds the `security-reviewed` label. The label counts only if the latest label
   event was added by an admin, after the PR's latest push; a push after the review needs a new review and the label
-  added again. Re-run the CI job after labelling. A docs-only PR needs no label.
+  added again. The `review-gate` check runs again when the label goes on, so add it last: another label added after
+  it means adding it again. A docs-only PR needs no label.
 - Agents working for a collaborator follow the same rules as their hand-written PRs. Auto-merge only lands once this
   gate passes.
 
-CI judges these PRs by their whole diff, so a change made inside a merge commit counts, and runs the base branch's copy
-of `scripts/check.sh` and `scripts/security-stamp.sh`, so the PR can't edit the check that judges it. That step runs
-first in its job, before any of the PR's own code. The PR can still edit `.github/workflows/`, so read a workflow
-change before approving its CI run or labelling it.
+The label gate is its own workflow, [`review-gate.yml`](workflows/review-gate.yml) (#330). It runs on
+`pull_request_target`, so GitHub runs `main`'s copy of it, and `main`'s `scripts/check.sh review-label`; a PR can't edit
+or delete it. It reads the PR's file list, timeline and head through the API with a read-only token and never checks
+out or runs the PR's code. It judges the whole diff, so a change made inside a merge commit counts. The trailer check
+in `repo-rules` runs the base branch's copy of `scripts/check.sh` and `scripts/security-stamp.sh`, first in its job.
+The PR can still edit `ci.yml`, or add a job of its own named `review-gate` that passes, since the ruleset requires the
+check by name. So read a workflow change before approving a fork's CI run or labelling it (the remaining gap:
+[security-model.md](../docs/contributors/explanation/security-model.md#known-limits)).
 
 **Collaborators.** A collaborator has the `write` role: they push branches here and merge through the merge queue. The
 `main` ruleset keeps 0 required approvals and no code-owner review, so the maintainer's and agents' PRs keep flowing;

@@ -17,6 +17,8 @@
 #   scripts/check.sh pr-body FILE        warns when a PR description is too long (CI on pull requests)
 #   scripts/check.sh commit-msg FILE     one commit message, plus its security-review trailer (the commit-msg hook)
 #   scripts/check.sh commits BASE..HEAD  every non-merge commit message in a range, and HEAD's security review (CI on PRs)
+#   scripts/check.sh review-label FILE   the security-reviewed label on a PR not by the maintainer, from the files the
+#                                        API lists (the review-gate workflow, from main's copy)
 #
 # A commit message has a typed subject of at most 72 characters ("feat: ...", "fix(check): ..."), then optionally a blank
 # line and a body of at most 5 lines. A final paragraph of trailers (Co-Authored-By: ...) doesn't count. Subjects git
@@ -28,10 +30,9 @@
 # check: docs/adr/0012-review-trailer-covers-clean-merges.md.
 #
 # In CI the `commits` stage also reads PR_AUTHOR_ASSOCIATION and PR_AUTHOR (#309). Every PR is judged by its trailers. A
-# PR whose author is OWNER or has admin permission is the maintainer's; on any other PR a skip trailer doesn't count, and
-# a change outside docs/ needs the `security-reviewed` label, added by an admin after the PR's latest push (PR_NUMBER,
-# GITHUB_REPOSITORY, GH_TOKEN, and PR_UPDATED_AT from the event). Without PR_AUTHOR_ASSOCIATION (local runs) trailers
-# decide.
+# PR whose author is OWNER or has admin permission is the maintainer's; on any other PR a skip trailer doesn't count.
+# Without PR_AUTHOR_ASSOCIATION (local runs) trailers decide. On any other PR the `review-label` stage also requires the
+# `security-reviewed` label for a change outside docs/, added by an admin after the PR's latest push (#330).
 #
 # Rules judge the staged blobs in the index, not the working tree, so they see exactly what would be committed.
 # Every step runs even after a failure, so one run shows every problem.
@@ -618,28 +619,15 @@ maintainer_pr() {
   [ "$maintainer_pr_result" = yes ]
 }
 
-# changes_outside_docs BASE..HEAD: exit 0 when the range changes a file outside docs/, counted from the merge base so a
-# merge commit can't hide a change.
-changes_outside_docs() {
-  local base="${1%%..*}" head="${1#*..}"
-  git diff --quiet "$base...${head#.}" -- . ':(exclude)docs/'
-  case $? in
-    0) return 1 ;;
-    1) return 0 ;;
-    *) die "could not tell whether $1 changes files outside docs/" ;;
-  esac
-}
-
-# require_review_label: a PR not by the maintainer changing files outside docs/ needs the security-reviewed label,
-# added by an admin after its latest push (#127, #309). A fork's token is read-only, so CI can't remove a stale label;
-# it reads the timeline instead. Push time is the latest of the timeline's commits and force pushes and the event's
-# updated_at (set by GitHub, so a backdated commit can't make a label look fresh). ISO 8601 UTC timestamps compare as
-# text. Only the latest label event counts, so a non-admin re-adding the label replaces the maintainer's.
+# require_review_label PUSHED: a PR not by the maintainer changing files outside docs/ needs the security-reviewed
+# label, added by an admin after its latest push (#127, #309). CI's token is read-only, so it can't remove a stale
+# label; it reads the timeline instead. Push time is the latest of the timeline's commits and force pushes and PUSHED (a
+# time GitHub set, so a backdated commit can't make a label look fresh; empty when the caller checked the push another
+# way). ISO 8601 UTC timestamps compare as text. Only the latest label event counts, so a non-admin re-adding the label
+# replaces the maintainer's.
 require_review_label() {
-  local repo="${GITHUB_REPOSITORY:-}" pr="${PR_NUMBER:-}" events kind date actor pushed="${PR_UPDATED_AT:-}"
+  local repo="${GITHUB_REPOSITORY:-}" pr="${PR_NUMBER:-}" events kind date actor pushed="$1"
   local label_state="" labeled_at="" labeled_by=""
-  [ -n "$repo" ] && [ -n "$pr" ] && [ -n "$pushed" ] ||
-    die "a PR not by the maintainer needs GITHUB_REPOSITORY, PR_NUMBER and PR_UPDATED_AT to read its timeline"
   events="$(gh api --paginate "repos/$repo/issues/$pr/timeline" --jq \
     '.[] | (select((.event=="labeled" or .event=="unlabeled") and .label.name=="security-reviewed")
        | "\(.event)\t\(.created_at)\t\(.actor.login // "")"),
@@ -659,6 +647,38 @@ security-reviewed label"; return; }
 the label"; return; }
   [[ "$labeled_at" > "$pushed" ]] ||
     report "security-reviewed was added before the PR's latest push ($pushed): review the new commits and add the label again"
+}
+
+# review_label_stage FILE: the review gate the review-gate workflow runs from main's copy (#330), so a PR can't edit the
+# check that judges it. FILE lists the PR's changed files as the API gives them, never the PR's code: one per line, the
+# path, then a tab and the old path for a rename. The event gives PR_CHANGED_FILES, PR_UPDATED_AT, PR_HEAD_SHA,
+# PR_EVENT_ACTION and PR_EVENT_LABEL, beside what maintainer_pr and require_review_label read.
+review_label_stage() {
+  local path previous count=0 outside="" pushed="${PR_UPDATED_AT:-}" head
+  [ -f "$1" ] || die "review-label stage needs the file listing the PR's changed files"
+  [[ "${PR_CHANGED_FILES:-}" =~ ^[0-9]+$ ]] || die "review-label stage needs PR_CHANGED_FILES, the event's file count"
+  while IFS=$'\t' read -r path previous; do
+    count=$((count + 1))
+    [[ "$path" == docs/* && ( -z "$previous" || "$previous" == docs/* ) ]] || outside=1
+  done < "$1"
+  # The API lists at most 3000 files; a shorter list than the event's count could hide a change outside docs/.
+  [ "$count" -eq "$PR_CHANGED_FILES" ] || die "listed $count of the PR's $PR_CHANGED_FILES changed files"
+  [ -n "$outside" ] && ! maintainer_pr || return 0
+  [ -n "${GITHUB_REPOSITORY:-}" ] && [ -n "${PR_NUMBER:-}" ] ||
+    die "a PR not by the maintainer needs GITHUB_REPOSITORY and PR_NUMBER to read its timeline"
+  # A labeled event's updated_at is no older than the label, so the label's own run checks the push another way: the
+  # event's payload names the head when the label went on, and that head is still the PR's head.
+  if [ "${PR_EVENT_ACTION:-}" = labeled ] && [ "${PR_EVENT_LABEL:-}" = security-reviewed ]; then
+    head="$(gh api "repos/$GITHUB_REPOSITORY/pulls/$PR_NUMBER" --jq .head.sha)" ||
+      die "could not read the head of PR #$PR_NUMBER"
+    [ -n "${PR_HEAD_SHA:-}" ] && [ "$head" = "$PR_HEAD_SHA" ] ||
+      { report "PR #$PR_NUMBER was pushed to after security-reviewed was added: review the new commits and add the \
+label again"; return; }
+    pushed=""
+  else
+    [ -n "$pushed" ] || die "a PR not by the maintainer needs PR_UPDATED_AT, the event's update time"
+  fi
+  require_review_label "$pushed"
 }
 
 # Stages with a budget from issue #1 print their duration on exit, and a warning when over budget (stage-timing.sh).
@@ -839,6 +859,10 @@ main() {
       commits_stage "${2:-}"
       [ "$failures" -eq 0 ]
       exit ;;
+    review-label)
+      review_label_stage "${2:-}"
+      [ "$failures" -eq 0 ]
+      exit ;;
     pr-body)
       [ -f "${2:-}" ] || die "pr-body stage needs the file holding the PR description"
       # The Evidence section holds output and screenshots, so it doesn't count (the /pr template's sections).
@@ -871,7 +895,7 @@ main() {
       pre_push_stage
       [ "$failures" -eq 0 ]
       exit ;;
-    *) echo "usage: scripts/check.sh fast|pre-commit|pre-push|rules|full|docs|slow | signatures [EXE] | commit-msg FILE | commits BASE..HEAD | pr-body FILE" >&2
+    *) echo "usage: scripts/check.sh fast|pre-commit|pre-push|rules|full|docs|slow | signatures [EXE] | commit-msg FILE | commits BASE..HEAD | review-label FILE | pr-body FILE" >&2
        exit 2 ;;
   esac
 
@@ -906,10 +930,6 @@ commits_stage() {
     { read -r short && check_message "commit $short"; } < "$tmp/message"
   done
   check_head_review "$1"
-  # A PR not by the maintainer is judged by its whole diff, so a change inside a merge commit still needs the label.
-  if [ -n "${PR_AUTHOR_ASSOCIATION:-}" ] && changes_outside_docs "$1" && ! maintainer_pr; then
-    require_review_label
-  fi
 }
 
 # Policy, not a measurement: our code and notes have no reason to exceed this, so anything bigger needs a look.

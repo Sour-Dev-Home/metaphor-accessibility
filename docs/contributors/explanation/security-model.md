@@ -63,8 +63,9 @@ flowchart LR
 - **The stamp is a hash of what was reviewed.** An edit after the review voids it, and CI refuses a scope commit
   without a matching trailer.
 - **Only the maintainer can skip review, and the skip is recorded** in a trailer. Agents are denied it.
-- **Everyone else's pull requests need an admin's `security-reviewed` label after their latest push,** and CI judges
-  them with `main`'s copy of the check scripts, so a PR can't edit the check that judges it.
+- **Everyone else's pull requests need an admin's `security-reviewed` label after their latest push,** checked by the
+  `review-gate` workflow from `main`'s copy, so a PR can't edit the check that judges it. It reads the PR through the
+  API and never runs its code.
 - **A clean merge from `main` keeps its review; a conflict resolution in the scope needs a new one.**
   [ADR 0012](../../adr/0012-review-trailer-covers-clean-merges.md)
 
@@ -85,7 +86,10 @@ The rules are in [`CONTRIBUTING.md`](../../../.github/CONTRIBUTING.md#security-r
 - The stamp catches a forgotten review, not a determined bypass: anyone can run the stamp script, and CI checks the
   trailer, not that a review happened.
 - Deny rules match command text, so another spelling of the same command can slip past them.
-- A pull request can still edit its own workflow file until the review gate runs from `main`'s workflow
-  ([#330](https://github.com/Sour-Dev-Home/metaphor-accessibility/issues/330)).
+- The ruleset requires `review-gate` by name, and a pull request's own workflow can add a job with that name that
+  passes. A fork's run waits for the maintainer's approval once Actions requires it for all outside collaborators; a
+  write collaborator's doesn't. Revisit before adding one
+  ([#330](https://github.com/Sour-Dev-Home/metaphor-accessibility/issues/330),
+  [#309](https://github.com/Sour-Dev-Home/metaphor-accessibility/issues/309)).
 - Releases aren't yet built by CI and attested
   ([#308](https://github.com/Sour-Dev-Home/metaphor-accessibility/issues/308)).

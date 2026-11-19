@@ -63,7 +63,8 @@ Bash, the check-script suites run in WSL when it's set up, in seconds instead of
 ([CONTRIBUTING.md](.github/CONTRIBUTING.md#run-the-check-script-suites-in-wsl)).
 
 `full` needs the .NET SDK pinned in `global.json`. CI runs it by two paths under the same required checks
-(`repo-rules`, `build`, `scripts`, `security`):
+(`repo-rules`, `build`, `scripts`, `security`, and `review-gate`, the label gate run from `main`'s copy of
+[`review-gate.yml`](.github/workflows/review-gate.yml)):
 
 - **Pull requests** do the .NET work on Linux: `build` runs `full` there, minus the tests marked `WindowsOnly` (the
   `Category` trait; `check.sh` adds that category on Windows only). The Pester script tests run in parallel `pester`
