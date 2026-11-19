@@ -3,13 +3,17 @@
 # deploy, launch, package or fetch native code, and the guards that enforce the ground rules (#306); a commit touching
 # it needs the security-reviewer agent's stamp.
 #
-#   scripts/security-stamp.sh                stamp the staged scope (the security-reviewer agent's last step)
-#   scripts/security-stamp.sh hash [COMMIT]  print the scope hash of the index, or of COMMIT's tree
-#   scripts/security-stamp.sh accepted COMMIT  print each hash a Security-Review trailer on COMMIT may carry
-#   scripts/security-stamp.sh touches [COMMIT | BASE..HEAD]  exit 0 when the staged changes (or COMMIT, against its
-#                                            first parent, or the range from its merge base) touch the scope, 1 when
-#                                            they don't
-#   scripts/security-stamp.sh stamped        exit 0 when the stamp matches the staged scope, 1 when it doesn't
+# Commands (scripts/security-stamp.sh COMMAND):
+#   (none)                         stamp the staged scope (the security-reviewer agent's last step)
+#   hash [COMMIT]                  print the scope hash of the index, or of COMMIT's tree
+#   accepted COMMIT                print each hash a Security-Review trailer on COMMIT may carry
+#   touches [COMMIT | BASE..HEAD]  exit 0 when the staged changes (or COMMIT, against its first parent, or the range
+#                                  from its merge base) touch the scope
+#   stamped                        exit 0 when the stamp matches the staged scope
+#   clean-merge [COMMIT]           exit 0 when the merge being committed (or COMMIT) is a clean merge from main, which
+#                                  needs no stamp (docs/adr/0012-review-trailer-covers-clean-merges.md)
+#   spend                          remove the stamp once HEAD carries its trailer (the post-commit and post-merge hooks)
+# The yes-or-no commands exit 1 for no.
 #
 # The hash is the SHA-256 of "<mode> <blob> <path>" for each scope file, so the index and a commit with the same scope
 # content hash the same, on any machine. The stamp is a file in this worktree's git folder, never committed.
@@ -73,21 +77,57 @@ fields() {
   done
 }
 
-# touches [COMMIT]: exit 0 when the scope changed.
+# read_parents COMMIT: set the array parents to COMMIT's parents, in order.
+read_parents() {
+  local line
+  line="$(git rev-list --parents -n 1 "$1")" || die "could not read the parents of $1"
+  read -r -a parents <<<"$line"
+  parents=("${parents[@]:1}")
+}
+
+# first_parent COMMIT: print COMMIT's first parent, or the empty tree for a root commit. A merge is compared with its
+# first parent, so a change made inside it counts (#174): plain diff-tree shows nothing for a merge.
+first_parent() {
+  local parents
+  read_parents "$1"
+  echo "${parents[0]:-$empty_tree}"
+}
+
+# merge_heads: set the array merge_heads to the commits being merged into HEAD (none outside a merge).
+merge_heads() {
+  merge_heads=()
+  [ -f "$git_dir/MERGE_HEAD" ] || return 0
+  mapfile -t merge_heads < "$git_dir/MERGE_HEAD" || die "could not read $git_dir/MERGE_HEAD"
+  merge_heads=("${merge_heads[@]%$'\r'}")
+}
+
+# touches [COMMIT]: exit 0 when the scope changed. A merge (COMMIT's, or the one being committed) changes it when it
+# differs from any parent, so keeping one side with `-s ours` still counts (ADR 0012).
 touches() {
-  local status base head
+  local status base head parents merge_heads
   if [[ "${1:-}" == *..* ]]; then
     # A range BASE..HEAD (or BASE...HEAD) counts from their merge base, so merge commits can't hide a change.
     base="${1%%..*}" head="${1#*..}"
     git diff --quiet "$base...${head#.}" -- "${scope[@]}"
+    status=$?
   elif [ -n "${1:-}" ]; then
-    git diff-tree --quiet -r --root --no-commit-id "$1" -- "${scope[@]}"
+    read_parents "$1"
+    [ "${#parents[@]}" -gt 0 ] || parents=("$empty_tree")
+    for base in "${parents[@]}"; do
+      git diff-tree --quiet -r "$base" "$1" -- "${scope[@]}"
+      status=$?
+      [ "$status" -eq 0 ] || break
+    done
   else
     base=HEAD
     git rev-parse -q --verify HEAD > /dev/null || base="$empty_tree"
-    git diff --cached --quiet "$base" -- "${scope[@]}"
+    merge_heads
+    for base in "$base" "${merge_heads[@]}"; do
+      git diff --cached --quiet "$base" -- "${scope[@]}"
+      status=$?
+      [ "$status" -eq 0 ] || break
+    done
   fi
-  status=$?
   case $status in
     0) return 1 ;;
     1) return 0 ;;
@@ -95,12 +135,70 @@ touches() {
   esac
 }
 
+# scope_changes FROM [TO]: print the scope paths that differ between commit FROM and the index (or commit TO), one per
+# line. Plumbing with -z and no rename detection, so config can't pair a deleted path with another or quote a name.
+scope_changes() {
+  local listing path
+  if [ -n "${2:-}" ]; then
+    listing="$(git diff-tree -r -z --no-renames --name-only "$1" "$2" -- "${scope[@]}" | tr '\0' '\n')"
+  else
+    listing="$(git diff-index --cached -z --no-renames --name-only "$1" -- "${scope[@]}" | tr '\0' '\n')"
+  fi || die "could not compare the scope with $1"
+  printf '%s\n' "$listing"
+}
+
+# in_list PATH LIST: exit 0 when PATH is one of LIST's lines.
+in_list() { [ -n "$1" ] && grep -qxF -- "$1" <<<"$2"; }
+
+# clean_merge [COMMIT]: exit 0 when COMMIT (or the merge being committed) is a clean merge from main, per scope path
+# against the parents' merge base: a path kept from one parent is clean only when the other left it as the base had it,
+# so an `-s ours` merge or a `checkout --ours` can't drop a change from main (or the branch's own) unreviewed.
+clean_merge() {
+  local parents merge_heads first second base main=refs/remotes/origin/main ours theirs ours_side theirs_side path
+  if [ -n "${1:-}" ]; then
+    read_parents "$1"
+    [ "${#parents[@]}" -eq 2 ] || return 1
+    first="${parents[0]}" second="${parents[1]}"
+  else
+    merge_heads
+    [ "${#merge_heads[@]}" -eq 1 ] || return 1 # not merging, or an octopus merge, which isn't one from main
+    first="$(git rev-parse -q --verify HEAD^{commit})" || return 1
+    second="${merge_heads[0]}"
+  fi
+  git rev-parse -q --verify "$main^{commit}" > /dev/null || return 1
+  git merge-base --is-ancestor "$second" "$main"
+  case $? in
+    0) ;;
+    1) return 1 ;;
+    *) die "could not tell whether $second is on main" ;;
+  esac
+  # One merge base, or the sides can't be told apart (none, or a criss-cross with several).
+  base="$(git merge-base --all "$first" "$second")" || return 1
+  [[ -n "$base" && "$base" != *$'\n'* ]] || return 1
+  ours="$(scope_changes "$first" "${1:-}")" || exit 2      # paths where the result differs from the first parent
+  theirs="$(scope_changes "$second" "${1:-}")" || exit 2   # ... and from the second
+  ours_side="$(scope_changes "$base" "$first")" || exit 2   # paths the branch changed since the base
+  theirs_side="$(scope_changes "$base" "$second")" || exit 2 # paths main changed since the base
+  # Differing from the first parent means the second's version (or neither's): clean only if the branch left it alone.
+  while IFS= read -r path; do
+    [ -z "$path" ] && continue
+    ! in_list "$path" "$theirs" && ! in_list "$path" "$ours_side" || return 1
+  done <<<"$ours"
+  # Differing from the second parent means the first's version: clean only if main left it alone.
+  while IFS= read -r path; do
+    [ -z "$path" ] && continue
+    ! in_list "$path" "$theirs_side" || return 1
+  done <<<"$theirs"
+  return 0
+}
+
 # One rev-parse for the root and the git dir. The stamp lives in this worktree's own git dir, which is where
 # `git rev-parse --git-path security-review-stamp` points for a name git doesn't share between worktrees.
 dirs="$(git rev-parse --show-toplevel --absolute-git-dir)" || die "not inside a git repository"
 root="${dirs%%$'\n'*}"
 [ "$root" != "$dirs" ] || die "could not find the git folder"
-stamp_file="${dirs#*$'\n'}/security-review-stamp"
+git_dir="${dirs#*$'\n'}"
+stamp_file="$git_dir/security-review-stamp"
 cd "$root" || die "could not enter $root" # git lists paths relative to the current folder
 
 case "${1:-}" in
@@ -114,7 +212,8 @@ case "${1:-}" in
     # nothing in the scope outside the old one (#306).
     [ -n "${2:-}" ] || die "accepted needs a commit"
     scope_hash "$2" || exit 2
-    git diff-tree --quiet -r --root --no-commit-id "$2" -- "${scope[@]}" "${old_scope[@]/#/:!}"
+    parent="$(first_parent "$2")" || exit 2
+    git diff-tree --quiet -r "$parent" "$2" -- "${scope[@]}" "${old_scope[@]/#/:!}"
     case $? in
       0) scope_hash "$2" "${old_scope[@]}" || exit 2 ;;
       1) ;;
@@ -124,6 +223,16 @@ case "${1:-}" in
   stamped)
     hash="$(scope_hash)" || exit 2
     [ -f "$stamp_file" ] && [ "$(tr -d '\r\n' < "$stamp_file")" = "$hash" ] ;;
-  *) echo "usage: scripts/security-stamp.sh [hash [COMMIT] | accepted COMMIT | touches [COMMIT | BASE..HEAD] | stamped]" >&2
+  clean-merge) clean_merge "${2:-}" ;;
+  spend)
+    # The post-commit hook: a stamp is single-use, so the commit carrying its trailer removes it (#246). A commit
+    # refused at commit-msg never gets here, and keeps the stamp for the retry.
+    [ -f "$stamp_file" ] || exit 0
+    hash="$(tr -d '\r\n' < "$stamp_file")"
+    trailers="$(git log -1 --format='%(trailers:key=Security-Review,valueonly)' HEAD)" || die "could not read HEAD"
+    if [ -n "$hash" ] && grep -qxF -- "$hash" <<<"$trailers"; then
+      rm -f "$stamp_file" || die "could not remove $stamp_file"
+    fi ;;
+  *) echo "usage: scripts/security-stamp.sh [hash [COMMIT] | accepted COMMIT | touches [COMMIT | BASE..HEAD] | stamped | clean-merge [COMMIT] | spend]" >&2
      exit 2 ;;
 esac

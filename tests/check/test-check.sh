@@ -979,6 +979,12 @@ mkdir -p "$HOOKS"
 printf '#!/usr/bin/env bash\nexec bash "%s" pre-commit\n' "$CHECK" > "$HOOKS/pre-commit"
 printf '#!/usr/bin/env bash\nexec bash "%s" commit-msg "$1"\n' "$CHECK" > "$HOOKS/commit-msg"
 chmod +x "$HOOKS/pre-commit" "$HOOKS/commit-msg"
+# The stamp-spending hooks, each only where the repository has it, so a missing one fails the tests that need it.
+for hook in post-commit post-merge; do
+  if [ -f "$ROOT/scripts/githooks/$hook" ]; then
+    printf '#!/usr/bin/env bash\nexec bash "%s" spend\n' "$STAMP" > "$HOOKS/$hook" && chmod +x "$HOOKS/$hook"
+  fi
+done
 
 # review_repo: a repo using the hooks, with a first commit, then a staged change to scope file FILE (default: the hook
 # layer).
@@ -1034,6 +1040,67 @@ test_review_refuses_an_edit_after_stamping() {
   stage_file src/Metaphor.Hooks/Hooks/Speech.ps1 "changed after the review"
   commit "feat: hook changed after review"
   expect 1 "no matching stamp"
+}
+
+# expect_stamp STATE: the stamp file is present or absent.
+expect_stamp() {
+  out="stamp should be $1" code=0
+  [ -f "$(git rev-parse --git-path security-review-stamp)" ] && [ "$1" = absent ] && code=1
+  [ -f "$(git rev-parse --git-path security-review-stamp)" ] || [ "$1" = absent ] || code=1
+  expect 0
+}
+
+# A stamp is single-use: the post-commit hook spends it on the commit carrying its trailer (#246).
+test_stamp_is_spent_by_the_commit_it_reviewed() {
+  review_repo docs/notes.txt
+  bash "$STAMP" > /dev/null
+  commit "docs: unscoped first" # carries no trailer, so the stamp stays
+  expect 0
+  expect_stamp present
+  stage_file "$SPEECH"
+  bash "$STAMP" > /dev/null
+  commit "feat: reviewed hook"
+  expect 0
+  expect_stamp absent
+  git reset -q --soft HEAD~1 # the same scope again needs a fresh review
+  commit "feat: reviewed hook"
+  expect 1 "no matching stamp"
+}
+
+# git merge commits on its own and runs post-merge, not post-commit.
+test_stamp_is_spent_by_a_merge_that_commits_itself() {
+  merge_repo "$SPEECH" "main${LINES#1}" "$SPEECH" "${LINES%9}branch" # both sides' hunks: needs a stamp
+  git merge -q --no-commit origin/main > /dev/null 2>&1
+  bash "$STAMP" > /dev/null # reviews the result the merge below reproduces
+  git merge --abort
+  merge_main
+  expect 0
+  expect_message "Security-Review: "
+  expect_stamp absent
+}
+
+test_stamp_survives_a_fast_forward() {
+  review_repo docs/notes.txt
+  commit "docs: notes"
+  git switch -q -c ahead
+  stage_file docs/more.txt
+  commit "docs: more"
+  git switch -q -
+  bash "$STAMP" > /dev/null
+  out="$(git merge -q --ff-only ahead 2>&1)"
+  code=$?
+  expect 0
+  expect_stamp present
+}
+
+test_stamp_survives_a_commit_refused_at_its_message() {
+  review_repo
+  bash "$STAMP" > /dev/null
+  commit "not typed"
+  expect 1 "subject needs a type prefix"
+  expect_stamp present
+  commit "feat: reviewed hook"
+  expect 0
 }
 
 test_review_override_passes_and_records_its_reason() {
@@ -1113,6 +1180,169 @@ test_commits_stage_passes_reviewed_skipped_and_unscoped_commits() {
   run_check commits "$base..HEAD"
   expect 0
   [ "$(git rev-list --count "$base..HEAD")" -eq 3 ] || out="expected 3 commits" code=1
+  expect 0
+}
+
+# Clean merges from main (#246, #174; docs/adr/0012-review-trailer-covers-clean-merges.md).
+SPEECH=src/Metaphor.Hooks/Hooks/Speech.ps1
+LINES=$'1\n2\n3\n4\n5\n6\n7\n8\n9'
+
+# merge_repo [MAIN_FILE MAIN_TEXT [BRANCH_FILE BRANCH_TEXT]]: a repo using the hooks, where main (origin/main, $main)
+# wrote MAIN_TEXT to MAIN_FILE (default: a new hook file) and the checked-out branch, parted from it at the first commit,
+# committed a reviewed BRANCH_TEXT to BRANCH_FILE (default: the speech hook, which both start with as $LINES).
+merge_repo() {
+  new_repo
+  git config core.hooksPath "$HOOKS"
+  stage_file readme.txt first
+  stage_file "$SPEECH" "$LINES"
+  git commit -q --no-verify -m "docs: first"
+  git switch -q -c mainline
+  stage_file "${1:-src/Metaphor.Hooks/Hooks/Menu.ps1}" "${2:-menu from main}"
+  git commit -q --no-verify -m "feat: on main" -m "Security-Review-Skipped: reviewed on main"
+  main="$(git rev-parse HEAD)"
+  git update-ref refs/remotes/origin/main "$main"
+  git switch -q -c feature HEAD~1
+  stage_file "${3:-$SPEECH}" "${4:-speech from the branch}"
+  bash "$STAMP" > /dev/null
+  commit "feat: reviewed speech change" # spends the stamp, so the merges below are judged without it
+  expect 0
+}
+
+# merge_main: merge origin/main through the hooks, capturing the exit code and output.
+merge_main() {
+  out="$(git merge -q --no-ff -m "chore: merge main" "${1:-origin/main}" 2>&1)"
+  code=$?
+}
+
+test_review_passes_a_clean_merge_from_main_and_says_why() {
+  merge_repo
+  merge_main
+  expect 0 "security review: not needed, a clean merge from main"
+  expect_message "chore: merge main"
+  expect_absent "Security-Review"
+  run_check commits "$main..HEAD"
+  expect 0
+}
+
+test_review_passes_a_merge_whose_only_conflict_is_outside_the_scope() {
+  merge_repo
+  git switch -q mainline
+  stage_file readme.txt "main's readme"
+  git commit -q --no-verify -m "docs: readme on main"
+  main="$(git rev-parse HEAD)"
+  git update-ref refs/remotes/origin/main "$main"
+  git switch -q feature
+  stage_file readme.txt "the branch's readme"
+  commit "docs: readme on the branch"
+  git merge -q origin/main > /dev/null 2>&1
+  stage_file readme.txt "both readmes"
+  commit "chore: merge main" # through the pre-commit hook too
+  expect 0 "clean merge from main"
+  run_check commits "$main..HEAD" # past the unscoped readme commit, to the reviewed one
+  expect 0
+}
+
+test_review_refuses_a_merge_resolving_a_scope_conflict() {
+  merge_repo "$SPEECH" "speech from main"
+  git merge -q origin/main > /dev/null 2>&1
+  stage_file "$SPEECH" "both, resolved by hand"
+  commit "chore: merge main"
+  expect 1 "no matching stamp"
+  git commit -q --no-verify -m "chore: merge main"
+  run_check commits "$main..HEAD"
+  expect 1 "commit $(git rev-parse --short HEAD): touches the security-review scope without a Security-Review trailer"
+}
+
+test_review_passes_a_stamped_scope_conflict_resolution() {
+  merge_repo "$SPEECH" "speech from main"
+  git merge -q origin/main > /dev/null 2>&1
+  stage_file "$SPEECH" "both, resolved by hand"
+  bash "$STAMP" > /dev/null
+  commit "chore: merge main"
+  expect 0
+  expect_message "Security-Review: $(bash "$STAMP" hash HEAD)"
+  run_check commits "$main..HEAD"
+  expect 0
+}
+
+# Git merges the two sides' hunks without a conflict, but the result is neither parent's file: a new state to review.
+test_review_refuses_a_merge_that_combines_both_sides_of_a_scope_file() {
+  merge_repo "$SPEECH" "main${LINES#1}" "$SPEECH" "${LINES%9}branch"
+  merge_main
+  expect 1 "no matching stamp"
+}
+
+test_review_refuses_a_clean_merge_of_a_branch_not_on_main() {
+  merge_repo
+  git update-ref refs/remotes/origin/main HEAD~1 # main hasn't taken the mainline branch
+  merge_main mainline
+  expect 1 "no matching stamp"
+  git merge --abort
+  git update-ref -d refs/remotes/origin/main # no main to compare with at all
+  merge_main mainline
+  expect 1 "no matching stamp"
+}
+
+# The stamp the branch's commit spent can't let a later `-s ours` merge through with its trailer.
+test_review_refuses_an_ours_merge_after_a_stamped_commit() {
+  merge_repo "$SPEECH" "speech fixed on main" src/Metaphor.Hooks/Hooks/Menu.ps1 "menu from the branch"
+  expect_stamp absent
+  out="$(git merge -q -s ours -m "chore: merge main" origin/main 2>&1)"
+  code=$?
+  expect 1 "no matching stamp"
+}
+
+# Keeping a side's version is clean only when the other side left the file as their merge base had it: an `-s ours`
+# merge, or `checkout --ours` on a conflict, would otherwise drop a fix made on main without a review.
+test_review_refuses_an_ours_merge_that_drops_a_scope_change_from_main() {
+  merge_repo "$SPEECH" "speech fixed on main" src/Metaphor.Hooks/Hooks/Menu.ps1 "menu from the branch"
+  out="$(git merge -q -s ours -m "chore: merge main" origin/main 2>&1)"
+  code=$?
+  expect 1 "no matching stamp"
+  git commit -q --no-verify -m "chore: merge main" # the refused merge, committed past the hooks
+  run_check commits "$main..HEAD"
+  expect 1 "commit $(git rev-parse --short HEAD): touches the security-review scope without a Security-Review trailer"
+}
+
+test_review_refuses_a_scope_conflict_resolved_with_one_side() {
+  merge_repo "$SPEECH" "speech fixed on main"
+  git merge -q origin/main > /dev/null 2>&1
+  git checkout -q --ours -- "$SPEECH" && git add "$SPEECH"
+  commit "chore: merge main"
+  expect 1 "no matching stamp"
+  git merge --abort
+  git merge -q origin/main > /dev/null 2>&1
+  git checkout -q --theirs -- "$SPEECH" && git add "$SPEECH" # drops the branch's reviewed change instead
+  commit "chore: merge main"
+  expect 1 "no matching stamp"
+}
+
+test_commits_stage_fails_a_clean_merge_over_an_unreviewed_commit() {
+  local unreviewed
+  merge_repo
+  stage_file "$SPEECH" "unreviewed"
+  git commit -q --no-verify -m "feat: skipped the hooks"
+  unreviewed="$(git rev-parse --short HEAD)"
+  merge_main
+  expect 0 "clean merge from main"
+  run_check commits "$main..HEAD"
+  expect 1 "commit $unreviewed: touches the security-review scope without a Security-Review trailer"
+}
+
+# CI judges only HEAD, so trailerless merges from before the rule don't fail a branch reviewed since.
+test_commits_stage_ignores_old_trailerless_merges_below_a_reviewed_head() {
+  merge_repo "$SPEECH" "speech from main"
+  git merge -q origin/main > /dev/null 2>&1
+  stage_file "$SPEECH" "resolved before the rule"
+  git commit -q --no-verify -m "chore: merge main"
+  stage_file "$SPEECH" "reviewed since"
+  bash "$STAMP" > /dev/null
+  commit "feat: reviewed on top"
+  run_check commits "$main..HEAD"
+  expect 0
+  stage_file docs/notes.txt
+  commit "docs: after the review"
+  run_check commits "$main..HEAD"
   expect 0
 }
 
@@ -1302,6 +1532,16 @@ test_outside_pr_still_checks_commit_messages() {
   expect 1 "subject needs a type prefix"
 }
 
+# A clean merge from main satisfies the trailer rule, but an outside PR still needs the label for its whole diff.
+test_outside_pr_clean_merge_from_main_still_needs_the_label() {
+  merge_repo
+  merge_main
+  base="$main" TIMELINE=""
+  run_pr CONTRIBUTOR
+  expect 1 "add the security-reviewed label"
+  expect_absent "without a Security-Review trailer"
+}
+
 # The owner, or an admin (the maintainer's own PRs show MEMBER in an organization's repository), is judged by trailers.
 test_maintainer_pr_uses_trailers_and_ignores_the_label() {
   outside_repo
@@ -1326,7 +1566,8 @@ GUARD_FILES=(scripts/check.sh scripts/game-content.sha256 scripts/tree-hash.sh s
   scripts/test-select.sh scripts/stage-timing.sh scripts/install-docs-tools.sh scripts/conflict-alert.sh
   scripts/integration-sync.sh scripts/check-status.sh scripts/run-pester.sh scripts/live-log.sh scripts/wsl-run.sh
   scripts/run-check-suites.sh scripts/wsl-tools.txt scripts/setup-wsl.ps1 scripts/githooks/pre-commit scripts/githooks/pre-push
-  scripts/githooks/commit-msg scripts/security-stamp.sh scripts/github-outage.sh .github/workflows/ci.yml
+  scripts/githooks/commit-msg scripts/githooks/post-commit scripts/githooks/post-merge
+  scripts/security-stamp.sh scripts/github-outage.sh .github/workflows/ci.yml
   .github/workflows/slow.yml .github/workflows/a-new-one.yml .claude/agents/security-reviewer.md
   tests/check/test-check.sh tests/scripts/test-anything.sh tools/slow/survivors.mjs tools/docs/package-lock.json
   .config/dotnet-tools.json scripts/listen.ps1)
@@ -1457,6 +1698,17 @@ test_commits_stage_fails_a_guard_commit_with_an_old_scope_trailer() {
   git commit -q --no-verify -m "perf(check): old-scope trailer"
   git commit -q --no-verify --amend -m "perf(check): old-scope trailer" -m "Security-Review: $(legacy_hash)"
   run_check commits "$base..HEAD"
+  expect 1 "touches the security-review scope without a Security-Review trailer"
+}
+
+# A merge's changes are counted against its first parent, so a guard change inside it voids an old-scope trailer.
+test_commits_stage_fails_a_merge_changing_a_guard_with_an_old_scope_trailer() {
+  merge_repo
+  git merge -q --no-ff --no-commit origin/main > /dev/null 2>&1
+  stage_file scripts/check.sh "changed inside the merge"
+  git commit -q --no-verify -m "chore: merge main"
+  git commit -q --no-verify --amend -m "chore: merge main" -m "Security-Review: $(legacy_hash)"
+  run_check commits "$main..HEAD"
   expect 1 "touches the security-review scope without a Security-Review trailer"
 }
 

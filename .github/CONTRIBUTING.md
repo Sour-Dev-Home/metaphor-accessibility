@@ -151,10 +151,20 @@ A commit touching it needs a review stamp:
 1. Stage the change, then run the `security-reviewer` agent. When it finds nothing critical or important, its last step
    runs `scripts/security-stamp.sh`, which hashes the staged scope into a stamp under `.git/`.
 2. Commit. The pre-commit hook refuses the commit unless the stamp matches the staged scope, so any edit after the
-   review needs a new one. The commit-msg hook appends `Security-Review: <hash>`.
-3. CI fails a pull request commit that touches the scope without a `Security-Review` trailer matching its content. A
-   commit stamped before the guards joined the scope carries a hash of the old scope only; CI still accepts it when the
-   commit changes no guard file, so earlier reviews stay valid.
+   review needs a new one. The commit-msg hook appends `Security-Review: <hash>`. The stamp is single-use: the
+   post-commit and post-merge hooks remove it once a commit carries its trailer, and a refused commit keeps it for the retry.
+3. CI checks only the pull request's HEAD commit, when the PR's diff touches the scope
+   ([ADR 0012](../docs/adr/0012-review-trailer-covers-clean-merges.md), #174, #246). HEAD passes with a
+   `Security-Review` trailer matching its own scope content, or through its first parent when HEAD leaves the scope as
+   every parent had it or is a clean merge from `main`; the walk passes at a commit already on the base branch, so older
+   merges without a trailer don't fail a branch. A commit stamped before the guards joined the scope carries a hash of
+   the old scope only; CI still accepts it when the commit changes no guard file, so earlier reviews stay valid.
+
+A **clean merge from `main`** needs no stamp, and the commit-msg hook says so and adds no trailer. Its second parent is
+already on `origin/main`, and each scope file is either the second parent's version where the branch left it as their
+merge base had it, or the first parent's where `main` left it alone. A scope conflict you resolve, a file git merges
+from both sides' changes, and a side kept over the other's change (`-s ours`, `checkout --ours` or `--theirs`) all
+need a stamp.
 
 **Override (maintainer only).** `SECURITY_REVIEW_SKIP="<reason>" git commit ...` lets the commit through and records
 `Security-Review-Skipped: <reason>`, which CI accepts. Agents are denied it.
@@ -163,7 +173,7 @@ A commit touching it needs a review stamp:
 is the repository's owner or has admin permission (in an organization's repository the maintainer's PRs show
 `MEMBER`). Every other PR, collaborators' and members' included, works like this:
 
-- Its commits that touch the scope need the `Security-Review` trailer, as above. A `Security-Review-Skipped` trailer
+- Its HEAD needs the `Security-Review` trailer when it touches the scope, as above. A `Security-Review-Skipped` trailer
   doesn't count.
 - If it changes anything outside `docs/`, CI also fails until a maintainer reviews it (running the `security-reviewer`
   agent when it touches the scope) and adds the `security-reviewed` label. The label counts only if the latest label
