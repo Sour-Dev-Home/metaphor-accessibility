@@ -1329,7 +1329,7 @@ test_review_refuses_a_blank_override() {
 
 test_review_leaves_commits_outside_the_scope_alone() {
   review_repo src/Metaphor.Hooks.Tests/SpeechTests.ps1 # a sibling folder, not the hook layer
-  stage_file scripts/check-other.sh
+  stage_file tools/check-other.sh # all of scripts/ is in scope (#410), tools/ only in part
   commit "test: outside the scope"
   expect 0
   expect_message "test: outside the scope"
@@ -1954,6 +1954,20 @@ test_scope_covers_every_script_the_gate_runs() {
   out="outside the scope:$missing" code=0
   [ -z "$missing" ] || code=1
   expect 0
+}
+
+# The scope names directories (#410, ADR 0014): a file added under one is in scope with no list edit. The names below
+# appear nowhere in the stamp script, and inspect.ps1 and signature-spike.ps1 joined the scope with this change.
+test_stamp_touches_a_new_file_in_each_scoped_directory() {
+  local file
+  for file in scripts/inspect.ps1 scripts/signature-spike.ps1 scripts/never-listed.ps1 scripts/never-listed/tool.psm1 \
+    src/Metaphor.Hooks/NeverListed.cs .github/workflows/never-listed.yml tests/check/never-listed.sh \
+    tests/scripts/test-never-listed.sh tools/docs/never-listed.mjs tools/slow/never-listed.mjs; do
+    review_repo "$file"
+    out="$file" code=0
+    bash "$STAMP" touches || code=$?
+    expect 0
+  done
 }
 
 test_stamp_touches_each_guard_file_but_not_docs() {

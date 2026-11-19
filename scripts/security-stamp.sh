@@ -21,29 +21,23 @@
 # Exit 2 on a usage error or when git fails.
 set -uo pipefail
 
-# The guards (#306) are everything the checks, the git hooks and CI run, transitively, plus what they read to decide:
-# tests/check/test-check.sh fails when one of those scripts falls outside this list. The last line is what decides
-# dotnet restore, and so the lock files the security job's vulnerability audit reads, in any folder (#322, #324):
-# MSBuild's auto-imported files, the SDK pin and the package sources, whose targets or feeds could hide a vulnerable
-# package. Entries are git pathspecs,
-# where * also matches /; noglob keeps bash from expanding them, and other scripts read this list as text.
+# This list is the scope's one home; docs link here instead of restating it. It names directories, so a file added
+# under one is in scope with no edit here (#410, docs/adr/0014-review-scope-by-directory.md); there are no exclusions.
+# It covers the hook layer, every script (those that deploy, launch, package or fetch native code, and the guards
+# (#306): everything the checks, the git hooks and CI run, transitively, plus what they read to decide), and the
+# reviewer's own prompt. tests/check/test-check.sh fails when a script the gate runs falls outside it. The last line is
+# what decides dotnet restore, and so the lock files the security job's vulnerability audit reads, in any folder (#322,
+# #324): MSBuild's auto-imported files, the SDK pin and the package sources, whose targets or feeds could hide a
+# vulnerable package. Entries are git pathspecs, where * also matches /; noglob keeps bash from expanding them, and
+# other scripts read this list as text.
 set -f
-scope=(src/Metaphor.Hooks/ scripts/deploy-dev.ps1 scripts/smoke-test.ps1 scripts/package-mod.sh scripts/fetch-prism.ps1
-  scripts/zip-package.ps1 scripts/build-release.sh scripts/ReloadedDev.psm1 scripts/capture.ps1 scripts/listen.ps1
-  scripts/onboard.ps1 scripts/GameLocator.psm1 scripts/Interactive.psm1 scripts/claude.ps1 scripts/ghidra.ps1
-  scripts/check-install.ps1 scripts/InstallCheck.psm1 scripts/ReloadedRead.psm1
-  scripts/install.ps1 scripts/Installer.psm1 scripts/install-pins.json
-  scripts/check.sh scripts/check/ scripts/game-content.sha256 scripts/tree-hash.sh scripts/ci-changes.sh scripts/test-select.sh
-  scripts/stage-timing.sh scripts/install-docs-tools.sh scripts/conflict-alert.sh scripts/integration-sync.sh
-  scripts/check-status.sh scripts/github-outage.sh scripts/run-pester.sh scripts/run-check-suites.sh scripts/live-log.sh
-  scripts/vuln-audit.sh scripts/wsl-run.sh scripts/wsl-tools.txt scripts/setup-wsl.ps1 scripts/githooks/ scripts/security-stamp.sh
-  .github/workflows/ tests/check/ tests/scripts/ tools/docs/ tools/slow/ .config/dotnet-tools.json
-  .claude/agents/security-reviewer.md
+scope=(scripts/ src/Metaphor.Hooks/ .github/workflows/ tests/check/ tests/scripts/ tools/docs/ tools/slow/
+  .config/dotnet-tools.json .claude/agents/security-reviewer.md
   *Directory.Build.* *Directory.Packages.props *Directory.Solution.* *.sln.targets *global.json
   *nuget.config *NuGet.config *NuGet.Config)
 set +f
 # The scope before #306. A commit stamped then carries a hash of these paths; it stays valid while the commit changes
-# nothing in the scope outside them.
+# nothing in the scope outside them. Open PR #294's head was stamped then; drop this list once that PR has merged.
 old_scope=(src/Metaphor.Hooks/ scripts/deploy-dev.ps1 scripts/smoke-test.ps1 scripts/package-mod.sh
   scripts/fetch-prism.ps1 scripts/ReloadedDev.psm1 scripts/capture.ps1)
 empty_tree=4b825dc642cb6eb9a060e54bf8d69288fbee4904
