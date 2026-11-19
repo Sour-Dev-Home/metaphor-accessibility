@@ -1,0 +1,57 @@
+name: Review gate
+
+# The security-reviewed label gate (#127, #309) on a PR not by the maintainer, run from main's copy of this workflow
+# (#330): pull_request_target runs the base branch's copy, so a PR can't edit or delete the check that judges it. Its
+# token can read the PR, so the job never checks out, fetches or runs the PR's code. It lists the PR's files through the
+# API and runs main's scripts/check.sh on that list. tests/scripts/test-repo-config.sh holds the workflow to this.
+on:
+  pull_request_target:
+    types: [opened, synchronize, reopened, labeled, unlabeled]
+  # The merge queue needs the required check on its own run. That run uses the queued PR's copy of this file, so it
+  # judges nothing: the queue only takes a PR whose own run, from main's copy, passed.
+  merge_group:
+
+permissions:
+  contents: read
+
+# A later event's verdict replaces an earlier one's, so a slow run can't finish last with a stale answer.
+concurrency:
+  group: review-gate-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  review-gate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      pull-requests: read # the PR's files, timeline and head
+    steps:
+      - name: Pass in the merge queue
+        if: github.event_name == 'merge_group'
+        run: echo "The queue took each PR only once its own review-gate run, from main's copy, passed."
+      # main's check.sh only: the base branch's tip, never the PR's head or merge ref.
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        if: github.event_name == 'pull_request_target'
+        with:
+          persist-credentials: false
+          sparse-checkout: scripts/check.sh
+          sparse-checkout-cone-mode: false
+      # Dependabot's PRs skip the label, as in CI's commits step; the maintainer merges them.
+      - name: Require the security-reviewed label
+        if: github.event_name == 'pull_request_target' && github.event.pull_request.user.login != 'dependabot[bot]'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR_AUTHOR_ASSOCIATION: ${{ github.event.pull_request.author_association }}
+          PR_AUTHOR: ${{ github.event.pull_request.user.login }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          PR_UPDATED_AT: ${{ github.event.pull_request.updated_at }}
+          PR_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          PR_CHANGED_FILES: ${{ github.event.pull_request.changed_files }}
+          PR_EVENT_ACTION: ${{ github.event.action }}
+          PR_EVENT_LABEL: ${{ github.event.label.name }}
+        # The file list, one per line: the path, then a tab and the old path for a rename (check.sh review-label).
+        run: |
+          gh api --paginate "repos/$GITHUB_REPOSITORY/pulls/$PR_NUMBER/files?per_page=100" \
+            --jq '.[] | [.filename, .previous_filename // ""] | @tsv' > "$RUNNER_TEMP/pr-files.tsv"
+          bash scripts/check.sh review-label "$RUNNER_TEMP/pr-files.tsv"

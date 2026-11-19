@@ -21,7 +21,6 @@ jobs:
       && github.ref == 'refs/heads/main' && 'main-push' || '' }}
     permissions:
       contents: read
-      pull-requests: read # the commits stage reads the PR timeline (#127)
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -37,13 +36,10 @@ jobs:
         env:
           BASE: ${{ github.event.pull_request.base.sha }}
           HEAD: ${{ github.event.pull_request.head.sha }}
-          # A PR not by the maintainer that changes files outside docs/ needs the security-reviewed label, added by
-          # an admin (#127, #309); collaborators and members included. The read-only token reads the PR timeline and
-          # repository permissions through `gh api`.
+          # A skip trailer counts only on the maintainer's PR (#309); the read-only token reads the author's repository
+          # permission through `gh api`. The security-reviewed label is review-gate.yml's, from main's copy (#330).
           PR_AUTHOR_ASSOCIATION: ${{ github.event.pull_request.author_association }}
           PR_AUTHOR: ${{ github.event.pull_request.user.login }}
-          PR_NUMBER: ${{ github.event.pull_request.number }}
-          PR_UPDATED_AT: ${{ github.event.pull_request.updated_at }}
           GH_TOKEN: ${{ github.token }}
         # A PR not by the maintainer is judged by the base branch's copy of the gate, so it can't edit the check that
         # judges it. The maintainer's PR (OWNER, or an admin: in an organization the maintainer shows as MEMBER) runs

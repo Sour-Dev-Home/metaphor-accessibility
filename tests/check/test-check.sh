@@ -1348,9 +1348,9 @@ test_commits_stage_ignores_old_trailerless_merges_below_a_reviewed_head() {
 
 # outside_repo [FILE]: a repo with one reviewed commit changing FILE (default: a scope file), ready for the commits
 # stage; sets $base. A fake gh answers the timeline call with the lines in $TIMELINE (what the real call's --jq filter
-# prints) and a permission call with admin for the logins in $FAKE_ADMINS (default: maint), write for any other; it
-# fails the call for the login in $FAKE_PERMISSION_FAIL. $FAKE_TIMELINE_FAIL fails the timeline call, $FAKE_GH_FAIL every
-# call.
+# prints), a permission call with admin for the logins in $FAKE_ADMINS (default: maint), write for any other, and a pull
+# request call with its head, $FAKE_HEAD (default: head1); it fails the call for the login in $FAKE_PERMISSION_FAIL.
+# $FAKE_TIMELINE_FAIL fails the timeline call, $FAKE_HEAD_FAIL the pull request call, $FAKE_GH_FAIL every call.
 FAKE_BIN="$WORK/fakebin"
 mkdir -p "$FAKE_BIN"
 cat > "$FAKE_BIN/gh" <<'EOF'
@@ -1363,6 +1363,7 @@ for arg; do
       [ "$login" = "${FAKE_PERMISSION_FAIL:-}" ] && exit 1
       case " ${FAKE_ADMINS:-maint} " in *" $login "*) echo admin ;; *) echo write ;; esac
       exit ;;
+    repos/*/pulls/*) [ -z "${FAKE_HEAD_FAIL:-}" ] || exit 1; echo "${FAKE_HEAD:-head1}"; exit ;;
   esac
 done
 [ -z "${FAKE_TIMELINE_FAIL:-}" ] || exit 1
@@ -1377,14 +1378,97 @@ outside_repo() {
   git commit -q -m "feat: reviewed change" > /dev/null 2>&1 || out="could not commit the reviewed change" code=1
 }
 
-# run_pr ASSOCIATION: the commits stage the way CI runs it, for a PR #7 by $PR_AUTHOR (default: contrib) updated at
-# 2026-11-16T10:00:00Z.
-run_pr() {
-  out="$(PATH="$FAKE_BIN:$PATH" TIMELINE="${TIMELINE:-}" FAKE_GH_FAIL="${FAKE_GH_FAIL:-}" \
+# pr_files: the PR's changed files from $base, one line each, the way the review-gate workflow lists them from the API:
+# the path, then a tab and the old path for a rename. Counted from the merge base, as the API counts them.
+pr_files() {
+  git diff --name-status -M "$base...HEAD" | awk -F '\t' '$1 ~ /^R/ { print $3 "\t" $2; next } { print $2 }'
+}
+
+# run_gate ASSOCIATION: the review-label stage the way the review-gate workflow runs it, for a PR #7 by $PR_AUTHOR
+# (default: contrib) updated at 2026-11-16T10:00:00Z, with head head1. $PR_FILES (default: pr_files) lists its files,
+# $PR_CHANGED_FILES (default: their count) is the count the event gives; $PR_EVENT_ACTION and $PR_EVENT_LABEL name the
+# event.
+run_gate() {
+  local files="$WORK/pr-files"
+  if [ -n "${PR_FILES+set}" ]; then printf '%b' "$PR_FILES" > "$files"; else pr_files > "$files"; fi
+  out="$(PATH="$FAKE_BIN:$PATH" TIMELINE="${TIMELINE:-}" FAKE_GH_FAIL="${FAKE_GH_FAIL:-}" FAKE_HEAD="${FAKE_HEAD:-}" \
+    FAKE_HEAD_FAIL="${FAKE_HEAD_FAIL:-}" \
     FAKE_PERMISSION_FAIL="${FAKE_PERMISSION_FAIL:-}" FAKE_TIMELINE_FAIL="${FAKE_TIMELINE_FAIL:-}" \
-    PR_AUTHOR_ASSOCIATION="$1" PR_AUTHOR="${PR_AUTHOR:-contrib}" \
-    PR_NUMBER=7 GITHUB_REPOSITORY=o/r PR_UPDATED_AT=2026-11-16T10:00:00Z check_stage commits "$base..HEAD" 2>&1)"
+    PR_AUTHOR_ASSOCIATION="$1" PR_AUTHOR="${PR_AUTHOR:-contrib}" PR_NUMBER=7 GITHUB_REPOSITORY=o/r \
+    PR_UPDATED_AT=2026-11-16T10:00:00Z PR_HEAD_SHA=head1 PR_CHANGED_FILES="${PR_CHANGED_FILES:-$(grep -c '' "$files")}" \
+    PR_EVENT_ACTION="${PR_EVENT_ACTION:-synchronize}" PR_EVENT_LABEL="${PR_EVENT_LABEL:-}" \
+    check_stage review-label "$files" 2>&1)"
   code=$?
+}
+
+# run_pr ASSOCIATION: what CI asks of a PR: the commits stage in repo-rules, then the review-label stage in review-gate
+# (run_gate). The output is both stages', the exit code the higher of the two.
+run_pr() {
+  local commits_out commits_code
+  commits_out="$(PATH="$FAKE_BIN:$PATH" FAKE_GH_FAIL="${FAKE_GH_FAIL:-}" \
+    FAKE_PERMISSION_FAIL="${FAKE_PERMISSION_FAIL:-}" \
+    PR_AUTHOR_ASSOCIATION="$1" PR_AUTHOR="${PR_AUTHOR:-contrib}" GITHUB_REPOSITORY=o/r \
+    check_stage commits "$base..HEAD" 2>&1)"
+  commits_code=$?
+  run_gate "$1"
+  out="$commits_out"$'\n'"$out"
+  [ "$commits_code" -le "$code" ] || code=$commits_code
+}
+
+# Issue #330: repo-rules runs the PR's own copy of the workflow, so the label moved to the review-gate workflow, which
+# runs main's copy. The commits stage judges trailers only, and needs no timeline.
+test_commits_stage_leaves_the_label_to_the_review_gate() {
+  outside_repo
+  out="$(PATH="$FAKE_BIN:$PATH" FAKE_TIMELINE_FAIL=1 PR_AUTHOR_ASSOCIATION=CONTRIBUTOR PR_AUTHOR=contrib \
+    GITHUB_REPOSITORY=o/r check_stage commits "$base..HEAD" 2>&1)"
+  code=$?
+  expect 0
+  expect_absent "security-reviewed"
+}
+
+test_review_gate_counts_a_rename_out_of_docs() {
+  outside_repo docs/notes.txt
+  TIMELINE=""
+  PR_FILES='docs/notes.txt\tsrc/notes.txt\n' run_gate CONTRIBUTOR
+  expect 1 "add the security-reviewed label"
+  PR_FILES='docs/a.md\ndocs/b.md\tdocs/c.md\n' FAKE_GH_FAIL=1 run_gate CONTRIBUTOR
+  expect 0
+}
+
+# The API lists at most 3000 files, so a list shorter than the event's count could hide a change outside docs/.
+test_review_gate_fails_closed_on_a_short_file_list() {
+  outside_repo docs/notes.txt
+  PR_CHANGED_FILES=2 run_gate CONTRIBUTOR
+  expect 2 "listed 1 of the PR's 2 changed files"
+  PR_FILES='' PR_CHANGED_FILES=1 run_gate OWNER
+  expect 2 "listed 0 of the PR's 1 changed files"
+}
+
+# A labeled event's updated_at is the label's own time, so the run the label starts uses GitHub's payload instead: the
+# head when the label went on must still be the head.
+test_review_gate_passes_on_the_label_event_while_the_head_is_unchanged() {
+  outside_repo
+  TIMELINE='push\t2026-11-16T09:00:00Z\nlabeled\t2026-11-16T09:30:00Z\tmaint\n' # before updated_at
+  PR_EVENT_ACTION=labeled PR_EVENT_LABEL=security-reviewed run_gate CONTRIBUTOR
+  expect 0
+  PR_EVENT_ACTION=labeled PR_EVENT_LABEL=security-reviewed FAKE_HEAD=head2 run_gate CONTRIBUTOR
+  expect 1 "pushed to after"
+  # Another label's event keeps the event's updated_at, so the review label must be newer than it.
+  PR_EVENT_ACTION=labeled PR_EVENT_LABEL=enhancement run_gate CONTRIBUTOR
+  expect 1 "before the PR's latest push (2026-11-16T10:00:00Z)"
+  TIMELINE='labeled\t2026-11-16T09:30:00Z\tmaint\npush\t2026-11-16T09:40:00Z\n' # a force push after the label
+  PR_EVENT_ACTION=labeled PR_EVENT_LABEL=security-reviewed run_gate CONTRIBUTOR
+  expect 1 "before the PR's latest push (2026-11-16T09:40:00Z)"
+  TIMELINE='labeled\t2026-11-16T09:30:00Z\tcollab\n'
+  PR_EVENT_ACTION=labeled PR_EVENT_LABEL=security-reviewed run_gate CONTRIBUTOR
+  expect 1 "added by collab, who isn't an admin"
+}
+
+test_review_gate_fails_closed_when_the_head_cannot_be_read() {
+  outside_repo
+  TIMELINE='labeled\t2026-11-16T11:00:00Z\tmaint\n'
+  PR_EVENT_ACTION=labeled PR_EVENT_LABEL=security-reviewed FAKE_HEAD_FAIL=1 run_gate CONTRIBUTOR
+  expect 2 "could not read the head of PR #7"
 }
 
 # Issue #309: every PR by someone other than the owner (or an admin) needs the label, collaborators and members too.

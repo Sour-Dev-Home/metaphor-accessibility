@@ -16,18 +16,19 @@ flowchart LR
     subgraph pr["Pull request"]
         direction TB
         opened["PR opened<br/><small>auto-merge on</small>"] --> checks
-        subgraph checks["4 required checks, in parallel"]
+        subgraph checks["5 required checks, in parallel"]
             direction LR
             rules["repo-rules"]
             build["build"]
             scripts["scripts"]
             security["security"]
+            gate["review-gate"]
         end
     end
 
     subgraph queue["Merge queue"]
         direction TB
-        again["Same 4 checks<br/><small>on latest main</small>"] --> squash["Squash merge<br/><small>branch deleted</small>"]
+        again["Same 5 checks<br/><small>on latest main</small>"] --> squash["Squash merge<br/><small>branch deleted</small>"]
     end
 
     subgraph mainzone["main"]
@@ -52,10 +53,10 @@ An orange outline means a failure stops the change. A dotted line means the job 
 | --- | --- | --- |
 | Hooks | `check.sh pre-commit`, `commit-msg`, `pre-push` | [`scripts/githooks/`](../../../scripts/githooks/) |
 | Before the PR | `check.sh full`; the security review for code in its scope | [`CONTRIBUTING.md`](../../../.github/CONTRIBUTING.md#3-run-the-checks) |
-| Pull request and merge queue | `repo-rules`, `build`, `scripts`, `security` | [`ci.yml`](../../../.github/workflows/ci.yml) |
+| Pull request and merge queue | `repo-rules`, `build`, `scripts`, `security`; `review-gate` from `main`'s copy | [`ci.yml`](../../../.github/workflows/ci.yml), [`review-gate.yml`](../../../.github/workflows/review-gate.yml) |
 | After merge | conflict alert, Scorecard, slow suite | [`.github/workflows/`](../../../.github/workflows/) |
 
 These are always on, from the repository settings: SHA-pinned actions from an allowed list
 ([how to pin one](../how-to/add-or-update-a-github-action.md)), Dependabot, CodeQL, secret scanning with push
-protection, and the ruleset on `main`. The ruleset accepts pull requests only, requires the four checks and merges
+protection, and the ruleset on `main`. The ruleset accepts pull requests only, requires the five checks and merges
 through the queue.
