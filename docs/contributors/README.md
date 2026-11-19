@@ -157,7 +157,10 @@ How-tos: [set up a clone](how-to/set-up-a-clone.md), [add a hook](how-to/add-a-h
 [query the Ghidra project](how-to/query-the-ghidra-project.md),
 [add or update a GitHub Action](how-to/add-or-update-a-github-action.md), [cut a release](how-to/cut-a-release.md),
 [handle a GitHub outage](how-to/handle-a-github-outage.md),
-[merge main into a draft PR](how-to/merge-main-into-a-draft-pr.md).
+[merge main into a draft PR](how-to/merge-main-into-a-draft-pr.md),
+[run a game session](how-to/run-a-game-session.md), [a check or CI failed](how-to/a-check-or-ci-failed.md),
+[write a finding or save a raw source](how-to/write-a-finding.md),
+[add a feature project](how-to/add-a-feature-project.md), [handle a game update](how-to/handle-a-game-update.md).
 
 Reference: [checks](reference/checks.md), every check stage and how CI runs them;
 [security review](reference/security-review.md), the stamp, the label gate and the deny rules;

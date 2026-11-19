@@ -42,15 +42,10 @@ couple of minutes.
 
 ## 4. Session
 
-When the maintainer says ready, and with the game closed:
-
-```powershell
-pwsh scripts/dev/capture.ps1 -OptIns <names> -SaveLog <folder outside the repo>
-```
-
-(or deploy with `scripts/dev/listen.ps1 -Seconds 30 -Close` and add the opt-in files by hand). Done when the output shows
-`hooks n/m` as expected with no `skipped: opt-in` or failed listener. Tell the maintainer to start OBS and narrate, and
-to quit the game when done (`-SaveLog` then copies the logs). Fix a missing listener before they play.
+When the maintainer says ready, and with the game closed, follow
+[run a game session](../../../docs/contributors/how-to/run-a-game-session.md). Done when the output shows `hooks n/m` as
+expected with no `skipped: opt-in` or failed listener. Tell the maintainer to start OBS and narrate, and to quit the
+game when done. Fix a missing listener before they play.
 
 ## 5. Analysis
 
