@@ -126,10 +126,11 @@ docs_stage() {
   fi
   # markdownlint-cli2 also loads a config from each linted file's folder, even with --config, and a .cjs or .mjs one
   # (or a custom rule a .jsonc one names) runs code in the docs step (#322). Only tools/docs/, in the security-review
-  # scope, may hold one; with any other, markdownlint doesn't run.
+  # scope, may hold one; with any other, markdownlint doesn't run. The name matches in any case, as Windows reads it
+  # (#324); the folder doesn't, since the review scope's tools/docs/ doesn't cover a Tools/Docs/ that Windows merges in.
   local configs=()
   while IFS= read -r -d '' file; do configs+=("$file"); done < <(
-    git ls-files -z -- ':(glob)**/.markdownlint*' ':(exclude,glob)tools/docs/**'
+    git ls-files -z -- ':(glob,icase)**/.markdownlint*' ':(exclude,glob)tools/docs/**'
   )
   if [ "${#configs[@]}" -gt 0 ]; then
     for file in "${configs[@]}"; do
@@ -1280,7 +1281,13 @@ pre_commit_checks() {
 # shows everything.
 full_dotnet_checks() {
   export DOTNET_CLI_TELEMETRY_OPTOUT=1 DOTNET_NOLOGO=1
-  timed_step restore dotnet restore "$solution" -v q || report "build: restore failed, see the errors above"
+  # In CI, restore fails when a lock file no longer matches its project: the security job audits the lock files
+  # alone (#324), so the flag goes on the command line, not only in Directory.Build.props, where a project could
+  # override it.
+  local restore_flags=()
+  [ -z "${GITHUB_ACTIONS:-}" ] || restore_flags=(--locked-mode)
+  timed_step restore dotnet restore "$solution" "${restore_flags[@]}" -v q ||
+    report "build: restore failed, see the errors above"
   timed_step build dotnet build "$solution" -c Release --no-restore -v q || report "build: failed, see the errors above"
   timed_step tests dotnet test "$solution" -c Release --no-build -v q --filter "$(category_filter)" ||
     report "tests: Unit or RoundTrip tests failed"

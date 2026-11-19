@@ -15,6 +15,12 @@ Build and test tools, not shipped: CsCheck, Mono.Cecil, Microsoft.CodeAnalysis.C
 (versions pinned in `Directory.Packages.props`); [Stryker.NET](https://github.com/stryker-mutator/stryker-net) and
 [jscpd](https://github.com/kucherenko/jscpd) in the weekly slow checks. Their licences are on their package pages
 [NEEDS VERIFICATION: not saved under `docs/raw-sources/`].
+Check tools, pinned and not shipped ([licences](docs/raw-sources/check-tool-licences-2026-11-19.md)):
+[OSV-Scanner](https://github.com/google/osv-scanner) 2.7.1 (Apache-2.0), CI's vulnerability audit
+(`scripts/vuln-audit.sh`); [lychee](https://github.com/lycheeverse/lychee) 0.24.2 (Apache-2.0, with an MIT licence
+file too), [Vale](https://github.com/errata-ai/vale) 3.25.1 (MIT) and
+[markdownlint-cli2](https://github.com/DavidAnson/markdownlint-cli2) 0.24.1 (MIT), the docs checks
+(`scripts/install-docs-tools.sh`, `tools/docs/`).
 [Ghidra](https://github.com/NationalSecurityAgency/ghidra) 12.2 (Apache-2.0), installed locally and not shipped, runs
 the local exe project (`scripts/ghidra.ps1`, `tools/ghidra/`) and its RTTI analyzer labels the vtables we name; the RTTI
 layout `MetaphorQuery.java` reads comes from its `Rtti4Model.java` and `TypeDescriptorModel.java`

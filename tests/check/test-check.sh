@@ -775,6 +775,22 @@ test_docs_stage_fails_on_a_markdownlint_config_outside_tools_docs() {
   expect 0
 }
 
+# Windows reads config names and folders in any case (issue #324): a .MarkdownLint config is blocked too, and so is one
+# in Tools/Docs/, which Windows merges with tools/docs/ but the review scope doesn't cover.
+test_docs_stage_fails_on_a_markdownlint_config_in_any_case() {
+  docs_repo
+  mkdir -p docs
+  printf '# Notes\n\nPlain words.\n' > docs/notes.md
+  printf 'module.exports = {};\n' > docs/.MarkdownLint-cli2.cjs
+  git add .
+  # Staged without a file: on Windows, Tools/Docs/ on disk is tools/docs/.
+  local blob
+  blob="$(git hash-object -w docs/.MarkdownLint-cli2.cjs)"
+  git update-index --add --cacheinfo "100644,$blob,Tools/Docs/.markdownlint.cjs"
+  run_check docs
+  expect 1 "docs/.MarkdownLint-cli2.cjs" "Tools/Docs/.markdownlint.cjs"
+}
+
 # words N: print N words of plain prose.
 words() { local i; for ((i = 0; i < $1; i++)); do printf 'word '; done; echo; }
 
@@ -1798,11 +1814,12 @@ test_stamp_touches_each_guard_file_but_not_docs() {
   expect 1
 }
 
-# What dotnet restore reads before the security job's vulnerability audit (issue #322): MSBuild's auto-imported files in
-# any folder, the SDK pin and the package sources. A change to one could hide a vulnerable package.
+# What decides dotnet restore, and so the lock files the security job audits (issues #322, #324): MSBuild's
+# auto-imported files in any folder, the SDK pin (global.json in any folder too) and the package sources. A change to
+# one could hide a vulnerable package.
 AUDIT_FILES=(Directory.Build.props src/App/Directory.Build.targets src/App/Directory.Build.rsp
   Directory.Packages.props src/App/Directory.Packages.props Directory.Solution.targets after.Metaphor.sln.targets
-  global.json nuget.config NuGet.config src/App/NuGet.Config)
+  global.json src/App/global.json nuget.config NuGet.config src/App/NuGet.Config)
 
 test_stamp_touches_each_file_the_audit_reads() {
   local file
