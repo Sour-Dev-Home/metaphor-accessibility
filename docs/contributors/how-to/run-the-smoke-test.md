@@ -30,7 +30,7 @@ While it runs, your `ReloadedII.json` points at a throwaway profile, and the ori
 `ReloadedII.json.smoke-backup`. If the run is killed, the next run restores the backup before it starts. To restore by
 hand, move the backup back over `ReloadedII.json`.
 
-The script's own tests run against a stand-in launcher and game, with no game needed:
+The script's own tests run against the [stand-in game](../../../GLOSSARY.md#working-and-testing), with no game needed:
 
 ```powershell
 Invoke-Pester tests/smoke
