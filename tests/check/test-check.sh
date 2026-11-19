@@ -2,11 +2,12 @@
 # Black-box tests for scripts/check.sh: each test plants content in a temporary git repo, runs the check there and
 # asserts the exit code and the message.
 set -uo pipefail
-unset PII_PATTERNS REQUIRE_PRIVATE_PATTERNS REQUIRE_DOCS_TOOLS GITHUB_ACTIONS SECURITY_REVIEW_SKIP # set per run
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 # shellcheck source=../../scripts/check/wsl-run.sh
 source "$ROOT/scripts/check/wsl-run.sh" # in Git Bash, runs this suite in WSL instead when it's set up (#341)
+# shellcheck source=../../scripts/check/suite-env.sh
+source "$ROOT/scripts/check/suite-env.sh" # the contributor's git config and shell don't reach it (#455)
 CHECK="$ROOT/scripts/check.sh"
 WORK="$(mktemp -d)"
 trap 'rm -rf "$WORK"' EXIT
@@ -739,6 +740,28 @@ test_commits_stage_fails_closed_on_a_bad_range() {
   git commit -q --allow-empty -m 'chore: start'
   run_check commits "nope..HEAD"
   expect 2 "could not list the commits in nope..HEAD"
+}
+
+# #455: with log.showSignature=true, git log prints a signed commit's verification ahead of --format's output, where
+# the stage read the short hash; every commit then failed the message check.
+test_commits_stage_reads_signed_commits_under_log_show_signature() {
+  local base signer
+  new_repo
+  signer="$(pwd -W 2> /dev/null || pwd)/sign.sh"
+  printf '%s\n' '#!/bin/sh' 'case "$*" in' \
+    "  *--verify*) echo '[GNUPG:] GOODSIG 0 t'; echo 'gpg: Good signature' >&2 ;;" \
+    "  *) cat > /dev/null; printf '%s\\n' '-----BEGIN PGP SIGNATURE-----' 'eA==' '-----END PGP SIGNATURE-----'" \
+    "     echo '[GNUPG:] SIG_CREATED ' >&2 ;;" 'esac' > sign.sh && chmod +x sign.sh || exit 2
+  git commit -q --allow-empty -m 'chore: start'
+  base="$(git rev-parse HEAD)"
+  git config gpg.program "$signer" && git config log.showSignature true
+  git commit -q -S --allow-empty -m 'feat: a signed one'
+  if [[ "$(git log -1 --format=%h)" == *"Good signature"* ]]; then
+    run_check commits "$base..HEAD"
+  else
+    out="the commit wasn't signed, or git log showed no signature" code=9
+  fi
+  expect 0
 }
 
 # docs_repo: a new repo holding the real docs-check configs, with the installed docs tools on PATH.

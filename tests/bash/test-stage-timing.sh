@@ -1,11 +1,12 @@
 #!/usr/bin/env bash
 # Black-box tests for scripts/check/stage-timing.sh: durations, the budget warning and the CI jobs table.
 set -uo pipefail
-unset GITHUB_ACTIONS GITHUB_STEP_SUMMARY # tests set these per run
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 # shellcheck source=../../scripts/check/wsl-run.sh
 source "$ROOT/scripts/check/wsl-run.sh" # in Git Bash, runs this suite in WSL instead when it's set up (#341)
+# shellcheck source=../../scripts/check/suite-env.sh
+source "$ROOT/scripts/check/suite-env.sh" # the contributor's git config and shell don't reach it (#455)
 TIMING="$ROOT/scripts/check/stage-timing.sh"
 WORK="$(mktemp -d)"
 trap 'rm -rf "$WORK"' EXIT
