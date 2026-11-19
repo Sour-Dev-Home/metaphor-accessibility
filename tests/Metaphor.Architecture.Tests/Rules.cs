@@ -116,6 +116,26 @@ internal static class Rules
                 .Where(type => IsInNamespace(type, "System.Net"))
                 .Select(type => $"{assembly.Name.Name} uses networking type {type.FullName}")];
 
+    /// <summary>No Release assembly uses named pipes, so the live inspector (#291), the mod's one way in from outside the
+    /// game, never reaches players: it is compiled into Debug builds only.</summary>
+    public static IReadOnlyList<string> NoPipesInRelease(AssemblyDefinition assembly) =>
+        IsDebugBuild(assembly)
+            ? []
+            : [.. ExternalTypes(assembly)
+                .Where(type => IsInNamespace(type, "System.IO.Pipes"))
+                .Select(type => $"{assembly.Name.Name} uses pipe type {type.FullName} in a Release build")];
+
+    /// <summary>Whether <paramref name="assembly"/> was compiled without optimizations, as a Debug build is: its
+    /// <c>DebuggableAttribute</c> has <c>DisableOptimizations</c>.</summary>
+    public static bool IsDebugBuild(AssemblyDefinition assembly)
+    {
+        const int disableOptimizations = 0x100; // DebuggableAttribute.DebuggingModes
+        var debuggable = assembly.CustomAttributes
+            .FirstOrDefault(a => a.AttributeType.FullName == "System.Diagnostics.DebuggableAttribute");
+        return debuggable is not null &&
+            (Convert.ToInt32(debuggable.ConstructorArguments[0].Value, CultureInfo.InvariantCulture) & disableOptimizations) != 0;
+    }
+
     /// <summary>Plain libraries reference neither the loader (Reloaded-II) nor anything Windows-only.</summary>
     public static IReadOnlyList<string> NoLoaderOrWindows(AssemblyDefinition assembly)
     {

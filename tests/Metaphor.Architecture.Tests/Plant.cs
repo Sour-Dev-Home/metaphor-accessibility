@@ -17,20 +17,25 @@ internal static class Plant
     public static AssemblyDefinition Compile(
         string assemblyName, string source, bool allowUnsafe = false, params AssemblyDefinition[] references)
     {
-        var bytes = Emit(assemblyName, source, allowUnsafe, references);
+        var bytes = Emit(assemblyName, source, allowUnsafe, references, OptimizationLevel.Debug);
         var resolver = new InMemoryResolver(references);
         return AssemblyDefinition.ReadAssembly(
             new MemoryStream(bytes), new ReaderParameters { AssemblyResolver = resolver });
     }
 
+    /// <summary>Compiles <paramref name="source"/> as <see cref="Compile"/> does, but optimized, as a Release build is.</summary>
+    public static AssemblyDefinition CompileRelease(string assemblyName, string source) =>
+        AssemblyDefinition.ReadAssembly(new MemoryStream(Emit(assemblyName, source, false, [], OptimizationLevel.Release)));
+
     private static byte[] Emit(
-        string assemblyName, string source, bool allowUnsafe, AssemblyDefinition[] references)
+        string assemblyName, string source, bool allowUnsafe, AssemblyDefinition[] references, OptimizationLevel optimization)
     {
         var compilation = CSharpCompilation.Create(
             assemblyName,
             [CSharpSyntaxTree.ParseText(source)],
             [.. Framework, .. references.Select(ToMetadataReference)],
-            new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary, allowUnsafe: allowUnsafe));
+            new CSharpCompilationOptions(
+                OutputKind.DynamicallyLinkedLibrary, allowUnsafe: allowUnsafe, optimizationLevel: optimization));
         using var stream = new MemoryStream();
         var result = compilation.Emit(stream);
         Assert.True(result.Success, string.Join('\n', result.Diagnostics));
