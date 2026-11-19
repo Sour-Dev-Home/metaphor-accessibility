@@ -53,8 +53,8 @@ A check that looks stalled: `bash scripts/check-status.sh` shows who holds each 
 
 ## Commit
 
-- Subjects: the format and the 72-character limit are in the header of [`scripts/check.sh`](../../scripts/check.sh)
-  (`commit-msg` hook). Merge commits need a conventional subject too; git's default is rejected.
+- Format: the rules for subject, body and trailers, merge commits included, are in
+  [commit messages](../contributors/reference/commit-messages.md) (`commit-msg` hook).
 - Add the trailer the session's attribution reminder gives (`Co-Authored-By: ...`).
 - Stop only processes you started in this task. A check or lock held by someone else: wait, or hand back and say so.
 
