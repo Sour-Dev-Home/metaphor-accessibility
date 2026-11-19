@@ -142,7 +142,8 @@ It asks once, then creates a WSL distro named `metaphor-checks` from Debian (a d
 the tools listed in [`scripts/wsl-tools.txt`](../scripts/wsl-tools.txt) inside it, as the distro's root. Your own
 distros, WSL's settings and your git config stay as they are. Running it again installs only what's missing;
 `-Update` upgrades the distro's packages. On a machine without WSL 2 (no WSL, WSL 1 only, or virtualization off) it
-stops with the reason and changes nothing.
+stops with the reason and changes nothing. When WSL is waiting for Windows to restart, or WSL 2 can't start because
+virtualization is off (in a Hyper-V VM, nested virtualization), it says what to do.
 
 From then on, a suite started in Git Bash runs itself in `metaphor-checks`, from your checkout through `/mnt/c`, with
 its temporary repositories in the distro's `/tmp`, and exits with the suite's code. Its first line names the tools'

@@ -1,7 +1,9 @@
-# Tests for scripts/setup-wsl.ps1 (#341, #360). Each test runs the script in a child pwsh -NonInteractive, with
+# Tests for scripts/setup-wsl.ps1 (#341, #360, #402). Each test runs the script in a child pwsh -NonInteractive, with
 # stand-in functions for wsl.exe and Get-CimInstance defined first (a function wins over an application of the same
 # name), so nothing touches the machine's WSL. The wsl.exe stand-in logs its arguments to calls.log and answers
-# --install from STUB_INSTALL, one comma-separated result per call: ok, net (the DNS failure of #360) or fail.
+# --install from STUB_INSTALL, one comma-separated result per call: ok, net (the DNS failure of #360), reboot (the
+# restart WSL waits on, #402) or fail; --status answers from STUB_STATUS: ok, or novirt (virtualization off, #402).
+# Get-CimInstance always reports a hypervisor, as inside a Hyper-V guest.
 # Run: Invoke-Pester tests/smoke (Pester 5 or later).
 
 BeforeAll {
@@ -22,6 +24,13 @@ function global:wsl.exe {
     $global:LASTEXITCODE = 0
     switch ($args[0]) {
         '--version' { 'WSL version: stand-in' }
+        '--status' {
+            if ($env:STUB_STATUS -eq 'novirt') {
+                Write-Error 'WSL2 is unable to start since virtualization is not enabled on this machine.'
+                $global:LASTEXITCODE = 1
+            }
+            else { 'Default Version: 2' }
+        }
         '--list' {
             '  NAME            STATE           VERSION'
             if (Test-Path $created) { '  metaphor-checks Stopped         2' }
@@ -37,6 +46,9 @@ function global:wsl.exe {
                     Write-Error 'Error code: Wsl/InstallDistro/WININET_E_NAME_NOT_RESOLVED'
                     $global:LASTEXITCODE = 1
                 }
+                'reboot' {
+                    'The requested operation is successful. Changes will not be effective until the system is rebooted.'
+                }
                 default { 'The operation failed: stand-in'; $global:LASTEXITCODE = 1 }
             }
         }
@@ -50,6 +62,7 @@ function global:wsl.exe {
         $quoted = $Arguments -join ' '
         $command = "`$env:STUB_CALLS = '$calls'; `$env:STUB_STATE = '$state'; " +
             "`$env:STUB_INSTALL = '$($script:install)'; `$env:STUB_TOOLS_CODE = '$($script:toolsCode)'; " +
+            "`$env:STUB_STATUS = '$($script:status)'; " +
             $(if ($script:path) { "`$env:PATH = '$($script:path)'; " } else { '' }) +
             $(if ($script:standIn) { ". '$standIns'; " } else { '' }) +
             "& '$setupScript' $quoted; if (`$? -or `$LASTEXITCODE) { exit `$LASTEXITCODE } else { exit 99 }"
@@ -66,6 +79,7 @@ Describe 'setup-wsl.ps1' {
         $script:calls = Join-Path $state 'calls.log'
         $script:install = 'ok'
         $script:toolsCode = '0'
+        $script:status = 'ok'
         $script:path = $null
         $script:standIn = $true
     }
@@ -137,6 +151,28 @@ Describe 'setup-wsl.ps1' {
         $result.ExitCode | Should -Be 99 -Because $result.Output
         $result.Output | Should -Match 'RetryDelaySeconds'
         Get-Calls | Should -BeNullOrEmpty
+    }
+
+    It 'says to restart Windows when WSL is waiting on a restart' {
+        $script:install = 'reboot'
+        $result = Invoke-Setup
+
+        $result.ExitCode | Should -Be 2 -Because $result.Output
+        $result.Output | Should -Match 'Changes will not be effective until the system is rebooted'
+        $result.Output | Should -Match ('setup-wsl: WSL is waiting for Windows to restart before it can create ' +
+            'metaphor-checks\. Restart Windows, then run \.\\scripts\\setup-wsl\.ps1\.')
+        $result.Output | Should -Not -Match 'reported success|virtualization'
+    }
+
+    It 'names the virtualization fix, inside a VM too, when WSL 2 can''t start' {
+        $script:status = 'novirt'
+        $result = Invoke-Setup
+
+        $result.ExitCode | Should -Be 2 -Because $result.Output
+        $result.Output | Should -Match ('setup-wsl: WSL 2 can''t start because virtualization is off\. Turn on ' +
+            'virtualization in the firmware settings')
+        $result.Output | Should -Match 'Set-VMProcessor -VMName <vm> -ExposeVirtualizationExtensions \$true on the host'
+        Get-Calls | Where-Object { $_ -like 'wsl --install*' } | Should -BeNullOrEmpty
     }
 
     It 'exits 2, for the install advice, when WSL is missing' {

@@ -404,24 +404,32 @@ try {
         Add-Item 'WSL' $true 'the metaphor-checks distro is ready'
     }
     else {
-        # setup-wsl.ps1's last line gives the reason in its first sentence, or says nothing changed after a no.
+        # setup-wsl.ps1's last line gives the reason in its first sentence and any fix it knows (a restart, say) after
+        # it, before "The check suites keep running in Git Bash."; or it says nothing changed after a no.
         $last = @($wslLines | Where-Object { $_ -match '^setup-wsl: ' } | Select-Object -Last 1)
         $reason = 'not set up.'
+        $wslFix = 'Fix that, then run .\scripts\setup-wsl.ps1;'
+        $ownFix = $false
         if ($last -and $last[0] -match 'nothing changed\. Run it in a PowerShell window') {
             $reason = 'there was no console to ask about creating the distro.'
         }
         elseif ($last -and $last[0] -match 'nothing changed') { $reason = 'you chose not to create the distro.' }
+        elseif ($last -and $last[0] -match '^setup-wsl: (.+?\.)\s+(.+?)\s+The check suites keep running') {
+            $reason = $Matches[1]
+            $wslFix = $Matches[2] -replace '\.$', ';'
+            $ownFix = $true
+        }
         elseif ($last -and $last[0] -match '^setup-wsl: (.+?\.)(\s|$)') { $reason = $Matches[1] }
         Write-Host 'Without the metaphor-checks distro the check-script suites run in Git Bash, which is slow: a'
         Write-Host 'docs-only check.sh full takes about 4 minutes longer.'
         # $WslUnavailableExitCode (Interactive.psm1): this machine can't run WSL 2 yet. Any other failure (a network
-        # error, say) isn't fixed by installing WSL (#360).
-        if ($wslCode -eq $WslUnavailableExitCode) {
+        # error, say) isn't fixed by installing WSL (#360), and neither is a restart or virtualization that
+        # setup-wsl.ps1 names itself (#402).
+        if ($wslCode -eq $WslUnavailableExitCode -and -not $ownFix) {
             Write-Host 'To get WSL 2, run wsl --install in an admin PowerShell and restart Windows'
             Write-Host '(https://learn.microsoft.com/windows/wsl/install); then run .\scripts\setup-wsl.ps1.'
         }
-        Add-Item 'WSL' $false ("$reason Fix that, then run .\scripts\setup-wsl.ps1; until then check.sh full is about " +
-            '4 minutes slower')
+        Add-Item 'WSL' $false "$reason $wslFix until then check.sh full is about 4 minutes slower"
     }
 
     # --- 6. Skills ----------------------------------------------------------------------------------------------------
