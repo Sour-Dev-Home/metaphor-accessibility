@@ -112,7 +112,8 @@ bash scripts/check.sh docs
 
 A broken link fails it; everything else is a warning. It runs lychee, Vale and markdownlint (which needs Node.js), and
 so do the check-script tests. `check.sh full` installs them when they're missing, once per clone, and every worktree
-shares them. Running `bash scripts/install-docs-tools.sh` yourself is optional; its header says how the pins are kept
+shares them. On Windows, lychee needs the Visual C++ Redistributable (x64), which `.\scripts\onboard.ps1` offers to
+install. Running `bash scripts/install-docs-tools.sh` yourself is optional; its header says how the pins are kept
 ([`install-docs-tools.sh`](../scripts/install-docs-tools.sh)). To flag another filler word, add it to
 [`tools/docs/.vale/styles/Project/Filler.yml`](../tools/docs/.vale/styles/Project/Filler.yml).
 

@@ -1,7 +1,9 @@
 #!/usr/bin/env bash
 # Installs the tools `scripts/check.sh docs` runs, at pinned versions, once per clone (#353): lychee and Vale from their
 # GitHub releases, each archive checked against its SHA-256 before it's unpacked, and markdownlint-cli2 from the
-# lockfile in tools/docs/. Runs on Linux x86-64 (CI) and in Git Bash on Windows x86-64. Re-running it is safe.
+# lockfile in tools/docs/. Runs on Linux x86-64 (CI) and in Git Bash on Windows x86-64. Re-running it is safe. Every
+# run, installing or not, ends by starting lychee and Vale with --version, and exits 1 saying why if either can't start
+# (#385): on Windows, lychee needs the Visual C++ Redistributable (x64).
 #
 #   bash scripts/install-docs-tools.sh           install what's missing for this checkout's pins into the clone
 #   bash scripts/install-docs-tools.sh --path    print the folders holding them, lychee:vale:markdownlint, for PATH
@@ -54,6 +56,32 @@ complete() {
   [ "$marker" = "${1##*/}" ] && [ -f "$1/$2" ]
 }
 
+# runs NAME DIR: NAME in DIR starts, or this says why not (#385). A present binary can still fail to start: lychee's
+# Windows build is an MSVC one that loads vcruntime140.dll, which Windows lacks until the Visual C++ Redistributable is
+# installed, and Git Bash then exits 127 without a word
+# (docs/raw-sources/vc-redist-winget-pin-and-lychee-runtime-2026-11-19.md).
+runs() {
+  local out code=0
+  out="$("$2/$1$exe" --version 2>&1)" || code=$?
+  [ "$code" -ne 0 ] || return 0
+  echo "install-docs-tools: $1 is installed in $2 but doesn't run (--version exited $code)${out:+: $out}" >&2
+  if [ "$platform" = windows ] && [ "$1" = lychee ] && [ ! -f "${SYSTEMROOT:-C:/Windows}/System32/vcruntime140.dll" ]
+  then
+    echo "install-docs-tools: lychee's Windows build needs the Microsoft Visual C++ Redistributable (x64), and its" \
+      "vcruntime140.dll is missing. .\\scripts\\onboard.ps1 offers to install it, or get it from" \
+      "https://learn.microsoft.com/cpp/windows/latest-supported-vc-redist, then run this again." >&2
+  fi
+  return 1
+}
+
+# verify LYCHEE_DIR VALE_DIR: both tools run; each one that doesn't says so.
+verify() {
+  local failed=0
+  runs lychee "$1" || failed=1
+  runs vale "$2" || failed=1
+  return "$failed"
+}
+
 # The clone's folders for this checkout's pins. cd and pwd give a path PATH can hold in Git Bash (/c/..., not C:/...).
 if [ "$mode" != bin ]; then
   common="$(git rev-parse --git-common-dir)" && shared="$(cd "$common" && pwd)/docs-tools" ||
@@ -74,6 +102,7 @@ if [ "$mode" != bin ]; then
   fi
   if complete "$lychee_dir" "lychee$exe" && complete "$vale_dir" "vale$exe" &&
     complete "$lint_dir" node_modules/.bin/markdownlint-cli2; then
+    verify "$lychee_dir" "$vale_dir" || exit 1
     exit 0
   fi
   mkdir -p "$shared"
@@ -136,6 +165,7 @@ else
 fi
 
 if [ "$mode" = bin ]; then
+  verify "$bin" "$bin" || exit 1
   echo "installed into $bin: lychee $LYCHEE_VERSION, vale $VALE_VERSION"
   exit 0
 fi
@@ -146,5 +176,6 @@ if ! complete "$lint_dir" node_modules/.bin/markdownlint-cli2; then
   npm ci --prefix "$work/markdownlint" --ignore-scripts --no-audit --no-fund --loglevel=error
   place "$work/markdownlint" "$lint_dir" node_modules/.bin/markdownlint-cli2
 fi
+verify "$lychee_dir" "$vale_dir" || exit 1
 
 echo "installed into $shared: lychee $LYCHEE_VERSION, vale $VALE_VERSION, markdownlint-cli2 (tools/docs lockfile)"

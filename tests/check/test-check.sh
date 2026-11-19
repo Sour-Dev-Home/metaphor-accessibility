@@ -911,14 +911,17 @@ test_docs_tools_with_another_pin_get_another_folder() {
 }
 
 # docs_tools_installed: fake a finished install of every docs tool in the current clone, marker and tool file each, and
-# set lint_dir to markdownlint's folder.
+# set lint_dir to markdownlint's folder and lychee_bin to the stand-in lychee. lychee and Vale are stand-ins that run,
+# since the installer starts each one (#385).
 docs_tools_installed() {
   local dir exe="" lychee vale
   [ "$(uname -s)" = Linux ] || exe=.exe
   IFS=: read -r lychee vale lint_dir <<<"$(bash "$ROOT/scripts/install-docs-tools.sh" --path)"
   lint_dir="${lint_dir%/node_modules/.bin}"
   mkdir -p "$lint_dir/node_modules/.bin" && : > "$lint_dir/node_modules/.bin/markdownlint-cli2"
-  mkdir -p "$lychee" "$vale" && : > "$lychee/lychee$exe" && : > "$vale/vale$exe"
+  lychee_bin="$lychee/lychee$exe"
+  mkdir -p "$lychee" "$vale" && printf '#!/bin/sh\necho stand-in\n' | tee "$lychee_bin" > "$vale/vale$exe"
+  chmod +x "$lychee_bin" "$vale/vale$exe"
   for dir in "$lychee" "$vale" "$lint_dir"; do echo "${dir##*/}" > "$dir/.installed"; done
 }
 
@@ -943,6 +946,20 @@ test_docs_tools_install_skips_a_pin_already_in_the_clone() {
   code=$?
   [[ "$out" != *"must not run"* ]] || code=8
   expect 0
+}
+
+# An installed lychee that can't start, as the Windows build without the Visual C++ runtime: the install fails and
+# names it, on the already-installed path too (#385).
+test_docs_tools_install_fails_when_a_tool_does_not_run() {
+  local lint_dir lychee_bin
+  new_repo
+  docs_tools_installed
+  printf '#!/bin/sh\nexit 127\n' > "$lychee_bin"
+  out="$(PATH="$(docs_tools_stubs):$PATH" bash "$ROOT/scripts/install-docs-tools.sh" 2>&1)"
+  code=$?
+  [[ "$out" != *"must not run"* ]] || code=8
+  [[ "$out" != *"vale is installed"* ]] || code=9
+  expect 1 "lychee is installed in"
 }
 
 # A folder with the pin's name but no marker, such as an empty one, is not an install: it gets replaced (#353 review).
