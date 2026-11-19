@@ -18,9 +18,11 @@ $StatusFileName = 'mod-status.json' # Metaphor.Core.ModStatusFile.FileName
 
 # Dates stay strings, so a config written back keeps them as the loader wrote them. Windows PowerShell 5.1 has no
 # -DateKind and leaves dates as strings anyway. An array comes back one item at a time in both.
+# Reloaded-II writes UTF-8 without a byte order mark, which 5.1 reads as the ANSI code page unless told UTF8 (#453);
+# UTF8 reads a file with a byte order mark too.
 $JsonKeepsDates = (Get-Command ConvertFrom-Json).Parameters.ContainsKey('DateKind')
 function Read-Json([string] $Path) {
-    $text = Get-Content -Raw -LiteralPath $Path
+    $text = Get-Content -Raw -Encoding UTF8 -LiteralPath $Path
     if ($JsonKeepsDates) { $text | ConvertFrom-Json -DateKind String } else { foreach ($item in ($text | ConvertFrom-Json)) { $item } }
 }
 
@@ -148,7 +150,8 @@ function Get-SteamLibrary([string] $SteamRoot) {
     $folders.Add($SteamRoot)
     $vdf = Join-Path $SteamRoot 'steamapps/libraryfolders.vdf'
     if (Test-Path -LiteralPath $vdf) {
-        foreach ($line in Get-Content -LiteralPath $vdf) {
+        # UTF-8 without a byte order mark, as Read-Json's files are.
+        foreach ($line in Get-Content -Encoding UTF8 -LiteralPath $vdf) {
             if ($line -match '^\s*"path"\s+"(.+)"\s*$') { $folders.Add(($Matches[1] -replace '\\\\', '\')) }
         }
     }
@@ -902,7 +905,7 @@ function Get-PackageFile([string] $Folder) {
     $list = Join-Path $Folder $PackageListName
     if (-not (Test-Path -LiteralPath $list -PathType Leaf)) { return $null }
     $files = @($PackageListName)
-    foreach ($line in Get-Content -LiteralPath $list) {
+    foreach ($line in Get-Content -Encoding UTF8 -LiteralPath $list) {
         if (-not $line) { continue }
         if ($line -cnotmatch '^[A-Za-z0-9._-]+(/[A-Za-z0-9._-]+)*$' -or $line -match '(^|/)\.\.?(/|$)') { return $null }
         if (-not (Test-Path -LiteralPath (Join-Path $Folder $line) -PathType Leaf)) { return $null }
