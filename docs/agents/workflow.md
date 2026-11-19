@@ -60,7 +60,8 @@ A check that looks stalled: `bash scripts/check-status.sh` shows who holds each 
 
 ## Hook, loading, install or update code, and the guards
 
-This covers the security-review scope (the hook layer, its deploy scripts and the guards). The list and the stamp are in
+This covers the security-review scope (the hook layer, every script and the guards), listed in
+`scripts/security-stamp.sh`. The stamp is in
 [`CONTRIBUTING.md`](../../.github/CONTRIBUTING.md#security-review-and-deny-rules). A change to any of it is handed
 back for review, never auto-merged on CI alone. Three steps are yours:
 

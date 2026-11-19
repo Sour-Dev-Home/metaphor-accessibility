@@ -85,7 +85,7 @@ nothing, say so plainly; don't pad the report.
 
 ## Stamp
 
-A commit touching the security-review scope (the hook layer, its deploy scripts and the guards, listed in
+A commit touching the security-review scope (the hook layer, every script and the guards, listed in
 `scripts/security-stamp.sh`) needs your stamp, or the pre-commit hook refuses it. The stamp covers the staged scope, so
 review what `git diff --cached` shows for it, and say if unstaged changes to it differ.
 

@@ -189,26 +189,16 @@ Both are optional; without Claude, write the same things by hand.
 
 ## Security review and deny rules
 
-**Must-run review.** The security-review scope, listed in [`scripts/security-stamp.sh`](../scripts/security-stamp.sh), is:
+**Must-run review.** The security-review scope is the hook layer, every script, the guards CI runs and what decides
+`dotnet restore`. Its one home is the `scope` list in [`scripts/security-stamp.sh`](../scripts/security-stamp.sh),
+which names directories, so a new file under one is in scope with no edit
+([ADR 0014](../docs/adr/0014-review-scope-by-directory.md)).
 
-- the hook layer, `src/Metaphor.Hooks/`, and the scripts that deploy, launch, package or fetch native code, including
-  `scripts/onboard.ps1`, its modules and the scripts it runs (it installs tools and runs a test deploy), and the
-  players' install check and installer, `scripts/check-install.ps1`, `scripts/InstallCheck.psm1`,
-  `scripts/ReloadedRead.psm1`, `scripts/install.ps1`, `scripts/Installer.psm1` and `scripts/install-pins.json` (they
-  ship in the release);
-- the guards that enforce the ground rules (#306): everything the checks, the git hooks and CI run, transitively, and
-  what they read to decide. That is `scripts/check.sh` and every script it or a workflow calls, `scripts/githooks/`,
-  the whole `.github/workflows/` folder, the check tests in `tests/check/` and `tests/scripts/` (CI runs them before
-  the file scan), the pinned tools in `tools/docs/`, `tools/slow/` and `.config/dotnet-tools.json`,
-  `scripts/github-outage.sh` (it classifies push failures and enables auto-merge) and
-  `.claude/agents/security-reviewer.md`. A change to them can otherwise merge with only CI passing, and CI is what
-  changed. `tests/check/test-check.sh` fails when a script the gate calls falls outside the scope;
-- what decides `dotnet restore`, and so the lock files the vulnerability audit reads, in any folder (#322, #324):
-  `Directory.Build.*`, `Directory.Packages.props`, `Directory.Solution.*`, `*.sln.targets`, `global.json` and NuGet
-  configs. Their targets or feeds could hide a vulnerable package. The audit itself (`scripts/vuln-audit.sh`) reads
-  only the committed `packages.lock.json` files, never a project, and CI's build restores in locked mode, so a lock
-  file must match its project. Only the root `Directory.Build.props` may set the lock-file properties. `markdownlint` configs may live only in `tools/docs/`: `check.sh docs` fails on any
-  other, in any case, because markdownlint loads one from each linted folder and a `.cjs` or `.mjs` one runs code.
+Two rules sit next to it. The vulnerability audit (`scripts/vuln-audit.sh`) reads only the committed
+`packages.lock.json` files, never a project, and CI's build restores in locked mode, so a lock file must match its
+project; only the root `Directory.Build.props` may set the lock-file properties. `markdownlint` configs may live only
+in `tools/docs/`: `check.sh docs` fails on any other, in any case, because markdownlint loads one from each linted
+folder and a `.cjs` or `.mjs` one runs code.
 
 A commit touching it needs a [stamp](../GLOSSARY.md#review-and-ci):
 

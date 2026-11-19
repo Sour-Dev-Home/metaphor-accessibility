@@ -53,8 +53,8 @@ This is a public repository.
 This project runs with its own config directory, so the owner's other projects' settings, agents and plugins don't load
 here. Start it with `.\scripts\claude.ps1` from the repository root, not `claude`. The only plugin is Matt Pocock's skills
 (`mattpocock-skills`). The one custom agent is `security-reviewer` (`.claude/agents/`): run it before a release, and on
-staged changes before any commit in the review scope (hook, loading, install and update code, and the guards). The scope,
-the stamp and the deny rules are in
+staged changes before any commit in the review scope (the hook layer, every script and the guards), listed in
+`scripts/security-stamp.sh`. The stamp and the deny rules are in
 [`CONTRIBUTING.md`](.github/CONTRIBUTING.md#security-review-and-deny-rules). Never set `SECURITY_REVIEW_SKIP`, and never
 force-push.
 
