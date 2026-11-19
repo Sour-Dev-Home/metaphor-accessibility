@@ -2,7 +2,8 @@ name: Release
 
 # Turns a `v*` tag on a commit on main into a draft GitHub Release (#310): built by CI from that commit with the recipe
 # every main build uses (scripts/release/build-release.sh), rebuilt and compared, attested, and published with its SHA256SUMS.
-# The maintainer publishes the draft. Only admins create `v*` tags (CONTRIBUTING.md, the tag ruleset of #309).
+# The maintainer publishes the draft. Only admins create `v*` tags (the tag ruleset of #309;
+# docs/contributors/reference/security-review.md#collaborators).
 # Run it by hand on main for a dry run: it builds, attests and verifies a zip, and drafts nothing.
 on:
   push:

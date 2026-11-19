@@ -21,7 +21,8 @@ wsl_missing_code=125
 
 # wsl_fallback REASON: the one-line notice when a suite stays in Git Bash.
 wsl_fallback() {
-  echo "notice: running in Git Bash, not WSL: $1. Set WSL up with scripts/setup/setup-wsl.ps1 (CONTRIBUTING.md)."
+  echo "notice: running in Git Bash, not WSL: $1. Set WSL up with scripts/setup/setup-wsl.ps1" \
+    "(docs/contributors/how-to/set-up-a-clone.md#run-the-check-script-suites-in-wsl)."
 }
 
 # wsl_reexec ARGS...: the Git Bash side. Run the calling suite in the distro and exit with its code, or return.

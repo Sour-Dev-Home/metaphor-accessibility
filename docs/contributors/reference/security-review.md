@@ -5,10 +5,9 @@ The rules for the security review, the stamp, the label gate and the deny rules.
 
 ## Scope
 
-The security-review scope is the hook layer, every script, the guards CI runs and what decides `dotnet restore`. Its one
-home is the `scope` list in [`scripts/ci/security-stamp.sh`](../../../scripts/ci/security-stamp.sh), which names
-directories, so a new file under one is in scope with no edit
-([ADR 0014](../../adr/0014-review-scope-by-directory.md)).
+[AGENTS.md](../../../AGENTS.md#claude-code-setup) names the security-review scope. Its one home is the `scope` list in
+[`scripts/ci/security-stamp.sh`](../../../scripts/ci/security-stamp.sh), which names directories, so a new file under
+one is in scope with no edit ([ADR 0014](../../adr/0014-review-scope-by-directory.md)). Paths match in any case.
 
 Two rules sit next to it. The vulnerability audit (`scripts/ci/vuln-audit.sh`) reads only the committed
 `packages.lock.json` files, never a project, and CI's build restores in locked mode, so a lock file must match its

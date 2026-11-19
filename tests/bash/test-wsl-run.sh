@@ -113,7 +113,8 @@ out="$(cd "$FAKE" && bash scripts/check/wsl-run.sh inside tests/suite.sh a 2>&1)
 code=$?
 check "inside, a tool missing: exit 125" [ "$code" -eq 125 ]
 check "inside, a tool missing: one notice naming it and the setup command" [ "$out" = "notice: running in Git Bash, \
-not WSL: metaphor-checks lacks no-such-tool-341. Set WSL up with scripts/setup/setup-wsl.ps1 (CONTRIBUTING.md)." ]
+not WSL: metaphor-checks lacks no-such-tool-341. Set WSL up with scripts/setup/setup-wsl.ps1 \
+(docs/contributors/how-to/set-up-a-clone.md#run-the-check-script-suites-in-wsl)." ]
 check "inside, a tool missing: doesn't run the suite" lacks "ran in place"
 
 printf 'bash bash\n' > "$FAKE/scripts/setup/wsl-tools.txt"

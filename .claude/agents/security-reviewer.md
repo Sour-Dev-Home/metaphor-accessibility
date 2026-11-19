@@ -60,8 +60,9 @@ the surrounding code too, not just the changed lines.
 
 ## The guards
 
-10. **Weakened checks.** The checks and every script they, the git hooks or CI run, the check tests, the pinned tools,
-    the outage script and this file are in the scope (#306), because a change to them can merge with only CI passing while CI is what changed. Flag any change that
+10. **Weakened checks.** The guards and this file are in the scope (#306; the list is in
+    [`scripts/ci/security-stamp.sh`](../../scripts/ci/security-stamp.sh)), because a change to them can merge with only
+    CI passing while CI is what changed. Flag any change that
     narrows what they scan (folders, extensions, sizes, hashes, personal-information patterns), skips a stage or a
     required job, shrinks the security-review scope, or loosens this checklist, unless the issue it implements asks for
     exactly that.
@@ -85,7 +86,7 @@ nothing, say so plainly; don't pad the report.
 
 ## Stamp
 
-A commit touching the security-review scope (the hook layer, every script and the guards, listed in
+A commit touching the [security-review scope](../../AGENTS.md#claude-code-setup) (listed in
 `scripts/ci/security-stamp.sh`) needs your stamp, or the pre-commit hook refuses it. The stamp covers the staged scope, so
 review what `git diff --cached` shows for it, and say if unstaged changes to it differ.
 
