@@ -1,6 +1,8 @@
-# Comments once on every open PR, draft or not, that conflicts with main, so a conflicted PR under auto-merge doesn't
-# wait unnoticed (issue #170; scripts/ci/conflict-alert.sh holds the logic). It runs when main moves, and on a schedule as
-# a backstop for PRs whose mergeable state GitHub hadn't computed yet. It never checks out or runs PR code.
+# Comments once on every open PR, draft or not, that conflicts with main (issue #170), then test-merges main into each
+# draft PR's branch and comments with the outcome (issue #242); scripts/ci/conflict-alert.sh holds the logic. It runs
+# when main moves, and on a schedule as a backstop for PRs whose mergeable state GitHub hadn't computed yet. It never
+# checks out or runs PR code, and never pushes a merge, since one bringing in hook-layer code needs a security-review
+# stamp CI can't give.
 name: Conflict alert
 
 on:
@@ -26,22 +28,13 @@ jobs:
       contents: read
       pull-requests: write # to comment on a PR
     steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          persist-credentials: false
-      - name: Comment on conflicted PRs
-        env:
-          GH_TOKEN: ${{ github.token }}
-          GITHUB_REPOSITORY: ${{ github.repository }}
-        run: bash scripts/ci/conflict-alert.sh
-      # Integration sync (issue #242): test-merges main into each draft PR's branch and comments. It never pushes, since a
-      # merge bringing in hook-layer code needs a security-review stamp CI can't give. Needs history, so a full clone.
+      # The test-merges need history, so a full clone.
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
           persist-credentials: false
-      - name: Flag integration branches behind main
+      - name: Comment on conflicted PRs and integration branches behind main
         env:
           GH_TOKEN: ${{ github.token }}
           GITHUB_REPOSITORY: ${{ github.repository }}
-        run: bash scripts/ci/integration-sync.sh
+        run: bash scripts/ci/conflict-alert.sh
