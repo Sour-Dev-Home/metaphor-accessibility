@@ -37,12 +37,26 @@ BeforeAll {
         Set-Content -LiteralPath $Path -Value $lines -Encoding ascii
     }
 
-    # The release's package-files.txt, as scripts/package-mod.sh writes it: every file but the list.
+    # Git Bash beside git on Windows (git.exe in cmd\, bash.exe in bin\, as onboard.ps1's Find-GitBash looks), so a plain
+    # pwsh never picks WSL's bash.exe from System32; bash elsewhere.
+    function Find-Bash {
+        if (-not $IsWindows) { return 'bash' }
+        $git = Get-Command git -CommandType Application -ErrorAction SilentlyContinue | Select-Object -First 1
+        if ($git) {
+            $dir = Split-Path $git.Source
+            foreach ($candidate in (Join-Path $dir 'bash.exe'), (Join-Path $dir '..\bin\bash.exe'), (Join-Path $dir '..\..\bin\bash.exe')) {
+                if (Test-Path -LiteralPath $candidate) { return [IO.Path]::GetFullPath($candidate) }
+            }
+        }
+        'bash'
+    }
+    $script:bash = Find-Bash
+
+    # The release's package-files.txt, written by the package's own recipe (scripts/package-mod.sh --list), so the
+    # installer reads the list a release ships and not a copy of its format.
     function Write-PackageList {
-        $prefix = (Resolve-Path $release).Path.TrimEnd('\') + '\'
-        Get-ChildItem -LiteralPath $release -Recurse -File | Where-Object Name -NE 'package-files.txt' |
-            ForEach-Object { $_.FullName.Substring($prefix.Length).Replace('\', '/') } | Sort-Object |
-            Set-Content -LiteralPath (Join-Path $release 'package-files.txt')
+        $output = & $bash (Join-Path $repo 'scripts/package-mod.sh') --list $release 2>&1
+        if ($LASTEXITCODE -ne 0) { throw "package-mod.sh --list failed: $output" }
     }
 
     function New-Pin([string] $Name, [string] $File, [hashtable] $Extra = @{}) {
@@ -129,17 +143,20 @@ BeforeAll {
     # install.ps1 from the release folder in its own process, as a player runs it. With ANSWERS it's a scripted run;
     # with -NonInteractive, a run with no console and no answers. SHELL is pwsh or powershell (Windows PowerShell 5.1).
     # SWITCHES are the installer's test switches (Installer.psm1's Test-TestSwitch) to turn on: by default local file
-    # pins, no signature check on them (the stand-ins are unsigned), and running as admin (CI's runners are).
+    # pins, no signature check on them (the stand-ins are unsigned), and running as admin (CI's runners are), which also
+    # sets CI=true, as on CI. ENVIRONMENT sets more variables for the run.
     function Invoke-Install([string[]] $Answers = @(), [switch] $NonInteractive, [string] $Shell = $pwsh,
-        [string] $Folder = $release, [string[]] $Switches = @('FILES', 'UNSIGNED', 'ALLOW_ADMIN')) {
+        [string] $Folder = $release, [string[]] $Switches = @('FILES', 'UNSIGNED', 'ALLOW_ADMIN'), [hashtable] $Environment = @{}) {
         $script = Join-Path $Folder 'install.ps1'
         $common = "-NoSpeech -ReloadedConfig $(ConvertTo-Literal $config) -ReloadedFolder $(ConvertTo-Literal $reloadedFolder) " +
             "-SteamRoot $(ConvertTo-Literal $steam) -Desktop $(ConvertTo-Literal $desktop) -DotnetRoot $(ConvertTo-Literal $dotnet) " +
             "-VcRuntimeKey $(ConvertTo-Literal $vcKey) -Pins $(ConvertTo-Literal $pins)"
-        $vars = @{ METAPHOR_RELOADED_EXE = $null }
+        $vars = @{ METAPHOR_RELOADED_EXE = $null; METAPHOR_GAME_EXE = $null; CI = $null }
         foreach ($name in 'FILES', 'UNSIGNED', 'ALLOW_ADMIN') {
             $vars["METAPHOR_INSTALL_TEST_$name"] = if ($Switches -contains $name) { '1' } else { $null }
         }
+        if ($Switches -contains 'ALLOW_ADMIN') { $vars.CI = 'true' }
+        foreach ($name in $Environment.Keys) { $vars[$name] = $Environment[$name] }
         $saved = @{}
         foreach ($name in $vars.Keys) {
             $saved[$name] = [Environment]::GetEnvironmentVariable($name)
@@ -376,6 +393,33 @@ Describe 'install.ps1' {
         "$appConfig.tmp" | Should -Not -Exist
     }
 
+    It 'keeps the first backup of the game''s settings file when it rewrites it again' {
+        New-ReloadedSetup
+        $old = Get-Content -Raw $appConfig
+        (Invoke-Install @('y')).ExitCode | Should -Be 0
+        $app = Get-Content -Raw $appConfig | ConvertFrom-Json
+        $app.EnabledMods = @('other.mod')
+        Write-JsonFile $appConfig $app
+        $result = Invoke-Install @('y')
+        $result.ExitCode | Should -Be 0
+        $result.Output | Should -Match 'turned the mod on'
+        Get-Content -Raw "$appConfig.bak" | Should -Be $old
+    }
+
+    It 'ignores the developer scripts'' environment variables for Reloaded-II and the game' {
+        $devLauncher = Join-Path $root 'Dev/Reloaded-II/Reloaded-II.exe'
+        $devGame = Join-Path $root 'Dev/Game/METAPHOR.exe'
+        foreach ($file in $devLauncher, $devGame) {
+            New-Item -ItemType Directory -Force (Split-Path $file) | Out-Null
+            Set-Content -LiteralPath $file -Value 'a developer''s copy' -NoNewline
+        }
+        $result = Invoke-Install $freshAnswers -Environment @{ METAPHOR_RELOADED_EXE = $devLauncher; METAPHOR_GAME_EXE = $devGame }
+        $result.ExitCode | Should -Be 0
+        $shortcut = Get-Shortcut (Join-Path $desktop 'Metaphor ReFantazio with accessibility.lnk')
+        $shortcut.Target | Should -Be (Join-Path $reloadedFolder 'Reloaded-II.exe')
+        $shortcut.Arguments | Should -Be "--launch `"$game`""
+    }
+
     It 'copies only the files the package lists' {
         New-ReloadedSetup
         Set-Content -LiteralPath (Join-Path $release 'notes.txt') -Value 'not the package''s'
@@ -441,6 +485,61 @@ Describe 'Test-DotnetRuntime' {
         Test-DotnetRuntime $dotnet $frameworks ([version] '9.0.8') | Should -BeFalse
         New-Item -ItemType Directory -Force (Join-Path $dotnet 'shared/Microsoft.WindowsDesktop.App/9.0.23') | Out-Null
         Test-DotnetRuntime $dotnet $frameworks ([version] '9.0.8') | Should -BeTrue
+    }
+}
+
+Describe 'Test-Elevated' {
+    BeforeAll {
+        $script:savedEnvironment = @{}
+        foreach ($name in 'METAPHOR_INSTALL_TEST_ALLOW_ADMIN', 'CI') { $savedEnvironment[$name] = [Environment]::GetEnvironmentVariable($name) }
+        Mock -ModuleName Installer Test-AdministratorRole { $true }
+    }
+    AfterAll { foreach ($name in $savedEnvironment.Keys) { [Environment]::SetEnvironmentVariable($name, $savedEnvironment[$name]) } }
+    BeforeEach { $env:METAPHOR_INSTALL_TEST_ALLOW_ADMIN = '1' }
+
+    It 'lets the tests run as administrator only on CI' {
+        $env:CI = 'true'
+        Test-Elevated | Should -BeFalse
+    }
+
+    It 'still refuses administrator off CI, even with the test switch set' {
+        $env:CI = $null
+        Test-Elevated | Should -BeTrue
+        $env:CI = '1'
+        Test-Elevated | Should -BeTrue
+    }
+}
+
+Describe 'Get-PinnedFile' {
+    It 'lets go of the download when hashing it fails' {
+        $folder = (New-Item -ItemType Directory (Join-Path $TestDrive (New-Guid))).FullName
+        $server = (New-Item -ItemType Directory (Join-Path $folder 'server')).FullName
+        $work = (New-Item -ItemType Directory (Join-Path $folder 'work')).FullName
+        Set-Content -LiteralPath (Join-Path $server 'file.zip') -Value 'stand-in' -NoNewline
+        $pin = [pscustomobject]@{ name = 'stand-in'; url = ([Uri] (Join-Path $server 'file.zip')).AbsoluteUri
+            fileName = 'file.zip'; sha256 = '0' * 64 }
+        Mock -ModuleName Installer Get-StreamSha256 { throw 'hash failed' }
+        $saved = $env:METAPHOR_INSTALL_TEST_FILES
+        $env:METAPHOR_INSTALL_TEST_FILES = '1'
+        try {
+            { InModuleScope Installer -Parameters @{ Pin = $pin; Work = $work } {
+                    Get-PinnedFile ([pscustomobject]@{ WorkFolder = $Work }) $Pin } } | Should -Throw '*hash failed*'
+        }
+        finally { $env:METAPHOR_INSTALL_TEST_FILES = $saved }
+        { [IO.File]::Open((Join-Path $work 'file.zip'), 'Open', 'ReadWrite', 'None').Dispose() } | Should -Not -Throw
+    }
+}
+
+Describe 'package-files.txt' {
+    It 'is read by the installer as package-mod.sh writes it' {
+        $release = (New-Item -ItemType Directory (Join-Path $TestDrive (New-Guid))).FullName
+        foreach ($file in 'Metaphor.Hooks.dll', 'ModConfig.json', 'licenses/LICENSE.txt', 'runtimes/win-x64/native/a.dll') {
+            New-Item -ItemType Directory -Force (Split-Path (Join-Path $release $file)) | Out-Null
+            Set-Content -LiteralPath (Join-Path $release $file) -Value 'stand-in' -NoNewline
+        }
+        Write-PackageList
+        InModuleScope Installer -Parameters @{ Release = $release } { Get-PackageFile $Release } | Should -Be @(
+            'package-files.txt', 'Metaphor.Hooks.dll', 'ModConfig.json', 'licenses/LICENSE.txt', 'runtimes/win-x64/native/a.dll')
     }
 }
 
