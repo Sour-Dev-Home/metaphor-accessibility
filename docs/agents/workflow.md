@@ -87,35 +87,9 @@ Commit with the stamp.
   fails or times out on the build lock leaves the branch unpushed while the command looks quiet.
 - No checks on the PR 5 minutes after a push: GitHub sometimes starts no run at all (#329). Close and reopen the PR
   (`gh pr close <n> && gh pr reopen <n>`), then turn auto-merge on again.
-
-## GitHub outage
-
-Commands are in [`scripts/github-outage.sh`](../../scripts/github-outage.sh) (#312).
-
-1. A failed `git push`, `gh` call or CI run: pipe its output to `bash scripts/github-outage.sh classify <exit code>`.
-   It prints `outage` (a 5xx, a timeout, no connection) or `real` (auth, a rejected push, a failed hook, a failing
-   check). Confirm an outage with `bash scripts/github-outage.sh status`; anything but `none` is one.
-2. `real`: fix it as usual. Only an outage is parked.
-3. Outage: retry with backoff for about 10 minutes (for example at 1, 2, 3 and 4 minutes). Still down:
-   `bash scripts/github-outage.sh park <branch> <issue> --title "<PR title>" --body-file <file>`, report
-   `parked: GitHub outage` to the main session and stop. The commit stays on its branch.
-4. Keep working on what needs no GitHub: local commits, `check.sh`, security review and stamp.
-5. Actions down, git up: push and open the PR as usual. The merge queue waits for CI; don't re-run or re-push to nudge it.
-6. Never pass `--no-verify`, merge into `main` locally or edit a check to get past an outage.
-7. The main session resumes after the outage with `bash scripts/github-outage.sh resume`. It pushes each parked
-   branch, opens the PR, enables auto-merge, reports each result and is safe to run twice. `bash scripts/check-status.sh`
-   lists what is parked.
-
-## Integration branches behind main
-
-Integration branches are the heads of open draft PRs. When `main` moves, the
-[`Conflict alert`](../../.github/workflows/conflict-alert.yml) workflow runs
-[`scripts/integration-sync.sh`](../../scripts/integration-sync.sh) (#242): it test-merges `main` into each draft PR's
-branch in memory and comments once, with either the conflicting files or "mergeable cleanly, needs a merge from `main`
-(and a review if hook files change)". It stays quiet while the outcome is unchanged. CI never pushes the merge: one that
-resolves a conflict in the security-review scope needs a fresh stamp, and CI can't give one. A clean merge needs none
-([`CONTRIBUTING.md`](../../.github/CONTRIBUTING.md#security-review-and-deny-rules)). When you see the comment, merge
-`main` into the branch yourself, following the steps above if you resolve a conflict in hook files.
+- GitHub down (a 5xx, a timeout, no connection): follow
+  [handle a GitHub outage](../contributors/how-to/handle-a-github-outage.md).
+- A draft PR behind `main`: [merge main into a draft PR](../contributors/how-to/merge-main-into-a-draft-pr.md).
 
 ## Report
 
@@ -125,19 +99,4 @@ reviewers list findings only, by severity.
 A subagent gets one hand-back per result; a second is refused and never arrives. Send any later report with
 SendMessage to `main`.
 
-## Briefing agents (main session)
-
-- Model: Sonnet for docs-only and mechanical tickets (fix lists, mechanical CI edits, tested library code) and for
-  reviewing docs-only or test-only changes; Opus for reverse engineering, hooks, security, design and any change to
-  the guards (the check scripts, git hooks, check-script tests and CI gates), perf work on them included.
-- Hand-back review, scaled to risk (a review round costs about as much as the implementation):
-  - `security-reviewer` on every change to the security-review scope, as required.
-  - The `code-review` skill's Spec axis, on Opus, for changes to hooks, guards or security; it checks the change against
-    the issue's acceptance criteria. `full` and the security review both passed #331, which still failed CI.
-  - Its Standards axis, on Sonnet, only for such changes over about 100 changed lines; it checks
-    [`coding-standards.md`](../coding-standards.md).
-  - Docs-only and small mechanical changes get neither axis.
-  - A re-review after a fix round covers only what changed since the last pass, not the whole diff.
-- Review findings: fix before merge what a player would notice or what weakens a guard; file pure hardening as a
-  follow-up ticket instead of another review round.
-- Keep briefs to pointers (the issue, this file, the files to read first) and a word limit for the report.
+The main session's briefing and review policy is in [`main-session.md`](main-session.md).
