@@ -1293,8 +1293,9 @@ full_dotnet_checks() {
     report "tests: Unit or RoundTrip tests failed"
   timed_step format dotnet format whitespace "$solution" --verify-no-changes ||
     report "format: files need formatting (run: dotnet format whitespace Metaphor.sln)"
-  # The smoke-test and deploy scripts' own tests, against the stand-in game (no game needed). Pester 5 or later, one
-  # process per file, a few at a time (scripts/run-pester.sh). Then the check-script suites (scripts/run-check-suites.sh).
+  # The smoke-test and deploy scripts' own tests, against the stand-in game (no game needed). Pester 5 or later, every
+  # test of every file, each file split across processes run at once (scripts/run-pester.sh). Then the check-script
+  # suites (scripts/run-check-suites.sh).
   # CI sets SKIP_SCRIPT_TESTS=1 because its own jobs run both.
   if [ -z "${SKIP_SCRIPT_TESTS:-}" ]; then
     timed_step pester bash "$check_dir/run-pester.sh" ||

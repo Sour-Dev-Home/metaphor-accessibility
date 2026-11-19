@@ -5,22 +5,27 @@ BeforeAll {
     $repo = (Resolve-Path "$PSScriptRoot/../..").Path
     $script = Join-Path $repo 'scripts/capture.ps1'
     $standIn = Join-Path $repo 'tests/Metaphor.StandInGame/bin/Release/net9.0'
-    dotnet build (Join-Path $repo 'tests/Metaphor.StandInGame') -c Release -v q --nologo | Out-Null
-    if ($LASTEXITCODE -ne 0) { throw 'the stand-in game failed to build' }
+    if (-not $env:METAPHOR_STANDIN_BUILT) { # scripts/run-pester.sh builds it once for every process
+        dotnet build (Join-Path $repo 'tests/Metaphor.StandInGame') -c Release -v q --nologo | Out-Null
+        if ($LASTEXITCODE -ne 0) { throw 'the stand-in game failed to build' }
+    }
 
     function Write-Json([string] $Path, $Value) {
         New-Item -ItemType Directory -Force (Split-Path $Path) | Out-Null
         $Value | ConvertTo-Json -Depth 5 | Set-Content -LiteralPath $Path -Encoding utf8NoBOM
     }
 
-    # Runs the capture in its own process, so its exit code is real.
-    function Invoke-Capture([string[]] $OptIns = @(), [string] $SaveLog, [string] $Behaviour = 'ready') {
+    # Runs the capture in its own process, so its exit code is real. The default timeout is a generous upper bound: the
+    # script returns as soon as the mod reports, so a loaded machine only slows a test down (coding-standards judgement
+    # rule 4). Only a test that waits the timeout out sets a short one.
+    function Invoke-Capture([string[]] $OptIns = @(), [string] $SaveLog, [string] $Behaviour = 'ready',
+        [int] $TimeoutSeconds = 60) {
         $env:METAPHOR_STANDIN_BEHAVIOUR = $Behaviour
         $extra = @()
         if ($OptIns) { $extra += '-OptIns', ($OptIns -join ',') }
         if ($SaveLog) { $extra += '-SaveLog', $SaveLog }
         $output = & pwsh -NoProfile -File $script -GameExe $script:gameExe -LauncherExe $script:launcher `
-            -Project $script:modProject -ReloadedConfig $script:config -KnownBuilds $script:known -TimeoutSeconds 10 @extra 2>&1
+            -Project $script:modProject -ReloadedConfig $script:config -KnownBuilds $script:known -TimeoutSeconds $TimeoutSeconds @extra 2>&1
         [pscustomobject]@{ ExitCode = $LASTEXITCODE; Output = ($output -join "`n") }
     }
 
@@ -28,6 +33,12 @@ BeforeAll {
 }
 
 Describe 'capture.ps1' {
+    AfterAll {
+        # Every stand-in still running from TestDrive, so Pester can delete it.
+        Import-Module (Join-Path $PSScriptRoot 'StandIn.psm1') -Force
+        Stop-StandIn $TestDrive
+    }
+
     BeforeEach {
         # TestDrive is shared by every test in this Describe, so each test gets its own folder.
         $script:root = (New-Item -ItemType Directory (Join-Path $TestDrive (New-Guid))).FullName
@@ -92,7 +103,7 @@ public static class Mod { public const string A = "opt-in-ui-text-panes.txt"; pu
     }
 
     AfterEach {
-        Get-Game | Stop-Process -Force
+        Get-Game | Stop-Process -Force -PassThru | Wait-Process -Timeout 10 -ErrorAction SilentlyContinue
         Remove-Item Env:METAPHOR_STANDIN_BEHAVIOUR, Env:METAPHOR_STANDIN_RELOADED_CONFIG, Env:METAPHOR_STANDIN_LOADER_LOG,
             Env:METAPHOR_STANDIN_MESSAGE_LOG, Env:METAPHOR_STANDIN_TRANSCRIPT -ErrorAction SilentlyContinue
     }
@@ -120,7 +131,7 @@ public static class Mod { public const string A = "opt-in-ui-text-panes.txt"; pu
     }
 
     It 'closes the game it launched and fails when the deploy fails after launching' {
-        $result = Invoke-Capture -Behaviour silent
+        $result = Invoke-Capture -Behaviour silent -TimeoutSeconds 10
 
         $result.ExitCode | Should -Be 1
         $result.Output | Should -Match 'deploy FAILED'

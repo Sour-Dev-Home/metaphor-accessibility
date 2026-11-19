@@ -5,21 +5,25 @@ BeforeAll {
     $repo = (Resolve-Path "$PSScriptRoot/../..").Path
     $script = Join-Path $repo 'scripts/listen.ps1'
     $standIn = Join-Path $repo 'tests/Metaphor.StandInGame/bin/Release/net9.0'
-    dotnet build (Join-Path $repo 'tests/Metaphor.StandInGame') -c Release -v q --nologo | Out-Null
-    if ($LASTEXITCODE -ne 0) { throw 'the stand-in game failed to build' }
+    if (-not $env:METAPHOR_STANDIN_BUILT) { # scripts/run-pester.sh builds it once for every process
+        dotnet build (Join-Path $repo 'tests/Metaphor.StandInGame') -c Release -v q --nologo | Out-Null
+        if ($LASTEXITCODE -ne 0) { throw 'the stand-in game failed to build' }
+    }
 
     function Write-Json([string] $Path, $Value) {
         New-Item -ItemType Directory -Force (Split-Path $Path) | Out-Null
         $Value | ConvertTo-Json -Depth 5 | Set-Content -LiteralPath $Path -Encoding utf8NoBOM
     }
 
-    # Runs the listening run in its own process, so its exit code is real.
+    # Runs the listening run in its own process, so its exit code is real. The timeout is a generous upper bound: the
+    # deploy returns as soon as the mod reports, so a loaded machine only slows a test down (coding-standards judgement
+    # rule 4).
     function Invoke-Listen([string] $Behaviour = 'ready', [string[]] $KnownBuild = @($script:build), [switch] $Close) {
         Write-Json $script:known @($KnownBuild | ForEach-Object { @{ sha256 = $_; steamBuildId = 1; evidence = 'test' } })
         $env:METAPHOR_STANDIN_BEHAVIOUR = $Behaviour
         $closeArgs = @(if ($Close) { '-Close' })
         $output = & pwsh -NoProfile -File $script -GameExe $script:gameExe -LauncherExe $script:launcher `
-            -Project $script:modProject -ReloadedConfig $script:config -KnownBuilds $script:known -TimeoutSeconds 5 `
+            -Project $script:modProject -ReloadedConfig $script:config -KnownBuilds $script:known -TimeoutSeconds 60 `
             -Seconds 3 @closeArgs 2>&1
         [pscustomobject]@{ ExitCode = $LASTEXITCODE; Output = ($output -join "`n") }
     }
@@ -28,6 +32,12 @@ BeforeAll {
 }
 
 Describe 'listen.ps1' {
+    AfterAll {
+        # Every stand-in still running from TestDrive, so Pester can delete it.
+        Import-Module (Join-Path $PSScriptRoot 'StandIn.psm1') -Force
+        Stop-StandIn $TestDrive
+    }
+
     BeforeEach {
         # TestDrive is shared by every test in this Describe, so each test gets its own folder.
         $script:root = (New-Item -ItemType Directory (Join-Path $TestDrive (New-Guid))).FullName
@@ -83,7 +93,7 @@ Describe 'listen.ps1' {
     }
 
     AfterEach {
-        Get-Game | Stop-Process -Force
+        Get-Game | Stop-Process -Force -PassThru | Wait-Process -Timeout 10 -ErrorAction SilentlyContinue
         Remove-Item Env:METAPHOR_STANDIN_BEHAVIOUR, Env:METAPHOR_STANDIN_RELOADED_CONFIG, Env:METAPHOR_STANDIN_MESSAGE_LOG `
             -ErrorAction SilentlyContinue
     }

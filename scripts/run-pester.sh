@@ -1,10 +1,26 @@
 #!/usr/bin/env bash
-# Runs the smoke and deploy script tests (tests/smoke/*.Tests.ps1), one Pester process per file, a few at a time (#314).
-# The files share nothing but the stand-in game's build, which this script builds first (each file's own `dotnet build`
-# is then an up-to-date no-op). Each file's output is shown whole once it finishes, in file order, so a failure reads the
-# same as a serial run. Exit 0 when every file passes, 1 when any fails, 2 when Pester can't start.
+# Runs the smoke and deploy script tests (tests/smoke/*.Tests.ps1), every test of every file, in parallel (#314, #348).
 #
-#   bash scripts/run-pester.sh [FILE...]    METAPHOR_TEST_JOBS=1 runs one file at a time (default: up to 4)
+# - The stand-in game (tests/Metaphor.StandInGame) is built once, here; METAPHOR_STANDIN_BUILT=1 then tells each file's
+#   BeforeAll to skip its own build, so no process starts MSBuild or races on the game's obj folder.
+# - Each file is split across Pester processes, about METAPHOR_PESTER_BATCH tests each (default 4; Pester's line
+#   filter on the `It` lines), since a file's tests take seconds each and its file-level BeforeAll only defines helpers.
+#   A process costs about 2 s to start, so one per test is slower. A file whose Describe has its own BeforeAll runs
+#   whole in one process: its tests share that setup, which would otherwise run once per process.
+# - Longest first: files start in the order of their slowest process in the last run, recorded in the clone's git dir
+#   (pester-times, "FILE SECONDS" lines); a file with no record starts first, as it may be slow.
+# - Each process gets its own temporary folder (TEMP and TMP, so Pester's TestDrive and the scripts' own temporary
+#   folders), removed at the end. Tests already keep their games, configs and mod projects in their own folders, and
+#   find processes by full path, so nothing else is shared.
+# - In Git Bash, starting a process takes about 0.3 s and the starts don't overlap (#348), so the loop below starts
+#   nothing but the Pester processes themselves: one fork each, and builtins for the rest.
+#
+# A "[done/total] FILE ok|FAIL (seconds s)" line is printed, and written to the clone's live log (scripts/live-log.sh),
+# as each file's last process finishes. Then a summary line per file, with a failing file's whole output. A file fails
+# when a test fails, or when its processes ran fewer tests than it has. Exit 0 when every file passes, 1 when any
+# fails, 2 when Pester can't start.
+#
+#   bash scripts/run-pester.sh [FILE...]    METAPHOR_TEST_JOBS=N runs N processes at once (default: cores, up to 8)
 set -uo pipefail
 
 cd "$(dirname "${BASH_SOURCE[0]}")/.." || exit 2
@@ -16,60 +32,136 @@ files=("$@")
 jobs="${METAPHOR_TEST_JOBS:-}"
 if ! [[ "$jobs" =~ ^[1-9][0-9]*$ ]]; then
   jobs="$(nproc 2> /dev/null || echo 2)"
-  [ "$jobs" -le 4 ] || jobs=4
+  [ "$jobs" -le 8 ] || jobs=8
 fi
+batch="${METAPHOR_PESTER_BATCH:-}"
+[[ "$batch" =~ ^[1-9][0-9]*$ ]] || batch=4
 
 tmp="$(mktemp -d)" || exit 2
 trap 'rm -rf "$tmp"' EXIT
+# The folder as pwsh will see it (a Windows path in Git Bash).
+wtmp="$tmp" sep=/
+! command -v cygpath > /dev/null || { wtmp="$(cygpath -w "$tmp")" && sep='\'; } || exit 2
 
-run_one() { # run_one INDEX FILE
-  local start=$SECONDS
-  FILE="$2" pwsh -NoProfile -Command \
-    'Import-Module Pester -MinimumVersion 5.0; $r = Invoke-Pester $env:FILE -PassThru -Output Normal; exit $r.FailedCount' \
-    > "$tmp/$1.out" 2>&1
-  echo "$?" > "$tmp/$1.code"
-  echo "$((SECONDS - start))" > "$tmp/$1.secs"
-}
-
-# Build the stand-in game once, so the files' own builds are up-to-date no-ops rather than racing on its obj folder.
 if command -v dotnet > /dev/null; then
   dotnet build tests/Metaphor.StandInGame -c Release -v q --nologo > "$tmp/standin.out" 2>&1 ||
     { cat "$tmp/standin.out"; echo "run-pester: the stand-in game didn't build" >&2; exit 1; }
+  export METAPHOR_STANDIN_BUILT=1
 fi
 
-# Each file's "[done/total] FILE ok|FAIL (seconds s)" line is printed, and written to the clone's live log
-# (scripts/live-log.sh), as it finishes.
+# The units to run: unit_file (an index into files) and unit_lines (the `It` lines to run, empty for the whole file).
+# A file's tests are dealt out in turn to ceil(tests / batch) units, so neighbouring slow tests land in different ones.
+unit_file=() unit_lines=() file_left=() file_units=()
+shopt -s nocasematch # PowerShell's keywords: It, it, BeforeAll, beforeall
+for f in "${!files[@]}"; do
+  its=() shared='' number=0
+  [ -r "${files[f]}" ] || { echo "run-pester: can't read ${files[f]}" >&2; exit 2; }
+  while IFS= read -r line || [ -n "$line" ]; do
+    number=$((number + 1))
+    if [[ "$line" =~ ^[[:space:]]+BeforeAll([^[:alnum:]_-]|$) ]]; then shared=1; fi
+    if [[ "$line" =~ ^[[:space:]]*It[[:space:]] ]]; then its+=("$number"); fi
+  done < "${files[f]}"
+  [ -z "$shared" ] || its=()
+  n=$(((${#its[@]} + batch - 1) / batch))
+  [ "$n" -gt 1 ] || { n=1 its=(); }
+  file_units[f]="$n" file_left[f]="$n"
+  first="${#unit_file[@]}"
+  for ((u = 0; u < n; u++)); do unit_file+=("$f") unit_lines+=(""); done
+  for t in "${!its[@]}"; do
+    u=$((first + t % n))
+    unit_lines[u]="${unit_lines[u]:+${unit_lines[u]} }${its[t]}"
+  done
+done
+shopt -u nocasematch
+temps=()
+for i in "${!unit_file[@]}"; do temps+=("$tmp/$i.temp"); done
+mkdir "${temps[@]}" || exit 2
+
+times="$(git rev-parse --absolute-git-dir 2> /dev/null)" && times="$times/pester-times" || times=/dev/null
+declare -A last=()
+[ ! -f "$times" ] || while read -r name secs; do
+  [[ "$secs" =~ ^[0-9]+$ ]] && last["$name"]="$secs"
+done < "$times"
+mapfile -t order < <(for i in "${!unit_file[@]}"; do
+  echo "${last[${files[${unit_file[i]}]}]:-999999} $i"
+done | sort -k 1,1nr -k 2,2n | cut -d ' ' -f 2)
+
+# Each process prints "pester-counts PASSED FAILED RAN TOTAL" last; RAN counts the tests it ran, TOTAL the file's.
+# shellcheck disable=SC2016 # PowerShell, expanded by pwsh
+pester='
+  Import-Module Pester -MinimumVersion 5.0
+  $c = New-PesterConfiguration
+  $c.Run.Path = $env:FILE; $c.Run.PassThru = $true; $c.Output.Verbosity = "Normal"
+  if ($env:LINES) { $p = (Resolve-Path $env:FILE).Path; $c.Filter.Line = @(-split $env:LINES | ForEach-Object { "${p}:$_" }) }
+  $r = Invoke-Pester -Configuration $c
+  $failed = $r.FailedCount + $r.FailedBlocksCount + $r.FailedContainersCount
+  "pester-counts $($r.PassedCount) $failed $($r.TotalCount - $r.NotRunCount) $($r.TotalCount)"
+  if ($r.Result -ne "Passed") { exit 1 }'
+
 # shellcheck source=live-log.sh
 source scripts/live-log.sh || exit 2
 live_start run-pester "${#files[@]}"
+start=$SECONDS
 declare -A running=()
-finished() { # finished INDEX
-  local code=1 secs=0
-  read -r code < "$tmp/$1.code" 2> /dev/null || code=1
-  read -r secs < "$tmp/$1.secs" 2> /dev/null || secs=0
-  live_line "${files[$1]}" "$code" "$secs"
-}
-for i in "${!files[@]}"; do
-  while [ "${#running[@]}" -ge "$jobs" ]; do
-    wait -n -p done_pid
-    finished "${running[$done_pid]}"
-    unset "running[$done_pid]"
+unit_code=() unit_began=() unit_secs=() file_code=() file_secs=() file_summary=()
+
+finished() { # finished PID CODE: note a unit's result; when it was its file's last, check the file and print its line
+  local i="${running[$1]}" f j line p n r t pass=0 fail=0 ran=0 total=0 slowest=0
+  unset "running[$1]"
+  f="${unit_file[i]}"
+  unit_code[i]="$2" unit_secs[i]=$((SECONDS - unit_began[i]))
+  [ "$2" = 0 ] || file_code[f]=1
+  file_left[f]=$((file_left[f] - 1))
+  [ "${file_left[f]}" -eq 0 ] || return 0
+  file_secs[f]=$((SECONDS - start))
+  for j in "${!unit_file[@]}"; do
+    [ "${unit_file[j]}" = "$f" ] || continue
+    [ "${unit_secs[j]}" -le "$slowest" ] || slowest="${unit_secs[j]}"
+    while IFS= read -r line; do
+      line="${line%$'\r'}"
+      [[ "$line" =~ ^pester-counts\ ([0-9]+)\ ([0-9]+)\ ([0-9]+)\ ([0-9]+)$ ]] || continue
+      p="${BASH_REMATCH[1]}" n="${BASH_REMATCH[2]}" r="${BASH_REMATCH[3]}" t="${BASH_REMATCH[4]}"
+      pass=$((pass + p)) fail=$((fail + n)) ran=$((ran + r)) total="$t"
+    done < "$tmp/$j.out"
   done
-  run_one "$i" "${files[$i]}" &
+  last["${files[f]}"]="$slowest"
+  file_summary[f]="$pass passed, $fail failed, ${file_units[f]} processes, the slowest $slowest s"
+  # Split across processes, a file must still run each of its tests once: an `It` the split missed would never run.
+  if [ "$ran" -ne "$total" ] || [ "$total" -eq 0 ]; then
+    file_code[f]=1 file_summary[f]="${file_summary[f]}; ran $ran of its $total tests"
+  fi
+  live_line "${files[f]}" "${file_code[f]:-0}" "${file_secs[f]}"
+}
+
+wait_one() { # wait_one: wait for any running unit and note it
+  local pid code
+  wait -n -p pid
+  code=$?
+  finished "$pid" "$code"
+}
+
+for i in "${order[@]}"; do
+  while [ "${#running[@]}" -ge "$jobs" ]; do wait_one; done
+  temp="$wtmp$sep$i.temp"
+  unit_began[i]=$SECONDS
+  TEMP="$temp" TMP="$temp" FILE="${files[${unit_file[i]}]}" LINES="${unit_lines[i]}" \
+    pwsh -NoProfile -Command "$pester" > "$tmp/$i.out" 2>&1 &
   running[$!]="$i"
 done
-while [ "${#running[@]}" -gt 0 ]; do
-  wait -n -p done_pid
-  finished "${running[$done_pid]}"
-  unset "running[$done_pid]"
-done
+while [ "${#running[@]}" -gt 0 ]; do wait_one; done
 
 failed=0
-for i in "${!files[@]}"; do
-  echo "== ${files[$i]} ($(cat "$tmp/$i.secs") s)"
-  cat "$tmp/$i.out"
-  [ "$(cat "$tmp/$i.code")" = 0 ] || failed=$((failed + 1))
+for f in "${!files[@]}"; do
+  result=ok
+  [ -z "${file_code[f]:-}" ] || { result=FAIL; failed=$((failed + 1)); }
+  echo "== ${files[f]} $result: ${file_summary[f]} (${file_secs[f]} s)"
+  [ "$result" = ok ] && continue
+  for i in "${!unit_file[@]}"; do
+    [ "${unit_file[i]}" != "$f" ] || cat "$tmp/$i.out"
+  done
 done
-[ "$failed" -eq 0 ] || echo "run-pester: $failed of ${#files[@]} test files failed"
+[ "$times" = /dev/null ] || { for name in "${!last[@]}"; do echo "$name ${last[$name]}"; done | sort > "$tmp/times" &&
+  mv "$tmp/times" "$times"; }
+echo "run-pester: $((${#files[@]} - failed)) files passed, $failed failed"
 live_end "$((failed > 0))"
 [ "$failed" -eq 0 ]
