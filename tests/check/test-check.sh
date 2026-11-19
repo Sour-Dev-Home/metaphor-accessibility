@@ -1898,7 +1898,7 @@ test_maintainer_pr_uses_trailers_and_ignores_the_label() {
 }
 
 # The guards that enforce the ground rules are in the scope too (issue #306).
-GUARD_FILES=(scripts/check.sh scripts/check/report.sh scripts/check/run.sh scripts/check/pool.sh scripts/check/docs.sh scripts/check/build.sh scripts/check/message.sh scripts/check/review.sh scripts/game-content.sha256 scripts/tree-hash.sh scripts/ci-changes.sh
+GUARD_FILES=(scripts/check.sh scripts/check/report.sh scripts/check/run.sh scripts/check/pool.sh scripts/check/docs.sh scripts/check/build.sh scripts/check/message.sh scripts/check/review.sh scripts/check/rules.sh scripts/game-content.sha256 scripts/tree-hash.sh scripts/ci-changes.sh
   scripts/test-select.sh scripts/stage-timing.sh scripts/install-docs-tools.sh scripts/conflict-alert.sh
   scripts/integration-sync.sh scripts/check-status.sh scripts/run-pester.sh scripts/live-log.sh scripts/wsl-run.sh
   scripts/run-check-suites.sh scripts/wsl-tools.txt scripts/setup-wsl.ps1 scripts/githooks/pre-commit scripts/githooks/pre-push
@@ -2166,6 +2166,19 @@ test_rules_scans_the_whole_tree_when_the_rules_change() {
   mkdir -p scripts
   printf '# none yet\n' > scripts/game-content.sha256
   git add scripts/game-content.sha256
+  run_check rules
+  expect 1 "old.cpk" "scan: every tracked file"
+}
+
+# The rules live in scripts/check/ too since the split (#371), so a change to a module alone rescans everything.
+test_rules_scans_the_whole_tree_when_a_check_module_changes() {
+  new_repo
+  printf 'x' > old.cpk
+  git add old.cpk
+  with_origin_main
+  mkdir -p scripts/check
+  printf '# none yet\n' > scripts/check/rules.sh
+  git add scripts/check/rules.sh
   run_check rules
   expect 1 "old.cpk" "scan: every tracked file"
 }
