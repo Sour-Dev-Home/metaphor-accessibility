@@ -4,11 +4,12 @@
 # fails; only test-check.sh gets the live log. CI's repo-rules job and `check.sh full` both run it, so a suite can't run
 # in one and not the other: no workflow runs a suite by itself, `full` fails with it, and SKIP_SCRIPT_TESTS skips it.
 set -uo pipefail
-unset PII_PATTERNS REQUIRE_PRIVATE_PATTERNS REQUIRE_DOCS_TOOLS GITHUB_ACTIONS SECURITY_REVIEW_SKIP SKIP_SCRIPT_TESTS
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 # shellcheck source=../../scripts/check/wsl-run.sh
 source "$ROOT/scripts/check/wsl-run.sh" # in Git Bash, runs this suite in WSL instead when it's set up (#341)
+# shellcheck source=../../scripts/check/suite-env.sh
+source "$ROOT/scripts/check/suite-env.sh" # the contributor's git config and shell don't reach it (#455)
 unset METAPHOR_LIVE_LOG METAPHOR_LIVE_PID
 export METAPHOR_NO_WSL=1 # the runners started here run where they are
 WORK="$(mktemp -d)"

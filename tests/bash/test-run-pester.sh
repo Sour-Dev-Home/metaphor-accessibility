@@ -3,11 +3,12 @@
 # process per test (a file whose Describe has its own BeforeAll runs whole), runs them at once, each with its own
 # temporary folder, and reports per file. Stand-ins for pwsh and dotnet record what they were asked to run.
 set -uo pipefail
-unset PII_PATTERNS REQUIRE_PRIVATE_PATTERNS REQUIRE_DOCS_TOOLS GITHUB_ACTIONS SECURITY_REVIEW_SKIP SKIP_SCRIPT_TESTS
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 # shellcheck source=../../scripts/check/wsl-run.sh
 source "$ROOT/scripts/check/wsl-run.sh" # in Git Bash, runs this suite in WSL instead when it's set up (#341)
+# shellcheck source=../../scripts/check/suite-env.sh
+source "$ROOT/scripts/check/suite-env.sh" # the contributor's git config and shell don't reach it (#455)
 unset METAPHOR_LIVE_LOG METAPHOR_LIVE_PID METAPHOR_STANDIN_BUILT
 WORK="$(mktemp -d)"
 trap 'rm -rf "$WORK"' EXIT

@@ -109,7 +109,7 @@ has_review_trailer() {
   # Both trailers from one git start, split at a \x01 byte. A trailer holding one of its own would move the split, so
   # more than one fails closed.
   local format='%(trailers:key=Security-Review,valueonly)%x01%(trailers:key=Security-Review-Skipped,valueonly)'
-  reviewed="$(git log -1 --format="$format" "$sha")" || die "could not read $sha"
+  reviewed="$(git log -1 --no-show-signature --format="$format" "$sha")" || die "could not read $sha" # #455
   skipped="${reviewed#*$'\x01'}"
   [[ "$skipped" != *$'\x01'* && "$reviewed" == *$'\x01'* ]] || die "could not read the trailers of $sha"
   reviewed="${reviewed%%$'\x01'*}"
