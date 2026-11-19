@@ -1,8 +1,8 @@
 # Merge main into a draft PR
 
 For authors of an open draft PR. Integration branches are the heads of open draft PRs. When `main` moves, the
-[`Conflict alert`](../../../.github/workflows/conflict-alert.yml) workflow runs
-[`scripts/ci/integration-sync.sh`](../../../scripts/ci/integration-sync.sh) (#242): it test-merges `main` into each draft PR's
+[`Conflict alert`](../../../.github/workflows/conflict-alert.yml) workflow runs the sync pass of
+[`scripts/ci/conflict-alert.sh`](../../../scripts/ci/conflict-alert.sh) (#242): it test-merges `main` into each draft PR's
 branch in memory and comments once, with either the conflicting files or "mergeable cleanly, needs a merge from `main`
 (and a review if hook files change)". It stays quiet while the outcome is unchanged. CI never pushes the merge: one that
 resolves a conflict in the security-review scope needs a fresh stamp, and CI can't give one. A clean merge needs none

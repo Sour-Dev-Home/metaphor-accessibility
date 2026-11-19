@@ -1937,7 +1937,7 @@ GUARD_FILES=(scripts/check.sh scripts/check/report.sh scripts/check/run.sh scrip
   scripts/check/build.sh scripts/check/message.sh scripts/check/review.sh scripts/check/rules.sh
   scripts/ci/game-content.sha256 scripts/check/tree-hash.sh scripts/ci/ci-changes.sh
   scripts/ci/test-select.sh scripts/check/stage-timing.sh scripts/setup/install-docs-tools.sh scripts/ci/conflict-alert.sh
-  scripts/ci/integration-sync.sh scripts/check/check-status.sh scripts/check/run-pester.sh scripts/check/live-log.sh
+  scripts/check/check-status.sh scripts/check/run-pester.sh scripts/check/live-log.sh
   scripts/check/wsl-run.sh scripts/check/run-check-suites.sh scripts/setup/wsl-tools.txt scripts/setup/setup-wsl.ps1
   scripts/githooks/pre-commit scripts/githooks/pre-push
   scripts/githooks/commit-msg scripts/githooks/post-commit scripts/githooks/post-merge scripts/githooks/pre-merge-commit
