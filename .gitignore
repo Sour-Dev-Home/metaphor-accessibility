@@ -72,6 +72,6 @@ secrets.json
 spike-player-name.txt
 opt-in-*.txt
 
-# Docs tools installed by scripts/install-docs-tools.sh.
+# Docs tools from before #353, when scripts/install-docs-tools.sh installed them per worktree; and npm installs.
 /.tools/
 node_modules/

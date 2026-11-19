@@ -232,10 +232,12 @@ try {
     $installer = Get-Content -LiteralPath (Join-Path $root 'scripts/install-docs-tools.sh')
     $lychee = @($installer -match '^LYCHEE_VERSION=')[0] -replace '^LYCHEE_VERSION=', ''
     $vale = @($installer -match '^VALE_VERSION=')[0] -replace '^VALE_VERSION=', ''
+    # The clone's folders for the pinned tools (install-docs-tools.sh --path, #353): lychee, Vale, markdownlint.
     function Test-DocsTool {
-        $versions = (& $bash -c '.tools/bin/lychee --version; .tools/bin/vale --version' 2>&1) -join "`n"
+        $versions = (& $bash -c 'IFS=: read -r l v m <<<"$(bash scripts/install-docs-tools.sh --path)" &&
+            "$l/lychee" --version && "$v/vale" --version && [ -e "$m/markdownlint-cli2" ] && echo markdownlint' 2>&1) -join "`n"
         return $versions.Contains("lychee $lychee") -and $versions.Contains("version $vale") -and
-            (Test-Path -LiteralPath (Join-Path $root 'tools/docs/node_modules/.bin/markdownlint-cli2'))
+            $versions.Contains('markdownlint')
     }
     if (Test-DocsTool) {
         Write-Host "lychee $lychee, Vale $vale and markdownlint-cli2 are installed."

@@ -91,13 +91,23 @@ warn() {
   return 0
 }
 
-# find_tool NAME: print the path of a docs tool, looking first where scripts/install-docs-tools.sh puts it.
+# find_tool NAME: print the path of a docs tool, looking first where scripts/install-docs-tools.sh puts it for this
+# script's pins: the current clone's common git dir, shared by its worktrees, one folder per pin (#353).
 find_tool() {
-  local candidate
-  for candidate in "$root/.tools/bin/$1" "$root/.tools/bin/$1.exe" "$root/tools/docs/node_modules/.bin/$1"; do
-    [ -x "$candidate" ] && { echo "$candidate"; return 0; }
-  done
+  local candidate dir
+  # Callers run it in $(...), so they look the folders up first (docs_tool_dirs), once per run, not once per tool.
+  [ -n "${docs_tool_dirs+set}" ] || find_docs_tool_dirs
+  while IFS= read -r -d : dir; do
+    for candidate in "$dir/$1" "$dir/$1.exe"; do
+      [ -n "$dir" ] && [ -x "$candidate" ] && { echo "$candidate"; return 0; }
+    done
+  done <<<"$docs_tool_dirs:"
   command -v "$1"
+}
+
+# find_docs_tool_dirs: set docs_tool_dirs to the current clone's docs tool folders, colon-separated, or to nothing.
+find_docs_tool_dirs() {
+  docs_tool_dirs="$(bash "$check_dir/install-docs-tools.sh" --path 2> /dev/null)" || docs_tool_dirs=""
 }
 
 # docs_stage: the docs checks, on the working tree's tracked Markdown files. A broken relative link or anchor fails the
@@ -114,6 +124,7 @@ docs_stage() {
   )
   [ "${#files[@]}" -gt 0 ] || return 0
 
+  find_docs_tool_dirs
   if tool="$(find_tool lychee)"; then
     check_links "$tool" "${files[@]}"
   else
@@ -910,6 +921,7 @@ main() {
       [ "$count" -le "$max_pr_words" ] ||
         warn "PR description: $count words outside Evidence; descriptions aim for at most $max_pr_words"
       root="$(git rev-parse --show-toplevel)" || die "could not find the repository root"
+      find_docs_tool_dirs
       if tool="$(find_tool vale)"; then
         # A short relative name, so the warnings read "pr-description.md:LINE" on every platform.
         cp "$2" "$tmp/pr-description.md" && cd "$tmp" || die "could not copy $2"
@@ -951,6 +963,12 @@ main() {
   if [ "$stage" = full ]; then
     [ -f "$solution" ] || die "full stage needs $(basename "$solution") at the repository root"
     command -v dotnet > /dev/null || die "full stage needs the .NET SDK (dotnet) on PATH"
+    # The docs tools, which the check-script suites and a pre-commit's docs checks run. The clone shares one install
+    # per pin (#353), so this fetches only on a clone's first full, or after a pin changes. CI installs its own.
+    if [ "${GITHUB_ACTIONS:-}" != true ]; then
+      bash "$check_dir/install-docs-tools.sh" ||
+        die "could not install the docs tools (run: bash scripts/install-docs-tools.sh)"
+    fi
   fi
   scan_files
   case "$stage" in rules | full) hooks_path_check ;; esac

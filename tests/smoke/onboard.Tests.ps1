@@ -59,7 +59,8 @@ exit 1
         $shLog = 'echo "${0##*/} $*" >> "${0%/*}/../../bin/calls.log"'
         [IO.File]::WriteAllText((Join-Path $scripts 'check.sh'), "#!/usr/bin/env bash`n$shLog`nexit `${STUB_CHECK:-0}`n")
         [IO.File]::WriteAllText((Join-Path $scripts 'install-docs-tools.sh'), (@(
-                '#!/usr/bin/env bash', 'LYCHEE_VERSION=0.24.2', 'VALE_VERSION=3.25.1', $shLog
+                '#!/usr/bin/env bash', 'LYCHEE_VERSION=0.24.2', 'VALE_VERSION=3.25.1'
+                '[ "$1" != --path ] || { echo .tools/bin:.tools/bin:tools/docs/node_modules/.bin; exit 0; }', $shLog
                 'mkdir -p .tools/bin tools/docs/node_modules/.bin'
                 'printf "#!/bin/sh\necho lychee %s\n" "$LYCHEE_VERSION" > .tools/bin/lychee'
                 'printf "#!/bin/sh\necho vale version %s\n" "$VALE_VERSION" > .tools/bin/vale'

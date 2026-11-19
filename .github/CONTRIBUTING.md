@@ -96,15 +96,16 @@ your extracted files, or put them in the git-ignored `extracted/` folder. If the
 checked. Put the [game build](../GLOSSARY.md) on the first line of `game-build.txt` in that folder; the tests show it in
 their names.
 
-If you change docs, also install the docs tools (Node.js is needed for the Markdown lint) and run their stage:
+If you change docs, also run their stage:
 
 ```sh
-bash scripts/install-docs-tools.sh
 bash scripts/check.sh docs
 ```
 
-A broken link fails it; everything else is a warning. The check-script tests (`tests/check/test-check.sh`) need these
-tools too. To flag another filler word, add it to
+A broken link fails it; everything else is a warning. It runs lychee, Vale and markdownlint (which needs Node.js), and
+so do the check-script tests. `check.sh full` installs them when they're missing, once per clone, and every worktree
+shares them. Running `bash scripts/install-docs-tools.sh` yourself is optional; its header says how the pins are kept
+([`install-docs-tools.sh`](../scripts/install-docs-tools.sh)). To flag another filler word, add it to
 [`tools/docs/.vale/styles/Project/Filler.yml`](../tools/docs/.vale/styles/Project/Filler.yml).
 
 ### Run the check-script suites in WSL
