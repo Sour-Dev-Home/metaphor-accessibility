@@ -37,10 +37,25 @@ public sealed class ModSettingsTests
     [InlineData("[]")]
     [InlineData("")]
     [InlineData("null")]
+    // Found by the property tests (#443): a number in a string, or a list of names, parsed as a mode.
+    [InlineData("{ \"voicedLines\": \"3\" }")]
+    [InlineData("{ \"voicedLines\": \"Auto, NameOnly\" }")]
+    [InlineData("{ \"voicedLines\": \" nameOnly\" }")]
+    // Found by the property tests (#443): an escaped lone surrogate threw instead of falling back.
+    [InlineData("{ \"voicedLines\": \"\\uD800\" }")]
     public void AnythingInvalidFallsBackToDefaultsAndIsLogged(string json)
     {
         Assert.Equal(VoicedLinesMode.Auto, Parse(json).VoicedLines);
         Assert.Single(logged);
+    }
+
+    // Found by the property tests (#443): text that isn't valid UTF-16 threw instead of falling back. A fact, not inline
+    // data, so the lone surrogate reaches the parser as written.
+    [Fact]
+    public void TextThatIsNotValidUtf16FallsBackToDefaultsAndIsLogged()
+    {
+        Assert.Equal(ModSettings.Defaults, Parse("{ \"voicedLines\": \"\uD800\" }"));
+        Assert.Contains("is not valid JSON", Assert.Single(logged), StringComparison.Ordinal);
     }
 
     [Theory]

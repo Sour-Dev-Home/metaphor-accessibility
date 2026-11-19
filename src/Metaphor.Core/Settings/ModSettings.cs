@@ -53,7 +53,9 @@ public sealed record ModSettings
             }
             return new ModSettings { VoicedLines = ReadMode(document.RootElement, log) };
         }
-        catch (JsonException e)
+        // A lone surrogate, raw or escaped, is ArgumentException or InvalidOperationException rather than JsonException
+        // (found by the property tests, #443).
+        catch (Exception e) when (e is JsonException or ArgumentException or InvalidOperationException)
         {
             log($"settings file is not valid JSON ({e.Message}); using defaults");
             return Defaults;
@@ -66,13 +68,25 @@ public sealed record ModSettings
         {
             return Defaults.VoicedLines;
         }
-        if (value.ValueKind == JsonValueKind.String &&
-            Enum.TryParse<VoicedLinesMode>(value.GetString(), ignoreCase: true, out var mode) &&
-            Enum.IsDefined(mode))
+        // A mode's name in any case, and nothing else: Enum.TryParse would also take "3", " auto" and "auto, nameOnly"
+        // (found by the property tests, #443).
+        if (value.ValueKind == JsonValueKind.String && Named(value.GetString()) is { } mode)
         {
             return mode;
         }
         log($"settings file: \"{VoicedLinesKey}\" is not one of auto, nameOnly, fullLine, nothing; using auto");
         return Defaults.VoicedLines;
+    }
+
+    private static VoicedLinesMode? Named(string? text)
+    {
+        foreach (var mode in Enum.GetValues<VoicedLinesMode>())
+        {
+            if (string.Equals(mode.ToString(), text, StringComparison.OrdinalIgnoreCase))
+            {
+                return mode;
+            }
+        }
+        return null;
     }
 }

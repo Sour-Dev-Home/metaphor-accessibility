@@ -15,6 +15,9 @@ Build and test tools, not shipped: CsCheck, Mono.Cecil, Microsoft.CodeAnalysis.C
 (versions pinned in `Directory.Packages.props`); [Stryker.NET](https://github.com/stryker-mutator/stryker-net) and
 [jscpd](https://github.com/kucherenko/jscpd) in the weekly slow checks. Their licences are on their package pages
 [NEEDS VERIFICATION: not saved under `docs/raw-sources/`].
+[FsCheck](https://github.com/fscheck/FsCheck) 3.6.0 (BSD-3-Clause, with its dependency `FSharp.Core` under MIT), not
+shipped, runs the property tests of the in-game parsers (ADR 0015,
+[licence](docs/raw-sources/fscheck-licence-2026-11-19.md)).
 Check tools, pinned and not shipped ([licences](docs/raw-sources/check-tool-licences-2026-11-19.md)):
 [OSV-Scanner](https://github.com/google/osv-scanner) 2.7.1 (Apache-2.0), CI's vulnerability audit
 (`scripts/ci/vuln-audit.sh`); [lychee](https://github.com/lycheeverse/lychee) 0.24.2 (Apache-2.0, with an MIT licence

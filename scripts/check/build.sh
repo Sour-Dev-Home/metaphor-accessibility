@@ -18,11 +18,13 @@ category_filter() {
   esac
 }
 
-# The slow suite (weekly in CI): Stryker.NET mutation testing of Metaphor.Core, and a jscpd duplication report, into
-# artifacts/slow/ (git-ignored). summary.md there has the mutation score per file, each surviving mutant, and the
-# duplication totals. Scores never fail it: a tool that can't run exits 2, after the summary says what's missing.
+# The slow suite (weekly in CI): Stryker.NET mutation testing of Metaphor.Core, the parsers' property tests at 10,000
+# cases from fresh seeds (ADR 0015), and a jscpd duplication report, into artifacts/slow/ (git-ignored). summary.md
+# there has the mutation score per file, each surviving mutant, the property result with any failing seed, and the
+# duplication totals. Scores and property failures never fail it: a tool that can't run exits 2, after the summary says
+# what's missing.
 slow_stage() {
-  local root out broken=""
+  local root out broken="" properties
   root="$(git rev-parse --show-toplevel)" || die "could not find the repository root"
   out="$root/artifacts/slow"
   command -v dotnet > /dev/null || die "slow stage needs the .NET SDK (dotnet) on PATH"
@@ -32,6 +34,20 @@ slow_stage() {
   export DOTNET_CLI_TELEMETRY_OPTOUT=1 DOTNET_NOLOGO=1
   (cd "$root" && dotnet tool restore -v q) || die "could not restore dotnet-stryker (.config/dotnet-tools.json)"
   (cd "$root/tests/Metaphor.Core.Tests" && dotnet stryker --output "$out/stryker") || broken="$broken Stryker.NET"
+
+  # Every check runs the properties at 100 cases from a fixed seed; here the variable raises the count and makes each
+  # property take a fresh seed (tests/Metaphor.Core.Tests/PropertyRun.cs). A failure is a finding to turn into a
+  # regression test (#443), so it's reported, not fatal; a run that can't restore, build or start breaks the stage.
+  properties="properties passed (10,000 cases each, fresh seeds)"
+  if ! METAPHOR_PROPERTY_CASES=10000 dotnet test "$root/tests/Metaphor.Core.Tests" --filter "Category=Property" \
+    --logger "console;verbosity=normal" > "$out/properties.log" 2>&1; then
+    if grep -q '\[FAIL\]' "$out/properties.log"; then
+      properties="properties FAILED; replay each with the seed it names (properties.log):"
+    else
+      properties="property tests did not run (properties.log)"
+      broken="$broken property-tests"
+    fi
+  fi
 
   npm ci --prefix "$root/tools/slow" --ignore-scripts --no-audit --no-fund --loglevel=error ||
     die "could not install jscpd (tools/slow)"
@@ -43,6 +59,12 @@ slow_stage() {
     [ -f "$reports/mutation-report.md" ] && cat "$reports/mutation-report.md" || echo "No mutation report."
     echo
     node "$root/tools/slow/survivors.mjs" "$reports/mutation-report.json" "$root" || echo "No list of surviving mutants."
+    echo
+    echo "## Property tests"
+    echo
+    echo "$properties"
+    grep -oE '[A-Za-z]+PropertyTests\.[A-Za-z]+ \[FAIL\]|METAPHOR_PROPERTY_SEED=[0-9]+ METAPHOR_PROPERTY_CASES=[0-9]+' "$out/properties.log" |
+      awk '!seen[$0]++ { print "- " $0 }' || true
     echo
     [ -f "$out/jscpd/jscpd-report.md" ] && cat "$out/jscpd/jscpd-report.md" || echo "No duplication report."
   } > "$out/summary.md"
