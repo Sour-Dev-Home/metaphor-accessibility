@@ -142,11 +142,28 @@ jobs:
           echo "sha=$sha" >> "$GITHUB_OUTPUT"
           echo "Packaged mod SHA-256: $sha (commit $GITHUB_SHA)"
           echo "Packaged mod SHA-256: \`$sha\` (commit \`$GITHUB_SHA\`)" >> "$GITHUB_STEP_SUMMARY"
-      # Reproducible build: a fresh checkout at another path, built from scratch, must give the same bytes.
+      # The players' download (#308): a reproducible zip of the package, stamped with the commit's time, and its
+      # SHA256SUMS. The attest job signs it on main.
+      - name: Zip the package
+        id: zip
+        if: github.event_name != 'pull_request'
+        run: |
+          name="metaphor-accessibility-$GITHUB_SHA.zip"
+          time="$(git log -1 --format=%ct HEAD)"
+          sha="$(pwsh -NoProfile -File scripts/zip-package.ps1 -Path artifacts/mod -Destination "artifacts/release/$name" -Timestamp "$time")"
+          printf '%s  %s\n' "$sha" "$name" > artifacts/release/SHA256SUMS
+          {
+            echo "time=$time"
+            echo "sha=$sha"
+          } >> "$GITHUB_OUTPUT"
+          echo "Players' zip: \`$name\`, SHA-256 \`$sha\`" >> "$GITHUB_STEP_SUMMARY"
+      # Reproducible build: a fresh checkout at another path, built from scratch, must give the same package and zip.
       - name: Rebuild in a second checkout and compare
         if: github.event_name != 'pull_request'
         env:
           FIRST_SHA: ${{ steps.package.outputs.sha }}
+          FIRST_ZIP_SHA: ${{ steps.zip.outputs.sha }}
+          ZIP_TIME: ${{ steps.zip.outputs.time }}
           PRISM_CACHE: ${{ runner.temp }}/prism-cache
         run: |
           git worktree add --detach "$RUNNER_TEMP/rebuild" HEAD
@@ -155,13 +172,55 @@ jobs:
             echo "::error::Rebuild differs: $FIRST_SHA then $second"
             exit 1
           fi
-          echo "A rebuild in a second checkout at another path matches." >> "$GITHUB_STEP_SUMMARY"
+          second_zip="$(pwsh -NoProfile -File "$RUNNER_TEMP/rebuild/scripts/zip-package.ps1" \
+            -Path "$RUNNER_TEMP/rebuild-out" -Destination "$RUNNER_TEMP/rebuild.zip" -Timestamp "$ZIP_TIME")"
+          if [ "$second_zip" != "$FIRST_ZIP_SHA" ]; then
+            echo "::error::The rebuild's zip differs: $FIRST_ZIP_SHA then $second_zip"
+            exit 1
+          fi
+          echo "A rebuild in a second checkout at another path matches, package and zip." >> "$GITHUB_STEP_SUMMARY"
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         if: github.event_name != 'pull_request'
         with:
           name: mod-${{ github.sha }}
           path: artifacts/mod
           if-no-files-found: error
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: github.event_name != 'pull_request'
+        with:
+          name: release-${{ github.sha }}
+          path: artifacts/release
+          if-no-files-found: error
+
+  # The release dry run (#308): signs the zip the build job made on main with a build-provenance attestation, then
+  # checks it with the command players run (docs/players/how-to/check-a-download.md). It runs none of our code, so the
+  # signing token never meets the build; no other job asks for id-token or attestations.
+  attest:
+    needs: [build]
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      id-token: write # a Sigstore signing certificate for this workflow
+      attestations: write # store the attestation with the repository
+    steps:
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: release-${{ github.sha }}
+          path: release
+      - name: Check the zip against SHA256SUMS
+        working-directory: release
+        run: sha256sum --check --strict SHA256SUMS
+      - uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4.2.2
+        with:
+          subject-path: release/metaphor-accessibility-${{ github.sha }}.zip
+      - name: Verify it as a player would
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          zip="release/metaphor-accessibility-$GITHUB_SHA.zip"
+          gh attestation verify "$zip" --repo "$GITHUB_REPOSITORY" --signer-workflow "$GITHUB_REPOSITORY/.github/workflows/ci.yml" --source-ref refs/heads/main --deny-self-hosted-runners
 
   # The smoke-test and deploy scripts' Pester tests, in parallel with build. They need Windows (PowerShell scripts against
   # the stand-in game) and run when a change touches scripts, tests/smoke, the stand-in game or the workflows. One job
@@ -173,7 +232,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        file: [capture, deploy-dev, fetch-prism, GameLocator, listen, onboard, signature-spike, smoke-test]
+        file: [capture, deploy-dev, fetch-prism, GameLocator, listen, onboard, signature-spike, smoke-test, zip-package]
     defaults:
       run:
         shell: bash

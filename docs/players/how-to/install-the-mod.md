@@ -43,7 +43,7 @@ cursor and a simulated mouse click
 mod on every merge and keeps it as a workflow artifact with a SHA-256 hash
 ([README](../../../README.md#checks)). The package holds our mod only; Reloaded-II is installed separately.
 
-1. Download the package from the CI run's artifacts and check its SHA-256 against the one shown with it.
+1. Download the zip from a CI run on `main` and check it, as [Check a download](check-a-download.md) says.
 2. Unzip it. You get a folder named for the mod ID, `metaphor.accessibility`.
 3. Open Reloaded-II's settings file, `%APPDATA%\Reloaded-Mod-Loader-II\ReloadedII.json`, in Notepad. Find the value of
    `ModConfigDirectory`. This is the mods folder
