@@ -16,7 +16,7 @@
 #   scripts/check.sh signatures [EXE]    each hook signature matches exactly once in the game exe (local, before a hook PR)
 #   scripts/check.sh pr-body FILE        warns when a PR description is too long (CI on pull requests)
 #   scripts/check.sh commit-msg FILE     one commit message, plus its security-review trailer (the commit-msg hook)
-#   scripts/check.sh commits BASE..HEAD  every non-merge commit message and security-review trailer in a range (CI on PRs)
+#   scripts/check.sh commits BASE..HEAD  every non-merge commit message in a range, and HEAD's security review (CI on PRs)
 #
 # A commit message has a typed subject of at most 72 characters ("feat: ...", "fix(check): ..."), then optionally a blank
 # line and a body of at most 5 lines. A final paragraph of trailers (Co-Authored-By: ...) doesn't count. Subjects git
@@ -24,7 +24,8 @@
 #
 # A commit touching the security-review scope (scripts/security-stamp.sh) needs the security-reviewer agent's stamp
 # matching the staged scope; the commit-msg hook then appends "Security-Review: <hash>". SECURITY_REVIEW_SKIP="<reason>"
-# lets it through and records "Security-Review-Skipped: <reason>" instead.
+# lets it through and records "Security-Review-Skipped: <reason>" instead. Clean merges from main and CI's HEAD-only
+# check: docs/adr/0012-review-trailer-covers-clean-merges.md.
 #
 # In CI the `commits` stage also reads PR_AUTHOR_ASSOCIATION and PR_AUTHOR (#309). Every PR is judged by its trailers. A
 # PR whose author is OWNER or has admin permission is the maintainer's; on any other PR a skip trailer doesn't count, and
@@ -503,41 +504,82 @@ skipping() {
   [ -n "${reason//[[:space:]]/}" ]
 }
 
-# review_gate: a staged change to the scope needs a stamp matching it, unless SECURITY_REVIEW_SKIP gives a reason.
-# Exit 0 when the commit may go ahead.
-review_gate() {
-  skipping && return 0
-  bash "$stamp_script" stamped
+# stamp_check CHECK [COMMIT]: run the stamp script's yes-or-no CHECK; exit 0 for yes, 1 for no, die when it fails.
+stamp_check() {
+  bash "$stamp_script" "$@"
   case $? in
     0) return 0 ;;
-    1) report "security review: the staged hook or deploy code has no matching stamp. Run the security-reviewer agent \
-(it stamps when it finds nothing critical or important), or set SECURITY_REVIEW_SKIP=\"<reason>\" (maintainer only)"
-       return 1 ;;
-    *) die "could not check the security-review stamp" ;;
+    1) return 1 ;;
+    *) die "security review: could not run the stamp script's $1 check${2:+ on $2}" ;;
   esac
 }
 
-# review_trailer FILE: on a commit touching the scope, replace any Security-Review trailers in the message FILE with the
-# one this commit earns.
-review_trailer() {
-  local file="$1" trailer
-  in_scope || return 0
-  review_gate || return 0
-  if skipping; then
-    trailer="Security-Review-Skipped: ${SECURITY_REVIEW_SKIP//[$'\r\n']/ }"
-  else
-    trailer="Security-Review: $(bash "$stamp_script" hash)" || die "could not hash the security-review scope"
-  fi
-  grep -viE '^Security-Review(-Skipped)?:' "$file" > "$tmp/message"
-  [ $? -le 1 ] || die "could not read $file"
-  git interpret-trailers --trailer "$trailer" < "$tmp/message" > "$file" || die "could not add the trailer to $file"
+# review_gate: a staged change to the scope needs a stamp matching it, unless SECURITY_REVIEW_SKIP gives a reason or
+# the commit is a clean merge from main (docs/adr/0012-review-trailer-covers-clean-merges.md). Exit 0 when the commit
+# may go ahead, setting review_by (skip, stamp or clean-merge), which review_trailer reads to pick the trailer.
+review_gate() {
+  review_by=skip
+  skipping && return 0
+  review_by=stamp
+  stamp_check stamped && return 0
+  review_by=clean-merge
+  stamp_check clean-merge && return 0
+  report "security review: the staged hook or deploy code has no matching stamp. Run the security-reviewer agent \
+(it stamps when it finds nothing critical or important), or set SECURITY_REVIEW_SKIP=\"<reason>\" (maintainer only). A \
+clean merge from origin/main needs none (ADR 0012)"
+  return 1
 }
 
-# check_review_trailer SHA: a commit touching the scope carries "Security-Review: <a hash the stamp script accepts for
-# it>" (its scope hash, or its old-scope hash from before #306) or a Security-Review-Skipped trailer with a reason.
-check_review_trailer() {
+# review_trailer FILE: on a commit touching the scope, replace any Security-Review trailers in the message FILE with the
+# one this commit earns. A clean merge from main earns none: CI judges it by its first parent.
+review_trailer() {
+  local file="$1" trailer=""
+  in_scope || return 0
+  review_gate || return 0
+  case "$review_by" in
+    skip) trailer="Security-Review-Skipped: ${SECURITY_REVIEW_SKIP//[$'\r\n']/ }" ;;
+    stamp) trailer="Security-Review: $(bash "$stamp_script" hash)" || die "could not hash the security-review scope" ;;
+    clean-merge) echo "security review: not needed, a clean merge from main: each hook-scope file is the version one \
+side changed, reviewed there (ADR 0012)" ;;
+  esac
+  grep -viE '^Security-Review(-Skipped)?:' "$file" > "$tmp/message"
+  [ $? -le 1 ] || die "could not read $file"
+  if [ -n "$trailer" ]; then
+    git interpret-trailers --trailer "$trailer" < "$tmp/message" > "$file" || die "could not add the trailer to $file"
+  else
+    cp "$tmp/message" "$file" || die "could not write $file"
+  fi
+}
+
+# check_head_review BASE..HEAD: when the range touches the scope, judge HEAD alone, walking first parents through clean
+# merges and commits leaving the scope alone (docs/adr/0012-review-trailer-covers-clean-merges.md).
+check_head_review() {
+  local base="${1%%..*}" sha="${1#*..}" head parent
+  in_scope "$1" || return 0
+  head="$(git rev-parse -q --verify "${sha#.}^{commit}")" || die "could not read the head of $1"
+  sha="$head"
+  while :; do
+    git merge-base --is-ancestor "$sha" "$base"
+    case $? in
+      0) return 0 ;;
+      1) ;;
+      *) die "could not tell whether $sha is on $base" ;;
+    esac
+    has_review_trailer "$sha" && return 0
+    parent="$(git rev-parse -q --verify "$sha^1")" || break # a root commit has nothing to pass through
+    { ! in_scope "$sha" || stamp_check clean-merge "$sha"; } || break
+    sha="$parent"
+  done
+  report "commit $(git rev-parse --short "$sha"): touches the security-review scope without a Security-Review trailer \
+matching its content, or a Security-Review-Skipped one on the maintainer's PR$([ "$sha" = "$head" ] || echo "; HEAD \
+reaches it through clean merges from main or commits leaving the scope alone (ADR 0012)")"
+}
+
+# has_review_trailer SHA: exit 0 when SHA carries "Security-Review: <a hash the stamp script accepts for it>" (its scope
+# hash, or its old-scope hash from before #306) or, on the maintainer's PR, a Security-Review-Skipped trailer with a
+# reason.
+has_review_trailer() {
   local sha="$1" want reviewed skipped hash
-  in_scope "$sha" || return 0
   want="$(bash "$stamp_script" accepted "$sha")" || die "could not hash the security-review scope of $sha"
   # Both trailers from one git start, split at a \x01 byte. A trailer holding one of its own would move the split, so
   # more than one fails closed.
@@ -550,9 +592,7 @@ check_review_trailer() {
     grep -qxF "$hash" <<<"$reviewed" && return 0
   done
   # SECURITY_REVIEW_SKIP is the maintainer's, so a skip trailer counts only on the maintainer's PR (#309).
-  [ -n "${skipped//[[:space:]]/}" ] && maintainer_pr && return 0
-  report "commit $(git rev-parse --short "$sha"): touches the security-review scope without a Security-Review trailer \
-matching its content, or a Security-Review-Skipped one on the maintainer's PR"
+  [ -n "${skipped//[[:space:]]/}" ] && maintainer_pr
 }
 
 # is_admin LOGIN: exit 0 when LOGIN has admin permission on GITHUB_REPOSITORY, 1 when not (or the login isn't one GitHub
@@ -854,8 +894,8 @@ main() {
   [ "$failures" -eq 0 ]
 }
 
-# commits_stage BASE..HEAD: every non-merge commit's message and security-review trailer. Merge commits are skipped:
-# git writes their messages, and PRs are squash-merged.
+# commits_stage BASE..HEAD: every non-merge commit's message, then HEAD's security review (check_head_review). Merge
+# messages are skipped: git writes them, and PRs are squash-merged.
 commits_stage() {
   local shas sha
   shas="$(git rev-list --no-merges "$1" --)" || die "could not list the commits in $1"
@@ -864,8 +904,8 @@ commits_stage() {
     # The short hash on the first line, then the message: one git start where two were.
     git log -1 --format=%h%n%B "$sha" > "$tmp/message" || die "could not read commit $sha"
     { read -r short && check_message "commit $short"; } < "$tmp/message"
-    check_review_trailer "$sha"
   done
+  check_head_review "$1"
   # A PR not by the maintainer is judged by its whole diff, so a change inside a merge commit still needs the label.
   if [ -n "${PR_AUTHOR_ASSOCIATION:-}" ] && changes_outside_docs "$1" && ! maintainer_pr; then
     require_review_label
