@@ -11,7 +11,15 @@ For the whole path from your branch to `main` in one picture, see
 
 ## One command
 
-In PowerShell, from the root of your clone:
+On a fresh Windows install, Windows PowerShell's default execution policy blocks local scripts. Allow them once for
+your user (no admin needed; `RemoteSigned` is enough because `git clone` doesn't mark files as downloaded). See
+[about_Execution_Policies](https://learn.microsoft.com/en-us/powershell/module/microsoft.powershell.core/about/about_execution_policies):
+
+```powershell
+Set-ExecutionPolicy -Scope CurrentUser RemoteSigned
+```
+
+Then, in PowerShell, from the root of your clone:
 
 ```powershell
 .\scripts\onboard.ps1
