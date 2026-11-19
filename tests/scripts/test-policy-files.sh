@@ -38,8 +38,8 @@ check "the markdownlint config is in tools/docs" [ -s "$ROOT/tools/docs/.markdow
 check "the Vale config is in tools/docs" [ -s "$ROOT/tools/docs/.vale.ini" ]
 check "Vale's StylesPath resolves to the Project style" bash -c \
   'p="$(sed -n "s/^StylesPath *= *//p" "$1/tools/docs/.vale.ini" | tr -d "\r")"; [ -s "$1/tools/docs/$p/Project/Filler.yml" ]' _ "$ROOT"
-check "check.sh passes both docs configs explicitly" \
-  bash -c 'grep -qF -- "--config \"\$config\"" "$1" && grep -qF -- "--config=\"\$config\"" "$1"' _ "$ROOT/scripts/check.sh"
+check "check.sh's docs module passes both docs configs explicitly" \
+  bash -c 'grep -qF -- "--config \"\$config\"" "$1" && grep -qF -- "--config=\"\$config\"" "$1"' _ "$ROOT/scripts/check/docs.sh"
 check "the git hooks live in scripts/githooks" [ -f "$ROOT/scripts/githooks/pre-commit" ]
 
 TEMPLATES="$ROOT/.github/ISSUE_TEMPLATE"
