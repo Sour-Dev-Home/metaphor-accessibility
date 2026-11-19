@@ -5,8 +5,10 @@ BeforeAll {
     $repo = (Resolve-Path "$PSScriptRoot/../..").Path
     $script = Join-Path $repo 'scripts/deploy-dev.ps1'
     $standIn = Join-Path $repo 'tests/Metaphor.StandInGame/bin/Release/net9.0'
-    dotnet build (Join-Path $repo 'tests/Metaphor.StandInGame') -c Release -v q --nologo | Out-Null
-    if ($LASTEXITCODE -ne 0) { throw 'the stand-in game failed to build' }
+    if (-not $env:METAPHOR_STANDIN_BUILT) { # scripts/run-pester.sh builds it once for every process
+        dotnet build (Join-Path $repo 'tests/Metaphor.StandInGame') -c Release -v q --nologo | Out-Null
+        if ($LASTEXITCODE -ne 0) { throw 'the stand-in game failed to build' }
+    }
 
     function Write-Json([string] $Path, $Value) {
         New-Item -ItemType Directory -Force (Split-Path $Path) | Out-Null
@@ -15,13 +17,15 @@ BeforeAll {
 
     # Runs the deploy in its own process, so its exit code is real.
     # -FromConfig passes no game or launcher path, so the script must find both in Reloaded-II's config.
+    # The timeout is a generous upper bound: the script returns as soon as the mod reports, so a loaded machine (the
+    # Pester files run at once, scripts/run-pester.sh) only slows a test down (coding-standards judgement rule 4).
     function Invoke-Deploy([string] $Behaviour = 'ready', [string[]] $KnownBuild = @($script:build),
         [string] $Project = $script:modProject, [switch] $FromConfig) {
         Write-Json $script:known @($KnownBuild | ForEach-Object { @{ sha256 = $_; steamBuildId = 1; evidence = 'test' } })
         $env:METAPHOR_STANDIN_BEHAVIOUR = $Behaviour
         $paths = if ($FromConfig) { @() } else { @('-GameExe', $script:gameExe, '-LauncherExe', $script:launcher) }
         $output = & pwsh -NoProfile -File $script @paths `
-            -Project $Project -ReloadedConfig $script:config -KnownBuilds $script:known -TimeoutSeconds 5 2>&1
+            -Project $Project -ReloadedConfig $script:config -KnownBuilds $script:known -TimeoutSeconds 60 2>&1
         [pscustomobject]@{ ExitCode = $LASTEXITCODE; Output = ($output -join "`n") }
     }
 
@@ -30,6 +34,12 @@ BeforeAll {
 }
 
 Describe 'deploy-dev.ps1' {
+    AfterAll {
+        # Every stand-in still running from TestDrive, so Pester can delete it.
+        Import-Module (Join-Path $PSScriptRoot 'StandIn.psm1') -Force
+        Stop-StandIn $TestDrive
+    }
+
     BeforeEach {
         # TestDrive is shared by every test in this Describe, so each test gets its own folder.
         $root = (New-Item -ItemType Directory (Join-Path $TestDrive (New-Guid))).FullName
@@ -78,7 +88,7 @@ Describe 'deploy-dev.ps1' {
     }
 
     AfterEach {
-        Get-Game | Stop-Process -Force
+        Get-Game | Stop-Process -Force -PassThru | Wait-Process -Timeout 10 -ErrorAction SilentlyContinue
         Remove-Item Env:METAPHOR_STANDIN_BEHAVIOUR, Env:METAPHOR_STANDIN_RELOADED_CONFIG -ErrorAction SilentlyContinue
     }
 
@@ -134,7 +144,7 @@ Describe 'deploy-dev.ps1' {
 
     It 'replaces an earlier deploy with the new build' {
         Invoke-Deploy | Out-Null
-        Get-Game | Stop-Process -Force
+        Get-Game | Stop-Process -Force -PassThru | Wait-Process -Timeout 10 -ErrorAction SilentlyContinue
         Set-Content -LiteralPath (Join-Path $script:deployed 'stale.txt') -Value 'from an earlier build'
         Set-Content -LiteralPath (Join-Path $script:modProject 'Mod.cs') -Value 'namespace Metaphor.DevMod; public static class Changed { }'
 

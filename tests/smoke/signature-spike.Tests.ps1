@@ -5,8 +5,10 @@ BeforeAll {
     $repo = (Resolve-Path "$PSScriptRoot/../..").Path
     $script = Join-Path $repo 'scripts/signature-spike.ps1'
     $standIn = Join-Path $repo 'tests/Metaphor.StandInGame/bin/Release/net9.0'
-    dotnet build (Join-Path $repo 'tests/Metaphor.StandInGame') -c Release -v q --nologo | Out-Null
-    if ($LASTEXITCODE -ne 0) { throw 'the stand-in game failed to build' }
+    if (-not $env:METAPHOR_STANDIN_BUILT) { # scripts/run-pester.sh builds it once for every process
+        dotnet build (Join-Path $repo 'tests/Metaphor.StandInGame') -c Release -v q --nologo | Out-Null
+        if ($LASTEXITCODE -ne 0) { throw 'the stand-in game failed to build' }
+    }
 
     function Write-Json([string] $Path, $Value) {
         New-Item -ItemType Directory -Force (Split-Path $Path) | Out-Null
@@ -56,7 +58,7 @@ Describe 'signature-spike.ps1' {
 
         function Invoke-Spike([string] $Draft) {
             $output = & pwsh -NoProfile -File $script -GameExe $script:gameExe -LauncherExe $launcher -Probes $probes `
-                -ReloadedConfig $config -KnownBuilds $known -OutFile $Draft -TimeoutSeconds 10 2>&1
+                -ReloadedConfig $config -KnownBuilds $known -OutFile $Draft -TimeoutSeconds 60 2>&1
             [pscustomobject]@{ ExitCode = $LASTEXITCODE; Output = ($output -join "`n") }
         }
 
@@ -64,7 +66,7 @@ Describe 'signature-spike.ps1' {
         $env:METAPHOR_STANDIN_BEHAVIOUR = 'refuse'
         $script:failedDraft = Join-Path $root 'failed-draft.md'
         $script:failedRun = Invoke-Spike $script:failedDraft
-        Get-Game | Stop-Process -Force
+        Get-Game | Stop-Process -Force -PassThru | Wait-Process -Timeout 10 -ErrorAction SilentlyContinue
         Remove-Item Env:METAPHOR_STANDIN_BEHAVIOUR
 
         $script:draft = Join-Path $root 'draft.md'
@@ -76,7 +78,9 @@ Describe 'signature-spike.ps1' {
     }
 
     AfterAll {
-        Get-Game | Stop-Process -Force
+        # Every stand-in still running from TestDrive, so Pester can delete it.
+        Import-Module (Join-Path $PSScriptRoot 'StandIn.psm1') -Force
+        Stop-StandIn $TestDrive
         Remove-Item Env:METAPHOR_STANDIN_RELOADED_CONFIG -ErrorAction SilentlyContinue
     }
 

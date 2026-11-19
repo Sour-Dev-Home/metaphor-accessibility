@@ -55,7 +55,8 @@ Write-Host 'metaphor.hooks: ready on abc, hooks 3/4'
 exit 1
 "@
         Set-Content (Join-Path $scripts 'ghidra.ps1') "Add-Content $log `"ghidra.ps1 `$args`""
-        $shLog = 'echo "$(basename "$0") $*" >> "$(dirname "$0")/../../bin/calls.log"'
+        # Parameter expansion, not basename and dirname: each process Git Bash starts costs about 0.3 s, one at a time.
+        $shLog = 'echo "${0##*/} $*" >> "${0%/*}/../../bin/calls.log"'
         [IO.File]::WriteAllText((Join-Path $scripts 'check.sh'), "#!/usr/bin/env bash`n$shLog`nexit `${STUB_CHECK:-0}`n")
         [IO.File]::WriteAllText((Join-Path $scripts 'install-docs-tools.sh'), (@(
                 '#!/usr/bin/env bash', 'LYCHEE_VERSION=0.24.2', 'VALE_VERSION=3.25.1', $shLog

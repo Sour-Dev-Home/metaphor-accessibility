@@ -5,8 +5,10 @@ BeforeAll {
     $repo = (Resolve-Path "$PSScriptRoot/../..").Path
     $script = Join-Path $repo 'scripts/smoke-test.ps1'
     $standIn = Join-Path $repo 'tests/Metaphor.StandInGame/bin/Release/net9.0'
-    dotnet build (Join-Path $repo 'tests/Metaphor.StandInGame') -c Release -v q --nologo | Out-Null
-    if ($LASTEXITCODE -ne 0) { throw 'the stand-in game failed to build' }
+    if (-not $env:METAPHOR_STANDIN_BUILT) { # scripts/run-pester.sh builds it once for every process
+        dotnet build (Join-Path $repo 'tests/Metaphor.StandInGame') -c Release -v q --nologo | Out-Null
+        if ($LASTEXITCODE -ne 0) { throw 'the stand-in game failed to build' }
+    }
 
     function Write-Json([string] $Path, $Value) {
         New-Item -ItemType Directory -Force (Split-Path $Path) | Out-Null
@@ -31,6 +33,12 @@ BeforeAll {
 }
 
 Describe 'smoke-test.ps1' {
+    AfterAll {
+        # Every stand-in still running from TestDrive, so Pester can delete it.
+        Import-Module (Join-Path $PSScriptRoot 'StandIn.psm1') -Force
+        Stop-StandIn $TestDrive
+    }
+
     BeforeEach {
         # TestDrive is shared by every test in this Describe, so each test gets its own folder.
         $root = (New-Item -ItemType Directory (Join-Path $TestDrive (New-Guid))).FullName
@@ -69,7 +77,7 @@ Describe 'smoke-test.ps1' {
     }
 
     AfterEach {
-        Get-Game | Stop-Process -Force
+        Get-Game | Stop-Process -Force -PassThru | Wait-Process -Timeout 10 -ErrorAction SilentlyContinue
         Remove-Item Env:METAPHOR_STANDIN_BEHAVIOUR, Env:METAPHOR_STANDIN_RELOADED_CONFIG -ErrorAction SilentlyContinue
     }
 
