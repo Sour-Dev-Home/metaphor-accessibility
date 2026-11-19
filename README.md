@@ -58,7 +58,9 @@ the pre-push build covers only the test projects the change selects (and a chang
 file or an unplaceable change builds the solution. `tests/check/test-check.sh` runs its tests in parallel
 (`METAPHOR_TEST_JOBS=1` runs them one at a time), as does `scripts/run-pester.sh`. These three print a line per step,
 test or file as it finishes (`[37/132] test_x ok (2.1 s)`) and write it to the clone's live log,
-`<git dir>/check-live-log`, which `scripts/check-status.sh` reads (`test-check: 37/132, 12 min`).
+`<git dir>/check-live-log`, which `scripts/check-status.sh` reads (`test-check: 37/132, 12 min`). Started from Git
+Bash, the check-script suites run in WSL when it's set up, in seconds instead of minutes
+([CONTRIBUTING.md](.github/CONTRIBUTING.md#run-the-check-script-suites-in-wsl)).
 
 `full` needs the .NET SDK pinned in `global.json`. CI runs it by two paths under the same required checks
 (`repo-rules`, `build`, `scripts`, `security`):

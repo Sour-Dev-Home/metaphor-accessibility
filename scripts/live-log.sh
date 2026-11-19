@@ -25,7 +25,11 @@ live_start() {
     : > "$live_log" 2> /dev/null || { live_log=""; return 0; }
   fi
   export METAPHOR_LIVE_LOG="$live_log"
-  printf '== start %s %s %s %s\n' "$live_suite" "$live_total" "$live_began" "$BASHPID" >> "$live_log"
+  # A suite run in WSL (scripts/wsl-run.sh) logs the pid of the Git Bash shell waiting for it, which check-status.sh
+  # can see; the runs a test case starts log their own.
+  printf '== start %s %s %s %s\n' "$live_suite" "$live_total" "$live_began" "${METAPHOR_LIVE_PID:-$BASHPID}" \
+    >> "$live_log"
+  unset METAPHOR_LIVE_PID
 }
 
 # live_line ITEM EXIT_CODE SECONDS: print and log "[done/total] ITEM ok|FAIL (SECONDS s)".

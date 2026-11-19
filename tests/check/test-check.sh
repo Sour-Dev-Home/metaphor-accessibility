@@ -5,6 +5,8 @@ set -uo pipefail
 unset PII_PATTERNS REQUIRE_PRIVATE_PATTERNS REQUIRE_DOCS_TOOLS GITHUB_ACTIONS SECURITY_REVIEW_SKIP # set per run
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+# shellcheck source=../../scripts/wsl-run.sh
+source "$ROOT/scripts/wsl-run.sh" # in Git Bash, runs this suite in WSL instead when it's set up (#341)
 CHECK="$ROOT/scripts/check.sh"
 WORK="$(mktemp -d)"
 trap 'rm -rf "$WORK"' EXIT
@@ -1322,7 +1324,8 @@ test_maintainer_pr_uses_trailers_and_ignores_the_label() {
 # The guards that enforce the ground rules are in the scope too (issue #306).
 GUARD_FILES=(scripts/check.sh scripts/game-content.sha256 scripts/tree-hash.sh scripts/ci-changes.sh
   scripts/test-select.sh scripts/stage-timing.sh scripts/install-docs-tools.sh scripts/conflict-alert.sh
-  scripts/integration-sync.sh scripts/check-status.sh scripts/run-pester.sh scripts/live-log.sh scripts/githooks/pre-commit scripts/githooks/pre-push
+  scripts/integration-sync.sh scripts/check-status.sh scripts/run-pester.sh scripts/live-log.sh scripts/wsl-run.sh
+  scripts/wsl-tools.txt scripts/setup-wsl.ps1 scripts/githooks/pre-commit scripts/githooks/pre-push
   scripts/githooks/commit-msg scripts/security-stamp.sh scripts/github-outage.sh .github/workflows/ci.yml
   .github/workflows/slow.yml .github/workflows/a-new-one.yml .claude/agents/security-reviewer.md
   tests/check/test-check.sh tests/scripts/test-anything.sh tools/slow/survivors.mjs tools/docs/package-lock.json

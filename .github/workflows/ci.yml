@@ -81,6 +81,7 @@ jobs:
           bash tests/scripts/test-check-status.sh
           bash tests/scripts/test-github-outage.sh
           bash tests/scripts/test-ci-matrix.sh
+          bash tests/scripts/test-wsl-run.sh
       - name: Check every tracked file
         env:
           # The private list reaches pushes to this repository's main only, never a pull request, so a fork's code

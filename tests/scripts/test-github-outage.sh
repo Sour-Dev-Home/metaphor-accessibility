@@ -5,6 +5,8 @@
 set -uo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+# shellcheck source=../../scripts/wsl-run.sh
+source "$ROOT/scripts/wsl-run.sh" # in Git Bash, runs this suite in WSL instead when it's set up (#341)
 OUTAGE="$ROOT/scripts/github-outage.sh"
 SHAPES="$ROOT/tests/fixtures/outage/shapes.txt"
 WORK="$(mktemp -d)"

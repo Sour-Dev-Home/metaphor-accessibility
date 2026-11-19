@@ -5,6 +5,8 @@ set -uo pipefail
 unset PII_PATTERNS REQUIRE_PRIVATE_PATTERNS REQUIRE_DOCS_TOOLS GITHUB_ACTIONS SECURITY_REVIEW_SKIP
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+# shellcheck source=../../scripts/wsl-run.sh
+source "$ROOT/scripts/wsl-run.sh" # in Git Bash, runs this suite in WSL instead when it's set up (#341)
 STATUS="$ROOT/scripts/check-status.sh"
 CHECK="$ROOT/scripts/check.sh"
 WORK="$(mktemp -d)"
