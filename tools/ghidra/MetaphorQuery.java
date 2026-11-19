@@ -12,10 +12,9 @@
 //                               RIP), in one function or in all analysed code, marked read, write, addr (lea) or call
 //   global <target>             instructions whose RIP-relative operand is that global ([rip + disp32] resolving to
 //                               it), in all analysed code, marked read, write, rw, addr (lea) or call (a call or
-//                               jump through it). It
-//                               scans the instructions rather than trusting the reference table, so it doesn't depend
-//                               on which references auto-analysis made.
-//   rtti <target>              the RTTI class of a vtable, of an object holding a vtable pointer, or of each vtable
+//                               jump through it). It scans the instructions rather than trusting the reference table,
+//                               so it doesn't depend on which references auto-analysis made.
+//   rtti <target>               the RTTI class of a vtable, of an object holding a vtable pointer, or of each vtable
 //                               holding a pointer to a function
 //   vtable <target>             a vtable's class and slots; the target is the vtable or a class name
 //

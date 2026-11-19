@@ -1,6 +1,7 @@
 // Builds the local Ghidra project of the game exe (#290): auto-analysis of the game's own code, then the names we know.
 // Run by scripts/ghidra.ps1, one step per headless run so each saves its work: "analyse" right after an import with
-// -noanalysis, then "names <hook-signatures.json> <game build>", then "vtables".
+// -noanalysis, then "names <hook-signatures.json> <game build>", then "vtables". On a built project it runs "names"
+// alone, which adds only the signatures added since.
 //
 // Only reads the exe as imported from disk (AGENTS.md rule 5, docs/raw-sources/drm-status-2026-11-13.md): nothing is
 // decrypted, unpacked or run. The sections listed in SKIPPED (.text1, .xcode, .xtext: the protection's, ADR 0010) are
@@ -177,13 +178,14 @@ public class MetaphorBuild extends GhidraScript {
 	}
 
 	// Each signature that matches exactly once in its section gets its name, as a label and, in analysed code, a
-	// function name. A signature with no match or several is reported and left alone.
+	// function name. A signature with no match or several is reported and left alone. One whose name is already at
+	// its match is skipped, so a run on a built project adds only the signatures added since and changes nothing else.
 	private void importSignatures(String path, String build) throws Exception {
 		JsonArray entries;
 		try (FileReader reader = new FileReader(path)) {
 			entries = JsonParser.parseReader(reader).getAsJsonArray();
 		}
-		int named = 0;
+		List<String> added = new ArrayList<>();
 		for (JsonElement element : entries) {
 			JsonObject entry = element.getAsJsonObject();
 			String name = entry.get("name").getAsString();
@@ -198,6 +200,9 @@ public class MetaphorBuild extends GhidraScript {
 				println("signature " + name + ": not exactly one match in " + section);
 				continue;
 			}
+			if (hasName(match, name)) {
+				continue;
+			}
 			boolean listed = false;
 			for (JsonElement b : entry.getAsJsonArray("gameBuilds")) {
 				listed |= b.getAsString().equalsIgnoreCase(build);
@@ -205,12 +210,25 @@ public class MetaphorBuild extends GhidraScript {
 			createLabel(match, name, true, SourceType.USER_DEFINED);
 			var function = getFunctionAt(match);
 			if (function != null) {
+				// On a built project the vtables step may have put it in a class as vf<slot>; a fresh build names
+				// signatures first, so they stay global there too.
+				function.setParentNamespace(currentProgram.getGlobalNamespace());
 				function.setName(name, SourceType.USER_DEFINED);
 			}
 			setPlateComment(match, "hook-signatures.json: " + name + (listed ? "" : " (build not listed)"));
-			named++;
+			added.add(name);
 		}
-		println("named " + named + " of " + entries.size() + " signatures");
+		println(added.isEmpty() ? "no new signature names (" + entries.size() + " signatures)"
+				: "added " + added.size() + " of " + entries.size() + " signature names: " + String.join(", ", added));
+	}
+
+	private boolean hasName(Address address, String name) {
+		for (var symbol : currentProgram.getSymbolTable().getSymbols(address)) {
+			if (symbol.getName().equals(name)) {
+				return true;
+			}
+		}
+		return false;
 	}
 
 	private Address findOnce(MemoryBlock block, String pattern) {

@@ -23,8 +23,15 @@ pwsh scripts/ghidra.ps1 build
 ```
 
 It finds the exe as the other scripts do (`-GameExe`, `METAPHOR_GAME_EXE`, then Reloaded-II) and names the project
-folder after its build's SHA-256. A second run on the same build prints `reusing` and returns at once; a new game
-build gets a new project. `-Rebuild` starts over. A first build takes about 10 minutes.
+folder after its build's SHA-256. A first build takes about 10 minutes; a new game build gets a new project.
+
+A second run on the same build prints `reusing`, then names any `hook-signatures.json` entries added since (step 3
+alone) and lists them, or prints `no new signature names`. Run it after adding a signature. `-Rebuild` starts over, and
+is still needed when:
+
+- a signature is renamed or removed, or its pattern now matches elsewhere: the old name stays where it was;
+- `tools/ghidra/MetaphorBuild.java`'s analysis or vtable naming changes: those ran once, when the project was built;
+- the project is damaged or was saved over by hand.
 
 The build:
 

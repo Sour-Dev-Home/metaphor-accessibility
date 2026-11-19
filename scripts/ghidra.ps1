@@ -6,7 +6,8 @@ The local Ghidra project of the game exe (#290): build it once per game build, t
 build   Creates the project for the current game build in the git-ignored ghidra/ folder, or reuses it when that
         build's project is already complete. Imports the exe from disk, runs auto-analysis on everything but the
         protection's sections (tools/ghidra/MetaphorBuild.java), names each hook-signatures.json match, then names
-        virtual functions after the RTTI vtables they sit in. -Rebuild starts over.
+        virtual functions after the RTTI vtables they sit in. On a complete project it only names the signatures
+        added since. -Rebuild starts over.
 <query> One of decompile, disasm, callers, callees, offset, global, rtti, vtable (tools/ghidra/MetaphorQuery.java lists
         what each takes). Opens the project read-only, so a query never changes it. Prints the answer and keeps it in
         ghidra/out/.
@@ -124,15 +125,6 @@ if ($Command -eq 'build') {
     $known = if ($build.Known) { 'a known build' } else { 'not in known-game-builds.json' }
     Write-Out "game build $($build.Sha256) ($known)"
     $ready = Join-Path $project $readyFile
-    if ($Rebuild -and (Test-Path -LiteralPath $project)) { Remove-Item -LiteralPath $project -Recurse -Force }
-    if (Test-Path -LiteralPath $ready) {
-        Write-Out "reusing ghidra/$(Split-Path $project -Leaf) (built $((Get-Content -LiteralPath $ready -TotalCount 1)))"
-        exit 0
-    }
-    # A project without its ready file is a build that stopped part-way: start it over.
-    if (Test-Path -LiteralPath $project) { Remove-Item -LiteralPath $project -Recurse -Force }
-    New-Item -ItemType Directory -Force $project | Out-Null
-    $started = Get-Date
     # One headless run per step, so each saves its work and gets a fresh heap.
     $steps = [ordered]@{
         analyse = @('-import', $GameExe, '-noanalysis', '-postScript', 'MetaphorBuild.java', 'analyse')
@@ -140,13 +132,26 @@ if ($Command -eq 'build') {
             ([IO.Path]::GetFullPath($Signatures)), $build.Sha256)
     }
     $steps.vtables = @('-process', $programName, '-noanalysis', '-postScript', 'MetaphorBuild.java', 'vtables')
-    foreach ($step in $steps.Keys) {
+    # Runs one step and prints what its script reported; exits 1 when it fails.
+    function Invoke-Step([string] $Step) {
         $stepStart = Get-Date
-        if (-not (Invoke-Headless "build-$step" $steps[$step])) { exit 1 }
-        Select-String -LiteralPath (Join-Path $root "logs/build-$step-script.log") -Pattern '\.java> ' |
+        if (-not (Invoke-Headless "build-$Step" $steps[$Step])) { exit 1 }
+        Select-String -LiteralPath (Join-Path $root "logs/build-$Step-script.log") -Pattern '\.java> ' |
             Select-Object -Last 8 | ForEach-Object { Write-Out "  $($_.Line -replace '^.*\.java> ', '')" }
-        Write-Out "  $step done in $([math]::Round(((Get-Date) - $stepStart).TotalMinutes, 1)) min"
+        Write-Out "  $Step done in $([math]::Round(((Get-Date) - $stepStart).TotalMinutes, 1)) min"
     }
+    if ($Rebuild -and (Test-Path -LiteralPath $project)) { Remove-Item -LiteralPath $project -Recurse -Force }
+    if (Test-Path -LiteralPath $ready) {
+        Write-Out "reusing ghidra/$(Split-Path $project -Leaf) (built $((Get-Content -LiteralPath $ready -TotalCount 1)))"
+        # Signatures added since it was built get their names; analysis and vtable names stay as built.
+        Invoke-Step 'names'
+        exit 0
+    }
+    # A project without its ready file is a build that stopped part-way: start it over.
+    if (Test-Path -LiteralPath $project) { Remove-Item -LiteralPath $project -Recurse -Force }
+    New-Item -ItemType Directory -Force $project | Out-Null
+    $started = Get-Date
+    foreach ($step in $steps.Keys) { Invoke-Step $step }
     $minutes = [math]::Round(((Get-Date) - $started).TotalMinutes, 1)
     Set-Content -LiteralPath $ready -Value "$((Get-Date).ToString('u')) in $minutes min"
     Write-Out "built ghidra/$(Split-Path $project -Leaf) in $minutes min"

@@ -21,8 +21,9 @@ uses to find the menus' handle global (#268) and the message window global (#232
   `MOVSXD R8,dword ptr [RCX]`, `CMP R8D,-0x1`, `JNZ`, then the load at `0x51fad9` and a second load of the same global
   at `0x51fae5`, the instructions the pattern spells (`4C 63 01 41 83 F8 FF 75 0C 48 8B 0D …`, then `48 8B 05` at
   +0x15). The project has no `CampStatusIsOpenBody` label: it was built on 2026-11-17, before that entry was added
-  (`8d3882d`), and `build` reuses a complete project. [NEEDS VERIFICATION: the pattern's single match is at `0x51fad0`;
-  read from the disassembly, not byte-matched here.]
+  (`8d3882d`), and `build` reuses a complete project. Since #390, `build` on that project added the label
+  (2026-11-19, same game build and Ghidra 12.2): the pattern's single match is `0x51fad0`, and `global 0x2ee7338` now
+  names both loads `CampStatusIsOpenBody @ 0x51fad0`.
 - **Counts.** `0x2ee7338`: 25 instructions, 24 reads and one write (`0x51f683`). `0x2f04960`: 159 instructions, 156
   reads and three writes (`0x9e62dd`, `0x9eb754`, `0x9eb79f`); 157 of them in `0x9d0000`..`0xa10000`, where the
   dialogue raw source counted 162 reads with `dumpbin`. [NEEDS VERIFICATION: the difference of 5; code auto-analysis
