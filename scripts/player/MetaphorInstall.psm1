@@ -352,8 +352,14 @@ function New-Voice([scriptblock] $NewSynthesizer) {
     $voice
 }
 
-# True for an English culture name: en, en-US, en-GB and the rest.
-function Test-EnglishCulture($Culture) { [bool]($Culture -and [string] $Culture.Name -match '^en(-|$)') }
+# True for an English language tag: en, en-US, en-GB and the rest.
+function Test-EnglishTag([string] $Tag) { [bool]($Tag -match '^en(-|$)') }
+
+# True for an English culture: one whose name is an English tag.
+function Test-EnglishCulture($Culture) { [bool]($Culture -and (Test-EnglishTag ([string] $Culture.Name))) }
+
+# The order English voices are chosen in: en-US, then en-GB, then any other.
+function Get-EnglishRank([string] $Tag) { switch ($Tag) { 'en-US' { 0 } 'en-GB' { 1 } default { 2 } } }
 
 # Keeps VOICE's default voice when it is English; otherwise selects an installed, enabled English one, en-US first,
 # then en-GB, then any other. On a French, German or Japanese Windows the default voice would read the English lines
@@ -362,18 +368,140 @@ function Select-EnglishVoice($Voice) {
     try {
         if (Test-EnglishCulture $Voice.Voice.Culture) { return }
         $english = @($Voice.GetInstalledVoices() | Where-Object { $_.Enabled -and (Test-EnglishCulture $_.VoiceInfo.Culture) } |
-                Sort-Object { switch ([string] $_.VoiceInfo.Culture.Name) { 'en-US' { 0 } 'en-GB' { 1 } default { 2 } } })
+                Sort-Object { Get-EnglishRank ([string] $_.VoiceInfo.Culture.Name) })
         if ($english.Count -gt 0) { $Voice.SelectVoice($english[0].VoiceInfo.Name) }
     }
     catch { Write-Verbose "kept the default voice: $_" }
 }
 
+# How long a OneCore voice may take to turn one line into sound before the installer gives up on it.
+$script:OneCoreSynthesisTimeoutMs = 10000
+
+# SYNTH's sound for TEXT, as a WAV file in a MemoryStream; it throws when the voice fails or takes longer than TIMEOUTMS.
+# SYNTH is a Windows.Media.SpeechSynthesis.SpeechSynthesizer; its stream is "audio/wav" and the Windows Runtime's
+# asynchronous call is waited on through .NET's AsTask (docs/raw-sources/onecore-speech-sources-2026-11-19.md).
+function Get-OneCoreWave($Synth, [string] $Text, [int] $TimeoutMs = $script:OneCoreSynthesisTimeoutMs) {
+    $asTask = @([System.WindowsRuntimeSystemExtensions].GetMethods() | Where-Object {
+            $_.Name -eq 'AsTask' -and $_.IsGenericMethod -and $_.GetGenericArguments().Count -eq 1 -and
+            @($_.GetParameters()).Count -eq 1 -and $_.GetParameters()[0].ParameterType.Name -eq 'IAsyncOperation`1' })[0]
+    $streamType = [Windows.Media.SpeechSynthesis.SpeechSynthesisStream, Windows.Media.SpeechSynthesis, ContentType = WindowsRuntime]
+    $operation = $Synth.SynthesizeTextToStreamAsync($Text)
+    $task = $asTask.MakeGenericMethod($streamType).Invoke($null, @($operation))
+    if (-not $task.Wait($TimeoutMs)) {
+        try { $operation.Cancel() } catch { Write-Verbose "could not cancel the voice: $_" }
+        throw "the voice took longer than $TimeoutMs ms"
+    }
+    $sound = $task.Result
+    try {
+        $wave = New-Object IO.MemoryStream
+        $read = [IO.WindowsRuntimeStreamExtensions]::AsStreamForRead($sound)
+        try { $read.CopyTo($wave) } finally { $read.Dispose() }
+        $wave.Position = 0
+        $wave
+    }
+    finally { $sound.Dispose() }
+}
+
+# Windows' OneCore voices through the Windows Runtime's SpeechSynthesizer, which Windows PowerShell 5.1 reaches and
+# System.Speech does not: System.Speech sees only the older "Desktop" voices, not the ones Windows Settings adds (#509).
+# Throws when the Windows Runtime or its voices aren't there, as in PowerShell 7. The engine has the installed voices
+# (AllVoices: DisplayName and a Language tag), the one in use (Voice), SpeakText, which returns once the line is said,
+# and Dispose; tests stand in for it with the same members.
+function New-OneCoreEngine {
+    Add-Type -AssemblyName System.Runtime.WindowsRuntime
+    $type = [Windows.Media.SpeechSynthesis.SpeechSynthesizer, Windows.Media.SpeechSynthesis, ContentType = WindowsRuntime]
+    $voices = @($type::AllVoices)
+    if ($voices.Count -eq 0) { throw 'Windows has no OneCore voice' }
+    $engine = [pscustomobject]@{ Synth = (New-Object $type); AllVoices = $voices }
+    $engine | Add-Member ScriptProperty Voice { $this.Synth.Voice } { param($Value) $this.Synth.Voice = $Value }
+    $engine | Add-Member ScriptMethod SpeakText {
+        param($Text)
+        $wave = Get-OneCoreWave $this.Synth $Text
+        # SoundPlayer plays a WAV file from a stream; PlaySync returns when it has finished, as System.Speech's Speak does.
+        $player = New-Object System.Media.SoundPlayer $wave
+        try { $player.PlaySync() } finally { $player.Dispose(); $wave.Dispose() }
+    }
+    $engine | Add-Member ScriptMethod Dispose { $this.Synth.Dispose() }
+    $engine
+}
+
+# A OneCore engine (New-OneCoreEngine, or NEWONECORE in tests) with an English voice when it has one, picked as
+# Select-EnglishVoice picks, or $null when it can't start.
+function New-OneCoreVoice([scriptblock] $NewOneCore) {
+    try { $engine = if ($NewOneCore) { & $NewOneCore } else { New-OneCoreEngine } }
+    catch { Write-Verbose "no OneCore voice: $_"; return $null }
+    if (-not $engine) { return $null }
+    try {
+        if (-not (Test-EnglishTag ([string] $engine.Voice.Language))) {
+            $english = @($engine.AllVoices | Where-Object { Test-EnglishTag ([string] $_.Language) } |
+                    Sort-Object { Get-EnglishRank ([string] $_.Language) })
+            if ($english.Count -gt 0) { $engine.Voice = $english[0] }
+        }
+    }
+    catch { Write-Verbose "kept the default OneCore voice: $_" }
+    $engine
+}
+
+# The installer's voice over a OneCore ENGINE: Speak and Dispose as System.Speech's synthesizer has, and Voice's Name
+# and Culture. When the engine fails to say a line, the voice moves to System.Speech (New-Voice, with NEWSYNTHESIZER)
+# and says the line there; when that won't start either, it prints that, once, and says nothing from then on.
+function New-OneCoreSpeaker($Engine, [scriptblock] $NewSynthesizer) {
+    $speaker = [pscustomobject]@{
+        Engine = $Engine; Fallback = $null; Silent = $false; NewSynthesizer = $NewSynthesizer
+        Voice = [pscustomobject]@{ Name = [string] $Engine.Voice.DisplayName
+            Culture = [pscustomobject]@{ Name = [string] $Engine.Voice.Language } }
+    }
+    $speaker | Add-Member ScriptMethod Speak {
+        param($Text)
+        if ($this.Silent) { return }
+        if (-not $this.Fallback) {
+            try { $this.Engine.SpeakText($Text); return }
+            catch {
+                Write-Verbose "the OneCore voice failed to speak: $_"
+                try { $this.Engine.Dispose() } catch { Write-Verbose "could not close the OneCore voice: $_" }
+                $this.Fallback = New-Voice $this.NewSynthesizer
+            }
+        }
+        if ($this.Fallback) {
+            try { $this.Fallback.Speak($Text); return }
+            catch {
+                Write-Verbose "the voice failed to speak: $_"
+                try { $this.Fallback.Dispose() } catch { Write-Verbose "could not close the voice: $_" }
+            }
+        }
+        $this.Silent = $true
+        Write-Host 'Windows'' voice did not start, so the installer will only print from here on.'
+    }
+    $speaker | Add-Member ScriptMethod Dispose {
+        try { if ($this.Fallback) { $this.Fallback.Dispose() } else { $this.Engine.Dispose() } }
+        catch { Write-Verbose "could not close the voice: $_" }
+    }
+    $speaker
+}
+
+# The installer's voice: an English OneCore voice first (New-OneCoreVoice), then an English System.Speech one
+# (New-Voice), then whichever of the two started, OneCore first; $null when neither did.
+function Select-InstallerVoice([scriptblock] $NewSynthesizer, [scriptblock] $NewOneCore) {
+    $engine = New-OneCoreVoice $NewOneCore
+    if ($engine -and (Test-EnglishTag ([string] $engine.Voice.Language))) { return New-OneCoreSpeaker $engine $NewSynthesizer }
+    $sapi = New-Voice $NewSynthesizer
+    $sapiEnglish = $false
+    if ($sapi) { try { $sapiEnglish = Test-EnglishCulture $sapi.Voice.Culture } catch { Write-Verbose "could not read the voice's language: $_" } }
+    if ($sapi -and ($sapiEnglish -or -not $engine)) {
+        if ($engine) { try { $engine.Dispose() } catch { Write-Verbose "could not close the OneCore voice: $_" } }
+        return $sapi
+    }
+    if ($sapi) { try { $sapi.Dispose() } catch { Write-Verbose "could not close the voice: $_" } }
+    if ($engine) { return New-OneCoreSpeaker $engine $NewSynthesizer }
+    $null
+}
+
 # Windows' voice for SPEECH (Select-Speech), or $null for printing only. Prints SPEECH's message, and says once when
-# the voice is not English. NEWSYNTHESIZER as for New-Voice.
-function Start-Voice($Speech, [scriptblock] $NewSynthesizer) {
+# the voice is not English. NEWSYNTHESIZER as for New-Voice, NEWONECORE as for New-OneCoreVoice.
+function Start-Voice($Speech, [scriptblock] $NewSynthesizer, [scriptblock] $NewOneCore) {
     if ($Speech.Message) { Write-Host $Speech.Message }
     if (-not $Speech.Speak) { return $null }
-    $voice = New-Voice $NewSynthesizer
+    $voice = Select-InstallerVoice $NewSynthesizer $NewOneCore
     if (-not $voice) {
         Write-Host 'Windows'' voice did not start, so the installer will only print from here on.'
         return $null
@@ -382,6 +510,10 @@ function Start-Voice($Speech, [scriptblock] $NewSynthesizer) {
     try { $culture = $voice.Voice.Culture } catch { Write-Verbose "could not read the voice's language: $_" }
     if (-not (Test-EnglishCulture $culture)) {
         $line = 'Windows has no English voice to read these lines, so another language''s voice reads them, which may be hard to follow.'
+        # A voice added in Settings is a OneCore one, so the installer can use it only when OneCore voices work here.
+        if ($voice.PSObject.Properties['Engine']) {
+            $line += ' You can add an English voice in Windows Settings, under Time and language, then Speech.'
+        }
         Write-Host $line
         # A voice that fails to speak leaves the installer printing only, as one that fails to start does.
         try { $voice.Speak($line) }

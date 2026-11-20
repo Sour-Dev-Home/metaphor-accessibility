@@ -316,41 +316,61 @@ Describe 'Start-Voice' {
             $voice | Add-Member ScriptMethod GetInstalledVoices { $this.All }
             $voice | Add-Member ScriptMethod SelectVoice { param($Name) $this.Voice = ($this.All | Where-Object { $_.VoiceInfo.Name -eq $Name }).VoiceInfo }
             $voice | Add-Member ScriptMethod Speak { param($Text) $this.Spoken.Add($Text) }
+            $voice | Add-Member ScriptMethod Dispose { $this.Disposed = $true }
+            $voice | Add-Member NoteProperty Disposed $false
             $voice
         }
+        # A stand-in OneCore engine (#509; MetaphorInstall.psm1's New-OneCoreEngine): DEFAULT is the voice it starts
+        # with, VOICES the installed ones (display name and language tag). It records what it says; no sound is made.
+        function New-StandInOneCore([string] $Default, [object[]] $Voices) {
+            $all = @($Voices | ForEach-Object { [pscustomobject]@{ DisplayName = $_[0]; Language = $_[1] } })
+            $engine = [pscustomobject]@{ AllVoices = $all; Voice = ($all | Where-Object { $_.DisplayName -eq $Default })
+                Spoken = [Collections.Generic.List[string]]::new(); Disposed = $false }
+            $engine | Add-Member ScriptMethod SpeakText { param($Text) $this.Spoken.Add($Text) }
+            $engine | Add-Member ScriptMethod Dispose { $this.Disposed = $true }
+            $engine
+        }
+        # Strings printed to the information stream, so Write-Host's lines, from OUTPUT.
+        function Get-Printed($Output) {
+            @($Output | Where-Object { $_ -is [Management.Automation.InformationRecord] } | ForEach-Object { "$_" })
+        }
         $script:speaking = [pscustomobject]@{ Speak = $true; Message = $null }
+        $script:noOneCore = { throw 'no Windows Runtime' }
+        $script:noSapi = { throw 'no System.Speech' }
         $script:noEnglish = 'Windows has no English voice to read these lines, so another language''s voice reads them, which may be hard to follow.'
+        $script:addVoice = 'You can add an English voice in Windows Settings, under Time and language, then Speech.'
+        $script:printOnly = 'Windows'' voice did not start, so the installer will only print from here on.'
     }
 
     It 'chooses an installed English voice over a French default, en-US first' {
         $standIn = New-StandInVoice 'Hortense' @(('Hortense', 'fr-FR', $true), ('Hazel', 'en-GB', $true), ('Zira', 'en-US', $true))
-        $voice = Start-Voice $speaking { $standIn }.GetNewClosure() 6> $null
+        $voice = Start-Voice $speaking { $standIn }.GetNewClosure() $noOneCore 6> $null
         $voice.Voice.Name | Should -Be 'Zira'
         $voice.Spoken | Should -BeNullOrEmpty
     }
 
     It 'skips a disabled English voice' {
         $standIn = New-StandInVoice 'Hedda' @(('Hedda', 'de-DE', $true), ('Zira', 'en-US', $false), ('Hazel', 'en-GB', $true))
-        (Start-Voice $speaking { $standIn }.GetNewClosure() 6> $null).Voice.Name | Should -Be 'Hazel'
+        (Start-Voice $speaking { $standIn }.GetNewClosure() $noOneCore 6> $null).Voice.Name | Should -Be 'Hazel'
     }
 
     It 'keeps an English default voice' {
         $standIn = New-StandInVoice 'Hazel' @(('Zira', 'en-US', $true), ('Hazel', 'en-GB', $true))
-        (Start-Voice $speaking { $standIn }.GetNewClosure() 6> $null).Voice.Name | Should -Be 'Hazel'
+        (Start-Voice $speaking { $standIn }.GetNewClosure() $noOneCore 6> $null).Voice.Name | Should -Be 'Hazel'
     }
 
     It 'keeps the default voice without an English one, and says so once' {
         $standIn = New-StandInVoice 'Haruka' @(('Haruka', 'ja-JP', $true), ('Hortense', 'fr-FR', $true))
-        $printed = Start-Voice $speaking { $standIn }.GetNewClosure() 6>&1 | Where-Object { $_ -is [Management.Automation.InformationRecord] }
+        $printed = Get-Printed (Start-Voice $speaking { $standIn }.GetNewClosure() $noOneCore 6>&1)
         $standIn.Voice.Name | Should -Be 'Haruka'
         @($standIn.Spoken) | Should -Be @($noEnglish)
-        @($printed | ForEach-Object { "$_" }) | Should -Be @($noEnglish)
+        $printed | Should -Be @($noEnglish)
     }
 
     It 'keeps the default voice when the English one will not select' {
         $standIn = New-StandInVoice 'Hortense' @(('Hortense', 'fr-FR', $true), ('Zira', 'en-US', $true))
         $standIn | Add-Member -Force ScriptMethod SelectVoice { throw 'voice unavailable' }
-        $voice = Start-Voice $speaking { $standIn }.GetNewClosure() 6> $null
+        $voice = Start-Voice $speaking { $standIn }.GetNewClosure() $noOneCore 6> $null
         $voice.Voice.Name | Should -Be 'Hortense'
         @($voice.Spoken) | Should -Be @($noEnglish)
     }
@@ -358,23 +378,106 @@ Describe 'Start-Voice' {
     It 'prints only when the voice fails to say there is no English voice' {
         $standIn = New-StandInVoice 'Haruka' @(, ('Haruka', 'ja-JP', $true))
         $standIn | Add-Member -Force ScriptMethod Speak { throw 'audio device gone' }
-        $standIn | Add-Member ScriptMethod Dispose { }
-        $output = @(Start-Voice $speaking { $standIn }.GetNewClosure() 6>&1)
-        @($output | Where-Object { $null -ne $_ } | ForEach-Object { "$_" }) |
-            Should -Be @($noEnglish, 'Windows'' voice did not start, so the installer will only print from here on.')
+        $output = @(Start-Voice $speaking { $standIn }.GetNewClosure() $noOneCore 6>&1)
+        @($output | Where-Object { $null -ne $_ } | ForEach-Object { "$_" }) | Should -Be @($noEnglish, $printOnly)
     }
 
     It 'makes no voice while a screen reader is running, so the reader alone reads the window' {
         $speech = Select-Speech -Speak $false -NoSpeech $false -Interactive $true -Readers 'NVDA'
         # A voice made here would fail to start and add 'Windows' voice did not start' to the output.
-        $output = @(Start-Voice $speech { throw 'no voice should be made' } 6>&1)
+        $output = @(Start-Voice $speech { throw 'no voice should be made' } { throw 'no voice should be made' } 6>&1)
         @($output | Where-Object { $null -ne $_ } | ForEach-Object { "$_" }) |
             Should -Be @("NVDA is running and reads this window, so printing only. Add -Speak to hear Windows' voice as well.")
     }
 
-    It 'prints only when the voice will not start' {
-        $output = @(Start-Voice $speaking { throw 'no speech' } 6>&1)
-        @($output | Where-Object { $null -ne $_ } | ForEach-Object { "$_" }) | Should -Be @('Windows'' voice did not start, so the installer will only print from here on.')
+    It 'prints only when no voice will start' {
+        $output = @(Start-Voice $speaking $noSapi $noOneCore 6>&1)
+        @($output | Where-Object { $null -ne $_ } | ForEach-Object { "$_" }) | Should -Be @($printOnly)
+    }
+
+    # #509: Windows PowerShell 5.1's System.Speech sees only the "Desktop" voices; the ones Windows Settings adds are
+    # OneCore voices, reached through the Windows Runtime.
+    It 'chooses a OneCore English voice over a German default, en-US first, before System.Speech' {
+        $oneCore = New-StandInOneCore 'Microsoft Katja' @(('Microsoft Katja', 'de-DE'), ('Microsoft Hazel', 'en-GB'),
+            ('Microsoft Mark', 'en-US'))
+        $voice = Start-Voice $speaking { throw 'System.Speech should not start' } { $oneCore }.GetNewClosure() 6> $null
+        $voice.Voice.Name | Should -Be 'Microsoft Mark'
+        $voice.Voice.Culture.Name | Should -Be 'en-US'
+        $voice.Speak('Step one.')
+        @($oneCore.Spoken) | Should -Be @('Step one.')
+        $voice.Dispose()
+        $oneCore.Disposed | Should -BeTrue
+    }
+
+    It 'keeps an English OneCore default voice' {
+        $oneCore = New-StandInOneCore 'Microsoft Hazel' @(('Microsoft Mark', 'en-US'), ('Microsoft Hazel', 'en-GB'))
+        (Start-Voice $speaking $noSapi { $oneCore }.GetNewClosure() 6> $null).Voice.Name | Should -Be 'Microsoft Hazel'
+    }
+
+    It 'uses System.Speech when the Windows Runtime is not there' {
+        $standIn = New-StandInVoice 'Zira' @(, ('Zira', 'en-US', $true))
+        $voice = Start-Voice $speaking { $standIn }.GetNewClosure() $noOneCore 6> $null
+        $voice.Voice.Name | Should -Be 'Zira'
+        $voice.Speak('Step one.')
+        @($standIn.Spoken) | Should -Be @('Step one.')
+    }
+
+    It 'uses an English System.Speech voice when OneCore has none' {
+        $oneCore = New-StandInOneCore 'Microsoft Katja' @(, ('Microsoft Katja', 'de-DE'))
+        $standIn = New-StandInVoice 'Zira' @(, ('Zira', 'en-US', $true))
+        $voice = Start-Voice $speaking { $standIn }.GetNewClosure() { $oneCore }.GetNewClosure() 6> $null
+        $voice.Voice.Name | Should -Be 'Zira'
+        $oneCore.Disposed | Should -BeTrue
+    }
+
+    It 'says how to add an English voice when only OneCore voices in another language are there' {
+        $oneCore = New-StandInOneCore 'Microsoft Katja' @(, ('Microsoft Katja', 'de-DE'))
+        $standIn = New-StandInVoice 'Hedda' @(, ('Hedda', 'de-DE', $true))
+        $printed = Get-Printed (Start-Voice $speaking { $standIn }.GetNewClosure() { $oneCore }.GetNewClosure() 6>&1)
+        $printed | Should -Be @("$noEnglish $addVoice")
+        @($oneCore.Spoken) | Should -Be @("$noEnglish $addVoice")
+        $standIn.Disposed | Should -BeTrue
+    }
+
+    It 'moves to System.Speech when the OneCore voice fails mid-install' {
+        $oneCore = New-StandInOneCore 'Microsoft Mark' @(, ('Microsoft Mark', 'en-US'))
+        $oneCore | Add-Member -Force ScriptMethod SpeakText {
+            param($Text)
+            if ($this.Spoken.Count -gt 0) { throw 'audio device gone' }
+            $this.Spoken.Add($Text)
+        }
+        $standIn = New-StandInVoice 'Zira' @(, ('Zira', 'en-US', $true))
+        $voice = Start-Voice $speaking { $standIn }.GetNewClosure() { $oneCore }.GetNewClosure() 6> $null
+        $printed = Get-Printed (& { $voice.Speak('Step one.'); $voice.Speak('Step two.'); $voice.Speak('Step three.') } 6>&1)
+        @($oneCore.Spoken) | Should -Be @('Step one.')
+        @($standIn.Spoken) | Should -Be @('Step two.', 'Step three.')
+        $oneCore.Disposed | Should -BeTrue
+        $printed | Should -BeNullOrEmpty
+    }
+
+    It 'prints only, and says so once, when the OneCore voice fails and System.Speech will not start' {
+        $oneCore = New-StandInOneCore 'Microsoft Mark' @(, ('Microsoft Mark', 'en-US'))
+        $oneCore | Add-Member -Force ScriptMethod SpeakText { throw 'audio device gone' }
+        $voice = Start-Voice $speaking $noSapi { $oneCore }.GetNewClosure() 6> $null
+        $output = @(& { $voice.Speak('Step one.'); $voice.Speak('Step two.') } 6>&1)
+        @($output | Where-Object { $null -ne $_ } | ForEach-Object { "$_" }) | Should -Be @($printOnly)
+    }
+
+    # Makes the sound for one line through Windows PowerShell 5.1's Windows Runtime and checks it is a WAV file, without
+    # playing it. Skipped where Windows has no OneCore voice.
+    It 'turns a line into a WAV file through a OneCore voice in Windows PowerShell 5.1' -Skip:(
+        -not (Get-Command powershell.exe -ErrorAction SilentlyContinue)) {
+        $module = Join-Path $repo 'scripts/player/MetaphorInstall.psm1'
+        $command = "`$m = Import-Module '$($module -replace "'", "''")' -PassThru; & `$m {
+            try { `$engine = New-OneCoreEngine } catch { 'no OneCore voice'; return }
+            try { `$wave = Get-OneCoreWave `$engine.Synth 'Step one.'; `$bytes = `$wave.ToArray() }
+            finally { `$engine.Dispose() }
+            [Text.Encoding]::ASCII.GetString(`$bytes, 0, 4) + ' ' + [Text.Encoding]::ASCII.GetString(`$bytes, 8, 4)
+        }"
+        $output = @(& powershell.exe -NoProfile -NonInteractive -EncodedCommand (
+                [Convert]::ToBase64String([Text.Encoding]::Unicode.GetBytes($command))) 2>&1 | ForEach-Object { "$_" })
+        if ($output -contains 'no OneCore voice') { Set-ItResult -Skipped -Because 'Windows has no OneCore voice here' }
+        $output | Should -Be @('RIFF WAVE')
     }
 }
 
