@@ -1,0 +1,13 @@
+# The check-script suites' global git config (scripts/check/suite-env.sh, #455), in place of the contributor's: a fixed
+# identity, and the defaults a contributor's own config could change.
+[user]
+	name = test
+	email = test@example.invalid
+[init]
+	defaultBranch = main
+[commit]
+	gpgsign = false
+[tag]
+	gpgsign = false
+[core]
+	autocrlf = false

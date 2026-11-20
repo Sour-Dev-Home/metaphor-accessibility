@@ -11,8 +11,8 @@
 #                                 can't be told here, and commit-msg, which runs next, judges it
 #   scripts/check.sh pre-push     build, Unit and RoundTrip tests when pushed commits change code (the hook; refs on stdin)
 #                                 (a passing full or pre-push is recorded per clone by tree hash; the same tree reuses it)
-#                                 Tests are selected from the changed files and the project references (test-select.sh,
-#                                 issue #243), and Pester runs only for script changes. It prints what ran and why.
+#                                 Tests are selected from the changed files and the project references (what-runs.sh,
+#                                 issue #243), and Pester runs only for script changes (#413). It prints what ran and why.
 #                                 CI and `full` always run everything; METAPHOR_FULL_TESTS=1 does so locally.
 #   scripts/check.sh rules   repo rules on every tracked file in CI; locally on the files changed since origin/main
 #                            (METAPHOR_SCAN_ALL=1 scans every file; so does `full`'s rules part in CI)
@@ -26,9 +26,7 @@
 #   scripts/check.sh review-label FILE   the security-reviewed label on a PR not by the maintainer, from the files the
 #                                        API lists (the review-gate workflow, from main's copy)
 #
-# A commit message has a typed subject of at most 72 characters ("feat: ...", "fix(check): ..."), then optionally a blank
-# line and a body of at most 5 lines. A final paragraph of trailers (Co-Authored-By: ...) doesn't count. Subjects git
-# writes itself (Revert "...", fixup!) pass.
+# The commit-message rules (subject, body, trailers, merges) are in docs/contributors/reference/commit-messages.md.
 #
 # A commit touching the security-review scope (scripts/ci/security-stamp.sh) needs the security-reviewer agent's stamp
 # matching the staged scope; the commit-msg hook then appends "Security-Review: <hash>". SECURITY_REVIEW_SKIP="<reason>"
@@ -207,8 +205,9 @@ commits_stage() {
   shas="$(git rev-list --no-merges "$1" --)" || die "could not list the commits in $1"
   local short
   for sha in $shas; do
-    # The short hash on the first line, then the message: one git start where two were.
-    git log -1 --format=%h%n%B "$sha" > "$tmp/message" || die "could not read commit $sha"
+    # The short hash on the first line, then the message: one git start where two were. --no-show-signature: a
+    # contributor's log.showSignature would print the signature check first (#455).
+    git log -1 --no-show-signature --format=%h%n%B "$sha" > "$tmp/message" || die "could not read commit $sha"
     { read -r short && check_message "commit $short"; } < "$tmp/message"
   done
   check_head_review "$1"

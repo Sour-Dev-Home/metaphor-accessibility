@@ -83,7 +83,8 @@ internal to the scripts and their tests; each script's header names the ones it 
 1. **Set up once:** `.\scripts\setup\onboard.ps1` ([set up a clone](how-to/set-up-a-clone.md)).
 2. **Check:** `bash scripts/check.sh full` before you push; the pre-push hook reuses its pass
    ([checks](reference/checks.md)).
-3. **Open a PR** that says what changed and why, with evidence; a hook, loading or injection change shows in-game
+3. **Open a PR** that says what changed and why, with evidence and the test
+   [ground rule 9](../../AGENTS.md#ground-rules) asks for; a hook, loading or injection change shows in-game
    output on a named game build. `gh pr merge <n> --auto` queues it.
 4. **Review:** a PR in the [security-review scope](reference/security-review.md) needs a stamped review; a PR by
    anyone but the maintainer that changes anything outside `docs/` also needs the maintainer's `security-reviewed`

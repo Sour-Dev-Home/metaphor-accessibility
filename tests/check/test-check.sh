@@ -2,11 +2,12 @@
 # Black-box tests for scripts/check.sh: each test plants content in a temporary git repo, runs the check there and
 # asserts the exit code and the message.
 set -uo pipefail
-unset PII_PATTERNS REQUIRE_PRIVATE_PATTERNS REQUIRE_DOCS_TOOLS GITHUB_ACTIONS SECURITY_REVIEW_SKIP # set per run
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 # shellcheck source=../../scripts/check/wsl-run.sh
 source "$ROOT/scripts/check/wsl-run.sh" # in Git Bash, runs this suite in WSL instead when it's set up (#341)
+# shellcheck source=../../scripts/check/suite-env.sh
+source "$ROOT/scripts/check/suite-env.sh" # the contributor's git config and shell don't reach it (#455)
 CHECK="$ROOT/scripts/check.sh"
 WORK="$(mktemp -d)"
 trap 'rm -rf "$WORK"' EXIT
@@ -741,6 +742,28 @@ test_commits_stage_fails_closed_on_a_bad_range() {
   expect 2 "could not list the commits in nope..HEAD"
 }
 
+# #455: with log.showSignature=true, git log prints a signed commit's verification ahead of --format's output, where
+# the stage read the short hash; every commit then failed the message check.
+test_commits_stage_reads_signed_commits_under_log_show_signature() {
+  local base signer
+  new_repo
+  signer="$(pwd -W 2> /dev/null || pwd)/sign.sh"
+  printf '%s\n' '#!/bin/sh' 'case "$*" in' \
+    "  *--verify*) echo '[GNUPG:] GOODSIG 0 t'; echo 'gpg: Good signature' >&2 ;;" \
+    "  *) cat > /dev/null; printf '%s\\n' '-----BEGIN PGP SIGNATURE-----' 'eA==' '-----END PGP SIGNATURE-----'" \
+    "     echo '[GNUPG:] SIG_CREATED ' >&2 ;;" 'esac' > sign.sh && chmod +x sign.sh || exit 2
+  git commit -q --allow-empty -m 'chore: start'
+  base="$(git rev-parse HEAD)"
+  git config gpg.program "$signer" && git config log.showSignature true
+  git commit -q -S --allow-empty -m 'feat: a signed one'
+  if [[ "$(git log -1 --format=%h)" == *"Good signature"* ]]; then
+    run_check commits "$base..HEAD"
+  else
+    out="the commit wasn't signed, or git log showed no signature" code=9
+  fi
+  expect 0
+}
+
 # docs_repo: a new repo holding the real docs-check configs, with the installed docs tools on PATH.
 docs_repo() {
   new_repo
@@ -1135,6 +1158,17 @@ test_pre_push_builds_when_code_changed() {
   expect 2 "pre-push stage needs Metaphor.sln"
 }
 
+test_pre_push_runs_pester_when_a_script_changed() {
+  # The 2026-11-19 push of scripts/setup/onboard.ps1 skipped everything as "no code changes" (#413).
+  push_repo scripts/setup/onboard.ps1
+  run_pre_push "$HEAD" "$BASE"
+  expect 2 "pre-push stage needs Metaphor.sln"
+  expect_absent "no code changes"
+  push_repo tests/pester/a.Tests.ps1
+  run_pre_push "$HEAD" "$BASE"
+  expect 2 "pre-push stage needs Metaphor.sln"
+}
+
 test_pre_push_builds_when_it_cant_tell_what_changed() {
   # A new branch with no origin/main to compare against.
   push_repo docs/notes.md
@@ -1152,7 +1186,7 @@ test_pre_push_skips_a_deleted_branch() {
 # #456: a script change selects the Pester tests; without pwsh the pre-push run says it skipped them, as CI won't.
 test_pre_push_warns_when_pwsh_is_missing_for_the_pester_tests() {
   out="$(unset GITHUB_ACTIONS METAPHOR_FULL_TESTS SKIP_SCRIPT_TESTS
-    PATH="$WORK/no-tools" run_selected_tests Metaphor.sln 0 "pester scripts/dev/session.ps1 changed" 2>&1)"
+    PATH="$WORK/no-tools" run_selected_pester "pester scripts/dev/session.ps1 changed" 2>&1)"
   code=$?
   expect 0 "warning: pwsh isn't on PATH, so the Pester tests didn't run" "PowerShell 7"
 }
@@ -1943,8 +1977,8 @@ test_maintainer_pr_uses_trailers_and_ignores_the_label() {
 # The guards that enforce the ground rules are in the scope too (issue #306).
 GUARD_FILES=(scripts/check.sh scripts/check/report.sh scripts/check/run.sh scripts/check/pool.sh scripts/check/docs.sh
   scripts/check/build.sh scripts/check/message.sh scripts/check/review.sh scripts/check/rules.sh
-  scripts/ci/game-content.sha256 scripts/check/tree-hash.sh scripts/ci/ci-changes.sh
-  scripts/ci/test-select.sh scripts/check/stage-timing.sh scripts/setup/install-docs-tools.sh scripts/ci/conflict-alert.sh
+  scripts/ci/game-content.sha256 scripts/check/tree-hash.sh scripts/ci/what-runs.sh
+  scripts/check/stage-timing.sh scripts/setup/install-docs-tools.sh scripts/ci/conflict-alert.sh
   scripts/check/check-status.sh scripts/check/run-pester.sh scripts/check/live-log.sh
   scripts/check/wsl-run.sh scripts/check/run-check-suites.sh scripts/setup/wsl-tools.txt scripts/setup/setup-wsl.ps1
   scripts/githooks/pre-commit scripts/githooks/pre-push

@@ -3,11 +3,12 @@
 # our own scanner config, so a project file or a config the PR plants can't change what it reports. A fake scanner
 # records its arguments; the real one runs only in CI.
 set -uo pipefail
-unset GITHUB_ACTIONS
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 # shellcheck source=../../scripts/check/wsl-run.sh
 source "$ROOT/scripts/check/wsl-run.sh" # in Git Bash, runs this suite in WSL instead when it's set up (#341)
+# shellcheck source=../../scripts/check/suite-env.sh
+source "$ROOT/scripts/check/suite-env.sh" # the contributor's git config and shell don't reach it (#455)
 AUDIT="$ROOT/scripts/ci/vuln-audit.sh"
 WORK="$(mktemp -d)"
 trap 'rm -rf "$WORK"' EXIT

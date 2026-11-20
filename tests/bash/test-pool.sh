@@ -4,11 +4,12 @@
 # job's exit code and time as it finishes, and every way a job can go wrong (a failure, a crash, a kill, a job the pool
 # lost track of) counted as a failure.
 set -uo pipefail
-unset PII_PATTERNS REQUIRE_PRIVATE_PATTERNS REQUIRE_DOCS_TOOLS GITHUB_ACTIONS SECURITY_REVIEW_SKIP SKIP_SCRIPT_TESTS
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 # shellcheck source=../../scripts/check/wsl-run.sh
 source "$ROOT/scripts/check/wsl-run.sh" # in Git Bash, runs this suite in WSL instead when it's set up (#341)
+# shellcheck source=../../scripts/check/suite-env.sh
+source "$ROOT/scripts/check/suite-env.sh" # the contributor's git config and shell don't reach it (#455)
 unset METAPHOR_LIVE_LOG METAPHOR_LIVE_PID
 WORK="$(mktemp -d)"
 trap 'rm -rf "$WORK"' EXIT

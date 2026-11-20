@@ -34,8 +34,7 @@ A feature never patches or hooks anything ([ADR 0003](../../adr/0003-thin-hook-l
 4. **Add the project to the architecture tests.** In
    [`Metaphor.Architecture.Tests.csproj`](../../../tests/Metaphor.Architecture.Tests/Metaphor.Architecture.Tests.csproj)
    add a `ProjectReference` beside the Menus one, with `ReferenceOutputAssembly="false"` and
-   `OutputItemType="ScannedAssembly"`. Nothing else makes the rules see your project: without this line they pass
-   without checking it.
+   `OutputItemType="ScannedAssembly"`. Without it, `ScannedTests` fails: every `src/` project must be scanned.
 5. Restore, to write each new project's `packages.lock.json`, and commit those files. CI restores in locked mode and
    fails when a lock file is missing or stale:
 
@@ -52,6 +51,6 @@ A feature never patches or hooks anything ([ADR 0003](../../adr/0003-thin-hook-l
 ## CI
 
 There is no per-project CI wiring. The check selects test projects by their `*Tests.csproj` name and the
-`ProjectReference` graph ([`test-select.sh`](../../../scripts/ci/test-select.sh)), and CI builds and tests the whole
+`ProjectReference` graph ([`what-runs.sh`](../../../scripts/ci/what-runs.sh)), and CI builds and tests the whole
 solution, so the solution entry from step 3 is what puts the pair into CI. A change in a feature runs its tests and the
 tests of everything that references it. [Checks](../reference/checks.md#in-ci).

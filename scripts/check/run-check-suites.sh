@@ -9,7 +9,7 @@
 #                                               failing one's whole output and the total; exit 1 when any fails (a
 #                                               non-zero exit, a crash, a kill, or no output at all)
 #   bash scripts/check/run-check-suites.sh --select   the same, except in Git Bash without WSL (`full` passes it): there
-#                                               test-check.sh takes minutes, so it runs only when scripts/ci/test-select.sh
+#                                               test-check.sh takes minutes, so it runs only when scripts/ci/what-runs.sh
 #                                               says a check script or check test changed since origin/main (#243)
 #   bash scripts/check/run-check-suites.sh --list     print the suites, one per line
 #
@@ -41,15 +41,16 @@ cd "$ROOT" || exit 2
 suite_list
 
 # skip_check_tests: exit 0 when --select applies and nothing test-check.sh covers changed. Only Git Bash without WSL
-# (the source above came back there) and outside CI; without origin/main the change is unknown, so it runs.
+# (the source above came back there), outside CI and without METAPHOR_FULL_TESTS; without origin/main the change is
+# unknown, so it runs.
 skip_check_tests() {
   local base selected
   [ "${1:-}" = --select ] || return 1
   case "${OSTYPE:-}" in msys* | cygwin*) ;; *) return 1 ;; esac
-  [ "${GITHUB_ACTIONS:-}" != true ] || return 1
+  [ "${GITHUB_ACTIONS:-}" != true ] && [ -z "${METAPHOR_FULL_TESTS:-}" ] || return 1
   base="$(git merge-base HEAD origin/main 2> /dev/null)" || return 1
   # Capture first: under pipefail, `! ... | grep -q` would turn a failed git diff, or grep -q's early exit, into a skip.
-  selected="$(git diff --name-only "$base" -- | bash scripts/ci/test-select.sh)" || return 1
+  selected="$(git diff --name-only "$base" -- | bash scripts/ci/what-runs.sh)" || return 1
   ! grep -q '^check-tests ' <<< "$selected"
 }
 if skip_check_tests "$@"; then

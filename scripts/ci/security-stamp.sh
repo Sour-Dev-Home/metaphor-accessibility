@@ -229,7 +229,8 @@ case "${1:-}" in
     # this hook: a commit that changes the scope to the stamped content spends it too, trailer or not (#321).
     [ -f "$stamp_file" ] || exit 0
     hash="$(tr -d '\r\n' < "$stamp_file")"
-    trailers="$(git log -1 --format='%(trailers:key=Security-Review,valueonly)' HEAD)" || die "could not read HEAD"
+    trailers="$(git log -1 --no-show-signature --format='%(trailers:key=Security-Review,valueonly)' HEAD)" ||
+      die "could not read HEAD" # --no-show-signature: #455
     if [ -n "$hash" ] && grep -qxF -- "$hash" <<<"$trailers"; then
       rm -f "$stamp_file" || die "could not remove $stamp_file"
     elif touches HEAD && [ "$(scope_hash HEAD)" = "$hash" ]; then
