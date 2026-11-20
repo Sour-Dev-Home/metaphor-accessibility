@@ -403,7 +403,7 @@ Describe 'onboard.ps1' {
 
         $result.ExitCode | Should -Be 0 -Because $result.Output
         $result.Output | Should -Match ([regex]::Escape("Found the game: $gameExe"))
-        $result.Output | Should -Match 'Use it, saving its path in .*METAPHOR_GAME_EXE environment variable\? \[Y/n\]'
+        $result.Output | Should -Match 'Use it, saving its path in .*METAPHOR_GAME_EXE environment variable\? Press Enter alone to go on, or type no and press Enter to skip it\.'
         Get-Calls | Where-Object { $_ -match '^(setx|session|ghidra)' } | Should -BeNullOrEmpty
     }
 
@@ -411,7 +411,9 @@ Describe 'onboard.ps1' {
         $result = Invoke-Onboard @('', 'n', 'y', 'n', 'n')
 
         $result.ExitCode | Should -Be 0 -Because $result.Output
-        $result.Output | Should -Match 'Install Matt Pocock''s skills'
+        $result.Output | Should -Match 'Install Matt Pocock''s skills.*Type yes and press Enter to go on, or press Enter alone to skip it\.'
+        $result.Output | Should -Not -Match 'to stop\.'
+        $result.Output | Should -Not -Match '\[[yY]/[nN]\]'
         $result.Output | Should -Match 'skills: not installed; run .*plugin install mattpocock-skills@mattpocock'
         Get-Calls | Where-Object { $_ -match 'marketplace add|plugin install' } | Should -BeNullOrEmpty
     }

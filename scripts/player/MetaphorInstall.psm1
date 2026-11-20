@@ -112,11 +112,24 @@ function Read-Answer([string] $Question) {
     return $answer
 }
 
-# True when the answer to QUESTION is y or yes; no without a console.
-function Confirm-Step([string] $Question) {
-    $answer = Read-Answer "$Question [y/N]"
-    return [bool]($null -ne $answer -and $answer -match '^\s*(y|yes)\s*$')
+# QUESTION followed by the one sentence that says what to type, for every yes/no question the installer and setup
+# scripts ask (#473): a screen reader reads [y/N] as letters. Enter alone means no, or yes with ENTERMEANSYES. ENDING
+# says what no does: 'stop' where the script then stops, 'skip it' where it carries on without that item.
+function Format-YesNoQuestion([string] $Question, [switch] $EnterMeansYes,
+    [ValidateSet('stop', 'skip it')] [string] $Ending = 'stop') {
+    $how = if ($EnterMeansYes) { "Press Enter alone to go on, or type no and press Enter to $Ending." }
+    else { "Type yes and press Enter to go on, or press Enter alone to $Ending." }
+    "$Question $how"
 }
+
+# True for y or yes; Enter alone ('') and no answer ($null) are no.
+function Test-Yes($Answer) { [bool]($null -ne $Answer -and $Answer -match '^\s*(y|yes)\s*$') }
+
+# True for Enter alone, y or yes: the answer to a question asked with Format-YesNoQuestion -EnterMeansYes.
+function Test-YesOrEnter($Answer) { [bool]($null -ne $Answer -and $Answer -match '^\s*(y|yes)?\s*$') }
+
+# True when the answer to QUESTION is y or yes; no without a console.
+function Confirm-Step([string] $Question) { Test-Yes (Read-Answer (Format-YesNoQuestion $Question)) }
 
 # setup-wsl.ps1's exit code when this machine can't run WSL 2 yet; onboard.ps1 then gives the advice to install WSL
 # (#360). Every other failure exits 1.
@@ -209,7 +222,7 @@ function Find-MetaphorGame([string] $SteamRoot = (Get-SteamRoot), [string] $Conf
 }
 
 # The game exe to use, as { Path; Saved }: Saved is true when it came from METAPHOR_GAME_EXE. $null when there is none.
-# Otherwise it offers what Reloaded-II and Steam know of: one is shown and confirmed ([Y/n]), several are listed to pick
+# Otherwise it offers what Reloaded-II and Steam know of: one is shown and confirmed (Enter means yes), several are listed to pick
 # from, none asks for the path. ASK takes a question and returns the answer, '' for Enter, or $null for no answer
 # (no console), which counts as no.
 function Select-MetaphorGame([scriptblock] $Ask, [string] $SteamRoot = (Get-SteamRoot),
@@ -224,8 +237,8 @@ function Select-MetaphorGame([scriptblock] $Ask, [string] $SteamRoot = (Get-Stea
     $path = $null
     if ($found.Count -eq 1) {
         Write-Host "Found the game: $($found[0])"
-        $answer = & $Ask 'Use it, saving its path in your Windows user''s METAPHOR_GAME_EXE environment variable? [Y/n]'
-        if ($null -ne $answer -and $answer -match '^\s*(y|yes)?\s*$') { $path = $found[0] }
+        $question = 'Use it, saving its path in your Windows user''s METAPHOR_GAME_EXE environment variable?'
+        if (Test-YesOrEnter (& $Ask (Format-YesNoQuestion $question -EnterMeansYes -Ending 'skip it'))) { $path = $found[0] }
     }
     elseif ($found.Count -gt 1) {
         Write-Host 'Found the game in more than one place:'
@@ -572,8 +585,6 @@ function Get-ErrorStep($ErrorRecord) {
     Failed 'This step stopped with an error.' 'Report it with the alpha feedback form, with what the installer printed.' "$ErrorRecord"
 }
 
-function Test-Yes($Answer) { [bool]($null -ne $Answer -and $Answer -match '^\s*(y|yes)\s*$') }
-
 # JSON as Reloaded-II writes it: UTF-8 without a byte order mark, which Windows PowerShell 5.1's Set-Content can't do.
 # Written beside the file first and then swapped in, so a failed write never leaves half a file; a file replaced is
 # kept as PATH.bak. A PATH.bak already there is kept: it is the file from before the installer first changed it (#408).
@@ -630,7 +641,7 @@ function Confirm-RunWindow([scriptblock] $Say, [scriptblock] $Ask) {
         return $false
     }
     & $Say 'User Account Control is turned off on this computer, so every window runs as administrator, and the files the installer puts in place will be owned by the administrator account. Reloaded-II and the mod may then need administrator rights to update themselves later.'
-    if (Test-Yes (& $Ask 'Install as administrator anyway? Type yes and press Enter to go on, or press Enter alone to stop.')) { return $true }
+    if (Test-Yes (& $Ask (Format-YesNoQuestion 'Install as administrator anyway?'))) { return $true }
     & $Say 'The installer stopped without changing anything, because the answer was no.'
     return $false
 }
@@ -729,7 +740,7 @@ function Expand-PinnedArchive([string] $Archive, [string] $Destination) {
 }
 
 # Asks QUESTION, a yes/no one where Enter means no.
-function Confirm-Install($Context, [string] $Question) { Test-Yes (& $Context.Ask "$Question [y/N]") }
+function Confirm-Install($Context, [string] $Question) { Test-Yes (& $Context.Ask (Format-YesNoQuestion $Question)) }
 
 # 2. Reloaded-II: the one Reloaded-II's settings name (Find-ReloadedLauncher, without the developer scripts'
 # METAPHOR_RELOADED_EXE), or one this installer put in its folder before; else the pinned Release.zip, unpacked there
@@ -927,8 +938,7 @@ function Select-InstallGame($Context) {
     $path = $null
     if ($found.Count -eq 1) {
         & $Context.Say "Found the game: $($found[0])" 'Found the game in Steam.'
-        $answer = & $Context.Ask 'Use it? [Y/n]'
-        if ($null -ne $answer -and $answer -match '^\s*(y|yes)?\s*$') { $path = $found[0] }
+        if (Test-YesOrEnter (& $Context.Ask (Format-YesNoQuestion 'Use it?' -EnterMeansYes))) { $path = $found[0] }
     }
     elseif ($found.Count -gt 1) {
         & $Context.Say 'Found the game in more than one place:' "Found the game in $($found.Count) places."
@@ -1084,10 +1094,10 @@ function Get-InstallStep($Context) {
 }
 
 # The interface, by who calls it. install.ps1: the run-window check, the context and its steps (Get-InstallStep), then
-# the check. check-install.ps1: speech, then the check. onboard.ps1 and setup-wsl.ps1: the questions and the locator.
+# the check. check-install.ps1: speech, then the check. onboard.ps1 and setup-wsl.ps1: the questions and the locator. Both: the yes/no wording and answer.
 Export-ModuleMember -Function Confirm-RunWindow, New-InstallContext, Get-InstallStep,
     Find-ScreenReader, Select-Speech, New-Voice, Get-InstallCheck, Get-InstallSummary, Format-Check, Format-SpokenCheck,
-    Test-Interactive, Read-Answer, Confirm-Step, Select-MetaphorGame, Find-MetaphorGame, Find-ReloadedLauncher `
+    Test-Interactive, Read-Answer, Format-YesNoQuestion, Test-Yes, Confirm-Step, Select-MetaphorGame, Find-MetaphorGame, Find-ReloadedLauncher `
     -Variable ShortcutName, StatusFileName, WslUnavailableExitCode
 # Developer-only: the Reloaded-II reading that scripts/dev/ReloadedDev.psm1 re-exports to the developer scripts. No
 # player script calls these.
