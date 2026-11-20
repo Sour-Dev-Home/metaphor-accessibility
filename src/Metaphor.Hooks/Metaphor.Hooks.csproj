@@ -35,14 +35,14 @@
           CopyToPublishDirectory="PreserveNewest" />
   </ItemGroup>
 
-  <!-- The players' install check (#283) and installer (#303), and what they read: the same known-builds list and Prism
+  <!-- The players' install check (#283), installer (#303) and its launcher (#574), and what they read: the same known-builds list and Prism
        pin the mod embeds, and the installer's download pins. They run from the mod folder, so the scripts and the
        module they import sit at the package's root. The developer module that writes configs and starts the game
        (ReloadedDev.psm1) doesn't ship. -->
   <ItemGroup>
     <None Include="../Metaphor.Core/known-game-builds.json" Link="known-game-builds.json" CopyToPublishDirectory="PreserveNewest" />
     <None Include="prism.json" CopyToPublishDirectory="PreserveNewest" />
-    <None Include="../../scripts/player/check-install.ps1;../../scripts/player/install.ps1;../../scripts/player/MetaphorInstall.psm1;../../scripts/player/install-pins.json"
+    <None Include="../../scripts/player/check-install.ps1;../../scripts/player/install.ps1;../../scripts/player/install.cmd;../../scripts/player/MetaphorInstall.psm1;../../scripts/player/install-pins.json"
           Link="%(Filename)%(Extension)" CopyToPublishDirectory="PreserveNewest" />
   </ItemGroup>
 
