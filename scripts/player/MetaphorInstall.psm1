@@ -250,8 +250,7 @@ function Select-MetaphorGame([scriptblock] $Ask, [string] $SteamRoot = (Get-Stea
 # The players' install check (#283): says why the mod didn't load, for the one case the mod can't report on itself.
 # check-install.ps1 prints and speaks what Get-InstallCheck finds. It reads files and lists processes and windows; it
 # changes no file or setting. It reads nothing over the network: a Reloaded-II path on a network share or mapped
-# network drive is reported, not read. In Windows PowerShell 5.1, looking for the JAWS and ZoomText windows compiles a
-# small helper (Add-Type), which writes temporary files in the temp folder and removes them.
+# network drive is reported, not read.
 #
 # The idea of a checker players run on their own install comes from BMMValidator
 # (https://gitlab.com/BMMProject/Tools/BMMValidator, Apache-2.0, at d69404ee), a declarative install checker for other
@@ -283,18 +282,31 @@ $KeepLocal = 'Keep Reloaded-II and the game on this computer''s own drives. This
 function Find-ScreenReader {
     if (@(Get-Process -Name nvda -ErrorAction SilentlyContinue).Count -gt 0) { 'NVDA' }
     try {
-        if (-not ('MetaphorInstallCheck.Window' -as [type])) {
-            Add-Type -Namespace MetaphorInstallCheck -Name Window -MemberDefinition @'
-[System.Runtime.InteropServices.DllImport("user32.dll", CharSet = System.Runtime.InteropServices.CharSet.Unicode)]
-public static extern System.IntPtr FindWindow(string className, string windowName);
-'@
-        }
-        if ([MetaphorInstallCheck.Window]::FindWindow('JFWUI2', $null) -ne [IntPtr]::Zero) { 'JAWS' }
-        if ([MetaphorInstallCheck.Window]::FindWindow('ZXSPEECHWNDCLASS', 'ZoomText Speech Processor') -ne [IntPtr]::Zero) {
-            'ZoomText'
-        }
+        $window = Get-FindWindow
+        if ($window::FindWindow('JFWUI2', $null) -ne [IntPtr]::Zero) { 'JAWS' }
+        if ($window::FindWindow('ZXSPEECHWNDCLASS', 'ZoomText Speech Processor') -ne [IntPtr]::Zero) { 'ZoomText' }
     }
     catch { Write-Verbose "could not look for JAWS and ZoomText windows: $_" }
+}
+
+# A type with user32's FindWindowW, built in memory (#459). Add-Type would compile it, and in Windows PowerShell 5.1
+# the compiler writes to the temp folder and fails when that folder's path has a character outside the system's ANSI
+# code page (a user name in another script), printing an error to the player.
+$FindWindowType = $null
+function Get-FindWindow {
+    if (-not $script:FindWindowType) {
+        $access = [Reflection.Emit.AssemblyBuilderAccess]::Run
+        $assembly = [Reflection.Emit.AssemblyBuilder]::DefineDynamicAssembly((New-Object Reflection.AssemblyName 'MetaphorInstallCheck'), $access)
+        $type = $assembly.DefineDynamicModule('MetaphorInstallCheck').DefineType('MetaphorInstallCheck.Window',
+            [Reflection.TypeAttributes] 'Public, Abstract, Sealed')
+        $method = $type.DefinePInvokeMethod('FindWindow', 'user32.dll', 'FindWindowW',
+            [Reflection.MethodAttributes] 'Public, Static, PinvokeImpl', [Reflection.CallingConventions]::Standard, [IntPtr],
+            [Type[]] @([string], [string]), [Runtime.InteropServices.CallingConvention]::Winapi,
+            [Runtime.InteropServices.CharSet]::Unicode)
+        $method.SetImplementationFlags([Reflection.MethodImplAttributes]::PreserveSig)
+        $script:FindWindowType = $type.CreateType()
+    }
+    $script:FindWindowType
 }
 
 # Whether to speak with Windows' voice, and the line saying why not. -NoSpeech wins, then -Speak. Without a console it

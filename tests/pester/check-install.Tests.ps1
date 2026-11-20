@@ -307,6 +307,25 @@ Describe 'Find-ScreenReader' {
     It 'returns only the names of readers the mod supports' {
         @(Find-ScreenReader | Where-Object { $_ -notin 'NVDA', 'JAWS', 'ZoomText' }) | Should -BeNullOrEmpty
     }
+
+    # #459: Windows PowerShell 5.1's Add-Type compiled through the temp folder, and failed with an error on screen when
+    # its path held a character outside the system's ANSI code page. Devanagari is in none of them.
+    It 'looks for windows in Windows PowerShell 5.1 when the temp folder''s path is in another script' -Skip:(
+        -not (Get-Command powershell.exe -ErrorAction SilentlyContinue)) {
+        $temp = (New-Item -ItemType Directory (Join-Path $TestDrive 'Temp क 日本')).FullName
+        $module = Join-Path $repo 'scripts/player/MetaphorInstall.psm1'
+        $command = "Import-Module '$($module -replace "'", "''")'; Find-ScreenReader -Verbose; 'searched'"
+        $saved = $env:TEMP, $env:TMP
+        try {
+            $env:TEMP = $env:TMP = $temp
+            $output = & powershell.exe -NoProfile -NonInteractive -EncodedCommand (
+                [Convert]::ToBase64String([Text.Encoding]::Unicode.GetBytes($command))) 2>&1
+        }
+        finally { $env:TEMP, $env:TMP = $saved }
+        $output = @($output | ForEach-Object { "$_" })
+        $output | Should -Contain 'searched'
+        @($output | Where-Object { $_ -ne 'searched' -and $_ -notin 'NVDA', 'JAWS', 'ZoomText' }) | Should -BeNullOrEmpty
+    }
 }
 
 Describe 'check-install.ps1' {

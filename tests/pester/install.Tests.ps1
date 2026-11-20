@@ -28,12 +28,14 @@ BeforeAll {
     }
 
     # A stand-in runtime installer: a batch file that runs COMMANDS, records its arguments and whether it could write to
-    # itself while running (the installer holds it open against writes), and exits with CODE.
+    # itself while running (the installer holds it open against writes), and exits with CODE. cmd reads a batch file in
+    # the system's OEM code page, so a test folder with é in its path is written in that (#459).
     function New-Installer([string] $Path, [string[]] $Commands, [int] $Code = 0) {
         $lines = @('@echo off', "echo %*>> `"$root\installer-calls.txt`"",
             "(type nul>>`"%~f0`") 2>nul && (echo writable>> `"$root\installer-lock.txt`") || (echo locked>> `"$root\installer-lock.txt`")") +
             $Commands + "exit /b $Code"
-        Set-Content -LiteralPath $Path -Value $lines -Encoding ascii
+        $oem = [Text.Encoding]::GetEncoding([int] (Get-ItemPropertyValue 'HKLM:\SYSTEM\CurrentControlSet\Control\Nls\CodePage' OEMCP))
+        [IO.File]::WriteAllLines($Path, [string[]] $lines, $oem)
     }
 
     # Git Bash beside git on Windows (git.exe in cmd\, bash.exe in bin\, as onboard.ps1's Find-GitBash looks), so a plain

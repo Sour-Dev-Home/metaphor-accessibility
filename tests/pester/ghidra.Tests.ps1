@@ -4,9 +4,10 @@
 BeforeAll {
     $repo = (Resolve-Path "$PSScriptRoot/../..").Path
 
-    # A git clone holding the script and the modules it imports; Ghidra and the JDK point at an empty folder.
+    # A git clone holding the script and the modules it imports; Ghidra and the JDK point at an empty folder. Its path
+    # has a space and non-ASCII letters, which git's output carries back to the script (#459).
     function New-Clone {
-        $script:root = (New-Item -ItemType Directory (Join-Path $TestDrive (New-Guid))).FullName
+        $script:root = (New-Item -ItemType Directory (Join-Path $TestDrive "$(New-Guid)/Bibliothèque 日本")).FullName
         $script:clone = (New-Item -ItemType Directory (Join-Path $root 'clone')).FullName
         $script:empty = (New-Item -ItemType Directory (Join-Path $root 'empty')).FullName
         git -C $clone init -q
