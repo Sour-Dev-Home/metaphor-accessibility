@@ -130,9 +130,9 @@ public sealed class GameNames
     private static readonly TextCleaner Plain = new(TextCleanerRules.None);
 
     private readonly IGameNameMemory memory;
-    private readonly IMessageKeyLookup messages;
+    private readonly IMessageLookup messages;
 
-    public GameNames(IGameNameMemory memory, IMessageKeyLookup messages)
+    public GameNames(IGameNameMemory memory, IMessageLookup messages)
     {
         ArgumentNullException.ThrowIfNull(memory);
         ArgumentNullException.ThrowIfNull(messages);
@@ -157,7 +157,8 @@ public sealed class GameNames
     public string? Character(int character)
     {
         if (character is < 0 or > CharacterEntry.Last || memory.CharacterEntry(character) is not { } entry ||
-            CharacterEntry.ChooseKey(entry, memory.StoryFlag) is not { } key || messages.FindByKey(key) is not { } message)
+            CharacterEntry.ChooseKey(entry, memory.StoryFlag) is not { } key ||
+            messages.FindByLabelHash(Convert.ToHexString(key)) is not { } message)
         {
             return null;
         }
@@ -220,6 +221,10 @@ public sealed class ShownSpeakers : IMessageLookup
         this.names = names;
     }
 
-    public GameMessage? Find(string label) =>
-        messages.Find(label) is { } message ? message with { Speaker = names.Speaker(message) } : null;
+    public GameMessage? Find(string label) => Shown(messages.Find(label));
+
+    public GameMessage? FindByLabelHash(string labelHash) => Shown(messages.FindByLabelHash(labelHash));
+
+    private GameMessage? Shown(GameMessage? message) =>
+        message is null ? null : message with { Speaker = names.Speaker(message) };
 }

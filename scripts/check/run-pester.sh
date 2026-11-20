@@ -108,6 +108,7 @@ done | sort -k 1,1nr -k 2,2n | cut -d ' ' -f 2)
 pester='
   Import-Module Pester -MinimumVersion 5.0
   $c = New-PesterConfiguration
+  $c.TestRegistry.Enabled = $false  # parallel processes race on creating HKCU\Software\Pester (#535); no test uses it
   $c.Run.Path = $env:FILE; $c.Run.PassThru = $true; $c.Output.Verbosity = "Normal"
   if ($env:LINES) { $p = (Resolve-Path $env:FILE).Path; $c.Filter.Line = @(-split $env:LINES | ForEach-Object { "${p}:$_" }) }
   $r = Invoke-Pester -Configuration $c

@@ -1,4 +1,4 @@
-using System.Buffers.Binary;
+using System.Diagnostics.CodeAnalysis;
 using System.Security.Cryptography;
 using System.Text;
 
@@ -14,27 +14,23 @@ public interface IMessageLookup
 {
     /// <summary>The message with this label, or null when there is none.</summary>
     GameMessage? Find(string label);
-}
 
-/// <summary>Finds a game message by its key: the MD5 of its label, as the game's name tables store it
-/// (docs/raw-sources/name-lookup-candidates-2026-11-16.md, docs/findings/speaker-alias-from-chara-id-table.md).</summary>
-public interface IMessageKeyLookup
-{
-    /// <summary>The message whose label's MD5 is <paramref name="key"/>, or null when there is none.</summary>
-    GameMessage? FindByKey(ReadOnlySpan<byte> key);
+    /// <summary>The message whose label's MD5 is <paramref name="labelHash"/> (32 hex digits, either case), or null when
+    /// there is none.</summary>
+    GameMessage? FindByLabelHash(string labelHash);
 }
 
 /// <summary>The messages of every message file the game has compiled, by label (#56). The game shows a line by its
 /// label alone (docs/raw-sources/msg-request-run-2026-11-16.md), and its text is in a message file compiled earlier.
 /// Safe to use from several threads.</summary>
-public sealed class MessageLibrary : IMessageLookup, IMessageKeyLookup, IMessageFileObserver
+public sealed class MessageLibrary : IMessageLookup, IMessageFileObserver
 {
     private const string SpeakerStart = "<NS>";
     private const string SpeakerEnd = "<NE>";
     private const string SpeakerIdLine = "#SPEAKER_ID";
 
     private readonly Dictionary<string, GameMessage> byLabel = new(StringComparer.Ordinal);
-    private readonly Dictionary<UInt128, string> labelByKey = [];
+    private readonly Dictionary<string, GameMessage> byLabelHash = new(StringComparer.OrdinalIgnoreCase);
     private readonly Lock gate = new();
 
     /// <summary>Adds the messages of a message file's source, as the game compiles it. A label seen before takes its
@@ -43,40 +39,26 @@ public sealed class MessageLibrary : IMessageLookup, IMessageKeyLookup, IMessage
     {
         ArgumentNullException.ThrowIfNull(source);
         var messages = Parse(source);
-        var keys = messages.Select(message => Key(message.Label)).ToList();
+        var hashes = messages.ConvertAll(message => LabelHash(message.Label));
         lock (gate)
         {
             for (var i = 0; i < messages.Count; i++)
             {
                 byLabel[messages[i].Label] = messages[i];
-                labelByKey[keys[i]] = messages[i].Label;
+                byLabelHash[hashes[i]] = messages[i];
             }
         }
     }
 
-    /// <summary>The message whose label's MD5 is <paramref name="key"/>, or null when no compiled file has one or the
-    /// key isn't 16 bytes.</summary>
-    public GameMessage? FindByKey(ReadOnlySpan<byte> key)
+    /// <summary>The MD5 of a label's bytes as 32 upper-case hex digits: the key the game's message window finds a line
+    /// by, on game build 548ddc95… (Steam build 18330018; docs/raw-sources/msg-window-show-line-2026-11-20.md), and the
+    /// key its name tables store (docs/raw-sources/name-lookup-candidates-2026-11-16.md).</summary>
+    [SuppressMessage("Security", "CA5351", Justification = "Matches the game's own label hash; nothing is protected by it.")]
+    public static string LabelHash(string label)
     {
-        if (key.Length != 16)
-        {
-            return null;
-        }
-        var wanted = AsKey(key);
-        lock (gate)
-        {
-            return labelByKey.TryGetValue(wanted, out var label) ? byLabel.GetValueOrDefault(label) : null;
-        }
+        ArgumentNullException.ThrowIfNull(label);
+        return Convert.ToHexString(MD5.HashData(Encoding.UTF8.GetBytes(label)));
     }
-
-    // The game finds a message by the MD5 of its label's bytes (docs/raw-sources/name-lookup-candidates-2026-11-16.md);
-    // labels are ASCII, so UTF-8 gives the same bytes. MD5 is the game's key here, not a security measure.
-#pragma warning disable CA5351
-    private static UInt128 Key(string label) => AsKey(MD5.HashData(Encoding.UTF8.GetBytes(label)));
-#pragma warning restore CA5351
-
-    private static UInt128 AsKey(ReadOnlySpan<byte> key) =>
-        new(BinaryPrimitives.ReadUInt64BigEndian(key), BinaryPrimitives.ReadUInt64BigEndian(key[8..]));
 
     /// <summary>Adds the messages of a file the game compiled (#86).</summary>
     public void Observe(MessageFileCompiled file)
@@ -91,6 +73,17 @@ public sealed class MessageLibrary : IMessageLookup, IMessageKeyLookup, IMessage
         lock (gate)
         {
             return byLabel.GetValueOrDefault(label);
+        }
+    }
+
+    /// <summary>The message whose label's MD5 is <paramref name="labelHash"/>, or null when no compiled file has
+    /// one.</summary>
+    public GameMessage? FindByLabelHash(string labelHash)
+    {
+        ArgumentNullException.ThrowIfNull(labelHash);
+        lock (gate)
+        {
+            return byLabelHash.GetValueOrDefault(labelHash);
         }
     }
 

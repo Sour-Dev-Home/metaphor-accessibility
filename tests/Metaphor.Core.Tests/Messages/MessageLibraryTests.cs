@@ -95,26 +95,25 @@ public sealed class MessageLibraryTests
         Assert.Null(library.Find("MES_test_000_01")?.SpeakerId);
     }
 
-    [Fact]
-    public void AMessageIsFoundByTheMd5OfItsLabel()
+    // The message window finds a line by its label's MD5 (#526; docs/raw-sources/msg-window-show-line-2026-11-20.md).
+    // 900150983cd24fb0d6963f7d28e17f72 is MD5("abc"), RFC 1321's test suite.
+    [Theory]
+    [InlineData("900150983CD24FB0D6963F7D28E17F72")]
+    [InlineData("900150983cd24fb0d6963f7d28e17f72")]
+    public void AMessageIsFoundByItsLabelsMd5(string hash)
     {
         var library = new MessageLibrary();
-        library.Compiled(Scene);
+        library.Compiled("@abc\n{\nThe wind picks up.\n}");
 
-        // MD5("MES_test_000_01"), from GNU coreutils' md5sum.
-        var key = Convert.FromHexString("1cd3d3ca07974081a6e2ebade360139c");
-
-        Assert.Equal("MES_test_000_01", library.FindByKey(key)?.Label);
+        Assert.Equal(new GameMessage("abc", null, "The wind picks up."), library.FindByLabelHash(hash));
     }
 
     [Fact]
-    public void AKeyNoLabelHasOrOfTheWrongSizeIsNotFound()
+    public void AHashNoLabelHasIsNotFound()
     {
         var library = new MessageLibrary();
         library.Compiled(Scene);
 
-        // MD5("MES_test_000"), from GNU coreutils' md5sum.
-        Assert.Null(library.FindByKey(Convert.FromHexString("65dfab3ed8bb2da35bcc7de32f3f8b75")));
-        Assert.Null(library.FindByKey(new byte[15]));
+        Assert.Null(library.FindByLabelHash("900150983CD24FB0D6963F7D28E17F72"));
     }
 }

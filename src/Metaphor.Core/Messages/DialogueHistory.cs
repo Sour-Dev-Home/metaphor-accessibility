@@ -15,6 +15,7 @@ public sealed class DialogueHistory
     private readonly Lock gate = new();
     private readonly Queue<string> lines = new();
     private readonly int capacity;
+    private long recorded;
 
     public DialogueHistory(int capacity = DefaultCapacity)
     {
@@ -34,12 +35,36 @@ public sealed class DialogueHistory
         }
     }
 
+    /// <summary>How many lines have been recorded so far, including those since dropped: it only grows, so a reader can
+    /// tell whether a line came after a moment it noted (#526).</summary>
+    public long Recorded
+    {
+        get
+        {
+            lock (gate)
+            {
+                return recorded;
+            }
+        }
+    }
+
+    /// <summary>The newest line if it was recorded after <see cref="Recorded"/> read <paramref name="mark"/>, or null
+    /// when no line has been recorded since.</summary>
+    public string? LatestSince(long mark)
+    {
+        lock (gate)
+        {
+            return recorded > mark && lines.Count > 0 ? lines.Last() : null;
+        }
+    }
+
     /// <summary>Records a line as the newest, dropping the oldest when the buffer is full.</summary>
     public void Add(string line)
     {
         ArgumentNullException.ThrowIfNull(line);
         lock (gate)
         {
+            recorded++;
             lines.Enqueue(line);
             while (lines.Count > capacity)
             {

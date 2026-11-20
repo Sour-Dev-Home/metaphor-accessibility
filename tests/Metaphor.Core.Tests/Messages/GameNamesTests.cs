@@ -162,6 +162,25 @@ public sealed class GameNamesTests
     }
 
     [Fact]
+    public void ALineFoundByItsLabelsMd5GetsTheShownSpeaker()
+    {
+        var (names, memory, library) = Setup();
+        memory.SetFlags.Add(0x978);
+
+        var line = new ShownSpeakers(library, names).FindByLabelHash(MessageLibrary.LabelHash("MES_line"));
+
+        Assert.Equal("Masked Woman", line?.Speaker);
+    }
+
+    [Fact]
+    public void AHashNoLabelHasFindsNoShownLine()
+    {
+        var (names, _, library) = Setup();
+
+        Assert.Null(new ShownSpeakers(library, names).FindByLabelHash(MessageLibrary.LabelHash("MES_none")));
+    }
+
+    [Fact]
     public void TheSpeakerFallsBackToTheFilesNameWhenTheTableCantBeRead()
     {
         var (names, memory, library) = Setup();
