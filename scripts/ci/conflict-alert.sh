@@ -113,7 +113,8 @@ sync_pass() {
 
     merged="$(git merge-tree --write-tree --name-only "$tip" "$head" 2>/dev/null)"
     code=$?
-    hookfiles="$(git diff --name-only "$(git merge-base "$tip" "$head")" "$tip" -- "${scope[@]}" | tr '\n' ' ')"
+    # In any case, as Windows reads paths: a Hooks/ that Windows merges into hooks/ needs the stamp too (#436).
+    hookfiles="$(GIT_ICASE_PATHSPECS=1 git diff --name-only "$(git merge-base "$tip" "$head")" "$tip" -- "${scope[@]}" | tr '\n' ' ')"
     hookfiles="${hookfiles% }"
     case "$code" in
       0) files=""; outcome=clean ;;

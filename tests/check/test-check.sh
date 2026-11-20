@@ -799,6 +799,68 @@ test_docs_stage_fails_on_a_missing_anchor() {
   expect 1 "broken link" "notes.md:3" "other.md#no-such-part"
 }
 
+# This repository's own GitHub links are checked against the working tree, still offline (#436).
+own_repo=https://github.com/Sour-Dev-Home/metaphor-accessibility
+
+test_docs_stage_fails_on_an_own_absolute_link_to_a_missing_path() {
+  docs_repo
+  printf '# Notes\n\nSee [the guide](%s/blob/main/docs/missing.md).\n' "$own_repo" > notes.md
+  git add .
+  run_check docs
+  expect 1 "broken link: notes.md:3: $own_repo/blob/main/docs/missing.md"
+}
+
+test_docs_stage_fails_on_an_own_absolute_link_to_a_missing_anchor_or_folder() {
+  docs_repo
+  mkdir -p docs
+  printf '# Other\n\n## Real part\n' > docs/other.md
+  printf '# Notes\n\n[a](%s/blob/main/docs/other.md#no-such-part)\n[b](%s/tree/main/gone)\n' "$own_repo" "$own_repo" > notes.md
+  git add .
+  run_check docs
+  expect 1 "notes.md:3: $own_repo/blob/main/docs/other.md#no-such-part" "notes.md:4: $own_repo/tree/main/gone"
+}
+
+test_docs_stage_passes_own_absolute_links_to_existing_paths() {
+  docs_repo
+  mkdir -p docs
+  printf '# Other\n\n## Real part\n' > docs/other.md
+  printf '# Notes\n\n[a](%s/blob/main/docs/other.md#real-part)\n[b](%s/tree/main/docs)\n[c](%s/issues/1)\n' \
+    "$own_repo" "$own_repo" "$own_repo" > notes.md
+  git add .
+  run_check docs
+  expect 0
+  expect_absent "broken link"
+}
+
+test_docs_stage_checks_own_absolute_links_from_a_path_with_a_space_and_an_accent() {
+  docs_repo
+  local dir="$WORK/clone with spacé-$RANDOM"
+  mkdir -p "$dir" && cp -r . "$dir/repo" && cd "$dir/repo" || exit 2
+  mkdir -p docs
+  printf '# Other\n' > docs/other.md
+  printf '# Notes\n\n[a](%s/blob/main/docs/other.md)\n' "$own_repo" > notes.md
+  git add .
+  run_check docs
+  expect 0
+  printf '[b](%s/blob/main/docs/missing.md)\n' "$own_repo" >> notes.md
+  git add .
+  run_check docs
+  expect 1 "broken link: notes.md:4: $own_repo/blob/main/docs/missing.md"
+  expect_absent "notes.md:3"
+}
+
+test_docs_stage_fails_on_a_relative_link_under_dot_github() {
+  docs_repo
+  mkdir -p .github
+  printf '# Other\n' > other.md
+  printf '# Contributing\n\nSee [it](../other.md), [here](#contributing) and [there](%s/blob/main/other.md).\n' \
+    "$own_repo" > .github/CONTRIBUTING.md
+  git add .
+  run_check docs
+  expect 1 "relative link: .github/CONTRIBUTING.md:3: ../other.md"
+  expect_absent "#contributing" "there"
+}
+
 test_docs_stage_warns_on_a_filler_word() {
   docs_repo
   printf '# Notes\n\nThis is basically how the loader works.\n' > notes.md
