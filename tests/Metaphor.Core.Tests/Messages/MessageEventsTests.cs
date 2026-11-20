@@ -11,9 +11,11 @@ public sealed class MessageEventsTests
     private readonly List<string> seen = [];
 
     private sealed class Recording(string name, List<string> seen)
-        : ILineRequestObserver, IMessageFileObserver, IChoiceRequestObserver
+        : ILineRequestObserver, IMessageFileObserver, IChoiceRequestObserver, ILineShownObserver
     {
         public void Observe(LineRequested line) => seen.Add($"{name}:{line.Kind}:{line.Label}");
+
+        public void Observe(LineShown line) => seen.Add($"{name}:{line.Kind}:{line.LabelHash}");
 
         public void Observe(MessageFileCompiled file) => seen.Add($"{name}:{file.Id}:{file.Path}");
 
@@ -21,8 +23,10 @@ public sealed class MessageEventsTests
             seen.Add($"{name}:{choice.Kind}:{choice.PromptLabel}:{choice.ChoiceLabel}");
     }
 
-    private sealed class Throwing : ILineRequestObserver, IMessageFileObserver, IChoiceRequestObserver
+    private sealed class Throwing : ILineRequestObserver, IMessageFileObserver, IChoiceRequestObserver, ILineShownObserver
     {
+        public void Observe(LineShown line) => throw new InvalidOperationException("observer failed");
+
         public void Observe(LineRequested line) => throw new InvalidOperationException("observer failed");
 
         public void Observe(MessageFileCompiled file) => throw new InvalidOperationException("observer failed");
@@ -85,6 +89,19 @@ public sealed class MessageEventsTests
         events.ChoiceOpened(new ChoiceRequested(0, "MES_q", "MES_c"));
 
         Assert.Equal(["speech:0:MES_q:MES_c", "log:0:MES_q:MES_c"], seen);
+    }
+
+    [Fact]
+    public void AShownLineReachesEachObserverInOrderEvenAfterOneThrows()
+    {
+        events.ObserveShownLines(new Recording("speech", seen));
+        events.ObserveShownLines(new Throwing());
+        events.ObserveShownLines(new Recording("log", seen));
+        events.ObserveLines(new Recording("requests", seen));
+
+        events.Shown(new LineShown(0, "900150983CD24FB0D6963F7D28E17F72"));
+
+        Assert.Equal(["speech:0:900150983CD24FB0D6963F7D28E17F72", "log:0:900150983CD24FB0D6963F7D28E17F72"], seen);
     }
 
     [Fact]

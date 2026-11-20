@@ -47,4 +47,61 @@ public sealed class DialogueLinesTests
 
         Assert.Empty(announcer.Said);
     }
+
+    // #526: some event scenes put lines in the window without asking for them by label; the window's call carries the
+    // label's MD5 (docs/raw-sources/msg-window-show-line-2026-11-20.md).
+    [Fact]
+    public void ALineShownWithoutARequestIsSpoken()
+    {
+        messages.Compiled(Scene);
+
+        Lines().Observe(new LineShown(0, MessageLibrary.LabelHash("MES_a")));
+
+        Assert.Equal([new Announcement("Ada: The bridge is out.", Interrupt: true)], announcer.Said);
+    }
+
+    [Fact]
+    public void ARequestedLineIsSpokenOnceWhenTheWindowShowsIt()
+    {
+        messages.Compiled(Scene);
+        var lines = Lines();
+
+        lines.Observe(new LineRequested(0, "MES_a"));
+        lines.Observe(new LineShown(0, MessageLibrary.LabelHash("MES_a")));
+
+        Assert.Single(announcer.Said);
+    }
+
+    [Fact]
+    public void TheSameLineShownAgainWithoutARequestIsSpokenAgain()
+    {
+        messages.Compiled(Scene);
+        var lines = Lines();
+
+        lines.Observe(new LineRequested(0, "MES_a"));
+        lines.Observe(new LineShown(0, MessageLibrary.LabelHash("MES_a")));
+        lines.Observe(new LineShown(0, MessageLibrary.LabelHash("MES_a")));
+
+        Assert.Equal(2, announcer.Said.Count);
+    }
+
+    [Theory]
+    [InlineData(1)]
+    [InlineData(2)]
+    public void OnlyKindZeroIsSpokenWhenShown(int kind)
+    {
+        messages.Compiled(Scene);
+
+        Lines().Observe(new LineShown(kind, MessageLibrary.LabelHash("MES_a")));
+
+        Assert.Empty(announcer.Said);
+    }
+
+    [Fact]
+    public void AShownHashNoCompiledFileHasSaysNothing()
+    {
+        Lines().Observe(new LineShown(0, MessageLibrary.LabelHash("MES_missing")));
+
+        Assert.Empty(announcer.Said);
+    }
 }

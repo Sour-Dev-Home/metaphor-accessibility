@@ -84,4 +84,26 @@ public sealed class MessageLibraryTests
         Assert.Equal(new GameMessage("MES_test_000_01", null, "The wind picks up."), library.Find("MES_test_000_01"));
         Assert.Equal("Ada", library.Find("MES_test_000_00")?.Speaker);
     }
+
+    // The message window finds a line by its label's MD5 (#526; docs/raw-sources/msg-window-show-line-2026-11-20.md).
+    // 900150983cd24fb0d6963f7d28e17f72 is MD5("abc"), RFC 1321's test suite.
+    [Theory]
+    [InlineData("900150983CD24FB0D6963F7D28E17F72")]
+    [InlineData("900150983cd24fb0d6963f7d28e17f72")]
+    public void AMessageIsFoundByItsLabelsMd5(string hash)
+    {
+        var library = new MessageLibrary();
+        library.Compiled("@abc\n{\nThe wind picks up.\n}");
+
+        Assert.Equal(new GameMessage("abc", null, "The wind picks up."), library.FindByLabelHash(hash));
+    }
+
+    [Fact]
+    public void AHashNoLabelHasIsNotFound()
+    {
+        var library = new MessageLibrary();
+        library.Compiled(Scene);
+
+        Assert.Null(library.FindByLabelHash("900150983CD24FB0D6963F7D28E17F72"));
+    }
 }

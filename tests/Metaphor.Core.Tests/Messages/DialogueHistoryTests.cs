@@ -28,6 +28,22 @@ public sealed class DialogueHistoryTests
     }
 
     [Fact]
+    public void LatestSinceAMarkIsOnlyALineRecordedAfterIt()
+    {
+        var history = new DialogueHistory(capacity: 1);
+        history.Add("Ada: One.");
+        var mark = history.Recorded;
+
+        Assert.Null(history.LatestSince(mark));
+
+        history.Add("Two.");
+        history.Add("Three.");
+
+        Assert.Equal(3, history.Recorded);
+        Assert.Equal("Three.", history.LatestSince(mark));
+    }
+
+    [Fact]
     public void ItKeepsTheLastTwentyLinesByDefault()
     {
         var history = new DialogueHistory();

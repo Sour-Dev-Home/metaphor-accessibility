@@ -8,6 +8,11 @@ public sealed record MessageFileCompiled(string Path, int Id, string Source);
 /// <summary>A line the game's scripts asked for by label, and the kind of request it came with.</summary>
 public sealed record LineRequested(int Kind, string Label);
 
+/// <summary>A line the game put in its message window by any route, scripted or not (#526): the request's kind and the
+/// MD5 of the line's label, as 32 upper-case hex digits. Some event scenes show lines this way without asking for them
+/// by label (docs/raw-sources/msg-window-show-line-2026-11-20.md).</summary>
+public sealed record LineShown(int Kind, string LabelHash);
+
 /// <summary>A choice the game's scripts opened (#82): the request's kind, the label of the prompt asked before it and
 /// the label of the message holding its options, each null when it couldn't be read.</summary>
 public sealed record ChoiceRequested(int Kind, string? PromptLabel, string? ChoiceLabel);
@@ -22,6 +27,12 @@ public interface IMessageFileObserver
 public interface ILineRequestObserver
 {
     void Observe(LineRequested line);
+}
+
+/// <summary>Told of each line the game puts in its message window.</summary>
+public interface ILineShownObserver
+{
+    void Observe(LineShown line);
 }
 
 /// <summary>Told of each choice the game opens.</summary>
@@ -39,6 +50,7 @@ public sealed class MessageEvents
     private IMessageFileObserver[] fileObservers = [];
     private ILineRequestObserver[] lineObservers = [];
     private IChoiceRequestObserver[] choiceObservers = [];
+    private ILineShownObserver[] shownObservers = [];
 
     /// <summary>Adds an observer of compiled message files, after those already added.</summary>
     public void ObserveFiles(IMessageFileObserver observer)
@@ -60,6 +72,16 @@ public sealed class MessageEvents
         }
     }
 
+    /// <summary>Adds an observer of lines put in the message window, after those already added.</summary>
+    public void ObserveShownLines(ILineShownObserver observer)
+    {
+        ArgumentNullException.ThrowIfNull(observer);
+        lock (gate)
+        {
+            shownObservers = [.. shownObservers, observer];
+        }
+    }
+
     /// <summary>Adds an observer of opened choices, after those already added.</summary>
     public void ObserveChoices(IChoiceRequestObserver observer)
     {
@@ -75,6 +97,9 @@ public sealed class MessageEvents
 
     /// <summary>Tells every line observer that the game asked for <paramref name="line"/>.</summary>
     public void Requested(LineRequested line) => TellEach(Volatile.Read(ref lineObservers), observer => observer.Observe(line));
+
+    /// <summary>Tells every shown-line observer that the game put <paramref name="line"/> in its message window.</summary>
+    public void Shown(LineShown line) => TellEach(Volatile.Read(ref shownObservers), observer => observer.Observe(line));
 
     /// <summary>Tells every choice observer that the game opened <paramref name="choice"/>.</summary>
     public void ChoiceOpened(ChoiceRequested choice) =>
