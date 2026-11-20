@@ -583,6 +583,30 @@ function Test-AdministratorRole {
         [Security.Principal.WindowsBuiltInRole]::Administrator)
 }
 
+# False only when EnableLUA is 0, which turns UAC off: every window of an administrator account then runs as
+# administrator (#465). A missing or unreadable value counts as on, so the installer keeps refusing.
+function Test-UacEnabled {
+    $key = Get-ItemProperty -LiteralPath 'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System' `
+        -Name EnableLUA -ErrorAction SilentlyContinue
+    if ($null -eq $key) { return $true }
+    # Only a DWORD 0 counts, which Get-ItemProperty returns as Int32 (QWORD is Int64, a string String: pwsh and 5.1).
+    return -not ($key.EnableLUA -is [int] -and $key.EnableLUA -eq 0)
+}
+
+# True when install.ps1 may go on in this window. An elevated window stops it, unless UAC is off, where no window is
+# anything else: then SAY explains and ASK takes a yes (#465). No answer, as without a console, counts as no.
+function Confirm-RunWindow([scriptblock] $Say, [scriptblock] $Ask) {
+    if (-not (Test-Elevated)) { return $true }
+    if (Test-UacEnabled) {
+        & $Say 'This window runs as administrator, so the installer stopped without changing anything. Run it from a normal PowerShell window: it asks Windows for permission itself where a step needs it.'
+        return $false
+    }
+    & $Say 'User Account Control is turned off on this computer, so every window runs as administrator, and the files the installer puts in place will be owned by the administrator account. Reloaded-II and the mod may then need administrator rights to update themselves later.'
+    if (Test-Yes (& $Ask 'Install as administrator anyway? Type yes and press Enter to go on, or press Enter alone to stop.')) { return $true }
+    & $Say 'The installer stopped without changing anything, because the answer was no.'
+    return $false
+}
+
 function Get-StreamSha256([IO.Stream] $Stream) {
     $hash = [Security.Cryptography.SHA256]::Create()
     try { -join ($hash.ComputeHash($Stream) | ForEach-Object { $_.ToString('x2') }) } finally { $hash.Dispose() }
@@ -1004,7 +1028,7 @@ function Install-Shortcut($Context) {
 # The interface, by who calls it. install.ps1: the installer's steps in the order it runs them, then the check.
 # check-install.ps1: speech, then the check. onboard.ps1 and setup-wsl.ps1: the questions and the locator.
 # ReloadedDev.psm1 and the developer scripts: the Reloaded-II reading.
-Export-ModuleMember -Function Test-Elevated, New-InstallContext, Select-InstallGame, Install-Reloaded,
+Export-ModuleMember -Function Test-Elevated, Confirm-RunWindow, New-InstallContext, Select-InstallGame, Install-Reloaded,
     Initialize-ReloadedConfig, Install-DotnetRuntime, Install-VcRuntime, Install-HooksLibrary, Install-ModFiles, Enable-Mod,
     Install-Shortcut,
     Find-ScreenReader, Select-Speech, New-Voice, Get-InstallCheck, Get-InstallSummary, Format-Check, Format-SpokenCheck,
