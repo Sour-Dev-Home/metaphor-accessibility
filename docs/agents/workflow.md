@@ -87,7 +87,9 @@ Commit with the stamp.
 - Check every push's own exit code (`git push ...; echo $?`), never a pipe's or an echo after it: a pre-push hook that
   fails or times out on the build lock leaves the branch unpushed while the command looks quiet.
 - No checks on the PR 5 minutes after a push: GitHub sometimes starts no run at all (#329). Close and reopen the PR
-  (`gh pr close <n> && gh pr reopen <n>`), then turn auto-merge on again.
+  (`gh pr close <n> && gh pr reopen <n>`), then turn auto-merge on again. The
+  [queue watch](../contributors/explanation/how-a-change-reaches-main.md) comments on such a PR, and on one the merge
+  queue dropped.
 - GitHub down (a 5xx, a timeout, no connection): follow
   [handle a GitHub outage](../contributors/how-to/handle-a-github-outage.md).
 - A draft PR behind `main`: [merge main into a draft PR](../contributors/how-to/merge-main-into-a-draft-pr.md).
