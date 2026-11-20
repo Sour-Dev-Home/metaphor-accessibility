@@ -25,6 +25,8 @@ $PollMilliseconds = 100
 # apart gave before #339 made polling faster.
 $GameGoneMilliseconds = 1000
 $InspectorPipeName = 'metaphor-accessibility-inspector' # LiveInspector.PipeName
+$InspectorMaxLineBytes = 512 # Metaphor.Core.Inspector.InspectorSession.MaxLineBytes
+$InspectorLogFileName = 'inspector-log.txt'
 
 # The options each verb takes, as session.ps1 names them. Any other is refused, so a misplaced one never goes unnoticed.
 $Launching = 'GameExe', 'LauncherExe', 'ReloadedConfig', 'KnownBuilds', 'TimeoutSeconds'
@@ -33,7 +35,7 @@ $VerbOptions = @{
     run     = $Launching + 'Project', 'Seconds', 'OptIn', 'SaveLog', 'KeepGame'
     smoke   = $Launching + 'ModFolders'
     spike   = $Launching + 'Project', 'OutFile', 'Probes'
-    inspect = 'Request', 'PipeName', 'TimeoutMilliseconds'
+    inspect = 'Request', 'PipeName', 'TimeoutMilliseconds', 'Batch', 'Label', 'WaitKey', 'SaveLog'
     status  = 'GameExe', 'LauncherExe', 'ReloadedConfig', 'KnownBuilds', 'Project', 'PipeName'
 }
 
@@ -54,6 +56,21 @@ function Write-Line([string] $Text) { Write-Host (Hide-LocalPaths $script:Names 
 function Get-Option([string] $Name, $Default) {
     $value = $script:Options[$Name]
     if ($null -eq $value -or ($value -is [string] -and $value -eq '')) { $Default } else { $value }
+}
+
+# The full path of -SaveLog, or nothing without it. The logs hold game text, so they never land where they could be
+# committed.
+function Resolve-SaveFolder {
+    $save = Get-Option 'SaveLog' $null
+    if (-not $save) { return }
+    $save = Get-FullPath $save
+    for ($dir = $save; $dir; $dir = Split-Path $dir) {
+        if (Test-Path -LiteralPath (Join-Path $dir '.git')) {
+            Stop-Session "-SaveLog $save is inside the git repository at $dir" 'the logs hold game text: save them outside any repository'
+        }
+    }
+    Add-PathName $script:Names '<save>' $save
+    $save
 }
 
 function Get-FullPath([string] $Path) {
@@ -471,17 +488,7 @@ function Invoke-Run($S) {
     $S.KeepGame = [bool] (Get-Option 'KeepGame' $false)
     $optIns = @(Resolve-OptIn (Get-Option 'OptIn' @()) $S.Paths.Project)
 
-    # The logs hold game text, so they never land where they could be committed.
-    $save = Get-Option 'SaveLog' $null
-    if ($save) {
-        $save = Get-FullPath $save
-        for ($dir = $save; $dir; $dir = Split-Path $dir) {
-            if (Test-Path -LiteralPath (Join-Path $dir '.git')) {
-                Stop-Session "-SaveLog $save is inside the git repository at $dir" 'the logs hold game text: save them outside any repository'
-            }
-        }
-        Add-PathName $script:Names '<save>' $save
-    }
+    $save = Resolve-SaveFolder
 
     Initialize-Launch $S
     Invoke-InSession $S {
@@ -662,13 +669,119 @@ $($ReportJson.Trim())
 "@
 }
 
+# Sends one request line to the inspector and returns its one response line.
+function Send-InspectorRequest($Inspector, [string] $Line) {
+    $Inspector.Writer.WriteLine($Line)
+    $response = $Inspector.Reader.ReadLine()
+    if ($null -eq $response) { Stop-Session 'the inspector closed the connection' 'check the game is still running' 2 }
+    $response
+}
+
+# Reads an inspect batch file: one request per line, sent as written; blank lines and lines starting with # are
+# skipped, and "[name]" starts a section, which inspect -WaitKey runs one per Enter. Requests before the first section
+# form one with no name. Returns the sections in file order, each with its requests and their line numbers. Refuses a
+# line the inspector would refuse unread, so a mistake shows before the game is played, not mid-session.
+function Read-InspectorBatch([string] $Path) {
+    if (-not (Test-Path -LiteralPath $Path -PathType Leaf)) { Stop-Session "no batch file at $Path" 'pass the path of a text file of requests' }
+    $sections = [Collections.Generic.List[object]]::new()
+    $section = $null
+    $number = 0
+    foreach ($raw in [IO.File]::ReadAllLines($Path)) {
+        $number++
+        $line = $raw.Trim()
+        if (-not $line -or $line.StartsWith('#')) { continue }
+        if ($line -match '^\[(.*)\]$') {
+            $name = $Matches[1].Trim()
+            if ($name -cnotmatch '^[\x21-\x7e]+$') { Stop-Session "line $($number): section [$name] needs a name of printable ASCII with no spaces" 'rename it, as in [title-screen]' }
+            $section = [pscustomobject]@{ Name = $name; Number = $number; Requests = [Collections.Generic.List[object]]::new() }
+            $sections.Add($section)
+            continue
+        }
+        if ($line.Length -gt $InspectorMaxLineBytes -or $line -cmatch '[^\x20-\x7e]') {
+            Stop-Session "line $($number) is not a request the inspector reads" "keep each to printable ASCII and at most $InspectorMaxLineBytes characters"
+        }
+        if (-not $section) {
+            $section = [pscustomobject]@{ Name = ''; Number = $number; Requests = [Collections.Generic.List[object]]::new() }
+            $sections.Add($section)
+        }
+        $section.Requests.Add([pscustomobject]@{ Line = $line; Number = $number })
+    }
+    $empty = @($sections | Where-Object { -not $_.Requests.Count })
+    if ($empty) { Stop-Session "line $($empty[0].Number): section [$($empty[0].Name)] has no requests" 'add some, or remove it' }
+    if (-not $sections.Count) { Stop-Session "no request in $Path" "write one per line, as in: base" }
+    , $sections.ToArray()
+}
+
+# The command names in the inspector's help line, "ok help | base | read <addr> <count> | ...; <addr> is ...".
+function Get-InspectorCommandName([string] $Help) {
+    if (-not $Help.StartsWith('ok ', [StringComparison]::Ordinal)) { return @() }
+    @(($Help.Substring(3) -split ';')[0] -split '\|' | ForEach-Object { (-split $_)[0] } | Where-Object { $_ })
+}
+
+# Runs the batch's sections in order on one connection: each request's response is printed and appended to LOG as a
+# line "<local time>\t<label>\t<request>\t<response>", where a section's label is "LABEL/<name>". With -WaitKey, each
+# section waits for Enter on the console first, and "q" (or the end of input) stops there. Every command word is first
+# checked against the inspector's own help, so an unknown one stops the batch before it sends anything.
+function Invoke-InspectBatch($Inspector, $Sections, [string] $Label, [string] $Log) {
+    $known = Get-InspectorCommandName (Send-InspectorRequest $Inspector 'help')
+    if (-not $known) { Stop-Session "the inspector didn't list its commands" 'check it with: session.ps1 inspect help' 2 }
+    $unknown = @(foreach ($section in $Sections) {
+            foreach ($request in $section.Requests) {
+                $word = (-split $request.Line)[0]
+                if ($word -cnotin $known) { "line $($request.Number): unknown command '$word'" }
+            }
+        })
+    if ($unknown) { Stop-Session "$($unknown -join '; ')" "fix the batch file; the inspector knows $($known -join ', ')" 2 }
+
+    $waitKey = [bool] (Get-Option 'WaitKey' $false)
+    $sent = 0
+    $refused = 0
+    $ran = 0
+    foreach ($section in $Sections) {
+        $name = if ($section.Name) { "$Label/$($section.Name)" } else { $Label }
+        if ($waitKey) {
+            Write-Line "next: $name, $($section.Requests.Count) requests - press Enter to run it, or q and Enter to stop"
+            $answer = [Console]::In.ReadLine()
+            if ($null -eq $answer -or $answer.Trim() -eq 'q') { break }
+        }
+        foreach ($request in $section.Requests) {
+            $response = Send-InspectorRequest $Inspector $request.Line
+            $stamp = (Get-Date).ToString('yyyy-MM-ddTHH:mm:ss.fffzzz', [Globalization.CultureInfo]::InvariantCulture)
+            [IO.File]::AppendAllText($Log, (Hide-LocalPaths $script:Names "$stamp`t$name`t$($request.Line)`t$response") + "`n")
+            Write-Line "[$name] $($request.Line) => $response"
+            $sent++
+            if (-not $response.StartsWith('ok', [StringComparison]::Ordinal)) { $refused++ }
+        }
+        $ran++
+    }
+    $done = "$ran of $($Sections.Count) sections run$(if ($ran -lt $Sections.Count) { ' (stopped by you)' }), logged to $Log"
+    if ($refused) { Stop-Session "$refused of $sent requests answered err; $done" 'read the responses above; the batch went on past them' 1 }
+    "$sent requests answered; $done"
+}
+
 # Asks the live inspector in a running Debug build (#291) each request, on one connection, and prints each response:
 # "ok ..." or "err ...". The client checks the pipe belongs to the current user (PipeOptions.CurrentUserOnly), and only
 # identifies itself: the server can't act as this user (#393).
 # https://learn.microsoft.com/dotnet/api/system.security.principal.tokenimpersonationlevel
+# With -Batch, the requests come from a file instead (Read-InspectorBatch) and each answer is also logged
+# (Invoke-InspectBatch).
 function Invoke-Inspect {
     $requests = @(Get-Option 'Request' @())
-    if (-not $requests) { Stop-Session 'no request' "pass one or more, as in: session.ps1 inspect 'help'" }
+    $batch = Get-Option 'Batch' $null
+    if ($batch) {
+        if ($requests) { Stop-Session '-Batch takes no requests as arguments' 'put them in the batch file' }
+        $sections = Read-InspectorBatch (Get-FullPath $batch)
+        $label = Get-Option 'Label' ([IO.Path]::GetFileNameWithoutExtension($batch))
+        if ($label -cnotmatch '^[\x21-\x7e]+$') { Stop-Session "-Label '$label' isn't a label" 'use printable ASCII with no spaces' }
+        $save = Resolve-SaveFolder
+        if (-not $save) { Stop-Session '-Batch needs -SaveLog' 'pass a folder outside any repository for the inspector log: answers can hold game text' }
+        New-Item -ItemType Directory -Force $save | Out-Null
+    }
+    else {
+        $batchOnly = @('Label', 'WaitKey', 'SaveLog' | Where-Object { $script:Options.ContainsKey($_) })
+        if ($batchOnly) { Stop-Session "-$($batchOnly -join ', -') works only with -Batch" 'pass -Batch <file>, or drop it' }
+        if (-not $requests) { Stop-Session 'no request' "pass one or more, as in: session.ps1 inspect 'help'" }
+    }
     $pipeName = Get-Option 'PipeName' $InspectorPipeName
     $pipe = [System.IO.Pipes.NamedPipeClientStream]::new(
         '.', $pipeName, [System.IO.Pipes.PipeDirection]::InOut, [System.IO.Pipes.PipeOptions]::CurrentUserOnly,
@@ -683,11 +796,11 @@ function Invoke-Inspect {
         $writer.NewLine = "`n"
         $writer.AutoFlush = $true
         $reader = [System.IO.StreamReader]::new($pipe, $ascii, $false, 1024, $true)
+        $inspector = [pscustomobject]@{ Writer = $writer; Reader = $reader }
+        if ($batch) { return Invoke-InspectBatch $inspector $sections $label (Join-Path $save $InspectorLogFileName) }
         $refused = 0
         foreach ($line in $requests) {
-            $writer.WriteLine($line)
-            $response = $reader.ReadLine()
-            if ($null -eq $response) { Stop-Session 'the inspector closed the connection' 'check the game is still running' 2 }
+            $response = Send-InspectorRequest $inspector $line
             Write-Host $response
             if (-not $response.StartsWith('ok', [System.StringComparison]::Ordinal)) { $refused++ }
         }
