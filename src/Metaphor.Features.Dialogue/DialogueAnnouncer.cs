@@ -4,8 +4,9 @@ using Metaphor.Core.Settings;
 
 namespace Metaphor.Features.Dialogue;
 
-/// <summary>Spoken story dialogue (#52): each line shown in the dialogue box is announced as "Name: line", or the line
-/// alone when there's no speaker, interrupting the line before. A voiced line follows the "Voiced lines" setting
+/// <summary>Spoken story dialogue (#52): each line shown in the dialogue box is announced as "Name: line" on a
+/// conversation's first line and when the speaker changes, and as the line alone while the same speaker continues or
+/// when there's no speaker (#539), interrupting the line before. A voiced line follows the "Voiced lines" setting
 /// (#57, #104); the history (#126) keeps every line in full whatever is said.</summary>
 public sealed class DialogueAnnouncer
 {
@@ -17,6 +18,9 @@ public sealed class DialogueAnnouncer
     private readonly DialogueHistory history;
     private readonly Func<VoicedLinesMode> voicedLines;
     private readonly Func<VoiceLanguage> voiceLanguage;
+    private readonly Lock gate = new();
+    private bool started;
+    private string? lastSpeaker;
 
     /// <param name="announcer">Where lines are said.</param>
     /// <param name="cleaner">Turns the game's text into what is said.</param>
@@ -55,21 +59,43 @@ public sealed class DialogueAnnouncer
         var name = cleaner.Clean(speaker ?? "");
         var full = name.Length == 0 ? text : $"{name}: {text}";
         // Recorded before the mode is applied, so the history holds the full line even if it goes unspoken (#126).
+        // The history keeps the name on every line, so the replay key always says name and line (#539).
         history.Add(full);
+        // The name is said on a conversation's first line and when the speaker changes (#539).
+        bool changed;
+        lock (gate)
+        {
+            changed = !started || !string.Equals(lastSpeaker, name, StringComparison.Ordinal);
+            started = true;
+            lastSpeaker = name;
+        }
+        var said = changed ? full : text;
         var mode = line.Contains(VoiceTag, StringComparison.Ordinal) ? Effective(voicedLines()) : VoicedLinesMode.FullLine;
         switch (mode)
         {
             case VoicedLinesMode.Nothing:
                 return;
             case VoicedLinesMode.NameOnly:
-                if (name.Length > 0)
+                // A voiced line whose speaker hasn't changed says nothing.
+                if (changed && name.Length > 0)
                 {
                     announcer.Announce(new Announcement(name, Interrupt: true));
                 }
                 return;
             default:
-                announcer.Announce(new Announcement(full, Interrupt: true));
+                announcer.Announce(new Announcement(said, Interrupt: true));
                 return;
+        }
+    }
+
+    /// <summary>Ends the conversation, so the next line counts as a first and says its speaker (#539). Called when the
+    /// dialogue window closes.</summary>
+    public void EndConversation()
+    {
+        lock (gate)
+        {
+            started = false;
+            lastSpeaker = null;
         }
     }
 

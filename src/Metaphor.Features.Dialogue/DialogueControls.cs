@@ -35,14 +35,16 @@ public sealed class DialogueControls : IWindowInputControls
     private readonly DialogueHistory history;
     private readonly DialogueReader reader;
     private readonly IAnnouncer announcer;
+    private readonly Action? onClose;
     private readonly Binding repeat = new();
     private readonly Binding toggle = new();
     private bool open;
     // The history's count when the window last closed: repeat speaks only lines recorded after it (#526).
     private long closedAt;
 
-    public DialogueControls(DialogueBindings bindings, DialogueHistory history, DialogueReader reader, IAnnouncer announcer)
+    public DialogueControls(DialogueBindings bindings, DialogueHistory history, DialogueReader reader, IAnnouncer announcer, Action? onClose = null)
     {
+        this.onClose = onClose;
         ArgumentNullException.ThrowIfNull(bindings);
         ArgumentNullException.ThrowIfNull(history);
         ArgumentNullException.ThrowIfNull(reader);
@@ -65,6 +67,8 @@ public sealed class DialogueControls : IWindowInputControls
             if (open && !nowOpen)
             {
                 closedAt = history.Recorded;
+                // A closed window ends the conversation: the next line says its speaker again (#539).
+                onClose?.Invoke();
             }
             open = nowOpen;
         }
