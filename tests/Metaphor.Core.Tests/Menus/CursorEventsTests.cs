@@ -3,8 +3,8 @@ using Metaphor.Core.Menus;
 namespace Metaphor.Core.Tests.Menus;
 
 /// <summary>The menu cursor hook hands each handled input to its observers (#94), as the message hooks do (#86): in
-/// the order they were added, only when a manager's cursor or command changed, and one observer's failure never
-/// reaches the others.</summary>
+/// the order they were added, only when a manager's cursor or command changed or the manager comes back after a
+/// silence (#557), and one observer's failure never reaches the others.</summary>
 [Trait("Category", "Unit")]
 public sealed class CursorEventsTests
 {
@@ -73,6 +73,53 @@ public sealed class CursorEventsTests
         events.Handled(Input(0xa0, Settle, row: 0));
 
         Assert.Equal(["menus:0xa0:1:0", "menus:0xb0:1:0"], seen);
+    }
+
+    // #557: a screen hidden behind another (the title's System submenu behind Settings) has its manager's handler
+    // called again when it returns, with the input it last had, and that return must be heard.
+    [Fact]
+    public void AnInputLikeThatManagersLastIsToldAgainWhenTheManagerWasNotCalledForAWhile()
+    {
+        var now = 0L;
+        var timed = new CursorEvents(() => now);
+        timed.Observe(new Recording("menus", seen));
+        timed.Handled(Input(0xa0, Settle, row: 0));
+
+        now += CursorEvents.QuietMilliseconds;
+        timed.Handled(Input(0xa0, Settle, row: 0));
+
+        Assert.Equal(["menus:0xa0:1:0", "menus:0xa0:1:0"], seen);
+    }
+
+    [Fact]
+    public void AManagerCalledOnEveryFrameIsNotToldItsSameInputAgainHoweverLongItStays()
+    {
+        var now = 0L;
+        var timed = new CursorEvents(() => now);
+        timed.Observe(new Recording("menus", seen));
+
+        for (var frame = 0; frame < 120; frame++)
+        {
+            timed.Handled(Input(0xa0, Settle, row: 0));
+            timed.Handled(Input(0xb0, Settle, row: 3));
+            now += 17;
+        }
+
+        Assert.Equal(["menus:0xa0:1:0", "menus:0xb0:1:3"], seen);
+    }
+
+    [Fact]
+    public void AnInputLikeThatManagersLastIsDroppedJustInsideTheQuietTime()
+    {
+        var now = 0L;
+        var timed = new CursorEvents(() => now);
+        timed.Observe(new Recording("menus", seen));
+        timed.Handled(Input(0xa0, Settle, row: 0));
+
+        now += CursorEvents.QuietMilliseconds - 1;
+        timed.Handled(Input(0xa0, Settle, row: 0));
+
+        Assert.Equal(["menus:0xa0:1:0"], seen);
     }
 
     [Fact]
