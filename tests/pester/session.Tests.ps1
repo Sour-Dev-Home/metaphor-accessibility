@@ -405,7 +405,8 @@ Describe 'session.ps1' {
 
     Context 'status' {
         It 'reports an undeployed mod, the game build and the valid opt-ins, and changes nothing' {
-            $result = Invoke-Session status
+            # A pipe of its own: a game running the mod on this machine listens on the default one (#508).
+            $result = Invoke-Session status -Extra '-PipeName', "metaphor-test-$(New-Guid)"
 
             $result.ExitCode | Should -Be 0 -Because $result.Output
             $result.Output | Should -Match "game: <game>\\METAPHOR.exe, build $($f.Build) \(Steam build 1\)"
