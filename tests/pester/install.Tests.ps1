@@ -806,6 +806,61 @@ Describe 'Get-PinnedFile' {
         finally { $env:METAPHOR_INSTALL_TEST_FILES = $saved.FILES; $env:CI = $saved.CI }
         { [IO.File]::Open((Join-Path $work 'file.exe'), 'Open', 'ReadWrite', 'None').Dispose() } | Should -Not -Throw
     }
+
+    # #458: a proxy or captive portal that accepts the connection and then goes quiet. A loopback listener stands in for
+    # it: Windows accepts connections into its backlog, and nothing ever answers them.
+    It 'gives up on a download that never answers, says what to do, and keeps nothing' {
+        $work = (New-Item -ItemType Directory (Join-Path $TestDrive (New-Guid))).FullName
+        $listener = [Net.Sockets.TcpListener]::new([Net.IPAddress]::Loopback, 0)
+        $listener.Start()
+        try {
+            $pin = [pscustomobject]@{ name = 'Reloaded-II'; fileName = 'file.zip'; sha256 = '0' * 64
+                url = "https://127.0.0.1:$($listener.LocalEndpoint.Port)/file.zip" }
+            $clock = [Diagnostics.Stopwatch]::StartNew()
+            $result = InModuleScope MetaphorInstall -Parameters @{ Pin = $pin; Work = $work } {
+                $saved = $script:DownloadTimeout
+                $script:DownloadTimeout = @{ WaitSeconds = 2; TotalSeconds = 60 }
+                try { Get-PinnedFile ([pscustomobject]@{ WorkFolder = $Work }) $Pin } finally { $script:DownloadTimeout = $saved }
+            }
+            $clock.Stop()
+        }
+        finally { $listener.Stop() }
+        $clock.Elapsed.TotalSeconds | Should -BeLessThan 30
+        $result.Path | Should -BeNullOrEmpty
+        $result.Step.State | Should -Be 'failed'
+        $result.Step.Line | Should -Be 'The download of Reloaded-II did not finish.'
+        $result.Step.Fix | Should -Be ('The internet connection, or a proxy or firewall, probably stopped it. Check that this computer is ' +
+            'online, then run the installer again. If it fails again, report it with the alpha feedback form.')
+        @(Get-ChildItem -LiteralPath $work -Force) | Should -BeNullOrEmpty
+    }
+}
+
+Describe 'Save-Download' {
+    BeforeAll {
+        # A download source: a file URL, which the same request code reads, so no network is needed.
+        $script:source = Join-Path $TestDrive 'source.bin'
+        [IO.File]::WriteAllBytes($source, [byte[]]::new(300000))
+    }
+
+    It 'keeps no partial file when the download fails part way' {
+        $work = (New-Item -ItemType Directory (Join-Path $TestDrive (New-Guid))).FullName
+        $target = Join-Path $work 'file.zip'
+        # A total time already used up after the first block of data.
+        { InModuleScope MetaphorInstall -Parameters @{ Uri = [Uri] $source; Target = $target } {
+                $saved = $script:DownloadTimeout
+                $script:DownloadTimeout = @{ WaitSeconds = 2; TotalSeconds = -1 }
+                try { Save-Download $Uri $Target } finally { $script:DownloadTimeout = $saved }
+            } } | Should -Throw '*took longer than -1 seconds*'
+        @(Get-ChildItem -LiteralPath $work -Force) | Should -BeNullOrEmpty
+    }
+
+    It 'saves a whole download under its name' {
+        $work = (New-Item -ItemType Directory (Join-Path $TestDrive (New-Guid))).FullName
+        $target = Join-Path $work 'file.zip'
+        InModuleScope MetaphorInstall -Parameters @{ Uri = [Uri] $source; Target = $target } { Save-Download $Uri $Target }
+        (Get-Item -LiteralPath $target).Length | Should -Be 300000
+        @(Get-ChildItem -LiteralPath $work -Force).Count | Should -Be 1
+    }
 }
 
 Describe 'Test-TestSwitch' {
