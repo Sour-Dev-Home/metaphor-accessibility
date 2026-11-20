@@ -114,9 +114,18 @@ else
 fi
 trap 'rm -rf "$work"' EXIT
 
-# fetch URL SHA256 FILE: download URL to FILE and fail unless its SHA-256 matches.
+# fetch URL SHA256 FILE: download URL to FILE and fail unless its SHA-256 matches. Each try gives up after 30 s without a
+# connection or 300 s in all, so a blocked network fails instead of hanging (#458). Git Bash's curl doesn't use the
+# Windows proxy settings, only HTTPS_PROXY or https_proxy, so a failed download says so.
 fetch() {
-  curl -fsSL --retry 3 -o "$3" "$1"
+  local code=0
+  curl -fsSL --retry 3 --connect-timeout 30 --max-time 300 -o "$3" "$1" || code=$?
+  if [ "$code" -ne 0 ]; then
+    echo "install-docs-tools: could not download $1 (curl exit $code). If this network uses a proxy, a likely" \
+      "cause: curl here doesn't use the Windows proxy settings. Point it at the proxy with HTTPS_PROXY (or" \
+      "https_proxy), for example: HTTPS_PROXY=http://proxy.example:8080 bash scripts/setup/install-docs-tools.sh" >&2
+    exit 1
+  fi
   echo "$2  $3" | sha256sum -c --quiet - || { echo "install-docs-tools: SHA-256 mismatch for $1" >&2; exit 1; }
 }
 
