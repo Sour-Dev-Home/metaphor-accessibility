@@ -38,6 +38,8 @@ public sealed class DialogueControls : IWindowInputControls
     private readonly Binding repeat = new();
     private readonly Binding toggle = new();
     private bool open;
+    // The history's count when the window last closed: repeat speaks only lines recorded after it (#526).
+    private long closedAt;
 
     public DialogueControls(DialogueBindings bindings, DialogueHistory history, DialogueReader reader, IAnnouncer announcer)
     {
@@ -53,12 +55,18 @@ public sealed class DialogueControls : IWindowInputControls
 
     /// <summary>One read of the message the dialogue window holds (<c>[W+0x60]</c>): non-zero while a line or a choice
     /// is on screen, 0 once the window closes, and null when it couldn't be read, which counts as closed. Game build
-    /// 548ddc95… (Steam build 18330018): docs/raw-sources/dialogue-window-flag-session5-2026-11-17.md.</summary>
+    /// 548ddc95… (Steam build 18330018): docs/raw-sources/dialogue-window-flag-session5-2026-11-17.md. A close makes
+    /// every line so far stale, so repeat in the next window never replays the last window's line (#526).</summary>
     public void WindowRead(long? currentMessage)
     {
         lock (gate)
         {
-            open = currentMessage is { } message && message != 0;
+            var nowOpen = currentMessage is { } message && message != 0;
+            if (open && !nowOpen)
+            {
+                closedAt = history.Recorded;
+            }
+            open = nowOpen;
         }
     }
 
@@ -99,16 +107,18 @@ public sealed class DialogueControls : IWindowInputControls
         bool repeatPressed;
         bool togglePressed;
         bool hidden;
+        long since;
         lock (gate)
         {
             hidden = open;
+            since = closedAt;
             repeatPressed = repeat.Update(source, repeatHeld) && open;
             togglePressed = toggle.Update(source, toggleHeld) && open;
         }
         // Spoken outside the lock: the announcer may take its time.
         if (repeatPressed)
         {
-            announcer.Announce(new Announcement(history.Latest ?? "No dialogue to repeat", Interrupt: true));
+            announcer.Announce(new Announcement(history.LatestSince(since) ?? "No dialogue to repeat", Interrupt: true));
         }
         if (togglePressed)
         {

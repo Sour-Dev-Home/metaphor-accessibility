@@ -89,7 +89,9 @@ internal sealed record HookServices
         var menuControls = new MenuControls(menuBindings, screens, reader, []);
         screens.Observe(menuControls);
         events.ObserveFiles(library);
-        events.ObserveLines(new DialogueLines(library, dialogue));
+        var lines = new DialogueLines(library, dialogue);
+        events.ObserveLines(lines);
+        events.ObserveShownLines(lines);
         events.ObserveChoices(new DialogueChoices(library, dialogue));
         var choiceFocus = new ChoiceFocus(library, announcer, cleaner);
         events.ObserveChoices(choiceFocus);

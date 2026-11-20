@@ -187,5 +187,12 @@
     "pattern": "40 55 57 48 8D 6C 24 B1 48 81 EC A8 00 00 00 48 8B F9 E8 19 B9 55 00 48 8B 47 30 48 8B CF C5 FA 10 47 38 48 89 45 D7 8B 47 3C 89 45 E3",
     "gameBuilds": ["548ddc955c176867f062c44f94c03dd9ac33caefb278a5ac388e792aedf09504"],
     "evidence": "Our reading of the exe through its type information (docs/raw-sources/ui-focus-candidates-2026-11-16.md); one match on disk with its first call's offset fixed (a licence-text copy matches otherwise); not yet checked in memory"
+  },
+  {
+    "name": "MsgWindowShowLine",
+    "section": ".ecode",
+    "pattern": "48 89 5C 24 08 44 88 44 24 18 55 56 57 41 54 41 55 41 56 41 57 48 81 EC 80 00 00 00 C5 F8 29 74 24 70 4C 8B F2 48 8B F1 8B 12 E8 ?? ?? ?? ?? 48 8B D8 48 85 C0 0F 84 ?? ?? ?? ?? 48 8B 50 28 48 2B 50 20",
+    "gameBuilds": ["548ddc955c176867f062c44f94c03dd9ac33caefb278a5ac388e792aedf09504"],
+    "evidence": "Our reading of the exe in Ghidra 12.2: the one function that puts a requested line in the message window, called by every MsgRequest inner function (docs/raw-sources/msg-window-show-line-2026-11-20.md); one match on disk; not yet checked in memory"
   }
 ]

@@ -27,6 +27,7 @@ public sealed class InputFrameReplayTests
 
     private readonly FakeGame game = new();
     private readonly CursorEvents cursors = new();
+    private readonly DialogueHistory history = new();
     private readonly RecordingAnnouncer menuSpeech = new();
     private readonly CountingReader menuReader;
     private readonly RecordingAnnouncer dialogueSpeech = new();
@@ -46,8 +47,6 @@ public sealed class InputFrameReplayTests
             },
             screens, menuReader, []);
         screens.Observe(menus);
-        var history = new DialogueHistory();
-        history.Add("Made up line.");
         dialogueReader = new DialogueReader(dialogueSpeech);
         var dialogue = new DialogueControls(DialogueBindings.Default, history, dialogueReader, dialogueSpeech);
         frame = new InputFrame(game, screens, menus, dialogue);
@@ -192,8 +191,19 @@ public sealed class InputFrameReplayTests
                 }
             },
             menus: menus ? open => Idle(route, () => game.Menus = open) : null,
-            window: window ? current => Idle(route, () => game.Window = current) : null);
+            window: window ? current => WindowRead(route, current) : null);
         return reads;
+    }
+
+    // The fixtures have no line records: each window shows a made-up line as it opens, since repeat speaks only a line
+    // from the window it is pressed in (#526).
+    private void WindowRead(Route route, long? current)
+    {
+        if (current is not (null or 0) && game.Window is null or 0)
+        {
+            history.Add("Made up line.");
+        }
+        Idle(route, () => game.Window = current);
     }
 
     /// <summary>Changes the game state, then makes one read with nothing held, as the game's next frame would before

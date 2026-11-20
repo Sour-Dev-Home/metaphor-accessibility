@@ -1,3 +1,5 @@
+using System.Globalization;
+using Metaphor.Core;
 using Metaphor.Core.Messages;
 
 namespace Metaphor.Hooks;
@@ -59,6 +61,46 @@ internal sealed class DialogueLineHook : IGameHook, IObserves3
         if (ModuleMemoryReader.ReadAnsiString(label) is { } name)
         {
             events.Requested(new LineRequested((int)kind, name));
+        }
+    }
+}
+
+/// <summary>Reports each line the game puts in its message window (#526), whichever route asked for it: every
+/// <c>MsgRequest…</c> inner function and the by-hash routes with no scripted caller end in this one function. Its
+/// arguments are the window, a request block and a flag; the block holds the kind at <c>+4</c> and the MD5 of the
+/// line's label at <c>+0x98</c>. The function, the block and the name (ours) are in
+/// docs/raw-sources/msg-window-show-line-2026-11-20.md, game build 548ddc95… (Steam build 18330018). Only those 20
+/// bytes are read; in Debug builds each call is logged as a <c>request</c> record with the kind and hash, no text.
+/// </summary>
+[GameHook(GameBuilds.Steam18330018)]
+internal sealed class DialogueShownLineHook : IGameHook, IObserves3
+{
+    private const int KindOffset = 4;
+    private const int LabelHashOffset = 0x98;
+    private const int LabelHashLength = 16;
+
+    private readonly MessageEvents events;
+    private readonly MessageLog? log;
+
+    public DialogueShownLineHook(HookServices services)
+    {
+        ArgumentNullException.ThrowIfNull(services);
+        events = services.Messages;
+        log = services.Log;
+    }
+
+    public string SignatureName => "MsgWindowShowLine";
+
+    public void Observe(nint window, nint request, nint flag)
+    {
+        var hash = new byte[LabelHashLength];
+        // A block that can't be read is skipped.
+        if (ModuleMemoryReader.ReadInt32(request + KindOffset) is { } kind
+            && ModuleMemoryReader.ReadBytes(request + LabelHashOffset, hash))
+        {
+            var line = new LineShown(kind, Convert.ToHexString(hash));
+            log?.Requested(SignatureName, string.Create(CultureInfo.InvariantCulture, $"kind={kind} hash={line.LabelHash}"));
+            events.Shown(line);
         }
     }
 }

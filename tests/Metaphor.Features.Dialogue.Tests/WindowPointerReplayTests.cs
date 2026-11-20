@@ -24,7 +24,6 @@ public sealed class WindowPointerReplayTests
     public WindowPointerReplayTests()
     {
         var history = new DialogueHistory();
-        history.Add("Made up line.");
         reader = new DialogueReader(announcer);
         controls = new DialogueControls(DialogueBindings.Default, history, reader, announcer);
         var fixture = SessionFixture.Parse(File.ReadAllText(Path.Combine(AppContext.BaseDirectory, "sessions", "window-pointer-field-talk.txt")));
@@ -32,7 +31,14 @@ public sealed class WindowPointerReplayTests
             pad: read => reads.Add((open, read.Buttons, controls.Pad(read.Pad, read.Buttons))),
             window: current =>
             {
-                open = current is { } message && message != 0;
+                var nowOpen = current is { } message && message != 0;
+                // The fixture has no line records: each window shows a made-up line as it opens, since repeat speaks
+                // only a line from the window it is pressed in (#526).
+                if (nowOpen && !open)
+                {
+                    history.Add("Made up line.");
+                }
+                open = nowOpen;
                 controls.WindowRead(current);
             });
     }

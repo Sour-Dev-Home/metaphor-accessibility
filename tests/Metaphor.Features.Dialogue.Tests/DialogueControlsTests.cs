@@ -46,6 +46,34 @@ public sealed class DialogueControlsTests
         Assert.Equal([Said("Ada: Two.")], announcer.Said);
     }
 
+    // #526: a scene whose lines weren't read replayed the opening's last line, from the window before.
+    [Fact]
+    public void AfterTheWindowClosesRepeatDoesNotSpeakThePreviousWindowsLine()
+    {
+        history.Add("More: Last line of the opening.");
+        controls.WindowRead(Message);
+        controls.WindowRead(0);
+        controls.WindowRead(Message + 0x10);
+
+        controls.Pad(0, X);
+
+        Assert.Equal([Said("No dialogue to repeat")], announcer.Said);
+    }
+
+    [Fact]
+    public void AfterTheWindowClosesRepeatSpeaksTheNewWindowsLine()
+    {
+        history.Add("More: Last line of the opening.");
+        controls.WindowRead(Message);
+        controls.WindowRead(null);
+        history.Add("Gallica: A new line.");
+        controls.WindowRead(Message);
+
+        controls.Pad(0, X);
+
+        Assert.Equal([Said("Gallica: A new line.")], announcer.Said);
+    }
+
     [Fact]
     public void HoldingXRepeatsOnce()
     {
