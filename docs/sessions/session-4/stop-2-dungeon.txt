@@ -1,0 +1,33 @@
+# Game session 4 (#499), stop 2: the first room of a dungeon, walls and paths (#179, #181, #182 to #185).
+# Game build 548ddc95... (Steam 18330018). Leads: docs/findings/field-navmesh-and-path-queries-static.md,
+# docs/findings/field-position-facing-map-static.md.
+# As in stop 1, each follow prints an address and the "then" lines are reads to type afterwards with that address.
+# New map, new heap: don't reuse stop 1's addresses.
+[dungeon-nav]
+# Run standing in the first room, free to move.
+base
+# Map id (then read <addr> 4: a new id) and the player's position (then read <addr> 0x20).
+follow base+0x2ee7368 0x48
+follow base+0x2ee7510 0x20 0x0 0x80
+# Scene: then rtti <addr>; expect fldScene_Idle@fld@app.
+follow base+0x2ee7348 0x10 0x10 0x0
+# fldBg (then rtti), the nav object N (non-zero, and not stop 1's), dtNavMesh (then read <addr> 0x58),
+# dtNavMeshQuery (then read <addr> 8: the dtNavMesh address), tile 0's header (then read <addr> 0x64: 'DNAV', 7).
+follow base+0x2ee7510 0x38 0x8 0x0
+follow base+0x2ee7510 0x38 0x8 0x48 0x0
+follow base+0x2ee7510 0x38 0x8 0x48 0x130 0x0
+follow base+0x2ee7510 0x38 0x8 0x48 0x138 0x0
+follow base+0x2ee7510 0x38 0x8 0x48 0x130 0x50 0x8 0x0
+# Tile 1's header (tiles are 0x68 bytes apart): an err or a zero means the map has one tile.
+follow base+0x2ee7510 0x38 0x8 0x48 0x130 0x50 0x70 0x0
+# The query's extents block for the nearest-point search ([N+0x140]+0x374): then read <addr> 12 (three floats,
+# a search box's half-size in the position unit).
+follow base+0x2ee7510 0x38 0x8 0x48 0x140 0x374
+[after-wall]
+# Run while pressed against a wall, then at the far end of the corridor, then round the corner.
+# The nav object and navmesh must not change while walking in the same room; the position stays within the tile
+# header's bmin/bmax (+0x48 and +0x54, three floats each).
+follow base+0x2ee7510 0x38 0x8 0x48 0x0
+follow base+0x2ee7510 0x38 0x8 0x48 0x130 0x0
+follow base+0x2ee7510 0x20 0x0 0x80
+follow base+0x2ee7368 0x48
