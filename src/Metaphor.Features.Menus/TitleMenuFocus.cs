@@ -7,8 +7,9 @@ namespace Metaphor.Features.Menus;
 /// <summary>Speaks the title menu (#94, #208): on entering the screen, "Main menu" and the focused item, then on each
 /// focus move "item, n of total", each cutting off the last. The screen is recognised by its screen class
 /// (<see cref="Screen"/>), so the title's message file compiling again during play changes nothing. Item text is looked
-/// up at run time (<see cref="MessageLibrary"/>); only the label and the count are ours
-/// (docs/raw-sources/title-menu-labels-2026-11-16.md). Safe to call from several threads.</summary>
+/// up at run time (<see cref="MessageLibrary"/>); only the label, the count and the third item's word are ours
+/// (docs/raw-sources/title-menu-labels-2026-11-16.md, docs/raw-sources/title-menu-item-images-2026-11-20.md). Safe to
+/// call from several threads.</summary>
 public sealed class TitleMenuFocus : IScreenObserver
 {
     /// <summary>The title menu: its choice's class on build 548ddc95, from its run-time type information
@@ -19,6 +20,12 @@ public sealed class TitleMenuFocus : IScreenObserver
     // (docs/raw-sources/title-menu-labels-2026-11-16.md).
     private const string ItemsLabel = "Title_System_08";
     private const int ItemCount = 3;
+
+    // The screen draws the items from images, not the message. The third image says "System" (it opens the Settings and
+    // Credits submenu) while the message's third line says Settings, so that item is our own word, English only
+    // (#537, docs/raw-sources/title-menu-item-images-2026-11-20.md).
+    private const int SystemIndex = 2;
+    private const string SystemWord = "System";
 
     private readonly IMessageLookup messages;
     private readonly IAnnouncer announcer;
@@ -43,9 +50,14 @@ public sealed class TitleMenuFocus : IScreenObserver
         }
     }
 
-    // The item's text, or null when its message or line is missing.
+    // The item's text: ours for the third, else the message's line, or null when the message or line is missing.
     private string? ItemText(int index)
     {
+        if (index == SystemIndex)
+        {
+            return SystemWord;
+        }
+
         var lines = (messages.Find(ItemsLabel)?.Text ?? "").Split('\n')
             .Select(cleaner.Clean).Where(line => line.Length > 0).ToList();
         return index < lines.Count ? lines[index] : null;

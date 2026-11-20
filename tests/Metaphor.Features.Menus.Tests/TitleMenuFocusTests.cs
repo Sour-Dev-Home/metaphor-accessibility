@@ -63,7 +63,7 @@ public sealed class TitleMenuFocusTests
         Assert.Equal(
             [
                 new Announcement("Resume, 2 of 3", Interrupt: true),
-                new Announcement("Options, 3 of 3", Interrupt: true),
+                new Announcement("System, 3 of 3", Interrupt: true),
                 new Announcement("Begin, 1 of 3", Interrupt: true),
             ],
             announcer.Said.Skip(1));
@@ -126,7 +126,7 @@ public sealed class TitleMenuFocusTests
 
         Cursor(Settle, row: 1);
 
-        Assert.Equal(["Main menu, Options, 3 of 3", "Main menu, Resume, 2 of 3"], Said());
+        Assert.Equal(["Main menu, System, 3 of 3", "Main menu, Resume, 2 of 3"], Said());
     }
 
     [Fact]
@@ -164,8 +164,28 @@ public sealed class TitleMenuFocusTests
     {
         TitleFileCompiled(@"JP\message\system\title_system.msg");
 
+        Cursor(Settle, row: 1);
+
+        Assert.Equal(["Main menu, Resume, 2 of 3"], Said());
+    }
+
+    // The game draws the title items from images, and its third shows "System" while the message's third line says
+    // Settings (#537, docs/raw-sources/title-menu-item-images-2026-11-20.md).
+    [Fact]
+    public void TheThirdItemIsSpokenAsSystemTheWordItsImageShowsNotTheMessagesLine()
+    {
+        TitleFileCompiled();
+
         Cursor(Settle, row: 2);
 
-        Assert.Equal(["Main menu, Options, 3 of 3"], Said());
+        Assert.Equal(["Main menu, System, 3 of 3"], Said());
+    }
+
+    [Fact]
+    public void TheThirdItemIsSpokenAsSystemEvenWithoutTheMessage()
+    {
+        Cursor(Settle, row: 2);
+
+        Assert.Equal(["Main menu, System, 3 of 3"], Said());
     }
 }

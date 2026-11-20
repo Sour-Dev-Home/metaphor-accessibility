@@ -7,8 +7,8 @@ namespace Metaphor.Features.Menus.Tests;
 
 /// <summary>The title menu (#94, #208) against recorded sessions (#149): replays fixtures under
 /// <c>tests/fixtures/sessions/</c> through the message and cursor seams, as the hooks feed them, and checks which items
-/// were announced, in what order, through the recording announcer. Item text is made up, keyed by the real label; the
-/// wording is <see cref="TitleMenuFocusTests"/>' job.</summary>
+/// were announced, in what order, through the recording announcer. Item text is made up, keyed by the real label, except
+/// the third item, which is the mod's own "System" (#537); the wording is <see cref="TitleMenuFocusTests"/>' job.</summary>
 [Trait("Category", "Unit")]
 public sealed class TitleMenuReplayTests
 {
@@ -44,10 +44,10 @@ public sealed class TitleMenuReplayTests
         // screens, which aren't known; then back on the title's third item.
         Assert.Equal(
             [
-                "Main menu, Alpha, 1 of 3", "Bravo, 2 of 3", "Alpha, 1 of 3", "Bravo, 2 of 3", "Charlie, 3 of 3",
-                "Bravo, 2 of 3", "Alpha, 1 of 3", "Bravo, 2 of 3", "Charlie, 3 of 3",
+                "Main menu, Alpha, 1 of 3", "Bravo, 2 of 3", "Alpha, 1 of 3", "Bravo, 2 of 3", "System, 3 of 3",
+                "Bravo, 2 of 3", "Alpha, 1 of 3", "Bravo, 2 of 3", "System, 3 of 3",
                 "Alpha, 1 of 3", "Bravo, 2 of 3", "Alpha, 1 of 3",
-                "Main menu, Charlie, 3 of 3", "Bravo, 2 of 3",
+                "Main menu, System, 3 of 3", "Bravo, 2 of 3",
             ],
             Said());
         Assert.All(announcer.Said, said => Assert.True(said.Interrupt));
