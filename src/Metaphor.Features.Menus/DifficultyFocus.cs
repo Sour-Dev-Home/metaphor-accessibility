@@ -9,9 +9,9 @@ namespace Metaphor.Features.Menus;
 /// time (<see cref="MessageLibrary"/>), or the position alone when one is missing. Safe to call from several threads.
 /// </summary>
 /// <remarks>On build 548ddc95 the list is <c>UUIC_Common_DifficultySelect</c>, whose cursor is a shared
-/// <c>CursorManager</c> at its <c>+0x28</c>, index 0 at the top; the five labels and their order are in
-/// docs/findings/difficulty-select-shared-cursor.md. That the list draws these same words is
-/// <c>[NEEDS VERIFICATION]</c> by ear.</remarks>
+/// <c>CursorManager</c> at its <c>+0x28</c>, index 0 at the bottom; the five labels and their order are in
+/// docs/findings/difficulty-select-shared-cursor.md. The order on screen, top first, was heard by the maintainer on
+/// 2026-11-20.</remarks>
 public sealed class DifficultyFocus : IScreenObserver
 {
     /// <summary>The difficulty list: its owner's class on build 548ddc95, from its run-time type information, shown
@@ -40,8 +40,16 @@ public sealed class DifficultyFocus : IScreenObserver
     /// <summary>Speaks the focus when the difficulty list is entered or its focus moves.</summary>
     public void Observe(ScreenEvent change)
     {
+        ArgumentNullException.ThrowIfNull(change);
+
+        // The cursor counts from the bottom: index 0 is the last name on screen, and Up raises the index (heard by the
+        // maintainer, 2026-11-20: Up from "Normal" on index 2 showed "Easy" on index 3). Turn it into the on-screen
+        // position, top first.
+        var fromTop = change.Index >= 0 && change.Index < NameLabels.Length
+            ? change with { Index = NameLabels.Length - 1 - change.Index }
+            : change;
         var said = ListFocus.Of(
-            change, Screen, Screen.Name, NameLabels.Length, index => MessageLines.Line(messages, cleaner, NameLabels[index], 0));
+            fromTop, Screen, Screen.Name, NameLabels.Length, index => MessageLines.Line(messages, cleaner, NameLabels[index], 0));
         if (said is not null)
         {
             announcer.Announce(said);

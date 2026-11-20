@@ -39,8 +39,9 @@ every cursor. The yes/no dialog after it was silent for the second reason alone.
 - **Names.** The run's message log has `EN/message/system/System_Message.msg` (compiled at 8 s) with
   `System_General_17` "Storyteller", `_18` "Easy", `_19` "Normal", `_20` "Hard" and `_20_1` "Regicide", and the scene's
   own file `e00_002_001.msg` with `MES_e00_002_001_014_01`, a `SEL` message whose five lines are the same names in that
-  order. The list opened on index 2 ("Normal"). That the list draws these words, top first, is `[NEEDS VERIFICATION]`
-  by ear. While the focus moved, `GetMessageBySerial` resolved serials 1890, 1889, 1888 and 1890 for indexes 2, 3, 4,
+  order. The list opened on index 2 ("Normal"). By ear (maintainer, 2026-11-20, #571's build) the screen shows these
+  words in that order top first, but the cursor counts from the bottom: Up from "Normal" (index 2) reached "Easy" on
+  index 3, so index 0 is "Regicide" and index 4 "Storyteller". While the focus moved, `GetMessageBySerial` resolved serials 1890, 1889, 1888 and 1890 for indexes 2, 3, 4,
   2: probably each item's description, labels unknown `[NEEDS VERIFICATION]`, a lead for the details key.
 
 What to check in game with this change: the report log's `cursor` records on the list show

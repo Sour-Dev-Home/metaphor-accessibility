@@ -18,7 +18,7 @@ public sealed class DifficultyFocusTests
     private const string DifficultyClass = "UUIC_Common_DifficultySelect@ui@app";
     private const long List = 0xa0;
     private const int Settle = 0x1;
-    private const int Down = 0x14;
+    private const int Up = 0x14;
 
     private readonly RecordingAnnouncer announcer = new();
     private readonly MessageEvents messages = new();
@@ -41,31 +41,42 @@ public sealed class DifficultyFocusTests
 
     private IEnumerable<string> Said() => announcer.Said.Select(said => said.Text);
 
-    // #540's run: the list opened on index 2 with the menus reading closed, then down twice and up once.
+    // #540's run: the list opened on index 2 with the menus reading closed, then up twice and down once. The cursor
+    // counts from the bottom, so a higher index is higher on screen (heard 2026-11-20).
     [Fact]
     public void EachDifficultyIsSpokenByNameAndPositionWhileTheMenusAreClosed()
     {
         SystemFileCompiled();
 
         Cursor(Settle, top: 2);
-        Cursor(Down, top: 3);
+        Cursor(Up, top: 3);
         Cursor(Settle, top: 3);
         Cursor(Settle, top: 4);
         Cursor(Settle, top: 3);
 
         Assert.Equal(
-            ["Difficulty, Middling, 3 of 5", "Stern, 4 of 5", "Cruel, 5 of 5", "Stern, 4 of 5"], Said());
+            ["Difficulty, Middling, 3 of 5", "Mild, 2 of 5", "Gentle, 1 of 5", "Mild, 2 of 5"], Said());
         Assert.All(announcer.Said, said => Assert.True(said.Interrupt));
     }
 
     [Fact]
-    public void TheTopIsTheFirstName()
+    public void TheHighestIndexIsTheFirstNameOnScreen()
+    {
+        SystemFileCompiled();
+
+        Cursor(Settle, top: 4);
+
+        Assert.Equal(["Difficulty, Gentle, 1 of 5"], Said());
+    }
+
+    [Fact]
+    public void IndexZeroIsTheLastNameOnScreen()
     {
         SystemFileCompiled();
 
         Cursor(Settle, top: 0);
 
-        Assert.Equal(["Difficulty, Gentle, 1 of 5"], Said());
+        Assert.Equal(["Difficulty, Cruel, 5 of 5"], Said());
     }
 
     [Fact]
@@ -73,7 +84,7 @@ public sealed class DifficultyFocusTests
     {
         Cursor(Settle, top: 1);
 
-        Assert.Equal(["Difficulty, 2 of 5"], Said());
+        Assert.Equal(["Difficulty, 4 of 5"], Said());
     }
 
     [Fact]
