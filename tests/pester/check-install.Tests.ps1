@@ -303,6 +303,81 @@ Describe 'Select-Speech' {
     }
 }
 
+# A stand-in SpeechSynthesizer (#457): DEFAULT is the voice it starts with, VOICES the installed ones (name, culture and
+# whether enabled). It records what it speaks; no real voice is used.
+Describe 'Start-Voice' {
+    BeforeAll {
+        function New-StandInVoice([string] $Default, [object[]] $Voices) {
+            $all = @($Voices | ForEach-Object {
+                    [pscustomobject]@{ Enabled = $_[2]; VoiceInfo = [pscustomobject]@{ Name = $_[0]; Culture = [Globalization.CultureInfo] $_[1] } } })
+            $voice = [pscustomobject]@{ Voice = ($all | Where-Object { $_.VoiceInfo.Name -eq $Default }).VoiceInfo; All = $all
+                Spoken = [Collections.Generic.List[string]]::new() }
+            $voice | Add-Member ScriptMethod SetOutputToDefaultAudioDevice { }
+            $voice | Add-Member ScriptMethod GetInstalledVoices { $this.All }
+            $voice | Add-Member ScriptMethod SelectVoice { param($Name) $this.Voice = ($this.All | Where-Object { $_.VoiceInfo.Name -eq $Name }).VoiceInfo }
+            $voice | Add-Member ScriptMethod Speak { param($Text) $this.Spoken.Add($Text) }
+            $voice
+        }
+        $script:speaking = [pscustomobject]@{ Speak = $true; Message = $null }
+        $script:noEnglish = 'Windows has no English voice to read these lines, so another language''s voice reads them, which may be hard to follow.'
+    }
+
+    It 'chooses an installed English voice over a French default, en-US first' {
+        $standIn = New-StandInVoice 'Hortense' @(('Hortense', 'fr-FR', $true), ('Hazel', 'en-GB', $true), ('Zira', 'en-US', $true))
+        $voice = Start-Voice $speaking { $standIn }.GetNewClosure() 6> $null
+        $voice.Voice.Name | Should -Be 'Zira'
+        $voice.Spoken | Should -BeNullOrEmpty
+    }
+
+    It 'skips a disabled English voice' {
+        $standIn = New-StandInVoice 'Hedda' @(('Hedda', 'de-DE', $true), ('Zira', 'en-US', $false), ('Hazel', 'en-GB', $true))
+        (Start-Voice $speaking { $standIn }.GetNewClosure() 6> $null).Voice.Name | Should -Be 'Hazel'
+    }
+
+    It 'keeps an English default voice' {
+        $standIn = New-StandInVoice 'Hazel' @(('Zira', 'en-US', $true), ('Hazel', 'en-GB', $true))
+        (Start-Voice $speaking { $standIn }.GetNewClosure() 6> $null).Voice.Name | Should -Be 'Hazel'
+    }
+
+    It 'keeps the default voice without an English one, and says so once' {
+        $standIn = New-StandInVoice 'Haruka' @(('Haruka', 'ja-JP', $true), ('Hortense', 'fr-FR', $true))
+        $printed = Start-Voice $speaking { $standIn }.GetNewClosure() 6>&1 | Where-Object { $_ -is [Management.Automation.InformationRecord] }
+        $standIn.Voice.Name | Should -Be 'Haruka'
+        @($standIn.Spoken) | Should -Be @($noEnglish)
+        @($printed | ForEach-Object { "$_" }) | Should -Be @($noEnglish)
+    }
+
+    It 'keeps the default voice when the English one will not select' {
+        $standIn = New-StandInVoice 'Hortense' @(('Hortense', 'fr-FR', $true), ('Zira', 'en-US', $true))
+        $standIn | Add-Member -Force ScriptMethod SelectVoice { throw 'voice unavailable' }
+        $voice = Start-Voice $speaking { $standIn }.GetNewClosure() 6> $null
+        $voice.Voice.Name | Should -Be 'Hortense'
+        @($voice.Spoken) | Should -Be @($noEnglish)
+    }
+
+    It 'prints only when the voice fails to say there is no English voice' {
+        $standIn = New-StandInVoice 'Haruka' @(, ('Haruka', 'ja-JP', $true))
+        $standIn | Add-Member -Force ScriptMethod Speak { throw 'audio device gone' }
+        $standIn | Add-Member ScriptMethod Dispose { }
+        $output = @(Start-Voice $speaking { $standIn }.GetNewClosure() 6>&1)
+        @($output | Where-Object { $null -ne $_ } | ForEach-Object { "$_" }) |
+            Should -Be @($noEnglish, 'Windows'' voice did not start, so the installer will only print from here on.')
+    }
+
+    It 'makes no voice while a screen reader is running, so the reader alone reads the window' {
+        $speech = Select-Speech -Speak $false -NoSpeech $false -Interactive $true -Readers 'NVDA'
+        # A voice made here would fail to start and add 'Windows' voice did not start' to the output.
+        $output = @(Start-Voice $speech { throw 'no voice should be made' } 6>&1)
+        @($output | Where-Object { $null -ne $_ } | ForEach-Object { "$_" }) |
+            Should -Be @("NVDA is running and reads this window, so printing only. Add -Speak to hear Windows' voice as well.")
+    }
+
+    It 'prints only when the voice will not start' {
+        $output = @(Start-Voice $speaking { throw 'no speech' } 6>&1)
+        @($output | Where-Object { $null -ne $_ } | ForEach-Object { "$_" }) | Should -Be @('Windows'' voice did not start, so the installer will only print from here on.')
+    }
+}
+
 Describe 'Find-ScreenReader' {
     It 'returns only the names of readers the mod supports' {
         @(Find-ScreenReader | Where-Object { $_ -notin 'NVDA', 'JAWS', 'ZoomText' }) | Should -BeNullOrEmpty

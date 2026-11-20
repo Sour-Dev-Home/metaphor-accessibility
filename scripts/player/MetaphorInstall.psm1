@@ -336,15 +336,63 @@ function Select-Speech([bool] $Speak, [bool] $NoSpeech, [bool] $Interactive, [st
     & $result $true $null
 }
 
-# Windows' own voice through System.Speech (SAPI), or $null when it can't start. Shared with install.ps1.
-function New-Voice {
+# Windows' own voice through System.Speech (SAPI), or $null when it can't start. NEWSYNTHESIZER stands in for the
+# SpeechSynthesizer in tests. The lines are English, so it uses an English voice (Select-EnglishVoice).
+function New-Voice([scriptblock] $NewSynthesizer) {
     try {
-        Add-Type -AssemblyName System.Speech
-        $voice = New-Object System.Speech.Synthesis.SpeechSynthesizer
+        if (-not $NewSynthesizer) {
+            Add-Type -AssemblyName System.Speech
+            $NewSynthesizer = { New-Object System.Speech.Synthesis.SpeechSynthesizer }
+        }
+        $voice = & $NewSynthesizer
         $voice.SetOutputToDefaultAudioDevice()
-        return $voice
     }
     catch { return $null }
+    Select-EnglishVoice $voice
+    $voice
+}
+
+# True for an English culture name: en, en-US, en-GB and the rest.
+function Test-EnglishCulture($Culture) { [bool]($Culture -and [string] $Culture.Name -match '^en(-|$)') }
+
+# Keeps VOICE's default voice when it is English; otherwise selects an installed, enabled English one, en-US first,
+# then en-GB, then any other. On a French, German or Japanese Windows the default voice would read the English lines
+# with its own language's pronunciation (#457). With no English voice, or one that won't select, the default stays.
+function Select-EnglishVoice($Voice) {
+    try {
+        if (Test-EnglishCulture $Voice.Voice.Culture) { return }
+        $english = @($Voice.GetInstalledVoices() | Where-Object { $_.Enabled -and (Test-EnglishCulture $_.VoiceInfo.Culture) } |
+                Sort-Object { switch ([string] $_.VoiceInfo.Culture.Name) { 'en-US' { 0 } 'en-GB' { 1 } default { 2 } } })
+        if ($english.Count -gt 0) { $Voice.SelectVoice($english[0].VoiceInfo.Name) }
+    }
+    catch { Write-Verbose "kept the default voice: $_" }
+}
+
+# Windows' voice for SPEECH (Select-Speech), or $null for printing only. Prints SPEECH's message, and says once when
+# the voice is not English. NEWSYNTHESIZER as for New-Voice.
+function Start-Voice($Speech, [scriptblock] $NewSynthesizer) {
+    if ($Speech.Message) { Write-Host $Speech.Message }
+    if (-not $Speech.Speak) { return $null }
+    $voice = New-Voice $NewSynthesizer
+    if (-not $voice) {
+        Write-Host 'Windows'' voice did not start, so the installer will only print from here on.'
+        return $null
+    }
+    $culture = $null
+    try { $culture = $voice.Voice.Culture } catch { Write-Verbose "could not read the voice's language: $_" }
+    if (-not (Test-EnglishCulture $culture)) {
+        $line = 'Windows has no English voice to read these lines, so another language''s voice reads them, which may be hard to follow.'
+        Write-Host $line
+        # A voice that fails to speak leaves the installer printing only, as one that fails to start does.
+        try { $voice.Speak($line) }
+        catch {
+            Write-Verbose "the voice failed to speak: $_"
+            try { $voice.Dispose() } catch { Write-Verbose "could not close the voice: $_" }
+            Write-Host 'Windows'' voice did not start, so the installer will only print from here on.'
+            return $null
+        }
+    }
+    $voice
 }
 
 function New-Check([string] $Name, [string] $State, [string] $Line, [string] $Detail, [string] $Fix) {
@@ -672,6 +720,45 @@ function New-InstallContext([string] $ReleaseFolder, [string] $PinsPath, [string
     }
 }
 
+# How long a download may wait, in seconds (#458). WAIT bounds the connection and the reply's start, then each wait for
+# more data, so a proxy or captive portal that accepts the connection and goes quiet fails instead of hanging. TOTAL
+# bounds the whole download, so one that trickles a little data at a time fails too; it is generous, so that a slow
+# connection still finishes.
+$DownloadTimeout = @{ WaitSeconds = 60; TotalSeconds = 1800 }
+
+# Downloads URI to PATH through PATH.part, deleted on any failure, so a partial download is never kept under PATH.
+# Throws when it fails or runs past $DownloadTimeout.
+function Save-Download([Uri] $Uri, [string] $Path) {
+    $part = "$Path.part"
+    try {
+        $clock = [Diagnostics.Stopwatch]::StartNew()
+        $request = [Net.WebRequest]::Create($Uri)
+        $request.Timeout = $DownloadTimeout.WaitSeconds * 1000
+        if ($request -is [Net.HttpWebRequest]) { $request.ReadWriteTimeout = $DownloadTimeout.WaitSeconds * 1000 }
+        $response = $request.GetResponse()
+        try {
+            $source = $response.GetResponseStream()
+            $file = [IO.File]::Open($part, 'Create', 'Write', 'None')
+            try {
+                $buffer = New-Object byte[] 81920
+                while (($read = $source.Read($buffer, 0, $buffer.Length)) -gt 0) {
+                    $file.Write($buffer, 0, $read)
+                    if ($clock.Elapsed.TotalSeconds -gt $DownloadTimeout.TotalSeconds) {
+                        throw "the download took longer than $($DownloadTimeout.TotalSeconds) seconds"
+                    }
+                }
+            }
+            finally { $file.Dispose() }
+        }
+        finally { $response.Dispose() }
+        Move-Item -LiteralPath $part -Destination $Path -Force
+    }
+    catch {
+        Remove-Item -LiteralPath $part -Force -ErrorAction SilentlyContinue
+        throw
+    }
+}
+
 # Downloads PIN into the work folder and checks it: { Path; Stream } on success, else { Path = $null; Step }, a failed
 # step naming what went wrong. STREAM holds the file open, readable by others but not writable or deletable, from
 # before it is hashed until the caller disposes it once tar or the installer has returned, so the file that runs is the
@@ -689,15 +776,14 @@ function Get-PinnedFile($Context, $Pin) {
             # Windows PowerShell 5.1 may not offer TLS 1.2 by default, which GitHub requires; its progress bar slows a
             # download many times over.
             [Net.ServicePointManager]::SecurityProtocol = [Net.ServicePointManager]::SecurityProtocol -bor [Net.SecurityProtocolType]::Tls12
-            $progress = $ProgressPreference
-            $ProgressPreference = 'SilentlyContinue'
-            try { Invoke-WebRequest -Uri $uri -OutFile $target -UseBasicParsing } finally { $ProgressPreference = $progress }
+            Save-Download $uri $target
         }
     }
     catch {
         if ($_.Exception.Message -like 'install-pins.json:*') { throw }
-        return [pscustomobject]@{ Path = $null; Step = (Failed "The download of $($Pin.name) failed." `
-                    'Check that this computer is online, then run the installer again.' "$($Pin.url): $($_.Exception.Message)") }
+        return [pscustomobject]@{ Path = $null; Step = (Failed "The download of $($Pin.name) did not finish." `
+                    'The internet connection, or a proxy or firewall, probably stopped it. Check that this computer is online, then run the installer again. If it fails again, report it with the alpha feedback form.' `
+                    "$($Pin.url): $($_.Exception.Message)") }
     }
     $stream = [IO.File]::Open($target, 'Open', 'Read', 'Read')
     # Disposed here on every way out but success, a throw included, which hands STREAM to the caller.
@@ -1096,7 +1182,7 @@ function Get-InstallStep($Context) {
 # The interface, by who calls it. install.ps1: the run-window check, the context and its steps (Get-InstallStep), then
 # the check. check-install.ps1: speech, then the check. onboard.ps1 and setup-wsl.ps1: the questions and the locator. Both: the yes/no wording and answer.
 Export-ModuleMember -Function Confirm-RunWindow, New-InstallContext, Get-InstallStep,
-    Find-ScreenReader, Select-Speech, New-Voice, Get-InstallCheck, Get-InstallSummary, Format-Check, Format-SpokenCheck,
+    Find-ScreenReader, Select-Speech, Start-Voice, Get-InstallCheck, Get-InstallSummary, Format-Check, Format-SpokenCheck,
     Test-Interactive, Read-Answer, Format-YesNoQuestion, Test-Yes, Confirm-Step, Select-MetaphorGame, Find-MetaphorGame, Find-ReloadedLauncher `
     -Variable ShortcutName, StatusFileName, WslUnavailableExitCode
 # Developer-only: the Reloaded-II reading that scripts/dev/ReloadedDev.psm1 re-exports to the developer scripts. No
