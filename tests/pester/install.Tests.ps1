@@ -500,6 +500,33 @@ Describe 'install.ps1' {
         $result.Output | Should -Match 'The installer stopped at step 7'
     }
 
+    It 'stops at Reloaded-II''s settings, not later, when Windows blocks its mods folder from being made' {
+        New-ReloadedSetup
+        $blocked = Join-Path $root 'Blocked'
+        $loader = Get-Content -Raw $config | ConvertFrom-Json
+        $loader.ModConfigDirectory = Join-Path $blocked 'Mods'
+        Write-JsonFile $config $loader
+        Block-Write $blocked
+        try { $result = Invoke-Install @('y') }
+        finally { Unblock-Write $blocked }
+        $result.ExitCode | Should -Be 1
+        $result.Output | Should -Match 'Failed: Windows did not let the installer save this step''s files\. Windows Security''s Controlled folder access may have blocked it\.'
+        $result.Output | Should -Match 'The installer stopped at step 3'
+    }
+
+    It 'names Controlled folder access when Windows blocks the game''s settings folder from being made' {
+        New-ReloadedSetup
+        $apps = Join-Path $reloadedFolder 'Apps'
+        Remove-Item -LiteralPath (Split-Path $appConfig) -Recurse -Force
+        Block-Write $apps
+        try { $result = Invoke-Install @('y', '') }
+        finally { Unblock-Write $apps }
+        $result.ExitCode | Should -Be 1
+        $result.Output | Should -Match 'Failed: Windows did not let the installer save this step''s files\. Windows Security''s Controlled folder access may have blocked it\.'
+        $result.Output | Should -Not -Match 'This step stopped with an error'
+        $result.Output | Should -Match 'The installer stopped at step 8'
+    }
+
     It 'keeps the report-it message for an error that is not a blocked write' {
         New-ReloadedSetup
         Set-Content -LiteralPath (Join-Path $mods $modId) -Value 'a file where the mod''s folder goes'
@@ -563,6 +590,86 @@ Describe 'Test-Elevated' {
         Test-Elevated | Should -BeTrue
         $env:CI = '1'
         Test-Elevated | Should -BeTrue
+    }
+}
+
+Describe 'Confirm-RunWindow' {
+    BeforeAll {
+        $script:said = [Collections.Generic.List[string]]::new()
+        $script:asked = [Collections.Generic.List[string]]::new()
+        $script:say = { param($Printed, $Spoken) $said.Add($Printed) }
+        Mock -ModuleName MetaphorInstall Test-Elevated { $true }
+
+        # Runs Confirm-RunWindow with ANSWER as the reply to its question; $null is no console to answer on.
+        function Invoke-Confirm($Answer) {
+            $script:answer = $Answer
+            Confirm-RunWindow -Say $say -Ask { param($Question) $asked.Add($Question); $script:answer }
+        }
+    }
+    BeforeEach { $said.Clear(); $asked.Clear() }
+
+    It 'goes on without asking in a normal window' {
+        Mock -ModuleName MetaphorInstall Test-Elevated { $false }
+        Invoke-Confirm 'n' | Should -BeTrue
+        $asked.Count | Should -Be 0
+    }
+
+    It 'refuses an administrator window without asking while UAC is on' {
+        Mock -ModuleName MetaphorInstall Test-UacEnabled { $true }
+        Invoke-Confirm 'y' | Should -BeFalse
+        $asked.Count | Should -Be 0
+        $said -join ' ' | Should -Match 'runs as administrator'
+    }
+
+    It 'goes on after a yes while UAC is off, having said who will own the files' {
+        Mock -ModuleName MetaphorInstall Test-UacEnabled { $false }
+        Invoke-Confirm 'y' | Should -BeTrue
+        $asked.Count | Should -Be 1
+        $said -join ' ' | Should -Match 'User Account Control is turned off.*owned by the administrator account'
+        $said -join ' ' | Should -Match 'administrator rights to update themselves later'
+    }
+
+    It 'asks for the word yes in a sentence a screen reader can read, and takes it typed in full' {
+        Mock -ModuleName MetaphorInstall Test-UacEnabled { $false }
+        Invoke-Confirm 'yes' | Should -BeTrue
+        $asked[0] | Should -Match 'Type yes and press Enter to go on, or press Enter alone to stop\.'
+        $asked[0] | Should -Not -Match '\[y/N\]'
+    }
+
+    It 'refuses after a no while UAC is off' {
+        Mock -ModuleName MetaphorInstall Test-UacEnabled { $false }
+        Invoke-Confirm 'n' | Should -BeFalse
+        Invoke-Confirm '' | Should -BeFalse
+    }
+
+    It 'refuses without a console to answer on while UAC is off' {
+        Mock -ModuleName MetaphorInstall Test-UacEnabled { $false }
+        Invoke-Confirm $null | Should -BeFalse
+        $asked.Count | Should -Be 1
+    }
+}
+
+Describe 'Test-UacEnabled' {
+    It 'counts UAC as on when EnableLUA is 1' {
+        Mock -ModuleName MetaphorInstall Get-ItemProperty { [pscustomobject] @{ EnableLUA = 1 } }
+        InModuleScope MetaphorInstall { Test-UacEnabled } | Should -BeTrue
+    }
+
+    It 'counts UAC as off when EnableLUA is 0' {
+        Mock -ModuleName MetaphorInstall Get-ItemProperty { [pscustomobject] @{ EnableLUA = 0 } }
+        InModuleScope MetaphorInstall { Test-UacEnabled } | Should -BeFalse
+    }
+
+    It 'counts UAC as on when EnableLUA is 0 but not a DWORD' {
+        Mock -ModuleName MetaphorInstall Get-ItemProperty { [pscustomobject] @{ EnableLUA = '0' } }
+        InModuleScope MetaphorInstall { Test-UacEnabled } | Should -BeTrue
+        Mock -ModuleName MetaphorInstall Get-ItemProperty { [pscustomobject] @{ EnableLUA = [long] 0 } }
+        InModuleScope MetaphorInstall { Test-UacEnabled } | Should -BeTrue
+    }
+
+    It 'counts UAC as on when EnableLUA is missing' {
+        Mock -ModuleName MetaphorInstall Get-ItemProperty { $null }
+        InModuleScope MetaphorInstall { Test-UacEnabled } | Should -BeTrue
     }
 }
 

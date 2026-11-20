@@ -97,17 +97,14 @@ function Read-InstallAnswer([string] $Question) {
 $workFolder = $null
 $exitCode = 1
 try {
-    if (Test-Elevated) {
-        Out-Line 'This window runs as administrator, so the installer stopped without changing anything. Run it from a normal PowerShell window: it asks Windows for permission itself where a step needs it.'
-        exit 1
-    }
+    $say = { param($Printed, $Spoken) if ($Spoken) { Out-Line $Printed $Spoken } else { Out-Line $Printed } }
+    $ask = { param($Question) Read-InstallAnswer $Question }
+    if (-not (Confirm-RunWindow -Say $say -Ask $ask)) { exit 1 }
     if (-not (Test-Path -LiteralPath (Join-Path $PSScriptRoot 'ModConfig.json') -PathType Leaf)) {
         Out-Line 'This installer is not in the mod''s folder. Run install.ps1 from the mod''s folder in the release zip.'
         exit 1
     }
     $workFolder = (New-Item -ItemType Directory (Join-Path ([IO.Path]::GetTempPath()) "metaphor-install-$([guid]::NewGuid())")).FullName
-    $say = { param($Printed, $Spoken) Out-Line $Printed $Spoken }
-    $ask = { param($Question) Read-InstallAnswer $Question }
     $context = New-InstallContext -ReleaseFolder $PSScriptRoot -PinsPath $Pins -ConfigPath $ReloadedConfig `
         -ReloadedFolder $ReloadedFolder -SteamRoot $SteamRoot -Desktop $Desktop -DotnetRoot $DotnetRoot `
         -VcRuntimeKey $VcRuntimeKey -WorkFolder $workFolder -Ask $ask -Say $say

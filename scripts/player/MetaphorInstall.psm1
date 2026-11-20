@@ -566,7 +566,7 @@ function Test-Yes($Answer) { [bool]($null -ne $Answer -and $Answer -match '^\s*(
 # Written beside the file first and then swapped in, so a failed write never leaves half a file; a file replaced is
 # kept as PATH.bak. A PATH.bak already there is kept: it is the file from before the installer first changed it (#408).
 function Write-JsonFile([string] $Path, $Value) {
-    New-Item -ItemType Directory -Force (Split-Path $Path) | Out-Null
+    New-Item -ItemType Directory -Force (Split-Path $Path) -ErrorAction Stop | Out-Null
     $temporary = "$Path.tmp"
     [IO.File]::WriteAllText($temporary, ($Value | ConvertTo-Json -Depth 20), (New-Object Text.UTF8Encoding $false))
     if (Test-Path -LiteralPath $Path -PathType Leaf) {
@@ -597,6 +597,30 @@ function Test-Elevated {
 function Test-AdministratorRole {
     ([Security.Principal.WindowsPrincipal] [Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole(
         [Security.Principal.WindowsBuiltInRole]::Administrator)
+}
+
+# False only when EnableLUA is 0, which turns UAC off: every window of an administrator account then runs as
+# administrator (#465). A missing or unreadable value counts as on, so the installer keeps refusing.
+function Test-UacEnabled {
+    $key = Get-ItemProperty -LiteralPath 'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System' `
+        -Name EnableLUA -ErrorAction SilentlyContinue
+    if ($null -eq $key) { return $true }
+    # Only a DWORD 0 counts, which Get-ItemProperty returns as Int32 (QWORD is Int64, a string String: pwsh and 5.1).
+    return -not ($key.EnableLUA -is [int] -and $key.EnableLUA -eq 0)
+}
+
+# True when install.ps1 may go on in this window. An elevated window stops it, unless UAC is off, where no window is
+# anything else: then SAY explains and ASK takes a yes (#465). No answer, as without a console, counts as no.
+function Confirm-RunWindow([scriptblock] $Say, [scriptblock] $Ask) {
+    if (-not (Test-Elevated)) { return $true }
+    if (Test-UacEnabled) {
+        & $Say 'This window runs as administrator, so the installer stopped without changing anything. Run it from a normal PowerShell window: it asks Windows for permission itself where a step needs it.'
+        return $false
+    }
+    & $Say 'User Account Control is turned off on this computer, so every window runs as administrator, and the files the installer puts in place will be owned by the administrator account. Reloaded-II and the mod may then need administrator rights to update themselves later.'
+    if (Test-Yes (& $Ask 'Install as administrator anyway? Type yes and press Enter to go on, or press Enter alone to stop.')) { return $true }
+    & $Say 'The installer stopped without changing anything, because the answer was no.'
+    return $false
 }
 
 function Get-StreamSha256([IO.Stream] $Stream) {
@@ -762,7 +786,7 @@ function Initialize-ReloadedConfig($Context) {
         return Failed 'Reloaded-II''s settings file does not name its folders for mods and games.' `
             'Start Reloaded-II once, so it writes its settings file again, then run the installer again.' "Settings file: $($Context.ConfigPath)"
     }
-    foreach ($folder in $Context.ModsFolder, $Context.AppsFolder) { New-Item -ItemType Directory -Force $folder | Out-Null }
+    foreach ($folder in $Context.ModsFolder, $Context.AppsFolder) { New-Item -ItemType Directory -Force $folder -ErrorAction Stop | Out-Null }
     $result
 }
 
@@ -1021,7 +1045,7 @@ function Install-Shortcut($Context) {
 # The interface, by who calls it. install.ps1: the installer's steps in the order it runs them, then the check.
 # check-install.ps1: speech, then the check. onboard.ps1 and setup-wsl.ps1: the questions and the locator.
 # ReloadedDev.psm1 and the developer scripts: the Reloaded-II reading.
-Export-ModuleMember -Function Test-Elevated, New-InstallContext, Select-InstallGame, Install-Reloaded,
+Export-ModuleMember -Function Test-Elevated, Confirm-RunWindow, New-InstallContext, Select-InstallGame, Install-Reloaded,
     Initialize-ReloadedConfig, Install-DotnetRuntime, Install-VcRuntime, Install-HooksLibrary, Install-ModFiles, Enable-Mod,
     Install-Shortcut, Get-ErrorStep,
     Find-ScreenReader, Select-Speech, New-Voice, Get-InstallCheck, Get-InstallSummary, Format-Check, Format-SpokenCheck,
