@@ -467,6 +467,8 @@ internal static class Rules
         "System.Runtime.InteropServices.MemoryMarshal::",
         "System.Threading.Volatile::Read",
         "System.Buffer::MemoryCopy",
+        "System.Runtime.InteropServices.Marshal::GetDelegateForFunctionPointer",
+        "System.Runtime.InteropServices.NativeLibrary::GetExport",
     ];
 
     /// <summary>IL that loads or copies through a pointer or a managed reference.</summary>
@@ -492,17 +494,72 @@ internal static class Rules
             return [];
         }
         var name = assembly.Name.Name;
-        return [.. Types(assembly)
-            .Where(type => !IsMemoryReadingException(type))
-            .SelectMany(type => MemoryReads(type).Distinct().Select(use =>
-                $"{name} type {type.FullName} reads memory by address ({use}); use ModuleMemoryReader (rule 10)"))];
+        var reads = Types(assembly)
+            .Where(type => !IsListed(type, MemoryReadingExceptions))
+            .SelectMany(type => MemoryReads(type).Distinct()
+                .Where(use => !(FunctionPointerUses.Contains(use) && IsListed(type, FunctionPointerCallers)))
+                .Select(use =>
+                    $"{name} type {type.FullName} reads memory by address ({use}); use ModuleMemoryReader (rule 10)"));
+        // #428: a native call has no IL to inspect, and one such as ReadProcessMemory or RtlMoveMemory reads by address,
+        // so outside the reader each one is listed by the function it binds to, whatever the C# method is called.
+        var nativeCalls = NativeCalls(assembly)
+            .Where(method => !IsListed(method.DeclaringType, MemoryReadingExceptions) &&
+                !NativeCallsThatCantFault.ContainsKey(NativeTarget(method)))
+            .Select(method => $"{name} declares native call {method.FullName} ({NativeTarget(method)}) outside " +
+                "ModuleMemoryReader; it may read memory by address, so move it there or list why it can't fault (rule 10)");
+        return [.. reads, .. nativeCalls];
     }
 
-    private static bool IsMemoryReadingException(TypeDefinition type)
+    /// <summary>The function a P/Invoke binds to, as <c>dll!EntryPoint</c>, with the DLL lower-cased and its
+    /// <c>.dll</c> added when left off; the entry point is the method's name when none is given.</summary>
+    private static string NativeTarget(MethodDefinition method)
+    {
+        var dll = method.PInvokeInfo.Module.Name.ToLowerInvariant();
+        if (!dll.EndsWith(".dll", StringComparison.Ordinal))
+        {
+            dll += ".dll";
+        }
+        var entryPoint = string.IsNullOrEmpty(method.PInvokeInfo.EntryPoint) ? method.Name : method.PInvokeInfo.EntryPoint;
+        return $"{dll}!{entryPoint}";
+    }
+
+    /// <summary>Native functions the hook layer may declare outside <c>ModuleMemoryReader</c>, each with why it can't
+    /// fault on a bad address (#428).</summary>
+    private static readonly Dictionary<string, string> NativeCallsThatCantFault = new()
+    {
+        ["kernel32.dll!RtlCaptureStackBackTrace"] =
+            "CallerAddress: walks this thread's own stack within its limits and stops early instead of faulting",
+        ["kernel32.dll!GetCurrentThreadStackLimits"] = "CallerAddress: reads no address it is given",
+        ["kernel32.dll!WriteProcessMemory"] =
+            "PadReadHook, KeyboardReadHook: writes through the kernel, which fails instead of faulting (ADR 0007)",
+    };
+
+    /// <summary>What <see cref="MemoryReads"/> reports for a call through a function pointer, or for making one: the
+    /// callee runs native code that can read anything (#428).</summary>
+    private static readonly HashSet<string> FunctionPointerUses =
+    [
+        "calli",
+        "System.Runtime.InteropServices.Marshal::GetDelegateForFunctionPointer",
+        "System.Runtime.InteropServices.NativeLibrary::GetExport",
+    ];
+
+    /// <summary>Hook-layer types that may call through function pointers, each with why. They are checked for every
+    /// other read.</summary>
+    private static readonly Dictionary<string, string> FunctionPointerCallers = new()
+    {
+        ["Metaphor.Hooks.PrismSpeech"] =
+            "ADR 0005: calls the pinned prism.dll's exports, passing only the mod's own handles and buffers",
+        ["Metaphor.Hooks.SquirrelRegistrationListener"] =
+            "dev-only: calls the game's sq_gettop, sq_getstring and sq_getuserdata with the VM the game passed it, " +
+            "into its own locals; what they return is read through ModuleMemoryReader. Debug builds only, pinned to one " +
+            "game build, each signature matched exactly once; a wrong unique match would fault uncaught, accepted for a spike",
+    };
+
+    private static bool IsListed(TypeDefinition type, Dictionary<string, string> list)
     {
         for (var owner = type; owner is not null; owner = owner.DeclaringType)
         {
-            if (MemoryReadingExceptions.ContainsKey(owner.FullName))
+            if (list.ContainsKey(owner.FullName))
             {
                 return true;
             }
@@ -517,7 +574,7 @@ internal static class Rules
             foreach (var instruction in method.Body.Instructions)
             {
                 var code = instruction.OpCode.Code;
-                if (PointerReadingCodes.Contains(code))
+                if (PointerReadingCodes.Contains(code) || code == Mono.Cecil.Cil.Code.Calli)
                 {
                     yield return instruction.OpCode.Name;
                 }

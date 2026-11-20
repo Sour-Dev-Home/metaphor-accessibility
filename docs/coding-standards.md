@@ -50,8 +50,12 @@ each rule on every assembly built from `src/`. Each test plants a violation to p
    pointers and `double`. Windows x64 leaves the upper half of a register undefined for a 32-bit argument, so a
    narrower declaration can hand the game garbage when the hook passes the call on.
 10. **Game memory is read only through `ModuleMemoryReader`.** In the hook layer, no other type reads memory by
-    address (`Marshal.PtrToString*`, `Marshal.Read*`, pointer loads). .NET can't catch the access violation a bad
-    pointer from the game causes; the reader fails instead.
+    address (loads through a pointer or `ref`, `cpblk`, `Marshal.PtrToString*`/`PtrToStructure*`/`Read*`/`Copy`,
+    `Unsafe.Read*`/`AsRef`/`Copy*`, any `MemoryMarshal` member, `Volatile.Read`, `Buffer.MemoryCopy`, or a framework
+    call taking a pointer), declares a P/Invoke whose DLL and entry point the rule
+    doesn't list as unable to fault, or calls through a function pointer (`calli`,
+    `Marshal.GetDelegateForFunctionPointer`, `NativeLibrary.GetExport`) unless the rule lists the type. .NET can't
+    catch the access violation a bad pointer from the game causes; the reader fails instead.
 11. **A hook is stored before it is activated.** The loader's adapters (rule 14) call `Activate` only through the field
     that holds the hook, and the loader keeps every hook it installs referenced from before it goes in. The game can
     call the hook at once, and a collected delegate the game still calls makes .NET fail-fast the whole process
