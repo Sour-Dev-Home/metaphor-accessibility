@@ -64,13 +64,6 @@ public sealed class TitleMenuFocus : IScreenObserver
     // The item's text: ours for the third, else the message's line, or null when the message or line is missing.
     private string? ItemText(int index)
     {
-        if (index == SystemIndex)
-        {
-            return SystemWord;
-        }
-
-        var lines = (messages.Find(ItemsLabel)?.Text ?? "").Split('\n')
-            .Select(cleaner.Clean).Where(line => line.Length > 0).ToList();
-        return index < lines.Count ? lines[index] : null;
+        return index == SystemIndex ? SystemWord : MessageLines.Line(messages, cleaner, ItemsLabel, index);
     }
 }

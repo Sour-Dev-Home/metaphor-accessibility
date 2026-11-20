@@ -102,6 +102,7 @@ internal sealed record HookServices
         var screens = new MenuScreens(KnownScreens.All);
         screens.Observe(new TitleMenuFocus(library, reader, cleaner));
         screens.Observe(new MainMenuFocus(reader));
+        screens.Observe(new YesNoDialogFocus(library, reader, cleaner));
         screens.Observe(new UnknownScreenFocus(reader));
         var menuBindings = MenuBindings.Default with
         {

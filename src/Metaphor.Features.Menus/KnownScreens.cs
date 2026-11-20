@@ -6,7 +6,7 @@ namespace Metaphor.Features.Menus;
 /// it, or left to another feature's speech.</summary>
 public static class KnownScreens
 {
-    /// <summary>The title menu, the main menu and a dialogue's reply choice.</summary>
+    /// <summary>The title menu, the main menu, a yes/no dialog and a dialogue's reply choice.</summary>
     public static IReadOnlyList<Screen> All { get; } =
-        [TitleMenuFocus.Screen, MainMenuFocus.Screen, UnknownScreenFocus.DialogueChoice];
+        [TitleMenuFocus.Screen, MainMenuFocus.Screen, YesNoDialogFocus.Screen, UnknownScreenFocus.DialogueChoice];
 }
