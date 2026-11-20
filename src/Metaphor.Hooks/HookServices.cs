@@ -48,7 +48,11 @@ internal sealed record HookServices
 
     /// <summary>Every reader of a game global, which the loader hands each global it locates before any hook goes in.
     /// </summary>
-    public IReadOnlyList<IReadsGlobal> Globals => [MenusOpen, DialogueWindow];
+    public IReadOnlyList<IReadsGlobal> Globals => [MenusOpen, DialogueWindow, Voice];
+
+    /// <summary>Reads the game's voice language for the auto voiced-lines mode (#538); the loader locates what it reads
+    /// (#300).</summary>
+    public VoiceLanguageRead Voice { get; init; } = new();
 
     /// <summary>Names each cursor manager's screen class (#208): the choice cursor getter hook feeds it, and the menu
     /// cursor hook asks it for each input.</summary>
@@ -72,9 +76,11 @@ internal sealed record HookServices
         var cursors = new CursorEvents();
         var cleaner = new TextCleaner(TextCleanerRules.None);
         // Lines go through the reader on/off switch; the repeat and the switch's own state are spoken either way.
-        // The voice language is unknown until #103 finds it, so Auto speaks the full line.
+        // Auto follows the game's voice language, read on each line (#538); unknown speaks the full line.
         var reader = new DialogueReader(announcer);
-        var dialogue = new DialogueAnnouncer(reader, cleaner, history, () => settings.Current.VoicedLines);
+        var voiceLanguage = new VoiceLanguageRead();
+        var dialogue = new DialogueAnnouncer(
+            reader, cleaner, history, () => settings.Current.VoicedLines, voiceLanguage.Read);
         var controls = new DialogueControls(DialogueBindings.Default, history, reader, announcer);
         // Menus speak through the reader too (#214), and their controls toggle it with the dialogue's binding.
         var screens = new MenuScreens(KnownScreens.All);
@@ -122,6 +128,7 @@ internal sealed record HookServices
             DialogueControls = controls,
             MenuControls = menuControls,
             MenuScreens = screens,
+            Voice = voiceLanguage,
         };
     }
 }

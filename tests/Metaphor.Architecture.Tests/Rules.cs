@@ -807,12 +807,15 @@ internal static class Rules
     /// <summary>The <c>[rip+disp32]</c> loads a global can be read from: REX.W (<c>48</c>, or <c>4C</c> with REX.R for
     /// r8-r15), <c>8B</c> (mov) or <c>8D</c> (lea), then a ModR/M byte with mod 00 and r/m 101, any register. Source:
     /// docs/raw-sources/x86-rip-relative-loads-2026-11-19.md (sandpile.org's REX and ModR/M tables, and the Intel
-    /// manual's MOV and LEA opcode rows).</summary>
+    /// manual's MOV and LEA opcode rows). Also <c>8B</c> with no REX, a 32-bit mov of a 32-bit global such as the voice
+    /// language (#538): docs/raw-sources/voice-language-getter-2026-11-20.md. A lea without REX.W isn't one: it gives a
+    /// 32-bit address.</summary>
     private static readonly HashSet<string> RipRelativeLoads =
-        [.. from rex in new[] { "48", "4C" }
+        [.. (from rex in new[] { "48", "4C" }
             from opcode in new[] { "8B", "8D" }
             from register in Enumerable.Range(0, 8)
-            select $"{rex} {opcode} {(register << 3) | 5:X2}"];
+            select $"{rex} {opcode} {(register << 3) | 5:X2}")
+            .Concat(from register in Enumerable.Range(0, 8) select $"8B {(register << 3) | 5:X2}")];
 
     /// <summary>What is wrong with the GlobalSpec built by the <c>newobj</c> at <paramref name="at"/>, or null. Its
     /// arguments end <c>ldstr SignatureName; ldc LoadOffset; ldc DisplacementOffset; ldc InstructionLength; ldstr

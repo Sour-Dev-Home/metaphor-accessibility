@@ -18,6 +18,8 @@ public sealed class GlobalSpecRuleTests
     {
         ["WindowBody"] = "48 8B 0D ?? ?? ?? ?? 8B 81 60 05 00 00",
         ["FlagBody"] = "4C 63 01 41 83 F8 FF 75 0C 48 8B 0D ?? ?? ?? ?? E9 ?? ?? ?? ??",
+        ["Getter"] = "8B 05 ?? ?? ?? ?? C3 CC",
+        ["LeaGetter"] = "8D 05 ?? ?? ?? ?? C3 CC",
     };
 
     private static Mono.Cecil.AssemblyDefinition HookLayer(string signature, string offsets) =>
@@ -28,6 +30,7 @@ public sealed class GlobalSpecRuleTests
     [Theory]
     [InlineData("WindowBody", "0, 3, 7")]
     [InlineData("FlagBody", "9, 3, 7")]
+    [InlineData("Getter", "0, 2, 6")] // a 32-bit mov eax,[rip+disp32] (#538)
     public void ASpecOnALoadPasses(string signature, string offsets) =>
         Assert.Empty(Rules.GlobalSpecsPointAtALoad(HookLayer(signature, offsets), Patterns));
 
@@ -36,6 +39,8 @@ public sealed class GlobalSpecRuleTests
     [InlineData("WindowBody", "0, 2, 7")] // disp32 a byte early
     [InlineData("WindowBody", "0, 3, 6")] // a length that isn't disp32's end
     [InlineData("WindowBody", "7, 3, 7")] // past the pattern's end
+    [InlineData("Getter", "0, 1, 5")] // the 32-bit mov's ModR/M taken for disp32
+    [InlineData("LeaGetter", "0, 2, 6")] // a lea with no REX.W gives a 32-bit address, not a global's
     public void ASpecOffTheLoadIsAViolation(string signature, string offsets)
     {
         var violation = Assert.Single(Rules.GlobalSpecsPointAtALoad(HookLayer(signature, offsets), Patterns));
@@ -81,8 +86,8 @@ public sealed class GlobalSpecRuleTests
         var hooks = Scanned.Load(Rules.HookLayer);
 
         // With no patterns every spec is a violation, so this counts the specs the rule found: the dialogue window and
-        // the menus-open flag (#300).
-        Assert.Equal(2, Rules.GlobalSpecsPointAtALoad(hooks, new Dictionary<string, string>()).Count);
+        // the menus-open flag (#300), and the voice language (#538).
+        Assert.Equal(3, Rules.GlobalSpecsPointAtALoad(hooks, new Dictionary<string, string>()).Count);
         Assert.Empty(Rules.GlobalSpecsPointAtALoad(hooks, Scanned.SignaturePatterns()));
     }
 }

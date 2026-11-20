@@ -21,7 +21,7 @@ acting are always read in full.
 
 | Value | What is read for a voiced line |
 |---|---|
-| `auto` (default) | The speaker's name for English voice; the full line for Japanese voice. Until the mod can tell the voice language, the full line. |
+| `auto` (default) | The speaker's name for English voice; the full line for Japanese voice. If the mod can't read the voice language, the full line. |
 | `nameOnly` | The speaker's name only. A voiced line with no speaker is silent. |
 | `fullLine` | The speaker and the line. |
 | `nothing` | Nothing. |
