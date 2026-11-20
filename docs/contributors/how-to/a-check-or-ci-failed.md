@@ -48,8 +48,11 @@ same `scripts/check.sh` runs locally and in CI, so a local failure is the one CI
 
 ## markdownlint or a link check failed
 
-- **You see:** `broken link: <file>:<line>: <target>`, from `bash scripts/check.sh docs`.
-- **Why:** a relative link or an anchor points at nothing. Renaming a heading breaks every anchor to it.
+- **You see:** `broken link: <file>:<line>: <target>` or `relative link: .github/<file>:<line>: <target>`, from
+  `bash scripts/check.sh docs`.
+- **Why:** a relative link, an anchor or a link to this repository's `blob/main/` or `tree/main/` points at nothing.
+  Renaming a heading breaks every anchor to it. Markdown under `.github/` links absolutely, since GitHub also shows it
+  outside its folder, where a relative link 404s.
 - **Do:** fix the link and rerun `bash scripts/check.sh docs`. Markdown lint, Vale and long ADRs only warn; they never
   fail a run, but a warning is worth fixing. [Checks](../reference/checks.md).
 
