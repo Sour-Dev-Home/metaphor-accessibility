@@ -208,5 +208,12 @@
     "pattern": "48 89 5C 24 08 44 88 44 24 18 55 56 57 41 54 41 55 41 56 41 57 48 81 EC 80 00 00 00 C5 F8 29 74 24 70 4C 8B F2 48 8B F1 8B 12 E8 ?? ?? ?? ?? 48 8B D8 48 85 C0 0F 84 ?? ?? ?? ?? 48 8B 50 28 48 2B 50 20",
     "gameBuilds": ["548ddc955c176867f062c44f94c03dd9ac33caefb278a5ac388e792aedf09504"],
     "evidence": "Our reading of the exe in Ghidra 12.2: the one function that puts a requested line in the message window, called by every MsgRequest inner function (docs/raw-sources/msg-window-show-line-2026-11-20.md); one match on disk; not yet checked in memory"
+  },
+  {
+    "name": "VoiceLanguageGetter",
+    "section": ".ecode",
+    "pattern": "8B 05 ?? ?? ?? ?? C3 CC CC CC CC CC CC CC CC CC 8B 05 ?? ?? ?? ?? C3 CC CC CC CC CC CC CC CC CC 40 53 48 83 EC 30 48 8B D9 48 8B D1 48 8D 0D",
+    "gameBuilds": ["548ddc955c176867f062c44f94c03dd9ac33caefb278a5ac388e792aedf09504"],
+    "evidence": "Our reading of the exe in Ghidra 12.2: the one read of the applied voice language, base+0x2dff8e4, a 6-byte mov eax,[rip+disp32] then ret, followed by the next getter and function (docs/raw-sources/voice-language-getter-2026-11-20.md); the global's values are from game session 1 (docs/findings/voice-language-values.md); one match on disk; read only, never hooked or called"
   }
 ]
