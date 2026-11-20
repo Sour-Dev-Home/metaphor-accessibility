@@ -2104,7 +2104,8 @@ test_scope_covers_every_script_the_gate_runs() {
 }
 
 # The scope names directories (#410, ADR 0014): a file added under one is in scope with no list edit. The names below
-# appear nowhere in the stamp script, and session.ps1 and GameSession.psm1 joined the scope with #437.
+# appear nowhere in the stamp script. inspect.ps1 and signature-spike.ps1 joined the scope this way with #410;
+# session.ps1 and GameSession.psm1 replaced them (#437).
 test_stamp_touches_a_new_file_in_each_scoped_directory() {
   local file
   for file in scripts/dev/session.ps1 scripts/dev/GameSession.psm1 scripts/never-listed.ps1 scripts/never-listed/tool.psm1 \

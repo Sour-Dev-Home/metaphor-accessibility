@@ -38,28 +38,24 @@ $vmPlatform = Get-CimInstance Win32_OptionalFeature -Filter "Name='VirtualMachin
 if (-not $vmPlatform -or $vmPlatform.InstallState -ne 1) {
     Stop-Setup "Windows' Virtual Machine Platform is off, so WSL 2 can't run." $WslUnavailableExitCode
 }
-# WSL's own words for a restart it's waiting on, and for WSL 2 failing to start with virtualization off, seen on WSL
-# 3.0.5.0 (#402, docs/raw-sources/wsl-restart-and-virtualization-messages-2026-11-19.md). Other versions' wording
-# [NEEDS VERIFICATION].
-$restartPattern = 'Changes will not be effective until the system is rebooted'
-$virtualizationPattern = 'unable to start since virtualization is not enabled'
+# A restart WSL is waiting on, and WSL 2 failing to start with virtualization off (#402,
+# docs/raw-sources/wsl-restart-and-virtualization-messages-2026-11-19.md), are told apart by what WSL checks, not by its
+# messages, which are in the user's language (#457; docs/raw-sources/wsl-restart-and-virtualization-source-2026-11-19.md).
 $restartFix = 'Restart Windows, then run .\scripts\setup\setup-wsl.ps1.'
-$virtualizationFix = ('Turn on virtualization in the firmware settings; on a Hyper-V VM, shut it down and run ' +
+$firmwareSteps = ('turn on virtualization in the firmware settings; on a Hyper-V VM, shut it down and run ' +
     'Set-VMProcessor -VMName <vm> -ExposeVirtualizationExtensions $true on the host. Then run .\scripts\setup\setup-wsl.ps1.')
-function Test-Output([string[]]$lines, [string]$pattern) {
-    return [bool](@($lines | Where-Object { $_ -match $pattern }).Count -gt 0)
-}
 
 if (-not (Get-CimInstance Win32_ComputerSystem).HypervisorPresent) {
-    Stop-Setup "virtualization is off in the firmware or Windows, so WSL 2 can't run. $virtualizationFix" `
+    Stop-Setup "virtualization is off in the firmware or Windows, so WSL 2 can't run. To fix it, $firmwareSteps" `
         $WslUnavailableExitCode
 }
-# HypervisorPresent is true in any Hyper-V guest, nested virtualization or not (#402); WSL itself says when WSL 2 can't
-# start. Its exit code there wasn't recorded, so only the message counts. Under 'Continue' stderr is output, not a
-# terminating error (Windows PowerShell).
-$status = @(& { $ErrorActionPreference = 'Continue'; & wsl.exe --status 2>&1 } | ForEach-Object { "$_" })
-if (Test-Output $status $virtualizationPattern) {
-    Stop-Setup "WSL 2 can't start because virtualization is off. $virtualizationFix" $WslUnavailableExitCode
+# HypervisorPresent is true in any Hyper-V guest, nested virtualization or not (#402). `wsl --status` says WSL 2 can't
+# start when the vmcompute service is missing, and exits 0, so the service is checked here instead. It can also be
+# missing while the Virtual Machine Platform, just turned on, waits on a restart, so a restart comes first.
+if (-not (Get-Service -Name vmcompute -ErrorAction SilentlyContinue)) {
+    Stop-Setup ("WSL 2 can't start: Windows may still need a restart, or virtualization is off. Restart Windows, then " +
+        "run .\scripts\setup\setup-wsl.ps1; if WSL 2 still can't start, $firmwareSteps") `
+        $WslUnavailableExitCode
 }
 
 # Runs wsl.exe --install for the distro, printing WSL's own output as it comes; returns that output as lines. Under
@@ -114,17 +110,13 @@ if ($null -eq $version) {
                 '.\scripts\setup\setup-wsl.ps1 again.')
         }
     }
-    # Checked before the exit code, which wasn't recorded for either message (#402).
-    if (Test-Output $lines $restartPattern) {
-        Stop-Setup "WSL is waiting for Windows to restart before it can create $distro. $restartFix" `
+    if ($LASTEXITCODE -ne 0) { Stop-Setup "creating $distro failed (wsl.exe exit code $LASTEXITCODE)." }
+    # WSL installs no distro while a restart is pending, and still exits 0: the only sign, so it is probable, not certain.
+    $version = Get-DistroVersion
+    if ($null -eq $version) {
+        Stop-Setup "WSL is probably waiting for Windows to restart before it can create $distro. $restartFix" `
             $WslUnavailableExitCode
     }
-    if (Test-Output $lines $virtualizationPattern) {
-        Stop-Setup "WSL 2 can't start because virtualization is off. $virtualizationFix" $WslUnavailableExitCode
-    }
-    if ($LASTEXITCODE -ne 0) { Stop-Setup "creating $distro failed (wsl.exe exit code $LASTEXITCODE)." }
-    $version = Get-DistroVersion
-    if ($null -eq $version) { Stop-Setup "WSL reported success but has no $distro distro." }
     Write-Host "setup-wsl: created $distro."
 }
 if ($version -ne '2') {

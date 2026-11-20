@@ -140,6 +140,28 @@ Describe 'session.ps1' {
             $result.ExitCode | Should -Be 0 -Because $result.Output
         }
 
+        # Windows paths ignore case, but Reloaded-II's --launch compares them exactly, as the stand-in does (#457).
+        It 'finds the game registered under another casing of its path, and launches it by the registered one' {
+            $result = Invoke-Session deploy -NoPaths -Extra '-GameExe', $f.GameExe.ToLowerInvariant(), '-LauncherExe', $f.Launcher
+
+            $result.ExitCode | Should -Be 0 -Because $result.Output
+            $result.Output | Should -Match ([regex]::Escape("metaphor.dev: ready on $($f.Build), hooks 1/1"))
+            Get-Game | Should -BeNullOrEmpty
+        }
+
+        # Exit code 2 promises nothing changed (session.ps1's help).
+        It 'exits 1, not 2, when it fails after installing the mod and before launching' {
+            New-Item -ItemType Directory "$($f.AppConfig).deploy-new" | Out-Null
+
+            $result = Invoke-Session deploy
+
+            $result.ExitCode | Should -Be 1 -Because $result.Output
+            $result.Output | Should -Match 'deployed metaphor\.dev to '
+            $f.ModFolder | Should -Exist
+            Get-ConfigHash | Should -Be $configBefore
+            Get-Game | Should -BeNullOrEmpty
+        }
+
         It 'refuses an unknown game build without building, installing or launching' {
             Set-Content -LiteralPath $f.Known -Value (ConvertTo-Json @(@{ sha256 = '0' * 64; steamBuildId = 1; evidence = 'test' }))
 
@@ -197,6 +219,16 @@ Describe 'session.ps1' {
             $result.ExitCode | Should -Be 2
             $result.Last | Should -Match 'mod ID .* is not a plain folder name'
             Join-Path $f.Mods 'user.mod/ModConfig.json' | Should -Exist
+        }
+
+        # Windows drops trailing dots and spaces, and reserves device names, with or without an extension.
+        It 'refuses the mod ID <_>, which Windows doesn''t keep as a folder name' -ForEach 'metaphor.dev.', 'metaphor.dev ', 'CON', 'nul.txt', 'com1', 'LPT9.mod' {
+            @{ ModId = $_ } | ConvertTo-Json | Set-Content -LiteralPath (Join-Path $f.Project 'ModConfig.json')
+
+            $result = Invoke-Session deploy
+
+            $result.ExitCode | Should -Be 2 -Because $result.Output
+            $result.Last | Should -Match 'mod ID .* is not a plain folder name'
         }
 
         It 'fails when the mod refuses, then closes the game and restores the config' {

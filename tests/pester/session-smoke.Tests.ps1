@@ -85,6 +85,19 @@ Describe 'session.ps1 smoke' {
         Get-Game | Should -BeNullOrEmpty
     }
 
+    # As deploy checks its mod (#464): the ID names the test mod's folder in the throwaway profile.
+    It 'refuses a test mod ID that is not a plain folder name, and writes nothing outside the profile' {
+        $escape = "metaphor-escape-$(New-Guid)"
+        Set-Content -LiteralPath (Join-Path $testMod 'ModConfig.json') -Value "{`"ModId`":`"../../$escape`"}"
+
+        $result = Invoke-Session smoke -Extra '-ModFolders', $testMod -TimeoutSeconds 5
+
+        $result.ExitCode | Should -Be 2 -Because $result.Output
+        $result.Last | Should -Match "^failed: the mod ID '\.\./\.\./$escape' in .* is not a plain folder name - "
+        Join-Path ([IO.Path]::GetTempPath()) $escape | Should -Not -Exist
+        Get-ConfigHash | Should -Be $configBefore
+    }
+
     It 'fails when a mod refuses' {
         $result = Invoke-Session smoke -Extra '-ModFolders', $testMod -Behaviour refuse
 
