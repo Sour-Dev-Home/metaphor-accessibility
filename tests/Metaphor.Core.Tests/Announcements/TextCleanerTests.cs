@@ -56,6 +56,13 @@ public sealed class TextCleanerTests
         Assert.Equal("Kit waits.", Clean("<HERO 2> waits.", key => key == "hero-name" ? "Kit" : null));
 
     [Fact]
+    public void APlaceholderIsHandedItsArguments() =>
+        Assert.Equal(
+            "Kit and Ada wait.",
+            new TextCleaner(Rules, (key, args) => key == "hero-name" ? (args == "2" ? "Ada" : "Kit") : null)
+                .Clean("<HERO> and <HERO   2> wait."));
+
+    [Fact]
     public void TagNamesMatchOnlyInTheCaseTheRulesUse() =>
         Assert.Equal("waits.", Clean("<hero> waits.", key => key == "hero-name" ? "Kit" : null));
 
