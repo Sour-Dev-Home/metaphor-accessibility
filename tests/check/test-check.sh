@@ -209,6 +209,15 @@ test_blocks_query_output_in_the_ghidra_folder() {
   expect 1 "game content" "out/ghidra/out/decompiled.txt" "game folder"
 }
 
+test_blocks_files_in_the_root_ghidra_folder() {
+  new_repo
+  mkdir -p ghidra/projects
+  printf 'void FUN_14021e1c0(void) {}\n' > ghidra/projects/notes.txt
+  git add -f ghidra/projects/notes.txt
+  run_check fast
+  expect 1 "game content" "ghidra/projects/notes.txt" "game folder"
+}
+
 test_blocks_large_binary_with_harmless_name() {
   new_repo
   head -c $((2 * 1024 * 1024)) /dev/urandom > texture.png
@@ -1975,7 +1984,7 @@ GUARD_FILES=(scripts/check.sh scripts/check/report.sh scripts/check/run.sh scrip
   scripts/check/wsl-run.sh scripts/check/run-check-suites.sh scripts/setup/wsl-tools.txt scripts/setup/setup-wsl.ps1
   scripts/githooks/pre-commit scripts/githooks/pre-push
   scripts/githooks/commit-msg scripts/githooks/post-commit scripts/githooks/post-merge scripts/githooks/pre-merge-commit
-  scripts/ci/security-stamp.sh scripts/ci/github-outage.sh .github/workflows/ci.yml
+  scripts/ci/security-stamp.sh scripts/ci/github-outage.sh scripts/ci/vuln-audit.sh .github/workflows/ci.yml
   .github/workflows/slow.yml .github/workflows/a-new-one.yml .claude/agents/security-reviewer.md
   tests/check/test-check.sh tests/bash/test-anything.sh tools/slow/survivors.mjs tools/docs/package-lock.json
   .config/dotnet-tools.json scripts/dev/session.ps1 scripts/setup/onboard.ps1 scripts/player/MetaphorInstall.psm1
@@ -1985,7 +1994,7 @@ GUARD_FILES=(scripts/check.sh scripts/check/report.sh scripts/check/run.sh scrip
 # Every script the gate runs, transitively from check.sh, the git hooks and the workflows, is in the scope, so a change
 # to one can't take over the CI steps after it (BASH_ENV or PATH through $GITHUB_ENV) without a review.
 test_scope_covers_every_script_the_gate_runs() {
-  local scope_paths queue=() seen=" " file ref entry covered missing=""
+  local scope_paths queue=() seen=" " file ref entry covered missing="" parts resolved part
   read -ra scope_paths <<<"$(sed -n '/^scope=(/,/)$/p' "$STAMP" | tr '\n' ' ' | sed 's/^scope=(//; s/).*$//')"
   read -ra queue <<<"$(cd "$ROOT" && echo scripts/check.sh scripts/githooks/* .github/workflows/*)"
   while [ "${#queue[@]}" -gt 0 ]; do
@@ -1997,13 +2006,26 @@ test_scope_covers_every_script_the_gate_runs() {
       if [ "$file" = "$entry" ] || { [[ "$entry" == */ ]] && [[ "$file" == "$entry"* ]]; }; then covered=1; fi
     done
     [ -n "$covered" ] || missing+=" $file"
-    # Script names on lines that aren't comments; a bare name means one in scripts/.
+    # Script names on lines that aren't comments, walked wherever they resolve: from the root ("$root/scripts/x.sh"
+    # leaves "/scripts/x.sh"), from the referencing file's folder ("$here/x.sh", "../player/x.psm1"), or from scripts/
+    # ("$check_dir/check/report.sh" in a file check.sh sources).
     for ref in $(grep -vE '^[[:space:]]*#' "$ROOT/$file" |
       grep -oE '[A-Za-z0-9_./-]*[A-Za-z0-9_-]+\.(sh|mjs|cjs|js|ps1|psm1|py)\b' | sort -u); do
-      ref="${ref#./}" ref="${ref#/}" # "$root/scripts/x.sh" leaves "/scripts/x.sh"
-      # A bare name, or one relative to scripts/ ("$check_dir/check/report.sh"), is in scripts/.
-      { [[ "$ref" == */* ]] && [ -f "$ROOT/$ref" ]; } || ref="scripts/$ref"
-      [ -f "$ROOT/$ref" ] && queue+=("$ref")
+      ref="${ref#./}" ref="${ref#/}"
+      for ref in "$ref" "${file%/*}/$ref" "scripts/$ref"; do
+        IFS=/ read -ra parts <<<"$ref"
+        resolved=()
+        for part in "${parts[@]}"; do
+          case $part in
+            "" | .) ;;
+            ..) [ "${#resolved[@]}" -eq 0 ] || unset 'resolved[${#resolved[@]}-1]' ;;
+            *) resolved+=("$part") ;;
+          esac
+        done
+        printf -v ref '%s/' "${resolved[@]}"
+        ref="${ref%/}"
+        [ -f "$ROOT/$ref" ] && queue+=("$ref")
+      done
     done
   done
   out="outside the scope:$missing" code=0
@@ -2023,6 +2045,31 @@ test_stamp_touches_a_new_file_in_each_scoped_directory() {
     bash "$STAMP" touches || code=$?
     expect 0
   done
+}
+
+# Git pathspecs are case-sensitive, but Windows puts Scripts/x.ps1 in scripts/ (#432): a case variant of a scoped path
+# is in scope, staged, committed or in a range.
+test_stamp_touches_a_case_variant_of_a_scoped_path() {
+  local file base
+  for file in Scripts/x.ps1 SRC/Metaphor.HOOKS/X.cs .GitHub/Workflows/x.yml DIRECTORY.BUILD.props; do
+    review_repo "$file"
+    out="staged $file" code=0
+    bash "$STAMP" touches || code=$?
+    expect 0
+    base="$(git rev-parse HEAD)"
+    git commit -q --no-verify -m "fix: case variant"
+    out="committed $file" code=0
+    bash "$STAMP" touches HEAD || code=$?
+    expect 0
+    out="range $file" code=0
+    bash "$STAMP" touches "$base..HEAD" || code=$?
+    expect 0
+    [ "$(bash "$STAMP" hash HEAD)" != "$(bash "$STAMP" hash "$base")" ] || out="hash ignores $file" code=1
+    expect 0
+  done
+  review_repo Scripts/x.ps1
+  commit "feat: case-variant script"
+  expect 1 "no matching stamp"
 }
 
 test_stamp_touches_each_guard_file_but_not_docs() {

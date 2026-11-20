@@ -60,7 +60,7 @@ A check that looks stalled: `bash scripts/check/check-status.sh` shows who holds
 
 ## Hook, loading, install or update code, and the guards
 
-This covers the security-review scope (the hook layer, every script and the guards), listed in
+This covers the [security-review scope](../../AGENTS.md#claude-code-setup), listed in
 `scripts/ci/security-stamp.sh`. The stamp is in
 [security review](../contributors/reference/security-review.md#the-stamp). A change to any of it is handed
 back for review, never auto-merged on CI alone. Three steps are yours:

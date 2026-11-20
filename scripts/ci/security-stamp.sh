@@ -36,6 +36,8 @@ scope=(scripts/ src/Metaphor.Hooks/ .github/workflows/ tests/check/ tests/bash/ 
   *Directory.Build.* *Directory.Packages.props *Directory.Solution.* *.sln.targets *global.json
   *nuget.config *NuGet.config *NuGet.Config)
 set +f
+# Every pathspec here matches in any case: Windows puts a file staged as Scripts/x.ps1 in scripts/ (#432).
+export GIT_ICASE_PATHSPECS=1
 # The scope before #306. A commit stamped then carries a hash of these paths; it stays valid while the commit changes
 # nothing in the scope outside them. Open PR #294's head was stamped then; drop this list once that PR has merged.
 old_scope=(src/Metaphor.Hooks/ scripts/deploy-dev.ps1 scripts/smoke-test.ps1 scripts/package-mod.sh

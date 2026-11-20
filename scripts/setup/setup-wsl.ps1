@@ -1,5 +1,5 @@
-# Sets up the metaphor-checks WSL distro that the check-script suites run in (#341; CONTRIBUTING.md). Run it from
-# PowerShell in the repository root:
+# Sets up the metaphor-checks WSL distro that the check-script suites run in (#341;
+# docs/contributors/how-to/set-up-a-clone.md). Run it from PowerShell in the repository root:
 #   .\scripts\setup\setup-wsl.ps1            create the distro from Debian (it asks first), then install what's missing
 #   .\scripts\setup\setup-wsl.ps1 -Update    also upgrade the distro's packages and reinstall the pinned docs tools
 #   .\scripts\setup\setup-wsl.ps1 -Yes       don't ask before creating the distro (without a console and -Yes, it doesn't

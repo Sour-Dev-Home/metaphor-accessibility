@@ -63,9 +63,8 @@ _Avoid_: info key, read-more key
 ### Review and CI
 
 **Security-review scope**:
-The files whose changes must be reviewed by the `security-reviewer` agent before they are committed: the hook layer,
-every script, and the guards that enforce the ground rules. The list, by directory, lives in
-`scripts/ci/security-stamp.sh`.
+The files whose changes must be reviewed by the `security-reviewer` agent before they are committed;
+[AGENTS.md](AGENTS.md#claude-code-setup) names them. The list, by directory, lives in `scripts/ci/security-stamp.sh`.
 _Avoid_: review list, protected files
 
 **Stamp**:

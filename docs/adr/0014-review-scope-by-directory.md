@@ -11,7 +11,7 @@ Decided by the maintainer on 2026-11-19 (#409, decisions 1 and 2; built in #410)
 The security-review scope in `scripts/ci/security-stamp.sh` names directories (`scripts/`, the hook project, the
 workflows, the check tests, the pinned tools) and the few files that decide `dotnet restore`, not about 45 paths. A
 file added under a scoped directory is in scope with no list edit, so a new script can't land unreviewed because
-nobody listed it. `scripts/dev/inspect.ps1` and `scripts/dev/signature-spike.ps1`, the only scripts the old list left out,
+nobody listed it. `scripts/inspect.ps1` and `scripts/signature-spike.ps1`, the only scripts the old list left out,
 come in. There are no exclusions; one would need its reason next to it.
 
 The cost is a review for script changes that touch neither the game nor the gate. That is cheap next to a guard
