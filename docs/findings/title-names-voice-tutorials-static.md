@@ -44,7 +44,8 @@ Confidence: high for the code; the live values are `[NEEDS VERIFICATION]`.
 **Reaching it.** Nothing in analysed code writes the `TitleChoice` vtables: its constructor isn't in the analysed code,
 and it has no static pointer. The title scene, `fclTitle@fcl@app`, is key `0x17` in the menus' scene map: `0xf9c210`
 walks it with `0x51fab0` (`H+0x48`, `H` at `0x2ee7338`) and `0x4ccde0`, the walk in the
-[tree note](archetype-tree-scene-and-choice-static.md), and casts to `fclTitle`. It then returns the scene's byte
+[tree note](archetype-tree-scene-and-choice-static.md), and casts to `fclTitle` (game session 1 found the batch's chain one
+dereference short; the corrected path is in [the scene-map path](menus-scene-map-path.md)). It then returns the scene's byte
 `+0x81`, whose meaning is unknown. Whether the scene holds the choice, directly or deeper, is `[NEEDS VERIFICATION]`.
 Once a candidate is found, `read <choice>+0x230 8` must equal the `mgr=` of the log's title `cursor` records: `+0x230` is
 the manager that `ChoiceGetCursor` (`0xd4ab90`) returns.

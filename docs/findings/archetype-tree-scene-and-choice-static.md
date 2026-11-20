@@ -19,7 +19,8 @@ The script functions `AcademiaLearnTalk_GetCharaID` (`0x903140`), `FclShopGetIte
 share one lookup:
 
 1. `0x51fab0` reads the menus' handle `H` at RVA `0x2ee7338` (session 6: non-null while a field menu is open) and returns
-   `H+0x48`, a vector.
+   `[H+0x48]`, a pointer to a vector `{begin, end}` (corrected by game session 1: see
+   [the scene-map path](menus-scene-map-path.md)).
 2. The first element's `+0x8` is a map `M` keyed by a scene number. `0x4ccde0` takes the bucket at
    `[M+0x28] + (key & [M+0x40]) × 0x10`, starts from its second pointer, walks back through each node's `+8` until
    node `+0x10` equals the key, and gives node `+0x18`.
@@ -68,10 +69,11 @@ which the inspector has no path to.
 Deploy a Debug build with `opt-in-inspector.txt` ([how-to](../contributors/how-to/inspect-the-running-game.md)).
 
 1. **Main menu, then Y for the Archetype Tree, pick a character, then the tree on screen:**
-   `pwsh scripts/dev/session.ps1 inspect 'follow base+0x2ee7338 0x48 0x0 0x8 0x40'`, then `read` 8 bytes there for the mask `m`.
+   `pwsh scripts/dev/session.ps1 inspect 'follow base+0x2ee7338 0x48 0x0 0x0 0x8 0x40'`,
+   then `read` 8 bytes there for the mask `m`.
 2. Bucket offset = `(0x11 & m) × 0x10 + 8`. Run
-   `'follow base+0x2ee7338 0x48 0x0 0x8 0x28 <offset> 0x10'` and `read` 4 bytes: expect 0x11, little-endian.
-   Then `'follow base+0x2ee7338 0x48 0x0 0x8 0x28 <offset> 0x18 0x0'` and `rtti` on the result: expect
+   `'follow base+0x2ee7338 0x48 0x0 0x0 0x8 0x28 <offset> 0x10'` and `read` 4 bytes: expect 0x11, little-endian.
+   Then `'follow base+0x2ee7338 0x48 0x0 0x0 0x8 0x28 <offset> 0x18 0x0'` and `rtti` on the result: expect
    `fclAcademiaTree@fcl@app`. On another key, insert `0x8` before `0x10` or `0x18` to step one node back.
 3. **Same screen:** `read <scene> 0x1000`, then `rtti` each 8-byte value that looks like a heap pointer. One naming
    `AcademiaClassSelectChoice@ope@ui@app` settles the screen class. Also `read <scene>+0xcb8 4`: the character ID.
