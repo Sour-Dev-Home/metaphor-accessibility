@@ -102,7 +102,12 @@ internal sealed record HookServices
         var screens = new MenuScreens(KnownScreens.All);
         screens.Observe(new TitleMenuFocus(library, reader, cleaner));
         screens.Observe(new MainMenuFocus(reader));
-        screens.Observe(new YesNoDialogFocus(library, reader, cleaner));
+        // A yes/no dialog hears each scripted choice and each select window too, to say the text of one opened outside
+        // the scripts (#569).
+        var yesNo = new YesNoDialogFocus(library, reader, cleaner);
+        screens.Observe(yesNo);
+        events.ObserveChoices(yesNo);
+        events.ObserveSelects(yesNo);
         screens.Observe(new DifficultyFocus(library, reader, cleaner));
         screens.Observe(new SettingsFocus(library, reader, cleaner));
         screens.Observe(new UnknownScreenFocus(reader));
@@ -135,6 +140,7 @@ internal sealed record HookServices
             events.ObserveFiles(log);
             events.ObserveLines(log);
             events.ObserveChoices(log);
+            events.ObserveSelects(log);
             cursors.Observe(log);
         }
         return new()

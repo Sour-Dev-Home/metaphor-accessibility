@@ -11,7 +11,7 @@ namespace Metaphor.Core;
 /// screen. Debug builds only; it holds game text, so it stays in the local mod folder and is never committed. Safe to
 /// call from any game thread, and never throws.</summary>
 public sealed class MessageLog(TextWriter writer, Func<long> millisecondsSinceStart)
-    : IMessageFileObserver, ILineRequestObserver, IChoiceRequestObserver, ICursorObserver
+    : IMessageFileObserver, ILineRequestObserver, IChoiceRequestObserver, ISelectRequestObserver, ICursorObserver
 {
     /// <summary>The log's file name in the mod's folder.</summary>
     public const string FileName = "message-log.txt";
@@ -52,6 +52,11 @@ public sealed class MessageLog(TextWriter writer, Func<long> millisecondsSinceSt
     /// <c>first</c> and the choice's label as <c>second</c> (docs/raw-sources/spike-session-1-2026-11-16.md).</summary>
     public void Observe(ChoiceRequested choice) => Write(() => Line(
         $"{millisecondsSinceStart()} ms select kind={choice.Kind} first={Quoted(choice.PromptLabel)} second={Quoted(choice.ChoiceLabel)}"));
+
+    /// <summary>A select window any game code opened (#569): the request's kind, the prompt's label and the choice's
+    /// label.</summary>
+    public void Observe(SelectRequested window) => Write(() => Line(
+        $"{millisecondsSinceStart()} ms select-window kind={window.Kind} prompt={Quoted(window.PromptLabel)} choice={Quoted(window.ChoiceLabel)}"));
 
     /// <summary>The selection the game's scripts read back (#93): the value the selected-ID function returned, as 32
     /// bits.</summary>

@@ -11,9 +11,12 @@ public sealed class MessageEventsTests
     private readonly List<string> seen = [];
 
     private sealed class Recording(string name, List<string> seen)
-        : ILineRequestObserver, IMessageFileObserver, IChoiceRequestObserver, ILineShownObserver
+        : ILineRequestObserver, IMessageFileObserver, IChoiceRequestObserver, ILineShownObserver, ISelectRequestObserver
     {
         public void Observe(LineRequested line) => seen.Add($"{name}:{line.Kind}:{line.Label}");
+
+        public void Observe(SelectRequested window) =>
+            seen.Add($"{name}:select:{window.Kind}:{window.PromptLabel}:{window.ChoiceLabel}");
 
         public void Observe(LineShown line) => seen.Add($"{name}:{line.Kind}:{line.LabelHash}");
 
@@ -23,8 +26,11 @@ public sealed class MessageEventsTests
             seen.Add($"{name}:{choice.Kind}:{choice.PromptLabel}:{choice.ChoiceLabel}");
     }
 
-    private sealed class Throwing : ILineRequestObserver, IMessageFileObserver, IChoiceRequestObserver, ILineShownObserver
+    private sealed class Throwing
+        : ILineRequestObserver, IMessageFileObserver, IChoiceRequestObserver, ILineShownObserver, ISelectRequestObserver
     {
+        public void Observe(SelectRequested window) => throw new InvalidOperationException("observer failed");
+
         public void Observe(LineShown line) => throw new InvalidOperationException("observer failed");
 
         public void Observe(LineRequested line) => throw new InvalidOperationException("observer failed");
@@ -114,11 +120,26 @@ public sealed class MessageEventsTests
         Assert.Empty(seen);
     }
 
+    // #569: a select window any game code opened, not only the scripts' choices, which keep their own event.
+    [Fact]
+    public void AnOpenedSelectWindowReachesEachSelectObserverInOrderEvenAfterOneThrows()
+    {
+        events.ObserveSelects(new Recording("speech", seen));
+        events.ObserveSelects(new Throwing());
+        events.ObserveSelects(new Recording("log", seen));
+        events.ObserveChoices(new Recording("choices", seen));
+
+        events.SelectOpened(new SelectRequested(1, "MES_q", "MES_c"));
+
+        Assert.Equal(["speech:select:1:MES_q:MES_c", "log:select:1:MES_q:MES_c"], seen);
+    }
+
     [Fact]
     public void AMissingObserverIsRefusedWhenAdded()
     {
         Assert.Throws<ArgumentNullException>("observer", () => events.ObserveFiles(null!));
         Assert.Throws<ArgumentNullException>("observer", () => events.ObserveLines(null!));
         Assert.Throws<ArgumentNullException>("observer", () => events.ObserveChoices(null!));
+        Assert.Throws<ArgumentNullException>("observer", () => events.ObserveSelects(null!));
     }
 }

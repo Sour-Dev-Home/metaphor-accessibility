@@ -17,6 +17,11 @@ public sealed record LineShown(int Kind, string LabelHash);
 /// the label of the message holding its options, each null when it couldn't be read.</summary>
 public sealed record ChoiceRequested(int Kind, string? PromptLabel, string? ChoiceLabel);
 
+/// <summary>A select window any game code opened (#569), the scripts' choices included: the request's kind, the label
+/// of the prompt shown with it and the label of the message holding its options, each null when it couldn't be read.
+/// The scripts' choices also arrive, just before, as a <see cref="ChoiceRequested"/>.</summary>
+public sealed record SelectRequested(int Kind, string? PromptLabel, string? ChoiceLabel);
+
 /// <summary>Told of each message file the game compiles.</summary>
 public interface IMessageFileObserver
 {
@@ -41,6 +46,12 @@ public interface IChoiceRequestObserver
     void Observe(ChoiceRequested choice);
 }
 
+/// <summary>Told of each select window the game opens.</summary>
+public interface ISelectRequestObserver
+{
+    void Observe(SelectRequested window);
+}
+
 /// <summary>Hands each message event a hook decoded to its observers (#86), so one hook per game function serves
 /// them all. Observers hear each event in the order they were added, and one that throws never stops the rest. Add
 /// observers before the hooks go live; telling them is safe from any game thread.</summary>
@@ -51,6 +62,7 @@ public sealed class MessageEvents
     private ILineRequestObserver[] lineObservers = [];
     private IChoiceRequestObserver[] choiceObservers = [];
     private ILineShownObserver[] shownObservers = [];
+    private ISelectRequestObserver[] selectObservers = [];
 
     /// <summary>Adds an observer of compiled message files, after those already added.</summary>
     public void ObserveFiles(IMessageFileObserver observer)
@@ -92,6 +104,16 @@ public sealed class MessageEvents
         }
     }
 
+    /// <summary>Adds an observer of opened select windows, after those already added.</summary>
+    public void ObserveSelects(ISelectRequestObserver observer)
+    {
+        ArgumentNullException.ThrowIfNull(observer);
+        lock (gate)
+        {
+            selectObservers = [.. selectObservers, observer];
+        }
+    }
+
     /// <summary>Tells every file observer that the game compiled <paramref name="file"/>.</summary>
     public void Compiled(MessageFileCompiled file) => TellEach(Volatile.Read(ref fileObservers), observer => observer.Observe(file));
 
@@ -104,6 +126,10 @@ public sealed class MessageEvents
     /// <summary>Tells every choice observer that the game opened <paramref name="choice"/>.</summary>
     public void ChoiceOpened(ChoiceRequested choice) =>
         TellEach(Volatile.Read(ref choiceObservers), observer => observer.Observe(choice));
+
+    /// <summary>Tells every select observer that the game opened <paramref name="window"/>.</summary>
+    public void SelectOpened(SelectRequested window) =>
+        TellEach(Volatile.Read(ref selectObservers), observer => observer.Observe(window));
 
     [SuppressMessage("Design", "CA1031", Justification = "One observer's failure must not keep the event from the others, or reach the game.")]
     private static void TellEach<T>(T[] observers, Action<T> tell)
