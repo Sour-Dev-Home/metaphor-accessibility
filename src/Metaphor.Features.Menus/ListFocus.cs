@@ -8,11 +8,11 @@ namespace Metaphor.Features.Menus;
 internal static class ListFocus
 {
     /// <summary>What to say for <paramref name="change"/> on <paramref name="screen"/>, a list of
-    /// <paramref name="count"/> items headed <paramref name="heading"/>; <paramref name="label"/> gives an item's text
-    /// from its position, or null to speak the position alone. Null when the change is another screen's, a screen left,
-    /// or a position outside the list.</summary>
+    /// <paramref name="count"/> items headed <paramref name="heading"/>, or with no heading when it's null;
+    /// <paramref name="label"/> gives an item's text from its position, or null to speak the position alone. Null when
+    /// the change is another screen's, a screen left, or a position outside the list.</summary>
     public static Announcement? Of(
-        ScreenEvent change, Screen screen, string heading, int count, Func<int, string?> label)
+        ScreenEvent change, Screen screen, string? heading, int count, Func<int, string?> label)
     {
         ArgumentNullException.ThrowIfNull(change);
         ArgumentNullException.ThrowIfNull(label);
@@ -22,6 +22,7 @@ internal static class ListFocus
         }
         var position = $"{change.Index + 1} of {count}";
         var item = label(change.Index) is { } text ? $"{text}, {position}" : position;
-        return new Announcement(change.Change == ScreenChange.Entered ? $"{heading}, {item}" : item, Interrupt: true);
+        var headed = change.Change == ScreenChange.Entered && heading is not null;
+        return new Announcement(headed ? $"{heading}, {item}" : item, Interrupt: true);
     }
 }

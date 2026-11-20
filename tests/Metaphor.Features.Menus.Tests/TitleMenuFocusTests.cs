@@ -223,6 +223,29 @@ public sealed class TitleMenuFocusTests
         Assert.Equal(["Main menu, System, 3 of 3", "Credits, 2 of 2", "System, 3 of 3", "Resume, 2 of 3"], Said());
     }
 
+    // #557, as in the by-ear check of 2026-11-20 (game build 548ddc95…): Settings opened from the submenu, then backed
+    // out of; the submenu's cursor comes back with the very input it last had, after Settings' screens.
+    [Fact]
+    public void BackingOutOfSettingsToTheSystemSubmenuSpeaksItsFocusAsOnEntry()
+    {
+        var now = 0L;
+        var timed = new CursorEvents(() => now);
+        var screens = new MenuScreens([TitleMenuFocus.Screen]);
+        screens.MenusRead(open: true);
+        timed.Observe(screens);
+        screens.Observe(new TitleMenuFocus(new MessageLibrary(), announcer, new TextCleaner(TextCleanerRules.None)));
+        void Timed(long manager, string screenClass, int row, int? mode) =>
+            timed.Handled(new CursorInput(manager, 0x100, Settle, 1, 0, row, 0x46, screenClass, 3, mode));
+
+        Timed(Title, TitleClass, row: 0, mode: SystemMode);
+        now += 17;
+        Timed(0xb0, "?$ConfigTopChoicePc@VConfigTopChoicePcLayoutInit@ui@app@@@ope@ui@app", row: 0, mode: null);
+        now += 7000;
+        Timed(Title, TitleClass, row: 0, mode: SystemMode);
+
+        Assert.Equal(["System menu, Settings, 1 of 2", "System menu, Settings, 1 of 2"], Said());
+    }
+
     [Fact]
     public void TheSystemSubmenuEnteredAfreshSaysItsName()
     {
@@ -239,5 +262,61 @@ public sealed class TitleMenuFocusTests
         Cursor(Settle, row: 2, mode: SystemMode);
 
         Assert.Equal(["System menu, Settings, 1 of 2"], Said());
+    }
+
+    // #555: before a button is pressed the choice's mode is 0 and "Press any button" shows, no menu; the decide handler
+    // then sets it to 1 and shows the items, and back on the title menu sets it to 0 again
+    // (docs/raw-sources/title-press-any-button-mode-2026-11-20.md).
+    private const int PressAnyButtonMode = 0;
+    private const string PromptSource = "@Title_PressAnyKey\n{\n<COLOR 3>Tap to start<COLOR -1>\n<WAIT>\n}";
+
+    private void TitleFileWithPromptCompiled() =>
+        messages.Compiled(new MessageFileCompiled(TitleFile, 56, TitleSource + "\n\n" + PromptSource));
+
+    [Fact]
+    public void ThePressAnyButtonScreenSpeaksTheGamesPromptNotTheMenu()
+    {
+        TitleFileWithPromptCompiled();
+
+        Cursor(Settle, row: 0, mode: PressAnyButtonMode);
+
+        Assert.Equal([new Announcement("Tap to start", Interrupt: true)], announcer.Said);
+    }
+
+    [Fact]
+    public void ThePressAnyButtonScreenSpeaksOurWordsWithoutThePromptMessage()
+    {
+        TitleFileCompiled();
+
+        Cursor(Settle, row: 0, mode: PressAnyButtonMode);
+
+        Assert.Equal(["Press any button"], Said());
+    }
+
+    [Theory]
+    [InlineData(0, "Main menu, Begin, 1 of 3")]
+    [InlineData(1, "Main menu, Resume, 2 of 3")]
+    public void TheOptionsAppearingSayTheMenusNameAndTheFocusedItem(int row, string expected)
+    {
+        TitleFileWithPromptCompiled();
+        Cursor(Settle, row: 0, mode: PressAnyButtonMode);
+
+        Cursor(Settle, row: row, mode: TitleMode);
+        Cursor(Settle, row: 2, mode: TitleMode);
+
+        Assert.Equal(["Tap to start", expected, "System, 3 of 3"], Said());
+    }
+
+    [Fact]
+    public void BackingOutOfTheTitleMenuSpeaksThePromptAgainThenTheMenuOnceItReturns()
+    {
+        TitleFileWithPromptCompiled();
+        Cursor(Settle, row: 1, mode: TitleMode);
+
+        Cursor(Settle, row: 1, mode: PressAnyButtonMode);
+        Cursor(Settle, row: 0, mode: PressAnyButtonMode);
+        Cursor(Settle, row: 1, mode: TitleMode);
+
+        Assert.Equal(["Main menu, Resume, 2 of 3", "Tap to start", "Main menu, Resume, 2 of 3"], Said());
     }
 }
