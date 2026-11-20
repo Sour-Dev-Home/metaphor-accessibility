@@ -99,6 +99,33 @@ Describe 'the Ghidra project folder' {
         $result.Output | Should -Not -Match 'moved'
         Join-Path $clone 'ghidra' | Should -Not -Exist
     }
+
+    # #508: every process in a run shares one console, so setting [Console]::OutputEncoding to read git's UTF-8 also
+    # switched the code page under the Pester processes running beside it, and a program they started then wrote output
+    # they misread (onboard.Tests' summary marks). A stand-in git records the code page it starts under.
+    It 'reads the git dir from git without changing the console''s code page' {
+        New-Clone
+        New-Project 'ghidra' 'old'
+        $bin = New-Item -ItemType Directory (Join-Path $root 'bin')
+        $git = (Get-Command git -CommandType Application | Select-Object -First 1).Source
+        # The output code page, which chcp doesn't show (it shows the input one).
+        $codePage = "`"$(Join-Path $PSHOME 'pwsh.exe')`" -NoProfile -Command [Console]::OutputEncoding.CodePage"
+        Set-Content -LiteralPath (Join-Path $bin 'git.cmd') -Encoding ascii -Value @(
+            '@echo off', ">`"%~dp0codepage.txt`" 2>&1 $codePage", "`"$git`" %*")
+        $before = cmd /c $codePage
+        $saved = $env:PATH
+        try {
+            $env:PATH = "$bin;$env:PATH"
+            $result = Invoke-Ghidra
+        }
+        finally { $env:PATH = $saved }
+
+        $result.ExitCode | Should -Be 2 -Because $result.Output
+        $result.Output | Should -Match 'moved the Ghidra project from ghidra/ to out/ghidra/'
+        $after = Get-Content -LiteralPath (Join-Path $bin 'codepage.txt')
+        $after | Should -Not -BeNullOrEmpty
+        $after | Should -Be $before
+    }
 }
 
 # #456: the JDK by its version, not its folder name's spelling, checked against the Java version Ghidra says it needs.

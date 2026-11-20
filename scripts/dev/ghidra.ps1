@@ -59,12 +59,20 @@ $repo = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '../..'))
 # git dir's parent), which .gitignore and the checks' game-folder rule cover. Ghidra also refuses a project path with a
 # folder starting with '.', as worktrees under .claude/ have.
 # git prints the path in UTF-8, and PowerShell reads a program's output in the console's code page, which turned a
-# folder name such as José into another path (#459). Without a console the setting can't change, and stays as it is.
-$consoleEncoding = [Console]::OutputEncoding
-try { [Console]::OutputEncoding = New-Object Text.UTF8Encoding $false } catch { Write-Verbose "console encoding unchanged: $_" }
-try { $common = git -C $repo rev-parse --path-format=absolute --git-common-dir }
-finally { try { [Console]::OutputEncoding = $consoleEncoding } catch { Write-Verbose "console encoding not restored: $_" } }
-if ($LASTEXITCODE -ne 0) { $common = Join-Path $repo '.git' }
+# folder name such as José into another path (#459). So git's output is read as UTF-8 here, without setting
+# [Console]::OutputEncoding: that sets the code page of the console every process in the window shares, and programs
+# started beside this one then wrote output their callers misread (#508).
+$gitStart = [Diagnostics.ProcessStartInfo]::new((Get-Command git -CommandType Application | Select-Object -First 1).Source)
+foreach ($argument in '-C', $repo, 'rev-parse', '--path-format=absolute', '--git-common-dir') {
+    $gitStart.ArgumentList.Add($argument)
+}
+$gitStart.UseShellExecute = $false
+$gitStart.RedirectStandardOutput = $true
+$gitStart.StandardOutputEncoding = New-Object Text.UTF8Encoding $false
+$gitProcess = [Diagnostics.Process]::Start($gitStart)
+$common = $gitProcess.StandardOutput.ReadToEnd().Trim()
+$gitProcess.WaitForExit()
+if ($gitProcess.ExitCode -ne 0 -or -not $common) { $common = Join-Path $repo '.git' }
 $root = [IO.Path]::GetFullPath((Join-Path (Split-Path $common) 'out/ghidra'))
 # Before #411 the project sat in ghidra/ at the checkout's root: move it here once.
 $oldRoot = Join-Path (Split-Path $common) 'ghidra'
