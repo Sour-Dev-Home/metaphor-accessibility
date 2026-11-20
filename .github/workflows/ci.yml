@@ -229,11 +229,62 @@ jobs:
         run: |
           pwsh -NoProfile -Command '$m = Import-Module Pester -MinimumVersion 5.0 -PassThru; if ("$($m.Version)" -ne $env:PESTER_PIN) { "::warning::Pester $($m.Version) loaded, not the pinned $env:PESTER_PIN" }; $r = Invoke-Pester $env:TEST_FILE -PassThru -Output Normal; exit $r.FailedCount'
 
+  # Every Pester file once more, on a setup unlike the runner's default (#459): a German culture, a checkout whose path
+  # holds a space, é and Japanese, and a temporary folder whose path holds a space and é, as a player's or
+  # contributor's may. The tests that start Windows PowerShell 5.1 run it under the same culture and folders. Merge
+  # queue and main only, beside the Windows build (ADR 0008), so pull requests stay fast. One job, not a second matrix:
+  # run-pester.sh runs the files in parallel on the runner's cores, as `check.sh full` does locally.
+  pester-varied-setup:
+    if: github.event_name != 'pull_request'
+    runs-on: windows-latest
+    timeout-minutes: 20
+    defaults:
+      run:
+        shell: bash
+        working-directory: Bibliothèque Steam/日本 repo
+    env:
+      CULTURE: de-DE
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          path: Bibliothèque Steam/日本 repo
+      - uses: actions/setup-dotnet@0f4a354dd5547a28c70b7853dbd95d5b67886e73 # v6.1.0
+        with:
+          global-json-file: Bibliothèque Steam/日本 repo/global.json
+      - name: Install the pinned Pester
+        run: |
+          pin="$(sed -n "s/^\$pesterVersion = '\([0-9.]*\)'.*/\1/p" scripts/setup/onboard.ps1 | tr -d '\r')"
+          [ -n "$pin" ] || { echo "no \$pesterVersion line in scripts/setup/onboard.ps1"; exit 1; }
+          PIN="$pin" pwsh -NoProfile -Command 'Install-PSResource -Name Pester -Version "[$env:PIN]" -Scope CurrentUser -Repository PSGallery -TrustRepository -Quiet -ErrorAction Stop'
+      # The user's culture, which every process started after this reads: pwsh, Windows PowerShell 5.1 (the player
+      # scripts' tests start it) and .NET. The UI language override needs a language pack the image may lack, so only
+      # the culture is checked; error messages may stay English.
+      - name: Switch the user's culture
+        run: |
+          pwsh -NoProfile -Command 'Set-Culture $env:CULTURE -ErrorAction Stop
+            try { Set-WinUILanguageOverride -Language $env:CULTURE -ErrorAction Stop }
+            catch { "::warning::UI language stays as it was: $_" }'
+          for shell in pwsh powershell; do
+            culture="$("$shell" -NoProfile -Command '(Get-Culture).Name' | tr -d '\r')"
+            echo "$shell culture: $culture, UI culture: $("$shell" -NoProfile -Command '(Get-UICulture).Name' | tr -d '\r')"
+            [ "$culture" = "$CULTURE" ] || { echo "::error::$shell runs in $culture, not $CULTURE"; exit 1; }
+          done
+      # Not Japanese in the temporary folder: the tests read their child processes' output and their batch stand-ins'
+      # files through the console's code page, which can't hold it. check-install.Tests.ps1 and ghidra.Tests.ps1 test
+      # the scripts with such paths directly.
+      - name: Run every Pester file
+        run: |
+          temp="$RUNNER_TEMP/Temp é"
+          mkdir -p "$temp"
+          export TMPDIR="$temp" TEMP="$(cygpath -w "$temp")" TMP="$(cygpath -w "$temp")"
+          bash scripts/check/run-pester.sh
+
   # The required check named `scripts` (the ruleset asks for it by name): it passes when every Pester job passed or was
   # skipped, and fails when any failed or was cancelled. Add a test file under tests/pester and to the matrix above;
   # tests/bash/test-ci-matrix.sh fails when the two disagree.
   scripts:
-    needs: [pester]
+    needs: [pester, pester-varied-setup]
     if: always()
     runs-on: ubuntu-latest
     timeout-minutes: 2
@@ -241,9 +292,12 @@ jobs:
       - name: Every Pester job passed
         env:
           RESULT: ${{ needs.pester.result }}
+          VARIED: ${{ needs.pester-varied-setup.result }}
         run: |
-          echo "pester jobs: $RESULT"
-          [ "$RESULT" = success ] || [ "$RESULT" = skipped ]
+          echo "pester jobs: $RESULT; varied setup: $VARIED"
+          for result in "$RESULT" "$VARIED"; do
+            [ "$result" = success ] || [ "$result" = skipped ] || exit 1
+          done
 
   # Runs beside build, so it gates merges without slowing the commit stage. A vulnerable package fails the job; a new
   # high or critical CodeQL security alert blocks the merge through the ruleset's code-scanning rule. It runs on every
@@ -281,7 +335,7 @@ jobs:
   # Stage 2's time against its 5-minute budget (issue #1): each job's duration on the run's summary page, and a warning
   # annotation when the stage runs over. It only reports, so it runs after the others whatever their result.
   timing:
-    needs: [repo-rules, build, pester, scripts, security]
+    needs: [repo-rules, build, pester, pester-varied-setup, scripts, security]
     if: always()
     runs-on: ubuntu-latest
     timeout-minutes: 2

@@ -210,9 +210,24 @@ static class Program {
         [pscustomobject]@{ ExitCode = $code; Output = ($output -join "`n") }
     }
 
+    # The .cmd stand-ins write their lines in the system's OEM code page, the others in UTF-8, so each line is read as
+    # UTF-8 when it is valid UTF-8 and as OEM otherwise: a path with é in it reads back the same (#459).
     function Get-Calls {
         $file = Join-Path $script:bin 'calls.log'
-        @(if (Test-Path $file) { Get-Content $file })
+        if (-not (Test-Path $file)) { return @() }
+        $utf8 = New-Object Text.UTF8Encoding $false, $true
+        $oem = [Text.Encoding]::GetEncoding([int] (Get-ItemPropertyValue 'HKLM:\SYSTEM\CurrentControlSet\Control\Nls\CodePage' OEMCP))
+        $bytes = [IO.File]::ReadAllBytes($file)
+        $start = 0
+        @(for ($i = 0; $i -le $bytes.Length; $i++) {
+                if ($i -lt $bytes.Length -and $bytes[$i] -ne 10) { continue }
+                $end = if ($i -gt $start -and $bytes[$i - 1] -eq 13) { $i - 1 } else { $i }
+                if ($i -lt $bytes.Length -or $end -gt $start) { # no empty line after the last line break
+                    try { $utf8.GetString($bytes, $start, $end - $start) }
+                    catch [Text.DecoderFallbackException] { $oem.GetString($bytes, $start, $end - $start) }
+                }
+                $start = $i + 1
+            })
     }
     # The command the one relaunch through the stand-in pwsh ran, decoded from its -EncodedCommand.
     function Get-RelaunchCommand {

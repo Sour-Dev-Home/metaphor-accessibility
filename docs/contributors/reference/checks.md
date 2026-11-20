@@ -56,7 +56,9 @@ it in their names.
   waits for them all (#314). Each job starts with a `git diff` check (`scripts/ci/what-runs.sh`, which also picks
   the pre-push's tests, #413) and finishes green at once when the change can't affect it.
 - **The merge queue and pushes to `main`** run everything on Windows, then package, zip and rebuild the mod
-  reproducibly; on `main`, `attest` signs the zip ([Check a download](../../players/how-to/check-a-download.md)). The
+  reproducibly. Beside the build, `pester-varied-setup` runs every Pester file once under a German culture, from a
+  checkout and temporary folder whose paths hold a space and non-ASCII characters (#459), and `scripts` waits for it
+  too. On `main`, `attest` signs the zip ([Check a download](../../players/how-to/check-a-download.md)). The
   path-by-path detail is in [how a change reaches main](../explanation/how-a-change-reaches-main.md) and
   [ADR 0008](../../adr/0008-ci-fast-path-and-windows-gate.md).
 - **A `v*` tag on a commit on `main`** runs the `Release` workflow (#310), which drafts an attested release:
