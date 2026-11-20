@@ -148,7 +148,8 @@ Describe 'setup-wsl.ps1' {
         $result = Invoke-Setup @('-RetryDelaySeconds', '0')
 
         $result.ExitCode | Should -Be 1 -Because $result.Output
-        $result.Output | Should -Match '\(no console to answer on, so no\)'
+        $result.Output | Should -Match 'from Debian\?.*Type yes and press Enter to go on, or press Enter alone to stop\. \(no console to answer on, so no\)'
+        $result.Output | Should -Not -Match '\[[yY]/[nN]\]'
         $result.Output | Should -Match 'setup-wsl: nothing changed\. Run it in a PowerShell window, or with -Yes\.'
         Get-Calls | Where-Object { $_ -like 'wsl --install*' } | Should -BeNullOrEmpty
     }

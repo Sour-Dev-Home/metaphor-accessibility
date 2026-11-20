@@ -81,11 +81,7 @@ function Out-Line([string] $Printed, [string] $Spoken = $Printed) {
 # Speaks QUESTION, then returns the answer: from -Answers, or else the console (MetaphorInstall.psm1). '' for Enter, $null
 # for none, which counts as no.
 function Read-InstallAnswer([string] $Question) {
-    if ($voice) {
-        $spoken = $Question -replace '\s*\[y/N\]$', ' Type y for yes, or press Enter for no.' `
-            -replace '\s*\[Y/n\]$', ' Press Enter for yes, or type n for no.' -replace '\s*\[[^\]]*\]$', ''
-        $voice.Speak($spoken)
-    }
+    if ($voice) { $voice.Speak(($Question -replace '\s*\[[^\]]*\]$', '')) }
     if (-not $scripted) { return Read-Answer $Question }
     Write-Host "$Question " -NoNewline
     if ($answerQueue.Count -eq 0) { Write-Host '(no answer given, so no)'; return $null }
@@ -110,8 +106,8 @@ try {
         -VcRuntimeKey $VcRuntimeKey -WorkFolder $workFolder -Ask $ask -Say $say
 
     Out-Line "Installer for $($context.ModName) $($context.ModVersion). It says each step, and asks before each download."
-    $go = Read-InstallAnswer 'Install the mod? It puts the mod in Reloaded-II, turns it on for the game, and puts a shortcut on your desktop. [y/N]'
-    if (-not ($null -ne $go -and $go -match '^\s*(y|yes)\s*$')) {
+    $go = Read-InstallAnswer (Format-YesNoQuestion 'Install the mod? It puts the mod in Reloaded-II, turns it on for the game, and puts a shortcut on your desktop.')
+    if (-not (Test-Yes $go)) {
         Out-Line 'Nothing was changed, because the answer was no.'
         exit 1
     }

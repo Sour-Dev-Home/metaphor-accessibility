@@ -246,6 +246,19 @@ Describe 'install.ps1' {
         $result.Output | Should -Match 'Problem: The mod has not reported a start'
     }
 
+    It 'ends every question it asks with a sentence that says what to type, never [y/N] (#473)' {
+        $result = Invoke-Install $freshAnswers
+        $result.ExitCode | Should -Be 0 -Because $result.Output
+        $result.Output | Should -Not -Match '\[[yY]/[nN]\]|skip it'
+        $enterIsNo = [regex]::Escape('Type yes and press Enter to go on, or press Enter alone to stop.')
+        $enterIsYes = [regex]::Escape('Press Enter alone to go on, or type no and press Enter to stop.')
+        $result.Output | Should -Match "Install the mod\?.* $enterIsNo"
+        $result.Output | Should -Match "Use it\? $enterIsYes"
+        # One sentence per answer given: the install, the game (Enter means yes), then four downloads.
+        ([regex]::Matches($result.Output, $enterIsNo)).Count | Should -Be 5
+        ([regex]::Matches($result.Output, $enterIsYes)).Count | Should -Be 1
+    }
+
     It 'changes nothing on a second run, says so, and asks only whether to go ahead' {
         (Invoke-Install $freshAnswers).ExitCode | Should -Be 0
         $before = Get-Snapshot
@@ -647,6 +660,29 @@ Describe 'Test-Elevated' {
     }
 }
 
+Describe 'Format-YesNoQuestion' {
+    It 'ends the question with what to type, Enter alone meaning no' {
+        Format-YesNoQuestion 'Go?' | Should -BeExactly 'Go? Type yes and press Enter to go on, or press Enter alone to stop.'
+    }
+
+    It 'says Enter alone means yes with -EnterMeansYes' {
+        Format-YesNoQuestion 'Go?' -EnterMeansYes |
+            Should -BeExactly 'Go? Press Enter alone to go on, or type no and press Enter to stop.'
+    }
+
+    It 'says skip it instead of stop with -Ending ''skip it''' {
+        Format-YesNoQuestion 'Go?' -Ending 'skip it' |
+            Should -BeExactly 'Go? Type yes and press Enter to go on, or press Enter alone to skip it.'
+        Format-YesNoQuestion 'Go?' -EnterMeansYes -Ending 'skip it' |
+            Should -BeExactly 'Go? Press Enter alone to go on, or type no and press Enter to skip it.'
+    }
+
+    It 'takes y and yes as yes, and Enter alone, no, or no answer as no' {
+        foreach ($yes in 'y', 'yes', ' YES ') { Test-Yes $yes | Should -BeTrue -Because "'$yes'" }
+        foreach ($no in '', 'n', 'no', 'yep', $null) { Test-Yes $no | Should -BeFalse -Because "'$no'" }
+    }
+}
+
 Describe 'Confirm-RunWindow' {
     BeforeAll {
         $script:said = [Collections.Generic.List[string]]::new()
@@ -686,7 +722,7 @@ Describe 'Confirm-RunWindow' {
     It 'asks for the word yes in a sentence a screen reader can read, and takes it typed in full' {
         Mock -ModuleName MetaphorInstall Test-UacEnabled { $false }
         Invoke-Confirm 'yes' | Should -BeTrue
-        $asked[0] | Should -Match 'Type yes and press Enter to go on, or press Enter alone to stop\.'
+        $asked[0] | Should -Be (Format-YesNoQuestion 'Install as administrator anyway?')
         $asked[0] | Should -Not -Match '\[y/N\]'
     }
 

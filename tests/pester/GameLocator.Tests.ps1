@@ -117,7 +117,7 @@ Describe 'Select-MetaphorGame' {
 
         (Invoke-Select @('')).Path | Should -Be (Join-Path $library 'steamapps\common\METAPHOR\METAPHOR.exe')
         $questions | Should -Be @(
-            'Use it, saving its path in your Windows user''s METAPHOR_GAME_EXE environment variable? [Y/n]')
+            'Use it, saving its path in your Windows user''s METAPHOR_GAME_EXE environment variable? Press Enter alone to go on, or type no and press Enter to skip it.')
     }
 
     It 'uses nothing after a no, or with no answer (no console)' {

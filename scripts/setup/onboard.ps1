@@ -120,10 +120,8 @@ function Read-OnboardAnswer([string] $Question) {
     Write-Host $answer
     return $answer
 }
-function Read-YesNo([string] $Question) {
-    $answer = Read-OnboardAnswer "$Question [y/N]"
-    return [bool]($null -ne $answer -and $answer -match '^\s*(y|yes)\s*$')
-}
+# A no skips the item and setup carries on.
+function Read-YesNo([string] $Question) { Test-Yes (Read-OnboardAnswer (Format-YesNoQuestion $Question -Ending 'skip it')) }
 
 # PowerShell 7's pwsh.exe: at the installer's default path first (a window opened before the install doesn't have it on
 # PATH yet, and a pwsh.exe earlier on PATH could be anything), else on PATH (#358).
