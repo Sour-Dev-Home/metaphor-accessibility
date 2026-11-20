@@ -190,7 +190,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        file: [check-install, fetch-prism, GameLocator, ghidra, install, install-pester, onboard, session, session-inspect, session-smoke, setup-wsl, zip-package]
+        file: [check-install, fetch-prism, GameLocator, ghidra, install, install-pester, onboard, scrub, session, session-inspect, session-smoke, setup-wsl, zip-package]
     defaults:
       run:
         shell: bash

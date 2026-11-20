@@ -266,6 +266,9 @@ scan_files() {
       # Our own builds are blocked too: they live as CI artifacts tied to a commit, never in the repository.
       *.exe | *.dll | *.asi) report "game content or build output: $path: executable extension" ;;
       *.dmp | *.mdmp) report_game_content "$path" "memory dump extension" ;;
+      # Gameplay captures and their captions (the chapter scrub, scripts/dev/scrub.ps1) hold game footage and text.
+      *.mp4 | *.mkv | *.webm | *.mov | *.avi | *.m4v | *.flv | *.vtt | *.srt)
+        report_game_content "$path" "video or caption extension" ;;
       *.gpr | *.gzf | *.gbf | *.idb | *.i64 | *.til | *.nam | *.id0 | *.id1 | *.id2 | *.bndb | *.dd64)
         report_game_content "$path" "disassembler database extension" ;;
     esac

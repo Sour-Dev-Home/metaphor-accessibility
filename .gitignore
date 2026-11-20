@@ -14,6 +14,16 @@
 *.asi
 *.dmp
 *.mdmp
+# Gameplay captures and captions (the chapter scrub keeps its frames under METAPHOR_SCRUB_DIR, outside the repo).
+*.mp4
+*.mkv
+*.webm
+*.mov
+*.avi
+*.m4v
+*.flv
+*.vtt
+*.srt
 *.log
 Logs/
 
