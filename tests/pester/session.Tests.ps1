@@ -432,3 +432,148 @@ Describe 'session.ps1' {
         }
     }
 }
+
+# -SaveLog's check that the logs never land inside a git repository (#502), in process: through a junction or symlink,
+# a worktree's .git file, a bare repository, and whatever git's environment says.
+Describe 'Resolve-SaveFolder' {
+    BeforeAll {
+        Import-Module (Join-Path $repo 'scripts/dev/GameSession.psm1') -Force
+
+        # Resolve-SaveFolder as a verb calls it, with -SaveLog set to PATH.
+        function Resolve-Save([string] $Path) {
+            InModuleScope GameSession -Parameters @{ Path = $Path } {
+                $script:Names = [ordered]@{}
+                $script:Options = @{ SaveLog = $Path }
+                Resolve-SaveFolder
+            }
+        }
+
+        function New-Folder([string] $Name) { (New-Item -ItemType Directory (Join-Path $TestDrive $Name)).FullName }
+
+        $saved = @{}
+        foreach ($name in 'GIT_DIR', 'GIT_WORK_TREE', 'GIT_CEILING_DIRECTORIES', 'GIT_INDEX_FILE', 'GIT_COMMON_DIR') {
+            $saved[$name] = [Environment]::GetEnvironmentVariable($name)
+        }
+        # Puts back the variables as they were before the tests, or with -Clear removes them. Through env:, as
+        # PowerShell hands SetEnvironmentVariable a $null value as an empty string, which git then reads as a path.
+        function Restore-GitEnv([switch] $Clear) {
+            foreach ($name in $saved.Keys) {
+                if ($Clear -or $null -eq $saved[$name]) { Remove-Item "env:$name" -ErrorAction Ignore } else { Set-Item "env:$name" $saved[$name] }
+            }
+        }
+
+        # Asserts that -SaveLog PATH is refused, then again with git saying no: git for Windows resolves links and subst
+        # drives itself, so only that proves the path check does too.
+        function Assert-Refused([string] $Path) {
+            { Resolve-Save $Path } | Should -Throw '*inside the git repository*'
+            Mock Test-InsideGit -ModuleName GameSession { $false }
+            { Resolve-Save $Path } | Should -Throw '*inside the git repository*'
+        }
+
+        # A scratch repository with a subfolder, made without git's per-repository variables, so that a hook's GIT_DIR
+        # can't turn the init on this clone.
+        function New-ScratchRepo([string] $Name, [switch] $Bare) {
+            $dir = New-Folder $Name
+            $git = @('-C', $dir, 'init', '-q') + @(if ($Bare) { '--bare' })
+            Restore-GitEnv -Clear
+            try { & git @git } finally { Restore-GitEnv }
+            if ($LASTEXITCODE -ne 0) { throw "git init failed in $dir" }
+            $null = New-Item -ItemType Directory (Join-Path $dir 'sub')
+            $dir
+        }
+    }
+
+    AfterAll { Restore-GitEnv }
+
+    It 'accepts a folder outside any repository, existing or not' {
+        $outside = New-Folder 'outside'
+
+        Resolve-Save $outside | Should -Be $outside
+        Resolve-Save (Join-Path $outside 'new/logs') | Should -Be (Join-Path $outside 'new\logs')
+    }
+
+    It 'refuses a folder inside a repository' {
+        $scratch = New-ScratchRepo 'plain'
+
+        { Resolve-Save (Join-Path $scratch 'sub/logs') } | Should -Throw '*inside the git repository*'
+    }
+
+    It 'refuses a junction into a repository, as the leaf and as an ancestor' {
+        $scratch = New-ScratchRepo 'junctioned'
+        $links = New-Folder 'junctions'
+        $null = New-Item -ItemType Junction -Path (Join-Path $links 'logs') -Target (Join-Path $scratch 'sub')
+
+        Assert-Refused (Join-Path $links 'logs')
+        Assert-Refused (Join-Path $links 'logs/not-yet/made')
+    }
+
+    It 'refuses a junction to a junction into a repository' {
+        $scratch = New-ScratchRepo 'chained'
+        $links = New-Folder 'chain'
+        $null = New-Item -ItemType Junction -Path (Join-Path $links 'first') -Target (Join-Path $scratch 'sub')
+        $null = New-Item -ItemType Junction -Path (Join-Path $links 'second') -Target (Join-Path $links 'first')
+
+        Assert-Refused (Join-Path $links 'second/logs')
+    }
+
+    It 'refuses a symbolic link into a repository' {
+        $scratch = New-ScratchRepo 'symlinked'
+        $links = New-Folder 'symlinks'
+        try {
+            $null = New-Item -ItemType SymbolicLink -Path (Join-Path $links 'logs') -Target (Join-Path $scratch 'sub') -ErrorAction Stop
+        } catch {
+            Set-ItResult -Skipped -Because "this account can't create symbolic links (needs Developer Mode or elevation): $_"
+            return
+        }
+
+        Assert-Refused (Join-Path $links 'logs/run')
+    }
+
+    It 'refuses a subst drive into a repository' {
+        $scratch = New-ScratchRepo 'substed'
+        $used = @([IO.DriveInfo]::GetDrives().Name | ForEach-Object { $_[0] })
+        $letter = [char[]] 'QRSTUVWXYZ' | Where-Object { $_ -notin $used } | Select-Object -First 1
+        if (-not $letter) { Set-ItResult -Skipped -Because 'no drive letter is free'; return }
+        $null = & subst.exe "${letter}:" (Join-Path $scratch 'sub')
+        if ($LASTEXITCODE -ne 0) { Set-ItResult -Skipped -Because "subst failed with exit code $LASTEXITCODE"; return }
+        try {
+            Assert-Refused "${letter}:\logs"
+        } finally {
+            $null = & subst.exe "${letter}:" /d
+        }
+    }
+
+    It 'refuses a folder in a worktree, whose .git is a file' {
+        $tree = New-Folder 'worktree'
+        Set-Content -LiteralPath (Join-Path $tree '.git') -Value 'gitdir: ../elsewhere/.git/worktrees/tree'
+
+        { Resolve-Save (Join-Path $tree 'logs') } | Should -Throw '*inside the git repository*'
+    }
+
+    It 'refuses a folder inside a bare repository, which has no .git' {
+        $bare = New-ScratchRepo 'bare.git' -Bare
+
+        { Resolve-Save (Join-Path $bare 'sub') } | Should -Throw '*inside the git repository*'
+    }
+
+    It "stops without git, as it can't rule a repository out" {
+        $outside = New-Folder 'no-git'
+        Mock Get-Command -ModuleName GameSession -ParameterFilter { $Name -eq 'git' } { }
+
+        { Resolve-Save $outside } | Should -Throw "*can't be checked: git wasn't found*"
+    }
+
+    It "ignores git's environment: a ceiling can't hide a repository, GIT_DIR can't invent one" {
+        $bare = New-ScratchRepo 'ceiling.git' -Bare
+        $outside = New-Folder 'env-outside'
+        $env:GIT_CEILING_DIRECTORIES = $bare
+        $env:GIT_DIR = $bare
+        $env:GIT_WORK_TREE = $outside
+        try {
+            { Resolve-Save (Join-Path $bare 'sub') } | Should -Throw '*inside the git repository*'
+            Resolve-Save $outside | Should -Be $outside
+        } finally {
+            Restore-GitEnv
+        }
+    }
+}

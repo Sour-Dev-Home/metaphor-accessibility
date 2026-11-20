@@ -58,7 +58,7 @@ ask the running game questions. You need the game registered as an application i
    every section at once. It holds the inspector's one connection until it ends.
 6. **Quit the game** when you are done. With `-SaveLog`, the session then copies `message-log.txt` and `transcript.txt`
    into a new timestamped folder there, prints the record counts and removes the opt-in files. It refuses a folder
-   inside a git repository. Without `-SaveLog`, copy those two files out of the mod's folder yourself before the next
+   inside a git repository, also one reached through a link or subst drive, and needs git to check. Without `-SaveLog`, copy those two files out of the mod's folder yourself before the next
    deploy, which replaces it.
 7. **Summarise the log** without printing game text, with
    [`tools/Metaphor.SessionLog`](deploy-a-dev-build.md#summarise-a-log). Pass `--offset` when you have a recording.
