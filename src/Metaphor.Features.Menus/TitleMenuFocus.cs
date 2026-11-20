@@ -9,7 +9,8 @@ namespace Metaphor.Features.Menus;
 /// (<see cref="Screen"/>), so the title's message file compiling again during play changes nothing. Item text is looked
 /// up at run time (<see cref="MessageLibrary"/>); only the label, the count and the third item's word are ours
 /// (docs/raw-sources/title-menu-labels-2026-11-16.md, docs/raw-sources/title-menu-item-images-2026-11-20.md). Safe to
-/// call from several threads. Its System submenu, served by the same choice, is spoken as its own two items (#210).
+/// call from several threads. Its System submenu, served by the same choice, is spoken as its own two items (#210). While
+/// the screen waits for a button before showing the menu, only its prompt is spoken (#555).
 /// </summary>
 public sealed class TitleMenuFocus : IScreenObserver
 {
@@ -35,9 +36,18 @@ public sealed class TitleMenuFocus : IScreenObserver
     private const int SystemMenuMode = 2;
     private static readonly string[] SystemMenuItems = ["Settings", "Credits"];
 
+    // Before a button is pressed the choice's mode is 0 and the screen shows only "Press any button": the decide handler
+    // (0xe2c620) shows the items and sets 1, and back on the title menu sets 0 again. The prompt is the message
+    // Title_PressAnyKey's text, ours when it is missing (#555, docs/raw-sources/title-press-any-button-mode-2026-11-20.md).
+    private const int PressAnyButtonMode = 0;
+    private const string PromptLabel = "Title_PressAnyKey";
+    private const string PromptWords = "Press any button";
+
     private readonly IMessageLookup messages;
     private readonly IAnnouncer announcer;
     private readonly TextCleaner cleaner;
+    private readonly Lock gate = new();
+    private bool promptShown;
 
     public TitleMenuFocus(IMessageLookup messages, IAnnouncer announcer, TextCleaner cleaner)
     {
@@ -49,9 +59,35 @@ public sealed class TitleMenuFocus : IScreenObserver
         this.cleaner = cleaner;
     }
 
-    /// <summary>Speaks the focus when the title menu is entered or its focus moves.</summary>
+    /// <summary>Speaks the focus when the title menu is entered or its focus moves, and the prompt while the screen waits
+    /// for a button before showing the menu; the menu's first focus after that prompt is spoken as an entry.</summary>
     public void Observe(ScreenEvent change)
     {
+        ArgumentNullException.ThrowIfNull(change);
+        if (change.Screen != Screen)
+        {
+            return;
+        }
+        bool wasPrompt;
+        var isPrompt = change.Change != ScreenChange.Left && change.Mode == PressAnyButtonMode;
+        lock (gate)
+        {
+            wasPrompt = promptShown;
+            promptShown = isPrompt;
+        }
+        if (isPrompt)
+        {
+            if (!wasPrompt)
+            {
+                announcer.Announce(new Announcement(PromptText(), Interrupt: true));
+            }
+            return;
+        }
+        if (wasPrompt && change.Change == ScreenChange.FocusMoved)
+        {
+            change = change with { Change = ScreenChange.Entered };
+        }
+
         var said = change.Mode == SystemMenuMode
             ? ListFocus.Of(change, Screen, "System menu", SystemMenuItems.Length, index => SystemMenuItems[index])
             : ListFocus.Of(change, Screen, "Main menu", ItemCount, ItemText);
@@ -72,5 +108,13 @@ public sealed class TitleMenuFocus : IScreenObserver
         var lines = (messages.Find(ItemsLabel)?.Text ?? "").Split('\n')
             .Select(cleaner.Clean).Where(line => line.Length > 0).ToList();
         return index < lines.Count ? lines[index] : null;
+    }
+
+    // The prompt's message text, its lines joined, or our words when the message is missing or empty.
+    private string PromptText()
+    {
+        var text = string.Join(' ', (messages.Find(PromptLabel)?.Text ?? "").Split('\n')
+            .Select(cleaner.Clean).Where(line => line.Length > 0));
+        return text.Length > 0 ? text : PromptWords;
     }
 }

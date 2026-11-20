@@ -240,4 +240,60 @@ public sealed class TitleMenuFocusTests
 
         Assert.Equal(["System menu, Settings, 1 of 2"], Said());
     }
+
+    // #555: before a button is pressed the choice's mode is 0 and "Press any button" shows, no menu; the decide handler
+    // then sets it to 1 and shows the items, and back on the title menu sets it to 0 again
+    // (docs/raw-sources/title-press-any-button-mode-2026-11-20.md).
+    private const int PressAnyButtonMode = 0;
+    private const string PromptSource = "@Title_PressAnyKey\n{\n<COLOR 3>Tap to start<COLOR -1>\n<WAIT>\n}";
+
+    private void TitleFileWithPromptCompiled() =>
+        messages.Compiled(new MessageFileCompiled(TitleFile, 56, TitleSource + "\n\n" + PromptSource));
+
+    [Fact]
+    public void ThePressAnyButtonScreenSpeaksTheGamesPromptNotTheMenu()
+    {
+        TitleFileWithPromptCompiled();
+
+        Cursor(Settle, row: 0, mode: PressAnyButtonMode);
+
+        Assert.Equal([new Announcement("Tap to start", Interrupt: true)], announcer.Said);
+    }
+
+    [Fact]
+    public void ThePressAnyButtonScreenSpeaksOurWordsWithoutThePromptMessage()
+    {
+        TitleFileCompiled();
+
+        Cursor(Settle, row: 0, mode: PressAnyButtonMode);
+
+        Assert.Equal(["Press any button"], Said());
+    }
+
+    [Theory]
+    [InlineData(0, "Main menu, Begin, 1 of 3")]
+    [InlineData(1, "Main menu, Resume, 2 of 3")]
+    public void TheOptionsAppearingSayTheMenusNameAndTheFocusedItem(int row, string expected)
+    {
+        TitleFileWithPromptCompiled();
+        Cursor(Settle, row: 0, mode: PressAnyButtonMode);
+
+        Cursor(Settle, row: row, mode: TitleMode);
+        Cursor(Settle, row: 2, mode: TitleMode);
+
+        Assert.Equal(["Tap to start", expected, "System, 3 of 3"], Said());
+    }
+
+    [Fact]
+    public void BackingOutOfTheTitleMenuSpeaksThePromptAgainThenTheMenuOnceItReturns()
+    {
+        TitleFileWithPromptCompiled();
+        Cursor(Settle, row: 1, mode: TitleMode);
+
+        Cursor(Settle, row: 1, mode: PressAnyButtonMode);
+        Cursor(Settle, row: 0, mode: PressAnyButtonMode);
+        Cursor(Settle, row: 1, mode: TitleMode);
+
+        Assert.Equal(["Main menu, Resume, 2 of 3", "Tap to start", "Main menu, Resume, 2 of 3"], Said());
+    }
 }
