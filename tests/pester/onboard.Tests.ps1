@@ -15,6 +15,8 @@ BeforeAll {
     $sdk = (Get-Content -Raw (Join-Path $repo 'global.json') | ConvertFrom-Json).sdk.version
     $pesterPin = [regex]::Match((Get-Content -Raw (Join-Path $repo 'scripts/setup/onboard.ps1')),
         "(?m)^\`$pesterVersion = '([\d.]+)'").Groups[1].Value
+    $pesterSigner = [regex]::Match((Get-Content -Raw (Join-Path $repo 'scripts/setup/onboard.ps1')),
+        "(?m)^\`$pesterSigner = '([0-9A-F]{40})'").Groups[1].Value
 
     # A stand-in Windows command: a .cmd file that logs its name and arguments to calls.log, then runs BODY.
     function New-StandIn([string] $Name, [string] $Body = '') {
@@ -325,7 +327,7 @@ Describe 'onboard.ps1' {
             Remove-Item -Recurse (Join-Path $modules 'Pester')
             New-Item -ItemType File -Force (Join-Path $modules 'Pester/3.4.0/Pester.psd1') | Out-Null
             # The install's pwsh, at PowerShell 7's default path, which onboarding takes first: it puts the module where
-            # Install-PSResource would, and never runs the real install.
+            # install-pester.ps1 would, and never runs the real install.
             Install-PwshStandIn (Join-Path $programFiles 'PowerShell/7')
             $script:stub.STUB_PWSH_CREATES = Join-Path $modules "Pester\$pesterPin\Pester.psd1"
         }
@@ -336,8 +338,9 @@ Describe 'onboard.ps1' {
             $result.ExitCode | Should -Be 0 -Because $result.Output
             $result.Output | Should -Match ([regex]::Escape("Pester: version $pesterPin isn't installed (found: 3.4.0)"))
             $result.Output | Should -Match ([regex]::Escape("Install Pester $pesterPin for your user from the PowerShell Gallery?"))
-            @(Get-Calls) -match ("^pwsh -NoProfile -NonInteractive -Command `"Install-PSResource -Name Pester -Version " +
-                "'\[$([regex]::Escape($pesterPin))\]' -Scope CurrentUser -Repository PSGallery -TrustRepository") |
+            # #477: install-pester.ps1, which checks the signer, not a bare Install-PSResource.
+            @(Get-Calls) -match ("^pwsh -NoProfile -NonInteractive -Command `"& '[^']*\\scripts\\setup\\install-pester\.ps1' " +
+                "-Version '$([regex]::Escape($pesterPin))' -Signer '$pesterSigner'`"$") |
                 Should -HaveCount 1
             $result.Output | Should -Match ([regex]::Escape("Installed Pester $pesterPin."))
             $result.Output | Should -Match '(?m)^  \S Pester'
@@ -348,7 +351,7 @@ Describe 'onboard.ps1' {
 
             $result.ExitCode | Should -Be 1
             $result.Output | Should -Match ([regex]::Escape("Pester $pesterPin"))
-            $result.Output | Should -Match ([regex]::Escape("Install-PSResource -Name Pester -Version '[$pesterPin]' -Scope CurrentUser"))
+            $result.Output | Should -Match ([regex]::Escape("install-pester.ps1' -Version '$pesterPin' -Signer '$pesterSigner'"))
             Get-Calls | Where-Object { $_ -like 'pwsh*' } | Should -BeNullOrEmpty
             git -C $clone config --local --get core.hooksPath | Should -BeNullOrEmpty
         }

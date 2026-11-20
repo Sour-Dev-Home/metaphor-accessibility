@@ -190,7 +190,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        file: [check-install, fetch-prism, GameLocator, ghidra, install, onboard, session, session-inspect, session-smoke, setup-wsl, zip-package]
+        file: [check-install, fetch-prism, GameLocator, ghidra, install, install-pester, onboard, session, session-inspect, session-smoke, setup-wsl, zip-package]
     defaults:
       run:
         shell: bash
@@ -212,15 +212,18 @@ jobs:
         if: steps.changes.outputs.run == 'true'
         with:
           global-json-file: global.json
-      # The pinned Pester (onboard.ps1's $pesterVersion, #456), not whichever the runner image ships: Install-PSResource
-      # with an exact version range, as onboarding installs it.
+      # The pinned Pester (onboard.ps1's $pesterVersion, #456), not whichever the runner image ships, installed as
+      # onboarding installs it: install-pester.ps1 refuses it unless every script and DLL file is signed by onboard.ps1's
+      # $pesterSigner (#477).
       - name: Install the pinned Pester
         if: steps.changes.outputs.run == 'true'
         run: |
           pin="$(sed -n "s/^\$pesterVersion = '\([0-9.]*\)'.*/\1/p" scripts/setup/onboard.ps1 | tr -d '\r')"
           [ -n "$pin" ] || { echo "no \$pesterVersion line in scripts/setup/onboard.ps1"; exit 1; }
+          signer="$(sed -n "s/^\$pesterSigner = '\([0-9A-F]\{40\}\)'.*/\1/p" scripts/setup/onboard.ps1 | tr -d '\r')"
+          [ -n "$signer" ] || { echo "no \$pesterSigner line in scripts/setup/onboard.ps1"; exit 1; }
           echo "PESTER_PIN=$pin" >> "$GITHUB_ENV"
-          PIN="$pin" pwsh -NoProfile -Command 'Install-PSResource -Name Pester -Version "[$env:PIN]" -Scope CurrentUser -Repository PSGallery -TrustRepository -Quiet -ErrorAction Stop'
+          pwsh -NoProfile -File scripts/setup/install-pester.ps1 -Version "$pin" -Signer "$signer"
       - name: Run the Pester tests
         if: steps.changes.outputs.run == 'true'
         env:

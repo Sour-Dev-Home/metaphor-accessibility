@@ -58,8 +58,9 @@ On Windows:
   `dotnet --list-sdks` shows what you have.
 - Pester 5 or later, for the scripts' tests; CI runs the version
   [`onboard.ps1`](../../../scripts/setup/onboard.ps1) pins (`$pesterVersion`), and another one only gets a warning.
-  Windows PowerShell's built-in Pester 3 doesn't run them. In PowerShell 7, install the pin for your user:
-  `Install-PSResource -Name Pester -Version '[6.2.0]' -Scope CurrentUser -Repository PSGallery`.
+  Windows PowerShell's built-in Pester 3 doesn't run them. Onboarding installs the pin for your user with
+  [`install-pester.ps1`](../../../scripts/setup/install-pester.ps1), which refuses a package not signed by Pester's
+  publisher; it prints the command to run it yourself.
 - Optional: the [GitHub CLI](https://cli.github.com/) (`gh`) for issues and pull requests.
 
 ## 2. Clone and set up
