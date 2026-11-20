@@ -15,6 +15,25 @@ BeforeAll {
         $output = & pwsh -NoProfile -File $script inspect -PipeName $Pipe -TimeoutMilliseconds $Timeout @Requests
         [pscustomobject]@{ ExitCode = $LASTEXITCODE; Output = @($output) }
     }
+
+    # Runs inspect -Batch on a file holding LINES, with KEYS as the console's input lines, logging under $TestDrive/save.
+    function Invoke-Batch([string] $Pipe, [string[]] $Lines, [string[]] $Options = @(), [string[]] $Keys = @()) {
+        $file = Join-Path $TestDrive 'states.txt'
+        Set-Content -LiteralPath $file -Value $Lines
+        $save = Join-Path $TestDrive 'save'
+        $output = $Keys | & pwsh -NoProfile -File $script inspect -PipeName $Pipe -TimeoutMilliseconds 10000 -Batch $file -SaveLog $save @Options
+        $log = Join-Path $save 'inspector-log.txt'
+        [pscustomobject]@{
+            ExitCode = $LASTEXITCODE; Output = @($output)
+            # Each logged line without its time, which must lead it.
+            Log = @(if (Test-Path -LiteralPath $log) {
+                    Get-Content -LiteralPath $log | ForEach-Object {
+                        $_ | Should -Match '^\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d\.\d{3}[+-]\d\d:\d\d\t'
+                        $_ -replace '^[^\t]*\t'
+                    }
+                })
+        }
+    }
 }
 
 Describe 'session.ps1 inspect' {
@@ -68,6 +87,61 @@ Describe 'session.ps1 inspect' {
 
         $result.ExitCode | Should -Be 2
         $result.Output[-1] | Should -Match '^failed: no request - '
+    }
+
+    Context '-Batch' {
+        BeforeEach { Remove-Item -LiteralPath (Join-Path $TestDrive 'save') -Recurse -Force -ErrorAction Ignore }
+
+        It 'runs every request in order and logs each with its label' {
+            $result = Invoke-Batch $script:pipe @('# the title screen', 'base', '', '  read base+0x10 4  ', 'follow base+0x40 -0x10') -Options '-Label', 'title'
+
+            $result.Log | Should -Be @("title`tbase`tok 0x140000000 0x400", "title`tread base+0x10 4`tok deadbeef", "title`tfollow base+0x40 -0x10`tok 0x1400000f0")
+            $result.Output[0..2] | Should -Be @('[title] base => ok 0x140000000 0x400', '[title] read base+0x10 4 => ok deadbeef', '[title] follow base+0x40 -0x10 => ok 0x1400000f0')
+            $result.Output[-1] | Should -Match '^ok: 3 requests answered; 1 of 1 sections run, logged to <save>\\inspector-log\.txt$'
+            $result.ExitCode | Should -Be 0
+        }
+
+        It 'logs a refused request, goes on with the batch and exits 1' {
+            $result = Invoke-Batch $script:pipe @('read base+0x10 0', 'read base+0x10 1')
+
+            $result.Log | Should -Be @("states`tread base+0x10 0`terr count must be 1 to 4096", "states`tread base+0x10 1`tok de")
+            $result.Output[-1] | Should -Match '^failed: 1 of 2 requests answered err; 1 of 1 sections run, .* - read the responses above'
+            $result.ExitCode | Should -Be 1
+        }
+
+        It 'reports an unknown command by its line and sends nothing' {
+            $result = Invoke-Batch $script:pipe @('base', '[battle]', 'raed base+0x10 4')
+
+            $result.Log | Should -BeNullOrEmpty
+            $result.Output[-1] | Should -Match "^failed: line 3: unknown command 'raed' - fix the batch file; the inspector knows help, base, read, "
+            $result.ExitCode | Should -Be 2
+        }
+
+        It 'runs one section per Enter with -WaitKey, and q stops' {
+            $lines = @('[title]', 'base', '[battle]', 'read base+0x10 1', '[menu]', 'read base+0x11 1')
+
+            $result = Invoke-Batch $script:pipe $lines -Options '-WaitKey' -Keys '', '', 'q'
+
+            $result.Log | Should -Be @("states/title`tbase`tok 0x140000000 0x400", "states/battle`tread base+0x10 1`tok de")
+            $result.Output[0..4] | Should -Be @(
+                'next: states/title, 1 requests - press Enter to run it, or q and Enter to stop'
+                '[states/title] base => ok 0x140000000 0x400'
+                'next: states/battle, 1 requests - press Enter to run it, or q and Enter to stop'
+                '[states/battle] read base+0x10 1 => ok de'
+                'next: states/menu, 1 requests - press Enter to run it, or q and Enter to stop')
+            $result.Output[-1] | Should -Match '^ok: 2 requests answered; 2 of 3 sections run \(stopped by you\), '
+            $result.ExitCode | Should -Be 0
+        }
+
+        It 'refuses a log folder inside a git repository before connecting' {
+            $file = Join-Path $TestDrive 'states.txt'
+            Set-Content -LiteralPath $file -Value 'base'
+
+            $output = @(& pwsh -NoProfile -File $script inspect -PipeName $script:pipe -Batch $file -SaveLog (Join-Path $repo 'artifacts/inspector'))
+
+            $LASTEXITCODE | Should -Be 2
+            $output[-1] | Should -Match '^failed: -SaveLog .* is inside the git repository at '
+        }
     }
 
     It 'shows in status as listening' {

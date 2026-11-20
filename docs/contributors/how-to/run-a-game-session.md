@@ -32,6 +32,30 @@ ask the running game questions. You need the game registered as an application i
    ```
 
    The commands and exit codes: [inspect the running game](inspect-the-running-game.md#commands).
+
+   To ask the same things at several game states without typing mid-play, write the requests in a file before you
+   start, one per line, `#` for comments and a `[name]` line before each state's requests:
+
+   ```text
+   # states.txt
+   [title-screen]
+   base
+   read base+0x1000 16
+   [first-battle]
+   follow base+0x2a8f0 0x8 0x10
+   ```
+
+   Then start it once with `-WaitKey`. At each state, switch to the terminal and press Enter to run the next section,
+   or type `q` and Enter to stop:
+
+   ```powershell
+   pwsh scripts/dev/session.ps1 inspect -Batch states.txt -WaitKey -SaveLog <a folder outside the repo>
+   ```
+
+   It checks every command against the inspector's own list before the first state, so a typo fails at once. Each
+   answer is printed and appended to `inspector-log.txt` in that folder, as the time, the label (`-Label`, default the
+   file's name, then `/` and the section), the request and the response, separated by tabs. Without `-WaitKey` it runs
+   every section at once. It holds the inspector's one connection until it ends.
 6. **Quit the game** when you are done. With `-SaveLog`, the session then copies `message-log.txt` and `transcript.txt`
    into a new timestamped folder there, prints the record counts and removes the opt-in files. It refuses a folder
    inside a git repository. Without `-SaveLog`, copy those two files out of the mod's folder yourself before the next

@@ -15,7 +15,9 @@ One command for every game session (#437): deploy, run, smoke, spike, inspect, s
 - spike: scans the exe on disk and the running game for the same signatures (issue #21) and writes a raw-source draft
   to -OutFile. Review it, then save it under docs/raw-sources/.
 - inspect: sends each request to the live inspector of a running Debug build (run -OptIn inspector) and prints each
-  response. Commands: docs/contributors/how-to/inspect-the-running-game.md.
+  response. Commands: docs/contributors/how-to/inspect-the-running-game.md. With -Batch, the requests come from a file
+  and each answer is also appended, with the time and -Label, to inspector-log.txt in -SaveLog; with -WaitKey, each
+  [section] of the file waits for Enter, so one file covers several game states.
 - status: read-only. What is deployed, the game build, the active opt-ins, whether the inspector is listening, and the
   valid opt-in names.
 
@@ -38,6 +40,9 @@ pwsh scripts/dev/session.ps1 run -Seconds 300 -OptIn ui-text-panes,inspector
 
 .EXAMPLE
 pwsh scripts/dev/session.ps1 inspect 'base' 'read base+0x10 16'
+
+.EXAMPLE
+pwsh scripts/dev/session.ps1 inspect -Batch states.txt -WaitKey -SaveLog ../metaphor-captures
 #>
 [CmdletBinding()]
 param(
@@ -48,8 +53,14 @@ param(
     [int] $Seconds,
     # run: opt-in names, as in opt-in-<name>.txt; commas also separate them. status lists the valid ones.
     [string[]] $OptIn,
-    # run: a folder outside any git repository for the message log and transcript.
+    # run: a folder outside any git repository for the message log and transcript. inspect -Batch: the folder for
+    # inspector-log.txt, to which each answer is appended.
     [string] $SaveLog,
+    # inspect: a text file of requests, one per line, "# ..." comments, "[name]" starting a section; the label its
+    # answers are logged under (default the file's name); and -WaitKey, to wait for Enter before each section.
+    [string] $Batch,
+    [string] $Label,
+    [switch] $WaitKey,
     # deploy, run: leave the game running at the end. Without it the game is closed by killing it (closing its window
     # only asks "Exit game?"), so a save in progress is lost: use a test save.
     [switch] $KeepGame,
