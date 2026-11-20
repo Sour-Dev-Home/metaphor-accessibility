@@ -53,7 +53,9 @@ A run by hand builds, attests and verifies a zip of `main`'s tip, and drafts not
 2. Check its two assets. Download both and run the player's check from
    [Check a download](../../players/how-to/check-a-download.md#check-it-with-the-github-cli), with `VERSION` as the tag.
    The zip's SHA-256 must match `SHA256SUMS` and the run's summary.
-3. Write the release notes, then publish the draft.
+3. Write the release notes (the first release's draft is
+   [release-notes-0.1.0.md](../reference/release-notes-0.1.0.md)), then publish the draft. The release PR updates
+   [`CHANGELOG.md`](../../../CHANGELOG.md) in every release: move "Unreleased" under the new version.
 
 ## When a step fails
 
