@@ -1,0 +1,21 @@
+# Game session 2 (#497), stop 4: Equipment (#155, #217, #157).
+# Game build 548ddc95... (Steam 18330018). Leads: docs/findings/menu-values-party-unit-static.md, section 5.
+# Unit n's equipment is 5 ints at unit+0x1628 (CharaGetEquip reads unit+0x1628+slot*4); an item ID's category is
+# ID >> 12. Weapon records (category 0, 0x90 bytes) are behind base+0x2ebea98, armour (category 1, 0x58 bytes) behind
+# base+0x2ebea68; St to Lk bonuses are bytes from +0x14 (weapon) and +0x12 (armour).
+# Follow-ups: read <table>+(ID & 0xfff)*size size for each equipped ID and for the focused one once it is known.
+[equipment-member]
+base
+# Units 1 to 4: the 5 slots, then the tactics candidate at +0x163c.
+read base+0x2ca95e8 0x18
+read base+0x2caac90 0x18
+read base+0x2cac338 0x18
+read base+0x2cad9e0 0x18
+# The two tables' addresses.
+follow base+0x2ebea98 0x0
+follow base+0x2ebea68 0x0
+watch base+0x2ca95e8 0x18
+[equipment-after-swap]
+# After equipping another item in one slot of unit 1: exactly one of the 5 ints changes, to the new item's ID.
+changes
+read base+0x2ca95e8 0x18
