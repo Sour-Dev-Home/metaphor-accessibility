@@ -6,6 +6,9 @@
   [`chapter1-opening-inventory-own-capture-2026-11-20.md`](../raw-sources/chapter1-opening-inventory-own-capture-2026-11-20.md)
   (row 13)
 
+**Corrected:** the list does reach `CursorManagerInput`, through the manager at its `+0x28`; see
+[`difficulty-select-shared-cursor.md`](difficulty-select-shared-cursor.md).
+
 New Game's difficulty list (#540) is the UI component `UUIC_Common_DifficultySelect@ui@app`, which reads the move
 commands itself and keeps the choice in its own field. It never calls `CursorManagerInput`, the one function the menu
 hook observes, so no cursor record reaches `MenuScreens` and not even the unknown-screen fallback ("n of total")

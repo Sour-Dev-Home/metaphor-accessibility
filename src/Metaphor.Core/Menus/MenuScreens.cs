@@ -4,8 +4,10 @@ namespace Metaphor.Core.Menus;
 
 /// <summary>A screen the mod knows (spec #211): its name, and the screen class that identifies it, as the game's
 /// run-time type information names it (such as <c>TitleChoice@ope@ui@app</c>). Each screen's feature declares its
-/// own.</summary>
-public sealed record Screen(string Name, string ScreenClass);
+/// own. <paramref name="OutsideMenus"/> marks a screen the game also shows while its menus read closed, such as a
+/// yes/no dialog in a conversation or New Game's difficulty list (#540): it is told then too, and each new manager
+/// enters it afresh, since nothing leaves it there.</summary>
+public sealed record Screen(string Name, string ScreenClass, bool OutsideMenus = false);
 
 /// <summary>What happened to a screen.</summary>
 public enum ScreenChange
@@ -57,7 +59,8 @@ public interface IScreenDetails
 /// back, <see cref="CursorInput.IsMove"/>); an input without a screen class is skipped. Observers hear each change in
 /// the order they were added, and one that throws never stops the rest. Add observers before the hooks go live. It also
 /// knows whether the game has its menus open (#268), from the reads the input hooks hand it: only while they are open
-/// does a cursor count, and when they close, the current screen is left. A screen's mode (<see cref="CursorInput.Mode"/>)
+/// does a cursor count, except on a screen shown outside the menus (<see cref="Screen.OutsideMenus"/>, #540), and when
+/// they close, the current screen is left. A screen's mode (<see cref="CursorInput.Mode"/>)
 /// changing on the same item is a focus move, so a choice's other list is heard even where the index stays.
 /// </summary>
 public sealed class MenuScreens : ICursorObserver
@@ -66,6 +69,7 @@ public sealed class MenuScreens : ICursorObserver
     private readonly Lock gate = new();
     private IScreenObserver[] observers = [];
     private string? currentClass;
+    private long currentManager;
     private int currentIndex;
     private int? currentCount;
     private int? currentMode;
@@ -95,14 +99,15 @@ public sealed class MenuScreens : ICursorObserver
         {
             return;
         }
+        var outside = known.GetValueOrDefault(screenClass)?.OutsideMenus == true;
         ScreenEvent[] changes;
         lock (gate)
         {
-            if (!menusOpen)
+            if (!menusOpen && !outside)
             {
                 return;
             }
-            if (screenClass == currentClass)
+            if (screenClass == currentClass && (!outside || input.Manager == currentManager))
             {
                 if (input.Index == currentIndex && input.Mode == currentMode)
                 {
@@ -118,6 +123,7 @@ public sealed class MenuScreens : ICursorObserver
                     : [entered];
             }
             currentClass = screenClass;
+            currentManager = input.Manager;
             currentIndex = input.Index;
             currentCount = input.Count;
             currentMode = input.Mode;
@@ -137,7 +143,7 @@ public sealed class MenuScreens : ICursorObserver
     /// controls give their input back to the game. When the menus close, the current screen is left at its last focus
     /// and forgotten: nothing repeats it, and the next cursor to settle once they open, even on the same screen, enters
     /// afresh. A cursor that settles while the menus are closed (a dialogue's choice, a battle's commands) is no menu
-    /// screen and tells nothing.</summary>
+    /// screen and tells nothing, unless its screen is one shown outside the menus.</summary>
     /// <remarks>What the game's state is, and that it reads open on the title screen too, is in
     /// docs/raw-sources/menus-open-session6-2026-11-17.md.</remarks>
     public void MenusRead(bool open)
