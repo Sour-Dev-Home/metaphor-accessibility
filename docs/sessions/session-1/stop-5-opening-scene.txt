@@ -1,0 +1,17 @@
+# Game session 1 (#496), stop 5: the speaker's alias (#74) and the name tags (#106 questions 2 and 3).
+# Game build 548ddc95... (Steam 18330018). Leads: docs/findings/title-names-voice-tutorials-static.md, sections 2 and 3.
+# Run [alias-line] while the alias line is on screen, [name-changed] once the screen's name changes.
+# After this batch: read the CharaID entries C (first follow) in three reads, 0x1000, 0x1000 and 0xa30 bytes.
+[alias-line]
+base
+# CharaID.bin entries: C = [[base+0x2eebc18]+0x40]+0x10, entry n at C + n*0x6c.
+follow base+0x2eebc18 0x40 0x10
+# NpcID.bin entries (0x20 bytes each) and FollowerTable.bin entries (0x1e bytes each).
+follow base+0x2eebc38 0x40 0x10
+follow base+0x2eebc98 0x40 0x10
+# The story flags, G+0x22c5c: flag f is bit (f & 31) of the dword at base+0x2cc934c + (f >> 5)*4.
+read base+0x2cc934c 4096
+read base+0x2cca34c 4096
+[name-changed]
+read base+0x2cc934c 4096
+read base+0x2cca34c 4096

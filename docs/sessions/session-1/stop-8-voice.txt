@@ -1,0 +1,13 @@
+# Game session 1 (#496), stop 8: the voice language after switching to Japanese (#103 question 3).
+# Game build 548ddc95... (Steam 18330018). Leads: docs/findings/title-names-voice-tutorials-static.md, section 4.
+# [after-switch] runs in launch 1, right after the switch and before quitting; [launch-2] after loading in launch 2.
+# Compare with stop 3: 0x27a8c78 should change at once, 0x2dff8e4 once the change task ends.
+[after-switch]
+read base+0x27a8c78 4
+read base+0x27a8c74 4
+read base+0x2dff8e0 16
+[launch-2]
+base
+read base+0x27a8c78 4
+read base+0x27a8c74 4
+read base+0x2dff8e0 16

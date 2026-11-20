@@ -1,0 +1,42 @@
+# Game session 2 (#497), stop 1: Party and Status (#155, #218, #156).
+# Game build 548ddc95... (Steam 18330018). Leads: docs/findings/menu-values-party-unit-static.md, sections 1 and 2.
+# G (the game-data block) is constant at base+0x2ca66f0; unit n (n = character ID, 1 to 19) is
+# G+0x228+n*0x16a8, so unit 1 is base+0x2ca7fc0 and unit 2 base+0x2ca9668. Reads are offline-compared with the screen.
+[status-first-member]
+base
+# G itself: expect ok base+0x2ca66f0 (a constant, nothing writes the pointer).
+follow base+0x272e310 0x0
+# Battle party, 4 ints from G+0x1c748: the character IDs in slots 1 to 4 (0 for empty). Expect 1 first.
+read base+0x2cc2e38 16
+# Mag, an int at G+0x233fc (SetMag and AddMag write it, capped at 9,999,999). Compare with the main menu's Mag.
+read base+0x2cc9aec 4
+# Money for scale, G+0x22c58 (confirmed in session 5).
+read base+0x2cc9348 4
+# Unit 1, its first 0x98 bytes: +0x0 flags (bit 0 present, bit 22 formation), +0x4 kind (1), +0x8 character ID,
+# +0xc HP, +0x10 MP, +0x1c conditions, +0x94 current archetype ID. Level and EXP are looked for offline in +0x20..+0x94.
+read base+0x2ca7fc0 0x98
+# Unit 1's equipment (5 ints from +0x1628) and the tactics candidate, a u16 at +0x163c.
+read base+0x2ca95e8 0x80
+# Units 2 to 4, the same header, for the other rows of the Party screen.
+read base+0x2ca9668 0x98
+read base+0x2caad10 0x98
+read base+0x2cac3b8 0x98
+# Watches for the next steps: unit 1's header and the party.
+watch base+0x2ca7fc0 0x98
+watch base+0x2ca95e8 0x80
+watch base+0x2cc2e38 16
+[after-formation-toggle]
+# After toggling one member's Front/Back (LB/RB on Party): expect bit 22 (0x400000, byte +0x2 bit 6) of that unit's +0x0.
+changes
+read base+0x2ca7fc0 4
+read base+0x2ca9668 4
+read base+0x2caad10 4
+read base+0x2cac3b8 4
+[after-tactics-change]
+# After changing one member's tactics: expect the u16 at that unit's +0x163c to change, nothing else.
+changes
+read base+0x2ca95e8 0x80
+[after-party-swap]
+# After swapping a member in or out of the battle party: expect the party ints to change.
+changes
+read base+0x2cc2e38 16

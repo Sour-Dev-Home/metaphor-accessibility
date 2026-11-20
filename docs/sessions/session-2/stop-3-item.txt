@@ -1,0 +1,29 @@
+# Game session 2 (#497), stop 3: Item (#155, #216, #158).
+# Game build 548ddc95... (Steam 18330018). Leads: docs/findings/menu-values-party-unit-static.md, section 4.
+# The camp Item screen's scene is key 2 in the menus' scene map (fclCampItemMenu@fcl@app); FclShopGetItemID reads the
+# focused item ID at scene +0x90. The bucket offset is (2 & mask)*0x10+8: 0x28 for any mask of 3 or more, else 0x8,
+# so both are asked and one errs or lands on another key.
+# Follow-ups after this batch: read <node>+0x10 4 (expect 02 00 00 00), rtti <scene>, read <scene>+0x90 4.
+[item-list]
+base
+# The map's mask address (read 8 bytes there).
+follow base+0x2ee7338 0x48 0x0 0x8 0x40
+# The bucket's node, at its key.
+follow base+0x2ee7338 0x48 0x0 0x8 0x28 0x28 0x10
+follow base+0x2ee7338 0x48 0x0 0x8 0x28 0x8 0x10
+# The scene (rtti it: expect fclCampItemMenu@fcl@app).
+follow base+0x2ee7338 0x48 0x0 0x8 0x28 0x28 0x18 0x0
+follow base+0x2ee7338 0x48 0x0 0x8 0x28 0x8 0x18 0x0
+# HP, MP and conditions of units 1 to 4 (+0xc to +0x1f), the targets' side of usability.
+read base+0x2ca7fcc 0x14
+read base+0x2ca9674 0x14
+read base+0x2caad1c 0x14
+read base+0x2cac3c4 0x14
+# The skill table's address, for the focused item's skill (see the note).
+follow base+0x2dff9a0 0x0
+[item-after-use]
+# After using one healing item on a member: that unit's HP rises; the item's bag count drops (stop 3's first check).
+read base+0x2ca7fcc 0x14
+read base+0x2ca9674 0x14
+read base+0x2caad1c 0x14
+read base+0x2cac3c4 0x14

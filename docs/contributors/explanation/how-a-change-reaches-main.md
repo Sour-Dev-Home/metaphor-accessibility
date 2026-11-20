@@ -29,6 +29,7 @@ flowchart LR
     subgraph queue["Merge queue"]
         direction TB
         again["Same 5 checks<br/><small>on latest main</small>"] --> squash["Squash merge<br/><small>branch deleted</small>"]
+        again -.-> watch["Queue watch<br/><small>every 15 min</small>"]
     end
 
     subgraph mainzone["main"]
@@ -54,6 +55,7 @@ An orange outline means a failure stops the change. A dotted line means the job 
 | Hooks | `check.sh pre-commit`, `commit-msg`, `pre-push` | [`scripts/githooks/`](../../../scripts/githooks/) |
 | Before the PR | `check.sh full`; the security review for code in its scope | [checks](../reference/checks.md#recorded-pass), [security review](../reference/security-review.md) |
 | Pull request and merge queue | `repo-rules`, `build`, `scripts`, `security`; `review-gate` from `main`'s copy | [`ci.yml`](../../../.github/workflows/ci.yml), [`review-gate.yml`](../../../.github/workflows/review-gate.yml) |
+| Open PRs, every 15 minutes | queue watch: comments on a PR the queue dropped, or one no CI run started for | [`queue-watch.yml`](../../../.github/workflows/queue-watch.yml) |
 | After merge | conflict alert, Scorecard, slow suite | [`.github/workflows/`](../../../.github/workflows/) |
 
 These are always on, from the repository settings: SHA-pinned actions from an allowed list

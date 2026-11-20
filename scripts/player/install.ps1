@@ -69,9 +69,7 @@ if ($scripted) { foreach ($answer in $Answers) { $answerQueue.Enqueue($answer) }
 
 $readers = @(Find-ScreenReader)
 $speech = Select-Speech -Speak $Speak.IsPresent -NoSpeech $NoSpeech.IsPresent -Interactive ($scripted -or (Test-Interactive)) -Readers $readers
-if ($speech.Message) { Write-Host $speech.Message }
-$voice = $null
-if ($speech.Speak -and -not ($voice = New-Voice)) { Write-Host 'Windows'' voice did not start, so printing only.' }
+$voice = Start-Voice $speech
 
 function Out-Line([string] $Printed, [string] $Spoken = $Printed) {
     Write-Host $Printed

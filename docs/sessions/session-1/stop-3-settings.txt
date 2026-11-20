@@ -1,0 +1,11 @@
+# Game session 1 (#496), stop 3: the voice language before it is switched (#103 question 3).
+# Game build 548ddc95... (Steam 18330018). Leads: docs/findings/title-names-voice-tutorials-static.md, section 4.
+# Static globals, no follow-ups. Expect 0x27a8c78 and 0x2dff8e4 to hold the same value: English's.
+[settings-english]
+base
+# The voice language as set (0x7bc6d0 writes it).
+read base+0x27a8c78 4
+# The likely text language (0x7bbc30 reads it).
+read base+0x27a8c74 4
+# The settings block's copies: +0x30 text, +0x34 voice, +0x38 text, +0x3c voice (base+0x2dff8e0 to +0x2dff8f0).
+read base+0x2dff8e0 16

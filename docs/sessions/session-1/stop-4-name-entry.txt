@@ -1,0 +1,43 @@
+# Game session 1 (#496), stop 4: the player's typed name (#106 question 1).
+# Game build 548ddc95... (Steam 18330018). Leads: docs/findings/title-names-voice-tutorials-static.md, section 3.
+# Run right after confirming the made-up name. Reads the game-data block G (base+0x2ca66f0) in 4096-byte steps,
+# up to G+0x25000. Afterwards, search inspector-log.txt offline for the name's ASCII and UTF-16LE hex.
+[after-name-confirmed]
+base
+read base+0x2ca66f0 4096
+read base+0x2ca76f0 4096
+read base+0x2ca86f0 4096
+read base+0x2ca96f0 4096
+read base+0x2caa6f0 4096
+read base+0x2cab6f0 4096
+read base+0x2cac6f0 4096
+read base+0x2cad6f0 4096
+read base+0x2cae6f0 4096
+read base+0x2caf6f0 4096
+read base+0x2cb06f0 4096
+read base+0x2cb16f0 4096
+read base+0x2cb26f0 4096
+read base+0x2cb36f0 4096
+read base+0x2cb46f0 4096
+read base+0x2cb56f0 4096
+read base+0x2cb66f0 4096
+read base+0x2cb76f0 4096
+read base+0x2cb86f0 4096
+read base+0x2cb96f0 4096
+read base+0x2cba6f0 4096
+read base+0x2cbb6f0 4096
+read base+0x2cbc6f0 4096
+read base+0x2cbd6f0 4096
+read base+0x2cbe6f0 4096
+read base+0x2cbf6f0 4096
+read base+0x2cc06f0 4096
+read base+0x2cc16f0 4096
+read base+0x2cc26f0 4096
+read base+0x2cc36f0 4096
+read base+0x2cc46f0 4096
+read base+0x2cc56f0 4096
+read base+0x2cc66f0 4096
+read base+0x2cc76f0 4096
+read base+0x2cc86f0 4096
+read base+0x2cc96f0 4096
+read base+0x2cca6f0 4096

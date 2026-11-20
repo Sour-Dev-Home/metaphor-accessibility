@@ -10,7 +10,8 @@ play it with the inspector, build only what it needs, and release. The chapter l
    interaction types: new menus, timed choices, minigames, spatial puzzles. Take notes only; capture and commit nothing
    (AGENTS.md rule 4). Save the notes as a raw source that cites each video's URL, channel and date
    ([write a finding or save a raw source](write-a-finding.md)); mark what you couldn't tell
-   `[NEEDS VERIFICATION]`. The `/watch` skill reads a video locally.
+   `[NEEDS VERIFICATION]`. The `/watch` skill reads a video locally. The chapter 1 example is
+   [the pilot interaction inventory](../../raw-sources/chapter1-interaction-inventory-2026-11-20.md).
 3. **Static prep for the unknowns.** For each screen or state nothing yet locates, run a Ghidra pass
    ([query the Ghidra project](query-the-ghidra-project.md)) before anyone plays, so the session has inspector
    commands ready.

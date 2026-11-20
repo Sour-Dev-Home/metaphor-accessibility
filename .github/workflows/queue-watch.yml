@@ -1,0 +1,35 @@
+# Comments on open PRs the merge queue dropped, which GitHub leaves with green checks and no auto-merge, and on PRs no
+# CI run started for (issue #504); scripts/ci/queue-watch.sh holds the logic and says why it never re-enables
+# auto-merge. It checks out only the default branch, to run the script, and never checks out or runs PR code.
+name: Queue watch
+
+on:
+  schedule:
+    # Every 15 minutes, off the hour: GitHub delays, and may drop, scheduled runs at the start of each hour.
+    - cron: "7,22,37,52 * * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: queue-watch
+  cancel-in-progress: false
+
+jobs:
+  queue-watch:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read # the checkout and each branch's push times
+      checks: read # each PR head's check runs
+      pull-requests: write # to comment on a PR
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Comment on dropped PRs and PRs without a CI run
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+        run: bash scripts/ci/queue-watch.sh

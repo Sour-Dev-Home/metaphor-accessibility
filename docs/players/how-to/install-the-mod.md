@@ -33,11 +33,13 @@ needs no clicks in Reloaded-II's window. `[NEEDS VERIFICATION]` All of this sect
 
 Each step says whether it worked. A step that fails says what to do and stops there. Run it again after fixing that,
 or to update the mod: it changes only what needs changing and says so. With NVDA running it prints only, and NVDA
-reads the window; Windows' own voice speaks the steps when no screen reader is running. Run it from a normal
+reads the window; Windows' own voice speaks the steps when no screen reader is running. That voice is an English one
+when Windows has one; otherwise the installer says so and uses Windows' default voice. Run it from a normal
 PowerShell window, not one opened as administrator: it refuses to run as administrator. With User Account Control
 turned off every window is administrator, so it says so and asks before going on.
 
-The installer checks every file it downloads against a recorded hash. If you ever open Reloaded-II's own window, it may
+The installer checks every file it downloads against a recorded hash. A download that gets no data for a minute, or
+takes more than half an hour, stops, and the installer says what to do. If you ever open Reloaded-II's own window, it may
 offer to update itself; that update comes from Reloaded-II's newest release, which nobody has checked with this mod.
 
 The sections below do the same by hand.

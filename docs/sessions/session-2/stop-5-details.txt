@@ -1,0 +1,30 @@
+# Game session 2 (#497), stop 5: archetype details (#227, #219, #160).
+# Game build 548ddc95... (Steam 18330018). Leads: docs/findings/archetype-details-tabs-static.md.
+# No static path to the details choice is known. The Status menu's scene is key 4 in the menus' scene map
+# (fclCampStatusMenu@fcl@app, cast by 0xfd69f0); the bucket offset is (4 & mask)*0x10+8: 0x48 for a mask of 7 or more,
+# else 0x8. The choice is looked for in that scene by sweep; the follow-ups are in the note's Tonight table.
+[details-from-status-tab-1]
+base
+# The map's mask address (read 8 bytes there).
+follow base+0x2ee7338 0x48 0x0 0x8 0x40
+# The bucket's node, at its key (read 4 bytes there: expect 04 00 00 00).
+follow base+0x2ee7338 0x48 0x0 0x8 0x28 0x48 0x10
+follow base+0x2ee7338 0x48 0x0 0x8 0x28 0x8 0x10
+# The scene (rtti it: expect fclCampStatusMenu@fcl@app).
+follow base+0x2ee7338 0x48 0x0 0x8 0x28 0x48 0x18 0x0
+follow base+0x2ee7338 0x48 0x0 0x8 0x28 0x8 0x18 0x0
+# The two flags that decide which tabs exist (flag f is bit f&31 of the dword at G+0x22c5c+(f>>5)*4):
+# flag 0x1177 is bit 23 of base+0x2cc9578 (set: the kind-2 tab may show); flag 0x3941 is bit 1 of base+0x2cc9a74
+# (clear: the kind-1 tab shows).
+read base+0x2cc9578 4
+read base+0x2cc9a74 4
+# Unit 1's current archetype ID (+0x94) and its archetype records (60 of 0x5c bytes from +0x98), for rank.
+read base+0x2ca8054 4
+read base+0x2ca8058 0x1000
+read base+0x2ca9058 0x590
+[details-tab-2]
+# After RB once. Nothing static moves; this section marks the time in the log for the cursor records.
+read base+0x2ca8054 4
+[details-tab-3]
+# After RB again.
+read base+0x2ca8054 4
