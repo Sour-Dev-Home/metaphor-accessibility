@@ -49,6 +49,7 @@ page type goes in which docs folder.
 | WSL 2 (optional) | faster check-script suites | [`setup-wsl.ps1`](../../scripts/setup/setup-wsl.ps1), tools in [`wsl-tools.txt`](../../scripts/setup/wsl-tools.txt) |
 | Reloaded-II | loads the mod | your install for dev runs; the installer's pin is [`install-pins.json`](../../scripts/player/install-pins.json) |
 | Ghidra and a JDK (optional) | the shared static-analysis project | [query the Ghidra project](how-to/query-the-ghidra-project.md) |
+| FFmpeg, Ollama (optional) | the chapter scrub | your install; [scrub a chapter](how-to/scrub-a-chapter.md) |
 | Pester | PowerShell script tests | [`onboard.ps1`](../../scripts/setup/onboard.ps1) (PowerShell Gallery pin, which CI installs); [`run-pester.sh`](../../scripts/check/run-pester.sh) takes 5.0 or later and warns off the pin |
 | Stryker.NET | weekly mutation testing | [`.config/dotnet-tools.json`](../../.config/dotnet-tools.json) |
 | lychee, Vale | `check.sh docs` | [`install-docs-tools.sh`](../../scripts/setup/install-docs-tools.sh) |
@@ -178,7 +179,8 @@ How-tos: [set up a clone](how-to/set-up-a-clone.md), [add a hook](how-to/add-a-h
 [run a game session](how-to/run-a-game-session.md), [a check or CI failed](how-to/a-check-or-ci-failed.md),
 [write a finding or save a raw source](how-to/write-a-finding.md),
 [add a feature project](how-to/add-a-feature-project.md), [handle a game update](how-to/handle-a-game-update.md),
-[write a player doc](how-to/write-a-player-doc.md), [plan a chapter](how-to/plan-a-chapter.md).
+[write a player doc](how-to/write-a-player-doc.md), [plan a chapter](how-to/plan-a-chapter.md),
+[scrub a chapter](how-to/scrub-a-chapter.md).
 
 Reference: [checks](reference/checks.md), every check stage and how CI runs them;
 [security review](reference/security-review.md), the stamp, the label gate and the deny rules;
