@@ -36,7 +36,7 @@ describing work (rule 8 in [`AGENTS.md`](../../AGENTS.md#ground-rules)).
    `<git dir>/check-live-log`, where the maintainer follows it (`tail -f`, or `bash scripts/check/check-status.sh`). Run them
    as they are; never redirect them to a private temp file. A hook (`.claude/hooks/refuse-log-polling.sh`) refuses a
    sleep loop that waits on a log file.
-5. Hand back verified: the narrow tests, then `full`, both passed and their summaries read. If a run can't finish, say
+5. Go through the [pre-review checklist](../coding-standards.md#pre-review-checklist). Hand back verified: the narrow tests, then `full`, both passed and their summaries read. If a run can't finish, say
    which and why; don't hand back to be nudged.
 
 `check.sh full` records a pass for the index's tree (`git write-tree`) in your clone's git dir, and `full` or `pre-push`

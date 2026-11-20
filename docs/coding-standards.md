@@ -16,6 +16,26 @@ The checks can't tell whether these hold, so reviews do.
    game uses to tell it apart (its class, its own flag), not by a side effect that also happens elsewhere, such as a
    message file compiling (#208).
 
+## Pre-review checklist
+
+Go through this before you hand back; reviewers kept finding these (#488). Each line is a check, not a rule to learn.
+
+- **Environment independence.** Tests mock environment-dependent outcomes (refused writes, elevation/UAC, installed
+  tools, Git layout) instead of relying on the machine; CI runs elevated and admins bypass deny ACLs. A scripted-answer
+  test gives the same result whatever is installed.
+- **Paths and text.** Paths with spaces and non-ASCII characters work. Windows path comparisons ignore case. UTF-8 is
+  read and written explicitly, in Windows PowerShell 5.1 too. No code matches the English text of a tool's output.
+- **Files and processes.** Enumerations include hidden and system files. A failed write stops the script; nothing
+  prints Done after a failure. Installs write to a temp file, then rename. Cleanup can't delete outside its own temp
+  folder.
+- **Git and hooks.** Nothing relies on the environment git sets for hooks, and a contributor's git config can't change
+  the result.
+- **Player-facing text.** Plain sentences a screen reader reads well: say what to type, no `[y/N]`, no symbols. Honest
+  about uncertainty ("probably"). Never advises weakening a security setting.
+- **Guards.** An allow-list is keyed on what is called or loaded. A guard fails closed with a clear message. A new guard
+  has a planted-violation test.
+- **Delivery.** Commit subject is 72 characters or fewer. `origin/main` is merged in before review.
+
 ## Architecture rules
 
 These follow from [ADR 0003](adr/0003-thin-hook-layer.md). The `Unit` tests in `tests/Metaphor.Architecture.Tests` check
