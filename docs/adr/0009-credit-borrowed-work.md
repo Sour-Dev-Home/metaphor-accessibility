@@ -8,7 +8,7 @@ Decided by the maintainer on 2026-11-16. Any idea or code taken from another pro
 code comment where it is used, and `CREDITS.md`. Each credit gives the project's name, repository, licence, the commit
 read and the file. Copied code keeps its licence notice and must be GPL-3.0-compatible (ground rule 4, ADR 0005).
 Arcana (ChipsAhoiMcCoy) is named specifically by the maintainer. Credits for it landed in
-[#130](https://github.com/Sour-Dev-Home/metaphor-refantazio/pull/130), from
+[#130](https://github.com/Sour-Dev-Home/metaphor-accessibility/pull/130), from
 `docs/raw-sources/arcana-research-credits-and-pace-2026-11-16.md`.
 
 ## Considered options

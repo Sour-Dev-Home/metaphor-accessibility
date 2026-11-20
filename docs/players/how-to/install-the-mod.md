@@ -1,7 +1,7 @@
 # Install the mod
 
 > **Draft for testers on dev builds.** There is no release yet. This page is finished with the first alpha
-> ([#131](https://github.com/Sour-Dev-Home/metaphor-refantazio/issues/131)). Steps marked `[NEEDS VERIFICATION]` have
+> ([#131](https://github.com/Sour-Dev-Home/metaphor-accessibility/issues/131)). Steps marked `[NEEDS VERIFICATION]` have
 > not been checked by ear with a screen reader yet. If one is wrong, say so in an issue.
 
 This guide installs Reloaded-II, the program that loads the mod into the game, adds the game and the mod to it, and
