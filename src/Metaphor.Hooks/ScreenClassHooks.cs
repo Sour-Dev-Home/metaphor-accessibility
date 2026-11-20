@@ -39,6 +39,38 @@ internal sealed class ChoiceCursorGetterHook : IGameHook, IObserves4WithResult
     }
 }
 
+/// <summary>The update function of New Game's difficulty list (#540), <c>UUIC_Common_DifficultySelect</c>'s 14th
+/// virtual function: <c>void (UUIC_Common_DifficultySelect* this)</c>. The list isn't a choice, so it never calls the
+/// shared cursor getter and its cursor inputs had no screen class; its update reads its input through the
+/// <c>CursorManager</c> held at <c>+0x28</c>, so each call records the list as that manager's owner, before the input
+/// is read. The function, the field and that the manager is the one the menu cursor hook logs are our reading of the
+/// exe on one build (docs/findings/difficulty-select-shared-cursor.md). One pointer read a call.</summary>
+[GameHook(GameBuilds.Steam18330018)]
+internal sealed class DifficultySelectOwnerHook : IGameHook, IObserves3
+{
+    private const int ManagerOffset = 0x28;
+
+    private readonly CursorOwners owners;
+
+    public DifficultySelectOwnerHook(HookServices services)
+    {
+        ArgumentNullException.ThrowIfNull(services);
+        owners = services.ScreenClasses.Owners;
+    }
+
+    public string SignatureName => "DifficultySelectUpdate";
+
+    /// <summary>Observed before the update runs; only <paramref name="list"/> is an argument, the other two are
+    /// whatever the registers held.</summary>
+    public void Observe(nint list, nint second, nint third)
+    {
+        if (ModuleMemoryReader.ReadPointer(list + ManagerOffset) is { } manager && manager != 0)
+        {
+            owners.Saw(list, manager);
+        }
+    }
+}
+
 /// <summary>Names the screen class of a cursor manager: the class of the choice that last handed it out through
 /// <see cref="ChoiceCursorGetterHook"/>, such as <c>TitleChoice@ope@ui@app</c>. Names are kept by the choice's vtable,
 /// so each class's type information is read once. Safe from any game thread.</summary>

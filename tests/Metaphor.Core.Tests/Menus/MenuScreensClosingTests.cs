@@ -15,8 +15,12 @@ public sealed class MenuScreensClosingTests
 
     public MenuScreensClosingTests() => screens.Observe(new Recording(seen));
 
-    private void Cursor(string screenClass, int row) =>
-        screens.Observe(new CursorInput(0xa0, ClassRva: 0x100, Command: 0x1, Result: 1, Top: 0, row, Flags: 0, screenClass));
+    private const string DialogClass = "DialogChoice@test";
+
+    private void Cursor(string screenClass, int row) => screens.Observe(Input(screenClass, manager: 0xa0, row));
+
+    private static CursorInput Input(string screenClass, long manager, int row) =>
+        new(manager, ClassRva: 0x100, Command: 0x1, Result: 1, Top: 0, row, Flags: 0, screenClass);
 
     private sealed class Recording(List<string> seen) : IScreenObserver
     {
@@ -99,6 +103,45 @@ public sealed class MenuScreensClosingTests
 
         Assert.Empty(seen);
         Assert.False(screens.MenusOpen);
+    }
+
+    [Fact]
+    public void AScreenShownOutsideTheMenusIsToldWhileTheyAreClosed()
+    {
+        // The second yes/no of #540's run: the title's handle had cleared, so the menus read closed, and the dialog was
+        // silent (docs/findings/difficulty-select-shared-cursor.md).
+        var outside = new MenuScreens([new Screen("Dialog", DialogClass, OutsideMenus: true)]);
+        outside.Observe(new Recording(seen));
+
+        outside.Observe(Input(DialogClass, manager: 0xa0, row: 1));
+        outside.Observe(Input(DialogClass, manager: 0xa0, row: 0));
+
+        Assert.Equal([$"Entered {DialogClass} 1", $"FocusMoved {DialogClass} 0"], seen);
+    }
+
+    [Fact]
+    public void AScreenShownOutsideTheMenusIsEnteredAfreshWithEachNewManager()
+    {
+        // Nothing leaves a screen outside the menus, so a second dialog on the same item would otherwise be no change;
+        // the game makes a manager per visit (docs/raw-sources/screen-class-session-2026-11-17.md).
+        var outside = new MenuScreens([new Screen("Dialog", DialogClass, OutsideMenus: true)]);
+        outside.Observe(new Recording(seen));
+
+        outside.Observe(Input(DialogClass, manager: 0xa0, row: 1));
+        outside.Observe(Input(DialogClass, manager: 0xb0, row: 1));
+
+        Assert.Equal([$"Entered {DialogClass} 1", $"Left {DialogClass} 1", $"Entered {DialogClass} 1"], seen);
+    }
+
+    [Fact]
+    public void AMenuScreenKeepsItsFocusAcrossManagers()
+    {
+        screens.MenusRead(open: true);
+        screens.Observe(Input(ItemClass, manager: 0xa0, row: 1));
+
+        screens.Observe(Input(ItemClass, manager: 0xb0, row: 1));
+
+        Assert.Equal([$"Entered {ItemClass} 1"], seen);
     }
 
     [Fact]

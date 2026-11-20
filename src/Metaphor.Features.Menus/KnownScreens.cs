@@ -7,13 +7,15 @@ namespace Metaphor.Features.Menus;
 public static class KnownScreens
 {
     /// <summary>
-    /// The title menu, the main menu, a yes/no dialog, a dialogue's reply choice, and the Settings list and pages.
+    /// The title menu, the main menu, a yes/no dialog, New Game's difficulty list, a dialogue's reply choice, and the
+    /// Settings list and pages.
     /// </summary>
     public static IReadOnlyList<Screen> All { get; } =
     [
         TitleMenuFocus.Screen,
         MainMenuFocus.Screen,
         YesNoDialogFocus.Screen,
+        DifficultyFocus.Screen,
         UnknownScreenFocus.DialogueChoice,
         .. SettingsFocus.Screens,
     ];

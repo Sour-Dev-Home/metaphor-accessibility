@@ -22,11 +22,11 @@ public sealed class YesNoDialogFocusTests
     private readonly RecordingAnnouncer announcer = new();
     private readonly MessageEvents messages = new();
     private readonly CursorEvents cursors = new();
+    private readonly MenuScreens screens = new([YesNoDialogFocus.Screen]);
 
     public YesNoDialogFocusTests()
     {
         var library = new MessageLibrary();
-        var screens = new MenuScreens([YesNoDialogFocus.Screen]);
         screens.MenusRead(open: true);
         messages.ObserveFiles(library);
         cursors.Observe(screens);
@@ -54,6 +54,20 @@ public sealed class YesNoDialogFocusTests
         Assert.Equal(
             [new Announcement("Nay, 2 of 2", Interrupt: true), new Announcement("Aye, 1 of 2", Interrupt: true)],
             announcer.Said);
+    }
+
+    // #540's run: once the title's handle cleared, the menus read closed, and the yes/no after the difficulty list was
+    // silent; a second dialog opening on the same item is a new manager, so it is heard too.
+    [Fact]
+    public void ADialogIsSpokenWhileTheMenusAreClosedEachTimeItOpens()
+    {
+        SystemFileCompiled();
+        screens.MenusRead(open: false);
+
+        Cursor(Settle, row: 0, top: 1);
+        Cursor(Settle, row: 0, top: 1, manager: 0xb0);
+
+        Assert.Equal(["Nay, 2 of 2", "Nay, 2 of 2"], Said());
     }
 
     [Fact]

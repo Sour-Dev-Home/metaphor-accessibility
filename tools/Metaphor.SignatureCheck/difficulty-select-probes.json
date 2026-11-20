@@ -1,0 +1,3 @@
+[
+  { "name": "DifficultySelectUpdate", "pattern": "48 89 5C 24 18 48 89 74 24 20 55 57 41 54 41 56 41 57 48 8D AC 24 00 FE FF FF 48 81 EC 00 03 00 00 48 8B F1 48 63 41 70 83 F8 07 0F 87 ?? ?? ?? ?? 48 8D 0D ?? ?? ?? ?? 8B 94 81 ?? ?? ?? ?? 48 03 D1 FF E2", "source": "docs/findings/difficulty-select-shared-cursor.md" }
+]

@@ -14,8 +14,10 @@ namespace Metaphor.Features.Menus;
 public sealed class YesNoDialogFocus : IScreenObserver
 {
     /// <summary>A yes/no dialog: its choice's class on build 548ddc95, from its run-time type information
-    /// (docs/raw-sources/screen-class-session-2026-11-17.md, yes-no-dialog-labels-2026-11-20.md).</summary>
-    public static Screen Screen { get; } = new("Yes or no", "YesNoChoiceSample@ope@ui@app");
+    /// (docs/raw-sources/screen-class-session-2026-11-17.md, yes-no-dialog-labels-2026-11-20.md). The game shows it
+    /// outside the menus too, in conversations (docs/raw-sources/menus-open-session6-2026-11-17.md) and after New
+    /// Game's difficulty list (docs/findings/difficulty-select-shared-cursor.md).</summary>
+    public static Screen Screen { get; } = new("Yes or no", "YesNoChoiceSample@ope@ui@app", OutsideMenus: true);
 
     // The message whose lines are the choices in cursor order, and how many there are, on build 548ddc95
     // (docs/raw-sources/yes-no-dialog-labels-2026-11-20.md).
