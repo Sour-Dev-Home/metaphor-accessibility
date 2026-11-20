@@ -1,10 +1,11 @@
 # Tests for scripts/setup/setup-wsl.ps1 (#341, #360, #402). Each test runs the script in a child pwsh -NonInteractive, with
 # stand-in functions for wsl.exe and Get-CimInstance defined first (a function wins over an application of the same
 # name), so nothing touches the machine's WSL. The wsl.exe stand-in logs its arguments to calls.log and answers
-# --install from STUB_INSTALL, one comma-separated result per call: ok, net (the DNS failure of #360), reboot (the
-# restart WSL waits on, #402) or fail; --status answers from STUB_STATUS: ok, or novirt (virtualization off, #402).
-# Get-CimInstance always reports a hypervisor, as inside a Hyper-V guest.
-# Run: Invoke-Pester tests/pester (Pester 5 or later).
+# --install from STUB_INSTALL, one comma-separated result per call: ok, net (the DNS failure of #360), reboot or
+# reboot-de (the restart WSL waits on, #402, in English or German: exit code 0 and no distro) or fail. STUB_STATUS
+# novirt or novirt-de (virtualization off, #402) removes the vmcompute service and makes --status say so in that
+# language (docs/raw-sources/wsl-restart-and-virtualization-source-2026-11-19.md). Get-CimInstance always reports a
+# hypervisor, as inside a Hyper-V guest. Run: Invoke-Pester tests/pester (Pester 5 or later).
 
 BeforeAll {
     $repo = (Resolve-Path "$PSScriptRoot/../..").Path
@@ -18,6 +19,10 @@ function global:Get-CimInstance {
     if ($ClassName -eq 'Win32_OptionalFeature') { [pscustomobject] @{ InstallState = 1 } }
     else { [pscustomobject] @{ HypervisorPresent = $true } }
 }
+function global:Get-Service {
+    param([string] $Name)
+    if ($Name -eq 'vmcompute' -and $env:STUB_STATUS -notlike 'novirt*') { [pscustomobject] @{ Name = $Name } }
+}
 function global:wsl.exe {
     Add-Content $env:STUB_CALLS "wsl $args"
     $created = Join-Path $env:STUB_STATE 'created'
@@ -25,11 +30,11 @@ function global:wsl.exe {
     switch ($args[0]) {
         '--version' { 'WSL version: stand-in' }
         '--status' {
-            if ($env:STUB_STATUS -eq 'novirt') {
-                Write-Error 'WSL2 is unable to start since virtualization is not enabled on this machine.'
-                $global:LASTEXITCODE = 1
+            'Default Version: 2'
+            switch ($env:STUB_STATUS) {
+                'novirt' { 'WSL2 is unable to start since virtualization is not enabled on this machine.' }
+                'novirt-de' { 'WSL2 kann nicht gestartet werden, da die Virtualisierung auf diesem Computer nicht aktiviert ist.' }
             }
-            else { 'Default Version: 2' }
         }
         '--list' {
             '  NAME            STATE           VERSION'
@@ -48,6 +53,9 @@ function global:wsl.exe {
                 }
                 'reboot' {
                     'The requested operation is successful. Changes will not be effective until the system is rebooted.'
+                }
+                'reboot-de' {
+                    'Der angeforderte Vorgang war erfolgreich. Sie werden erst nach einem Neustart des Systems wirksam.'
                 }
                 default { 'The operation failed: stand-in'; $global:LASTEXITCODE = 1 }
             }
@@ -153,24 +161,27 @@ Describe 'setup-wsl.ps1' {
         Get-Calls | Should -BeNullOrEmpty
     }
 
-    It 'says to restart Windows when WSL is waiting on a restart' {
-        $script:install = 'reboot'
+    # Windows' own text for the restart is in the user's language, so it isn't matched (#457).
+    It 'says to restart Windows when WSL is waiting on a restart, in <_> too' -ForEach 'reboot', 'reboot-de' {
+        $script:install = $_
         $result = Invoke-Setup
 
         $result.ExitCode | Should -Be 2 -Because $result.Output
-        $result.Output | Should -Match 'Changes will not be effective until the system is rebooted'
-        $result.Output | Should -Match ('setup-wsl: WSL is waiting for Windows to restart before it can create ' +
+        # Exit code 0 without the distro is the only sign, so the restart is probable, not certain.
+        $result.Output | Should -Match ('setup-wsl: WSL is probably waiting for Windows to restart before it can create ' +
             'metaphor-checks\. Restart Windows, then run \.\\scripts\\setup\\setup-wsl\.ps1\.')
         $result.Output | Should -Not -Match 'reported success|virtualization'
     }
 
-    It 'names the virtualization fix, inside a VM too, when WSL 2 can''t start' {
-        $script:status = 'novirt'
+    # A missing vmcompute service can also be the Virtual Machine Platform waiting on a restart, so that comes first.
+    It 'says to restart, then names the virtualization fix, inside a VM too, when WSL 2 can''t start, in <_> too' -ForEach 'novirt', 'novirt-de' {
+        $script:status = $_
         $result = Invoke-Setup
 
         $result.ExitCode | Should -Be 2 -Because $result.Output
-        $result.Output | Should -Match ('setup-wsl: WSL 2 can''t start because virtualization is off\. Turn on ' +
-            'virtualization in the firmware settings')
+        $result.Output | Should -Match ('setup-wsl: WSL 2 can''t start: Windows may still need a restart, or ' +
+            'virtualization is off\. Restart Windows, then run \.\\scripts\\setup\\setup-wsl\.ps1; if WSL 2 still ' +
+            'can''t start, turn on virtualization in the firmware settings')
         $result.Output | Should -Match 'Set-VMProcessor -VMName <vm> -ExposeVirtualizationExtensions \$true on the host'
         Get-Calls | Where-Object { $_ -like 'wsl --install*' } | Should -BeNullOrEmpty
     }

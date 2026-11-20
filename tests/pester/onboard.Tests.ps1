@@ -55,10 +55,10 @@ if (`$env:STUB_WSL -eq 'network') {
     Write-Host 'setup-wsl: downloading Debian failed twice on a network error. Check the network and run .\scripts\setup\setup-wsl.ps1 again. The check suites keep running in Git Bash.'; exit 1
 }
 if (`$env:STUB_WSL -eq 'restart') {
-    Write-Host 'setup-wsl: WSL is waiting for Windows to restart before it can create metaphor-checks. Restart Windows, then run .\scripts\setup\setup-wsl.ps1. The check suites keep running in Git Bash.'; exit 2
+    Write-Host 'setup-wsl: WSL is probably waiting for Windows to restart before it can create metaphor-checks. Restart Windows, then run .\scripts\setup\setup-wsl.ps1. The check suites keep running in Git Bash.'; exit 2
 }
 if (`$env:STUB_WSL -eq 'novirt') {
-    Write-Host 'setup-wsl: WSL 2 can''t start because virtualization is off. Turn on virtualization in the firmware settings; on a Hyper-V VM, shut it down and run Set-VMProcessor -VMName <vm> -ExposeVirtualizationExtensions `$true on the host. Then run .\scripts\setup\setup-wsl.ps1. The check suites keep running in Git Bash.'; exit 2
+    Write-Host 'setup-wsl: WSL 2 can''t start: Windows may still need a restart, or virtualization is off. Restart Windows, then run .\scripts\setup\setup-wsl.ps1; if WSL 2 still can''t start, turn on virtualization in the firmware settings; on a Hyper-V VM, shut it down and run Set-VMProcessor -VMName <vm> -ExposeVirtualizationExtensions `$true on the host. Then run .\scripts\setup\setup-wsl.ps1. The check suites keep running in Git Bash.'; exit 2
 }
 Write-Host 'setup-wsl: WSL is not installed. The check suites keep running in Git Bash.'; exit 2
 "@
@@ -478,7 +478,7 @@ Describe 'onboard.ps1' {
         $result = Invoke-Onboard @('', 'y', 'y', 'n', 'n')
 
         $result.ExitCode | Should -Be 0
-        $result.Output | Should -Match ('WSL: WSL is waiting for Windows to restart before it can create ' +
+        $result.Output | Should -Match ('WSL: WSL is probably waiting for Windows to restart before it can create ' +
             'metaphor-checks\. Restart Windows, then run \.\\scripts\\setup\\setup-wsl\.ps1; until then')
         $result.Output | Should -Not -Match 'wsl --install|Fix that'
     }
@@ -488,7 +488,8 @@ Describe 'onboard.ps1' {
         $result = Invoke-Onboard @('', 'y', 'y', 'n', 'n')
 
         $result.ExitCode | Should -Be 0
-        $result.Output | Should -Match ('WSL: WSL 2 can''t start because virtualization is off\. Turn on ' +
+        $result.Output | Should -Match ('WSL: WSL 2 can''t start: Windows may still need a restart, or virtualization ' +
+            'is off\. Restart Windows, then run \.\\scripts\\setup\\setup-wsl\.ps1; if WSL 2 still can''t start, turn on ' +
             'virtualization in the firmware settings; on a Hyper-V VM, .*ExposeVirtualizationExtensions \$true ' +
             'on the host\. Then run \.\\scripts\\setup\\setup-wsl\.ps1; until then')
         $result.Output | Should -Not -Match 'wsl --install|Fix that'

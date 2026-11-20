@@ -20,6 +20,11 @@ $SharedHooksId = 'reloaded.sharedlib.hooks'
 # How long a run waits for the mod's load line in Reloaded-II's log once the mod has reported: it logs that line just
 # after writing its status file.
 $LoaderLogSeconds = 10
+$PollMilliseconds = 100
+# How long the game must stay gone before a wait counts it as exited: at least the grace that two missed polls 500 ms
+# apart gave before #339 made polling faster.
+$GameGoneMilliseconds = 1000
+$InspectorPipeName = 'metaphor-accessibility-inspector' # LiveInspector.PipeName
 
 # The options each verb takes, as session.ps1 names them. Any other is refused, so a misplaced one never goes unnoticed.
 $Launching = 'GameExe', 'LauncherExe', 'ReloadedConfig', 'KnownBuilds', 'TimeoutSeconds'
@@ -32,7 +37,8 @@ $VerbOptions = @{
     status  = 'GameExe', 'LauncherExe', 'ReloadedConfig', 'KnownBuilds', 'Project', 'PipeName'
 }
 
-# A verb that stops: what went wrong and what to do. Exit code 2 before the game was launched, 1 after, unless given.
+# A verb that stops: what went wrong and what to do. Exit code 2 while nothing has changed, 1 once the game was launched
+# or something was left changed (Invoke-GameSession), unless given.
 class SessionStop : Exception {
     [string] $Fix
     [int] $ExitCode
@@ -144,6 +150,7 @@ function Invoke-InSession($S, [scriptblock] $Body) {
                 Invoke-Undo "remove $folder" { if (Test-Path -LiteralPath $folder) { Remove-Item -LiteralPath $folder -Recurse -Force } }
             }
         ) | Where-Object { $_ }
+        if ($failed) { $S.Changed = $true }
         if ($failed -and $passed) {
             Stop-Session "cleanup failed ($($failed -join '; '))" 'see the lines above, then put those back by hand'
         }
@@ -177,6 +184,23 @@ function Initialize-Launch($S) {
 
     $S.Application = Find-Application $S.Loader $paths.GameExe
     if (-not $S.Application) { Stop-Session "the game isn't registered in Reloaded-II" "add $($paths.GameExe) as an application first" }
+    $paths.GameExe = $S.Application.GameExe
+}
+
+# Builds PROJECT into OUT.
+function Publish-Mod([string] $Project, [string] $Configuration, [string] $Out) {
+    dotnet publish $Project -c $Configuration -o $Out -v q --nologo 2>&1 | ForEach-Object { Write-Line "$_" }
+    if ($LASTEXITCODE -ne 0) { Stop-Session "the build of $Project failed" 'fix the errors above' }
+}
+
+# A mod ID names the folder that gets deleted or copied to, so it must not reach outside the mods folder, nor be a name
+# Windows changes: trailing dots and spaces are dropped, and device names (CON, NUL, COM1, ...) are reserved with or
+# without an extension.
+function Assert-ModId([string] $ModId, [string] $Where) {
+    if (-not $ModId -or $ModId -in '.', '..' -or $ModId.IndexOfAny([IO.Path]::GetInvalidFileNameChars()) -ge 0 -or
+        $ModId -match '[. ]$' -or $ModId -match '^(CON|PRN|AUX|NUL|COM[1-9]|LPT[1-9])(\..*)?$') {
+        Stop-Session "the mod ID '$ModId' in $Where is not a plain folder name" 'fix ModId in its ModConfig.json'
+    }
 }
 
 # Builds the mod and installs it: replaces its folder in Reloaded-II's mods folder and enables it for the game, keeping
@@ -186,15 +210,11 @@ function Install-DevMod($S, [string] $Configuration) {
     $project = $S.Paths.Project
     $staging = Join-Path ([IO.Path]::GetTempPath()) "metaphor-deploy-$([guid]::NewGuid())"
     $S.TempFolders.Add($staging)
-    dotnet publish $project -c $Configuration -o $staging -v q --nologo 2>&1 | ForEach-Object { Write-Line "$_" }
-    if ($LASTEXITCODE -ne 0) { Stop-Session "the build of $project failed" 'fix the errors above' }
+    Publish-Mod $project $Configuration $staging
     $modConfig = Join-Path $staging 'ModConfig.json'
     if (-not (Test-Path -LiteralPath $modConfig)) { Stop-Session "the build of $project has no ModConfig.json" 'copy it to the build output' }
     $modId = [string] (Read-Json $modConfig).ModId
-    # The mod ID names the folder that gets deleted, so it must not reach outside the mods folder.
-    if (-not $modId -or $modId -in '.', '..' -or $modId.IndexOfAny([IO.Path]::GetInvalidFileNameChars()) -ge 0) {
-        Stop-Session "the mod ID '$modId' in the build of $project is not a plain folder name" 'fix ModId in its ModConfig.json'
-    }
+    Assert-ModId $modId "the build of $project"
 
     $modsRoot = [string] $S.Loader.ModConfigDirectory
     if (-not [IO.Path]::IsPathFullyQualified($modsRoot) -or -not (Test-Path -LiteralPath $modsRoot -PathType Container)) {
@@ -209,8 +229,11 @@ function Install-DevMod($S, [string] $Configuration) {
         if (-not (Test-Path -LiteralPath $existing) -or (Read-Json $existing).ModId -ne $modId) {
             Stop-Session "$folder holds something other than $modId" 'move it out of the way first'
         }
+        # From here a failure leaves the install changed, so it can't exit 2.
+        $S.Changed = $true
         Remove-Item -LiteralPath $folder -Recurse -Force
     }
+    $S.Changed = $true
     Copy-Item -LiteralPath $staging $folder -Recurse
     Write-Line "deployed $modId to $folder"
 
@@ -235,8 +258,50 @@ function Start-Game($S, $Mods) {
     $timeout = [int] (Get-Option 'TimeoutSeconds' 120)
     $S.Deadline = (Get-Date).AddSeconds($timeout)
     $S.Launched = $true
-    if (-not (Start-WithLoader $S.Paths.LauncherExe $S.Paths.GameExe $timeout)) { Write-Line 'the launcher did not exit'; return $false }
+    # The launcher exits by itself once the game has started.
+    $launcher = Start-Process -FilePath $S.Paths.LauncherExe -ArgumentList '--launch', "`"$($S.Paths.GameExe)`"" -PassThru
+    if (-not $launcher.WaitForExit($timeout * 1000)) { Write-Line 'the launcher did not exit'; return $false }
     Wait-ModStatus $Mods $S.Paths.GameExe $S.Build $S.Deadline $timeout
+}
+
+# Waits for each mod's status file (each $Mods item has Id and Folder), the game exiting, or the deadline, then prints
+# one line per mod. True when every mod is ready on $Build with all its hooks.
+function Wait-ModStatus($Mods, [string] $GameExe, [string] $Build, [datetime] $Deadline, [int] $TimeoutSeconds) {
+    $passed = $true
+    $goneFor = $null
+    do {
+        $pending = @($Mods | Where-Object { -not (Test-Path -LiteralPath (Join-Path $_.Folder $StatusFileName)) })
+        if ($pending.Count -eq 0) { break }
+        if (Get-Game $GameExe) { $goneFor = $null }
+        elseif (-not $goneFor) { $goneFor = [Diagnostics.Stopwatch]::StartNew() }
+        elseif ($goneFor.ElapsedMilliseconds -ge $GameGoneMilliseconds) {
+            Write-Line 'the game exited before every mod reported'; $passed = $false; break
+        }
+        Start-Sleep -Milliseconds $PollMilliseconds
+    } while ((Get-Date) -lt $Deadline)
+
+    foreach ($mod in $Mods) {
+        $file = Join-Path $mod.Folder $StatusFileName
+        if (-not (Test-Path -LiteralPath $file)) {
+            Write-Line "$($mod.Id): no status within $TimeoutSeconds s"
+            $passed = $false
+            continue
+        }
+        $status = Read-Json $file
+        if ($status.modId -ne $mod.Id) {
+            Write-Line "$($mod.Id): status file names another mod, $($status.modId)"
+            $passed = $false
+        }
+        elseif ($status.state -eq 'ready') {
+            Write-Line "$($mod.Id): ready on $($status.gameBuildSha256), hooks $($status.hooksLoaded)/$($status.hooksExpected)"
+            if ($status.hooksLoaded -ne $status.hooksExpected -or $status.gameBuildSha256 -ne $Build) { $passed = $false }
+        }
+        else {
+            Write-Line "$($mod.Id): $($status.state) on $($status.gameBuildSha256) ($($status.reason))"
+            $passed = $false
+        }
+    }
+    $passed
 }
 
 # The mod's skipped, failed and ready lines in Reloaded-II's log of this run, read from the open file (the folder
@@ -266,18 +331,48 @@ function Show-LoaderLog($S, [string] $ModId, [datetime] $LaunchedAt) {
 }
 
 # A file another process holds open for writing, as the game holds its logs.
+function Open-SharedFile([string] $Path) { [IO.File]::Open($Path, 'Open', 'Read', 'ReadWrite') }
+
 function Read-SharedText([string] $Path) {
-    $stream = [IO.File]::Open($Path, 'Open', 'Read', 'ReadWrite')
+    $stream = Open-SharedFile $Path
     try { (New-Object IO.StreamReader($stream)).ReadToEnd() } finally { $stream.Dispose() }
 }
 
 function Copy-SharedFile([string] $Path, [string] $Target) {
-    $source = [IO.File]::Open($Path, 'Open', 'Read', 'ReadWrite')
+    $source = Open-SharedFile $Path
     try {
         $out = [IO.File]::Create($Target)
         try { $source.CopyTo($out) } finally { $out.Dispose() }
     }
     finally { $source.Dispose() }
+}
+
+# The record counts in a message log, by the word after "<n> ms" (Metaphor.Core.MessageLog), and its requests by the
+# function named in via=. Source lines ("  | ...") are counted, not shown, and no line is printed: the log holds game text.
+function Get-MessageLogSummary([string] $Path) {
+    $types = @{}
+    $requests = @{}
+    $sourceLines = 0
+    $unrecognised = 0
+    foreach ($line in (Read-SharedText $Path) -split "\r?\n") {
+        if ($line -eq '') { continue }
+        if ($line.StartsWith('  | ')) { $sourceLines++; continue }
+        if ($line -match '^\d+ ms ([a-z]+)\b') {
+            $types[$Matches[1]] = 1 + $types[$Matches[1]]
+            if ($Matches[1] -eq 'request' -and $line -match ' via=([A-Za-z0-9_]+)') { $requests[$Matches[1]] = 1 + $requests[$Matches[1]] }
+            continue
+        }
+        $unrecognised++
+    }
+
+    $counts = foreach ($type in $types.Keys | Sort-Object) {
+        if ($type -eq 'compile') { "$($types[$type]) compile ($sourceLines source lines)" } else { "$($types[$type]) $type" }
+    }
+    if ($unrecognised) { $counts = @($counts) + "$unrecognised unrecognised line$(if ($unrecognised -ne 1) { 's' })" }
+    "message log: $(if ($counts) { $counts -join ', ' } else { 'empty' })"
+    if ($requests.Count) {
+        "requests by function: $(($requests.Keys | Sort-Object | ForEach-Object { "$_ $($requests[$_])" }) -join ', ')"
+    }
 }
 
 # --- Smoke runs -------------------------------------------------------------------------------------------------------
@@ -288,7 +383,9 @@ function Get-TestMod([string[]] $Folders) {
     $mods = @(foreach ($folder in $Folders) {
             $modConfig = Join-Path $folder 'ModConfig.json'
             if (-not (Test-Path -LiteralPath $modConfig)) { Stop-Session "no ModConfig.json in $folder" 'pass the folder of a built mod' }
-            [pscustomobject]@{ Id = [string] (Read-Json $modConfig).ModId; Source = (Resolve-Path -LiteralPath $folder).Path; Folder = $null }
+            $modId = [string] (Read-Json $modConfig).ModId
+            Assert-ModId $modId $modConfig
+            [pscustomobject]@{ Id = $modId; Source = (Resolve-Path -LiteralPath $folder).Path; Folder = $null }
         })
     $duplicate = $mods | Group-Object Id | Where-Object Count -GT 1 | Select-Object -First 1
     if ($duplicate) { Stop-Session "two test mods have the mod ID $($duplicate.Name)" 'pass each mod once' }
@@ -460,8 +557,7 @@ function Invoke-Spike($S) {
         $work = Join-Path ([IO.Path]::GetTempPath()) "metaphor-spike-$([guid]::NewGuid())"
         $S.TempFolders.Add($work)
         $mod = Join-Path $work 'mod'
-        dotnet publish $S.Paths.Project -c Release -o $mod -v q --nologo 2>&1 | ForEach-Object { Write-Line "$_" }
-        if ($LASTEXITCODE -ne 0) { Stop-Session 'the mod failed to build' 'fix the errors above' }
+        Publish-Mod $S.Paths.Project 'Release' $mod
         Copy-Item -LiteralPath $probes (Join-Path $mod $ProbesFileName)
 
         # 2. On disk. 0: every probe matched once; 1: one didn't. Anything else (a build error, a crash) is output not
@@ -573,7 +669,7 @@ $($ReportJson.Trim())
 function Invoke-Inspect {
     $requests = @(Get-Option 'Request' @())
     if (-not $requests) { Stop-Session 'no request' "pass one or more, as in: session.ps1 inspect 'help'" }
-    $pipeName = Get-Option 'PipeName' 'metaphor-accessibility-inspector' # LiveInspector.PipeName
+    $pipeName = Get-Option 'PipeName' $InspectorPipeName
     $pipe = [System.IO.Pipes.NamedPipeClientStream]::new(
         '.', $pipeName, [System.IO.Pipes.PipeDirection]::InOut, [System.IO.Pipes.PipeOptions]::CurrentUserOnly,
         [System.Security.Principal.TokenImpersonationLevel]::Identification)
@@ -632,7 +728,7 @@ function Invoke-Status($S) {
     else { Write-Line "deployed: $(if ($modId) { $modId } else { 'the mod' }) is not deployed" }
 
     # The pipe listing, not a connection: the inspector serves one client at a time.
-    $pipeName = Get-Option 'PipeName' 'metaphor-accessibility-inspector'
+    $pipeName = Get-Option 'PipeName' $InspectorPipeName
     $listening = [IO.Directory]::GetFiles('\\.\pipe\') -contains "\\.\pipe\$pipeName"
     Write-Line "inspector: $(if ($listening) { "listening on \\.\pipe\$pipeName" } else { 'not listening' })"
     $valid = Get-OptInName $paths.Project
@@ -641,8 +737,8 @@ function Invoke-Status($S) {
 }
 
 # Runs VERB with OPTIONS (session.ps1's parameters, by name), prints its lines and one summary line, "ok: ..." or
-# "failed: ... - what to do", and returns the exit code: 0 ok; 1 failed after the game was launched (or, for inspect, a
-# request answered err); 2 failed before anything was launched or changed.
+# "failed: ... - what to do", and returns the exit code: 0 ok; 1 failed after the game was launched or the mod was
+# installed, or a cleanup failed (or, for inspect, a request answered err); 2 failed with nothing launched or changed.
 function Invoke-GameSession {
     [CmdletBinding()]
     param(
@@ -655,7 +751,7 @@ function Invoke-GameSession {
     Add-PathName $script:Names '<temp>' ([IO.Path]::GetTempPath())
     Add-PathName $script:Names '~' ([Environment]::GetFolderPath('UserProfile'))
     $S = [pscustomobject]@{
-        Paths = $null; Loader = $null; Application = $null; Build = $null; Deadline = $null; Launched = $false
+        Paths = $null; Loader = $null; Application = $null; Build = $null; Deadline = $null; Launched = $false; Changed = $false
         KeepGame = $false; OptInFiles = [Collections.Generic.List[string]]::new(); TempFolders = [Collections.Generic.List[string]]::new()
     }
     $line = $null
@@ -675,12 +771,13 @@ function Invoke-GameSession {
         $line = "ok: $message"
     }
     catch [SessionStop] {
-        $code = if ($_.Exception.ExitCode) { $_.Exception.ExitCode } elseif ($S.Launched) { 1 } else { 2 }
+        $code = if ($_.Exception.ExitCode) { $_.Exception.ExitCode } elseif ($S.Launched -or $S.Changed) { 1 } else { 2 }
         $line = "failed: $($_.Exception.Message) - $($_.Exception.Fix)"
     }
     catch {
-        $code = if ($S.Launched) { 1 } else { 2 }
-        $line = "failed: $($_.Exception.Message) - $(if ($S.Launched) { 'check the lines above, then run status' } else { 'fix it and run again' })"
+        $changed = $S.Launched -or $S.Changed
+        $code = if ($changed) { 1 } else { 2 }
+        $line = "failed: $($_.Exception.Message) - $(if ($changed) { 'check the lines above, then run status' } else { 'fix it and run again' })"
     }
     finally {
         # Only a stop (Ctrl+C) leaves no line; the session's own cleanup has run by then.

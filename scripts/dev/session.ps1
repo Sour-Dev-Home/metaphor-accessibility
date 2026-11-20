@@ -28,11 +28,10 @@ and its place in the game's enabled mods) stays: that is what deploy and run are
 
 Each verb ends with one line, "ok: ..." or "failed: ... - what to do". Local paths in the output are shortened to
 <game>, <mods>, <reloaded>, <project>, <repo>, <temp>, <save> or ~, so it can go into an issue as it is. Exit codes: 0
-ok; 1 failed after the game was launched, or an inspector request answered err; 2 failed before anything was launched
-(nothing changed). Only reads the game (ADR 0002).
+ok; 1 failed after the game was launched or the mod was installed, a cleanup failed, or an inspector request answered
+err; 2 failed with nothing launched or changed. Only reads the game (ADR 0002).
 
-Loader facts: docs/raw-sources/reloaded-ii-config-location-2026-11-13.md, reloaded-ii-launch-and-logs-2026-11-13.md,
-reloaded-ii-app-and-mod-config-2026-11-15.md and reloaded-ii-clean-exit-2026-11-14.md.
+The work is in scripts/dev/GameSession.psm1, whose header cites the loader facts.
 
 .EXAMPLE
 pwsh scripts/dev/session.ps1 run -Seconds 300 -OptIn ui-text-panes,inspector
