@@ -1,0 +1,21 @@
+# Game session 2 (#497), stop 2: Skill (#155, #215, #159).
+# Game build 548ddc95... (Steam 18330018). Leads: docs/findings/menu-values-party-unit-static.md, section 3.
+# The skill table is a 48,000-byte copy (1,000 entries of 0x30 bytes) behind the pointer at base+0x2dff9a0.
+# Entry +0x5 is the cost kind (1 HP, 2 MP, 3 other), +0x6 a u16 percentage, +0x8 a u16 flat cost.
+# Follow-ups after this batch: read <table>+id*0x30 0x30 for each skill ID the list buffer gives.
+[skill-member-1]
+base
+# The table's address (the pointer, then +0).
+follow base+0x2dff9a0 0x0
+# The skill-list buffer for character 1: 22 ints at base+0x2ed0310+1*0x58, rebuilt from the unit's archetype.
+# Expect nonzero skill IDs below 1000, in the order the Skill screen lists them.
+read base+0x2ed0368 0x58
+# Character 2's (base+0x2ed0310+2*0x58), in case the screen opened on another member.
+read base+0x2ed03c0 0x58
+# Unit 1's HP and MP (+0xc, +0x10) and current archetype (+0x94), for usability: cost against what's left.
+read base+0x2ca7fcc 8
+read base+0x2ca8054 4
+[skill-other-archetype]
+# After switching the member's archetype (or picking another member): the buffer should hold another list.
+read base+0x2ed0368 0x58
+read base+0x2ed03c0 0x58
