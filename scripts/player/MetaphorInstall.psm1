@@ -544,13 +544,29 @@ function Done([string] $Line, [string] $Detail) { New-Step 'done' $Line $Detail 
 function Unchanged([string] $Line, [string] $Detail) { New-Step 'unchanged' $Line $Detail $null }
 function Failed([string] $Line, [string] $Fix, [string] $Detail) { New-Step 'failed' $Line $Detail $Fix }
 
+# The step for an error a step stopped with. A write Windows refused (access denied, 0x80070005, which the WScript.Shell
+# shortcut save also gives) is most often Windows Security's Controlled folder access, which guards Documents and the
+# Desktop, where Reloaded-II and the shortcut may be (#466). How to change its settings is the player's choice, so the
+# installer doesn't say.
+function Get-ErrorStep($ErrorRecord) {
+    $exception = $ErrorRecord.Exception
+    while ($exception) {
+        if ($exception -is [UnauthorizedAccessException] -or $exception.HResult -eq -2147024891) {
+            return Failed 'Windows did not let the installer save this step''s files. Windows Security''s Controlled folder access may have blocked it.' `
+                'Windows Security may show a notification about a blocked change; it explains your choices there. Then run the installer again. If it stops here again, report it with the alpha feedback form, with what the installer printed.' "$ErrorRecord"
+        }
+        $exception = $exception.InnerException
+    }
+    Failed 'This step stopped with an error.' 'Report it with the alpha feedback form, with what the installer printed.' "$ErrorRecord"
+}
+
 function Test-Yes($Answer) { [bool]($null -ne $Answer -and $Answer -match '^\s*(y|yes)\s*$') }
 
 # JSON as Reloaded-II writes it: UTF-8 without a byte order mark, which Windows PowerShell 5.1's Set-Content can't do.
 # Written beside the file first and then swapped in, so a failed write never leaves half a file; a file replaced is
 # kept as PATH.bak. A PATH.bak already there is kept: it is the file from before the installer first changed it (#408).
 function Write-JsonFile([string] $Path, $Value) {
-    New-Item -ItemType Directory -Force (Split-Path $Path) | Out-Null
+    New-Item -ItemType Directory -Force (Split-Path $Path) -ErrorAction Stop | Out-Null
     $temporary = "$Path.tmp"
     [IO.File]::WriteAllText($temporary, ($Value | ConvertTo-Json -Depth 20), (New-Object Text.UTF8Encoding $false))
     if (Test-Path -LiteralPath $Path -PathType Leaf) {
@@ -770,7 +786,7 @@ function Initialize-ReloadedConfig($Context) {
         return Failed 'Reloaded-II''s settings file does not name its folders for mods and games.' `
             'Start Reloaded-II once, so it writes its settings file again, then run the installer again.' "Settings file: $($Context.ConfigPath)"
     }
-    foreach ($folder in $Context.ModsFolder, $Context.AppsFolder) { New-Item -ItemType Directory -Force $folder | Out-Null }
+    foreach ($folder in $Context.ModsFolder, $Context.AppsFolder) { New-Item -ItemType Directory -Force $folder -ErrorAction Stop | Out-Null }
     $result
 }
 
@@ -958,8 +974,9 @@ function Install-ModFiles($Context) {
         $from = Join-Path $source $relative
         $destination = Join-Path $target $relative
         if ((Test-Path -LiteralPath $destination -PathType Leaf) -and (Get-Sha256 $destination) -eq (Get-Sha256 $from)) { continue }
-        New-Item -ItemType Directory -Force (Split-Path $destination) | Out-Null
-        Copy-Item -LiteralPath $from $destination -Force
+        # -ErrorAction Stop: a module doesn't take install.ps1's preference, so a refused copy would otherwise count as done.
+        New-Item -ItemType Directory -Force (Split-Path $destination) -ErrorAction Stop | Out-Null
+        Copy-Item -LiteralPath $from $destination -Force -ErrorAction Stop
         $copied++
     }
     if ($copied -eq 0) { return Unchanged "The mod's files are already up to date." "Folder: $target" }
@@ -1018,7 +1035,7 @@ function Install-Shortcut($Context) {
         $link.Arguments = $arguments
         $link.WorkingDirectory = $folder
         $link.Description = 'Starts Metaphor: ReFantazio through Reloaded-II, with the accessibility mod.'
-        New-Item -ItemType Directory -Force $Context.Desktop | Out-Null
+        New-Item -ItemType Directory -Force $Context.Desktop -ErrorAction Stop | Out-Null
         $link.Save()
     }
     finally { [void] [Runtime.InteropServices.Marshal]::ReleaseComObject($shell) }
@@ -1030,7 +1047,7 @@ function Install-Shortcut($Context) {
 # ReloadedDev.psm1 and the developer scripts: the Reloaded-II reading.
 Export-ModuleMember -Function Test-Elevated, Confirm-RunWindow, New-InstallContext, Select-InstallGame, Install-Reloaded,
     Initialize-ReloadedConfig, Install-DotnetRuntime, Install-VcRuntime, Install-HooksLibrary, Install-ModFiles, Enable-Mod,
-    Install-Shortcut,
+    Install-Shortcut, Get-ErrorStep,
     Find-ScreenReader, Select-Speech, New-Voice, Get-InstallCheck, Get-InstallSummary, Format-Check, Format-SpokenCheck,
     Test-Interactive, Read-Answer, Confirm-Step, Select-MetaphorGame, Find-MetaphorGame, Find-ReloadedLauncher,
     Read-Json, Resolve-AppLocation, Resolve-LoaderPaths, Get-GameBuild `

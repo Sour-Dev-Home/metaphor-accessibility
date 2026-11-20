@@ -187,6 +187,17 @@ BeforeAll {
             ForEach-Object { "$($_.FullName) $($_.LastWriteTimeUtc.Ticks)" }
     }
 
+    # Denies this user new files and folders in FOLDER and below, as Windows Security's Controlled folder access does to
+    # a program it blocks: writes fail with access denied (0x80070005). Not the whole W right, whose SYNCHRONIZE would
+    # also stop reads. Unblock-Write lifts it.
+    $script:user = [Security.Principal.WindowsIdentity]::GetCurrent().User.Value
+    function Block-Write([string] $Folder) {
+        New-Item -ItemType Directory -Force $Folder | Out-Null
+        icacls $Folder /deny "*${user}:(OI)(CI)(WD,AD)" | Out-Null
+        if ($LASTEXITCODE -ne 0) { throw "icacls could not deny writes in $Folder" }
+    }
+    function Unblock-Write([string] $Folder) { icacls $Folder /remove:d "*$user" | Out-Null }
+
     # Answers for a run on a computer with nothing installed: go ahead, use the game found, then yes to each download.
     $script:freshAnswers = 'y', '', 'y', 'y', 'y', 'y'
 }
@@ -462,6 +473,56 @@ Describe 'install.ps1' {
         $reloadedFolder | Should -Not -Exist
     }
 
+    It 'finishes the install without the shortcut when Windows blocks it, and names Controlled folder access' {
+        New-ReloadedSetup
+        Block-Write $desktop
+        try { $result = Invoke-Install @('y') }
+        finally { Unblock-Write $desktop }
+        $result.ExitCode | Should -Be 0
+        $result.Output | Should -Match 'Failed: Windows did not let the installer save this step''s files\. Windows Security''s Controlled folder access may have blocked it\.'
+        $result.Output | Should -Match 'To fix it: Windows Security may show a notification about a blocked change; it explains your choices there\. Then run the installer again\.'
+        $result.Output | Should -Not -Match 'once Windows lets it save there'
+        $result.Output | Should -Not -Match 'This step stopped with an error'
+        $result.Output | Should -Match 'The install is done, but the desktop shortcut was not made\. The mod still works'
+        @((Get-Content -Raw $appConfig | ConvertFrom-Json).EnabledMods) | Should -Be @('other.mod', $modId)
+    }
+
+    It 'stops when Windows blocks the copy into Reloaded-II, and names Controlled folder access' {
+        New-ReloadedSetup
+        Block-Write $mods
+        try { $result = Invoke-Install @('y') }
+        finally { Unblock-Write $mods }
+        $result.ExitCode | Should -Be 1
+        $result.Output | Should -Match 'Failed: Windows did not let the installer save this step''s files\. Windows Security''s Controlled folder access may have blocked it\.'
+        $result.Output | Should -Match 'To fix it: Windows Security may show a notification about a blocked change; it explains your choices there\. Then run the installer again\. If it stops here again, report it with the alpha feedback form'
+        $result.Output | Should -Not -Match 'once Windows lets it save there'
+        $result.Output | Should -Not -Match 'This step stopped with an error'
+        $result.Output | Should -Match 'The installer stopped at step 7'
+    }
+
+    It 'names Controlled folder access when Windows blocks the game''s settings folder from being made' {
+        New-ReloadedSetup
+        $apps = Join-Path $reloadedFolder 'Apps'
+        Remove-Item -LiteralPath (Split-Path $appConfig) -Recurse -Force
+        Block-Write $apps
+        try { $result = Invoke-Install @('y', '') }
+        finally { Unblock-Write $apps }
+        $result.ExitCode | Should -Be 1
+        $result.Output | Should -Match 'Failed: Windows did not let the installer save this step''s files\. Windows Security''s Controlled folder access may have blocked it\.'
+        $result.Output | Should -Not -Match 'This step stopped with an error'
+        $result.Output | Should -Match 'The installer stopped at step 8'
+    }
+
+    It 'keeps the report-it message for an error that is not a blocked write' {
+        New-ReloadedSetup
+        Set-Content -LiteralPath (Join-Path $mods $modId) -Value 'a file where the mod''s folder goes'
+        $result = Invoke-Install @('y')
+        $result.ExitCode | Should -Be 1
+        $result.Output | Should -Match 'Failed: This step stopped with an error\.'
+        $result.Output | Should -Match 'To fix it: Report it with the alpha feedback form'
+        $result.Output | Should -Not -Match 'Controlled folder access'
+    }
+
     It 'runs in Windows PowerShell 5.1' -Skip:(-not (Get-Command powershell.exe -ErrorAction SilentlyContinue)) {
         $result = Invoke-Install $freshAnswers -Shell 'powershell.exe'
         $result.Output | Should -Match 'The install is done'
@@ -469,6 +530,41 @@ Describe 'install.ps1' {
         $app = Get-Content -Raw (Join-Path $reloadedFolder 'Apps/metaphor.exe/AppConfig.json') | ConvertFrom-Json
         @($app.EnabledMods) | Should -Be @($modId)
         [IO.File]::ReadAllBytes($config)[0] | Should -Not -Be 0xEF
+    }
+}
+
+# A refused folder, given as New-Item gives it: a non-terminating access-denied error. Not a deny ACL, as the
+# install.ps1 tests use for files: on CI's elevated runner a deny on adding a subfolder doesn't stop New-Item (#466).
+Describe 'a refused folder' {
+    BeforeEach {
+        # A mock doesn't take the caller's -ErrorAction, so it acts it out: stop with it, a printed error without it.
+        Mock -ModuleName MetaphorInstall New-Item {
+            $denied = [UnauthorizedAccessException]::new("Access to the path '$Path' is denied.")
+            if ($PesterBoundParameters['ErrorAction'] -eq 'Stop') { throw $denied }
+            Write-Error -Exception $denied -ErrorAction Continue 2>$null
+        } -ParameterFilter { $ItemType -eq 'Directory' }
+    }
+
+    It 'stops the game''s settings with the Controlled folder access message, not a missing folder' {
+        $path = Join-Path $TestDrive 'Apps/metaphor.exe/AppConfig.json'
+        $step = InModuleScope MetaphorInstall -Parameters @{ Path = $path } {
+            param($Path)
+            try { Write-JsonFile $Path @{ AppId = 'metaphor.exe' }; 'written' } catch { Get-ErrorStep $_ }
+        }
+        $step.Line | Should -Be 'Windows did not let the installer save this step''s files. Windows Security''s Controlled folder access may have blocked it.'
+    }
+
+    It 'stops Reloaded-II''s settings with the Controlled folder access message, not as done' {
+        $configPath = Join-Path $TestDrive 'ReloadedII.json'
+        Write-JsonFile $configPath @{ LauncherPath = 'Reloaded-II.exe'; ModConfigDirectory = (Join-Path $TestDrive 'Mods')
+            ApplicationConfigDirectory = (Join-Path $TestDrive 'Apps') }
+        $context = [pscustomobject]@{ ConfigPath = $configPath; Launcher = $null; Loader = $null; ModsFolder = $null; AppsFolder = $null }
+        $step = InModuleScope MetaphorInstall -Parameters @{ Context = $context } {
+            param($Context)
+            try { Initialize-ReloadedConfig $Context } catch { Get-ErrorStep $_ }
+        }
+        $step.State | Should -Be 'failed'
+        $step.Line | Should -Be 'Windows did not let the installer save this step''s files. Windows Security''s Controlled folder access may have blocked it.'
     }
 }
 
