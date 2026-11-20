@@ -190,7 +190,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        file: [check-install, fetch-prism, GameLocator, ghidra, install, onboard, session, session-inspect, session-smoke, setup-wsl, zip-package]
+        file: [check-install, fetch-prism, GameLocator, ghidra, install, install-pester, onboard, session, session-inspect, session-smoke, setup-wsl, zip-package]
     defaults:
       run:
         shell: bash
@@ -212,15 +212,11 @@ jobs:
         if: steps.changes.outputs.run == 'true'
         with:
           global-json-file: global.json
-      # The pinned Pester (onboard.ps1's $pesterVersion, #456), not whichever the runner image ships: Install-PSResource
-      # with an exact version range, as onboarding installs it.
+      # The pinned Pester, not whichever the runner image ships, installed and its signer checked as onboarding does
+      # (#456, #477); pester-varied-setup runs the same script.
       - name: Install the pinned Pester
         if: steps.changes.outputs.run == 'true'
-        run: |
-          pin="$(sed -n "s/^\$pesterVersion = '\([0-9.]*\)'.*/\1/p" scripts/setup/onboard.ps1 | tr -d '\r')"
-          [ -n "$pin" ] || { echo "no \$pesterVersion line in scripts/setup/onboard.ps1"; exit 1; }
-          echo "PESTER_PIN=$pin" >> "$GITHUB_ENV"
-          PIN="$pin" pwsh -NoProfile -Command 'Install-PSResource -Name Pester -Version "[$env:PIN]" -Scope CurrentUser -Repository PSGallery -TrustRepository -Quiet -ErrorAction Stop'
+        run: bash scripts/ci/install-pester.sh
       - name: Run the Pester tests
         if: steps.changes.outputs.run == 'true'
         env:
@@ -253,18 +249,15 @@ jobs:
         with:
           global-json-file: Bibliothèque Steam/日本 repo/global.json
       - name: Install the pinned Pester
-        run: |
-          pin="$(sed -n "s/^\$pesterVersion = '\([0-9.]*\)'.*/\1/p" scripts/setup/onboard.ps1 | tr -d '\r')"
-          [ -n "$pin" ] || { echo "no \$pesterVersion line in scripts/setup/onboard.ps1"; exit 1; }
-          PIN="$pin" pwsh -NoProfile -Command 'Install-PSResource -Name Pester -Version "[$env:PIN]" -Scope CurrentUser -Repository PSGallery -TrustRepository -Quiet -ErrorAction Stop'
+        run: bash scripts/ci/install-pester.sh
       # The user's culture, which every process started after this reads: pwsh, Windows PowerShell 5.1 (the player
-      # scripts' tests start it) and .NET. The UI language override needs a language pack the image may lack, so only
-      # the culture is checked; error messages may stay English.
+      # scripts' tests start it) and .NET. Set-Culture alone, in its own process: with Set-WinUILanguageOverride after it
+      # in the same process, new processes still started in en-US (#459, merge-queue run 44649956650; a probe with
+      # Set-Culture alone, run 44652941749, gave de-DE). The UI language needs a language pack the image lacks, so
+      # error messages stay English.
       - name: Switch the user's culture
         run: |
-          pwsh -NoProfile -Command 'Set-Culture $env:CULTURE -ErrorAction Stop
-            try { Set-WinUILanguageOverride -Language $env:CULTURE -ErrorAction Stop }
-            catch { "::warning::UI language stays as it was: $_" }'
+          pwsh -NoProfile -Command 'Set-Culture $env:CULTURE -ErrorAction Stop'
           for shell in pwsh powershell; do
             culture="$("$shell" -NoProfile -Command '(Get-Culture).Name' | tr -d '\r')"
             echo "$shell culture: $culture, UI culture: $("$shell" -NoProfile -Command '(Get-UICulture).Name' | tr -d '\r')"

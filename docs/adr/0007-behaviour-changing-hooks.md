@@ -8,7 +8,7 @@ Decided by the maintainer on 2026-11-16. Hooks observe by default: the loader's 
 function (architecture rule 14, [ADR 0006](0006-hooks-through-reloaded-shared-hooks.md)). A hook may instead change what
 the game does, such as skipping a call or swallowing an input, only when a feature needs it. It is written outside the
 shared pass-through adapters ("the long way", rule 14's note), still follows rules 8-11, and gets its own security
-review before it merges. The first case is [#58](https://github.com/Sour-Dev-Home/metaphor-refantazio/issues/58)'s
+review before it merges. The first case is [#58](https://github.com/Sour-Dev-Home/metaphor-accessibility/issues/58)'s
 repeat key, which swallows the bound input only while a dialogue window is open (between `MsgOpen` and `MsgClose`), so
 the key behaves normally everywhere else.
 

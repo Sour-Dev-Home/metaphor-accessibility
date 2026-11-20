@@ -170,6 +170,94 @@ public sealed class HookShapeRuleTests
         Assert.Empty(Rules.GameMemoryIsReadSafely(assembly));
     }
 
+    private const string NativeRead = """
+        [System.Runtime.InteropServices.DllImport("kernel32.dll")]
+        private static extern bool RtlMoveMemory(nint destination, nint source, nuint length);
+        """;
+
+    [Fact]
+    public void ANativeReadOutsideTheReaderIsAViolation()
+    {
+        // #428: no IL to inspect, so only the declaration shows the read.
+        var assembly = HookLayer($$"""
+            [Metaphor.Hooks.GameHook] public sealed class MenuHook
+            {
+                {{NativeRead}}
+                private void Copy(nint target, nint menu) => RtlMoveMemory(target, menu, 4);
+            }
+            """);
+
+        Assert.Contains(Rules.GameMemoryIsReadSafely(assembly), v => v.Contains("declares native call System.Boolean MenuHook::RtlMoveMemory("));
+    }
+
+    [Fact]
+    public void ANativeReadUnderAListedNameIsAViolation()
+    {
+        // The list names the function bound to, so calling RtlMoveMemory "WriteProcessMemory" doesn't pass.
+        var assembly = HookLayer("""
+            [Metaphor.Hooks.GameHook] public sealed class MenuHook
+            {
+                [System.Runtime.InteropServices.DllImport("kernel32.dll", EntryPoint = "RtlMoveMemory")]
+                private static extern void WriteProcessMemory(nint destination, nint source, nuint length);
+            }
+            """);
+
+        Assert.Contains(Rules.GameMemoryIsReadSafely(assembly), v => v.Contains("(kernel32.dll!RtlMoveMemory)"));
+    }
+
+    [Fact]
+    public void AListedNativeCallPasses()
+    {
+        var assembly = HookLayer("""
+            [Metaphor.Hooks.GameHook] public sealed class MenuHook
+            {
+                [System.Runtime.InteropServices.DllImport("KERNEL32")]
+                private static extern void GetCurrentThreadStackLimits(out nuint low, out nuint high);
+            }
+            """);
+
+        Assert.Empty(Rules.GameMemoryIsReadSafely(assembly));
+    }
+
+    private const string FunctionPointerCalls = """
+        private static int Call(nint function) => ((delegate* unmanaged<int>)function)();
+        private static System.Delegate Wrap(nint function) =>
+            System.Runtime.InteropServices.Marshal.GetDelegateForFunctionPointer<System.Action>(function);
+        """;
+
+    [Fact]
+    public void CallingThroughAFunctionPointerIsAViolation()
+    {
+        var assembly = HookLayer($$"""
+            [Metaphor.Hooks.GameHook] public sealed unsafe class MenuHook
+            {
+                {{FunctionPointerCalls}}
+            }
+            """);
+
+        var violations = Rules.GameMemoryIsReadSafely(assembly);
+
+        Assert.Contains(violations, v => v.Contains("MenuHook reads memory by address (calli)"));
+        Assert.Contains(violations, v => v.Contains("(System.Runtime.InteropServices.Marshal::GetDelegateForFunctionPointer)"));
+    }
+
+    [Fact]
+    public void NativeReadsAndFunctionPointerCallsInsideTheReaderPass()
+    {
+        var assembly = HookLayer($$"""
+            namespace Metaphor.Hooks
+            {
+                internal static unsafe class ModuleMemoryReader
+                {
+                    {{NativeRead}}
+                    {{FunctionPointerCalls}}
+                }
+            }
+            """);
+
+        Assert.Empty(Rules.GameMemoryIsReadSafely(assembly));
+    }
+
     [Theory]
     [MemberData(nameof(Scanned.Names), MemberType = typeof(Scanned))]
     public void GameMemoryIsOnlyReadThroughTheReader(string name) =>

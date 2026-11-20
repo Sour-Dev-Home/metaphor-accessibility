@@ -97,17 +97,14 @@ function Read-InstallAnswer([string] $Question) {
 $workFolder = $null
 $exitCode = 1
 try {
-    if (Test-Elevated) {
-        Out-Line 'This window runs as administrator, so the installer stopped without changing anything. Run it from a normal PowerShell window: it asks Windows for permission itself where a step needs it.'
-        exit 1
-    }
+    $say = { param($Printed, $Spoken) if ($Spoken) { Out-Line $Printed $Spoken } else { Out-Line $Printed } }
+    $ask = { param($Question) Read-InstallAnswer $Question }
+    if (-not (Confirm-RunWindow -Say $say -Ask $ask)) { exit 1 }
     if (-not (Test-Path -LiteralPath (Join-Path $PSScriptRoot 'ModConfig.json') -PathType Leaf)) {
         Out-Line 'This installer is not in the mod''s folder. Run install.ps1 from the mod''s folder in the release zip.'
         exit 1
     }
     $workFolder = (New-Item -ItemType Directory (Join-Path ([IO.Path]::GetTempPath()) "metaphor-install-$([guid]::NewGuid())")).FullName
-    $say = { param($Printed, $Spoken) Out-Line $Printed $Spoken }
-    $ask = { param($Question) Read-InstallAnswer $Question }
     $context = New-InstallContext -ReleaseFolder $PSScriptRoot -PinsPath $Pins -ConfigPath $ReloadedConfig `
         -ReloadedFolder $ReloadedFolder -SteamRoot $SteamRoot -Desktop $Desktop -DotnetRoot $DotnetRoot `
         -VcRuntimeKey $VcRuntimeKey -WorkFolder $workFolder -Ask $ask -Say $say
@@ -128,22 +125,26 @@ try {
         @{ Doing = 'Checking for Reloaded-II''s hooks library.'; Run = { Install-HooksLibrary $context } }
         @{ Doing = 'Copying the mod into Reloaded-II.'; Run = { Install-ModFiles $context } }
         @{ Doing = 'Turning the mod on for the game.'; Run = { Enable-Mod $context } }
-        @{ Doing = 'Making the desktop shortcut.'; Run = { Install-Shortcut $context } }
+        # Optional: the mod works without the shortcut, so the install goes on when it can't be made (#466).
+        @{ Doing = 'Making the desktop shortcut.'; Run = { Install-Shortcut $context }; Optional = $true }
     )
     $total = $steps.Count + 1
+    $noShortcut = $false
     for ($i = 0; $i -lt $steps.Count; $i++) {
         Out-Line "Step $($i + 1) of ${total}: $($steps[$i].Doing)"
         try { $step = & $steps[$i].Run }
-        catch {
-            $step = [pscustomobject]@{ State = 'failed'; Line = 'This step stopped with an error.'; Detail = "$_"
-                Fix = 'Report it with the alpha feedback form, with what the installer printed.' }
-        }
+        catch { $step = Get-ErrorStep $_ }
         $label = switch ($step.State) { 'done' { 'Done' } 'unchanged' { 'Nothing to do' } default { 'Failed' } }
         $printed = "${label}: $($step.Line)"
         if ($step.Detail) { $printed += " $($step.Detail)" }
         Out-Line $printed "${label}: $($step.Line)"
         if ($step.State -eq 'failed') {
             Out-Line "To fix it: $($step.Fix)"
+            if ($steps[$i]['Optional']) {
+                Out-Line 'The installer goes on without the shortcut, which the mod does not need.'
+                $noShortcut = $true
+                continue
+            }
             Out-Line "The installer stopped at step $($i + 1), so the steps after it did not run."
             exit 1
         }
@@ -159,7 +160,9 @@ try {
         Out-Line "The install finished, but the check found a problem. First thing to fix: $($problems[0].Fix)"
         exit 1
     }
-    Out-Line "The install is done. Start the game from the desktop shortcut, $shortcut. Run check-install.ps1 in the mod's folder if the mod stays silent."
+    $start = if ($noShortcut) { 'The install is done, but the desktop shortcut was not made. The mod still works. Start the game from Reloaded-II.' }
+    else { "The install is done. Start the game from the desktop shortcut, $shortcut." }
+    Out-Line "$start Run check-install.ps1 in the mod's folder if the mod stays silent."
     $exitCode = 0
 }
 finally {
