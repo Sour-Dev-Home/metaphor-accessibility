@@ -10,9 +10,6 @@ namespace Metaphor.Features.Dialogue;
 /// (#57, #104); the history (#126) keeps every line in full whatever is said.</summary>
 public sealed class DialogueAnnouncer
 {
-    // A message is voiced when it carries a VOICE tag (docs/raw-sources/spike-session-1-2026-11-16.md).
-    private const string VoiceTag = "<VOICE";
-
     private readonly IAnnouncer announcer;
     private readonly TextCleaner cleaner;
     private readonly DialogueHistory history;
@@ -70,7 +67,7 @@ public sealed class DialogueAnnouncer
             lastSpeaker = name;
         }
         var said = changed ? full : text;
-        var mode = line.Contains(VoiceTag, StringComparison.Ordinal) ? Effective(voicedLines()) : VoicedLinesMode.FullLine;
+        var mode = VoiceClips.ReadsTheWholeLine(line) ? Effective(voicedLines()) : VoicedLinesMode.FullLine;
         switch (mode)
         {
             case VoicedLinesMode.Nothing:
