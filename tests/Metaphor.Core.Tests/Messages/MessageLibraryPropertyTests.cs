@@ -66,7 +66,7 @@ public sealed class MessageLibraryPropertyTests
             // A label written twice keeps its later message.
             foreach (var m in written.GroupBy(m => m.Label).Select(g => g.Last()))
             {
-                Assert.Equal(new GameMessage(m.Label, m.Speaker, m.Text.Trim()), library.Find(m.Label));
+                Assert.Equal(new GameMessage(m.Label, m.Speaker, m.Text.Trim(), "1"), library.Find(m.Label));
             }
         }));
 

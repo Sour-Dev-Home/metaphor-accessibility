@@ -84,4 +84,37 @@ public sealed class MessageLibraryTests
         Assert.Equal(new GameMessage("MES_test_000_01", null, "The wind picks up."), library.Find("MES_test_000_01"));
         Assert.Equal("Ada", library.Find("MES_test_000_00")?.Speaker);
     }
+
+    [Fact]
+    public void AMessageKeepsTheSpeakerIdBeforeItsLabelOnly()
+    {
+        var library = new MessageLibrary();
+        library.Compiled(Scene);
+
+        Assert.Equal("51", library.Find("MES_test_000_00")?.SpeakerId);
+        Assert.Null(library.Find("MES_test_000_01")?.SpeakerId);
+    }
+
+    [Fact]
+    public void AMessageIsFoundByTheMd5OfItsLabel()
+    {
+        var library = new MessageLibrary();
+        library.Compiled(Scene);
+
+        // MD5("MES_test_000_01"), from GNU coreutils' md5sum.
+        var key = Convert.FromHexString("1cd3d3ca07974081a6e2ebade360139c");
+
+        Assert.Equal("MES_test_000_01", library.FindByKey(key)?.Label);
+    }
+
+    [Fact]
+    public void AKeyNoLabelHasOrOfTheWrongSizeIsNotFound()
+    {
+        var library = new MessageLibrary();
+        library.Compiled(Scene);
+
+        // MD5("MES_test_000"), from GNU coreutils' md5sum.
+        Assert.Null(library.FindByKey(Convert.FromHexString("65dfab3ed8bb2da35bcc7de32f3f8b75")));
+        Assert.Null(library.FindByKey(new byte[15]));
+    }
 }

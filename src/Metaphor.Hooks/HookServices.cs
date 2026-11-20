@@ -46,9 +46,18 @@ internal sealed record HookServices
     /// <summary>Reads the message the dialogue window holds (#232); the loader locates what it reads (#300).</summary>
     public DialogueWindowPointer DialogueWindow { get; init; } = new();
 
+    /// <summary>Reads the story flags and typed names (#81, #107); the loader locates what it reads.</summary>
+    public GameDataRead GameData { get; init; } = new();
+
+    /// <summary>Reads the character name table (#81); the loader locates what it reads.</summary>
+    public DataTableRead CharacterTable { get; init; } = DataTableRead.Characters();
+
+    /// <summary>Reads the follower table (#107); the loader locates what it reads.</summary>
+    public DataTableRead FollowerTable { get; init; } = DataTableRead.Followers();
+
     /// <summary>Every reader of a game global, which the loader hands each global it locates before any hook goes in.
     /// </summary>
-    public IReadOnlyList<IReadsGlobal> Globals => [MenusOpen, DialogueWindow];
+    public IReadOnlyList<IReadsGlobal> Globals => [MenusOpen, DialogueWindow, GameData, CharacterTable, FollowerTable];
 
     /// <summary>Names each cursor manager's screen class (#208): the choice cursor getter hook feeds it, and the menu
     /// cursor hook asks it for each input.</summary>
@@ -70,7 +79,13 @@ internal sealed record HookServices
         var history = new DialogueHistory();
         var events = new MessageEvents();
         var cursors = new CursorEvents();
-        var cleaner = new TextCleaner(TextCleanerRules.None);
+        // Speakers and name tags are named as the screen shows them (#81, #107), read from the game when a line is
+        // shown; a read that fails falls back to the file's speaker, and drops the tag as before.
+        var gameData = new GameDataRead();
+        var characterTable = DataTableRead.Characters();
+        var followerTable = DataTableRead.Followers();
+        var names = new GameNames(new GameNameMemory(gameData, characterTable, followerTable), library);
+        var cleaner = new TextCleaner(GameNames.Rules, names.Placeholder);
         // Lines go through the reader on/off switch; the repeat and the switch's own state are spoken either way.
         // The voice language is unknown until #103 finds it, so Auto speaks the full line.
         var reader = new DialogueReader(announcer);
@@ -89,7 +104,7 @@ internal sealed record HookServices
         var menuControls = new MenuControls(menuBindings, screens, reader, []);
         screens.Observe(menuControls);
         events.ObserveFiles(library);
-        events.ObserveLines(new DialogueLines(library, dialogue));
+        events.ObserveLines(new DialogueLines(new ShownSpeakers(library, names), dialogue));
         events.ObserveChoices(new DialogueChoices(library, dialogue));
         var choiceFocus = new ChoiceFocus(library, announcer, cleaner);
         events.ObserveChoices(choiceFocus);
@@ -120,6 +135,9 @@ internal sealed record HookServices
             DialogueControls = controls,
             MenuControls = menuControls,
             MenuScreens = screens,
+            GameData = gameData,
+            CharacterTable = characterTable,
+            FollowerTable = followerTable,
         };
     }
 }
