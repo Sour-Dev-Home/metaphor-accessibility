@@ -14,7 +14,9 @@ says that nothing changed.
    yes. A no stops with what to do, except for Node.js, which only the docs tools need. When winget says a tool is
    already installed that the script still doesn't find, it says what it looked for. Then the Visual C++
    Redistributable (x64), which lychee needs (#385): the same offer, with the installer's own admin prompt, and the run
-   carries on after it.
+   carries on after it. A 32-bit dotnet first on PATH hides the 64-bit SDKs: it says so and which folder to put first,
+   and offers no install. Then Pester at its pinned version, which the scripts' tests need (Windows PowerShell's
+   Pester 3 doesn't count): it offers Install-PSResource for your user from the PowerShell Gallery, and a no stops.
 2. Git hooks: sets core.hooksPath to scripts/githooks for this clone.
 3. Private patterns: creates the git-ignored .claude/pii-patterns.txt from the example, opens it in Notepad, and stops
    while it still holds the example lines. It never prints the file.
@@ -33,7 +35,7 @@ says that nothing changed.
 Without a console (pwsh -NonInteractive, redirected input, no user session) it answers every question no, opens neither
 Notepad nor Claude Code, and says so in the summary.
 
-It writes only inside the clone, except through the tools it calls (winget, git, Claude Code's plugin commands, setx
+It writes only inside the clone, except through the tools it calls (winget, Install-PSResource, git, Claude Code's plugin commands, setx
 for METAPHOR_GAME_EXE, WSL through setup-wsl.ps1, and Reloaded-II's mod folder through session.ps1).
 
 Exit codes: 0 it reached the summary (which lists anything left to do); 1 it stopped at a missing tool, or the private
@@ -56,6 +58,10 @@ param(
     [string] $ReloadedConfig = '',
     # The Program Files folder to look in for PowerShell 7 when pwsh isn't on PATH. Defaults to Windows' own.
     [string] $ProgramFiles = $env:ProgramFiles,
+    # The Program Files (x86) folder, where a 32-bit dotnet lives. Defaults to Windows' own.
+    [string] $ProgramFilesX86 = ${env:ProgramFiles(x86)},
+    # The module folders to look in for Pester. Defaults to PowerShell's module path.
+    [string[]] $PesterModulePath = @($env:PSModulePath -split [IO.Path]::PathSeparator),
     # The folder to look in for the Visual C++ runtime's vcruntime140.dll. Defaults to Windows' System32.
     [string] $SystemDirectory = [Environment]::SystemDirectory
 )
@@ -78,6 +84,12 @@ $vcRedistPackage = @{ Id = 'Microsoft.VCRedist.2015+.x64'; Version = '14.52.3702
 # UPGRADE_VERSION_NOT_NEWER, INSTALL_ALREADY_INSTALLED and INSTALL_DOWNGRADE, as winget-cli's returnCodes.md lists them
 # (docs/raw-sources/onboard-winget-pins-and-return-codes-2026-11-19.md).
 $wingetAlreadyInstalled = @(0x8A150061, 0x8A15002B, 0x8A15004F, 0x8A15010D, 0x8A15010E)
+# Pester, the scripts' test framework: the version CI installs and run-pester.sh warns about missing
+# (docs/raw-sources/pester-pin-2026-11-19.md). Both take any 5.0 or later; Windows PowerShell's built-in 3.4.0 can't run
+# the tests (#456). CI and run-pester.sh read the pin from this line.
+$pesterVersion = '6.2.0'
+$pesterInstall = "Install-PSResource -Name Pester -Version '[$pesterVersion]' -Scope CurrentUser -Repository PSGallery " +
+    '-TrustRepository -Quiet -ErrorAction Stop'
 
 $root = Split-Path -Parent (Split-Path -Parent $PSScriptRoot)
 $ok = [string][char]0x2713
@@ -181,12 +193,36 @@ function Find-GitBash {
     return $null
 }
 
+# The dotnet first on PATH when it's the 32-bit one, from Program Files (x86): it lists only 32-bit SDKs, so the 64-bit
+# SDK global.json pins looks missing, and winget then says it's already installed (#456).
+function Get-X86Dotnet {
+    if (-not $ProgramFilesX86) { return $null }
+    $first = Get-Command dotnet -CommandType Application -ErrorAction SilentlyContinue | Select-Object -First 1
+    if ($first -and $first.Source.StartsWith($ProgramFilesX86.TrimEnd('\') + '\', [StringComparison]::OrdinalIgnoreCase)) {
+        return $first.Source
+    }
+    return $null
+}
+
+# Pester's versions in the module folders, as Install-PSResource and Windows lay them out: <folder>\Pester\<version>\
+# Pester.psd1.
+function Get-PesterVersion {
+    $versions = foreach ($folder in $PesterModulePath) {
+        if (-not $folder) { continue }
+        Get-ChildItem -LiteralPath (Join-Path $folder 'Pester') -Directory -ErrorAction SilentlyContinue |
+            Where-Object { Test-Path -LiteralPath (Join-Path $_.FullName 'Pester.psd1') } | ForEach-Object { $_.Name }
+    }
+    @($versions | Sort-Object -Unique)
+}
+
 # --- 1. Tools ---------------------------------------------------------------------------------------------------------
 Write-Step 'Tools'
 $sdkVersion = (Get-Content -Raw -LiteralPath (Join-Path $root 'global.json') | ConvertFrom-Json).sdk.version
 $sdkMajor = $sdkVersion.Split('.')[0]
+$pesters = @(Get-PesterVersion)
 # Each tool: its pinned winget package, TEST to find it, PROBLEM when it's missing, LOOKS for what TEST looks for, and
 # whether the rest of onboarding needs it. Node.js only serves the docs tools: missing, it gets a SUMMARY line instead.
+# BLOCKED, when it returns text, says why an install won't help; INSTALL is a PowerShell command used in place of winget.
 $tools = @(
     [pscustomobject]@{
         Name = '.NET SDK'; Version = $sdkVersion; Id = "Microsoft.DotNet.SDK.$sdkMajor"; Required = $true
@@ -196,6 +232,17 @@ $tools = @(
         }
         Problem = "version $sdkVersion (global.json pins it exactly) isn't installed"
         Looks = "exactly $sdkVersion in dotnet --list-sdks, as global.json pins it; another version doesn't count"
+        # An install can't fix this one, so it's said instead of offered.
+        Blocked = {
+            $x86 = Get-X86Dotnet
+            if ($x86) {
+                "The dotnet first on PATH, $x86, is the 32-bit one, and it lists no 64-bit SDK. Installing the SDK again " +
+                "won't help: put $(Join-Path $ProgramFiles 'dotnet') before $(Split-Path $x86) in PATH (its dotnet.exe " +
+                'is the 64-bit one; Windows settings, "Edit environment variables for your account" or, for the system ' +
+                'PATH, "Edit the system environment variables"), then open a new PowerShell window and run ' +
+                '.\scripts\setup\onboard.ps1 again.'
+            }
+        }
     }
     [pscustomobject]@{
         Name = 'Git'; Version = $gitPackage.Version; Id = $gitPackage.Id; Url = 'https://git-scm.com/download/win'
@@ -232,12 +279,43 @@ $tools = @(
             'it, or install the Visual C++ Redistributable (x64) from ' +
             'https://learn.microsoft.com/cpp/windows/latest-supported-vc-redist'
     }
+    # Pester comes from the PowerShell Gallery, not winget: Install-PSResource (PowerShell 7.4 and later) for this
+    # Windows user, so no admin prompt, and the module is there for this run straight away.
+    [pscustomobject]@{
+        Name = 'Pester'; Version = $pesterVersion; Required = $true; Install = $pesterInstall
+        Test = { @(Get-PesterVersion) -contains $pesterVersion }
+        Problem = "version $pesterVersion isn't installed (found: $(if ($pesters) { $pesters -join ', ' } else { 'none' }))"
+        Looks = "Pester\$pesterVersion\Pester.psd1 in a module folder ($($PesterModulePath -join '; '))"
+    }
 )
 $installed = @()
 $missing = @()
 foreach ($tool in $tools) {
     if (& $tool.Test) { Write-Host "$($tool.Name): found"; continue }
     Write-Host "$($tool.Name): $($tool.Problem)."
+    if ($tool.PSObject.Properties['Blocked']) {
+        $blocked = & $tool.Blocked
+        if ($blocked) { Write-Host $blocked; $missing += $tool; continue }
+    }
+    if ($tool.PSObject.Properties['Install']) {
+        # In a separate pwsh (the one found, else this one), which the tests stand in for.
+        $installer = Find-PowerShell7
+        if (-not $installer -and $PSVersionTable.PSVersion.Major -ge 7) { $installer = Join-Path $PSHOME 'pwsh.exe' }
+        Write-Host "PowerShell 7 can install $($tool.Name) $($tool.Version) for your Windows user from the PowerShell Gallery"
+        Write-Host "(no admin prompt), with: $($tool.Install)"
+        if (-not $installer -or
+            -not (Read-YesNo "Install $($tool.Name) $($tool.Version) for your user from the PowerShell Gallery?")) {
+            $missing += $tool; continue
+        }
+        & $installer -NoProfile -NonInteractive -Command $tool.Install
+        if ($LASTEXITCODE -eq 0 -and (& $tool.Test)) {
+            Write-Host "Installed $($tool.Name) $($tool.Version)."
+            $changes.Add("installed $($tool.Name) $($tool.Version)")
+            continue
+        }
+        Write-Host "The install didn't finish, or onboarding still doesn't find $($tool.Looks)."
+        $missing += $tool; continue
+    }
     if (-not (Test-Command winget)) { $missing += $tool; continue }
     Write-Host "winget can install $($tool.Name) $($tool.Version). A yes also accepts the package's licence agreement and"
     Write-Host "the winget source's terms on your behalf; read them first with:"
@@ -278,7 +356,10 @@ $todo = @($missing | Where-Object { $_.Required })
 if ($todo.Count -gt 0) {
     Write-Host ''
     Write-Host 'Install these, then run .\scripts\setup\onboard.ps1 again:'
-    foreach ($tool in $todo) { Write-Host "  $($tool.Name) $($tool.Version): $($tool.Url)" }
+    foreach ($tool in $todo) {
+        if ($tool.PSObject.Properties['Install']) { Write-Host "  $($tool.Name) $($tool.Version): in PowerShell 7, $($tool.Install)" }
+        else { Write-Host "  $($tool.Name) $($tool.Version): $($tool.Url)" }
+    }
     exit 1
 }
 if ($installed.Count -gt 0) {

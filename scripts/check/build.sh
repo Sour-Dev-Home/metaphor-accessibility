@@ -141,8 +141,14 @@ run_selected_tests() {
 # stand-in game or a workflow changed) and pwsh is on PATH; run-pester.sh builds the stand-in game itself.
 run_selected_pester() {
   local kind file reason
-  [ -z "${SKIP_SCRIPT_TESTS:-}" ] && command -v pwsh > /dev/null || return 0
-  read -r kind file reason < <(grep '^pester ' <<< "$1") || return 0
+  [ -z "${SKIP_SCRIPT_TESTS:-}" ] || return 0
+  while read -r kind file reason; do [ "$kind" = pester ] && break; done <<< "$1"
+  [ "$kind" = pester ] || return 0
+  if ! command -v pwsh > /dev/null; then
+    # Not silent (#456): CI's scripts job still runs them, and fails where this push passed.
+    warn "pwsh isn't on PATH, so the Pester tests didn't run (CI runs them): install PowerShell 7, or put it on PATH"
+    return 0
+  fi
   echo "tests: Pester smoke tests because $file $reason"
   timed_step pester bash "$check_dir/check/run-pester.sh" ||
     report "tests: smoke or deploy script tests failed (run: bash scripts/check/run-pester.sh)"

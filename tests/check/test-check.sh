@@ -1192,6 +1192,14 @@ test_pre_push_skips_a_deleted_branch() {
   expect_absent "Metaphor.sln"
 }
 
+# #456: a script change selects the Pester tests; without pwsh the pre-push run says it skipped them, as CI won't.
+test_pre_push_warns_when_pwsh_is_missing_for_the_pester_tests() {
+  out="$(unset GITHUB_ACTIONS METAPHOR_FULL_TESTS SKIP_SCRIPT_TESTS
+    PATH="$WORK/no-tools" run_selected_pester "pester scripts/dev/session.ps1 changed" 2>&1)"
+  code=$?
+  expect 0 "warning: pwsh isn't on PATH, so the Pester tests didn't run" "PowerShell 7"
+}
+
 # hold_lock: every build slot (one) is held by a live process, so a build stage would have to wait.
 hold_lock() {
   test_slots=1

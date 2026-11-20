@@ -49,7 +49,7 @@ page type goes in which docs folder.
 | WSL 2 (optional) | faster check-script suites | [`setup-wsl.ps1`](../../scripts/setup/setup-wsl.ps1), tools in [`wsl-tools.txt`](../../scripts/setup/wsl-tools.txt) |
 | Reloaded-II | loads the mod | your install for dev runs; the installer's pin is [`install-pins.json`](../../scripts/player/install-pins.json) |
 | Ghidra and a JDK (optional) | the shared static-analysis project | [query the Ghidra project](how-to/query-the-ghidra-project.md) |
-| Pester | PowerShell script tests | version 5 or later, not pinned ([`run-pester.sh`](../../scripts/check/run-pester.sh)) |
+| Pester | PowerShell script tests | [`onboard.ps1`](../../scripts/setup/onboard.ps1) (PowerShell Gallery pin, which CI installs); [`run-pester.sh`](../../scripts/check/run-pester.sh) takes 5.0 or later and warns off the pin |
 | Stryker.NET | weekly mutation testing | [`.config/dotnet-tools.json`](../../.config/dotnet-tools.json) |
 | lychee, Vale | `check.sh docs` | [`install-docs-tools.sh`](../../scripts/setup/install-docs-tools.sh) |
 | markdownlint, Node.js | `check.sh docs` | [`tools/docs/package.json`](../../tools/docs/package.json); Node.js LTS from `onboard.ps1` |

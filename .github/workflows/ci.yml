@@ -212,12 +212,22 @@ jobs:
         if: steps.changes.outputs.run == 'true'
         with:
           global-json-file: global.json
+      # The pinned Pester (onboard.ps1's $pesterVersion, #456), not whichever the runner image ships: Install-PSResource
+      # with an exact version range, as onboarding installs it.
+      - name: Install the pinned Pester
+        if: steps.changes.outputs.run == 'true'
+        run: |
+          pin="$(sed -n "s/^\$pesterVersion = '\([0-9.]*\)'.*/\1/p" scripts/setup/onboard.ps1 | tr -d '\r')"
+          [ -n "$pin" ] || { echo "no \$pesterVersion line in scripts/setup/onboard.ps1"; exit 1; }
+          echo "PESTER_PIN=$pin" >> "$GITHUB_ENV"
+          PIN="$pin" pwsh -NoProfile -Command 'Install-PSResource -Name Pester -Version "[$env:PIN]" -Scope CurrentUser -Repository PSGallery -TrustRepository -Quiet -ErrorAction Stop'
       - name: Run the Pester tests
         if: steps.changes.outputs.run == 'true'
         env:
           TEST_FILE: tests/pester/${{ matrix.file }}.Tests.ps1
+        # Any Pester 5 or later runs; one other than the pin only warns, as in run-pester.sh.
         run: |
-          pwsh -NoProfile -Command 'Import-Module Pester -MinimumVersion 5.0; $r = Invoke-Pester $env:TEST_FILE -PassThru -Output Normal; exit $r.FailedCount'
+          pwsh -NoProfile -Command '$m = Import-Module Pester -MinimumVersion 5.0 -PassThru; if ("$($m.Version)" -ne $env:PESTER_PIN) { "::warning::Pester $($m.Version) loaded, not the pinned $env:PESTER_PIN" }; $r = Invoke-Pester $env:TEST_FILE -PassThru -Output Normal; exit $r.FailedCount'
 
   # The required check named `scripts` (the ruleset asks for it by name): it passes when every Pester job passed or was
   # skipped, and fails when any failed or was cancelled. Add a test file under tests/pester and to the matrix above;

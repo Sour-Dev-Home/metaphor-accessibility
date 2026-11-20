@@ -17,8 +17,9 @@ docs/raw-sources/drm-status-2026-11-13.md). The project holds the exe's bytes an
 both stay in out/ghidra/, which .gitignore and the checks keep out of the repository (rule 4).
 
 Needs Ghidra and a JDK it supports: GHIDRA_INSTALL_DIR and JAVA_HOME, or else the newest ghidra_*_PUBLIC and jdk-*
-folder in %LOCALAPPDATA%\Programs (docs/contributors/how-to/query-the-ghidra-project.md). Ghidra locks the project, so
-one command runs at a time.
+folder in %LOCALAPPDATA%\Programs, newest by version number (docs/contributors/how-to/query-the-ghidra-project.md). A
+JDK counts when its release file names the Java version Ghidra's application.properties asks for, or later; it prints
+which JDK it chose and why. Ghidra locks the project, so one command runs at a time.
 
 Exit codes: 0 done; 1 Ghidra or a script failed; 2 couldn't start (no Ghidra, JDK, game exe or project).
 
@@ -75,12 +76,18 @@ $folders = [ordered]@{}
 function Write-Out([string] $Text) { Write-Host (Hide-LocalPaths $folders $Text) }
 function Stop-Start([string] $Message) { Write-Out "ghidra can't start: $Message"; exit 2 }
 
+# A folder's version by number, so jdk-21.0.10 comes after jdk-21.0.9 and jdk-21 after jdk-8 (#456).
+function Get-FolderVersion([string] $Name) {
+    $parts = @([regex]::Matches($Name, '\d+') | Select-Object -First 4 | ForEach-Object { [int]$_.Value })
+    while ($parts.Count -lt 2) { $parts += 0 }
+    [version]($parts -join '.')
+}
 # The newest folder matching $Pattern under %LOCALAPPDATA%\Programs, when the variable isn't set.
 function Find-Install([string] $Variable, [string] $Pattern, [string] $Probe) {
     $value = [Environment]::GetEnvironmentVariable($Variable)
     if (-not $value) {
         $value = Get-ChildItem -LiteralPath (Join-Path $env:LOCALAPPDATA 'Programs') -Directory -Filter $Pattern -ErrorAction SilentlyContinue |
-            Sort-Object Name -Descending | Select-Object -First 1 -ExpandProperty FullName
+            Sort-Object { Get-FolderVersion $_.Name } -Descending | Select-Object -First 1 -ExpandProperty FullName
     }
     if (-not $value -or -not (Test-Path -LiteralPath (Join-Path $value $Probe))) {
         Stop-Start "no ${Probe}: set $Variable (docs/contributors/how-to/query-the-ghidra-project.md)"
@@ -89,7 +96,45 @@ function Find-Install([string] $Variable, [string] $Pattern, [string] $Probe) {
 }
 
 $ghidra = Find-Install 'GHIDRA_INSTALL_DIR' 'ghidra_*_PUBLIC' 'support/analyzeHeadless.bat'
-$env:JAVA_HOME = Find-Install 'JAVA_HOME' 'jdk-*' 'bin/java.exe'
+
+# A JDK's Java major version, from the release file at its root (JAVA_VERSION="25.0.5", or "1.8.0_402" for Java 8), as
+# the Temurin 25.0.5+8 zip has it (docs/raw-sources/ghidra-and-jdk-install-2026-11-17.md); $null without one.
+function Get-JavaMajor([string] $Jdk) {
+    $line = Select-String -LiteralPath (Join-Path $Jdk 'release') -Pattern '^JAVA_VERSION="(1\.)?(\d+)' -ErrorAction SilentlyContinue |
+        Select-Object -First 1
+    if ($line) { [int]$line.Matches[0].Groups[2].Value } else { $null }
+}
+function Format-Java([string] $Jdk) { $major = Get-JavaMajor $Jdk; if ($major) { "Java $major" } else { 'Java unknown' } }
+# The JDK: JAVA_HOME when its Java is the one Ghidra needs (application.java.min in its Ghidra/application.properties,
+# 25 for Ghidra 12.2) or later, else the newest such jdk-* folder in %LOCALAPPDATA%\Programs. Says which and why, since
+# Ghidra's own output is discarded and a wrong JDK would show only as its exit code.
+function Find-Jdk {
+    $min = Select-String -LiteralPath (Join-Path $ghidra 'Ghidra/application.properties') -Pattern '^application\.java\.min=(\d+)' -ErrorAction SilentlyContinue |
+        Select-Object -First 1
+    $min = if ($min) { [int]$min.Matches[0].Groups[1].Value } else { 0 }
+    $needs = if ($min) { "Ghidra needs Java $min or later" } else { 'Ghidra names no minimum Java' }
+    $usable = { param($Jdk) (Test-Path -LiteralPath (Join-Path $Jdk 'bin/java.exe')) -and (Get-JavaMajor $Jdk) -ge $min }
+    if ($env:JAVA_HOME) {
+        $name = Split-Path $env:JAVA_HOME -Leaf
+        if (& $usable $env:JAVA_HOME) {
+            Write-Out "JDK: $name ($(Format-Java $env:JAVA_HOME), from JAVA_HOME; $needs)"
+            return $env:JAVA_HOME
+        }
+        $is = if (Test-Path -LiteralPath (Join-Path $env:JAVA_HOME 'bin/java.exe')) { "is $(Format-Java $env:JAVA_HOME)" }
+        else { 'has no bin\java.exe' }
+        Write-Out "JAVA_HOME's JDK, $name, $is, and $($needs): skipping it"
+    }
+    $found = @(Get-ChildItem -LiteralPath (Join-Path $env:LOCALAPPDATA 'Programs') -Directory -Filter 'jdk-*' -ErrorAction SilentlyContinue |
+            Sort-Object { Get-FolderVersion $_.Name } -Descending)
+    $jdk = $found | Where-Object { & $usable $_.FullName } | Select-Object -First 1
+    if ($jdk) {
+        Write-Out "JDK: $($jdk.Name) ($(Format-Java $jdk.FullName), the newest jdk-* folder in %LOCALAPPDATA%\Programs; $needs)"
+        return $jdk.FullName
+    }
+    $list = if ($found) { ($found | ForEach-Object { "$($_.Name) ($(Format-Java $_.FullName))" }) -join ', ' } else { 'none' }
+    Stop-Start "no JDK with Java $min or later, which Ghidra needs (found: $list): set JAVA_HOME (docs/contributors/how-to/query-the-ghidra-project.md)"
+}
+$env:JAVA_HOME = Find-Jdk
 $env:GHIDRA_HEADLESS_MAXMEM = $MaxMemory
 Add-PathName $folders '<ghidra-project>' $root
 Add-PathName $folders '<repo>' $repo
