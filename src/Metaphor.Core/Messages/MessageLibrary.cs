@@ -5,8 +5,9 @@ using System.Text;
 namespace Metaphor.Core.Messages;
 
 /// <summary>One message from a game message file: its label, the speaker's name as the file stores it (null when
-/// none) and the rest of its text, tags kept.</summary>
-public sealed record GameMessage(string Label, string? Speaker, string Text);
+/// none) and the rest of its text, tags kept. <paramref name="SpeakerId"/> is the quoted value of the
+/// <c>#SPEAKER_ID</c> line before the message, such as <c>51</c>, or null when there was none.</summary>
+public sealed record GameMessage(string Label, string? Speaker, string Text, string? SpeakerId = null);
 
 /// <summary>Finds a game message by its label.</summary>
 public interface IMessageLookup
@@ -26,6 +27,7 @@ public sealed class MessageLibrary : IMessageLookup, IMessageFileObserver
 {
     private const string SpeakerStart = "<NS>";
     private const string SpeakerEnd = "<NE>";
+    private const string SpeakerIdLine = "#SPEAKER_ID";
 
     private readonly Dictionary<string, GameMessage> byLabel = new(StringComparer.Ordinal);
     private readonly Dictionary<string, GameMessage> byLabelHash = new(StringComparer.OrdinalIgnoreCase);
@@ -49,7 +51,8 @@ public sealed class MessageLibrary : IMessageLookup, IMessageFileObserver
     }
 
     /// <summary>The MD5 of a label's bytes as 32 upper-case hex digits: the key the game's message window finds a line
-    /// by, on game build 548ddc95… (Steam build 18330018; docs/raw-sources/msg-window-show-line-2026-11-20.md).</summary>
+    /// by, on game build 548ddc95… (Steam build 18330018; docs/raw-sources/msg-window-show-line-2026-11-20.md), and the
+    /// key its name tables store (docs/raw-sources/name-lookup-candidates-2026-11-16.md).</summary>
     [SuppressMessage("Security", "CA5351", Justification = "Matches the game's own label hash; nothing is protected by it.")]
     public static string LabelHash(string label)
     {
@@ -85,11 +88,14 @@ public sealed class MessageLibrary : IMessageLookup, IMessageFileObserver
     }
 
     // The shape logged on build 548ddc95 (docs/raw-sources/message-listening-run-2026-11-16.md): "@label", then the
-    // body between lines "{" and "}", the speaker in <NS>…<NE>. Lines outside a body, such as #SPEAKER_ID, are skipped.
+    // body between lines "{" and "}", the speaker in <NS>…<NE>. A line #SPEAKER_ID "51" before the label gives the
+    // speaker's number; other lines outside a body are skipped.
     private static List<GameMessage> Parse(string source)
     {
         var messages = new List<GameMessage>();
         string? label = null;
+        string? speakerId = null;
+        string? labelSpeakerId = null;
         List<string>? body = null;
         foreach (var raw in source.Split('\n'))
         {
@@ -97,9 +103,15 @@ public sealed class MessageLibrary : IMessageLookup, IMessageFileObserver
             if (body is null)
             {
                 var trimmed = line.Trim();
-                if (trimmed.StartsWith('@'))
+                if (trimmed.StartsWith(SpeakerIdLine, StringComparison.Ordinal))
+                {
+                    speakerId = trimmed[SpeakerIdLine.Length..].Trim().Trim('"');
+                }
+                else if (trimmed.StartsWith('@'))
                 {
                     label = trimmed[1..].Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries).FirstOrDefault();
+                    labelSpeakerId = string.IsNullOrEmpty(speakerId) ? null : speakerId;
+                    speakerId = null;
                 }
                 else if (trimmed == "{" && label is not null)
                 {
@@ -108,7 +120,7 @@ public sealed class MessageLibrary : IMessageLookup, IMessageFileObserver
             }
             else if (line.Trim() == "}")
             {
-                messages.Add(ToMessage(label!, string.Join('\n', body)));
+                messages.Add(ToMessage(label!, string.Join('\n', body)) with { SpeakerId = labelSpeakerId });
                 label = null;
                 body = null;
             }

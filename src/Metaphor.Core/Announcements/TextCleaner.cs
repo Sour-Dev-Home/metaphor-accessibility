@@ -23,11 +23,25 @@ public sealed record TextCleanerRules
 public sealed partial class TextCleaner
 {
     private readonly TextCleanerRules rules;
-    private readonly Func<string, string?> placeholderValues;
+    private readonly Func<string, string, string?> placeholderValues;
 
     /// <param name="rules">What to do with each tag.</param>
     /// <param name="placeholderValues">A placeholder's current value by key, or null when there is none.</param>
     public TextCleaner(TextCleanerRules rules, Func<string, string?> placeholderValues)
+        : this(rules, ByKeyOnly(placeholderValues))
+    {
+    }
+
+    private static Func<string, string, string?> ByKeyOnly(Func<string, string?> placeholderValues)
+    {
+        ArgumentNullException.ThrowIfNull(placeholderValues);
+        return (key, _) => placeholderValues(key);
+    }
+
+    /// <param name="rules">What to do with each tag.</param>
+    /// <param name="placeholderValues">A placeholder's current value by key and the tag's arguments, single-spaced
+    /// (<c>"51"</c> for <c>&lt;CHAR_NAME 51&gt;</c>, empty when it has none), or null when there is none.</param>
+    public TextCleaner(TextCleanerRules rules, Func<string, string, string?> placeholderValues)
     {
         ArgumentNullException.ThrowIfNull(rules);
         ArgumentNullException.ThrowIfNull(placeholderValues);
@@ -52,11 +66,11 @@ public sealed partial class TextCleaner
                 return "";
             }
             var name = match.Groups["name"].Value;
+            var args = Squash(match.Groups["args"].Value.TrimStart('=', ':'));
             if (rules.Placeholders.TryGetValue(name, out var key))
             {
-                return placeholderValues(key) ?? "";
+                return placeholderValues(key, args) ?? "";
             }
-            var args = Squash(match.Groups["args"].Value.TrimStart('=', ':'));
             return rules.SpokenTags.TryGetValue(args.Length == 0 ? name : $"{name} {args}", out var word) ? word : "";
         }));
     }

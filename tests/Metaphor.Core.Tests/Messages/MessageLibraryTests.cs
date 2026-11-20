@@ -85,6 +85,16 @@ public sealed class MessageLibraryTests
         Assert.Equal("Ada", library.Find("MES_test_000_00")?.Speaker);
     }
 
+    [Fact]
+    public void AMessageKeepsTheSpeakerIdBeforeItsLabelOnly()
+    {
+        var library = new MessageLibrary();
+        library.Compiled(Scene);
+
+        Assert.Equal("51", library.Find("MES_test_000_00")?.SpeakerId);
+        Assert.Null(library.Find("MES_test_000_01")?.SpeakerId);
+    }
+
     // The message window finds a line by its label's MD5 (#526; docs/raw-sources/msg-window-show-line-2026-11-20.md).
     // 900150983cd24fb0d6963f7d28e17f72 is MD5("abc"), RFC 1321's test suite.
     [Theory]
