@@ -90,7 +90,7 @@ internal sealed record HookServices
         // The voice language is unknown until #103 finds it, so Auto speaks the full line.
         var reader = new DialogueReader(announcer);
         var dialogue = new DialogueAnnouncer(reader, cleaner, history, () => settings.Current.VoicedLines);
-        var controls = new DialogueControls(DialogueBindings.Default, history, reader, announcer);
+        var controls = new DialogueControls(DialogueBindings.Default, history, reader, announcer, dialogue.EndConversation);
         // Menus speak through the reader too (#214), and their controls toggle it with the dialogue's binding.
         var screens = new MenuScreens(KnownScreens.All);
         screens.Observe(new TitleMenuFocus(library, reader, cleaner));
