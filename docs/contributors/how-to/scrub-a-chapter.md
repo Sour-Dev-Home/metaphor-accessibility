@@ -48,12 +48,15 @@ pwsh scripts/dev/scrub.ps1 -Video part1.mp4 -Chapters chapters.txt -Chapter 'The
 
 Per segment it picks frames at scene changes (`-SceneThreshold`, default 0.3), at least `-MinSpacing` seconds apart
 (default 2) and at most `-MaxGap` apart (default 60, so a long dialogue still gets frames), scales them to `-Height`
-(default 540), drops near-duplicates by perceptual hash (`-HashDistance`, default 5 of 64 bits) and tiles the rest
+(default 540), drops near-duplicates by perceptual hash (`-HashDistance`, default 5 of 64 bits; a frame is compared
+only with frames kept in the last `-MaxGap` seconds, and one a full `-MaxGap` after the last kept frame is never
+dropped) and tiles the rest
 `-Tile` (default `3x3`) with each frame's time burned in. A rerun with the same video and settings skips done segments;
 `-Force` redoes them. Every option is in `Get-Help scripts/dev/scrub.ps1 -Full`.
 
 The last line names the manifest, `<METAPHOR_SCRUB_DIR>/<name>/manifest.json`. It lists each segment's title and
-times, its `captions.txt`, its sheets with the time of each frame on them, each frame's label, and what was dropped.
+times, its `captions.txt`, its sheets with the time of each frame on them, each frame's label, what was dropped, and the seconds Ollama spent labelling (`labelSeconds`, per segment and in
+total; each segment line prints it too).
 
 ## Write the inventory
 

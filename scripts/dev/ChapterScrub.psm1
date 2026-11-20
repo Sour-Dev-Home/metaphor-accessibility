@@ -19,7 +19,7 @@ $DroppedLabels = @('loading')
 $DefaultModel = 'qwen2.5vl:7b'
 $DefaultOllamaUrl = 'http://127.0.0.1:11434'
 # Bumped when a change makes cached segments wrong, so they are redone.
-$CacheVersion = 1
+$CacheVersion = 2
 
 $Defaults = @{
     SceneThreshold = 0.3; MinSpacing = 2.0; MaxGap = 60.0; Height = 540; HashDistance = 5; Tile = '3x3'; CaptionGap = 30.0
@@ -236,7 +236,8 @@ function Test-Ollama([string] $Url, [string] $Model) {
 }
 
 function Get-FrameLabel([string] $Url, [string] $Model, [string] $Frame) {
-    $prompt = "This is a frame from a role-playing video game. Answer with exactly one word from this list, nothing else: $($Labels -join ', ')."
+    $prompt = "This is a frame from a role-playing video game. Answer with exactly one word from this list, nothing else: $($Labels -join ', '). " +
+    'dialogue: a text box with a speaker name, over the scene. cutscene: a scene with no text box or menu. choice: a list of answers to pick from. menu: a list of options or stats. field: the player walking about.'
     $body = @{
         model = $Model; prompt = $prompt; stream = $false; options = @{ temperature = 0 }
         images = @([Convert]::ToBase64String([IO.File]::ReadAllBytes($Frame)))
@@ -287,17 +288,24 @@ function Invoke-Segment($Segment, [string] $Video, [string] $Folder, [hashtable]
     $duplicates = 0
     for ($i = 0; $i -lt $files.Count; $i++) {
         $hash = Get-DHash $pixels ($i * 72)
-        $near = $Settings.HashDistance -ge 0 -and ($kept | Where-Object { (Get-HammingDistance $_.Hash $hash) -le $Settings.HashDistance })
-        if ($near) { Remove-Item -LiteralPath $files[$i].FullName -Force; $duplicates++; continue }
         $time = $Segment.Start + [long]$files[$i].BaseName / 1000
+        # Only frames kept within the last -MaxGap seconds count, and a frame a full -MaxGap after the last kept one stays
+        # whatever it looks like: the gap is the promise that a long static stretch still gets frames (#525).
+        $recent = @($kept | Where-Object { $_.Time -ge $time - $Settings.MaxGap })
+        $overdue = $kept.Count -gt 0 -and $time - $kept[$kept.Count - 1].Time -ge $Settings.MaxGap
+        $near = $Settings.HashDistance -ge 0 -and -not $overdue -and ($recent | Where-Object { (Get-HammingDistance $_.Hash $hash) -le $Settings.HashDistance })
+        if ($near) { Remove-Item -LiteralPath $files[$i].FullName -Force; $duplicates++; continue }
         $kept.Add([pscustomobject]@{ Time = $time; Hash = $hash; File = $files[$i].FullName; Label = $null })
     }
 
     $dropped = 0
+    $labelSeconds = 0.0
     if ($Ollama) {
+        $watch = [Diagnostics.Stopwatch]::StartNew()
         foreach ($frame in $kept) {
             $frame.Label = try { Get-FrameLabel $Ollama.Url $Ollama.Model $frame.File } catch { 'unlabelled' }
         }
+        $labelSeconds = [Math]::Round($watch.Elapsed.TotalSeconds, 1)
         $drop = @($kept | Where-Object { $_.Label -in $DroppedLabels })
         foreach ($frame in $drop) { Remove-Item -LiteralPath $frame.File -Force; [void]$kept.Remove($frame); $dropped++ }
     }
@@ -329,6 +337,7 @@ function Invoke-Segment($Segment, [string] $Video, [string] $Folder, [hashtable]
         sheets = @($sheets)
         dropped = [ordered]@{ duplicate = $duplicates; label = $dropped }
         labelled = [bool]$Ollama
+        labelSeconds = $labelSeconds
     }
     Write-JsonFile (Join-Path $Folder 'segment.json') $record
     [pscustomobject]$record
@@ -412,7 +421,7 @@ function Invoke-Scrub([hashtable] $Options) {
         }
         else {
             $record = Invoke-Segment $segment $video $folder $settings $ollama
-            Write-Host "segment $range ($($segment.Title)): $(@($record.frames).Count) frames on $(@($record.sheets).Count) sheets, $($record.dropped.duplicate) near-duplicates and $($record.dropped.label) loading frames dropped"
+            Write-Host "segment $range ($($segment.Title)): $(@($record.frames).Count) frames on $(@($record.sheets).Count) sheets, $($record.dropped.duplicate) near-duplicates and $($record.dropped.label) loading frames dropped$(if ($record.labelled) { ", labels took $(ConvertTo-InvariantText $record.labelSeconds) s" })"
         }
         $captionFile = $null
         $inside = @($cues | Where-Object { $_.End -gt $segment.Start -and $_.Start -lt $segment.End })
@@ -428,11 +437,13 @@ function Invoke-Scrub([hashtable] $Options) {
             sheets = @($record.sheets | ForEach-Object { [ordered]@{ file = $prefix + $_.file; times = @($_.times) } })
             frames = @($record.frames | ForEach-Object { [ordered]@{ time = $_.timeText; label = $_.label; file = $prefix + $_.file } })
             dropped = $record.dropped
+            labelSeconds = $record.labelSeconds
         }
     }
     $results = @($results)
+    $labelTotal = [Math]::Round([double](($results | ForEach-Object { [double]$_.labelSeconds } | Measure-Object -Sum).Sum), 1)
     Write-JsonFile (Join-Path $run 'manifest.json') ([ordered]@{
-            video = Split-Path $video -Leaf; labels = $labelStatus; labelSet = $Labels
+            video = Split-Path $video -Leaf; labels = $labelStatus; labelSeconds = $labelTotal; labelSet = $Labels
             settings = $settings; segments = $results
         })
     $sheetCount = ($results | ForEach-Object { @($_.sheets).Count } | Measure-Object -Sum).Sum

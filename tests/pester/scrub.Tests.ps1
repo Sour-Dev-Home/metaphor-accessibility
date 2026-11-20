@@ -38,6 +38,7 @@ Describe 'scrub' {
             Mock -ModuleName ChapterScrub Invoke-RestMethod -ParameterFilter { $Uri -like '*/api/generate' } {
                 $image = ($Body | ConvertFrom-Json).images[0]
                 $script:labelCalls++
+                Start-Sleep -Milliseconds 30
                 [pscustomobject]@{ response = if ($script:loadingImage -eq $image) { 'Loading.' } else { 'menu' } }
             }
         }
@@ -90,6 +91,16 @@ Describe 'scrub' {
         $segment = (Read-Manifest).segments[0]
         $segment.frames.time | Should -Be @('0:00', '0:03', '0:06')
         $segment.dropped.duplicate | Should -Be 1
+    }
+
+    It 'keeps a frame every max-gap in a long static stretch, though all hash alike (#525)' {
+        Skip-WithoutFfmpeg
+        $static = Join-Path $TestDrive 'static.mp4'
+        & ffmpeg -hide_banner -loglevel error -y -f lavfi -i 'smptebars=s=320x180:r=5:d=10' -pix_fmt yuv420p -c:v libx264 $static
+        $LASTEXITCODE | Should -Be 0
+        $r = Invoke-Scrub @{ Video = $static; NoLabels = $true; MinSpacing = 1; MaxGap = 3; Name = 'static' }
+        $r.ExitCode | Should -Be 0 -Because $r.Output
+        (Read-Manifest 'static').segments[0].frames.time | Should -Be @('0:00', '0:03', '0:06', '0:09')
     }
 
     It 'keeps picks at least the minimum spacing apart' {
@@ -200,6 +211,10 @@ Describe 'scrub' {
         $segment.frames.label | Should -Be @('menu', 'menu')
         $segment.dropped.label | Should -Be 1
         $script:labelCalls | Should -Be 3
+        # The label time is in the segment line and the manifest (#525).
+        $r.Output | Should -Match 'labels took \d+(\.\d+)? s'
+        $segment.labelSeconds | Should -BeGreaterThan 0
+        (Read-Manifest).labelSeconds | Should -BeGreaterThan 0
         # No redirect is followed, so no frame can leave the machine after the loopback check.
         Should -Invoke -ModuleName ChapterScrub Invoke-RestMethod -Times 4 -Exactly -ParameterFilter { $MaximumRedirection -eq 0 }
     }
