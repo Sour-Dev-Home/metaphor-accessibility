@@ -17,8 +17,10 @@ public sealed class ModEntryPoint : IMod
     /// and in Debug builds the transcript in front of either.</summary>
     private static IAnnouncer StartSpeech(string folder, Action<string> log)
     {
-        var (speech, whyNot) = PrismSpeech.TryStart(folder);
-        log(speech is null ? $"speech unavailable: {whyNot}" : $"speech: {speech.BackendName}");
+        var (speech, whyNot) = PrismSpeech.TryStart(folder, log);
+        log(speech is null ? $"speech unavailable: {whyNot}"
+            : speech.BackendName is { } name ? $"speech: {name}"
+            : SwitchingAnnouncer.NoBackend);
         IAnnouncer announcer = speech is null ? new SilentAnnouncer() : speech;
 #if DEBUG
         announcer = new TranscriptAnnouncer(announcer, folder);
