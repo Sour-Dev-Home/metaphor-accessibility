@@ -178,7 +178,7 @@ How-tos: [set up a clone](how-to/set-up-a-clone.md), [add a hook](how-to/add-a-h
 [run a game session](how-to/run-a-game-session.md), [a check or CI failed](how-to/a-check-or-ci-failed.md),
 [write a finding or save a raw source](how-to/write-a-finding.md),
 [add a feature project](how-to/add-a-feature-project.md), [handle a game update](how-to/handle-a-game-update.md),
-[write a player doc](how-to/write-a-player-doc.md).
+[write a player doc](how-to/write-a-player-doc.md), [plan a chapter](how-to/plan-a-chapter.md).
 
 Reference: [checks](reference/checks.md), every check stage and how CI runs them;
 [security review](reference/security-review.md), the stamp, the label gate and the deny rules;

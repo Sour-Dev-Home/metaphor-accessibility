@@ -29,3 +29,5 @@ tested. A chapter is the smallest slice a player can finish, and the game's own 
 Battle and field basics move forward if chapter 1 needs them. PR #294's battle branch is resolved when chapter 1 needs
 it, not before. Milestones "Chapter 1: playable blind" and onward hold the work. The chapter list is unverified until
 played ([NEEDS VERIFICATION], see the raw source).
+
+The per-chapter routine is in [plan a chapter](../contributors/how-to/plan-a-chapter.md).
