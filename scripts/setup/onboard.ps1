@@ -16,7 +16,8 @@ says that nothing changed.
    Redistributable (x64), which lychee needs (#385): the same offer, with the installer's own admin prompt, and the run
    carries on after it. A 32-bit dotnet first on PATH hides the 64-bit SDKs: it says so and which folder to put first,
    and offers no install. Then Pester at its pinned version, which the scripts' tests need (Windows PowerShell's
-   Pester 3 doesn't count): it offers Install-PSResource for your user from the PowerShell Gallery, and a no stops.
+   Pester 3 doesn't count): it offers install-pester.ps1, which installs it for your user from the PowerShell Gallery
+   only when its files carry the pinned publisher's signature, and a no stops.
 2. Git hooks: sets core.hooksPath to scripts/githooks for this clone.
 3. Private patterns: creates the git-ignored .claude/pii-patterns.txt from the example, opens it in Notepad, and stops
    while it still holds the example lines. It never prints the file.
@@ -35,7 +36,7 @@ says that nothing changed.
 Without a console (pwsh -NonInteractive, redirected input, no user session) it answers every question no, opens neither
 Notepad nor Claude Code, and says so in the summary.
 
-It writes only inside the clone, except through the tools it calls (winget, Install-PSResource, git, Claude Code's plugin commands, setx
+It writes only inside the clone, except through the tools it calls (winget, install-pester.ps1, git, Claude Code's plugin commands, setx
 for METAPHOR_GAME_EXE, WSL through setup-wsl.ps1, and Reloaded-II's mod folder through session.ps1).
 
 Exit codes: 0 it reached the summary (which lists anything left to do); 1 it stopped at a missing tool, or the private
@@ -88,8 +89,11 @@ $wingetAlreadyInstalled = @(0x8A150061, 0x8A15002B, 0x8A15004F, 0x8A15010D, 0x8A
 # (docs/raw-sources/pester-pin-2026-11-19.md). Both take any 5.0 or later; Windows PowerShell's built-in 3.4.0 can't run
 # the tests (#456). CI and run-pester.sh read the pin from this line.
 $pesterVersion = '6.2.0'
-$pesterInstall = "Install-PSResource -Name Pester -Version '[$pesterVersion]' -Scope CurrentUser -Repository PSGallery " +
-    '-TrustRepository -Quiet -ErrorAction Stop'
+# The thumbprint of the certificate that signs that version's script and DLL files, which install-pester.ps1 requires
+# (#477, docs/raw-sources/pester-signature-2026-11-19.md). CI reads it from this line too.
+$pesterSigner = '147C2FD397677DC76DD198E83E7D9D234AA59D1A'
+$pesterInstall = "& '$((Join-Path $PSScriptRoot 'install-pester.ps1') -replace "'", "''")' -Version '$pesterVersion' " +
+    "-Signer '$pesterSigner'"
 
 $root = Split-Path -Parent (Split-Path -Parent $PSScriptRoot)
 $ok = [string][char]0x2713
@@ -279,7 +283,7 @@ $tools = @(
             'it, or install the Visual C++ Redistributable (x64) from ' +
             'https://learn.microsoft.com/cpp/windows/latest-supported-vc-redist'
     }
-    # Pester comes from the PowerShell Gallery, not winget: Install-PSResource (PowerShell 7.4 and later) for this
+    # Pester comes from the PowerShell Gallery, not winget: install-pester.ps1 (PowerShell 7.4 and later) for this
     # Windows user, so no admin prompt, and the module is there for this run straight away.
     [pscustomobject]@{
         Name = 'Pester'; Version = $pesterVersion; Required = $true; Install = $pesterInstall
