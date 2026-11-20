@@ -500,21 +500,6 @@ Describe 'install.ps1' {
         $result.Output | Should -Match 'The installer stopped at step 7'
     }
 
-    It 'stops at Reloaded-II''s settings, not later, when Windows blocks its mods folder from being made' {
-        New-ReloadedSetup
-        # Reloaded-II's own folder, which exists with files in it as in the other blocked-write tests, and a mods folder
-        # in it not made yet.
-        $loader = Get-Content -Raw $config | ConvertFrom-Json
-        $loader.ModConfigDirectory = Join-Path $reloadedFolder 'Mods-new'
-        Write-JsonFile $config $loader
-        Block-Write $reloadedFolder
-        try { $result = Invoke-Install @('y') }
-        finally { Unblock-Write $reloadedFolder }
-        $result.ExitCode | Should -Be 1
-        $result.Output | Should -Match 'Failed: Windows did not let the installer save this step''s files\. Windows Security''s Controlled folder access may have blocked it\.'
-        $result.Output | Should -Match 'The installer stopped at step 3'
-    }
-
     It 'names Controlled folder access when Windows blocks the game''s settings folder from being made' {
         New-ReloadedSetup
         $apps = Join-Path $reloadedFolder 'Apps'
@@ -545,6 +530,41 @@ Describe 'install.ps1' {
         $app = Get-Content -Raw (Join-Path $reloadedFolder 'Apps/metaphor.exe/AppConfig.json') | ConvertFrom-Json
         @($app.EnabledMods) | Should -Be @($modId)
         [IO.File]::ReadAllBytes($config)[0] | Should -Not -Be 0xEF
+    }
+}
+
+# A refused folder, given as New-Item gives it: a non-terminating access-denied error. Not a deny ACL, as the
+# install.ps1 tests use for files: on CI's elevated runner a deny on adding a subfolder doesn't stop New-Item (#466).
+Describe 'a refused folder' {
+    BeforeEach {
+        # A mock doesn't take the caller's -ErrorAction, so it acts it out: stop with it, a printed error without it.
+        Mock -ModuleName MetaphorInstall New-Item {
+            $denied = [UnauthorizedAccessException]::new("Access to the path '$Path' is denied.")
+            if ($PesterBoundParameters['ErrorAction'] -eq 'Stop') { throw $denied }
+            Write-Error -Exception $denied -ErrorAction Continue 2>$null
+        } -ParameterFilter { $ItemType -eq 'Directory' }
+    }
+
+    It 'stops the game''s settings with the Controlled folder access message, not a missing folder' {
+        $path = Join-Path $TestDrive 'Apps/metaphor.exe/AppConfig.json'
+        $step = InModuleScope MetaphorInstall -Parameters @{ Path = $path } {
+            param($Path)
+            try { Write-JsonFile $Path @{ AppId = 'metaphor.exe' }; 'written' } catch { Get-ErrorStep $_ }
+        }
+        $step.Line | Should -Be 'Windows did not let the installer save this step''s files. Windows Security''s Controlled folder access may have blocked it.'
+    }
+
+    It 'stops Reloaded-II''s settings with the Controlled folder access message, not as done' {
+        $configPath = Join-Path $TestDrive 'ReloadedII.json'
+        Write-JsonFile $configPath @{ LauncherPath = 'Reloaded-II.exe'; ModConfigDirectory = (Join-Path $TestDrive 'Mods')
+            ApplicationConfigDirectory = (Join-Path $TestDrive 'Apps') }
+        $context = [pscustomobject]@{ ConfigPath = $configPath; Launcher = $null; Loader = $null; ModsFolder = $null; AppsFolder = $null }
+        $step = InModuleScope MetaphorInstall -Parameters @{ Context = $context } {
+            param($Context)
+            try { Initialize-ReloadedConfig $Context } catch { Get-ErrorStep $_ }
+        }
+        $step.State | Should -Be 'failed'
+        $step.Line | Should -Be 'Windows did not let the installer save this step''s files. Windows Security''s Controlled folder access may have blocked it.'
     }
 }
 
