@@ -1042,13 +1042,41 @@ function Install-Shortcut($Context) {
     Done "The desktop shortcut is made: $([IO.Path]::GetFileNameWithoutExtension($ShortcutName))." "Shortcut: $path"
 }
 
-# The interface, by who calls it. install.ps1: the installer's steps in the order it runs them, then the check.
-# check-install.ps1: speech, then the check. onboard.ps1 and setup-wsl.ps1: the questions and the locator.
-# ReloadedDev.psm1 and the developer scripts: the Reloaded-II reading.
-Export-ModuleMember -Function Test-Elevated, Confirm-RunWindow, New-InstallContext, Select-InstallGame, Install-Reloaded,
-    Initialize-ReloadedConfig, Install-DotnetRuntime, Install-VcRuntime, Install-HooksLibrary, Install-ModFiles, Enable-Mod,
-    Install-Shortcut, Get-ErrorStep,
+# A step for Get-InstallStep: Run calls STEP (a function of this module, so it can reach the module's own functions)
+# with CONTEXT, and turns an error it stops with into a failed step (Get-ErrorStep), dropping whatever the step
+# returned before it stopped, so the player hears one outcome.
+function New-InstallStep([string] $Doing, [scriptblock] $Step, $Context, [switch] $Optional) {
+    $errorStep = ${function:Get-ErrorStep}
+    $run = {
+        try { $result = & $Step $Context }
+        catch { $result = & $errorStep $_ }
+        $result
+    }.GetNewClosure()
+    @{ Doing = $Doing; Run = $run; Optional = $Optional.IsPresent }
+}
+
+# The installer's steps for CONTEXT (New-InstallContext), in the order install.ps1 runs them: each { Doing, said before
+# it runs; Run, which returns the step's result and never throws; Optional, true when the install goes on after it
+# fails }.
+function Get-InstallStep($Context) {
+    New-InstallStep 'Looking for the game.' ${function:Select-InstallGame} $Context
+    New-InstallStep 'Checking for Reloaded-II, which loads the mod into the game.' ${function:Install-Reloaded} $Context
+    New-InstallStep 'Checking Reloaded-II''s settings.' ${function:Initialize-ReloadedConfig} $Context
+    New-InstallStep 'Checking for the .NET 9 Desktop Runtime.' ${function:Install-DotnetRuntime} $Context
+    New-InstallStep 'Checking for the Visual C++ Redistributable.' ${function:Install-VcRuntime} $Context
+    New-InstallStep 'Checking for Reloaded-II''s hooks library.' ${function:Install-HooksLibrary} $Context
+    New-InstallStep 'Copying the mod into Reloaded-II.' ${function:Install-ModFiles} $Context
+    New-InstallStep 'Turning the mod on for the game.' ${function:Enable-Mod} $Context
+    # Optional: the mod works without the shortcut, so the install goes on when it can't be made (#466).
+    New-InstallStep 'Making the desktop shortcut.' ${function:Install-Shortcut} $Context -Optional
+}
+
+# The interface, by who calls it. install.ps1: the run-window check, the context and its steps (Get-InstallStep), then
+# the check. check-install.ps1: speech, then the check. onboard.ps1 and setup-wsl.ps1: the questions and the locator.
+Export-ModuleMember -Function Confirm-RunWindow, New-InstallContext, Get-InstallStep,
     Find-ScreenReader, Select-Speech, New-Voice, Get-InstallCheck, Get-InstallSummary, Format-Check, Format-SpokenCheck,
-    Test-Interactive, Read-Answer, Confirm-Step, Select-MetaphorGame, Find-MetaphorGame, Find-ReloadedLauncher,
-    Read-Json, Resolve-AppLocation, Resolve-LoaderPaths, Get-GameBuild `
+    Test-Interactive, Read-Answer, Confirm-Step, Select-MetaphorGame, Find-MetaphorGame, Find-ReloadedLauncher `
     -Variable ShortcutName, StatusFileName, WslUnavailableExitCode
+# Developer-only: the Reloaded-II reading that scripts/dev/ReloadedDev.psm1 re-exports to the developer scripts. No
+# player script calls these.
+Export-ModuleMember -Function Read-Json, Resolve-AppLocation, Resolve-LoaderPaths, Get-GameBuild

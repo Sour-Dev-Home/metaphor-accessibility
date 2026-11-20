@@ -116,31 +116,19 @@ try {
         exit 1
     }
 
-    $steps = @(
-        @{ Doing = 'Looking for the game.'; Run = { Select-InstallGame $context } }
-        @{ Doing = 'Checking for Reloaded-II, which loads the mod into the game.'; Run = { Install-Reloaded $context } }
-        @{ Doing = 'Checking Reloaded-II''s settings.'; Run = { Initialize-ReloadedConfig $context } }
-        @{ Doing = 'Checking for the .NET 9 Desktop Runtime.'; Run = { Install-DotnetRuntime $context } }
-        @{ Doing = 'Checking for the Visual C++ Redistributable.'; Run = { Install-VcRuntime $context } }
-        @{ Doing = 'Checking for Reloaded-II''s hooks library.'; Run = { Install-HooksLibrary $context } }
-        @{ Doing = 'Copying the mod into Reloaded-II.'; Run = { Install-ModFiles $context } }
-        @{ Doing = 'Turning the mod on for the game.'; Run = { Enable-Mod $context } }
-        # Optional: the mod works without the shortcut, so the install goes on when it can't be made (#466).
-        @{ Doing = 'Making the desktop shortcut.'; Run = { Install-Shortcut $context }; Optional = $true }
-    )
+    $steps = @(Get-InstallStep $context)
     $total = $steps.Count + 1
     $noShortcut = $false
     for ($i = 0; $i -lt $steps.Count; $i++) {
         Out-Line "Step $($i + 1) of ${total}: $($steps[$i].Doing)"
-        try { $step = & $steps[$i].Run }
-        catch { $step = Get-ErrorStep $_ }
+        $step = & $steps[$i].Run
         $label = switch ($step.State) { 'done' { 'Done' } 'unchanged' { 'Nothing to do' } default { 'Failed' } }
         $printed = "${label}: $($step.Line)"
         if ($step.Detail) { $printed += " $($step.Detail)" }
         Out-Line $printed "${label}: $($step.Line)"
         if ($step.State -eq 'failed') {
             Out-Line "To fix it: $($step.Fix)"
-            if ($steps[$i]['Optional']) {
+            if ($steps[$i].Optional) {
                 Out-Line 'The installer goes on without the shortcut, which the mod does not need.'
                 $noShortcut = $true
                 continue
