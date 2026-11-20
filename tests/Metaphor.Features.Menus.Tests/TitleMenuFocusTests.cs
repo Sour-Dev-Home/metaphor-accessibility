@@ -223,6 +223,29 @@ public sealed class TitleMenuFocusTests
         Assert.Equal(["Main menu, System, 3 of 3", "Credits, 2 of 2", "System, 3 of 3", "Resume, 2 of 3"], Said());
     }
 
+    // #557, as in the by-ear check of 2026-11-20 (game build 548ddc95…): Settings opened from the submenu, then backed
+    // out of; the submenu's cursor comes back with the very input it last had, after Settings' screens.
+    [Fact]
+    public void BackingOutOfSettingsToTheSystemSubmenuSpeaksItsFocusAsOnEntry()
+    {
+        var now = 0L;
+        var timed = new CursorEvents(() => now);
+        var screens = new MenuScreens([TitleMenuFocus.Screen]);
+        screens.MenusRead(open: true);
+        timed.Observe(screens);
+        screens.Observe(new TitleMenuFocus(new MessageLibrary(), announcer, new TextCleaner(TextCleanerRules.None)));
+        void Timed(long manager, string screenClass, int row, int? mode) =>
+            timed.Handled(new CursorInput(manager, 0x100, Settle, 1, 0, row, 0x46, screenClass, 3, mode));
+
+        Timed(Title, TitleClass, row: 0, mode: SystemMode);
+        now += 17;
+        Timed(0xb0, "?$ConfigTopChoicePc@VConfigTopChoicePcLayoutInit@ui@app@@@ope@ui@app", row: 0, mode: null);
+        now += 7000;
+        Timed(Title, TitleClass, row: 0, mode: SystemMode);
+
+        Assert.Equal(["System menu, Settings, 1 of 2", "System menu, Settings, 1 of 2"], Said());
+    }
+
     [Fact]
     public void TheSystemSubmenuEnteredAfreshSaysItsName()
     {

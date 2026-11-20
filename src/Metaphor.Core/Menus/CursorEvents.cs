@@ -33,16 +33,42 @@ public interface ICursorObserver
 
 /// <summary>Hands each input the menu cursor hook decoded to its observers (#94), as <see cref="Messages.MessageEvents"/>
 /// does for messages. The game calls the handler on every frame a menu is open, so an input equal to that manager's
-/// last one is dropped. Observers hear each input in the order they were added, and one that throws never stops the
-/// rest. Add observers before the hooks go live; telling them is safe from any game thread.</summary>
+/// last one is dropped, unless the manager went uncalled for <see cref="QuietMilliseconds"/> or more: then its screen is
+/// back from behind another, and the input is told again so the return is heard (#557). Observers hear each input in
+/// the order they were added, and one that throws never stops the rest. Add observers before the hooks go live; telling
+/// them is safe from any game thread.</summary>
+/// <remarks>That a screen's handler runs every frame, settled or not, is our reading of the cursor settling one frame
+/// after each move (docs/raw-sources/title-menu-labels-2026-11-16.md); that it isn't called while another screen
+/// covers it is <c>[NEEDS VERIFICATION]</c>: the title manager logged none of the four moves made in Settings
+/// (docs/raw-sources/menu-return-session-2026-11-20.md, game build 548ddc95…), but a hidden handler called every frame
+/// with the same input would leave the same log. If it is called, nothing is told again and nothing changes.</remarks>
 public sealed class CursorEvents
 {
+    /// <summary>How long a manager goes uncalled before its same input counts as a return: many frames at any playable
+    /// frame rate, far less than any visit to another screen.</summary>
+    public const long QuietMilliseconds = 250;
+
     // Managers are game objects that come and go; the last inputs of this many are kept before starting afresh.
     private const int ManagersRemembered = 64;
 
     private readonly Lock gate = new();
-    private readonly Dictionary<long, CursorInput> lastByManager = [];
+    private readonly Dictionary<long, (CursorInput Input, long CalledAt)> lastByManager = [];
+    private readonly Func<long> millisecondsNow;
     private ICursorObserver[] observers = [];
+
+    /// <summary>Events timed by the system's millisecond tick.</summary>
+    public CursorEvents()
+        : this(() => Environment.TickCount64)
+    {
+    }
+
+    /// <summary>Events timed by <paramref name="millisecondsNow"/>, a clock in milliseconds that never goes back.
+    /// </summary>
+    public CursorEvents(Func<long> millisecondsNow)
+    {
+        ArgumentNullException.ThrowIfNull(millisecondsNow);
+        this.millisecondsNow = millisecondsNow;
+    }
 
     /// <summary>Adds an observer of cursor inputs, after those already added.</summary>
     public void Observe(ICursorObserver observer)
@@ -55,21 +81,23 @@ public sealed class CursorEvents
     }
 
     /// <summary>Tells every observer that a manager handled <paramref name="input"/>, unless it equals that manager's
-    /// last input.</summary>
+    /// last input and the manager was called less than <see cref="QuietMilliseconds"/> ago.</summary>
     public void Handled(CursorInput input)
     {
         ArgumentNullException.ThrowIfNull(input);
+        var now = millisecondsNow();
         lock (gate)
         {
-            if (lastByManager.TryGetValue(input.Manager, out var last) && last == input)
-            {
-                return;
-            }
-            if (lastByManager.Count >= ManagersRemembered && !lastByManager.ContainsKey(input.Manager))
+            var known = lastByManager.TryGetValue(input.Manager, out var last);
+            if (!known && lastByManager.Count >= ManagersRemembered)
             {
                 lastByManager.Clear();
             }
-            lastByManager[input.Manager] = input;
+            lastByManager[input.Manager] = (input, now);
+            if (known && last.Input == input && now - last.CalledAt < QuietMilliseconds)
+            {
+                return;
+            }
         }
         TellEach(Volatile.Read(ref observers), input);
     }
