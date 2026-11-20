@@ -1,0 +1,69 @@
+# Game session 3 (#498), stop 1: town, free to move (#196, #191, #190, #192).
+# Game build 548ddc95... (Steam 18330018). Leads: docs/findings/money-follower-rank-and-shop-static.md,
+# docs/findings/calendar-date-time-and-quests-static.md, docs/findings/day-advance-watches-static.md.
+# G is base+0x2ca66f0 and static, so every address here is fixed. The watches stay in the mod until the game exits;
+# stop 5's batch runs changes on them. Run this early in the day, before anything that might advance time.
+[town]
+base
+# G itself, then money (expect base+0x2cc9348), rank, friendship, bag counts.
+follow base+0x272e310 0x0
+follow base+0x272e310 0x22c58
+follow base+0x272e310 0x24674
+follow base+0x272e310 0x246d0
+follow base+0x272e310 0x1c758
+# Money (int) against the main menu.
+read base+0x2cc9348 4
+# Follower rank and friendship, 23 ints each (ranks 0 to 8, friendship 0 to 200).
+read base+0x2ccad64 92
+read base+0x2ccadc0 92
+# Day count d, weekday (d mod 5), time of day, unknown, G+0x311f8. Month and day from d: see the calendar note.
+read base+0x2cd78d8 0x18
+# The scheduler's last time (G+0x711fc).
+read base+0x2d178ec 4
+# The calendar object (its +0x5c holds the previous day count).
+follow base+0x2ca3318 0x0
+# Quest records: 135 x 0x18 bytes; u16 state (0 to 5), u16 order, u16 progression, int start day at +0x8.
+read base+0x2ccaea4 0xca8
+# Counters 0 to 255 (Mag is counter 2, shop menu 0xf0, quest order 0xf4).
+read base+0x2cc9ae4 0x400
+# Flag bits.
+read base+0x2cc934c 0x798
+# Bag counts, category 0.
+read base+0x2cc2e48 0x1000
+[watches]
+# Money, rank, friendship.
+watch base+0x2cc9348 4
+watch base+0x2ccad64 92
+watch base+0x2ccadc0 92
+# Calendar: day count, weekday, time, G+0x311f8.
+watch base+0x2cd78d8 0x14
+watch base+0x2d178ec 4
+# Quest records, in 256-byte watches.
+watch base+0x2ccaea4 256
+watch base+0x2ccafa4 256
+watch base+0x2ccb0a4 256
+watch base+0x2ccb1a4 256
+watch base+0x2ccb2a4 256
+watch base+0x2ccb3a4 256
+watch base+0x2ccb4a4 256
+watch base+0x2ccb5a4 256
+watch base+0x2ccb6a4 256
+watch base+0x2ccb7a4 256
+watch base+0x2ccb8a4 256
+watch base+0x2ccb9a4 256
+watch base+0x2ccbaa4 0xa8
+# Counters 0 to 255.
+watch base+0x2cc9ae4 256
+watch base+0x2cc9be4 256
+watch base+0x2cc9ce4 256
+watch base+0x2cc9de4 256
+# Flag bits.
+watch base+0x2cc934c 256
+watch base+0x2cc944c 256
+watch base+0x2cc954c 256
+watch base+0x2cc964c 256
+watch base+0x2cc974c 256
+watch base+0x2cc984c 256
+watch base+0x2cc994c 256
+watch base+0x2cc9a4c 0x98
+watches

@@ -1,0 +1,35 @@
+# Game session 3 (#498), stop 5: end the day (#190, #192, #200, #191, #196).
+# Game build 548ddc95... (Steam 18330018). Leads: docs/findings/day-advance-watches-static.md.
+# Stop 1 set the watches; this batch reports them and reads the large regions again for an offline diff.
+# Expect the day count +1, the weekday +1 mod 5 and the time back to stop 1's morning value. Anything else listed is
+# what the day changed. Then read the stop 4 follower nodes again by hand (read <node> 0x38).
+[before-day-end]
+# Last state of the old day, if the session reaches a moment just before the day ends.
+read base+0x2cd78d8 0x18
+changes
+[new-day]
+# After the day-change announcement, free to move again.
+base
+changes
+read base+0x2cd78d8 0x18
+read base+0x2d178ec 4
+follow base+0x2ca3318 0x0
+read base+0x2cc9348 4
+read base+0x2ccad64 92
+read base+0x2ccadc0 92
+read base+0x2ccaea4 0xca8
+read base+0x2cc9ae4 0x400
+read base+0x2cc934c 0x798
+# The shops' live stock, for a restock.
+read base+0x2ccbe98 0x1000
+read base+0x2ccce98 0x1000
+read base+0x2ccde98 0x1000
+read base+0x2ccee98 0x1000
+read base+0x2ccfe98 0x1000
+read base+0x2cd0e98 0x1000
+read base+0x2cd1e98 0x1000
+read base+0x2cd2e98 0x1000
+read base+0x2cd3e98 0x1000
+read base+0x2cd4e98 0x1000
+read base+0x2cd5e98 0x1000
+read base+0x2cd6e98 0xa40
