@@ -1,0 +1,36 @@
+# Game session 4 (#499), stop 3: a chest and the first enemies (#178, #186).
+# Game build 548ddc95... (Steam 18330018). Lead: docs/findings/field-units-names-exits-static.md, sections 1 and 4.
+# As in stop 1, each follow prints an address and the "then" lines are reads to type afterwards with that address.
+[before-chest]
+# Run beside a closed chest.
+base
+# The unit manager M: then read <M> 0x558 (list counts: treasure at +0x118/+0x120, enemy at +0x18/+0x20).
+follow base+0x2ee7510 0x20 0x0
+# The treasure list's begin/end and the enemy list's begin/end, as addresses to watch:
+# then watch <addr> 0x10 for each, so the next section's changes shows a count moving.
+follow base+0x2ee7510 0x20 0x118
+follow base+0x2ee7510 0x20 0x18
+# The first two chests (rtti: fldGmcTreasure), their positions (then read <addr> 12) and state blocks
+# (then watch <addr> 0x50 for each, to see which bytes the opening flips).
+follow base+0x2ee7510 0x20 0x118 0x0 0x0
+follow base+0x2ee7510 0x20 0x118 0x0 0x80
+follow base+0x2ee7510 0x20 0x118 0x8 0x80
+follow base+0x2ee7510 0x20 0x118 0x0 0x2880
+follow base+0x2ee7510 0x20 0x118 0x8 0x2880
+# The player, to tell offline which chest you stood at.
+follow base+0x2ee7510 0x20 0x0 0x80
+[after-chest]
+# Run after the chest has opened and the item notice has gone. Expect the chest's state block in the list, the
+# treasure count unchanged.
+changes
+[enemy-noticed]
+# Run when the first enemy has noticed you, before any fight. The first two enemies (rtti: fldEnemy) and their
+# positions (then read <addr> 12); the nearest should be the one coming at you.
+follow base+0x2ee7510 0x20 0x18 0x0 0x0
+follow base+0x2ee7510 0x20 0x18 0x0 0x80
+follow base+0x2ee7510 0x20 0x18 0x8 0x80
+follow base+0x2ee7510 0x20 0x0 0x80
+changes
+[after-save]
+# Run after saving, before engaging. Nothing should have changed since the last section but the enemies moving.
+changes
