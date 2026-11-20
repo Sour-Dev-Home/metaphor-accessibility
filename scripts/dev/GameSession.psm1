@@ -59,18 +59,115 @@ function Get-Option([string] $Name, $Default) {
 }
 
 # The full path of -SaveLog, or nothing without it. The logs hold game text, so they never land where they could be
-# committed.
+# committed: not by its path, nor through a junction or symlink, nor as git sees it (#502).
 function Resolve-SaveFolder {
     $save = Get-Option 'SaveLog' $null
     if (-not $save) { return }
     $save = Get-FullPath $save
-    for ($dir = $save; $dir; $dir = Split-Path $dir) {
-        if (Test-Path -LiteralPath (Join-Path $dir '.git')) {
-            Stop-Session "-SaveLog $save is inside the git repository at $dir" 'the logs hold game text: save them outside any repository'
-        }
-    }
+    $repo = Find-GitRepository $save
+    if ($repo) { Stop-Session "-SaveLog $save is inside the git repository at $repo" 'the logs hold game text: save them outside any repository' }
     Add-PathName $script:Names '<save>' $save
     $save
+}
+
+# The repository PATH (a full path, which may not exist yet) is inside, or nothing. It checks the path as given, with
+# every junction and symlink along it resolved, and as Windows finally names its deepest existing folder (which also
+# undoes a subst drive or a mapped share), for a .git folder or a worktree's .git file in it or an ancestor, then asks
+# git about that final folder, which also finds a bare repository.
+function Find-GitRepository([string] $Path) {
+    $real = Resolve-RealPath $Path
+    for ($existing = $real; $existing -and -not [IO.Directory]::Exists($existing); $existing = Split-Path $existing) { }
+    if (-not $existing) { Stop-Session "-SaveLog $Path is on a drive that doesn't exist" 'save the logs on a local drive' }
+    $final = Get-FinalPath $existing
+    foreach ($start in $Path, $real, $final) {
+        for ($dir = $start; $dir; $dir = Split-Path $dir) {
+            if (Test-Path -LiteralPath (Join-Path $dir '.git')) { return $dir }
+        }
+    }
+    if (Test-InsideGit $final) { return $final }
+}
+
+# The name Windows gives the existing folder DIR once every junction, symlink, subst drive and mapped drive is undone
+# (GetFinalPathNameByHandleW), without the \\?\ prefix. A folder it can't open stops the session, as nothing about it
+# can be ruled out.
+function Get-FinalPath([string] $Dir) {
+    if (-not ('MetaphorDev.FinalPath' -as [type])) {
+        Add-Type -TypeDefinition @'
+using System;
+using System.Runtime.InteropServices;
+using System.Text;
+using Microsoft.Win32.SafeHandles;
+namespace MetaphorDev {
+    public static class FinalPath {
+        [DllImport("kernel32.dll", CharSet = CharSet.Unicode, SetLastError = true)]
+        [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
+        static extern SafeFileHandle CreateFileW(string name, uint access, uint share, IntPtr security, uint disposition, uint flags, IntPtr template);
+        [DllImport("kernel32.dll", CharSet = CharSet.Unicode, SetLastError = true)]
+        [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
+        static extern uint GetFinalPathNameByHandleW(SafeFileHandle handle, StringBuilder path, uint length, uint flags);
+        // Opens the folder for no access (0), sharing everything (7), as OPEN_EXISTING (3) with FILE_FLAG_BACKUP_SEMANTICS
+        // (0x02000000), which a folder needs; asks for its DOS name (0). Null when either call fails.
+        public static string Get(string dir) {
+            using (SafeFileHandle handle = CreateFileW(dir, 0, 7, IntPtr.Zero, 3, 0x02000000, IntPtr.Zero)) {
+                if (handle.IsInvalid) return null;
+                StringBuilder path = new StringBuilder(32768);
+                uint length = GetFinalPathNameByHandleW(handle, path, (uint) path.Capacity, 0);
+                return length == 0 || length >= path.Capacity ? null : path.ToString();
+            }
+        }
+    }
+}
+'@
+    }
+    $final = [MetaphorDev.FinalPath]::Get($Dir)
+    if (-not $final) { Stop-Session "-SaveLog can't be checked: Windows can't open $Dir" 'save the logs in a folder you can open' }
+    if ($final.StartsWith('\\?\UNC\')) { return '\\' + $final.Substring(8) }
+    if ($final.StartsWith('\\?\')) { return $final.Substring(4) }
+    $final
+}
+
+# PATH with every junction and symlink in it, the leaf and each ancestor, replaced by its final target. A part that
+# doesn't exist yet is kept as written. Another kind of reparse point (a OneDrive placeholder, say) has no target and
+# doesn't redirect, so it stays. Gives up past 32 links, as a loop of them never ends.
+function Resolve-RealPath([string] $Path, [int] $Depth = 0) {
+    if ($Depth -gt 32) { Stop-Session "-SaveLog $Path goes through more than 32 links" 'save the logs in a plain folder' }
+    $root = [IO.Path]::GetPathRoot($Path)
+    $real = $root
+    $parts = @($Path.Substring($root.Length).Split([char[]] '\/', [StringSplitOptions]::RemoveEmptyEntries))
+    for ($i = 0; $i -lt $parts.Count; $i++) {
+        $next = Join-Path $real $parts[$i]
+        $info = [IO.DirectoryInfo]::new($next)
+        if ([int] $info.Attributes -eq -1) { return [IO.Path]::Combine([string[]] (@($next) + @($parts | Select-Object -Skip ($i + 1)))) }
+        if ($info.Attributes.HasFlag([IO.FileAttributes]::ReparsePoint) -and $info.LinkTarget) {
+            $target = $info.ResolveLinkTarget($true)
+            $next = Resolve-RealPath $(if ($target) { $target.FullName } else { [IO.Path]::GetFullPath($info.LinkTarget, $real) }) ($Depth + 1)
+        }
+        $real = $next
+    }
+    $real
+}
+
+# Whether git counts DIR as inside a repository: its work tree, its .git folder or a bare one. Git runs without any
+# GIT_ variable, so neither a hook's environment nor a contributor's can point it elsewhere or hide a repository
+# (GIT_DIR, GIT_CEILING_DIRECTORIES, `git -c` overrides; scripts/check/run.sh's timed_step clears the same for #448),
+# and trusts every folder's owner, so safe.directory can't hide one either. That trust is safe only because rev-parse
+# runs nothing from the repository's config (no hook, fsmonitor or pager): never run another git command under it.
+# Without git nothing is ruled out: it stops.
+function Test-InsideGit([string] $Dir) {
+    $git = Get-Command git -CommandType Application -ErrorAction SilentlyContinue | Select-Object -First 1
+    if (-not $git) { Stop-Session "-SaveLog can't be checked: git wasn't found" 'install git, or put it on PATH' }
+    $start = [Diagnostics.ProcessStartInfo]::new($git.Source)
+    foreach ($arg in '-c', 'safe.directory=*', '-C', $Dir, 'rev-parse', '--is-inside-work-tree') { $start.ArgumentList.Add($arg) }
+    $start.UseShellExecute = $false
+    $start.RedirectStandardOutput = $true
+    $start.RedirectStandardError = $true
+    foreach ($name in @($start.Environment.Keys)) { if ($name -like 'GIT_*') { $null = $start.Environment.Remove($name) } }
+    $process = [Diagnostics.Process]::Start($start)
+    $errors = $process.StandardError.ReadToEndAsync()
+    $null = $process.StandardOutput.ReadToEnd()
+    $process.WaitForExit()
+    $null = $errors.Result
+    $process.ExitCode -eq 0
 }
 
 function Get-FullPath([string] $Path) {
