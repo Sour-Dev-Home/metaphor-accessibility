@@ -49,10 +49,10 @@ public sealed class ReportLogTests
         var (log, text) = NewLog(now: 300);
 
         log.Observe(new CursorInput(Manager: 0x1a0, ClassRva: 0x2b0, Command: 0x15, Result: 1, Top: 2, Row: 1, Flags: 0x8,
-            ScreenClass: "TitleChoice@ope@ui@app", Count: 3));
+            ScreenClass: "TitleChoice@ope@ui@app", Count: 3, Mode: 1));
 
         Assert.Equal(
-            $"300 ms cursor mgr=0x1a0 class=0x2b0 cmd=0x15 result=1 index=3 top=2 row=1 flags=0x8 screen=TitleChoice@ope@ui@app count=3{Environment.NewLine}",
+            $"300 ms cursor mgr=0x1a0 class=0x2b0 cmd=0x15 result=1 index=3 top=2 row=1 flags=0x8 screen=TitleChoice@ope@ui@app count=3 mode=1{Environment.NewLine}",
             Written(log, text));
     }
 

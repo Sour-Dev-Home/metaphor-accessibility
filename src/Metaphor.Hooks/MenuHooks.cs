@@ -40,8 +40,8 @@ internal sealed class MenusOpenRead : IReadsGlobal
 /// and puts it back if the move is refused. The function, its arguments and the field offsets are our reading of the
 /// exe (docs/raw-sources/ui-focus-candidates-2026-11-16.md); that the index follows the menu's focus is from
 /// docs/raw-sources/spike-session-2-2026-11-16.md. Observed after it returns, so the cursor is where the input left it.
-/// Each input carries its screen class from <see cref="ScreenClassLookup"/> (#208) and its list's item count (#289), null
-/// when unreadable.</summary>
+/// Each input carries its screen class from <see cref="ScreenClassLookup"/> (#208), its list's item count (#289) and its
+/// owner's mode for a choice that serves two lists (#210), each null when unreadable.</summary>
 [GameHook(GameBuilds.Steam18330018)]
 internal sealed class MenuCursorHook : IGameHook, IObserves4WithResult
 {
@@ -83,8 +83,9 @@ internal sealed class MenuCursorHook : IGameHook, IObserves4WithResult
         long? classRva = moduleBase is { } module && ModuleMemoryReader.ReadPointer(manager) is { } vtable
             ? vtable - module
             : null;
+        var screenClass = screenClasses.Of(manager);
         events.Handled(new CursorInput(
             manager, classRva, commandValue, (int)result, top, row, ModuleMemoryReader.ReadInt32(manager + FlagsOffset) ?? 0,
-            screenClasses.Of(manager), ModuleMemoryReader.ReadInt32(manager + CountOffset)));
+            screenClass, ModuleMemoryReader.ReadInt32(manager + CountOffset), screenClasses.ModeOf(manager, screenClass)));
     }
 }

@@ -33,8 +33,13 @@ public sealed class TitleMenuFocusTests
         screens.Observe(new TitleMenuFocus(library, announcer, new TextCleaner(TextCleanerRules.None)));
     }
 
-    private void Cursor(int command, int row, string? screenClass = TitleClass, long manager = Title) =>
-        cursors.Handled(new CursorInput(manager, ClassRva: 0x100, command, Result: 1, Top: 0, Row: row, Flags: 0x46, screenClass));
+    // TitleChoice's mode field: 1 on the title menu, 2 in its System submenu (#210).
+    private const int TitleMode = 1;
+    private const int SystemMode = 2;
+
+    private void Cursor(int command, int row, string? screenClass = TitleClass, long manager = Title, int? mode = null) =>
+        cursors.Handled(new CursorInput(manager, ClassRva: 0x100, command, Result: 1, Top: 0, Row: row, Flags: 0x46, screenClass,
+            Count: 3, Mode: mode));
 
     private void TitleFileCompiled(string path = TitleFile) => messages.Compiled(new MessageFileCompiled(path, 56, TitleSource));
 
@@ -187,5 +192,52 @@ public sealed class TitleMenuFocusTests
         Cursor(Settle, row: 2);
 
         Assert.Equal(["Main menu, System, 3 of 3"], Said());
+    }
+
+    // #210: the System submenu is the same choice and cursor (count 3 too), told apart by the choice's mode field. Its
+    // items are images, so their words are ours (docs/raw-sources/title-menu-item-images-2026-11-20.md).
+    [Fact]
+    public void TheSystemSubmenuIsSpokenAsItsOwnTwoItems()
+    {
+        TitleFileCompiled();
+        Cursor(Settle, row: 2, mode: TitleMode);
+
+        Cursor(Settle, row: 0, mode: SystemMode);
+        Cursor(Down, row: 1, mode: SystemMode);
+        Cursor(Settle, row: 1, mode: SystemMode);
+        Cursor(Settle, row: 0, mode: SystemMode);
+
+        Assert.Equal(["Main menu, System, 3 of 3", "Settings, 1 of 2", "Credits, 2 of 2", "Settings, 1 of 2"], Said());
+    }
+
+    [Fact]
+    public void BackingOutOfTheSystemSubmenuSpeaksTheTitlesThirdItem()
+    {
+        TitleFileCompiled();
+        Cursor(Settle, row: 2, mode: TitleMode);
+        Cursor(Settle, row: 1, mode: SystemMode);
+
+        Cursor(Settle, row: 2, mode: TitleMode);
+        Cursor(Settle, row: 1, mode: TitleMode);
+
+        Assert.Equal(["Main menu, System, 3 of 3", "Credits, 2 of 2", "System, 3 of 3", "Resume, 2 of 3"], Said());
+    }
+
+    [Fact]
+    public void TheSystemSubmenuEnteredAfreshSaysItsName()
+    {
+        Cursor(Settle, row: 1, mode: SystemMode);
+
+        Assert.Equal(["System menu, Credits, 2 of 2"], Said());
+    }
+
+    [Fact]
+    public void APositionPastTheSystemSubmenusItemsIsNotAnnounced()
+    {
+        Cursor(Settle, row: 0, mode: SystemMode);
+
+        Cursor(Settle, row: 2, mode: SystemMode);
+
+        Assert.Equal(["System menu, Settings, 1 of 2"], Said());
     }
 }

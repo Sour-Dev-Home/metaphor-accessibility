@@ -1,5 +1,6 @@
 using System.Collections.Concurrent;
 using Metaphor.Core;
+using Metaphor.Core.Menus;
 
 namespace Metaphor.Hooks;
 
@@ -81,4 +82,12 @@ internal sealed class ScreenClassLookup
         }
         return name;
     }
+
+    /// <summary>The mode field of <paramref name="manager"/>'s owner, whose class is <paramref name="screenClass"/>
+    /// (<see cref="ScreenModes"/>, #210), or null when the class has none, no owner was seen, or it is unreadable.
+    /// </summary>
+    public int? ModeOf(long manager, string? screenClass) =>
+        ScreenModes.FieldOffset(screenClass) is { } offset && Owners.OwnerOf(manager) is { } owner
+            ? ModuleMemoryReader.ReadInt32((nint)(owner + offset))
+            : null;
 }

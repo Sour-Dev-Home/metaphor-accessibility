@@ -40,7 +40,8 @@ public sealed class TitleMenuReplayTests
         Replay("title-screen-class.txt");
 
         // Session 4 (build 548ddc95): the title cursor settles, then (from 86487 ms) the System submenu, which the
-        // same choice and cursor serve, so it is still read as the title's items (#210); then the title's Settings
+        // same choice and cursor serve; the fixture predates the choice's mode read (#210), so it is read as the title's
+        // items (TitleMenuFocusTests has the submenu with its mode); then the title's Settings
         // screens, which aren't known; then back on the title's third item.
         Assert.Equal(
             [

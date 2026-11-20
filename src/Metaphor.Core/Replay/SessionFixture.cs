@@ -145,7 +145,8 @@ public sealed class SessionFixture
             "cursor" => new CursorRecord(ms, new CursorInput(Long(Field("mgr"), number),
                 Field("class") == "?" ? null : Long(Field("class"), number), Number("cmd"), Number("result"),
                 Number("top"), Number("row"), Number("flags"), fields.GetValueOrDefault("screen"),
-                fields.TryGetValue("count", out var count) && count != "?" ? (int)Long(count, number) : null)),
+                fields.TryGetValue("count", out var count) && count != "?" ? (int)Long(count, number) : null,
+                fields.TryGetValue("mode", out var mode) && mode != "?" ? (int)Long(mode, number) : null)),
             "pad" => new PadRecord(ms, new PadRead(Number("pad"), Number("buttons"), Number("returned"))),
             "menus" => new MenusRecord(ms, Field("open") switch
             {
