@@ -211,5 +211,8 @@ out="$(cd "$ROOT" && grep -l 'Metaphor.StandInGame/bin' tests/pester/*.Tests.ps1
 done)"
 check "every real file that copies the stand-in clears TestDrive of it" [ -z "$out" ]
 
+# The parallel processes race on creating the shared HKCU\Software\Pester key; no test uses TestRegistry (#535).
+check "the runner turns Pester's TestRegistry off" grep -qF '$c.TestRegistry.Enabled = $false' "$ROOT/scripts/check/run-pester.sh"
+
 echo "run-pester tests: $passed passed, $failed failed"
 [ "$failed" -eq 0 ]
