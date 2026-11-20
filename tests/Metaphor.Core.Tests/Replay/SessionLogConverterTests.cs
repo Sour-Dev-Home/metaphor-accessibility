@@ -55,10 +55,10 @@ public sealed class SessionLogConverterTests
     public void KeepsACursorsScreenClassAndItemCount()
     {
         var fixture = Convert(
-            ["1000 ms cursor mgr=0xa0 class=0x22045e8 cmd=0x1 result=1 index=0 top=0 row=0 flags=0x46 screen=A@ope@ui@app count=7"],
+            ["1000 ms cursor mgr=0xa0 class=0x22045e8 cmd=0x1 result=1 index=0 top=0 row=0 flags=0x46 screen=A@ope@ui@app count=7 mode=2"],
             kinds: ["cursor"]);
 
-        Assert.Equal("0 cursor mgr=0xa0 class=0x22045e8 cmd=0x1 result=1 top=0 row=0 flags=0x46 screen=A@ope@ui@app count=7",
+        Assert.Equal("0 cursor mgr=0xa0 class=0x22045e8 cmd=0x1 result=1 top=0 row=0 flags=0x46 screen=A@ope@ui@app count=7 mode=2",
             fixture.Split('\n')[3]);
     }
 

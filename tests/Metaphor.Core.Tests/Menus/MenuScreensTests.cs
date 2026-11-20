@@ -41,4 +41,60 @@ public sealed class MenuScreensTests
     {
         Assert.Null(new ScreenEvent(ScreenChange.Entered, null, ItemClass, 0).Total);
     }
+
+    // #210: one choice can serve two lists, told apart by its own mode field.
+    [Fact]
+    public void EachEventCarriesTheModeOfTheInputBehindIt()
+    {
+        var (screens, seen) = Watched();
+
+        Settle(screens, row: 2, mode: 1);
+        Settle(screens, row: 0, mode: 2);
+        screens.RepeatCurrent();
+        Settle(screens, row: 0, mode: null, screenClass: "OtherChoice@test");
+
+        Assert.Equal(
+            [(ScreenChange.Entered, 2, 1), (ScreenChange.FocusMoved, 0, 2), (ScreenChange.Entered, 0, 2),
+                (ScreenChange.Left, 0, 2), (ScreenChange.Entered, 0, null)],
+            seen.Select(change => (change.Change, change.Index, change.Mode)));
+    }
+
+    [Fact]
+    public void AModeChangeOnTheSameItemIsAFocusMove()
+    {
+        var (screens, seen) = Watched();
+        Settle(screens, row: 0, mode: 1);
+
+        Settle(screens, row: 0, mode: 2);
+        Settle(screens, row: 0, mode: 2);
+
+        Assert.Equal([(ScreenChange.Entered, 1), (ScreenChange.FocusMoved, 2)], seen.Select(change => (change.Change, change.Mode)));
+    }
+
+    [Theory]
+    [InlineData("TitleChoice@ope@ui@app", 0x4a8)]
+    [InlineData("RootMenuChoice@ope@ui@app", null)]
+    [InlineData(null, null)]
+    public void OnlyAChoiceKnownToServeTwoListsHasAModeField(string? screenClass, int? offset)
+    {
+        Assert.Equal(offset, ScreenModes.FieldOffset(screenClass));
+    }
+
+    private static (MenuScreens Screens, List<ScreenEvent> Seen) Watched()
+    {
+        var screens = new MenuScreens([]);
+        var seen = new List<ScreenEvent>();
+        screens.Observe(new Recording(seen));
+        screens.MenusRead(open: true);
+        return (screens, seen);
+    }
+
+    private static void Settle(MenuScreens screens, int row, int? mode, string screenClass = ItemClass) =>
+        screens.Observe(new CursorInput(0xa0, 0x100, Command: 0x1, Result: 1, Top: 0, Row: row, Flags: 0x46, screenClass,
+            Count: 3, Mode: mode));
+
+    private sealed class Recording(List<ScreenEvent> seen) : IScreenObserver
+    {
+        public void Observe(ScreenEvent change) => seen.Add(change);
+    }
 }

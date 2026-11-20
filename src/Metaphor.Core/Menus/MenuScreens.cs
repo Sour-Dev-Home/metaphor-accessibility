@@ -22,8 +22,10 @@ public enum ScreenChange
 
 /// <summary>One change to a screen: which (<paramref name="Screen"/>, null for one the mod doesn't know), its screen
 /// class, the focus's position from 0, and the list's item count the game keeps (<see cref="CursorInput.Count"/>), null
-/// when unreadable.</summary>
-public sealed record ScreenEvent(ScreenChange Change, Screen? Screen, string ScreenClass, int Index, int? Count = null)
+/// when unreadable. <paramref name="Mode"/> is which list a choice that serves more than one shows
+/// (<see cref="CursorInput.Mode"/>), null when it has none or it is unreadable.</summary>
+public sealed record ScreenEvent(
+    ScreenChange Change, Screen? Screen, string ScreenClass, int Index, int? Count = null, int? Mode = null)
 {
     /// <summary>The longest list taken as a count (#289). The longest seen in session 6 had 145 items
     /// (docs/raw-sources/list-count-session6-2026-11-17.md); a larger value is a screen whose field isn't the count, as
@@ -55,7 +57,8 @@ public interface IScreenDetails
 /// back, <see cref="CursorInput.IsMove"/>); an input without a screen class is skipped. Observers hear each change in
 /// the order they were added, and one that throws never stops the rest. Add observers before the hooks go live. It also
 /// knows whether the game has its menus open (#268), from the reads the input hooks hand it: only while they are open
-/// does a cursor count, and when they close, the current screen is left.
+/// does a cursor count, and when they close, the current screen is left. A screen's mode (<see cref="CursorInput.Mode"/>)
+/// changing on the same item is a focus move, so a choice's other list is heard even where the index stays.
 /// </summary>
 public sealed class MenuScreens : ICursorObserver
 {
@@ -65,6 +68,7 @@ public sealed class MenuScreens : ICursorObserver
     private string? currentClass;
     private int currentIndex;
     private int? currentCount;
+    private int? currentMode;
     private bool menusOpen;
 
     /// <summary>A module that tags each screen whose class is one of <paramref name="knownScreens"/>' with it.</summary>
@@ -100,20 +104,23 @@ public sealed class MenuScreens : ICursorObserver
             }
             if (screenClass == currentClass)
             {
-                if (input.Index == currentIndex)
+                if (input.Index == currentIndex && input.Mode == currentMode)
                 {
                     return;
                 }
-                changes = [Change(ScreenChange.FocusMoved, screenClass, input.Index, input.Count)];
+                changes = [Change(ScreenChange.FocusMoved, screenClass, input.Index, input.Count, input.Mode)];
             }
             else
             {
-                var entered = Change(ScreenChange.Entered, screenClass, input.Index, input.Count);
-                changes = currentClass is { } left ? [Change(ScreenChange.Left, left, currentIndex, currentCount), entered] : [entered];
+                var entered = Change(ScreenChange.Entered, screenClass, input.Index, input.Count, input.Mode);
+                changes = currentClass is { } left
+                    ? [Change(ScreenChange.Left, left, currentIndex, currentCount, currentMode), entered]
+                    : [entered];
             }
             currentClass = screenClass;
             currentIndex = input.Index;
             currentCount = input.Count;
+            currentMode = input.Mode;
         }
         var each = Volatile.Read(ref observers);
         foreach (var change in changes)
@@ -145,7 +152,7 @@ public sealed class MenuScreens : ICursorObserver
             Volatile.Write(ref menusOpen, open);
             if (!open && currentClass is { } screenClass)
             {
-                left = Change(ScreenChange.Left, screenClass, currentIndex, currentCount);
+                left = Change(ScreenChange.Left, screenClass, currentIndex, currentCount, currentMode);
                 currentClass = null;
             }
         }
@@ -166,13 +173,13 @@ public sealed class MenuScreens : ICursorObserver
             {
                 return;
             }
-            change = Change(ScreenChange.Entered, screenClass, currentIndex, currentCount);
+            change = Change(ScreenChange.Entered, screenClass, currentIndex, currentCount, currentMode);
         }
         TellEach(Volatile.Read(ref observers), change);
     }
 
-    private ScreenEvent Change(ScreenChange change, string screenClass, int index, int? count) =>
-        new(change, known.GetValueOrDefault(screenClass), screenClass, index, count);
+    private ScreenEvent Change(ScreenChange change, string screenClass, int index, int? count, int? mode) =>
+        new(change, known.GetValueOrDefault(screenClass), screenClass, index, count, mode);
 
     [SuppressMessage("Design", "CA1031", Justification = "One observer's failure must not keep the change from the others, or reach the game.")]
     private static void TellEach(IScreenObserver[] observers, ScreenEvent change)

@@ -106,7 +106,8 @@ public static partial class SessionLogConverter
                 var cursor = Matched(CursorPattern(), rest, number);
                 var screen = cursor["screen"].Success && cursor["screen"].Value != "?" ? $" screen={cursor["screen"].Value}" : "";
                 var count = cursor["count"].Success && cursor["count"].Value != "?" ? $" count={cursor["count"].Value}" : "";
-                return ("cursor", $"mgr={cursor["mgr"].Value} class={cursor["class"].Value} cmd={cursor["cmd"].Value} result={cursor["result"].Value} top={cursor["top"].Value} row={cursor["row"].Value} flags={cursor["flags"].Value}{screen}{count}");
+                var mode = cursor["mode"].Success && cursor["mode"].Value != "?" ? $" mode={cursor["mode"].Value}" : "";
+                return ("cursor", $"mgr={cursor["mgr"].Value} class={cursor["class"].Value} cmd={cursor["cmd"].Value} result={cursor["result"].Value} top={cursor["top"].Value} row={cursor["row"].Value} flags={cursor["flags"].Value}{screen}{count}{mode}");
             case "input" when rest.StartsWith("pad", StringComparison.Ordinal):
                 var pad = Matched(PadPattern(), rest, number);
                 return ("pad", $"pad={pad["pad"].Value} buttons={pad["buttons"].Value} returned={pad["returned"].Value}");
@@ -158,7 +159,7 @@ public static partial class SessionLogConverter
 
     [GeneratedRegex("^mgr=(?<mgr>" + Hex + ") class=(?<class>" + Hex + "|\\?) cmd=(?<cmd>" + Hex + ") result=(?<result>" + Int
         + ") index=" + Int + " top=(?<top>" + Int + ") row=(?<row>" + Int + ") flags=(?<flags>" + Hex + ")(?: screen=(?<screen>"
-        + ClassName + "|\\?))?(?: count=(?<count>" + Int + "|\\?))?$")]
+        + ClassName + "|\\?))?(?: count=(?<count>" + Int + "|\\?))?(?: mode=(?<mode>" + Int + "|\\?))?$")]
     private static partial Regex CursorPattern();
 
     [GeneratedRegex("^mgr=(?<mgr>" + Hex + ") mgrClass=\\S+ owner=\\S+ ownerClass=(?<owner>" + ClassName + "|\\?) fields=\\S+$")]

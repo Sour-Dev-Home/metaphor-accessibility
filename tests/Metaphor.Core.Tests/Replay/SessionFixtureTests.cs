@@ -119,6 +119,23 @@ public sealed class SessionFixtureTests
     }
 
     [Fact]
+    public void ACursorRecordCarriesItsScreensModeWhenItHasOne()
+    {
+        var seen = new Seen();
+        var cursors = new CursorEvents();
+        cursors.Observe(seen);
+
+        SessionFixture.Parse($"""
+            # game build: {Build}
+            0 cursor mgr=0xa0 class=0x22045e8 cmd=0x1 result=1 top=0 row=0 flags=0x46 screen=A@ope@ui@app count=3 mode=2
+            10 cursor mgr=0xa0 class=0x22045e8 cmd=0x1 result=1 top=0 row=1 flags=0x46 screen=A@ope@ui@app count=3 mode=?
+            20 cursor mgr=0xa0 class=0x22045e8 cmd=0x1 result=1 top=0 row=2 flags=0x46 screen=A@ope@ui@app count=3
+            """).Replay(new MessageEvents(), cursors, _ => { });
+
+        Assert.Equal([2, null, null], seen.Events.Cast<CursorInput>().Select(input => input.Mode));
+    }
+
+    [Fact]
     public void ReplaysWindowReadsInOrderBetweenPadReads()
     {
         var seen = new List<object?>();

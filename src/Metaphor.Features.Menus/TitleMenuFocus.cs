@@ -9,7 +9,8 @@ namespace Metaphor.Features.Menus;
 /// (<see cref="Screen"/>), so the title's message file compiling again during play changes nothing. Item text is looked
 /// up at run time (<see cref="MessageLibrary"/>); only the label, the count and the third item's word are ours
 /// (docs/raw-sources/title-menu-labels-2026-11-16.md, docs/raw-sources/title-menu-item-images-2026-11-20.md). Safe to
-/// call from several threads.</summary>
+/// call from several threads. Its System submenu, served by the same choice, is spoken as its own two items (#210).
+/// </summary>
 public sealed class TitleMenuFocus : IScreenObserver
 {
     /// <summary>The title menu: its choice's class on build 548ddc95, from its run-time type information
@@ -26,6 +27,13 @@ public sealed class TitleMenuFocus : IScreenObserver
     // (#537, docs/raw-sources/title-menu-item-images-2026-11-20.md).
     private const int SystemIndex = 2;
     private const string SystemWord = "System";
+
+    // The System submenu is the same choice and cursor, told apart by the choice's mode (2 in the submenu,
+    // Core.Menus.ScreenModes, #210). Its two items are images too, SETTINGS and CREDITS in the texture, and the code fills
+    // them with no message, so their words are ours, English only (docs/raw-sources/title-menu-item-images-2026-11-20.md,
+    // docs/findings/title-names-voice-tutorials-static.md).
+    private const int SystemMenuMode = 2;
+    private static readonly string[] SystemMenuItems = ["Settings", "Credits"];
 
     private readonly IMessageLookup messages;
     private readonly IAnnouncer announcer;
@@ -44,7 +52,10 @@ public sealed class TitleMenuFocus : IScreenObserver
     /// <summary>Speaks the focus when the title menu is entered or its focus moves.</summary>
     public void Observe(ScreenEvent change)
     {
-        if (ListFocus.Of(change, Screen, "Main menu", ItemCount, ItemText) is { } said)
+        var said = change.Mode == SystemMenuMode
+            ? ListFocus.Of(change, Screen, "System menu", SystemMenuItems.Length, index => SystemMenuItems[index])
+            : ListFocus.Of(change, Screen, "Main menu", ItemCount, ItemText);
+        if (said is not null)
         {
             announcer.Announce(said);
         }

@@ -50,7 +50,7 @@ public sealed class ReportLog(TextWriter writer, Func<long> millisecondsSinceSta
     /// <summary>An input a menu's cursor manager handled (#94), as <see cref="MessageLog"/> records it: numbers only,
     /// no game text.</summary>
     public void Observe(CursorInput input) => Write(() => Line(
-        $"cursor mgr=0x{input.Manager:x} class={(input.ClassRva is { } rva ? $"0x{rva:x}" : "?")} cmd=0x{input.Command:x} result={input.Result} index={input.Index} top={input.Top} row={input.Row} flags=0x{input.Flags:x} screen={input.ScreenClass ?? "?"} count={input.Count?.ToString(CultureInfo.InvariantCulture) ?? "?"}"));
+        $"cursor mgr=0x{input.Manager:x} class={(input.ClassRva is { } rva ? $"0x{rva:x}" : "?")} cmd=0x{input.Command:x} result={input.Result} index={input.Index} top={input.Top} row={input.Row} flags=0x{input.Flags:x} screen={input.ScreenClass ?? "?"} count={input.Count?.ToString(CultureInfo.InvariantCulture) ?? "?"} mode={input.Mode?.ToString(CultureInfo.InvariantCulture) ?? "?"}"));
 
     /// <summary>One line from the mod itself, such as the startup status with its hook counts, or an error. Each
     /// string the log was made to redact (the mod's folder, the player's user name) is replaced first.</summary>

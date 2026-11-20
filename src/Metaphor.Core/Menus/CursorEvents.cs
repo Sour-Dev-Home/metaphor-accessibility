@@ -9,10 +9,12 @@ namespace Metaphor.Core.Menus;
 /// run-time type information names it (<c>TitleChoice@ope@ui@app</c>), or null when no owner was seen or its class is
 /// unreadable (docs/raw-sources/screen-class-session-2026-11-17.md). <paramref name="Count"/> is the list's item count the
 /// manager keeps, read with this input since a manager can be reused by another screen, or null when unreadable
-/// (docs/raw-sources/list-count-session6-2026-11-17.md).</summary>
+/// (docs/raw-sources/list-count-session6-2026-11-17.md). <paramref name="Mode"/> is the owner's own mode field, for a
+/// choice that serves more than one list (<see cref="ScreenModes"/>), or null when it has none or it is unreadable.
+/// </summary>
 public sealed record CursorInput(
     long Manager, long? ClassRva, int Command, int Result, int Top, int Row, int Flags, string? ScreenClass = null,
-    int? Count = null)
+    int? Count = null, int? Mode = null)
 {
     /// <summary>The cursor's position: what the class's index getter returns.</summary>
     public int Index => Top + Row;
