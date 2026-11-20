@@ -134,7 +134,7 @@ test_blocks_staged_cpk() {
 
 test_blocks_every_game_extension_even_uppercase() {
   local ext
-  for ext in pak exe DLL asi dmp mdmp gpr gzf gbf idb i64 til nam id0 id1 id2 bndb dd64; do
+  for ext in pak exe DLL asi dmp mdmp gpr gzf gbf idb i64 til nam id0 id1 id2 bndb dd64 mp4 MKV webm mov avi m4v flv vtt srt; do
     new_repo
     printf 'x' > "file.$ext"
     git add -f "file.$ext"
