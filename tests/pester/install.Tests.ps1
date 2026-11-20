@@ -502,13 +502,14 @@ Describe 'install.ps1' {
 
     It 'stops at Reloaded-II''s settings, not later, when Windows blocks its mods folder from being made' {
         New-ReloadedSetup
-        $blocked = Join-Path $root 'Blocked'
+        # Reloaded-II's own folder, which exists with files in it as in the other blocked-write tests, and a mods folder
+        # in it not made yet.
         $loader = Get-Content -Raw $config | ConvertFrom-Json
-        $loader.ModConfigDirectory = Join-Path $blocked 'Mods'
+        $loader.ModConfigDirectory = Join-Path $reloadedFolder 'Mods-new'
         Write-JsonFile $config $loader
-        Block-Write $blocked
+        Block-Write $reloadedFolder
         try { $result = Invoke-Install @('y') }
-        finally { Unblock-Write $blocked }
+        finally { Unblock-Write $reloadedFolder }
         $result.ExitCode | Should -Be 1
         $result.Output | Should -Match 'Failed: Windows did not let the installer save this step''s files\. Windows Security''s Controlled folder access may have blocked it\.'
         $result.Output | Should -Match 'The installer stopped at step 3'
