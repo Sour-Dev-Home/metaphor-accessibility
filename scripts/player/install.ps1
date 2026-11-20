@@ -55,12 +55,15 @@ param(
     # The registry key the Visual C++ Redistributable (x64) records its version in
     # (docs/raw-sources/spoken-installer-sources-2026-11-19.md).
     [string] $VcRuntimeKey = 'HKLM:\SOFTWARE\WOW6432Node\Microsoft\VisualStudio\14.0\VC\Runtimes\x64',
-    # What may be downloaded: URLs, file names and SHA-256s.
-    [string] $Pins = (Join-Path $PSScriptRoot 'install-pins.json')
+    # What may be downloaded: URLs, file names and SHA-256s. Defaults to install-pins.json beside this script.
+    [string] $Pins = ''
 )
 
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
+# Set here, not as the parameter's default: Windows PowerShell 5.1 leaves $PSScriptRoot empty in an advanced script's
+# parameter defaults, so the installer stopped before its first line (#574).
+if (-not $Pins) { $Pins = Join-Path $PSScriptRoot 'install-pins.json' }
 Import-Module (Join-Path $PSScriptRoot 'MetaphorInstall.psm1')
 
 $scripted = $PSBoundParameters.ContainsKey('Answers')
