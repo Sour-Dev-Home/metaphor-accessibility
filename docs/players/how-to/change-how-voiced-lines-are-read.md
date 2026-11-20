@@ -1,7 +1,8 @@
 # Change how voiced lines are read
 
 Choose whether the screen reader reads a line the actors speak aloud, so it doesn't talk over them. Lines with no voice
-acting are always read in full.
+acting are always read in full. So are lines that only play a short generic sound, such as a shout or an exclamation,
+instead of the actor saying the line; the mod tells them apart by the sound's name.
 
 ## Steps
 
