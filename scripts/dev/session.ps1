@@ -89,8 +89,22 @@ Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 Import-Module (Join-Path $PSScriptRoot 'GameSession.psm1') -Force
 
+# Relative paths are resolved here, against the folder the command was typed in (#523). Started with pwsh -File, the
+# profile may already have moved PowerShell's location (a profile that starts in Documents did), so the folder the
+# process started in is the one meant; called from a running session, PowerShell's own location is, because
+# Set-Location doesn't move the process's folder.
+$startedWithFile = @([Environment]::GetCommandLineArgs() | Where-Object { $_ -in '-File', '-f' }).Count -gt 0
+$baseFolder = if ($startedWithFile) { [Environment]::CurrentDirectory } else { $PWD.ProviderPath }
+function Resolve-Relative([string] $Path) {
+    if ([string]::IsNullOrEmpty($Path)) { return $Path }
+    [IO.Path]::GetFullPath($Path, $baseFolder)
+}
+$pathOptions = 'Batch', 'SaveLog', 'OutFile', 'Probes', 'GameExe', 'LauncherExe', 'Project', 'ReloadedConfig', 'KnownBuilds', 'ModFolders'
+
 $options = @{}
 foreach ($name in $PSBoundParameters.Keys) {
-    if ($name -ne 'Verb' -and $name -notin [Management.Automation.PSCmdlet]::CommonParameters) { $options[$name] = $PSBoundParameters[$name] }
+    if ($name -eq 'Verb' -or $name -in [Management.Automation.PSCmdlet]::CommonParameters) { continue }
+    $value = $PSBoundParameters[$name]
+    $options[$name] = if ($name -notin $pathOptions) { $value } elseif ($value -is [array]) { @($value | ForEach-Object { Resolve-Relative $_ }) } else { Resolve-Relative $value }
 }
 exit (Invoke-GameSession $Verb $options)

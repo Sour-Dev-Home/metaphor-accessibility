@@ -101,6 +101,40 @@ Describe 'session.ps1 inspect' {
             $result.ExitCode | Should -Be 0
         }
 
+        It 'resolves relative -Batch and -SaveLog against the caller''s location, not the process folder (#523)' {
+            $where = Join-Path $TestDrive 'where'
+            $elsewhere = Join-Path $TestDrive 'elsewhere'
+            New-Item -ItemType Directory -Force $where, $elsewhere | Out-Null
+            Set-Content -LiteralPath (Join-Path $where 'rel.txt') -Value 'base'
+            # The process folder is $elsewhere; the PowerShell location is $where.
+            $command = "[Environment]::CurrentDirectory = '$elsewhere'; Set-Location '$where'; " +
+            "& '$script' inspect -PipeName '$script:pipe' -TimeoutMilliseconds 10000 -Batch rel.txt -SaveLog relsave"
+            $output = @(& pwsh -NoProfile -Command $command)
+            $exit = $LASTEXITCODE
+
+            $output[-1] | Should -Match '^ok: 1 requests answered'
+            $exit | Should -Be 0
+            Join-Path $where 'relsave/inspector-log.txt' | Should -Exist
+        }
+
+        It 'resolves a relative -Batch against the start folder when a profile moved the location (#523)' {
+            $start = Join-Path $TestDrive 'start'
+            $moved = Join-Path $TestDrive 'moved'
+            New-Item -ItemType Directory -Force $start, $moved | Out-Null
+            Set-Content -LiteralPath (Join-Path $start 'rel.txt') -Value 'base'
+            # What a profile does before -File runs the script: moves PowerShell's location, not the process's folder.
+            $launcher = Join-Path $TestDrive 'launcher.ps1'
+            Set-Content -LiteralPath $launcher -Value @(
+                'param($Script, $Pipe, $Where)', 'Set-Location $Where',
+                '& $Script inspect -PipeName $Pipe -TimeoutMilliseconds 10000 -Batch rel.txt -SaveLog relsave')
+            Push-Location $start
+            try { $output = @(& pwsh -NoProfile -File $launcher $script $script:pipe $moved); $exit = $LASTEXITCODE } finally { Pop-Location }
+
+            $output[-1] | Should -Match '^ok: 1 requests answered'
+            $exit | Should -Be 0
+            Join-Path $start 'relsave/inspector-log.txt' | Should -Exist
+        }
+
         It 'logs a refused request, goes on with the batch and exits 1' {
             $result = Invoke-Batch $script:pipe @('read base+0x10 0', 'read base+0x10 1')
 
