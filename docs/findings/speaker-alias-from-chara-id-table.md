@@ -6,7 +6,7 @@
 - **Sources:** [`game-session-1-2026-11-20.md`](../raw-sources/game-session-1-2026-11-20.md),
   [`name-lookup-candidates-2026-11-16.md`](../raw-sources/name-lookup-candidates-2026-11-16.md)
 
-#74: entry 51 of `CharaID.bin` holds the source name's label and two aliases, each behind a story flag. In the
+For #74: entry 51 of `CharaID.bin` holds the source name's label and two aliases, each behind a story flag. In the
 opening scene the first alias's flag is set and the second's clear, so the table picks `CharaName_FO12_Mor_00`, the
 alias the screen shows. The mod can do the same lookup itself: entry, slots, flags, then the label by its MD5.
 Whether the dialogue box asks this table is `[NEEDS VERIFICATION]`: the hash listener logged nothing.

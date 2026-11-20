@@ -69,7 +69,8 @@ which the inspector has no path to.
 Deploy a Debug build with `opt-in-inspector.txt` ([how-to](../contributors/how-to/inspect-the-running-game.md)).
 
 1. **Main menu, then Y for the Archetype Tree, pick a character, then the tree on screen:**
-   `pwsh scripts/dev/session.ps1 inspect 'follow base+0x2ee7338 0x48 0x0 0x0 0x8 0x40'`, then `read` 8 bytes there for the mask `m`.
+   `pwsh scripts/dev/session.ps1 inspect 'follow base+0x2ee7338 0x48 0x0 0x0 0x8 0x40'`,
+   then `read` 8 bytes there for the mask `m`.
 2. Bucket offset = `(0x11 & m) × 0x10 + 8`. Run
    `'follow base+0x2ee7338 0x48 0x0 0x0 0x8 0x28 <offset> 0x10'` and `read` 4 bytes: expect 0x11, little-endian.
    Then `'follow base+0x2ee7338 0x48 0x0 0x0 0x8 0x28 <offset> 0x18 0x0'` and `rtti` on the result: expect

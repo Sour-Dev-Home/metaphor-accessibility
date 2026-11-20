@@ -5,7 +5,7 @@
   mods do
 - **Sources:** [`game-session-1-2026-11-20.md`](../raw-sources/game-session-1-2026-11-20.md)
 
-#118: the pop-ups' text took none of the routes the mod listens to. No `GetMessageBySerial` call asked for a tutorial
+For #118: the pop-ups' text took none of the routes the mod listens to. No `GetMessageBySerial` call asked for a tutorial
 serial (10256 to 10859), no line was requested by name, and no text pane held the text. What the log does show is
 `System_Tutorial_1.msg` and `_2.msg` compiling together each time a pop-up opened: a usable "pop-up opened" signal, but
 not the page's text.

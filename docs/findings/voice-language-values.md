@@ -5,7 +5,7 @@
   mods do
 - **Sources:** [`game-session-1-2026-11-20.md`](../raw-sources/game-session-1-2026-11-20.md)
 
-#103 question 3: `base+0x27a8c78` (as set) and `base+0x2dff8e4` (as applied) hold 2 for English and 1 for Japanese.
+For #103 question 3: `base+0x27a8c78` (as set) and `base+0x2dff8e4` (as applied) hold 2 for English and 1 for Japanese.
 Both change as soon as the setting changes, and both keep the value after a relaunch. `base+0x27a8c74` stayed 2.
 
 ## Evidence

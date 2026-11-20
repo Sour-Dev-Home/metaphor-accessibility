@@ -5,7 +5,7 @@
   mods do
 - **Sources:** [`game-session-1-2026-11-20.md`](../raw-sources/game-session-1-2026-11-20.md)
 
-#106 question 1: after name entry the typed name is at `base+0x2ccae60` (`G + 0x24770`, `G` = `base+0x2ca66f0`),
+For #106 question 1: after name entry the typed name is at `base+0x2ccae60` (`G + 0x24770`, `G` = `base+0x2ca66f0`),
 4 bytes per character, little-endian UTF-32, ended by a zero. The mod can read it there.
 
 ## Evidence
