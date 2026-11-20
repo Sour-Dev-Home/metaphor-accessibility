@@ -568,6 +568,39 @@ Describe 'a refused folder' {
     }
 }
 
+Describe 'Get-InstallStep' {
+    It 'gives the nine steps in order, only the shortcut optional, and keeps the step functions private' {
+        $steps = @(Get-InstallStep ([pscustomobject]@{}))
+        $steps.Doing | Should -Be @('Looking for the game.', 'Checking for Reloaded-II, which loads the mod into the game.',
+            'Checking Reloaded-II''s settings.', 'Checking for the .NET 9 Desktop Runtime.',
+            'Checking for the Visual C++ Redistributable.', 'Checking for Reloaded-II''s hooks library.',
+            'Copying the mod into Reloaded-II.', 'Turning the mod on for the game.', 'Making the desktop shortcut.')
+        $steps.Optional | Should -Be @($false, $false, $false, $false, $false, $false, $false, $false, $true)
+        $exported = (Get-Module MetaphorInstall).ExportedFunctions.Keys
+        foreach ($name in 'Select-InstallGame', 'Install-Shortcut', 'Get-ErrorStep', 'Test-Elevated') { $exported | Should -Not -Contain $name }
+    }
+
+    It 'turns an error a step stops with into a failed step' {
+        $context = [pscustomobject]@{ Desktop = (Join-Path $TestDrive 'desktop'); Launcher = (Join-Path $TestDrive 'notepad.exe'); GameExe = 'METAPHOR.exe' }
+        $step = & (@(Get-InstallStep $context)[8]).Run
+        $step.State | Should -Be 'failed'
+        $step.Line | Should -Be 'This step stopped with an error.'
+        $step.Detail | Should -Match 'not Reloaded-II\.exe'
+        Test-Path (Join-Path $TestDrive 'desktop') | Should -BeFalse
+    }
+
+    It 'gives only the failed step when a step returns a result and then stops with an error' {
+        $steps = @(InModuleScope MetaphorInstall {
+                $step = New-InstallStep 'Testing.' { Done 'This part worked.'; throw 'then it broke' } $null
+                & $step.Run
+            })
+        $steps.Count | Should -Be 1
+        $steps[0].State | Should -Be 'failed'
+        $steps[0].Line | Should -Be 'This step stopped with an error.'
+        $steps[0].Detail | Should -Match 'then it broke'
+    }
+}
+
 Describe 'Test-DotnetRuntime' {
     BeforeAll {
         # The module's own function, not part of its interface.
@@ -603,14 +636,14 @@ Describe 'Test-Elevated' {
 
     It 'lets the tests run as administrator only on CI' {
         $env:CI = 'true'
-        Test-Elevated | Should -BeFalse
+        InModuleScope MetaphorInstall { Test-Elevated } | Should -BeFalse
     }
 
     It 'still refuses administrator off CI, even with the test switch set' {
         $env:CI = $null
-        Test-Elevated | Should -BeTrue
+        InModuleScope MetaphorInstall { Test-Elevated } | Should -BeTrue
         $env:CI = '1'
-        Test-Elevated | Should -BeTrue
+        InModuleScope MetaphorInstall { Test-Elevated } | Should -BeTrue
     }
 }
 
