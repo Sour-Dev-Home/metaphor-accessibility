@@ -1,0 +1,17 @@
+# Game session 3 (#498), stop 2: Calendar and quests (#191, #193, #194, #190).
+# Game build 548ddc95... (Steam 18330018). Leads: docs/findings/calendar-date-time-and-quests-static.md.
+# The Calendar's cursor should not move the day count; the quest list should be the records in state 1 to 3, in their
+# +0x2 order. With ui-text-panes on, note whether the HUD objective line and the quest details show in the log as
+# drawn text (count and time only).
+[calendar-open]
+base
+# Day count, weekday, time with the Calendar open on today.
+read base+0x2cd78d8 0x18
+[calendar-moved]
+# After moving the cursor a few days: expect no change from the section above.
+read base+0x2cd78d8 0x18
+changes
+[quest-list]
+# With the quest list open: the 135 quest records and the quest order counter (counter 0xf4).
+read base+0x2ccaea4 0xca8
+read base+0x2cc9eb4 4
