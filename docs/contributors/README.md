@@ -148,6 +148,22 @@ You don't need Claude Code or any agent tooling.
 - **The game.** Most work needs your own copy of the game, to check offsets, formats and in-game behaviour. Without
   it you can still do docs, tooling and anything the unit tests cover.
 
+Then deliver, in this order:
+
+1. **Claim the issue**: comment that you're on it, after a look for an existing branch or PR
+   ([the claim step](../agents/workflow.md)).
+2. **Branch** from `origin/main`, named `<issue>-<slug>`, for example `125-install-guide`.
+3. **Commit** in the [commit message shape](reference/commit-messages.md); the commit-msg hook checks it.
+4. **Check** before you push: `bash scripts/check.sh docs` for a change that touches only Markdown, and
+   `bash scripts/check.sh full` for anything else ([checks](reference/checks.md)).
+5. **Push**, then open the PR with the [PR template](https://github.com/Sour-Dev-Home/metaphor-accessibility/blob/main/.github/pull_request_template.md)
+   (Summary, Evidence, Merge Danger), linking the issue with `Closes #n`.
+6. **Queue the merge**: `gh pr merge <n> --auto`.
+7. **Security stamp**: only a change in the [review scope](reference/security-review.md) needs one; a docs-only PR
+   doesn't ([the stamp](reference/security-review.md#the-stamp)).
+
+To write a player page, follow [write a player doc](how-to/write-a-player-doc.md).
+
 ## Playbooks
 
 How-tos: [set up a clone](how-to/set-up-a-clone.md), [add a hook](how-to/add-a-hook.md),
@@ -161,7 +177,8 @@ How-tos: [set up a clone](how-to/set-up-a-clone.md), [add a hook](how-to/add-a-h
 [merge main into a draft PR](how-to/merge-main-into-a-draft-pr.md),
 [run a game session](how-to/run-a-game-session.md), [a check or CI failed](how-to/a-check-or-ci-failed.md),
 [write a finding or save a raw source](how-to/write-a-finding.md),
-[add a feature project](how-to/add-a-feature-project.md), [handle a game update](how-to/handle-a-game-update.md).
+[add a feature project](how-to/add-a-feature-project.md), [handle a game update](how-to/handle-a-game-update.md),
+[write a player doc](how-to/write-a-player-doc.md).
 
 Reference: [checks](reference/checks.md), every check stage and how CI runs them;
 [security review](reference/security-review.md), the stamp, the label gate and the deny rules;
