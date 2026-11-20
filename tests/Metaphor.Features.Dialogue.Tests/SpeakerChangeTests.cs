@@ -104,9 +104,9 @@ public sealed class SpeakerChangeTests
     public void NameOnlyVoicedLineWithTheSameSpeakerSaysNothing()
     {
         var dialogue = Dialogue(VoicedLinesMode.NameOnly);
-        dialogue.Show("Ada", "<VOICE \"v_1\">\nOne.");
-        dialogue.Show("Ada", "<VOICE \"v_2\">\nTwo.");
-        dialogue.Show("Bo", "<VOICE \"v_3\">\nThree.");
+        dialogue.Show("Ada", "<VOICE \"v_e01_001_000_00_c051\">\nOne.");
+        dialogue.Show("Ada", "<VOICE \"v_e01_002_000_00_c051\">\nTwo.");
+        dialogue.Show("Bo", "<VOICE \"v_e01_003_000_00_c051\">\nThree.");
 
         Assert.Equal(["Ada", "Bo"], Said);
     }

@@ -8,7 +8,7 @@ namespace Metaphor.Features.Dialogue.Tests;
 [Trait("Category", "Unit")]
 public sealed class DialogueLinesTests
 {
-    private const string Scene = "@MES_a\n{\n<NS>Ada<NE>\n<VOICE \"v_a\">\nThe bridge is out.\n<WAIT>\n}";
+    private const string Scene = "@MES_a\n{\n<NS>Ada<NE>\n<VOICE \"v_e01_001_000_00_c051\">\nThe bridge is out.\n<WAIT>\n}";
 
     private readonly RecordingAnnouncer announcer = new();
     private readonly MessageLibrary messages = new();
