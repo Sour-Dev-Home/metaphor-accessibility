@@ -8,7 +8,7 @@ BeforeAll {
     $script:repo = (Resolve-Path "$PSScriptRoot/../..").Path
     Import-Module (Join-Path $repo 'scripts/player/MetaphorInstall.psm1') -Force
     # What the package ships for the installer and the check, beside the mod's own files (Metaphor.Hooks.csproj).
-    $script:shipped = 'install.ps1', 'install.cmd', 'MetaphorInstall.psm1', 'install-pins.json', 'check-install.ps1'
+    $script:shipped = 'install.ps1', 'install.cmd', 'uninstall.cmd', 'MetaphorInstall.psm1', 'install-pins.json', 'check-install.ps1'
     $script:modId = 'metaphor.accessibility'
     $script:pwsh = (Get-Process -Id $PID).Path
 
@@ -146,14 +146,16 @@ BeforeAll {
     # with -NonInteractive, a run with no console and no answers. SHELL is pwsh or powershell (Windows PowerShell 5.1).
     # SWITCHES are the installer's test switches (MetaphorInstall.psm1's Test-TestSwitch) to turn on: by default local file
     # pins, no signature check on them (the stand-ins are unsigned), and running as admin (CI's runners are). Any switch
-    # also sets CI=true, without which none counts. ENVIRONMENT sets more variables for the run.
+    # also sets CI=true, without which none counts. ENVIRONMENT sets more variables for the run. UNINSTALL runs it with
+    # -Uninstall.
     function Invoke-Install([string[]] $Answers = @(), [switch] $NonInteractive, [string] $Shell = $pwsh,
         [string] $Folder = $release, [string[]] $Switches = @('FILES', 'UNSIGNED', 'ALLOW_ADMIN'), [hashtable] $Environment = @{},
-        [switch] $FromLauncher) {
+        [switch] $Uninstall, [switch] $FromLauncher) {
         $script = Join-Path $Folder 'install.ps1'
         $common = "$(if ($FromLauncher) { '-FromLauncher ' })-NoSpeech -ReloadedConfig $(ConvertTo-Literal $config) -ReloadedFolder $(ConvertTo-Literal $reloadedFolder) " +
             "-SteamRoot $(ConvertTo-Literal $steam) -Desktop $(ConvertTo-Literal $desktop) -DotnetRoot $(ConvertTo-Literal $dotnet) " +
             "-VcRuntimeKey $(ConvertTo-Literal $vcKey) -Pins $(ConvertTo-Literal $pins)"
+        if ($Uninstall) { $common += ' -Uninstall' }
         $vars = @{ METAPHOR_RELOADED_EXE = $null; METAPHOR_GAME_EXE = $null; CI = $null }
         foreach ($name in 'FILES', 'UNSIGNED', 'ALLOW_ADMIN') {
             $vars["METAPHOR_INSTALL_TEST_$name"] = if ($Switches -contains $name) { '1' } else { $null }
@@ -391,7 +393,7 @@ Describe 'install.ps1' {
         foreach ($file in $shipped) { Copy-Item -LiteralPath (Join-Path $repo "scripts/player/$file") $alone }
         $result = Invoke-Install @('y') -Folder $alone
         $result.ExitCode | Should -Be 1
-        $result.Output | Should -Match 'Run install.ps1 from the mod''s folder in the release zip'
+        $result.Output | Should -Match 'Open install.cmd in the mod''s folder from the release zip'
     }
 
     It 'holds each runtime installer open against writes while it runs' {
@@ -560,15 +562,19 @@ Describe 'install.ps1' {
     }
 }
 
-# The launcher a player opens with Enter in File Explorer (#574). A stand-in install.ps1 records how it was started, so
-# these tests run nothing of the real installer.
-Describe 'install.cmd' {
+# The launchers a player opens with Enter in File Explorer: install.cmd (#574), and uninstall.cmd (#575), which is the
+# same but passes -Uninstall first. A stand-in install.ps1 records how it was started, so these tests run nothing of the
+# real installer.
+Describe '<Name>' -ForEach @(
+    @{ Name = 'install.cmd'; Passed = @() }
+    @{ Name = 'uninstall.cmd'; Passed = @('-Uninstall') }
+) {
     BeforeAll {
-        $script:launcher = Join-Path $repo 'scripts/player/install.cmd'
+        $script:launcher = Join-Path $repo "scripts/player/$Name"
         # Explorer opens a .cmd as "%1" %* (HKCR\cmdfile\shell\open\command) from the file's folder; CreateProcess on the
         # file is the same start. Standard input is closed, so the pause at the end returns at once.
         function Invoke-Launcher([string] $Folder, [string[]] $Arguments = @()) {
-            $start = [Diagnostics.ProcessStartInfo]::new((Join-Path $Folder 'install.cmd'))
+            $start = [Diagnostics.ProcessStartInfo]::new((Join-Path $Folder $Name))
             foreach ($argument in $Arguments) { $start.ArgumentList.Add($argument) }
             $start.Environment['METAPHOR_INSTALL_TEST_ALLOW_ADMIN'] = '1' # honoured on CI only, whose runners are admin
             $start.WorkingDirectory = $Folder
@@ -598,7 +604,7 @@ Describe 'install.cmd' {
 Write-Host 'stand-in installer ran'
 exit 3
 '@
-            foreach ($file in 'install.cmd', 'install.ps1') {
+            foreach ($file in $Name, 'install.ps1') {
                 Set-Content -LiteralPath (Join-Path $folder $file) -Stream Zone.Identifier -Value "[ZoneTransfer]`r`nZoneId=3"
             }
             $folder.FullName
@@ -614,7 +620,7 @@ exit 3
         $ran.Root | Should -Be $folder
         $ran.Edition | Should -Be 'Desktop'
         $ran.Policy | Should -Be 'Bypass'
-        @($ran.Arguments) | Should -Be @('-FromLauncher', '-Speak')
+        @($ran.Arguments) | Should -Be @($Passed + '-FromLauncher' + '-Speak')
         $result.ExitCode | Should -Be 3
     }
 
@@ -649,11 +655,308 @@ exit 3
 
     It 'ships in the package, ASCII only, with Windows line endings' {
         $project = Get-Content -Raw -LiteralPath (Join-Path $repo 'src/Metaphor.Hooks/Metaphor.Hooks.csproj')
-        $project | Should -Match ([regex]::Escape('../../scripts/player/install.cmd'))
+        $project | Should -Match ([regex]::Escape("../../scripts/player/$Name"))
         $bytes = [IO.File]::ReadAllBytes($launcher)
         $bytes | Where-Object { $_ -gt 127 } | Should -BeNullOrEmpty
         $text = [Text.Encoding]::ASCII.GetString($bytes)
         ($text -replace "`r`n", '') | Should -Not -Match "[`r`n]"
+    }
+}
+
+# The uninstall (#575): what it removes, what it keeps or asks about, and what it refuses to touch.
+Describe 'install.ps1 -Uninstall' {
+    BeforeAll {
+        # The mod installed into a Reloaded-II the player set up before, with the mod's own settings saved by Reloaded-II.
+        function Install-Mod {
+            New-ReloadedSetup
+            $result = Invoke-Install @('y')
+            if ($result.ExitCode -ne 0) { throw "the install failed: $($result.Output)" }
+            $script:installed = Join-Path $mods $modId
+            $script:userConfig = Join-Path $reloadedFolder "User/Mods/$modId"
+            Write-JsonFile (Join-Path $userConfig 'Config.json') @{ ReadVoicedLines = $true }
+            $script:shortcut = Join-Path $desktop 'Metaphor ReFantazio with accessibility.lnk'
+        }
+        function New-Link([string] $Path, [string] $Target) {
+            New-Item -ItemType Directory -Force $Target | Out-Null
+            New-Item -ItemType Junction -Path $Path -Target $Target | Out-Null
+        }
+        $script:uninstallQuestion = 'Uninstall the mod\?'
+        $script:reloadedQuestion = 'Remove Reloaded-II too\?'
+    }
+    BeforeEach {
+        $script:root = (New-Item -ItemType Directory (Join-Path $TestDrive (New-Guid))).FullName
+        New-Machine
+    }
+    AfterEach { Remove-Item -LiteralPath "HKCU:\$vcKeyPath" -Recurse -Force -ErrorAction SilentlyContinue }
+
+    It 'says last that the uninstall has finished, and to press a key when uninstall.cmd waits for one' {
+        Install-Mod
+        $result = Invoke-Install @('n') -Uninstall -FromLauncher
+        @($result.Output -split "`n" | Where-Object { $_ })[-1] | Should -Be 'The uninstall has finished. Read what it said above, then press any key to close this window.'
+        $result = Invoke-Install @('n') -Uninstall
+        @($result.Output -split "`n" | Where-Object { $_ })[-1] | Should -Be 'The uninstall has finished.'
+    }
+
+    It 'removes the mod''s folder, its settings, the shortcut and its enabled entry, and keeps everything else' {
+        Install-Mod
+        $result = Invoke-Install @('y') -Uninstall
+        $result.ExitCode | Should -Be 0 -Because $result.Output
+        $installed | Should -Not -Exist
+        $userConfig | Should -Not -Exist
+        $shortcut | Should -Not -Exist
+        $app = Get-Content -Raw $appConfig | ConvertFrom-Json
+        @($app.EnabledMods) | Should -Be @('other.mod')
+        $app.AppName | Should -Be 'My Metaphor'
+        $launcher | Should -Exist
+        Join-Path $mods 'other.mod/ModConfig.json' | Should -Exist
+        Join-Path $mods 'reloaded.sharedlib.hooks/ModConfig.json' | Should -Exist
+        $config | Should -Exist
+        Join-Path $dotnet 'shared/Microsoft.WindowsDesktop.App/9.0.21' | Should -Exist
+        $result.Output | Should -Match 'Done: The mod is turned off for the game'
+        $result.Output | Should -Match 'Done: Removed the mod''s folder from Reloaded-II\.'
+        $result.Output | Should -Match 'Done: Removed the mod''s settings from Reloaded-II\.'
+        $result.Output | Should -Match 'Done: Removed the desktop shortcut'
+        $result.Output | Should -Match 'Nothing to remove: Kept Reloaded-II, which this installer did not install'
+        $result.Output | Should -Match 'Kept the \.NET 9 Desktop Runtime and the Visual C\+\+ Redistributable'
+        $result.Output | Should -Match 'The uninstall is done\.'
+        $result.Output | Should -Not -Match $reloadedQuestion
+    }
+
+    It 'says each step, and asks before it starts in the plain words the install uses (#473)' {
+        Install-Mod
+        $result = Invoke-Install @('y') -Uninstall
+        foreach ($n in 1..5) { $result.Output | Should -Match "Step $n of 5: " }
+        $enterIsNo = [regex]::Escape('Type yes and press Enter to go on, or press Enter alone to stop.')
+        $result.Output | Should -Match "$uninstallQuestion.* $enterIsNo"
+        $result.Output | Should -Not -Match '\[[yY]/[nN]\]'
+    }
+
+    It 'says there is nothing left to remove on a second run, and changes nothing' {
+        Install-Mod
+        (Invoke-Install @('y') -Uninstall).ExitCode | Should -Be 0
+        $before = Get-Snapshot
+        $result = Invoke-Install @('y') -Uninstall
+        $result.ExitCode | Should -Be 0
+        $result.Output | Should -Match 'There was nothing left to remove\.'
+        $result.Output | Should -Not -Match '(?m)^Done: '
+        Get-Snapshot | Should -Be $before
+    }
+
+    It 'changes nothing when the answer to going ahead is no, or there is no answer' {
+        Install-Mod
+        $before = Get-Snapshot
+        $result = Invoke-Install @('') -Uninstall
+        $result.ExitCode | Should -Be 1
+        $result.Output | Should -Match 'Nothing was changed, because the answer was no\.'
+        (Invoke-Install -NonInteractive -Uninstall).ExitCode | Should -Be 1
+        Get-Snapshot | Should -Be $before
+    }
+
+    It 'says there is nothing to remove on a computer where the mod was never installed' {
+        $result = Invoke-Install @('y') -Uninstall
+        $result.ExitCode | Should -Be 0 -Because $result.Output
+        $result.Output | Should -Match 'There was nothing left to remove\.'
+        $reloadedFolder | Should -Not -Exist
+    }
+
+    It 'keeps the Reloaded-II it installed when the answer is Enter alone, and removes it on yes' {
+        (Invoke-Install $freshAnswers).ExitCode | Should -Be 0
+        $result = Invoke-Install @('y', '') -Uninstall
+        $result.ExitCode | Should -Be 0 -Because $result.Output
+        $result.Output | Should -Match "$reloadedQuestion.*every other mod"
+        $result.Output | Should -Match 'Kept Reloaded-II, because the answer was no\.'
+        Join-Path $reloadedFolder 'Reloaded-II.exe' | Should -Exist
+        Join-Path $reloadedFolder "Mods/$modId" | Should -Not -Exist
+
+        $result = Invoke-Install @('y', 'y') -Uninstall
+        $result.ExitCode | Should -Be 0 -Because $result.Output
+        $result.Output | Should -Match 'Done: Removed Reloaded-II\.'
+        $reloadedFolder | Should -Not -Exist
+        Join-Path $dotnet 'shared/Microsoft.WindowsDesktop.App/9.0.23' | Should -Exist
+
+        # Reloaded-II's settings file stays, naming the launcher that is gone with its folder.
+        $result = Invoke-Install @('y') -Uninstall
+        $result.ExitCode | Should -Be 0 -Because $result.Output
+        $result.Output | Should -Match 'There was nothing left to remove\.'
+    }
+
+    It 'refuses settings whose launcher is missing, so a folder it names is never taken as Reloaded-II''s' {
+        Install-Mod
+        # As a hand edit could: a Reloaded-II.exe that isn't there, in a folder holding much more than Reloaded-II.
+        $loader = Get-Content -Raw $config | ConvertFrom-Json
+        $loader.LauncherPath = Join-Path $root 'Reloaded-II.exe'
+        Write-JsonFile $config $loader
+        $result = Invoke-Install @('y') -Uninstall
+        $result.ExitCode | Should -Be 1
+        $result.Output | Should -Match 'Failed: Reloaded-II''s settings do not name its program and folders as the uninstall expects'
+        Join-Path $installed 'ModConfig.json' | Should -Exist
+        $userConfig | Should -Exist
+    }
+
+    It 'removes its own installed copy when run from it' {
+        Install-Mod
+        $result = Invoke-Install @('y') -Uninstall -Folder $installed
+        $result.ExitCode | Should -Be 0 -Because $result.Output
+        $installed | Should -Not -Exist
+    }
+
+    It 'refuses a mod folder that holds a link, and leaves what it points to alone' {
+        Install-Mod
+        $outside = Join-Path $root 'Precious'
+        Set-Content -LiteralPath (Join-Path (New-Item -ItemType Directory -Force $outside) 'keep.txt') -Value 'keep'
+        New-Link (Join-Path $installed 'linked') $outside
+        $result = Invoke-Install @('y') -Uninstall
+        $result.ExitCode | Should -Be 1
+        $result.Output | Should -Match 'Failed: The mod''s folder was left alone'
+        $result.Output | Should -Match 'The uninstall did not remove everything'
+        Join-Path $outside 'keep.txt' | Should -Exist
+        Join-Path $installed 'ModConfig.json' | Should -Exist
+        # The other steps still ran.
+        $shortcut | Should -Not -Exist
+        $userConfig | Should -Not -Exist
+    }
+
+    It 'refuses a mods folder outside Reloaded-II''s folder' {
+        Install-Mod
+        $elsewhere = Join-Path $root 'ElsewhereMods'
+        Move-Item -LiteralPath $mods $elsewhere
+        $loader = Get-Content -Raw $config | ConvertFrom-Json
+        $loader.ModConfigDirectory = $elsewhere
+        Write-JsonFile $config $loader
+        $result = Invoke-Install @('y') -Uninstall
+        $result.ExitCode | Should -Be 1
+        $result.Output | Should -Match 'Failed: The mod''s folder was left alone'
+        Join-Path $elsewhere "$modId/ModConfig.json" | Should -Exist
+    }
+
+    It 'refuses a settings folder that is a link' {
+        Install-Mod
+        $outside = Join-Path $root 'OtherSettings'
+        Remove-Item -LiteralPath $userConfig -Recurse -Force
+        New-Link $userConfig $outside
+        Set-Content -LiteralPath (Join-Path $outside 'keep.txt') -Value 'keep'
+        $result = Invoke-Install @('y') -Uninstall
+        $result.ExitCode | Should -Be 1
+        $result.Output | Should -Match 'Failed: The mod''s settings were left alone'
+        Join-Path $outside 'keep.txt' | Should -Exist
+    }
+
+    It 'leaves a desktop shortcut of that name that starts another program' {
+        Install-Mod
+        $shell = New-Object -ComObject WScript.Shell
+        try { $link = $shell.CreateShortcut($shortcut); $link.TargetPath = Join-Path $root 'notepad.exe'; $link.Save() }
+        finally { [void] [Runtime.InteropServices.Marshal]::ReleaseComObject($shell) }
+        $result = Invoke-Install @('y') -Uninstall
+        $result.ExitCode | Should -Be 1
+        $result.Output | Should -Match 'Failed: A desktop shortcut with the mod''s name starts another program, so it was left alone\.'
+        $shortcut | Should -Exist
+    }
+
+    It 'refuses Reloaded-II''s folder when it holds a link, and keeps the question for the next run' {
+        (Invoke-Install $freshAnswers).ExitCode | Should -Be 0
+        $outside = Join-Path $root 'Precious'
+        New-Link (Join-Path $reloadedFolder 'Mods/linked') $outside
+        Set-Content -LiteralPath (Join-Path $outside 'keep.txt') -Value 'keep'
+        $result = Invoke-Install @('y', 'y') -Uninstall
+        $result.ExitCode | Should -Be 1
+        $result.Output | Should -Match 'Failed: Reloaded-II was left alone'
+        Join-Path $outside 'keep.txt' | Should -Exist
+        Join-Path $reloadedFolder 'Reloaded-II.exe' | Should -Exist
+    }
+
+    It 'runs in Windows PowerShell 5.1' -Skip:(-not (Get-Command powershell.exe -ErrorAction SilentlyContinue)) {
+        Install-Mod
+        $result = Invoke-Install @('y') -Uninstall -Shell 'powershell.exe'
+        $result.ExitCode | Should -Be 0 -Because $result.Output
+        $installed | Should -Not -Exist
+        @((Get-Content -Raw $appConfig | ConvertFrom-Json).EnabledMods) | Should -Be @('other.mod')
+    }
+}
+
+Describe 'Get-RemovalProblem' {
+    BeforeEach { $script:base = (New-Item -ItemType Directory (Join-Path $TestDrive "base $(New-Guid) $([char] 0xE9)")).FullName }
+
+    It 'allows a folder inside the root, with hidden files and a different case' {
+        $folder = New-Item -ItemType Directory (Join-Path $base 'Mods/mod')
+        $hidden = New-Item -ItemType File (Join-Path $folder 'hidden.txt')
+        $hidden.Attributes = 'Hidden'
+        InModuleScope MetaphorInstall -Parameters @{ P = $folder.FullName.ToUpperInvariant(); R = $base } { param($P, $R) Get-RemovalProblem $P $R } |
+            Should -BeNullOrEmpty
+    }
+
+    It 'refuses the root itself, unless allowed, a path outside it, and a drive''s top folder' {
+        $outside = (New-Item -ItemType Directory (Join-Path $TestDrive "outside $(New-Guid)")).FullName
+        InModuleScope MetaphorInstall -Parameters @{ R = $base; O = $outside } {
+            param($R, $O)
+            Get-RemovalProblem $R $R | Should -Match 'is not inside'
+            Get-RemovalProblem $R $R -AllowRoot | Should -BeNullOrEmpty
+            Get-RemovalProblem $O $R | Should -Match 'is not inside'
+            Get-RemovalProblem (Join-Path $R '..') $R | Should -Match 'is not inside'
+            $top = [IO.Path]::GetPathRoot($R)
+            Get-RemovalProblem (Join-Path $top 'x') $top | Should -Match 'top folder'
+        }
+    }
+
+    It 'refuses a link on the way down from the root, or inside the folder' {
+        $target = New-Item -ItemType Directory (Join-Path $TestDrive "target $(New-Guid)")
+        New-Item -ItemType Directory (Join-Path $target 'mod') | Out-Null
+        New-Item -ItemType Junction -Path (Join-Path $base 'Mods') -Target $target.FullName | Out-Null
+        $inner = New-Item -ItemType Directory (Join-Path $base 'Other/mod/deep')
+        New-Item -ItemType Junction -Path (Join-Path $inner 'link') -Target $target.FullName | Out-Null
+        InModuleScope MetaphorInstall -Parameters @{ R = $base } {
+            param($R)
+            Get-RemovalProblem (Join-Path $R 'Mods/mod') $R | Should -Match 'is a link'
+            Get-RemovalProblem (Join-Path $R 'Other/mod') $R | Should -Match 'is a link'
+        }
+    }
+}
+
+Describe 'Test-FullyQualifiedPath' {
+    It 'takes <Path> as <Expected>' -ForEach @(
+        @{ Path = 'C:\Reloaded-II\Reloaded-II.exe'; Expected = $true }
+        @{ Path = 'C:/Reloaded-II/Reloaded-II.exe'; Expected = $true }
+        @{ Path = '\\host\share\Reloaded-II.exe'; Expected = $true }
+        @{ Path = 'C:Reloaded-II.exe'; Expected = $false }
+        @{ Path = '\Reloaded-II\Reloaded-II.exe'; Expected = $false }
+        @{ Path = 'Reloaded-II\Reloaded-II.exe'; Expected = $false }
+        @{ Path = ''; Expected = $false }
+    ) {
+        InModuleScope MetaphorInstall -Parameters @{ P = $Path } { param($P) Test-FullyQualifiedPath $P } | Should -Be $Expected
+    }
+}
+
+Describe 'Read-UninstallLoader' {
+    # A drive-relative launcher path resolves against the current folder; here that folder holds a Reloaded-II.exe and
+    # mods, as the uninstall's own current folder (the temp folder) could.
+    It 'refuses a launcher path that is <Name>' -ForEach @(
+        @{ Name = 'relative to the drive''s current folder'; Form = { param($Folder) "$($Folder.Substring(0, 2))Reloaded-II.exe" } }
+        @{ Name = 'relative to the drive''s top folder'; Form = { param($Folder) $Folder.Substring(2) + '\Reloaded-II.exe' } }
+    ) {
+        $folder = (New-Item -ItemType Directory (Join-Path $TestDrive "cwd $(New-Guid)")).FullName
+        Set-Content -LiteralPath (Join-Path $folder 'Reloaded-II.exe') -Value 'stand-in launcher'
+        $configPath = Join-Path $TestDrive "ReloadedII-$(New-Guid).json"
+        @{ LauncherPath = (& $Form $folder); ModConfigDirectory = (Join-Path $folder 'Mods')
+            ApplicationConfigDirectory = (Join-Path $folder 'Apps') } | ConvertTo-Json | Set-Content -LiteralPath $configPath
+        $context = [pscustomobject]@{ ConfigPath = $configPath; Loader = $null; ReloadedRoot = $null; ModsFolder = $null
+            AppsFolder = $null; UserConfigFolder = $null }
+        $saved = [Environment]::CurrentDirectory
+        Push-Location -LiteralPath $folder
+        [Environment]::CurrentDirectory = $folder
+        try { $step = InModuleScope MetaphorInstall -Parameters @{ C = $context } { param($C) Read-UninstallLoader $C } }
+        finally { Pop-Location; [Environment]::CurrentDirectory = $saved }
+        $step.State | Should -Be 'failed'
+        $context.ReloadedRoot | Should -BeNullOrEmpty
+    }
+}
+
+Describe 'Get-UninstallStep' {
+    It 'gives the five steps in order, and keeps the step functions private' {
+        $steps = @(Get-UninstallStep ([pscustomobject]@{}))
+        $steps.Doing | Should -Be @('Turning the mod off for the game.', 'Removing the mod''s folder from Reloaded-II.',
+            'Removing the mod''s settings from Reloaded-II.', 'Removing the desktop shortcut.',
+            'Checking whether this installer installed Reloaded-II.')
+        $exported = (Get-Module MetaphorInstall).ExportedFunctions.Keys
+        foreach ($name in 'Disable-Mod', 'Remove-ModFiles', 'Remove-Shortcut', 'Remove-Reloaded', 'Get-RemovalProblem') { $exported | Should -Not -Contain $name }
     }
 }
 
