@@ -82,6 +82,13 @@ internal sealed class DataTableRead : IReadsGlobal
         "follower table", [GameBuilds.Steam18330018], "ResourceTablesLoaded",
         LoadOffset: 0xa4, DisplacementOffset: 3, InstructionLength: 7, TurnsOff: "follower names"));
 
+    /// <summary><c>NpcID.bin</c> (#181), whose load is at <c>+0x2c</c>: its global <c>0x2eebc38</c> is the one
+    /// <c>FldNpcGetCharaID</c>'s table getter <c>0x8990c0</c> reads (docs/findings/field-units-names-exits-static.md;
+    /// docs/findings/field-nearby-reads-static.md).</summary>
+    public static DataTableRead People() => new(new(
+        "person table", [GameBuilds.Steam18330018], "ResourceTablesLoaded",
+        LoadOffset: 0x2c, DisplacementOffset: 3, InstructionLength: 7, TurnsOff: "people's names in the nearby list"));
+
     public GlobalSpec Global { get; }
 
     public void Locate(nint address) => global = address;

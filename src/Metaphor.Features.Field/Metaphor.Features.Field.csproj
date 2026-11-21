@@ -1,0 +1,14 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- The field's nearby list and "where am I" (#181). A feature: plain logic over Metaphor.Core's announcer and
+       message events, and plain values the hook layer copies from the game, independent of every other feature
+       (architecture rule 5). -->
+  <PropertyGroup>
+    <TargetFramework>net9.0</TargetFramework>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Metaphor.Core\Metaphor.Core.csproj" />
+  </ItemGroup>
+
+</Project>

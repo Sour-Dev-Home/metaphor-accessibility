@@ -9,6 +9,9 @@ checks them in the first game session and removes the tag.
 
 ## Unreleased
 
+- **What is near, and where am I.** In the field, `N` says the people, doors, chests and enemies near you, nearest
+  first, with rough steps and a direction from your facing; `LB` with the D-pad's Down and Up steps through them. `L`,
+  or `LB` with Left, says the place name the game last showed (#181). `[NEEDS VERIFICATION by ear]`
 - **Sound cues can be turned off and their volume set.** The mod can now play short sounds of its own, explained in
   [sound cues](docs/players/reference/sound-cues.md); `soundCues` and `soundCueVolume` in `settings.json` control
   them. The battle hit sounds arrive with spoken battle hits (#247, #636). `[NEEDS VERIFICATION by ear]`

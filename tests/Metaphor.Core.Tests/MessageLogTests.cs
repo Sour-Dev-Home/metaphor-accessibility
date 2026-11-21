@@ -41,6 +41,16 @@ public sealed class MessageLogTests
     }
 
     [Fact]
+    public void RecordsAFieldRead()
+    {
+        var (log, text) = NewLog(now: 40);
+
+        log.FieldRead("nearby player=(1,2,3)");
+
+        Assert.Equal($"40 ms field nearby player=(1,2,3){Environment.NewLine}", text.ToString());
+    }
+
+    [Fact]
     public void RecordsAScriptFunctionTheGameRegistered()
     {
         var (log, text) = NewLog(now: 900);
