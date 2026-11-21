@@ -11,6 +11,9 @@ checks them in the first game session and removes the tag.
 
 - **Tutorial pop-ups say what they are.** When a tutorial opens, the mod reads its title, how many pages it has, and
   its first page. Each page you turn to is read as "Page 2 of 3" and its text (#118). `[NEEDS VERIFICATION by ear]`
+- **Yes and No buttons.** The installer asks each question in a small window with Yes and No buttons, which your
+  screen reader reads, instead of asking you to type an answer. Where it can't find the game, you choose
+  `METAPHOR.exe` in Windows' Open window (#607). `[NEEDS VERIFICATION by ear]`
 - **What is near, and where am I.** In the field, `N` says the people, doors, chests and enemies near you, nearest
   first, with rough steps and a direction from your facing; `LB` with the D-pad's Down and Up steps through them. `L`,
   or `LB` with Left, says the place name the game last showed (#181). `[NEEDS VERIFICATION by ear]`
@@ -51,7 +54,9 @@ The first early-access release. It is for the Steam version of Metaphor: ReFanta
   - it refuses to run as administrator, and if User Account Control is turned off it says so and asks before going on;
   - when Windows' Controlled folder access blocks a write, it names that as the cause;
   - it puts a shortcut called "Metaphor ReFantazio with accessibility" on your desktop, and ends with a check of the
-    install. Run it again to update the mod.
+    install. Run it again to update the mod;
+  - `uninstall.cmd` removes the mod, its settings, its shortcut and its entry for the game, and asks before
+    removing a Reloaded-II it installed. It keeps the runtimes.
 
   `[NEEDS VERIFICATION by ear]` The installer's spoken wording. See
   [Install the mod](docs/players/how-to/install-the-mod.md).
