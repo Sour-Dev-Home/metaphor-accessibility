@@ -30,9 +30,10 @@ public sealed record FieldUnit(FieldKind Kind, float X, float Y, float Z, string
 /// <param name="DoorReachValue">The field database's value that picks the doors' reach (1 or 2: 150, else 300), or null
 /// when it wasn't read.</param>
 /// <param name="MapId">The map's id, or null when it wasn't read.</param>
+/// <param name="CameraHeading">As <see cref="FieldPose.CameraHeading"/>; logged only.</param>
 public sealed record FieldView(
     float X, float Y, float Z, double Heading, IReadOnlyList<FieldUnit> Units, int? DoorReachValue = null,
-    int? MapId = null);
+    int? MapId = null, double? CameraHeading = null);
 
 /// <summary>Where the player stands and faces, as <see cref="FieldView"/>'s: a value, so the beacon (#183) reads it on
 /// every poll without allocating.</summary>
@@ -40,7 +41,10 @@ public sealed record FieldView(
 /// <param name="Y">The player's height.</param>
 /// <param name="Z">The player's other ground axis.</param>
 /// <param name="Heading">The way the player faces, as <see cref="FieldView.Heading"/>.</param>
-public readonly record struct FieldPose(float X, float Y, float Z, double Heading);
+/// <param name="CameraHeading">The way the field camera looks across the ground (from its eye to its look-at point),
+/// measured as <paramref name="Heading"/>, or null when it can't be read
+/// (docs/raw-sources/field-position-camera-session6-2026-11-17.md).</param>
+public readonly record struct FieldPose(float X, float Y, float Z, double Heading, double? CameraHeading = null);
 
 /// <summary>What the field controls read from the game, on the thread that called them.</summary>
 public interface IFieldReads

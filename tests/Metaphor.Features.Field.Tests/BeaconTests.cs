@@ -83,12 +83,47 @@ public sealed class BeaconTests
         Assert.Equal(2, cues.Held.Count);
     }
 
+    // Without a camera read, the facing stands in.
     [Fact]
-    public void ThePanFollowsThePlayerTurning()
+    public void ThePanFollowsThePlayerTurningWhenTheCameraIsUnread()
     {
         beacon.Start(Person(0, 1000));
         beacon.Tick();
         field.Pose = new FieldPose(0, 0, 0, -Math.PI / 2);
+        now += Beacon.IntervalMilliseconds(1000);
+        beacon.Tick();
+
+        Assert.Equal(0, cues.Held[0].Pan, 6);
+        Assert.Equal(-1, cues.Held[1].Pan, 6);
+    }
+
+    // The camera's heading, as the facing's: the target's bearing is measured against what is ahead on screen (#183,
+    // by ear 2026-11-21), so the player facing elsewhere doesn't move the beep.
+    [Theory]
+    [InlineData(0, 1000, 0, Beacon.AheadHertz)]
+    [InlineData(0, -1000, 0, Beacon.BehindHertz)]
+    [InlineData(-1000, 0, 1, (Beacon.AheadHertz + Beacon.BehindHertz) / 2)]
+    [InlineData(1000, 0, -1, (Beacon.AheadHertz + Beacon.BehindHertz) / 2)]
+    public void TheBeepFollowsTheCameraNotTheFacing(float x, float z, double pan, double hertz)
+    {
+        // The player faces left of the camera (headings grow counter-clockwise, so +x is left); the camera looks along +z.
+        field.Pose = new FieldPose(0, 0, 0, Math.PI / 2, CameraHeading: 0);
+        beacon.Start(Person(x, z));
+        beacon.Tick();
+
+        var tone = Assert.Single(cues.Held);
+        Assert.Equal(pan, tone.Pan, 6);
+        Assert.Equal(hertz, tone.Hertz, 6);
+    }
+
+    [Fact]
+    public void ThePanFollowsTheCameraTurning()
+    {
+        field.Pose = new FieldPose(0, 0, 0, 0, CameraHeading: 0);
+        beacon.Start(Person(0, 1000));
+        beacon.Tick();
+        // The camera swings to look right (heading −π/2) while the player stands: the target is now on screen left.
+        field.Pose = new FieldPose(0, 0, 0, 0, CameraHeading: -Math.PI / 2);
         now += Beacon.IntervalMilliseconds(1000);
         beacon.Tick();
 

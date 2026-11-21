@@ -43,7 +43,8 @@ internal sealed class FieldGlobal : IReadsGlobal
 
 /// <summary>The field around the player (#181), read on the press from the game's unit manager and copied into plain
 /// values. On game build 548ddc95… (Steam build 18330018): the manager is <c>M = [fldWorld+0x20]</c>, the player
-/// <c>[M]</c> with its position at <c>+0x80</c> and facing quaternion at <c>+0x90</c>; each list's <c>begin</c> and
+/// <c>[M]</c> with its position at <c>+0x80</c> and facing quaternion at <c>+0x90</c>; the camera
+/// <c>[[fldWorld+0x10]]</c> with its eye at <c>+0x60</c> and look-at at <c>+0x70</c>; each list's <c>begin</c> and
 /// <c>end</c> sit at fixed offsets in <c>M</c> and every unit's position at <c>+0x80</c>; free roam is the scene
 /// <c>[[[fldScene_Root]+0x10]+0x10]</c> of class <c>fldScene_Idle</c>; the map id is <c>fldDatabase+0x48</c>
 /// (docs/findings/field-position-facing-map-static.md, field-units-names-exits-static.md,
@@ -58,6 +59,9 @@ internal sealed class FieldMemory(
     private const int Manager = 0x20;
     private const int Position = 0x80;
     private const int Facing = 0x90;
+    private const int CameraManager = 0x10;
+    private const int CameraEye = 0x60;
+    private const int CameraLookAt = 0x70;
     private const int MapIdOffset = 0x48;
     // 0x5ab030 returns this int when it isn't -1; otherwise it reads a table through .text1, which stays unread.
     private const int DoorReachOffset = 0x58;
@@ -94,7 +98,7 @@ internal sealed class FieldMemory(
 
     public FieldView? Read()
     {
-        if (UnitManager() is not { } manager || Pose(manager) is not { } pose)
+        if (ReadPose() is not { } pose || UnitManager() is not { } manager)
         {
             return null;
         }
@@ -105,11 +109,29 @@ internal sealed class FieldMemory(
         }
         int? doorValue = database.Object() is { } db && ModuleMemoryReader.ReadInt32(db + DoorReachOffset) is { } value &&
             value != -1 ? value : null;
-        return new FieldView(pose.X, pose.Y, pose.Z, pose.Heading, units, doorValue, MapId());
+        return new FieldView(pose.X, pose.Y, pose.Z, pose.Heading, units, doorValue, MapId(), pose.CameraHeading);
     }
 
     // The beacon's poll (#183): the same reads as Read's player, and no allocation.
-    public FieldPose? ReadPose() => UnitManager() is { } manager ? Pose(manager) : null;
+    public FieldPose? ReadPose() =>
+        UnitManager() is { } manager && Pose(manager) is { } pose ? pose with { CameraHeading = CameraHeading() } : null;
+
+    // The camera object [[fldWorld+0x10]+0x0], its eye at +0x60 and look-at at +0x70: the session-6 reader's chain, its
+    // view heading that of look-at − eye (docs/raw-sources/field-position-camera-session6-2026-11-17.md; the static
+    // lead FldCameraGetRelativeToPlayerDir_Yaw 0x8d8870 in docs/raw-sources/field-position-2026-11-16.md).
+    private double? CameraHeading()
+    {
+        if (world.Object() is not { } fieldWorld ||
+            ModuleMemoryReader.ReadPointer(fieldWorld + CameraManager) is not { } cameras || cameras == 0 ||
+            ModuleMemoryReader.ReadPointer(cameras) is not { } camera || camera == 0 ||
+            Vector(camera + CameraEye) is not { } eye || Vector(camera + CameraLookAt) is not { } lookAt)
+        {
+            return null;
+        }
+        var dx = lookAt.X - eye.X;
+        var dz = lookAt.Z - eye.Z;
+        return dx == 0 && dz == 0 ? null : Math.Atan2(dx, dz);
+    }
 
     private nint? UnitManager() =>
         world.Object() is { } fieldWorld && ModuleMemoryReader.ReadPointer(fieldWorld + Manager) is { } manager &&

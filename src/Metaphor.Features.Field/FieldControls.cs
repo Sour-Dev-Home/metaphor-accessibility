@@ -284,7 +284,7 @@ public sealed class FieldControls : IInputControls
         var counts = string.Join(',', Enum.GetValues<FieldKind>()
             .Select(kind => string.Create(CultureInfo.InvariantCulture, $"{kind}:{view.Units.Count(unit => unit.Kind == kind)}")));
         log(string.Create(CultureInfo.InvariantCulture,
-            $"nearby player=({view.X:0.#},{view.Y:0.#},{view.Z:0.#}) heading={view.Heading:0.###} map={Number(view.MapId)} doorValue={Number(view.DoorReachValue)} units={counts}"));
+            $"nearby player=({view.X:0.#},{view.Y:0.#},{view.Z:0.#}) heading={view.Heading:0.###} camera={view.CameraHeading?.ToString("0.###", CultureInfo.InvariantCulture) ?? "?"} map={Number(view.MapId)} doorValue={Number(view.DoorReachValue)} units={counts}"));
         foreach (var thing in things)
         {
             var unit = thing.Unit;

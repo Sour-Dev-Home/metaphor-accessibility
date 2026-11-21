@@ -258,7 +258,8 @@ only, not the keys, the load message or the settings message.
 4. `G` on the keyboard, or `LB` held and `Right` on the D-pad: guides you to the thing you last stepped to, or to the
    nearest thing if you haven't stepped in the last 10 seconds. It says "Guiding to", then the name, and a short beep
    repeats: from the left or right as the thing lies, higher when it's ahead and lower when it's behind, and faster as
-   you get closer. Walk so the beep is high and in the middle. It says "Reached", then the name, when you get there.
+   you get closer. Ahead means the way the camera looks, which is the way pushing the stick up walks you. Walk so the
+   beep is high and in the middle. It says "Reached", then the name, when you get there.
    Press again to stop: it says "Guidance off". Opening a menu or starting a dialogue stops it too. The beep points in
    a straight line and doesn't know about walls yet. It plays only while sound cues are on.
 

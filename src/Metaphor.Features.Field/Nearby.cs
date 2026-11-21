@@ -117,7 +117,8 @@ public static class Nearby
         return new(unit, distance, bearing, inReach);
     }
 
-    private static double Normalised(double angle)
+    /// <summary><paramref name="angle"/> wrapped into (−π, π].</summary>
+    internal static double Normalised(double angle)
     {
         var turned = Math.IEEERemainder(angle, 2 * Math.PI);
         return turned <= -Math.PI ? turned + 2 * Math.PI : turned;

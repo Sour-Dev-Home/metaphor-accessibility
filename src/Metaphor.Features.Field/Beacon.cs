@@ -10,7 +10,8 @@ namespace Metaphor.Features.Field;
 public sealed record BeaconTarget(FieldUnit Unit, int? DoorReachValue);
 
 /// <summary>A repeating tone toward a target picked from the nearby list (#183), in a straight line: panned by its
-/// bearing from the player's facing, higher ahead than behind (stereo alone can't tell them apart), and pulsing faster
+/// bearing from the camera's heading (what is ahead on screen; the player's facing when the camera isn't read), higher
+/// ahead than behind (stereo alone can't tell them apart), and pulsing faster
 /// as it nears. It stops on arrival (the game's reach test for the target's kind, or within
 /// <see cref="ArrivalDistance"/>), on <see cref="Stop"/>, and silently on leaving free roam or when the player can't be
 /// read. <see cref="Tick"/> is called on every input read; it reads the field at most once per
@@ -154,7 +155,11 @@ public sealed class Beacon
                         return;
                     }
                     distance = far;
-                    bearing = toward;
+                    // The beep's direction is from what is ahead on screen, the camera's heading (maintainer, by ear
+                    // 2026-11-21 on PR #667); the facing, which the reach test needs, stands in when it isn't read.
+                    bearing = pose.CameraHeading is { } camera
+                        ? Nearby.Normalised(toward + pose.Heading - camera)
+                        : toward;
                 }
                 if (sounding && now >= pulseEndsAt)
                 {
