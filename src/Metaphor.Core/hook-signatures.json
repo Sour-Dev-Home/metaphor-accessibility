@@ -112,6 +112,13 @@
     "evidence": "Our reading of the exe through its type information (docs/raw-sources/screen-class-link-2026-11-17.md); one match on disk, installed in memory at module offset 0xd4ab90 (docs/raw-sources/screen-class-session-2026-11-17.md)"
   },
   {
+    "name": "NameEntryInputUpdate",
+    "section": ".ecode",
+    "pattern": "48 89 5C 24 10 55 56 57 41 54 41 55 41 56 41 57 48 8D AC 24 80 FB FF FF 48 81 EC 80 05 00 00 4C 8B F1 48 8B 49 20 48 8B 01 FF 50 68 49 8B 4E 20 48 8B 01 FF 90 A0 00 00 00 85 C0 0F 84 ?? ?? ?? ?? 49 8B 4E 20 48 8B 01 FF 90 A0 00 00 00 A8 01",
+    "gameBuilds": ["548ddc955c176867f062c44f94c03dd9ac33caefb278a5ac388e792aedf09504"],
+    "evidence": "What fclNameEntry's update calls while the player types, our reading of the exe through its type information (docs/findings/name-entry-static.md); one match on disk at rva 0x4fef10 (tools/Metaphor.SignatureCheck/name-entry-probes.json); not yet checked in memory"
+  },
+  {
     "name": "DifficultySelectUpdate",
     "section": ".ecode",
     "pattern": "48 89 5C 24 18 48 89 74 24 20 55 57 41 54 41 56 41 57 48 8D AC 24 00 FE FF FF 48 81 EC 00 03 00 00 48 8B F1 48 63 41 70 83 F8 07 0F 87 ?? ?? ?? ?? 48 8D 0D ?? ?? ?? ?? 8B 94 81 ?? ?? ?? ?? 48 03 D1 FF E2",
@@ -271,5 +278,26 @@
     "pattern": "40 53 48 83 EC 20 48 8B D9 48 8B 0D ?? ?? ?? ?? E8 ?? ?? ?? ?? 83 E8 05 74 09 83 F8 01 74 04 33 D2 EB 05 BA 01 00 00 00 48 8B CB E8",
     "gameBuilds": ["548ddc955c176867f062c44f94c03dd9ac33caefb278a5ac388e792aedf09504"],
     "evidence": "Our reading of the exe in Ghidra 12.2: 0x5767f0, whose mov rcx at +0x9 loads fldDatabase 0x2ee7368 for 0x5ab030 (docs/findings/field-nearby-reads-static.md); one match on disk; read only, never hooked or called"
+  },
+  {
+    "name": "TravelMapPanelShow",
+    "section": ".ecode",
+    "pattern": "44 88 44 24 18 89 54 24 10 48 89 4C 24 08 55 53 56 57 41 54 41 55 41 56 41 57 48 8B EC 48 83 EC 78 C5 F8 29 74 24 60 C5 F8 29 7C 24 50 49 8B F1",
+    "gameBuilds": ["548ddc955c176867f062c44f94c03dd9ac33caefb278a5ac388e792aedf09504"],
+    "evidence": "Our reading of the exe in Ghidra 12.2: sortie::map::Detail's show-a-destination, 0xcccf50 (docs/findings/world-map-destination-panel-static.md, docs/findings/travel-map-destination-text-static.md); one match on disk; not yet checked in memory"
+  },
+  {
+    "name": "FieldMapNameCompose",
+    "section": ".ecode",
+    "pattern": "48 89 5C 24 08 48 89 7C 24 10 55 48 8B EC 48 83 EC 40 48 8B FA 48 8B D9 C5 F9 EF C0 C5 FA 7F 45 E0 48 C7 45 F0 00 00 00 00 E8",
+    "gameBuilds": ["548ddc955c176867f062c44f94c03dd9ac33caefb278a5ac388e792aedf09504"],
+    "evidence": "Our reading of the exe in Ghidra 12.2: the field map name strip's name composer, 0xefe180 (docs/findings/field-map-region-area-name-static.md); one match on disk; not yet checked in memory"
+  },
+  {
+    "name": "FieldMapNameSetId",
+    "section": ".ecode",
+    "pattern": "48 89 5C 24 18 55 56 57 41 56 41 57 48 83 EC 20 8B 02 48 8B F1 89 81 E8 07 00 00 48 8B FA",
+    "gameBuilds": ["548ddc955c176867f062c44f94c03dd9ac33caefb278a5ac388e792aedf09504"],
+    "evidence": "Our reading of the exe in Ghidra 12.2: the field map name strip's set-the-place, 0xc93070 (docs/findings/field-map-region-area-name-static.md); one match on disk; not yet checked in memory"
   }
 ]

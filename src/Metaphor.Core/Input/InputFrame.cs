@@ -33,6 +33,13 @@ public interface IWindowInputControls : IInputControls
     void WindowRead(long? currentMessage);
 }
 
+/// <summary>Watches each keyboard read without changing it, such as the name entry's Enter hint (#585).</summary>
+public interface IKeyWatcher
+{
+    /// <summary>Takes one read of the keys held down, as the game read them.</summary>
+    void Keys(IReadOnlyList<int> keys);
+}
+
 /// <summary>What the frame hands the game for one pad read, and the window read it was decided on.</summary>
 public readonly record struct PadAnswer(int Buttons, long? Window);
 
@@ -52,17 +59,24 @@ public sealed class InputFrame
     private readonly IInputControls menus;
     private readonly IWindowInputControls dialogue;
     private readonly IInputControls field;
+    private readonly IKeyWatcher? watcher;
 
     public InputFrame(IGameInputState game, MenuScreens screens, IInputControls menus, IWindowInputControls dialogue)
-        : this(game, screens, menus, dialogue, PassThrough.Instance)
+        : this(game, screens, menus, dialogue, NoControls)
     {
     }
 
-    /// <summary>A frame whose <paramref name="field"/> controls (#181) get what the dialogue controls leave.</summary>
+    /// <summary>Controls that hand every read on unchanged, for a frame without field controls.</summary>
+    public static IInputControls NoControls => PassThrough.Instance;
+
+    /// <summary>A frame whose <paramref name="field"/> controls (#181) get what the dialogue controls leave;
+    /// <paramref name="watcher"/>, when given, sees each keyboard read first, as the game read it, and changes
+    /// nothing.</summary>
     public InputFrame(
         IGameInputState game, MenuScreens screens, IInputControls menus, IWindowInputControls dialogue,
-        IInputControls field)
+        IInputControls field, IKeyWatcher? watcher = null)
     {
+        this.watcher = watcher;
         ArgumentNullException.ThrowIfNull(game);
         ArgumentNullException.ThrowIfNull(screens);
         ArgumentNullException.ThrowIfNull(menus);
@@ -90,6 +104,7 @@ public sealed class InputFrame
     {
         ArgumentNullException.ThrowIfNull(keys);
         var window = ReadState();
+        watcher?.Keys(keys);
         var handed = field.Keys(dialogue.Keys(menus.Keys(keys)));
         return new(Kept(keys, handed), window);
     }

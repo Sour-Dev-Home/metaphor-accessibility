@@ -145,6 +145,17 @@ public sealed class MessageLogTests
             $"5 ms player-name via=CreateMsgFromString bytes=6 match=exact at=heap{Environment.NewLine}", text.ToString());
     }
 
+    // #585: the name entry box's length, never what was typed.
+    [Fact]
+    public void RecordsANameEntryBoxByItsLengthOnly()
+    {
+        var (log, text) = NewLog(now: 7);
+
+        log.NameEntryChanged(new Metaphor.Core.Menus.NameEntryFrame(0x5000, playerName: false, "Ardent"));
+
+        Assert.Equal($"7 ms name-entry player=0 chars=6{Environment.NewLine}", text.ToString());
+    }
+
     [Fact]
     public void RecordsALineTheGameRequestedByName()
     {

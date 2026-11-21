@@ -89,6 +89,14 @@ public sealed class MessageLog(TextWriter writer, Func<long> millisecondsSinceSt
     public void PlayerNameSeen(string function, PlayerNameSighting sighting) =>
         Write(() => Line($"{millisecondsSinceStart()} ms player-name via={function} {sighting}"));
 
+    /// <summary>A name entry screen's box, when its length changed (#585): which screen and the length, never the typed
+    /// text (<see cref="Menus.NameEntryFrame.ToString"/>).</summary>
+    public void NameEntryChanged(Menus.NameEntryFrame frame)
+    {
+        ArgumentNullException.ThrowIfNull(frame);
+        Write(() => Line($"{millisecondsSinceStart()} ms name-entry {frame}"));
+    }
+
     /// <summary>A pad's or the keyboard's state as the game read it, when it changed (#58): the source and the state as
     /// the listening hook formatted it. Bit masks only, no game text.</summary>
     public void InputChanged(string source, string state) =>
@@ -108,6 +116,11 @@ public sealed class MessageLog(TextWriter writer, Func<long> millisecondsSinceSt
     /// details as the listening hook formatted them. Numbers, and the window's strings, which are file paths.</summary>
     public void TutorialSeen(string what, string details) =>
         Write(() => Line($"{millisecondsSinceStart()} ms tutorial {what} {details}"));
+
+    /// <summary>A map screen's place text (#545, #586): which part (<c>panel</c>, <c>compose</c> or <c>strip</c>) and
+    /// its details as the hook formatted them: numbers, raw reference bytes and the text that was said or read.</summary>
+    public void MapSeen(string what, string details) =>
+        Write(() => Line($"{millisecondsSinceStart()} ms map {what} {details}"));
 
     /// <summary>An input a menu's cursor manager handled that changed something (#93, #94). Numbers only, no game
     /// text.</summary>
