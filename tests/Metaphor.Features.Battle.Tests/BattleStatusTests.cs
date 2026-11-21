@@ -3,8 +3,9 @@ using Metaphor.Core.Battle;
 
 namespace Metaphor.Features.Battle.Tests;
 
-/// <summary>The status key (#631): H or L3 pressed alone says the party's HP, then the enemies this battle has hit, and
-/// is hidden from the game; anything else reaches it. Made-up party and numbers only.</summary>
+/// <summary>The status key (#631): in a battle, H or L3 pressed alone says the party's HP, then the enemies this battle
+/// has hit, and is hidden from the game; anything else, and the key outside a battle, reaches it. Made-up party and
+/// numbers only.</summary>
 [Trait("Category", "Unit")]
 public sealed class BattleStatusTests : IDisposable
 {
@@ -13,13 +14,60 @@ public sealed class BattleStatusTests : IDisposable
     private readonly RecordingAnnouncer announcer = new();
     private readonly ManualTime time = new();
     private readonly Party party = new();
+    private readonly Scene scene = new() { On = true };
     private readonly HitLines hits;
     private readonly BattleStatus status;
 
     public BattleStatusTests()
     {
         hits = new HitLines(new SilentAnnouncer(), time, unit => unit == 3 ? "Rowan" : null);
-        status = new BattleStatus(party, hits, announcer);
+        status = new BattleStatus(party, hits, scene, announcer);
+    }
+
+    [Fact]
+    public void OutsideABattleL3AndHReachTheGameAndSayNothing()
+    {
+        scene.On = false;
+        party.Now = [new PartyMember(0, 3, 89, 120)];
+
+        Assert.Equal(BattleStatus.LeftThumb, status.Pad(0, BattleStatus.LeftThumb, made: true));
+        Assert.Equal([BattleStatus.KeyH], status.Keys([BattleStatus.KeyH]));
+
+        Assert.Empty(announcer.Said);
+    }
+
+    [Fact]
+    public void APressKeepsWhereItStartedUntilReleased()
+    {
+        scene.On = false;
+        status.Pad(0, BattleStatus.LeftThumb, made: true);
+        scene.On = true;
+
+        Assert.Equal(BattleStatus.LeftThumb, status.Pad(0, BattleStatus.LeftThumb, made: true));
+        Assert.Empty(announcer.Said);
+
+        status.Pad(0, 0, made: true);
+        Assert.Equal(0, status.Pad(0, BattleStatus.LeftThumb, made: true));
+        Assert.Single(announcer.Said);
+    }
+
+    [Fact]
+    public void ABattleSceneIsTheFieldsCommandBattleScene()
+    {
+        Assert.True(BattleScene.IsBattle("fldScene_CmdBattle@fld@app"));
+        Assert.False(BattleScene.IsBattle("fldScene_Idle@fld@app"));
+        Assert.False(BattleScene.IsBattle("fldScene_LargeMap@fld@app"));
+        Assert.False(BattleScene.IsBattle(null));
+    }
+
+    [Fact]
+    public void TheSceneIsAskedOncePerPress()
+    {
+        status.Pad(0, BattleStatus.LeftThumb, made: true);
+        status.Pad(0, BattleStatus.LeftThumb, made: true);
+        status.Pad(0, 0, made: true);
+
+        Assert.Equal(1, scene.Asked);
     }
 
     public void Dispose() => hits.Dispose();
@@ -77,5 +125,18 @@ public sealed class BattleStatusTests : IDisposable
         public IReadOnlyList<PartyMember> Now { get; set; } = [];
 
         public IReadOnlyList<PartyMember> Members() => Now;
+    }
+
+    private sealed class Scene : IBattleScene
+    {
+        public bool On { get; set; }
+
+        public int Asked { get; private set; }
+
+        public bool InBattle()
+        {
+            Asked++;
+            return On;
+        }
     }
 }

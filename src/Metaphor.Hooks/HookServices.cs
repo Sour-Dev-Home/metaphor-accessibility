@@ -60,7 +60,10 @@ internal sealed record HookServices
     /// <summary>Every reader of a game global, which the loader hands each global it locates before any hook goes in.
     /// </summary>
     public IReadOnlyList<IReadsGlobal> Globals =>
-        [MenusOpen, DialogueWindow, GameData, CharacterTable, FollowerTable, Voice];
+        [MenusOpen, DialogueWindow, GameData, CharacterTable, FollowerTable, Voice, BattleScene];
+
+    /// <summary>Reads whether a battle is on, for the status key (#631); the loader locates what it reads.</summary>
+    public BattleSceneRead BattleScene { get; init; } = new();
 
     /// <summary>Reads the game's voice language for the auto voiced-lines mode (#538); the loader locates what it reads
     /// (#300).</summary>
@@ -185,6 +188,8 @@ internal sealed record HookServices
             cursors.Observe(log);
         }
         var hitLines = new HitLines(reader, TimeProvider.System, _ => null);
+        // The status key acts only in a battle (#631); a Debug build logs the scene each press read.
+        var battleScene = new BattleSceneRead { Log = log };
         return new()
         {
             Messages = events,
@@ -196,7 +201,8 @@ internal sealed record HookServices
             // read of a party member's name is known yet, so each is named by its slot.
             BattleHits = hitLines,
             BattleParty = party,
-            BattleStatus = new BattleStatus(party, hitLines, reader),
+            BattleScene = battleScene,
+            BattleStatus = new BattleStatus(party, hitLines, battleScene, reader),
             DialogueHistory = history,
             DialogueControls = controls,
             MenuControls = menuControls,

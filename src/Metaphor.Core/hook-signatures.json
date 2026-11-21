@@ -257,5 +257,12 @@
     "pattern": "41 56 48 83 EC 30 83 79 18 03 4C 8B F1 0F 84 ?? ?? ?? ?? 48 8B 01 FF 50 08 84 C0 0F 84 ?? ?? ?? ?? 41 8B 4E 18 48 89 5C 24 50",
     "gameBuilds": ["548ddc955c176867f062c44f94c03dd9ac33caefb278a5ac388e792aedf09504"],
     "evidence": "Our reading of the exe in Ghidra 12.2: UUIC_Common_TutorialWindow's vtable slot 13 (vtable 0x22576a0), its per-frame update (docs/findings/tutorial-popup-window-static.md); one match on disk; not yet checked in memory"
+  },
+  {
+    "name": "FieldSceneRootRead",
+    "section": ".ecode",
+    "pattern": "48 83 EC 28 80 3D ?? ?? ?? ?? 00 75 1E 48 8B 0D ?? ?? ?? ?? 48 8B 01 FF 50 18 33 C9 83 F8 01 0F 95 C1 48 8D 41 FF 48 83 C4 28 C3",
+    "gameBuilds": ["548ddc955c176867f062c44f94c03dd9ac33caefb278a5ac388e792aedf09504"],
+    "evidence": "Our reading of the exe: 0x522db0, whose mov rcx at +0xd loads fldScene_Root 0x2ee7348 (docs/findings/battle-scene-signal-static.md); one match on disk; read only, never hooked or called"
   }
 ]

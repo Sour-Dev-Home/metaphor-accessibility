@@ -16,7 +16,8 @@ checks them in the first game session and removes the tag.
 - **Battle's skill and item lists are read**: "Skills" or "Items" as the list opens, then each skill or item's name
   and "n of total" as you move. F, or R3 on the pad, reads the focused one's description (#247).
   `[NEEDS VERIFICATION by ear]`
-- **A status key.** H, or L3 on the pad, pressed on its own, says each party member's HP, then the enemies' (#631).
+- **A status key.** In a battle, H, or L3 on the pad, pressed on its own, says each party member's HP, then the
+  enemies' (#631). Outside a battle both keys reach the game as before, so L3 still recentres the world map.
   `[NEEDS VERIFICATION by ear]`
 
 - **One file to open after extracting.** The zip's top level holds `Install Metaphor accessibility.cmd` beside the
