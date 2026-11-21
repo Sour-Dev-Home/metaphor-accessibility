@@ -74,6 +74,49 @@ public sealed class SettingsReloaderTests
     }
 
     [Fact]
+    public void TurningSoundCuesOffOrOnIsSaid()
+    {
+        var reloader = Reloader();
+        reloader.Load("{}");
+
+        reloader.Reload("""{ "soundCues": false }""");
+        reloader.Reload("""{ "soundCues": true }""");
+
+        Assert.Equal(
+            [new Announcement("Sound cues: off.", Interrupt: true), new Announcement("Sound cues: on.", Interrupt: true)],
+            announcer.Said);
+    }
+
+    [Fact]
+    public void ANewSoundCueVolumeIsSaid()
+    {
+        var reloader = Reloader();
+        reloader.Load("{}");
+
+        reloader.Reload("""{ "soundCueVolume": 80 }""");
+
+        Assert.Equal(80, reloader.Current.SoundCueVolume);
+        Assert.Equal([new Announcement("Sound cue volume: 80.", Interrupt: true)], announcer.Said);
+    }
+
+    [Fact]
+    public void SeveralChangesAreSaidInTurnTheFirstInterrupting()
+    {
+        var reloader = Reloader();
+        reloader.Load("{}");
+
+        reloader.Reload("""{ "voicedLines": "nothing", "soundCues": false, "soundCueVolume": 20 }""");
+
+        Assert.Equal(
+            [
+                new Announcement("Voiced lines: nothing.", Interrupt: true),
+                new Announcement("Sound cues: off.", Interrupt: false),
+                new Announcement("Sound cue volume: 20.", Interrupt: false),
+            ],
+            announcer.Said);
+    }
+
+    [Fact]
     public void ABrokenFileFallsBackToDefaultsAndLogs()
     {
         var reloader = Reloader();

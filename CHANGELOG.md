@@ -9,6 +9,9 @@ checks them in the first game session and removes the tag.
 
 ## Unreleased
 
+- **Sound cues can be turned off and their volume set.** The mod can now play short sounds of its own, explained in
+  [sound cues](docs/players/reference/sound-cues.md); `soundCues` and `soundCueVolume` in `settings.json` control
+  them. The battle hit sounds arrive with spoken battle hits (#247, #636). `[NEEDS VERIFICATION by ear]`
 - **One file to open after extracting.** The zip's top level holds `Install Metaphor accessibility.cmd` beside the
   mod's folder: extract the zip and press Enter on it, with no search through the mod's files (#604).
   `[NEEDS VERIFICATION by ear]`

@@ -6,6 +6,8 @@ For people installing and using the mods. Nothing is released yet, so pages here
 - [Install the mod](how-to/install-the-mod.md) (draft): Reloaded-II, the game, the mod, a desktop shortcut and the keys.
 - [Check a download](how-to/check-a-download.md) (draft): that a zip of the mod, a release or a dev build, is the
   one CI built.
+- [Sound cues](reference/sound-cues.md) (draft): the short sounds the mod plays, what each means, and how to turn them
+  off or change their volume.
 
 Player pages must work with a screen reader: headings for structure, link text that makes sense on its own, and no
 information given only by an image or a colour.

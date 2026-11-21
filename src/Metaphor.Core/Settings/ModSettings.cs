@@ -26,12 +26,20 @@ public sealed record ModSettings
     public const string FileName = "settings.json";
 
     private const string VoicedLinesKey = "voicedLines";
+    private const string SoundCuesKey = "soundCues";
+    private const string SoundCueVolumeKey = "soundCueVolume";
 
     /// <summary>What every setting is without a usable file.</summary>
     public static ModSettings Defaults { get; } = new();
 
     /// <summary>How voiced dialogue lines are spoken.</summary>
     public VoicedLinesMode VoicedLines { get; init; } = VoicedLinesMode.Auto;
+
+    /// <summary>Whether the mod plays its sound cues (#636, ADR 0019). On by default.</summary>
+    public bool SoundCues { get; init; } = true;
+
+    /// <summary>How loud the sound cues are, 0 (silent) to 100 (#636). 50 by default.</summary>
+    public int SoundCueVolume { get; init; } = 50;
 
     /// <summary>Reads the file's text; null means no file. Anything unusable, whether the whole file or one setting,
     /// gives the default and a line to <paramref name="log"/>. Keys it doesn't know are ignored, so later settings can
@@ -51,7 +59,12 @@ public sealed record ModSettings
                 log("settings file is not a JSON object; using defaults");
                 return Defaults;
             }
-            return new ModSettings { VoicedLines = ReadMode(document.RootElement, log) };
+            return new ModSettings
+            {
+                VoicedLines = ReadMode(document.RootElement, log),
+                SoundCues = ReadSoundCues(document.RootElement, log),
+                SoundCueVolume = ReadSoundCueVolume(document.RootElement, log),
+            };
         }
         // A lone surrogate, raw or escaped, is ArgumentException or InvalidOperationException rather than JsonException
         // (found by the property tests, #443).
@@ -76,6 +89,36 @@ public sealed record ModSettings
         }
         log($"settings file: \"{VoicedLinesKey}\" is not one of auto, nameOnly, fullLine, nothing; using auto");
         return Defaults.VoicedLines;
+    }
+
+    // JSON true or false only: a string or a number is a typo, so cues stay on and the log says why.
+    private static bool ReadSoundCues(JsonElement root, Action<string> log)
+    {
+        if (!root.TryGetProperty(SoundCuesKey, out var value))
+        {
+            return Defaults.SoundCues;
+        }
+        if (value.ValueKind is JsonValueKind.True or JsonValueKind.False)
+        {
+            return value.GetBoolean();
+        }
+        log($"settings file: \"{SoundCuesKey}\" is not true or false; using true");
+        return Defaults.SoundCues;
+    }
+
+    // A JSON whole number from 0 to 100; a fraction, a string or anything outside the range gives the default.
+    private static int ReadSoundCueVolume(JsonElement root, Action<string> log)
+    {
+        if (!root.TryGetProperty(SoundCueVolumeKey, out var value))
+        {
+            return Defaults.SoundCueVolume;
+        }
+        if (value.ValueKind == JsonValueKind.Number && value.TryGetInt32(out var volume) && volume is >= 0 and <= 100)
+        {
+            return volume;
+        }
+        log($"settings file: \"{SoundCueVolumeKey}\" is not a whole number from 0 to 100; using {Defaults.SoundCueVolume}");
+        return Defaults.SoundCueVolume;
     }
 
     private static VoicedLinesMode? Named(string? text)

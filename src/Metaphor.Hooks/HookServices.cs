@@ -1,5 +1,6 @@
 using Metaphor.Core;
 using Metaphor.Core.Announcements;
+using Metaphor.Core.Cues;
 using Metaphor.Core.Menus;
 using Metaphor.Core.Messages;
 using Metaphor.Core.Settings;
@@ -72,6 +73,10 @@ internal sealed record HookServices
     /// file hook is feeding it.</summary>
     public MessageSerials Serials { get; init; } = new([]);
 
+    /// <summary>Where features play the mod's sound cues (#636, ADR 0019); silent unless the entry point starts one.
+    /// </summary>
+    public ICuePlayer Cues { get; init; } = new SilentCuePlayer();
+
     /// <summary>The mod's folder, outside the repository, where a development run leaves files for its hooks.</summary>
     public required string ModFolder { get; init; }
 
@@ -80,9 +85,12 @@ internal sealed record HookServices
     /// hears each compiled file first, speech each requested line and choice first, and the menu screens (#208, which
     /// tell the title menu, #94, the main menu and any other screen, #97) and a choice's focus (#95) each cursor input; the report log (#188) and the message log,
     /// when there are, hear every event last.</summary>
+    /// <remarks>Features that play sound cues (#636) are handed <paramref name="cues"/>.</remarks>
     public static HookServices Speaking(
-        IAnnouncer announcer, SettingsReloader settings, ReportLog? report, MessageLog? log, string modFolder)
+        IAnnouncer announcer, ICuePlayer cues, SettingsReloader settings, ReportLog? report, MessageLog? log,
+        string modFolder)
     {
+        ArgumentNullException.ThrowIfNull(cues);
         ArgumentNullException.ThrowIfNull(settings);
         var library = new MessageLibrary();
         // Serials as build 548ddc95 numbers them; the message file hook that feeds it installs on that build only.
@@ -173,6 +181,7 @@ internal sealed record HookServices
             CharacterTable = characterTable,
             FollowerTable = followerTable,
             Voice = voiceLanguage,
+            Cues = cues,
         };
     }
 }

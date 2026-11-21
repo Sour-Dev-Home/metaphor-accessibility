@@ -532,6 +532,8 @@ internal static class Rules
         ["kernel32.dll!GetCurrentThreadStackLimits"] = "CallerAddress: reads no address it is given",
         ["kernel32.dll!WriteProcessMemory"] =
             "PadReadHook, KeyboardReadHook: writes through the kernel, which fails instead of faulting (ADR 0007)",
+        ["winmm.dll!PlaySoundW"] =
+            "WinmmCueSink: reads only the mod's own WAV array, valid for the whole synchronous call (ADR 0019)",
     };
 
     /// <summary>What <see cref="MemoryReads"/> reports for a call through a function pointer, or for making one: the

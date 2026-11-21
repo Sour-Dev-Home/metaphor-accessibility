@@ -3,7 +3,7 @@ using Metaphor.Core.Announcements;
 namespace Metaphor.Core.Settings;
 
 /// <summary>Holds the current settings and applies the settings file's text as it is read, at start and again when
-/// the file changes (#104). A changed voiced-lines value is announced. Safe to use from several threads: the file
+/// the file changes (#104). A changed value is announced. Safe to use from several threads: the file
 /// watcher calls it from another one.</summary>
 public sealed class SettingsReloader
 {
@@ -34,18 +34,30 @@ public sealed class SettingsReloader
         }
     }
 
-    /// <summary>Applies the file after a change (null when it is gone) and announces the new voiced-lines value when
-    /// it differs from the one in force.</summary>
+    /// <summary>Applies the file after a change (null when it is gone) and announces each value that differs from the
+    /// one in force, in the file's documented order, each after the one before.</summary>
     public void Reload(string? json)
     {
         lock (gate)
         {
             var next = ModSettings.Parse(json, log);
-            var changed = next.VoicedLines != current.VoicedLines;
-            current = next;
-            if (changed)
+            List<string> said = [];
+            if (next.VoicedLines != current.VoicedLines)
             {
-                announcer.Announce(new Announcement($"Voiced lines: {Describe(next.VoicedLines)}.", Interrupt: true));
+                said.Add($"Voiced lines: {Describe(next.VoicedLines)}.");
+            }
+            if (next.SoundCues != current.SoundCues)
+            {
+                said.Add($"Sound cues: {(next.SoundCues ? "on" : "off")}.");
+            }
+            if (next.SoundCueVolume != current.SoundCueVolume)
+            {
+                said.Add($"Sound cue volume: {next.SoundCueVolume}.");
+            }
+            current = next;
+            for (var i = 0; i < said.Count; i++)
+            {
+                announcer.Announce(new Announcement(said[i], Interrupt: i == 0));
             }
         }
     }

@@ -2,6 +2,7 @@ using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using Metaphor.Core;
 using Metaphor.Core.Announcements;
+using Metaphor.Core.Cues;
 using Metaphor.Core.Settings;
 using Reloaded.Mod.Interfaces;
 using Reloaded.Mod.Interfaces.Internal;
@@ -91,6 +92,8 @@ public sealed class ModEntryPoint : IMod
 
     // Kept so the watcher lives as long as the game process.
     private SettingsFile? settingsFile;
+    // The sound cue player and its background thread, for the same reason; never disposed, like the watcher.
+    private ICuePlayer? cues;
 #if DEBUG
     // The live inspector (#291), Debug and opt-in only; kept for the same reason.
     private LiveInspector? liveInspector;
@@ -134,7 +137,9 @@ public sealed class ModEntryPoint : IMod
             // The settings report only a file they can't use, so each of their lines is an error.
             var settings = new SettingsReloader(announcer, LogError);
             settingsFile = SettingsFile.Open(configFolder, settings, LogError);
-            var services = HookServices.Speaking(announcer, settings, report, messageLog, folder);
+            // Sound cues play on their own thread, at the settings in force at each cue (#636, ADR 0019).
+            cues = new CuePlayer(new WinmmCueSink(), () => settings.Current, LogError);
+            var services = HookServices.Speaking(announcer, cues, settings, report, messageLog, folder);
             // The mod runs inside the game, so this process's exe is the game executable whose hash identifies the
             // build (seen in docs/raw-sources/mod-entry-point-first-run-2026-11-15.md). Hooks go in only on a known
             // build, through the loader (#39). Issue #21's spike scans first, so it reads the game's own bytes (#92).
