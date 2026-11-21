@@ -274,6 +274,37 @@ default applies.
 There is no braille setting. Each announcement goes to your screen reader's speech and braille together, where it
 supports that, and to speech alone where it doesn't. `[NEEDS VERIFICATION]` By ear and with a display.
 
+## Uninstall
+
+The mod's folder holds `uninstall.cmd`, which starts the same installer to remove the mod. It says each step as the
+install does. `[NEEDS VERIFICATION]` All of this section, by ear.
+
+1. Close the game and Reloaded-II.
+2. Open the mod's folder in File Explorer: the unzipped folder you downloaded, or the mod's folder in Reloaded-II's
+   mods folder, which the uninstall then removes. Move to `uninstall.cmd` with the arrow keys, or type `uninstall`, and
+   press Enter. Windows may ask first, as it does for `install.cmd`; choose `Run`. If Windows won't open it, press
+   `Windows+R`, type this with the folder's full path in place of `<folder>`, and press Enter:
+
+   `powershell -ExecutionPolicy Bypass -NoExit -File "<folder>\install.ps1" -Uninstall`
+
+3. NVDA reads "Uninstall the mod?" and what it does. Type `yes` and press `Enter`. Enter alone stops without changing
+   anything.
+4. It says five steps, each starting with "Done", "Nothing to remove" or "Failed": it turns the mod off for the game in
+   Reloaded-II, keeping your other mods on; removes the mod's folder and the mod's settings from Reloaded-II; deletes
+   the desktop shortcut "Metaphor ReFantazio with accessibility"; and checks Reloaded-II.
+5. If the installer installed Reloaded-II, it asks "Remove Reloaded-II too?". That also removes every other mod and game
+   you added to Reloaded-II, so press `Enter` alone to keep it, or type `yes` and press `Enter` to remove it. A
+   Reloaded-II you installed yourself is kept without asking.
+6. It says it kept the .NET 9 Desktop Runtime and the Visual C++ Redistributable, which other programs may use. To
+   remove them, use Installed apps in Windows Settings.
+7. Its last line is "The uninstall is done", or "There was nothing left to remove" when you run it again. The window
+   stays open and then says "The uninstall has finished. Read what it said above, then press any key to close this
+   window."
+
+It removes nothing outside Reloaded-II's folder, and leaves alone a folder that holds a link to somewhere else and a
+shortcut of the same name that starts another program; a step that leaves something says so as "Failed" and what to
+do. The other steps still run. Reloaded-II's settings file in your AppData folder stays.
+
 ## Report a problem
 
 Use the Alpha feedback form on the project's issues page.

@@ -32,8 +32,19 @@ Windows' own voice. Runs in Windows PowerShell 5.1 and PowerShell 7.
 Exit codes: 0 installed (the check may still say the game hasn't started with the mod yet); 1 a step failed, an answer
 was no, or the check found a problem.
 
+With -Uninstall it removes the mod instead (#575), saying each step the same way: it turns the mod off for the game,
+removes the mod's folder and its settings from Reloaded-II and deletes the desktop shortcut. It asks before removing a
+Reloaded-II this installer installed, defaulting to keep, and keeps one it didn't install and both runtimes, which other
+programs may use. It removes nothing outside Reloaded-II's folder and nothing that holds a link. A second run says
+there was nothing left to remove. Exit codes: 0 done; 1 the answer was no, or a step failed (the others still run).
+
 .EXAMPLE
 powershell -ExecutionPolicy Bypass -NoExit -File install.ps1
+
+.EXAMPLE
+powershell -ExecutionPolicy Bypass -NoExit -File install.ps1 -Uninstall
+
+uninstall.cmd in the same folder runs this for a player who opens it with Enter.
 #>
 [CmdletBinding()]
 param(
@@ -59,7 +70,9 @@ param(
     [string] $VcRuntimeKey = 'HKLM:\SOFTWARE\WOW6432Node\Microsoft\VisualStudio\14.0\VC\Runtimes\x64',
     # What may be downloaded: URLs, file names and SHA-256s. Defaults to install-pins.json beside this script.
     [string] $Pins = '',
-    # Set by install.cmd, which waits for a key after the installer: the last line then says to press one.
+    # Remove the mod instead of installing it.
+    [switch] $Uninstall,
+    # Set by install.cmd and uninstall.cmd, which wait for a key after the script: the last line then says to press one.
     [switch] $FromLauncher
 )
 
@@ -95,6 +108,40 @@ function Read-InstallAnswer([string] $Question) {
     $answer
 }
 
+# The uninstall: says each step's result, goes on past a failed one, then says what it kept. Returns the exit code.
+function Invoke-Uninstall($Context) {
+    # The installed mod's own copy of this script may be the folder it removes, which Windows won't do while it is the
+    # current folder.
+    $temp = [IO.Path]::GetTempPath()
+    Set-Location -LiteralPath $temp
+    [Environment]::CurrentDirectory = $temp
+    Out-Line "Uninstall for $($Context.ModName). It says each step, and asks before removing anything other mods may use."
+    $go = Read-InstallAnswer (Format-YesNoQuestion 'Uninstall the mod? It turns the mod off for the game, removes it and its settings from Reloaded-II, and deletes its desktop shortcut.')
+    if (-not (Test-Yes $go)) {
+        Out-Line 'Nothing was changed, because the answer was no.'
+        return 1
+    }
+    $steps = @(Get-UninstallStep $Context)
+    $removed = 0
+    $failed = 0
+    for ($i = 0; $i -lt $steps.Count; $i++) {
+        Out-Line "Step $($i + 1) of $($steps.Count): $($steps[$i].Doing)"
+        $step = & $steps[$i].Run
+        $label = switch ($step.State) { 'done' { 'Done'; $removed++ } 'unchanged' { 'Nothing to remove' } default { 'Failed'; $failed++ } }
+        $printed = "${label}: $($step.Line)"
+        if ($step.Detail) { $printed += " $($step.Detail)" }
+        Out-Line $printed "${label}: $($step.Line)"
+        if ($step.State -eq 'failed') { Out-Line "To fix it: $($step.Fix)" }
+    }
+    Out-Line 'Kept the .NET 9 Desktop Runtime and the Visual C++ Redistributable: other programs may use them, and the uninstall cannot tell whether this installer installed them. To remove them, use Installed apps in Windows Settings.'
+    if ($failed -gt 0) {
+        Out-Line 'The uninstall did not remove everything. Do what the failed steps said, then run the uninstall again.'
+        return 1
+    }
+    Out-Line $(if ($removed -eq 0) { 'There was nothing left to remove.' } else { 'The uninstall is done.' })
+    0
+}
+
 $workFolder = $null
 $exitCode = 1
 try {
@@ -102,13 +149,14 @@ try {
     $ask = { param($Question) Read-InstallAnswer $Question }
     if (-not (Confirm-RunWindow -Say $say -Ask $ask)) { exit 1 }
     if (-not (Test-Path -LiteralPath (Join-Path $PSScriptRoot 'ModConfig.json') -PathType Leaf)) {
-        Out-Line 'This installer is not in the mod''s folder. Run install.ps1 from the mod''s folder in the release zip.'
+        Out-Line 'This installer is not in the mod''s folder. Open install.cmd in the mod''s folder from the release zip.'
         exit 1
     }
     $workFolder = (New-Item -ItemType Directory (Join-Path ([IO.Path]::GetTempPath()) "metaphor-install-$([guid]::NewGuid())")).FullName
     $context = New-InstallContext -ReleaseFolder $PSScriptRoot -PinsPath $Pins -ConfigPath $ReloadedConfig `
         -ReloadedFolder $ReloadedFolder -SteamRoot $SteamRoot -Desktop $Desktop -DotnetRoot $DotnetRoot `
         -VcRuntimeKey $VcRuntimeKey -WorkFolder $workFolder -Ask $ask -Say $say
+    if ($Uninstall) { exit (Invoke-Uninstall $context) }
 
     Out-Line "Installer for $($context.ModName) $($context.ModVersion)."
     $go = Read-InstallAnswer (Format-YesNoQuestion 'Install the mod? It puts the mod in Reloaded-II, turns it on for the game, and puts a shortcut on your desktop.')
@@ -157,11 +205,12 @@ try {
 finally {
     if ($workFolder) { Remove-Item -LiteralPath $workFolder -Recurse -Force -ErrorAction SilentlyContinue }
     # Said after every ending, so a player who can't see the window hears that it's over (#601).
+    $finished = if ($Uninstall) { 'The uninstall has finished.' } else { 'The installer has finished.' }
     if ($FromLauncher) {
-        Out-Line 'The installer has finished. Read what it said above, then press any key to close this window.' `
-            'The installer has finished. Press any key to close this window.'
+        Out-Line "$finished Read what it said above, then press any key to close this window." `
+            "$finished Press any key to close this window."
     }
-    else { Out-Line 'The installer has finished.' }
+    else { Out-Line $finished }
     if ($voice) { $voice.Dispose() }
 }
 exit $exitCode
