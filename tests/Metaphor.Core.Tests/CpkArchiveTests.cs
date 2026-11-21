@@ -97,10 +97,16 @@ public sealed class CpkArchiveTests
 
     /// <summary>An archive with its table of contents at 0x100, its content at 0x400 and these files one after another
     /// from there, each offset counted from the table of contents (the lower of the two).</summary>
-    internal static MemoryStream Archive(params (string Dir, string Name, byte[] Data, int ExtractSize)[] files)
+    internal static MemoryStream Archive(params (string Dir, string Name, byte[] Data, int ExtractSize)[] files) =>
+        Archive(headerContentOffset: null, files);
+
+    /// <summary>The same, with the header's <c>ContentOffset</c> replaced by <paramref name="headerContentOffset"/>
+    /// when given, and each file offset counted from the lower of it and the table of contents.</summary>
+    private static MemoryStream Archive(ulong? headerContentOffset, params (string Dir, string Name, byte[] Data, int ExtractSize)[] files)
     {
         const int TocOffset = 0x100;
         const int ContentOffset = 0x400;
+        var countedFrom = headerContentOffset is { } given ? Math.Min(TocOffset, (long)given) : TocOffset;
         var starts = new int[files.Length];
         var end = ContentOffset;
         for (var i = 0; i < files.Length; i++)
@@ -110,11 +116,11 @@ public sealed class CpkArchiveTests
         }
         var header = Table(
             [new("TocOffset", 6, PerRow: true), new("ContentOffset", 6, PerRow: true), new("Files", 4, PerRow: true)],
-            [[TocOffset, ContentOffset, files.Length]]);
+            [[TocOffset, headerContentOffset ?? ContentOffset, files.Length]]);
         var toc = Table(
             [new("DirName", 10, PerRow: true), new("FileName", 10, PerRow: true), new("FileSize", 4, PerRow: true),
              new("ExtractSize", 4, PerRow: true), new("FileOffset", 6, PerRow: true), new("UserString", 10, PerRow: false, "<NULL>")],
-            files.Select((f, i) => new object[] { f.Dir, f.Name, f.Data.Length, f.ExtractSize, starts[i] - TocOffset }).ToList());
+            files.Select((f, i) => new object[] { f.Dir, f.Name, f.Data.Length, f.ExtractSize, (ulong)(starts[i] - countedFrom) }).ToList());
         var bytes = new byte[end];
         Container("CPK ", header).CopyTo(bytes, 0);
         Container("TOC ", toc).CopyTo(bytes, TocOffset);
@@ -194,6 +200,34 @@ public sealed class CpkArchiveTests
         bytes[0x110] ^= 0xff;
 
         Assert.Null(CpkArchive.ReadFile(new MemoryStream(bytes), "A/one.bin", MaxSize));
+    }
+
+    [Fact]
+    public void ANegativeContentOffsetIsRefused()
+    {
+        // Offsets counted from -0x10 still land on the file's bytes, and the file's own offset (its start + 0x10) is
+        // inside the archive, so only the content offset's check refuses it.
+        using var archive = Archive(headerContentOffset: unchecked((ulong)-0x10L), Stored("A", "one.bin", new string('x', 0x40)));
+
+        Assert.Null(CpkArchive.ReadFile(archive, "A/one.bin", MaxSize));
+    }
+
+    [Fact]
+    public void AFileOffsetPastTheArchiveIsRefused()
+    {
+        // Past the end alone, but added to a negative content offset it would land inside.
+        using var archive = Archive(headerContentOffset: unchecked((ulong)-0x10000L), Stored("A", "one.bin", "first"));
+
+        Assert.Null(CpkArchive.ReadFile(archive, "A/one.bin", MaxSize));
+    }
+
+    [Fact]
+    public void RowsOfNoBytesAreRefused()
+    {
+        var table = Table([new("Shared", 4, PerRow: false, 7)], [[]]);
+        BinaryPrimitives.WriteInt32BigEndian(table.AsSpan(0x1c), int.MaxValue);
+
+        Assert.Null(UtfTable.Parse(table));
     }
 
     [Fact]

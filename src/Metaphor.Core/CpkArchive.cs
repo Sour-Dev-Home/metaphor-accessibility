@@ -37,8 +37,10 @@ public static class CpkArchive
             {
                 continue;
             }
+            // Every offset within the archive, so their sum can't overflow or point before its start.
             if (toc.Number(row, "FileSize") is not { } size || toc.Number(row, "ExtractSize") != size ||
-                toc.Number(row, "FileOffset") is not { } offset || size < 0 || size > maxSize)
+                toc.Number(row, "FileOffset") is not { } offset || size < 0 || size > maxSize ||
+                !Within(archive, offset) || !Within(archive, tocOffset) || !Within(archive, content))
             {
                 return null;
             }
@@ -60,6 +62,8 @@ public static class CpkArchive
             ? UtfTable.Parse(table)
             : null;
     }
+
+    private static bool Within(Stream archive, long offset) => offset >= 0 && offset <= archive.Length;
 
     private static byte[]? Read(Stream archive, long offset, int length)
     {
@@ -163,7 +167,8 @@ public sealed class UtfTable
         var columnCount = BinaryPrimitives.ReadUInt16BigEndian(span[0x18..]);
         var rowSize = BinaryPrimitives.ReadUInt16BigEndian(span[0x1a..]);
         var rowCount = BinaryPrimitives.ReadInt32BigEndian(span[0x1c..]);
-        if (stringPool < BaseOffset || stringPool > bytes.Length || rowCount < 0 ||
+        // Rows of no bytes would let a damaged count ask for billions of rows from a short table.
+        if (stringPool < BaseOffset || stringPool > bytes.Length || rowCount < 0 || (rowSize == 0 && rowCount > 0) ||
             (long)rowsStart + (long)rowSize * rowCount > bytes.Length)
         {
             return null;
