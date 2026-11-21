@@ -171,7 +171,79 @@ public sealed class NameEntrySpeech : INameEntryObserver, ILineShownObserver, IK
         return removed.Length > 0 ? "deleted " + Spoken(removed) : null;
     }
 
-    private static string Spoken(string characters) => characters == " " ? "space" : characters;
+    /// <summary>How a character that isn't a letter or digit is said. A screen reader at its default symbol level drops
+    /// a lone punctuation mark, so "/" typed alone was silent (the maintainer, by ear, on #593, 2026-11-21).</summary>
+    private static string SymbolName(char character) => character switch
+    {
+        ' ' => "space",
+        '.' => "period",
+        ',' => "comma",
+        '-' => "hyphen",
+        '\'' => "apostrophe",
+        '!' => "exclamation mark",
+        '?' => "question mark",
+        '/' => "slash",
+        '\\' => "backslash",
+        ':' => "colon",
+        ';' => "semicolon",
+        '"' => "quote",
+        '&' => "ampersand",
+        '@' => "at sign",
+        '#' => "number sign",
+        '$' => "dollar sign",
+        '%' => "percent",
+        '^' => "caret",
+        '*' => "asterisk",
+        '+' => "plus",
+        '=' => "equals",
+        '_' => "underscore",
+        '(' => "left parenthesis",
+        ')' => "right parenthesis",
+        '[' => "left bracket",
+        ']' => "right bracket",
+        '{' => "left brace",
+        '}' => "right brace",
+        '<' => "less than",
+        '>' => "greater than",
+        '~' => "tilde",
+        '`' => "grave accent",
+        '|' => "vertical bar",
+        '·' or '・' => "middle dot",
+        _ => UnknownSymbol,
+    };
+
+    /// <summary>What is said for a character that is neither a letter nor a digit and isn't in the table.</summary>
+    public const string UnknownSymbol = "symbol";
+
+    // Letters and digits as they are; every other character by name, each name set apart by spaces.
+    private static string Spoken(string characters)
+    {
+        if (characters.All(char.IsLetterOrDigit))
+        {
+            return characters;
+        }
+        var words = new List<string>();
+        var run = new System.Text.StringBuilder();
+        foreach (var character in characters)
+        {
+            if (char.IsLetterOrDigit(character))
+            {
+                run.Append(character);
+                continue;
+            }
+            if (run.Length > 0)
+            {
+                words.Add(run.ToString());
+                run.Clear();
+            }
+            words.Add(SymbolName(character));
+        }
+        if (run.Length > 0)
+        {
+            words.Add(run.ToString());
+        }
+        return string.Join(' ', words);
+    }
 
     private string Title(bool player) =>
         Clean(messages.Find(player ? PlayerTitleLabel : ProtagonistTitleLabel)?.Text ?? "") is { Length: > 0 } title

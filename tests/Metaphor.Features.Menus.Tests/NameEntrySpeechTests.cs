@@ -123,6 +123,15 @@ public sealed class NameEntrySpeechTests
     [InlineData("Bob", "Bab", "a")]
     [InlineData("", "Eve", "Eve")]
     [InlineData("Eve", "", "deleted Eve")]
+    // #593, by ear: a lone "/" was silent, since the screen reader drops lone punctuation; symbols are said by name.
+    [InlineData("Al", "Al/", "slash")]
+    [InlineData("Al/", "Al", "deleted slash")]
+    [InlineData("O", "O'", "apostrophe")]
+    [InlineData("Jo", "Jo-", "hyphen")]
+    [InlineData("A", "A.", "period")]
+    [InlineData("", "R2-D2", "R2 hyphen D2")]
+    [InlineData("A", "A☃", NameEntrySpeech.UnknownSymbol)]
+    [InlineData("A", "Aé", "é")]
     public void AChangeIsWhatWasAddedOrElseWhatWasDeleted(string before, string after, string? said) =>
         Assert.Equal(said, NameEntrySpeech.Change(before, after));
 
