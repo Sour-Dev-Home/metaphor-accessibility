@@ -12,6 +12,9 @@ checks them in the first game session and removes the tag.
 - **A beep that guides you to something nearby.** In the field, `G`, or `LB` with the D-pad's Right, starts a
   repeating beep toward the thing you last stepped to, or the nearest: from its side, higher ahead, faster as you near
   it. It says when you reach it; press again to stop (#183). `[NEEDS VERIFICATION by ear]`
+- **Yes and No buttons.** The installer asks each question in a small window with Yes and No buttons, which your
+  screen reader reads, instead of asking you to type an answer. Where it can't find the game, you choose
+  `METAPHOR.exe` in Windows' Open window (#607). `[NEEDS VERIFICATION by ear]`
 - **What is near, and where am I.** In the field, `N` says the people, doors, chests and enemies near you, nearest
   first, with rough steps and a direction from your facing; `LB` with the D-pad's Down and Up steps through them. `L`,
   or `LB` with Left, says the place name the game last showed (#181). `[NEEDS VERIFICATION by ear]`
