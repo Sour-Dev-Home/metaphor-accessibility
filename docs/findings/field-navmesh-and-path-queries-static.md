@@ -13,7 +13,10 @@ has its own navmesh file, and readable `.ecode` wrappers run `findNearestPoly`, 
 navmesh `raycast` on it for enemies and party followers. Every free-roam frame, `fldScene_Idle` snaps the player's
 position to the navmesh. The navmesh is reachable from `fldWorld` without calling anything. Not seen in a running game
 yet: every runtime value below is `[NEEDS VERIFICATION]` until session 4 reads it. The pilot inventory names the dark
-mine and the open desert as the hardest places for a blind player; this is the data that would guide there.
+mine and the open desert as the hardest places for a blind player; this is the data that would guide there. The
+`.NAV` files themselves are decoded in [`field-navmesh-files-tile-cache-static.md`](field-navmesh-files-tile-cache-static.md)
+(#179): a Recast tile-cache set (`TEST`, version 3) of compressed layers. The live tiles built from them should still
+start `DNAV` `[NEEDS VERIFICATION]`.
 
 | Question | Answer | Confidence |
 |---|---|---|

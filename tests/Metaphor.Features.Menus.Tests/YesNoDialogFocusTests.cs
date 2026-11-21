@@ -165,6 +165,23 @@ public sealed class YesNoDialogFocusTests
         Assert.Equal(["Nay, 2 of 2"], Said());
     }
 
+    // The save prompt by ear (maintainer, 2026-11-21): the scripts' choice spoke "<prompt>" and "Choose: Yes; No", then
+    // the dialog's first focus cut both off. After a scripts' choice the first focus waits its turn; moves still cut off.
+    [Fact]
+    public void AScriptsChoiceDialogsFirstFocusWaitsForThePrompt()
+    {
+        SystemFileCompiled();
+
+        messages.ChoiceOpened(new ChoiceRequested(1, "System_mode_13", YesNo));
+        SelectOpened("System_mode_13");
+        Cursor(Settle, row: 0, top: 1);
+        Cursor(Settle, row: 0, top: 0);
+
+        Assert.Equal(
+            [new Announcement("Nay, 2 of 2", Interrupt: false), new Announcement("Aye, 1 of 2", Interrupt: true)],
+            announcer.Said);
+    }
+
     [Fact]
     public void ASelectWithOtherChoicesGivesTheDialogNoText()
     {
