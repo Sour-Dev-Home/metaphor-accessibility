@@ -31,13 +31,13 @@ Unzipping in File Explorer copies the mark to every file inside, so clearing it 
 4. Press `Tab` to "OK" and press `Enter`. The window closes.
 5. Unzip: press the `Applications` key (or `Shift+F10`), choose "Extract All...", then press `Enter` on "Extract".
 
-If you unzipped first, repeat steps 1 to 4 on `install.cmd` in the extracted folder.
+If you unzipped first, repeat steps 1 to 4 on `Install Metaphor accessibility.cmd` in the extracted folder.
 
 ### Get past "Windows protected your PC"
 
 SmartScreen shows this blue window when a downloaded program has no reputation yet. It is not a verdict that the file
-is harmful. `install.cmd` usually gets the older "Open File - Security Warning" window instead (step 3 of the
-installer section below).
+is harmful. `Install Metaphor accessibility.cmd` usually gets the older "Open File - Security Warning" window
+instead (step 3 of the installer section below).
 
 1. The window opens and the screen reader reads "Windows protected your PC", then its text, which names the file.
    Press `Tab`: focus lands on the link "More info". Press `Enter`.
@@ -50,14 +50,16 @@ installer section below).
 
 ## Install with the spoken installer
 
-The mod's folder holds `install.cmd`, which starts the installer, `install.ps1`. It does every step on this page for
-you and says each one as it goes. It needs no clicks in Reloaded-II's window. `[NEEDS VERIFICATION]` All of this
-section, by ear.
+The zip holds two things: the mod's folder, `metaphor.accessibility`, and one file beside it,
+`Install Metaphor accessibility.cmd`, which starts the installer in that folder. The installer does every step on this
+page for you and says each one as it goes. It needs no clicks in Reloaded-II's window. `[NEEDS VERIFICATION]` All of
+this section, by ear.
 
-1. Unzip the mod's zip (unblock it first if Windows marked it, above). You get a folder named `metaphor.accessibility`.
-2. Open that folder in File Explorer and move to `install.cmd` with the arrow keys, or type `install`. With file
-   extensions hidden, two files are named `install`: the one to open is the "Windows Command Script", not the
-   "Windows PowerShell Script", which opens in Notepad. Press Enter. `[NEEDS VERIFICATION]` What NVDA reads for each.
+1. Extract the whole zip (unblock it first if Windows marked it, above). File Explorer opens the extracted folder.
+   Opening the file inside the zip without extracting doesn't work: it says to extract the zip first.
+2. Press `End` to reach the last item, "Install Metaphor accessibility", the one file there (File Explorer lists the
+   mod's folder before it), and press Enter. `[NEEDS VERIFICATION]` What NVDA reads for it, and whether File Explorer
+   opens the extracted folder after "Extract All".
 3. Windows probably asks first, because the file came from the internet and isn't signed: an "Open File - Security
    Warning" window asking whether to run it. Choose `Run`. `[NEEDS VERIFICATION]` Its wording, its buttons and which one
    has the focus, by ear. With Smart App Control on, Windows blocks the file instead; then use the command at the end of
@@ -75,8 +77,9 @@ section, by ear.
    key to close this window." Read back with NVDA's review cursor if you need to, then press a key.
 8. Start the game from the desktop shortcut.
 
-If Windows won't open `install.cmd`, start the installer by typing instead: press `Windows+R`, type this with the
-folder's full path in place of `<folder>`, and press Enter. `[NEEDS VERIFICATION]` Whether this works with Smart App
+`install.cmd` in the mod's folder does the same as `Install Metaphor accessibility.cmd`. If Windows won't open either,
+start the installer by typing instead: press `Windows+R`, type this with the mod's folder's full path in place of
+`<folder>`, and press Enter. `[NEEDS VERIFICATION]` Whether this works with Smart App
 Control on.
 
 `powershell -ExecutionPolicy Bypass -NoExit -File "<folder>\install.ps1"`
