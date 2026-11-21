@@ -9,6 +9,17 @@ checks them in the first game session and removes the tag.
 
 ## Unreleased
 
+- **Yes and No buttons.** The installer asks each question in a small window with Yes and No buttons, which your
+  screen reader reads, instead of asking you to type an answer. Where it can't find the game, you choose
+  `METAPHOR.exe` in Windows' Open window (#607). `[NEEDS VERIFICATION by ear]`
+- **What is near, and where am I.** In the field, `N` says the people, doors, chests and enemies near you, nearest
+  first, with rough steps and a direction from your facing; `LB` with the D-pad's Down and Up steps through them. `L`,
+  or `LB` with Left, says the place name the game last showed (#181). `[NEEDS VERIFICATION by ear]`
+- **Sound cues can be turned off and their volume set.** The mod can now play short sounds of its own, explained in
+  [sound cues](docs/players/reference/sound-cues.md); `soundCues` and `soundCueVolume` in `settings.json` control
+  them. The battle hit sounds arrive with spoken battle hits (#247, #636). `[NEEDS VERIFICATION by ear]`
+- **Sound cues can overlap and come from the left or right.** Two cues at once both play, and the mod can now hold a
+  steady tone that moves and changes pitch, ready for guidance and wall sounds (#637). `[NEEDS VERIFICATION by ear]`
 - **One file to open after extracting.** The zip's top level holds `Install Metaphor accessibility.cmd` beside the
   mod's folder: extract the zip and press Enter on it, with no search through the mod's files (#604).
   `[NEEDS VERIFICATION by ear]`
@@ -41,7 +52,9 @@ The first early-access release. It is for the Steam version of Metaphor: ReFanta
   - it refuses to run as administrator, and if User Account Control is turned off it says so and asks before going on;
   - when Windows' Controlled folder access blocks a write, it names that as the cause;
   - it puts a shortcut called "Metaphor ReFantazio with accessibility" on your desktop, and ends with a check of the
-    install. Run it again to update the mod.
+    install. Run it again to update the mod;
+  - `uninstall.cmd` removes the mod, its settings, its shortcut and its entry for the game, and asks before
+    removing a Reloaded-II it installed. It keeps the runtimes.
 
   `[NEEDS VERIFICATION by ear]` The installer's spoken wording. See
   [Install the mod](docs/players/how-to/install-the-mod.md).

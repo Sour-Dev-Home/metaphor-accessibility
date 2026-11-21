@@ -9,6 +9,7 @@
   <ItemGroup>
     <ProjectReference Include="..\Metaphor.Core\Metaphor.Core.csproj" />
     <ProjectReference Include="..\Metaphor.Features.Dialogue\Metaphor.Features.Dialogue.csproj" />
+    <ProjectReference Include="..\Metaphor.Features.Field\Metaphor.Features.Field.csproj" />
     <ProjectReference Include="..\Metaphor.Features.Menus\Metaphor.Features.Menus.csproj" />
     <ProjectReference Include="..\Metaphor.Features.Updates\Metaphor.Features.Updates.csproj" />
     <!-- Compile against it only: Reloaded-II supplies it at run time, as in the official template. -->
@@ -43,7 +44,7 @@
   <ItemGroup>
     <None Include="../Metaphor.Core/known-game-builds.json" Link="known-game-builds.json" CopyToPublishDirectory="PreserveNewest" />
     <None Include="prism.json" CopyToPublishDirectory="PreserveNewest" />
-    <None Include="../../scripts/player/check-install.ps1;../../scripts/player/install.ps1;../../scripts/player/install.cmd;../../scripts/player/MetaphorInstall.psm1;../../scripts/player/install-pins.json"
+    <None Include="../../scripts/player/check-install.ps1;../../scripts/player/install.ps1;../../scripts/player/install.cmd;../../scripts/player/uninstall.cmd;../../scripts/player/MetaphorInstall.psm1;../../scripts/player/install-pins.json"
           Link="%(Filename)%(Extension)" CopyToPublishDirectory="PreserveNewest" />
   </ItemGroup>
 

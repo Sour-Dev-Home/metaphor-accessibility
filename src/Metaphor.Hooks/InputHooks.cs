@@ -32,10 +32,14 @@ internal sealed class GameInputReads(DialogueWindowPointer window, MenusOpenRead
 
     public bool MenusOpen() => menus.IsOpen();
 
-    /// <summary>The input frame over <paramref name="services"/>' readers, menu screens and controls.</summary>
-    public static InputFrame Frame(HookServices services) =>
-        new(new GameInputReads(services.DialogueWindow, services.MenusOpen), services.MenuScreens, services.MenuControls,
-            services.DialogueControls, services.KeyWatcher);
+    /// <summary>The input frame over <paramref name="services"/>' readers, menu screens and controls, the field's
+    /// (#181) last when there are, and its key watcher.</summary>
+    public static InputFrame Frame(HookServices services)
+    {
+        var game = new GameInputReads(services.DialogueWindow, services.MenusOpen);
+        return new(game, services.MenuScreens, services.MenuControls, services.DialogueControls,
+            services.FieldControls ?? InputFrame.NoControls, services.KeyWatcher);
+    }
 }
 
 /// <summary>The pad read: <c>(32-bit pad number, pointer to the game's pad state) → al</c>; it writes the game's own

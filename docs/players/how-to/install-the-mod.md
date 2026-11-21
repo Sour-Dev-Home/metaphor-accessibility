@@ -65,8 +65,12 @@ this section, by ear.
    has the focus, by ear. With Smart App Control on, Windows blocks the file instead; then use the command at the end of
    this section. Why Windows asks, and what was checked:
    [notes](../../raw-sources/install-launcher-motw-2026-11-20.md).
-4. A window opens and the installer starts. Answer its questions with `y` and Enter, or Enter alone where it says Enter means yes. It asks before it starts and
-   before each download.
+4. A window opens and the installer starts. It asks before it starts and before each download, each question in a
+   small window with a Yes and a No button that your screen reader reads. Press `Enter` for the button it lands on, `Y`
+   for Yes or `N` for No, or `Tab` to move between them. Where the installer can't find the game in Steam, Windows'
+   Open window appears: choose `METAPHOR.exe` in the game's install folder, or press `Escape` to stop.
+   `[NEEDS VERIFICATION]` By ear with NVDA (#573): what NVDA reads for each window, whether the focus lands on it, and
+   whether `Escape` answers No (Windows' Yes and No windows usually ignore it).
 5. It finds the game, installs Reloaded-II 1.31.0 if you don't have it (in your user folder, no admin rights needed),
    installs the .NET 9 Desktop Runtime and the Visual C++ Redistributable if they're missing, copies the mod in, turns
    it on for the game, and puts a shortcut called "Metaphor ReFantazio with accessibility" on your desktop. The two
@@ -86,8 +90,9 @@ Control on.
 
 Each step says whether it worked. A step that fails says what to do and stops there. Run it again after fixing that,
 or to update the mod: it changes only what needs changing and says so. With NVDA, JAWS or ZoomText running, it speaks
-each line and question through your screen reader, with the speech library the mod ships, so you don't need to read
-the window. Windows' own voice speaks the steps when no screen reader is running. That voice is an English one when
+each line through your screen reader, with the speech library the mod ships, so you don't need to read the window;
+your screen reader reads the question windows itself. Windows' own voice speaks the steps and questions when no
+screen reader is running. That voice is an English one when
 Windows has one; otherwise the installer says so and uses Windows' default voice. Open it with Enter, not "Run as
 administrator": it refuses to run as administrator. With User Account Control turned off every window is
 administrator, so it says so and asks before going on. `[NEEDS VERIFICATION]` By ear with NVDA (#601).
@@ -240,6 +245,23 @@ They work only while a dialogue window is open, a line or a choice, and the game
 such as a menu or the field, they do nothing and keep their normal job in the game. Reader off silences dialogue lines
 only, not the keys, the load message or the settings message.
 
+### In the field: what is near and where you are
+
+1. `N` on the keyboard: says what is near you, nearest first, up to 8 things: people, doors, chests and enemies. Each
+   says its name, or its kind when it has none, then how far and which way from where you face, such as "Chest, 4
+   steps ahead-left". "In reach" means you can probably use it from where you stand. With nothing near it says
+   "Nothing nearby".
+2. `LB` held, then `Down` or `Up` on the controller's D-pad: steps through the same list one thing at a time, such as
+   "2 of 5. Door, 9 steps behind". After 10 seconds without a step it starts again at the nearest.
+3. `L` on the keyboard, or `LB` held and `Left` on the D-pad: says where you are, by the place name the game last
+   showed. Before the game has shown one, it says "Place not known yet".
+
+They work only while you walk around freely, with no menu or dialogue open, and the game doesn't see the key, or the
+D-pad direction, then. Anywhere else they keep their normal job in the game. Distances are rough steps for now: the mod
+doesn't yet know how long a step is in the game, so treat them as near or far.
+
+`[NEEDS VERIFICATION]` All by ear in the game. They need a supported game build.
+
 ### Menus and choices: no keys of their own
 
 The mod adds no keys here. It speaks what the game's own cursor does, so use the game's own movement keys or buttons.
@@ -280,6 +302,37 @@ of the mod is available:" and the version when there is one. It sends nothing ab
 
 There is no braille setting. Each announcement goes to your screen reader's speech and braille together, where it
 supports that, and to speech alone where it doesn't. `[NEEDS VERIFICATION]` By ear and with a display.
+
+## Uninstall
+
+The mod's folder holds `uninstall.cmd`, which starts the same installer to remove the mod. It says each step as the
+install does. `[NEEDS VERIFICATION]` All of this section, by ear.
+
+1. Close the game and Reloaded-II.
+2. Open the mod's folder in File Explorer: the unzipped folder you downloaded, or the mod's folder in Reloaded-II's
+   mods folder, which the uninstall then removes. Move to `uninstall.cmd` with the arrow keys, or type `uninstall`, and
+   press Enter. Windows may ask first, as it does for `install.cmd`; choose `Run`. If Windows won't open it, press
+   `Windows+R`, type this with the folder's full path in place of `<folder>`, and press Enter:
+
+   `powershell -ExecutionPolicy Bypass -NoExit -File "<folder>\install.ps1" -Uninstall`
+
+3. A window with a Yes and a No button asks "Uninstall the mod?" and says what it does, as the install's questions do.
+   Press `Y` for Yes. The focus starts on No, so `Enter` alone, or `N`, stops without changing anything.
+4. It says five steps, each starting with "Done", "Nothing to remove" or "Failed": it turns the mod off for the game in
+   Reloaded-II, keeping your other mods on; removes the mod's folder and the mod's settings from Reloaded-II; deletes
+   the desktop shortcut "Metaphor ReFantazio with accessibility"; and checks Reloaded-II.
+5. If the installer installed Reloaded-II, a second window asks "Remove Reloaded-II too?". That also removes every other
+   mod and game you added to Reloaded-II, so press `Enter` alone (No) to keep it, or `Y` to remove it. A
+   Reloaded-II you installed yourself is kept without asking.
+6. It says it kept the .NET 9 Desktop Runtime and the Visual C++ Redistributable, which other programs may use. To
+   remove them, use Installed apps in Windows Settings.
+7. Its last line is "The uninstall is done", or "There was nothing left to remove" when you run it again. The window
+   stays open and then says "The uninstall has finished. Read what it said above, then press any key to close this
+   window."
+
+It removes nothing outside Reloaded-II's folder, and leaves alone a folder that holds a link to somewhere else and a
+shortcut of the same name that starts another program; a step that leaves something says so as "Failed" and what to
+do. The other steps still run. Reloaded-II's settings file in your AppData folder stays.
 
 ## Report a problem
 

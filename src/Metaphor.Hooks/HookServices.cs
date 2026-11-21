@@ -1,10 +1,12 @@
 using Metaphor.Core;
 using Metaphor.Core.Announcements;
+using Metaphor.Core.Cues;
 using Metaphor.Core.Input;
 using Metaphor.Core.Menus;
 using Metaphor.Core.Messages;
 using Metaphor.Core.Settings;
 using Metaphor.Features.Dialogue;
+using Metaphor.Features.Field;
 using Metaphor.Features.Menus;
 
 namespace Metaphor.Hooks;
@@ -71,7 +73,30 @@ internal sealed record HookServices
     /// <summary>Every reader of a game global, which the loader hands each global it locates before any hook goes in.
     /// </summary>
     public IReadOnlyList<IReadsGlobal> Globals =>
-        [MenusOpen, DialogueWindow, GameData, CharacterTable, FollowerTable, Voice];
+        [MenusOpen, DialogueWindow, GameData, CharacterTable, FollowerTable, Voice, FieldWorld, FieldScene, FieldDatabase,
+            PersonTable];
+
+    /// <summary>Reads <c>fldWorld</c> for the nearby list (#181); the loader locates it.</summary>
+    public FieldGlobal FieldWorld { get; init; } = FieldGlobal.World();
+
+    /// <summary>Reads the field's scene root for free roam (#181); the loader locates it.</summary>
+    public FieldGlobal FieldScene { get; init; } = FieldGlobal.SceneRoot();
+
+    /// <summary>Reads the field database for the map id (#181); the loader locates it.</summary>
+    public FieldGlobal FieldDatabase { get; init; } = FieldGlobal.Database();
+
+    /// <summary>Reads the person table for people's names (#181); the loader locates it.</summary>
+    public DataTableRead PersonTable { get; init; } = DataTableRead.People();
+
+    /// <summary>The field controls (#181): the input hooks' frame (#301) hands them what the dialogue controls leave.
+    /// None unless the services speak.</summary>
+    public FieldControls? FieldControls { get; init; }
+
+    /// <summary>The place names "where am I" says (#181): the message lookup hook feeds it.</summary>
+    public FieldPlace? FieldPlace { get; init; }
+
+    /// <summary>The field reads (#181), for the map id beside each place-name lookup.</summary>
+    public FieldMemory? Field { get; init; }
 
     /// <summary>Reads the game's voice language for the auto voiced-lines mode (#538); the loader locates what it reads
     /// (#300).</summary>
@@ -84,6 +109,10 @@ internal sealed record HookServices
     /// <summary>The messages the game fetches by serial (#584), from the files it compiled; empty unless the message
     /// file hook is feeding it.</summary>
     public MessageSerials Serials { get; init; } = new([]);
+
+    /// <summary>Where features play the mod's sound cues (#636, ADR 0019); silent unless the entry point starts one.
+    /// </summary>
+    public ICuePlayer Cues { get; init; } = new SilentCuePlayer();
 
     /// <summary>The travel map's destination panel (#545): the panel hook hands it each destination shown.</summary>
     public required TravelMapDestination TravelMap { get; init; }
@@ -100,9 +129,12 @@ internal sealed record HookServices
     /// hears each compiled file first, speech each requested line and choice first, and the menu screens (#208, which
     /// tell the title menu, #94, the main menu and any other screen, #97) and a choice's focus (#95) each cursor input; the report log (#188) and the message log,
     /// when there are, hear every event last.</summary>
+    /// <remarks>Features that play sound cues (#636) are handed <paramref name="cues"/>.</remarks>
     public static HookServices Speaking(
-        IAnnouncer announcer, SettingsReloader settings, ReportLog? report, MessageLog? log, string modFolder)
+        IAnnouncer announcer, ICuePlayer cues, SettingsReloader settings, ReportLog? report, MessageLog? log,
+        string modFolder)
     {
+        ArgumentNullException.ThrowIfNull(cues);
         ArgumentNullException.ThrowIfNull(settings);
         var library = new MessageLibrary();
         // Serials as build 548ddc95 numbers them; the message file hook that feeds it installs on that build only.
@@ -168,6 +200,19 @@ internal sealed record HookServices
         events.ObserveSelects(selectChoices);
         cursors.Observe(screens);
         cursors.Observe(choiceFocus);
+        // The field's nearby list and "where am I" (#181), read on the press and spoken straight to the announcer.
+        var menusOpen = new MenusOpenRead();
+        var window = new DialogueWindowPointer();
+        var fieldWorld = FieldGlobal.World();
+        var fieldScene = FieldGlobal.SceneRoot();
+        var fieldDatabase = FieldGlobal.Database();
+        var personTable = DataTableRead.People();
+        var field = new FieldMemory(fieldWorld, fieldScene, fieldDatabase, personTable, names, menusOpen, window);
+        var place = new FieldPlace(cleaner);
+        events.ObserveFiles(place);
+        var fieldControls = new FieldControls(
+            FieldBindings.Default, field, place, announcer, () => Environment.TickCount64,
+            log is null ? null : log.FieldRead);
         if (report is not null)
         {
             events.ObserveFiles(report);
@@ -203,6 +248,16 @@ internal sealed record HookServices
             CharacterTable = characterTable,
             FollowerTable = followerTable,
             Voice = voiceLanguage,
+            MenusOpen = menusOpen,
+            DialogueWindow = window,
+            FieldWorld = fieldWorld,
+            FieldScene = fieldScene,
+            FieldDatabase = fieldDatabase,
+            PersonTable = personTable,
+            Field = field,
+            FieldPlace = place,
+            FieldControls = fieldControls,
+            Cues = cues,
         };
     }
 }

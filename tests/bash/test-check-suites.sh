@@ -144,9 +144,9 @@ out="$(bash "$ROOT/scripts/check/run-check-suites.sh" --list)"
 check "the real list is every suite file" [ "$out" = "$(cd "$ROOT" && printf '%s\n' tests/check/test-check.sh \
   tests/bash/test-*.sh)" ]
 
-# CI runs the suites only through the runner.
+# CI runs the suites only through the runner (under the flake rule's retry, #655).
 out="$(grep -A3 -- '- name: Test the check scripts' "$ROOT/.github/workflows/ci.yml")"
-check "CI's step runs the runner" has "run: bash scripts/check/run-check-suites.sh"
+check "CI's step runs the runner" has 'run: bash scripts/ci/retry-test.sh "$GITHUB_JOB" bash scripts/check/run-check-suites.sh'
 out="$(grep -hvE '^[[:space:]]*#' "$ROOT"/.github/workflows/*.yml | grep -E 'tests/(check|bash)/test-[A-Za-z0-9_-]+\.sh')"
 check "no workflow runs a suite by itself" [ -z "$out" ]
 
