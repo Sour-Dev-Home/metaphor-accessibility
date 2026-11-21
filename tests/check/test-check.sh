@@ -428,6 +428,44 @@ test_blocks_email_address() {
   expect 1 "personal information" "notes.md:1" "email address"
 }
 
+test_passes_email_in_third_party_licence_notice() {
+  new_repo
+  mkdir -p src/licenses/x
+  printf 'Copyright (C) 2020 Alice Smith <alice.smith%sgmail.com>\n' "$at" > src/licenses/x/LICENSE
+  git add src/licenses/x/LICENSE
+  run_check fast
+  expect 0
+}
+
+test_blocks_email_beside_a_licence_notice_or_elsewhere() {
+  new_repo
+  mkdir -p licenses/x docs/x
+  printf 'mail alice.smith%sgmail.com\n' "$at" > licenses/x/README.md
+  printf 'mail alice.smith%sgmail.com\n' "$at" > docs/x/LICENSE
+  git add licenses/x/README.md docs/x/LICENSE
+  run_check fast
+  expect 1 "licenses/x/README.md:1: email address" "docs/x/LICENSE:1: email address"
+}
+
+test_blocks_private_pattern_in_licence_notice() {
+  new_repo
+  mkdir -p .claude licenses/x
+  printf 'jane-q-public\n' > .claude/pii-patterns.txt
+  printf 'Copyright (C) 2020 jane-q-public\n' > licenses/x/LICENSE.MIT
+  git add licenses/x/LICENSE.MIT
+  run_check fast
+  expect 1 "licenses/x/LICENSE.MIT:1: matches a private pattern"
+}
+
+test_blocks_user_path_in_licence_notice() {
+  new_repo
+  mkdir -p licenses/x
+  printf 'built in C:\\%s\\jane\n' "$users" > licenses/x/NOTICE
+  git add licenses/x/NOTICE
+  run_check fast
+  expect 1 "licenses/x/NOTICE:1: local user path"
+}
+
 test_passes_placeholders_and_example_addresses() {
   new_repo
   printf 'no paths like C:\\%s\\... or C:/%s/ here\n' "$users" "$users" > a.md

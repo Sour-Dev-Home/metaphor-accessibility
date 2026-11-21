@@ -2,8 +2,8 @@
 // b1342dabcf5257ab303743c9332fe75e9147a011, file fastlz.c (fastlz_decompress, fastlz1_decompress, fastlz2_decompress).
 // The port checks every read and write against its buffers and returns -1 instead of reading or writing past them.
 // Notes: docs/raw-sources/fastlz-and-recast-layer-cells-2026-11-21.md. Its licence notice follows, as it requires
-// (also in licenses/fastlz/LICENSE.MIT, which ships with the mod); the author's email address after the copyright
-// line is left out, as AGENTS.md ground rule 6 keeps email addresses out of the repository.
+// without the author's email address after the copyright line, which the check allows only in a licence file. The
+// verbatim notice, email included, is licenses/fastlz/LICENSE.MIT, which ships with the mod (ADR 0005).
 //
 //   FastLZ - Byte-aligned LZ77 compression library
 //   Copyright (C) 2005-2020 Ariya Hidayat
