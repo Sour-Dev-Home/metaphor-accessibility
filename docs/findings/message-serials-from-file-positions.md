@@ -13,7 +13,7 @@ doesn't read it. Each message file owns a run of serials that starts at a number
 order. The game compiles its system files whole at start-up and the mod already keeps that source, so a serial's label
 and text come from the source by position. `MessageSerials` (`src/Metaphor.Core/Messages/MessageSerials.cs`) does this
 for the two system files. The quick menu is its first user: its items' cursor order comes from the order the game
-fetches their help lines in.
+fetches their help lines in. Three of its names aren't messages at all.
 
 ## Evidence
 
@@ -38,8 +38,13 @@ fetches their help lines in.
 - **The quick menu's order.** As it opens, the game resolves `System_EasyMenu_08`, `_12`, `_13`, `_10`, `_09`, `_16`,
   `_11`, `_14` in one frame. Those are the help lines of `_01`, `_05`, `_06`, `_03`, `_02`, `_15`, `_04`, `_07`, which
   are the item names. Cursor index 3 opened the tutorials list and index 5 the glossary list. These match the 4th
-  (`_10`, for `_03`) and 6th (`_16`, for `_15`) help lines. So the resolve order is the cursor order, top first, for
-  those two rows; the other six are `[NEEDS VERIFICATION]` by ear.
+  (`_10`, for `_03`) and 6th (`_16`, for `_15`) help lines. So the resolve order is the cursor order, top first. The
+  maintainer heard all eight positions right on 2026-11-21 (#591).
+- **Three rows draw words no message holds.** In that check, rows 4, 6 and 7 were spoken from `_03`, `_15` and `_04`,
+  but the screen shows "Tutorials", "Memorandum" and "Settings". No message in the compiled files of that run's Debug
+  log is exactly "Tutorials". "Memorandum" and "Settings" are only in button prompts, key names and a settings row. So
+  the menu draws those names itself, perhaps as images `[NEEDS VERIFICATION]`. The maintainer chose on 2026-11-21 that
+  the mod says its own English words for those three rows, and the system file's labels for the other five.
 - **What's open.** The other files' first serials aren't in the table yet. One table entry's range test is
   `0x1417`+`0x304` (serials 5143–5915, 773 messages), which fits `Item_Message_1.msg`'s compiled count; which entry it
   is wasn't read `[NEEDS VERIFICATION]`. If so, `Item_Message_2.msg` (833 messages) would start at 5916, the

@@ -4,9 +4,10 @@ using Metaphor.Core.Messages;
 
 namespace Metaphor.Features.Menus.Tests;
 
-/// <summary>The field's quick menu (#584): each item the cursor settles on is said by its name from the system file and
-/// "n of 8", in the cursor order the game fetched its help lines in (docs/findings/message-serials-from-file-positions.md).
-/// Hook events in, announcements out; made-up names only.</summary>
+/// <summary>The field's quick menu (#584): each item the cursor settles on is said by its name, from the system file or
+/// the mod's own word for the three rows the game draws itself, and "n of 8", in the cursor order the game fetched its
+/// help lines in (docs/findings/message-serials-from-file-positions.md). Hook events in, announcements out; made-up file
+/// text only.</summary>
 [Trait("Category", "Unit")]
 public sealed class QuickMenuFocusTests
 {
@@ -54,10 +55,22 @@ public sealed class QuickMenuFocusTests
         }
 
         Assert.Equal(
-            ["Bag, 1 of 8", "Open, 2 of 8", "Keep, 3 of 8", "Lessons, 4 of 8", "Tale, 5 of 8", "Notes, 6 of 8",
-                "Options, 7 of 8", "Leave, 8 of 8"],
+            ["Bag, 1 of 8", "Open, 2 of 8", "Keep, 3 of 8", "Tutorials, 4 of 8", "Tale, 5 of 8", "Memorandum, 6 of 8",
+                "Settings, 7 of 8", "Leave, 8 of 8"],
             Said());
         Assert.All(announcer.Said, said => Assert.True(said.Interrupt));
+    }
+
+    // Rows 4, 6 and 7 draw words no message holds (heard 2026-11-21, #591): the mod's own words, the maintainer's
+    // choice, whether or not the file has compiled.
+    [Fact]
+    public void TheRowsTheGameDrawsItselfAreSaidInTheModsOwnWords()
+    {
+        Cursor(3);
+        Cursor(5);
+        Cursor(6);
+
+        Assert.Equal(["Tutorials, 4 of 8", "Memorandum, 6 of 8", "Settings, 7 of 8"], Said());
     }
 
     [Fact]
