@@ -1,8 +1,10 @@
 using Metaphor.Core;
 using Metaphor.Core.Announcements;
+using Metaphor.Core.Battle;
 using Metaphor.Core.Menus;
 using Metaphor.Core.Messages;
 using Metaphor.Core.Settings;
+using Metaphor.Features.Battle;
 using Metaphor.Features.Dialogue;
 using Metaphor.Features.Menus;
 
@@ -72,6 +74,9 @@ internal sealed record HookServices
     /// file hook is feeding it.</summary>
     public MessageSerials Serials { get; init; } = new([]);
 
+    /// <summary>Where the battle hit hook reports each target an action hit (#247).</summary>
+    public IBattleHitObserver BattleHits { get; init; } = new NoBattleHits();
+
     /// <summary>The mod's folder, outside the repository, where a development run leaves files for its hooks.</summary>
     public required string ModFolder { get; init; }
 
@@ -117,6 +122,16 @@ internal sealed record HookServices
         screens.Observe(new DifficultyFocus(library, reader, cleaner));
         screens.Observe(new SettingsFocus(library, reader, cleaner));
         screens.Observe(new QuickMenuFocus(library, reader, cleaner));
+        // Battle's skill and item lists say each row by the name the game fetched for it by serial (#247).
+        foreach (var list in new[]
+        {
+            BattleListFocus.Skills(serials, reader, cleaner, () => Environment.TickCount64),
+            BattleListFocus.Items(serials, reader, cleaner, () => Environment.TickCount64),
+        })
+        {
+            screens.Observe(list);
+            events.ObserveSerials(list);
+        }
         screens.Observe(new UnknownScreenFocus(reader));
         var menuBindings = MenuBindings.Default with
         {
@@ -165,6 +180,8 @@ internal sealed record HookServices
             Log = log,
             ModFolder = modFolder,
             Serials = serials,
+            // Each hit is spoken through the reader, queued (#247).
+            BattleHits = new HitLines(reader, () => Environment.TickCount64),
             DialogueHistory = history,
             DialogueControls = controls,
             MenuControls = menuControls,

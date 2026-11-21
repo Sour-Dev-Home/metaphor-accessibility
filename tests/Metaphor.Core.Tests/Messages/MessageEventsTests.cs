@@ -11,8 +11,11 @@ public sealed class MessageEventsTests
     private readonly List<string> seen = [];
 
     private sealed class Recording(string name, List<string> seen)
-        : ILineRequestObserver, IMessageFileObserver, IChoiceRequestObserver, ILineShownObserver, ISelectRequestObserver
+        : ILineRequestObserver, IMessageFileObserver, IChoiceRequestObserver, ILineShownObserver, ISelectRequestObserver,
+            ISerialResolveObserver
     {
+        public void Observe(SerialResolved resolve) => seen.Add($"{name}:serial:{resolve.Serial}:{resolve.Flags}");
+
         public void Observe(LineRequested line) => seen.Add($"{name}:{line.Kind}:{line.Label}");
 
         public void Observe(SelectRequested window) =>
@@ -27,8 +30,11 @@ public sealed class MessageEventsTests
     }
 
     private sealed class Throwing
-        : ILineRequestObserver, IMessageFileObserver, IChoiceRequestObserver, ILineShownObserver, ISelectRequestObserver
+        : ILineRequestObserver, IMessageFileObserver, IChoiceRequestObserver, ILineShownObserver, ISelectRequestObserver,
+            ISerialResolveObserver
     {
+        public void Observe(SerialResolved resolve) => throw new InvalidOperationException("observer failed");
+
         public void Observe(SelectRequested window) => throw new InvalidOperationException("observer failed");
 
         public void Observe(LineShown line) => throw new InvalidOperationException("observer failed");
@@ -134,9 +140,23 @@ public sealed class MessageEventsTests
         Assert.Equal(["speech:select:1:MES_q:MES_c", "log:select:1:MES_q:MES_c"], seen);
     }
 
+    // #247: a message the game fetched by serial, for the battle lists.
+    [Fact]
+    public void AResolvedSerialReachesEachSerialObserverInOrderEvenAfterOneThrows()
+    {
+        events.ObserveSerials(new Recording("lists", seen));
+        events.ObserveSerials(new Throwing());
+        events.ObserveSerials(new Recording("log", seen));
+
+        events.Resolved(new SerialResolved(6000, 9));
+
+        Assert.Equal(["lists:serial:6000:9", "log:serial:6000:9"], seen);
+    }
+
     [Fact]
     public void AMissingObserverIsRefusedWhenAdded()
     {
+        Assert.Throws<ArgumentNullException>("observer", () => events.ObserveSerials(null!));
         Assert.Throws<ArgumentNullException>("observer", () => events.ObserveFiles(null!));
         Assert.Throws<ArgumentNullException>("observer", () => events.ObserveLines(null!));
         Assert.Throws<ArgumentNullException>("observer", () => events.ObserveChoices(null!));
