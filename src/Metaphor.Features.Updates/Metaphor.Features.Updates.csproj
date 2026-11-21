@@ -1,0 +1,19 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- The update notice (#576). A feature: plain logic over Metaphor.Core's announcer and screen events, independent of
+       every other feature (architecture rule 5). The one assembly allowed networking, for one request per launch to
+       this repository's GitHub releases (ADR 0018, architecture rule 3). -->
+  <PropertyGroup>
+    <TargetFramework>net9.0</TargetFramework>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Metaphor.Core\Metaphor.Core.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- So the tests can check the real HTTP handler's settings. -->
+    <InternalsVisibleTo Include="Metaphor.Features.Updates.Tests" />
+  </ItemGroup>
+
+</Project>

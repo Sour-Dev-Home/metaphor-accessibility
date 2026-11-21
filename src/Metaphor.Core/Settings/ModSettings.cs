@@ -26,6 +26,7 @@ public sealed record ModSettings
     public const string FileName = "settings.json";
 
     private const string VoicedLinesKey = "voicedLines";
+    private const string CheckForUpdatesKey = "checkForUpdates";
     private const string SoundCuesKey = "soundCues";
     private const string SoundCueVolumeKey = "soundCueVolume";
 
@@ -34,6 +35,10 @@ public sealed record ModSettings
 
     /// <summary>How voiced dialogue lines are spoken.</summary>
     public VoicedLinesMode VoicedLines { get; init; } = VoicedLinesMode.Auto;
+
+    /// <summary>Whether the mod asks GitHub once per launch for a newer release (#576, ADR 0018). On by default; false
+    /// turns the request off.</summary>
+    public bool CheckForUpdates { get; init; } = true;
 
     /// <summary>Whether the mod plays its sound cues (#636, ADR 0019). On by default.</summary>
     public bool SoundCues { get; init; } = true;
@@ -62,6 +67,7 @@ public sealed record ModSettings
             return new ModSettings
             {
                 VoicedLines = ReadMode(document.RootElement, log),
+                CheckForUpdates = ReadCheckForUpdates(document.RootElement, log),
                 SoundCues = ReadSoundCues(document.RootElement, log),
                 SoundCueVolume = ReadSoundCueVolume(document.RootElement, log),
             };
@@ -89,6 +95,21 @@ public sealed record ModSettings
         }
         log($"settings file: \"{VoicedLinesKey}\" is not one of auto, nameOnly, fullLine, nothing; using auto");
         return Defaults.VoicedLines;
+    }
+
+    // JSON true or false only: a string or a number is a typo, so the check stays on and the log says why.
+    private static bool ReadCheckForUpdates(JsonElement root, Action<string> log)
+    {
+        if (!root.TryGetProperty(CheckForUpdatesKey, out var value))
+        {
+            return Defaults.CheckForUpdates;
+        }
+        if (value.ValueKind is JsonValueKind.True or JsonValueKind.False)
+        {
+            return value.GetBoolean();
+        }
+        log($"settings file: \"{CheckForUpdatesKey}\" is not true or false; using true");
+        return Defaults.CheckForUpdates;
     }
 
     // JSON true or false only: a string or a number is a typo, so cues stay on and the log says why.

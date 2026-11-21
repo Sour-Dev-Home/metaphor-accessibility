@@ -3,8 +3,8 @@ using Metaphor.Core.Settings;
 
 namespace Metaphor.Core.Tests.Cues;
 
-/// <summary>Playing cues off the caller's thread (#636): the settings decide whether and how loud, the caller never
-/// waits, and a backlog is dropped rather than played late.</summary>
+/// <summary>Playing cues off the caller's thread (#636, #637): the settings decide whether and how loud, the caller
+/// never waits, a backlog is dropped rather than played late, and held tones follow their latest request.</summary>
 [Trait("Category", "Unit")]
 public sealed class CuePlayerTests
 {
@@ -12,72 +12,96 @@ public sealed class CuePlayerTests
     private readonly List<string> logged = [];
 
     [Fact]
-    public void ACueIsPlayedAsItsWavAtTheSetVolume()
+    public void ACueIsPlayedAtTheSetVolumeAndPlace()
     {
-        var sink = new FakeSink();
+        var device = new FakeWaveDevice { Instant = true };
         var settings = ModSettings.Defaults with { SoundCueVolume = 30 };
-        using (var player = new CuePlayer(sink, () => settings, logged.Add))
+        using (var player = new CuePlayer(device, () => settings, logged.Add))
         {
-            player.Play(Cue.EnemyHit);
+            player.Play(Cue.EnemyHit, 0.5);
+        }
+
+        Assert.Equal(Expected(Cue.EnemyHit, 30, 0.5), device.Opened.Single().Frames);
+    }
+
+    [Fact]
+    public void APlainCueIsPlayedInTheCentre()
+    {
+        var device = new FakeWaveDevice { Instant = true };
+        using (var player = new CuePlayer(device, () => ModSettings.Defaults, logged.Add))
+        {
             player.Play(Cue.AllyHit);
         }
 
         Assert.Equal(
-            [CueWave.Wav(CueCatalogue.For(Cue.EnemyHit), 30), CueWave.Wav(CueCatalogue.For(Cue.AllyHit), 30)],
-            sink.Played);
+            Expected(Cue.AllyHit, ModSettings.Defaults.SoundCueVolume, 0), device.Opened.Single().Frames);
     }
 
     [Fact]
     public void CuesOffPlaysNothing()
     {
-        var sink = new FakeSink();
+        var device = new FakeWaveDevice { Instant = true };
         var settings = ModSettings.Defaults with { SoundCues = false };
-        using (var player = new CuePlayer(sink, () => settings, logged.Add))
+        using (var player = new CuePlayer(device, () => settings, logged.Add))
         {
             player.Play(Cue.AllyHit);
+            player.Hold(ToneChannel.Guidance, new HeldTone(440, 0, 100));
         }
 
-        Assert.Empty(sink.Played);
+        Assert.Empty(device.Opened);
     }
 
     [Fact]
     public void VolumeZeroPlaysNothing()
     {
-        var sink = new FakeSink();
+        var device = new FakeWaveDevice { Instant = true };
         var settings = ModSettings.Defaults with { SoundCueVolume = 0 };
-        using (var player = new CuePlayer(sink, () => settings, logged.Add))
+        using (var player = new CuePlayer(device, () => settings, logged.Add))
         {
             player.Play(Cue.AllyHit);
         }
 
-        Assert.Empty(sink.Played);
+        Assert.Empty(device.Opened);
     }
 
     [Fact]
     public void TheSettingIsReadAtEachCue()
     {
-        var sink = new FakeSink();
+        var device = new FakeWaveDevice { Instant = true };
         var settings = ModSettings.Defaults with { SoundCues = false };
-        using (var player = new CuePlayer(sink, () => settings, logged.Add))
+        using (var player = new CuePlayer(device, () => settings, logged.Add))
         {
             player.Play(Cue.AllyHit);
             settings = ModSettings.Defaults;
             player.Play(Cue.EnemyHit);
         }
 
-        Assert.Equal([CueWave.Wav(CueCatalogue.For(Cue.EnemyHit), ModSettings.Defaults.SoundCueVolume)], sink.Played);
+        Assert.Equal(
+            Expected(Cue.EnemyHit, ModSettings.Defaults.SoundCueVolume, 0), device.Opened.Single().Frames);
     }
 
     [Fact]
     public void TheCallerNeverWaitsAndABacklogIsDropped()
     {
+        using var entered = new ManualResetEventSlim();
         using var gate = new ManualResetEventSlim();
-        var sink = new FakeSink(gate);
-        var player = new CuePlayer(sink, () => ModSettings.Defaults, logged.Add);
+        var device = new FakeWaveDevice
+        {
+            Instant = true,
+            BeforeWrite = () =>
+            {
+                entered.Set();
+                if (!gate.Wait(Wait))
+                {
+                    throw new TimeoutException("the test never opened the gate");
+                }
+            },
+        };
+        var player = new CuePlayer(device, () => ModSettings.Defaults, logged.Add);
 
         player.Play(Cue.AllyHit);
-        Assert.True(sink.Entered.Wait(Wait), "the first cue never reached the sink");
-        // The sink is stuck on the first cue: these return at once, and only the queue's worth are kept.
+        Assert.True(entered.Wait(Wait), "the first cue never reached the device");
+        // The player's thread is stuck writing the first cue: these return at once, and only the backlog is kept.
         for (var i = 0; i < 10; i++)
         {
             player.Play(Cue.EnemyHit);
@@ -85,84 +109,79 @@ public sealed class CuePlayerTests
         gate.Set();
         player.Dispose();
 
-        Assert.Equal(1 + CuePlayer.Backlog, sink.Played.Count);
+        // Of the backlog, one finds the second cue channel free; the rest find both busy and are dropped.
+        Assert.Equal(2, device.Opened.Count);
+        Assert.Equal(Expected(Cue.EnemyHit, ModSettings.Defaults.SoundCueVolume, 0), device.Opened[1].Frames);
     }
 
     [Fact]
-    public void AFailingSinkIsLoggedOnceAndPlayingGoesOn()
+    public void AHeldToneSoundsUntilStoppedAndFollowsItsLatestChange()
     {
-        var sink = new FakeSink { FailuresLeft = 2 };
-        using (var player = new CuePlayer(sink, () => ModSettings.Defaults, logged.Add))
+        var device = new FakeWaveDevice { Instant = true };
+        using var player = new CuePlayer(device, () => ModSettings.Defaults, logged.Add);
+
+        player.Hold(ToneChannel.Guidance, new HeldTone(440, -1, 100));
+        Assert.True(device.Writes.Wait(Wait));
+        player.Hold(ToneChannel.Guidance, new HeldTone(440, 1, 100));
+        var output = device.Opened.Single();
+        // Wait for a buffer that is fully right: the change reached the stream.
+        Assert.True(SpinWait.SpinUntil(() => output.Buffers.ToArray().Any(FullyRight), Wait));
+        player.Silence(ToneChannel.Guidance);
+        player.Dispose();
+
+        Assert.Single(device.Opened);
+        Assert.True(output.Closed);
+        Assert.InRange(Math.Abs((int)output.Frames[^1]), 0, 1);
+    }
+
+    [Fact]
+    public void DisposingFadesOutAHeldToneAndClosesItsChannel()
+    {
+        var device = new FakeWaveDevice { Instant = true };
+        var player = new CuePlayer(device, () => ModSettings.Defaults, logged.Add);
+        player.Hold(ToneChannel.Wall, new HeldTone(220, 0, 100));
+        Assert.True(device.Writes.Wait(Wait));
+
+        player.Dispose();
+
+        var output = device.Opened.Single();
+        Assert.True(output.Closed);
+        Assert.InRange(Math.Abs((int)output.Frames[^1]), 0, 1);
+        Assert.Empty(output.Violations);
+    }
+
+    [Fact]
+    public void ACueWithNoSoundIsLoggedAndLaterCuesStillPlay()
+    {
+        var device = new FakeWaveDevice { Instant = true };
+        using (var player = new CuePlayer(device, () => ModSettings.Defaults, logged.Add))
         {
-            // One at a time, so none is dropped as a backlog.
+            player.Play((Cue)99);
             player.Play(Cue.AllyHit);
-            Assert.True(sink.Calls.Wait(Wait));
-            player.Play(Cue.AllyHit);
-            Assert.True(sink.Calls.Wait(Wait));
-            player.Play(Cue.EnemyHit);
         }
 
-        Assert.Single(sink.Played);
-        Assert.Equal(["sound cue failed to play (no device); later failures are not logged"], logged);
+        Assert.Equal(
+            Expected(Cue.AllyHit, ModSettings.Defaults.SoundCueVolume, 0), device.Opened.Single().Frames);
+        Assert.Single(logged);
     }
 
     [Fact]
     public void PlayingAfterDisposeIsIgnored()
     {
-        var sink = new FakeSink();
-        var player = new CuePlayer(sink, () => ModSettings.Defaults, logged.Add);
+        var device = new FakeWaveDevice { Instant = true };
+        var player = new CuePlayer(device, () => ModSettings.Defaults, logged.Add);
         player.Dispose();
 
         player.Play(Cue.AllyHit);
+        player.Hold(ToneChannel.Guidance, new HeldTone(440, 0, 100));
 
-        Assert.Empty(sink.Played);
+        Assert.Empty(device.Opened);
     }
 
-    private sealed class FakeSink(ManualResetEventSlim? gate = null) : ICueSink
-    {
-        private readonly List<byte[]> played = [];
+    private static short[] Expected(Cue cue, int volume, double pan) =>
+        CueWave.Stereo(CueWave.Samples(CueCatalogue.For(cue), volume), pan);
 
-        public ManualResetEventSlim Entered { get; } = new();
-
-        /// <summary>Released once each call has finished, played or failed.</summary>
-        public SemaphoreSlim Calls { get; } = new(0);
-
-        public int FailuresLeft { get; set; }
-
-        public IReadOnlyList<byte[]> Played
-        {
-            get
-            {
-                lock (played)
-                {
-                    return [.. played];
-                }
-            }
-        }
-
-        public void Play(byte[] wav)
-        {
-            Entered.Set();
-            if (gate is not null && !gate.Wait(Wait))
-            {
-                throw new TimeoutException("the test never opened the gate");
-            }
-            try
-            {
-                if (FailuresLeft > 0)
-                {
-                    FailuresLeft--;
-                    throw new InvalidOperationException("no device");
-                }
-                lock (played)
-                {
-                    played.Add(wav);
-                }
-            }
-            finally
-            {
-                Calls.Release();
-            }
-        }
-    }
+    private static bool FullyRight(short[] buffer) =>
+        buffer.Where((_, i) => i % 2 == 0).All(sample => sample == 0) &&
+        buffer.Where((_, i) => i % 2 == 1).Any(sample => sample != 0);
 }

@@ -46,6 +46,10 @@ public sealed class SettingsReloader
             {
                 said.Add($"Voiced lines: {Describe(next.VoicedLines)}.");
             }
+            if (next.CheckForUpdates != current.CheckForUpdates)
+            {
+                said.Add($"Update check: {(next.CheckForUpdates ? "on" : "off")}.");
+            }
             if (next.SoundCues != current.SoundCues)
             {
                 said.Add($"Sound cues: {(next.SoundCues ? "on" : "off")}.");

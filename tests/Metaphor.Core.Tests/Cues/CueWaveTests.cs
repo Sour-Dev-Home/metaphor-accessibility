@@ -1,4 +1,3 @@
-using System.Text;
 using Metaphor.Core.Cues;
 
 namespace Metaphor.Core.Tests.Cues;
@@ -78,31 +77,37 @@ public sealed class CueWaveTests
         Assert.True(enemy.Min(step => step.Hertz) > ally.Max(step => step.Hertz));
     }
 
-    [Fact]
-    public void TheWavIsSixteenBitMonoPcmHoldingTheSamples()
+    [Theory]
+    [InlineData(-1, 1, 0)]
+    [InlineData(0, 0.70710678, 0.70710678)]
+    [InlineData(1, 0, 1)]
+    [InlineData(-0.5, 0.92387953, 0.38268343)]
+    [InlineData(-7, 1, 0)]
+    [InlineData(double.NaN, 0.70710678, 0.70710678)]
+    public void PanningIsEqualPowerFromLeftToRight(double pan, double left, double right)
     {
-        var tone = CueCatalogue.For(Cue.EnemyHit);
-        var samples = CueWave.Samples(tone, 70);
+        var gains = CueWave.PanGains(pan);
 
-        var wav = CueWave.Wav(tone, 70);
+        Assert.Equal(left, gains.Left, 6);
+        Assert.Equal(right, gains.Right, 6);
+    }
 
-        Assert.Equal("RIFF", Encoding.ASCII.GetString(wav, 0, 4));
-        Assert.Equal(wav.Length - 8, BitConverter.ToInt32(wav, 4));
-        Assert.Equal("WAVEfmt ", Encoding.ASCII.GetString(wav, 8, 8));
-        Assert.Equal(16, BitConverter.ToInt32(wav, 16));
-        Assert.Equal(1, BitConverter.ToInt16(wav, 20)); // PCM
-        Assert.Equal(1, BitConverter.ToInt16(wav, 22)); // mono
-        Assert.Equal(CueWave.SampleRate, BitConverter.ToInt32(wav, 24));
-        Assert.Equal(CueWave.SampleRate * 2, BitConverter.ToInt32(wav, 28));
-        Assert.Equal(2, BitConverter.ToInt16(wav, 32));
-        Assert.Equal(16, BitConverter.ToInt16(wav, 34));
-        Assert.Equal("data", Encoding.ASCII.GetString(wav, 36, 4));
-        Assert.Equal(samples.Length * 2, BitConverter.ToInt32(wav, 40));
-        Assert.Equal(44 + (samples.Length * 2), wav.Length);
-        for (var i = 0; i < samples.Length; i++)
+    [Fact]
+    public void APannedSoundKeepsItsPowerWherever()
+    {
+        for (var pan = -1.0; pan <= 1.0; pan += 0.125)
         {
-            Assert.Equal(samples[i], BitConverter.ToInt16(wav, 44 + (2 * i)));
+            var (left, right) = CueWave.PanGains(pan);
+            Assert.Equal(1, (left * left) + (right * right), 9);
         }
+    }
+
+    [Fact]
+    public void StereoInterleavesTheSamplesScaledByEachEarsGain()
+    {
+        var stereo = CueWave.Stereo([1000, -2000], -0.5);
+
+        Assert.Equal([924, 383, -1848, -765], stereo);
     }
 
     [Theory]
