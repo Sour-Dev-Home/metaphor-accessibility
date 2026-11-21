@@ -159,6 +159,18 @@ public sealed class HitLinesTests : IDisposable
         Assert.Equal([("Enemy", 30)], lines.KnownEnemies());
     }
 
+    // The summary runs on the timer's thread: a name lookup that throws must not escape it.
+    [Fact]
+    public void ANameLookupThatThrowsLeavesTheSummaryUnsaidWithoutEscaping()
+    {
+        using var throwing = new HitLines(announcer, time, _ => throw new InvalidOperationException("made-up failure"));
+        throwing.Observe(Ally(0, 3, -5, 10));
+
+        time.Advance(Gap);
+
+        Assert.DoesNotContain(Said(), said => said.Contains("10", StringComparison.Ordinal));
+    }
+
     private sealed class Cue(List<BattleSide> cues) : IHitCue
     {
         public void Before(BattleSide side) => cues.Add(side);

@@ -1,3 +1,4 @@
+using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
 using Metaphor.Core;
 using Metaphor.Core.Announcements;
@@ -118,7 +119,20 @@ public sealed class HitLines : IBattleHitObserver, IDisposable
 
     public void Dispose() => timer.Dispose();
 
+    // The timer's callback runs on a thread-pool thread, where an exception would end the game.
+    [SuppressMessage("Design", "CA1031", Justification = "An exception on the timer's thread would end the game.")]
     private void Summarize()
+    {
+        try
+        {
+            SummarizeAction();
+        }
+        catch (Exception)
+        {
+        }
+    }
+
+    private void SummarizeAction()
     {
         string? said;
         lock (gate)
