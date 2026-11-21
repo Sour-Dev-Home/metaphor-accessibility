@@ -245,6 +245,23 @@ They work only while a dialogue window is open, a line or a choice, and the game
 such as a menu or the field, they do nothing and keep their normal job in the game. Reader off silences dialogue lines
 only, not the keys, the load message or the settings message.
 
+### In the field: what is near and where you are
+
+1. `N` on the keyboard: says what is near you, nearest first, up to 8 things: people, doors, chests and enemies. Each
+   says its name, or its kind when it has none, then how far and which way from where you face, such as "Chest, 4
+   steps ahead-left". "In reach" means you can probably use it from where you stand. With nothing near it says
+   "Nothing nearby".
+2. `LB` held, then `Down` or `Up` on the controller's D-pad: steps through the same list one thing at a time, such as
+   "2 of 5. Door, 9 steps behind". After 10 seconds without a step it starts again at the nearest.
+3. `L` on the keyboard, or `LB` held and `Left` on the D-pad: says where you are, by the place name the game last
+   showed. Before the game has shown one, it says "Place not known yet".
+
+They work only while you walk around freely, with no menu or dialogue open, and the game doesn't see the key, or the
+D-pad direction, then. Anywhere else they keep their normal job in the game. Distances are rough steps for now: the mod
+doesn't yet know how long a step is in the game, so treat them as near or far.
+
+`[NEEDS VERIFICATION]` All by ear in the game. They need a supported game build.
+
 ### Menus and choices: no keys of their own
 
 The mod adds no keys here. It speaks what the game's own cursor does, so use the game's own movement keys or buttons.
@@ -273,6 +290,13 @@ it lands on your machine), holding:
 The choices are `auto`, `nameOnly`, `fullLine` and `nothing`. The mod reads the file at start and again when you save
 it, and says "Voiced lines: name only." (or the new value) when it changes. A file it can't use is ignored and the
 default applies.
+
+### Update check
+
+Each time the game starts, the mod asks GitHub once for its newest release, and the title screen says "A newer version
+of the mod is available:" and the version when there is one. It sends nothing about you. To stop it, add
+`"checkForUpdates": false` to the same `settings.json`; see
+[turn off the update check](turn-off-the-update-check.md).
 
 ### Braille
 

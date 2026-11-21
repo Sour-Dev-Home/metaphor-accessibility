@@ -17,8 +17,18 @@ _Avoid_: re-pack, rebuild (when used to mean this check)
 
 **Announcement**:
 A piece of text a feature asks the screen reader to speak, such as a menu item's name when it gets focus. Sounds that
-carry meaning without words are audio cues, not announcements.
+carry meaning without words are sound cues, not announcements.
 _Avoid_: message, speech, TTS (when used to mean the text)
+
+**Sound cue**:
+A short tone the mod plays to say what happened without words, such as an ally being hit (#636, ADR 0019). Each is
+named in the cue catalogue (`Cue`) and explained for players in `docs/players/reference/sound-cues.md`.
+_Avoid_: earcon, audio cue, sound effect (the game's own sounds)
+
+**Held tone**:
+A continuous tone a feature starts, changes in pitch, pan and volume, and silences, on its own tone channel
+(`ToneChannel`), such as guidance toward a target (#183, #637, ADR 0019). Unlike a sound cue, it lasts until silenced.
+_Avoid_: loop, beacon (when used to mean this tone)
 
 **Transcript**:
 The ordered record of every announcement in one run of the game, kept in dev builds so what was said can be checked

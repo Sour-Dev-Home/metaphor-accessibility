@@ -9,7 +9,9 @@
   <ItemGroup>
     <ProjectReference Include="..\Metaphor.Core\Metaphor.Core.csproj" />
     <ProjectReference Include="..\Metaphor.Features.Dialogue\Metaphor.Features.Dialogue.csproj" />
+    <ProjectReference Include="..\Metaphor.Features.Field\Metaphor.Features.Field.csproj" />
     <ProjectReference Include="..\Metaphor.Features.Menus\Metaphor.Features.Menus.csproj" />
+    <ProjectReference Include="..\Metaphor.Features.Updates\Metaphor.Features.Updates.csproj" />
     <!-- Compile against it only: Reloaded-II supplies it at run time, as in the official template. -->
     <PackageReference Include="Reloaded.Mod.Interfaces" ExcludeAssets="runtime" />
     <!-- Not compile-only, as in the template: its interface DLLs ship with the mod (ADR 0006), with their licence. -->

@@ -12,7 +12,7 @@ The [ground rules in `AGENTS.md`](../../AGENTS.md#ground-rules) apply to people 
 ```text
 src/                      the mod
   Metaphor.Core/            plain library: formats, logic, hook signatures, known game builds
-  Metaphor.Features.*/      one project per feature (Dialogue, Menus); never depend on each other
+  Metaphor.Features.*/      one project per feature (Dialogue, Menus, Updates); never depend on each other
   Metaphor.Hooks/           the thin hook layer: the Reloaded-II mod, the only project touching game memory
 tests/
   Metaphor.*.Tests/         xUnit tests (Unit, RoundTrip, WindowsOnly); Architecture.Tests check the architecture rules
@@ -188,7 +188,8 @@ Reference: [checks](reference/checks.md), every check stage and how CI runs them
 [branch rules](reference/branch-rules.md), the ruleset and the merge queue.
 
 Explanation: [how a change reaches main](explanation/how-a-change-reaches-main.md), a diagram of the hooks, CI and the
-merge queue; [security model](explanation/security-model.md), each security decision and what it protects.
+merge queue; [security model](explanation/security-model.md), each security decision and what it protects;
+[TLOU2's accessibility options](explanation/tlou2-accessibility-feasibility.md), which of them this mod can have.
 
 Notes on the game go in [`findings/`](../findings/README.md), citing sources saved in
 [`raw-sources/`](../raw-sources/README.md); decisions in [`adr/`](../adr/); terms in [`GLOSSARY.md`](../../GLOSSARY.md).

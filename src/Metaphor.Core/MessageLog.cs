@@ -37,6 +37,11 @@ public sealed class MessageLog(TextWriter writer, Func<long> millisecondsSinceSt
     public void LookedUp(long messageId, int labelIndex) =>
         Write(() => Line($"{millisecondsSinceStart()} ms lookup id={messageId} label={labelIndex}"));
 
+    /// <summary>What a field key read (#181), as the field controls describe it: positions, kinds, ids and reach, numbers
+    /// only, so a session can measure the game's units and check its reach test.</summary>
+    public void FieldRead(string text) =>
+        Write(() => Line($"{millisecondsSinceStart()} ms field {text}"));
+
     /// <summary>A function the game registered for its scripts: its script name, and where the native function is in
     /// the game module. <paramref name="viaUserdata"/> says the address came from the userdata the game pushed (a game
     /// function behind a shared trampoline) and not from the registered function itself.</summary>
@@ -84,6 +89,14 @@ public sealed class MessageLog(TextWriter writer, Func<long> millisecondsSinceSt
     public void PlayerNameSeen(string function, PlayerNameSighting sighting) =>
         Write(() => Line($"{millisecondsSinceStart()} ms player-name via={function} {sighting}"));
 
+    /// <summary>A name entry screen's box, when its length changed (#585): which screen and the length, never the typed
+    /// text (<see cref="Menus.NameEntryFrame.ToString"/>).</summary>
+    public void NameEntryChanged(Menus.NameEntryFrame frame)
+    {
+        ArgumentNullException.ThrowIfNull(frame);
+        Write(() => Line($"{millisecondsSinceStart()} ms name-entry {frame}"));
+    }
+
     /// <summary>A pad's or the keyboard's state as the game read it, when it changed (#58): the source and the state as
     /// the listening hook formatted it. Bit masks only, no game text.</summary>
     public void InputChanged(string source, string state) =>
@@ -103,6 +116,11 @@ public sealed class MessageLog(TextWriter writer, Func<long> millisecondsSinceSt
     /// details as the listening hook formatted them. Numbers, and the window's strings, which are file paths.</summary>
     public void TutorialSeen(string what, string details) =>
         Write(() => Line($"{millisecondsSinceStart()} ms tutorial {what} {details}"));
+
+    /// <summary>A map screen's place text (#545, #586): which part (<c>panel</c>, <c>compose</c> or <c>strip</c>) and
+    /// its details as the hook formatted them: numbers, raw reference bytes and the text that was said or read.</summary>
+    public void MapSeen(string what, string details) =>
+        Write(() => Line($"{millisecondsSinceStart()} ms map {what} {details}"));
 
     /// <summary>An input a menu's cursor manager handled that changed something (#93, #94). Numbers only, no game
     /// text.</summary>

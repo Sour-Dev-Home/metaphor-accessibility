@@ -97,10 +97,82 @@ public sealed class ModSettingsTests
         Assert.Throws<ArgumentNullException>("log", () => ModSettings.Parse(null, null!));
     }
 
+    [Fact]
+    public void SoundCuesAreOnAtAModerateVolumeByDefault()
+    {
+        Assert.True(Parse("{}").SoundCues);
+        Assert.Equal(50, Parse("{}").SoundCueVolume);
+        Assert.Empty(logged);
+    }
+
+    [Theory]
+    [InlineData("""{ "soundCues": false }""", false, 50)]
+    [InlineData("""{ "soundCues": true, "soundCueVolume": 0 }""", true, 0)]
+    [InlineData("""{ "soundCueVolume": 100 }""", true, 100)]
+    [InlineData("""{ "soundCueVolume": 35 }""", true, 35)]
+    public void TheSoundCueSettingsAreRead(string json, bool on, int volume)
+    {
+        var settings = Parse(json);
+
+        Assert.Equal(on, settings.SoundCues);
+        Assert.Equal(volume, settings.SoundCueVolume);
+        Assert.Empty(logged);
+    }
+
+    [Theory]
+    [InlineData("""{ "soundCues": "off" }""", "settings file: \"soundCues\" is not true or false; using true")]
+    [InlineData("""{ "soundCues": 0 }""", "settings file: \"soundCues\" is not true or false; using true")]
+    [InlineData("""{ "soundCueVolume": 101 }""", "settings file: \"soundCueVolume\" is not a whole number from 0 to 100; using 50")]
+    [InlineData("""{ "soundCueVolume": -1 }""", "settings file: \"soundCueVolume\" is not a whole number from 0 to 100; using 50")]
+    [InlineData("""{ "soundCueVolume": 40.5 }""", "settings file: \"soundCueVolume\" is not a whole number from 0 to 100; using 50")]
+    [InlineData("""{ "soundCueVolume": "40" }""", "settings file: \"soundCueVolume\" is not a whole number from 0 to 100; using 50")]
+    public void AnUnusableSoundCueSettingIsItsDefaultAndLogged(string json, string reason)
+    {
+        var settings = Parse(json);
+
+        Assert.True(settings.SoundCues);
+        Assert.Equal(50, settings.SoundCueVolume);
+        Assert.Equal([reason], logged);
+    }
+
     // #58's key bindings and #115's braille switches will share the file.
     [Fact]
     public void UnknownKeysAreIgnored()
     {
         Assert.Equal(VoicedLinesMode.Nothing, Parse("""{ "future": 1, "voicedLines": "nothing" }""").VoicedLines);
+    }
+
+    // The update check is on unless the file turns it off (#576, ADR 0018).
+    [Fact]
+    public void TheUpdateCheckIsOnByDefault()
+    {
+        Assert.True(ModSettings.Defaults.CheckForUpdates);
+        Assert.True(Parse("{}").CheckForUpdates);
+        Assert.Empty(logged);
+    }
+
+    [Theory]
+    [InlineData("false", false)]
+    [InlineData("true", true)]
+    public void TheUpdateCheckIsRead(string value, bool expected)
+    {
+        var settings = Parse($$"""{ "voicedLines": "nothing", "checkForUpdates": {{value}} }""");
+
+        Assert.Equal(expected, settings.CheckForUpdates);
+        Assert.Equal(VoicedLinesMode.Nothing, settings.VoicedLines);
+        Assert.Empty(logged);
+    }
+
+    [Theory]
+    [InlineData("\"false\"")]
+    [InlineData("0")]
+    [InlineData("null")]
+    public void AnUpdateCheckValueThatIsNotTrueOrFalseLeavesItOnAndIsLogged(string value)
+    {
+        var settings = Parse($$"""{ "voicedLines": "nothing", "checkForUpdates": {{value}} }""");
+
+        Assert.True(settings.CheckForUpdates);
+        Assert.Equal(VoicedLinesMode.Nothing, settings.VoicedLines);
+        Assert.Contains("\"checkForUpdates\" is not true or false; using true", Assert.Single(logged), StringComparison.Ordinal);
     }
 }
