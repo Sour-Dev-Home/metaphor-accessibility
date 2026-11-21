@@ -84,6 +84,13 @@
     "evidence": "Our reading of the exe: what MsgRequestSelect calls (docs/raw-sources/msg-select-functions-2026-11-16.md); one match on disk and in memory at the disk address (docs/raw-sources/spike-session-1-2026-11-16.md)"
   },
   {
+    "name": "SelectWindowRequest",
+    "section": ".ecode",
+    "pattern": "48 89 5C 24 08 48 89 74 24 10 48 89 7C 24 18 55 41 54 41 55 41 56 41 57 48 8D AC 24 10 FF FF FF 48 81 EC F0 01 00 00 45 0F B7 E9 49 8B F0 4C 8B F2 44 8B E1",
+    "gameBuilds": ["548ddc955c176867f062c44f94c03dd9ac33caefb278a5ac388e792aedf09504"],
+    "evidence": "Our reading of the exe: what MsgRequestSelectByName, the name entry and the difficulty list call to open a select window (docs/raw-sources/yes-no-dialog-text-2026-11-20.md); one match on disk, not yet checked in memory"
+  },
+  {
     "name": "MsgSelectedId",
     "section": ".ecode",
     "pattern": "48 83 EC 28 8B 81 00 02 00 00 83 F8 06 75 0B 8B 81 04 02 00 00 83 F8 06 74 16 83 F8 05 75 11 E8",
