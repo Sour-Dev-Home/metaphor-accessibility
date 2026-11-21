@@ -43,6 +43,10 @@ internal sealed record HookServices
     /// <summary>Reads whether the game has its menus open (#268); the loader locates what it reads (#300).</summary>
     public MenusOpenRead MenusOpen { get; init; } = new();
 
+    /// <summary>Where the name entry hook reports each update of the box (#585): nowhere unless the menus feature is
+    /// speaking it.</summary>
+    public INameEntryObserver NameEntry { get; init; } = new NoNameEntry();
+
     /// <summary>Reads the message the dialogue window holds (#232); the loader locates what it reads (#300).</summary>
     public DialogueWindowPointer DialogueWindow { get; init; } = new();
 
@@ -112,11 +116,14 @@ internal sealed record HookServices
             ReaderKey = DialogueBindings.Default.ReaderKey,
         };
         var menuControls = new MenuControls(menuBindings, screens, reader, []);
+        // Name entry (#585): the title and refusals through the reader, typed characters as private announcements.
+        var nameEntry = new NameEntrySpeech(library, reader, cleaner, () => Environment.TickCount64);
         screens.Observe(menuControls);
         events.ObserveFiles(library);
         var lines = new DialogueLines(new ShownSpeakers(library, names), dialogue);
         events.ObserveLines(lines);
         events.ObserveShownLines(lines);
+        events.ObserveShownLines(nameEntry);
         events.ObserveChoices(new DialogueChoices(library, dialogue));
         var choiceFocus = new ChoiceFocus(library, announcer, cleaner);
         events.ObserveChoices(choiceFocus);
@@ -147,10 +154,19 @@ internal sealed record HookServices
             DialogueControls = controls,
             MenuControls = menuControls,
             MenuScreens = screens,
+            NameEntry = nameEntry,
             GameData = gameData,
             CharacterTable = characterTable,
             FollowerTable = followerTable,
             Voice = voiceLanguage,
         };
+    }
+}
+
+/// <summary>A name entry observer that ignores every update: what the hook reports to when no feature listens.</summary>
+internal sealed class NoNameEntry : INameEntryObserver
+{
+    public void Observe(NameEntryFrame frame)
+    {
     }
 }

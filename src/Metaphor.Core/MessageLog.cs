@@ -79,6 +79,14 @@ public sealed class MessageLog(TextWriter writer, Func<long> millisecondsSinceSt
     public void PlayerNameSeen(string function, PlayerNameSighting sighting) =>
         Write(() => Line($"{millisecondsSinceStart()} ms player-name via={function} {sighting}"));
 
+    /// <summary>A name entry screen's box, when its length changed (#585): which screen and the length, never the typed
+    /// text (<see cref="Menus.NameEntryFrame.ToString"/>).</summary>
+    public void NameEntryChanged(Menus.NameEntryFrame frame)
+    {
+        ArgumentNullException.ThrowIfNull(frame);
+        Write(() => Line($"{millisecondsSinceStart()} ms name-entry {frame}"));
+    }
+
     /// <summary>A pad's or the keyboard's state as the game read it, when it changed (#58): the source and the state as
     /// the listening hook formatted it. Bit masks only, no game text.</summary>
     public void InputChanged(string source, string state) =>

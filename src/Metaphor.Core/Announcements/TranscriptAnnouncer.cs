@@ -1,4 +1,5 @@
 using System.Diagnostics.CodeAnalysis;
+using System.Globalization;
 
 namespace Metaphor.Core.Announcements;
 
@@ -12,6 +13,10 @@ public sealed class TranscriptAnnouncer : IAnnouncer
 
     private readonly IAnnouncer speech;
     private readonly string path;
+
+    /// <summary>The transcript's line for a private announcement of <paramref name="characters"/> characters.</summary>
+    public static string PrivateLine(int characters) =>
+        string.Create(CultureInfo.InvariantCulture, $"[private, {characters} characters]");
 
     /// <summary>Starts a fresh transcript in <paramref name="folder"/>: the glossary's transcript covers one run.</summary>
     [SuppressMessage("Design", "CA1031", Justification = "A transcript failure must never reach the game.")]
@@ -36,8 +41,12 @@ public sealed class TranscriptAnnouncer : IAnnouncer
         ArgumentNullException.ThrowIfNull(announcement);
         try
         {
-            // One line per announcement, so line breaks inside one become spaces.
-            File.AppendAllText(path, announcement.Text.ReplaceLineEndings(" ") + Environment.NewLine);
+            // One line per announcement, so line breaks inside one become spaces. A private one (#585) is spoken
+            // but only its length is written.
+            var line = announcement.Private
+                ? PrivateLine(announcement.Text.Length)
+                : announcement.Text.ReplaceLineEndings(" ");
+            File.AppendAllText(path, line + Environment.NewLine);
         }
         catch (Exception)
         {
