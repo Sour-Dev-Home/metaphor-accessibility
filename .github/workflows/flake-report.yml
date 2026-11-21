@@ -1,0 +1,58 @@
+# The flake rule's report (#655): after every CI run, comment on #629 for each test step that failed once and passed on
+# its retry (scripts/ci/retry-test.sh). GitHub runs the default branch's copy of this file, and it checks out only
+# main's scripts/ci/flake-report.sh, never the run's code: the run may be a fork's, so its flake-* artifacts are read
+# as data only, and the write token stays here, out of every job that runs a pull request's code. It never gates a
+# merge (no required check).
+name: Flake report
+
+on:
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
+
+permissions:
+  contents: read
+
+jobs:
+  flake-report:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read # the checkout of main's script
+      actions: read # the run's artifacts
+      issues: write # the comment on #629
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          sparse-checkout: scripts/ci/flake-report.sh
+          sparse-checkout-cone-mode: false
+      - name: Comment on #629 for each test that passed on its retry
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RUN_ID: ${{ github.event.workflow_run.id }}
+          RUN_URL: ${{ github.event.workflow_run.html_url }}
+        run: |
+          set -o pipefail
+          [[ "$RUN_ID" =~ ^[0-9]+$ ]] || { echo "::error::not a run id: $RUN_ID"; exit 1; }
+          dir="$RUNNER_TEMP/flakes"
+          mkdir -p "$dir"
+          # Small artifacts only, and at most 20 (CI has 15 test jobs): a record is a few lines. Each gives up its
+          # flake.txt alone, its first 8 KiB, unpacked to stdout into its own folder, so no path inside the zip is used
+          # and a zip that expands far can't fill the disk.
+          ids="$(gh api --paginate "repos/$GITHUB_REPOSITORY/actions/runs/$RUN_ID/artifacts" \
+            --jq '.artifacts[] | select((.name | startswith("flake-")) and .size_in_bytes < 65536 and (.expired | not))
+              | .id')"
+          head -n 20 <<< "$ids" > "$RUNNER_TEMP/ids"
+          while read -r id; do
+            [[ "$id" =~ ^[0-9]+$ ]] || continue
+            gh api "repos/$GITHUB_REPOSITORY/actions/artifacts/$id/zip" > "$RUNNER_TEMP/$id.zip" || continue
+            mkdir -p "$dir/$id"
+            { unzip -p "$RUNNER_TEMP/$id.zip" flake.txt || true; } | head -c 8192 > "$dir/$id/flake.txt"
+          done < "$RUNNER_TEMP/ids"
+          bash scripts/ci/flake-report.sh comment "$dir" "$RUN_URL" > "$RUNNER_TEMP/comment.md"
+          if [ -s "$RUNNER_TEMP/comment.md" ]; then
+            gh issue comment 629 --repo "$GITHUB_REPOSITORY" --body-file "$RUNNER_TEMP/comment.md"
+          else
+            echo "No test needed its retry in run $RUN_ID."
+          fi
