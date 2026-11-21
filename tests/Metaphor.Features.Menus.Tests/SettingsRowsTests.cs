@@ -39,8 +39,8 @@ public sealed class SettingsRowsTests
             Message("Fake_row_C", "Fake output"))));
     }
 
-    private void Cursor(int index, string screenClass, int? count) =>
-        cursors.Handled(new CursorInput(0xb0, ClassRva: 0x100, Settle, Result: 1, Top: index, Row: 0, Flags: 0x46,
+    private void Cursor(int index, string screenClass, int? count, int flags = 0x46) =>
+        cursors.Handled(new CursorInput(0xb0, ClassRva: 0x100, Settle, Result: 1, Top: index, Row: 0, Flags: flags,
             screenClass, count));
 
     private static string Message(string label, string text) => $"//--------\n@{label}\n{{\n{text}\n<WAIT>\n}}";
@@ -96,5 +96,67 @@ public sealed class SettingsRowsTests
         Cursor(1, SystemPage, count);
 
         Assert.Equal(count is null ? "2" : "2 of 4", Said().Last());
+    }
+
+    // The OK button after a page's last row settles at index 0 with flags 0x43, its rows 0x47 (#560).
+    [Fact]
+    public void DownFromTheLastRowSaysTheOkButton()
+    {
+        Cursor(2, SystemPage, count: 3, flags: 0x47);
+
+        Cursor(0, SystemPage, count: 3, flags: 0x43);
+
+        Assert.Equal("OK, button", Said().Last());
+    }
+
+    [Fact]
+    public void DownFromTheOkButtonSaysTheFirstRow()
+    {
+        Cursor(2, SystemPage, count: 3, flags: 0x47);
+        Cursor(0, SystemPage, count: 3, flags: 0x43);
+
+        Cursor(0, SystemPage, count: 3, flags: 0x47);
+
+        Assert.Equal("Fake speed, 1 of 3", Said().Last());
+    }
+
+    [Fact]
+    public void EachPinnedPageHasALabelSlotPerRow()
+    {
+        Assert.All(SettingsPageRows.Steam18330018, page => Assert.Equal(page.Total, page.NameLabels.Count));
+    }
+
+    // The pinned rows on build 548ddc95 (SettingsPageRows.Steam18330018).
+    [Theory]
+    [InlineData(20, 0, "Fake System_Option_14, 1 of 20")]
+    [InlineData(20, 4, "Fake System_Option_89, 5 of 20")]
+    [InlineData(20, 15, "Fake System_Option_91, 16 of 20")]
+    [InlineData(20, 19, "Fake System_subject_name_PC_64, 20 of 20")]
+    [InlineData(24, 7, "Fake System_Option_89, 8 of 24")]
+    [InlineData(24, 18, "Fake System_Option_28, 19 of 24")]
+    [InlineData(24, 19, "Fake System_Option_91, 20 of 24")]
+    [InlineData(24, 23, "Fake System_subject_name_PC_64, 24 of 24")]
+    [InlineData(24, 3, "4 of 24")]
+    [InlineData(24, 0, "1 of 24")]
+    public void TheSystemPageSaysItsPinnedRowsOnThisBuild(int count, int index, string said)
+    {
+        var pinned = new RecordingAnnouncer();
+        var library = new MessageLibrary();
+        var screens = new MenuScreens(SettingsFocus.Screens);
+        screens.MenusRead(open: true);
+        screens.Observe(new SettingsFocus(library, pinned, new TextCleaner(TextCleanerRules.None)));
+        var fileMessages = new MessageEvents();
+        fileMessages.ObserveFiles(library);
+        string[] labels =
+        [
+            "System_Option_14", "System_Option_89", "System_Option_91", "System_Option_28",
+            "System_subject_name_PC_64",
+        ];
+        fileMessages.Compiled(new MessageFileCompiled(
+            SystemPcFile, 48, string.Join("\n\n", labels.Select(label => Message(label, $"Fake {label}")))));
+
+        screens.Observe(new CursorInput(0xb0, 0x100, Settle, 1, Top: index, Row: 0, Flags: 0x47, SystemPage, count));
+
+        Assert.Equal(said, pinned.Said[^1].Text);
     }
 }
