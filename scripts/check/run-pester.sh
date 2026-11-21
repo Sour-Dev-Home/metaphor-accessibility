@@ -12,6 +12,11 @@
 # - Each process gets its own temporary folder (TEMP and TMP, so Pester's TestDrive and the scripts' own temporary
 #   folders), removed at the end. Tests already keep their games, configs and mod projects in their own folders, and
 #   find processes by full path, so nothing else is shared.
+# - Each process gets its own hidden console too (#629). On Windows every process in a window shares one console and its
+#   code page, and the dotnet CLI switches that code page to UTF-8 while it runs, so a test that ran dotnet switched it
+#   under the processes beside it: a program they started then wrote UTF-8 that they read in the old code page
+#   (onboard.Tests' summary marks), and ghidra.Tests saw the code page change (#508). So each Pester process is started
+#   from a small pwsh with CreateNoWindow, which writes straight to the pool's output file.
 # - In Git Bash, starting a process takes about 0.3 s and the starts don't overlap (#348), so the loop below starts
 #   nothing but the Pester processes themselves: one fork each, and builtins for the rest. They run in check.sh's
 #   worker pool (scripts/check/pool.sh), which keeps each process's output in its own file.
@@ -115,6 +120,18 @@ pester='
   $failed = $r.FailedCount + $r.FailedBlocksCount + $r.FailedContainersCount
   "pester-counts $($r.PassedCount) $failed $($r.TotalCount - $r.NotRunCount) $($r.TotalCount)"
   if ($r.Result -ne "Passed") { exit 1 }'
+# The process that starts it, in a console of its own (#629): CreateNoWindow gives the Pester process a new hidden
+# console, and redirecting only its input (closed: no test reads it) hands it this process's output and error handles.
+# shellcheck disable=SC2016 # PowerShell, expanded by pwsh
+isolate='
+  $s = [Diagnostics.ProcessStartInfo]::new([Environment]::ProcessPath)
+  $run = [Convert]::ToBase64String([Text.Encoding]::Unicode.GetBytes($env:METAPHOR_PESTER_RUN))
+  foreach ($a in "-NoProfile", "-EncodedCommand", $run) { $s.ArgumentList.Add($a) }
+  $s.UseShellExecute = $false; $s.CreateNoWindow = $true; $s.RedirectStandardInput = $true
+  $p = [Diagnostics.Process]::Start($s); $p.StandardInput.Close()
+  # Its own console gets no Ctrl+C, so a short wait PowerShell can stop, and the finally takes the process down with it.
+  try { while (-not $p.WaitForExit(200)) { } } finally { if (-not $p.HasExited) { $p.Kill($true) } }
+  exit $p.ExitCode'
 
 # shellcheck source=live-log.sh
 source scripts/check/live-log.sh || exit 2
@@ -154,8 +171,8 @@ finished() {
 
 run_unit() { # run_unit UNIT: the unit's Pester process, in place of the pool's job subshell (exec: no second fork)
   local temp="$wtmp$sep$1.temp"
-  TEMP="$temp" TMP="$temp" FILE="${files[${unit_file[$1]}]}" LINES="${unit_lines[$1]}" \
-    exec pwsh -NoProfile -Command "$pester"
+  TEMP="$temp" TMP="$temp" FILE="${files[${unit_file[$1]}]}" LINES="${unit_lines[$1]}" METAPHOR_PESTER_RUN="$pester" \
+    exec pwsh -NoProfile -Command "$isolate"
 }
 
 # The outputs go to the same folder as the units' temporary folders: N.out by start number, beside UNIT.temp.

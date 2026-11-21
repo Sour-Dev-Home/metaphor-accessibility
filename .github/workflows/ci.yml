@@ -207,7 +207,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        file: [check-install, fetch-prism, GameLocator, ghidra, install, install-pester, onboard, scrub, session, session-inspect, session-smoke, setup-wsl, zip-package]
+        file: [check-install, fetch-prism, GameLocator, ghidra, install, install-pester, onboard, run-pester, scrub, session, session-inspect, session-smoke, setup-wsl, zip-package]
     defaults:
       run:
         shell: bash
@@ -256,7 +256,7 @@ jobs:
   # holds a space, é and Japanese, and a temporary folder whose path holds a space and é, as a player's or
   # contributor's may. The tests that start Windows PowerShell 5.1 run it under the same culture and folders. Merge
   # queue and main only, beside the Windows build (ADR 0008), so pull requests stay fast, and there only when the
-  # installer, the setup scripts, the Pester tests or their runners change (scripts/ci/what-runs.sh --job varied-setup,
+  # installer, the setup and release scripts, the Pester tests or their runners change (scripts/ci/what-runs.sh --job varied-setup,
   # #655); nightly on main it runs whatever changed. When it runs, the required `scripts` check needs it to pass. One
   # job, not a second matrix: run-pester.sh runs the files in parallel on the runner's cores, as `check.sh full` does.
   pester-varied-setup:

@@ -58,7 +58,7 @@ it in their names.
 - **The merge queue and pushes to `main`** run everything on Windows, then package, zip and rebuild the mod
   reproducibly. Beside the build, `pester-varied-setup` runs every Pester file once under a German culture, from a
   checkout and temporary folder whose paths hold a space and non-ASCII characters (#459), and `scripts` waits for it
-  too. It runs only when `scripts/player/`, `scripts/setup/`, `tests/pester/` or its runners change, and nightly on
+  too. It runs only when `scripts/player/`, `scripts/setup/`, `scripts/release/` (the script that builds what players install), `tests/pester/` or its runners change, and nightly on
   `main` whatever changed (#655); `scripts` fails if it was skipped anywhere but a pull request. On `main`, `attest`
   signs the zip ([Check a download](../../players/how-to/check-a-download.md)). The
   path-by-path detail is in [how a change reaches main](../explanation/how-a-change-reaches-main.md) and
