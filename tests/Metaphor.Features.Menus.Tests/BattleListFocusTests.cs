@@ -280,6 +280,23 @@ public sealed class BattleListFocusTests
         Assert.Equal("Heals a little", items.Details(Focus(ItemClass, 0)));
     }
 
+    // The same run's second opening: the item list closed and opened again on the same manager, its cursor settling on
+    // the same row with no other cursor between, after it fetched its names afresh.
+    [Fact]
+    public void TheListOpenedAgainOnTheSameManagerAndRowIsHeadedAgain()
+    {
+        Fetched(ItemFirst, ItemFirst + 1);
+        Cursor(ItemClass, 0, count: 2);
+        now += 16;
+        Cursor(ItemClass, 0, count: 2);
+        now += 30_000;
+        Fetched(ItemFirst, ItemFirst + 1);
+
+        Cursor(ItemClass, 0, count: 2);
+
+        Assert.Equal(["Items, Tonic, 1 of 2", "Items, Tonic, 1 of 2"], Said());
+    }
+
     [Fact]
     public void TheSkillListOpenedAfterTheItemListSaysItsFirstRow()
     {
