@@ -281,10 +281,18 @@ Describe 'the package' {
 }
 
 Describe 'Select-Speech' {
-    It 'prints only while a screen reader is running, and says how to hear Windows'' voice too' {
-        $choice = Select-Speech -Speak $false -NoSpeech $false -Interactive $true -Readers 'NVDA'
+    # #601: NVDA didn't read the lines printed after the first answer, and a player can't add a switch.
+    It 'speaks through a running screen reader, not Windows'' voice, and says nothing about it' {
+        $choice = Select-Speech -Speak $false -NoSpeech $false -Interactive $true -Readers 'NVDA', 'JAWS'
         $choice.Speak | Should -BeFalse
-        $choice.Message | Should -Match '^NVDA is running and reads this window, so printing only\. Add -Speak'
+        $choice.Reader | Should -Be 'NVDA'
+        $choice.Message | Should -BeNullOrEmpty
+    }
+
+    It 'uses no screen reader with -Speak, -NoSpeech or without a console' {
+        (Select-Speech -Speak $true -NoSpeech $false -Interactive $true -Readers 'NVDA').Reader | Should -BeNullOrEmpty
+        (Select-Speech -Speak $false -NoSpeech $true -Interactive $true -Readers 'NVDA').Reader | Should -BeNullOrEmpty
+        (Select-Speech -Speak $false -NoSpeech $false -Interactive $false -Readers 'NVDA').Reader | Should -BeNullOrEmpty
     }
 
     It 'speaks with Windows'' voice when no screen reader is running' {
@@ -382,12 +390,20 @@ Describe 'Start-Voice' {
         @($output | Where-Object { $null -ne $_ } | ForEach-Object { "$_" }) | Should -Be @($noEnglish, $printOnly)
     }
 
-    It 'makes no voice while a screen reader is running, so the reader alone reads the window' {
+    It 'speaks through the screen reader while one is running, with no Windows voice and nothing printed (#601)' {
         $speech = Select-Speech -Speak $false -NoSpeech $false -Interactive $true -Readers 'NVDA'
-        # A voice made here would fail to start and add 'Windows' voice did not start' to the output.
-        $output = @(Start-Voice $speech { throw 'no voice should be made' } { throw 'no voice should be made' } 6>&1)
+        $reader = [pscustomobject]@{ Voice = [pscustomobject]@{ Name = 'NVDA'; Culture = $null } }
+        # A Windows voice made here would fail to start and add 'Windows' voice did not start' to the output.
+        $output = @(Start-Voice $speech { throw 'no voice should be made' } { throw 'no voice should be made' } { $reader }.GetNewClosure() 6>&1)
+        @($output | Where-Object { $_ -is [Management.Automation.InformationRecord] }) | Should -BeNullOrEmpty
+        @($output | Where-Object { $_ -isnot [Management.Automation.InformationRecord] }) | Should -Be @($reader)
+    }
+
+    It 'prints only, and says so, when the screen reader''s speech does not start' {
+        $speech = Select-Speech -Speak $false -NoSpeech $false -Interactive $true -Readers 'NVDA'
+        $output = @(Start-Voice $speech { throw 'no voice should be made' } { throw 'no voice should be made' } { $null } 6>&1)
         @($output | Where-Object { $null -ne $_ } | ForEach-Object { "$_" }) |
-            Should -Be @("NVDA is running and reads this window, so printing only. Add -Speak to hear Windows' voice as well.")
+            Should -Be @('The installer could not speak through NVDA, so it will only print from here on.')
     }
 
     It 'prints only when no voice will start' {
@@ -478,6 +494,113 @@ Describe 'Start-Voice' {
                 [Convert]::ToBase64String([Text.Encoding]::Unicode.GetBytes($command))) 2>&1 | ForEach-Object { "$_" })
         if ($output -contains 'no OneCore voice') { Set-ItResult -Skipped -Because 'Windows has no OneCore voice here' }
         $output | Should -Be @('RIFF WAVE')
+    }
+}
+
+# Speech through the running screen reader with the shipped prism.dll (#601), against a stand-in Prism: a prism.dll of
+# test bytes pinned in prism.json, and calls that record what they are given. No library is loaded.
+Describe 'New-ReaderSpeech' {
+    BeforeAll {
+        $script:ids = @{ NVDA = [UInt64]::Parse('89CC19C5C4AC1A56', 'AllowHexSpecifier')
+            JAWS = [UInt64]::Parse('AC3D60E9BD84B53E', 'AllowHexSpecifier'); ZoomText = [UInt64]::Parse('AE439D62DC7B1479', 'AllowHexSpecifier') }
+        # A folder holding prism.dll and prism.json pinning PIN, or the file's own hash.
+        function New-PrismFolder([string] $Pin) {
+            $folder = (New-Item -ItemType Directory (Join-Path $TestDrive (New-Guid))).FullName
+            [IO.File]::WriteAllBytes((Join-Path $folder 'prism.dll'), [byte[]] (1..64))
+            if (-not $Pin) { $Pin = (Get-FileHash -LiteralPath (Join-Path $folder 'prism.dll') -Algorithm SHA256).Hash.ToLowerInvariant() }
+            @{ dllSha256 = $Pin } | ConvertTo-Json | Set-Content -LiteralPath (Join-Path $folder 'prism.json')
+            $folder
+        }
+        # A stand-in Prism whose backend for each ID in STARTS initialises. Each backend's handle is its ID's index + 1.
+        function New-StandInPrism([string[]] $Starts) {
+            $prism = [pscustomobject]@{ Ids = $ids; Starts = $Starts; Created = [Collections.Generic.List[string]]::new()
+                Freed = [Collections.Generic.List[int]]::new(); Spoken = [Collections.Generic.List[object]]::new(); Closed = $false }
+            $prism | Add-Member ScriptMethod Init { [IntPtr] 7 }
+            $prism | Add-Member ScriptMethod Shutdown { param($Context) $this.Closed = $Context -eq [IntPtr] 7 }
+            $prism | Add-Member ScriptMethod Create {
+                param($Context, $Id)
+                $name = @($this.Ids.Keys | Where-Object { $this.Ids[$_] -eq $Id })[0]
+                $this.Created.Add($name)
+                [IntPtr] (@('NVDA', 'JAWS', 'ZoomText').IndexOf($name) + 1)
+            }
+            $prism | Add-Member ScriptMethod Initialize {
+                param($Backend)
+                if (@('NVDA', 'JAWS', 'ZoomText')[[int] $Backend - 1] -in $this.Starts) { 0 } else { 4 }
+            }
+            $prism | Add-Member ScriptMethod Free { param($Backend) $this.Freed.Add([int] $Backend) }
+            $prism | Add-Member ScriptMethod Speak { param($Backend, $Text, $Interrupt) $this.Spoken.Add(@([int] $Backend, $Text, $Interrupt)); 0 }
+            $prism
+        }
+    }
+
+    It 'speaks through the first screen reader that starts, queued, never interrupting' {
+        $prism = New-StandInPrism 'JAWS', 'ZoomText'
+        $speaker = InModuleScope MetaphorInstall -Parameters @{ Folder = (New-PrismFolder); Prism = $prism } {
+            param($Folder, $Prism) New-ReaderSpeech $Folder { $Prism }.GetNewClosure() }
+        $speaker.Voice.Name | Should -Be 'JAWS'
+        @($prism.Created) | Should -Be @('NVDA', 'JAWS')
+        @($prism.Freed) | Should -Be @(1)
+        $speaker.Speak('Step 1 of 10.')
+        $speaker.Speak('Done.')
+        $prism.Spoken.Count | Should -Be 2
+        $prism.Spoken[0] | Should -Be @(2, 'Step 1 of 10.', $false)
+        $prism.Spoken[1][2] | Should -BeFalse
+        $speaker.Dispose()
+        @($prism.Freed) | Should -Be @(1, 2)
+        $prism.Closed | Should -BeTrue
+    }
+
+    It 'shuts Prism down and returns nothing when no screen reader starts' {
+        $prism = New-StandInPrism @()
+        $speaker = InModuleScope MetaphorInstall -Parameters @{ Folder = (New-PrismFolder); Prism = $prism } {
+            param($Folder, $Prism) New-ReaderSpeech $Folder { $Prism }.GetNewClosure() }
+        $speaker | Should -BeNullOrEmpty
+        @($prism.Created) | Should -Be @('NVDA', 'JAWS', 'ZoomText')
+        @($prism.Freed) | Should -Be @(1, 2, 3)
+        $prism.Closed | Should -BeTrue
+    }
+
+    It 'loads nothing when prism.dll is not the pinned one, or there is nothing to check it by' {
+        $mismatch = New-PrismFolder ('0' * 64)
+        $noPin = New-PrismFolder
+        Remove-Item -LiteralPath (Join-Path $noPin 'prism.json')
+        foreach ($folder in $mismatch, $noPin) {
+            InModuleScope MetaphorInstall -Parameters @{ Folder = $folder } {
+                param($Folder) New-ReaderSpeech $Folder { throw 'prism.dll should not be loaded' } } | Should -BeNullOrEmpty
+        }
+    }
+
+    It 'passes prism.dll''s full path to the loader' {
+        $folder = New-PrismFolder
+        $seen = [Collections.Generic.List[string]]::new()
+        InModuleScope MetaphorInstall -Parameters @{ Folder = $folder; Seen = $seen } {
+            param($Folder, $Seen) New-ReaderSpeech $Folder { param($Path) $Seen.Add($Path); throw 'stop here' }.GetNewClosure() } |
+            Should -BeNullOrEmpty
+        @($seen) | Should -Be @((Join-Path $folder 'prism.dll'))
+    }
+
+    # ADR 0005: only the backends the mod's own fixed list names, with the same IDs.
+    It 'creates only NVDA, JAWS and ZoomText, by the IDs the mod uses' {
+        $source = Get-Content -Raw (Join-Path $repo 'src/Metaphor.Hooks/PrismSpeech.cs')
+        $mod = @([regex]::Matches($source, '\(0x([0-9A-F]{16}), "(\w+)"\)') | ForEach-Object {
+                "$($_.Groups[2].Value)=$([UInt64]::Parse($_.Groups[1].Value, 'AllowHexSpecifier'))" }) | Select-Object -First 3
+        $installer = InModuleScope MetaphorInstall { @($PrismReaders | ForEach-Object { "$($_.Name)=$($_.Id)" }) }
+        $installer | Should -Be $mod
+        $mod | Should -HaveCount 3
+    }
+}
+
+# #601: a player can't add a switch, and NVDA doesn't say the "-" in one, so no line the scripts print or say names one.
+Describe 'the players'' scripts' {
+    It 'never tell the player to add a switch' {
+        foreach ($name in 'MetaphorInstall.psm1', 'install.ps1', 'check-install.ps1') {
+            $ast = [Management.Automation.Language.Parser]::ParseFile((Join-Path $repo "scripts/player/$name"), [ref] $null, [ref] $null)
+            $strings = $ast.FindAll({ param($node)
+                    $node -is [Management.Automation.Language.StringConstantExpressionAst] -or
+                    $node -is [Management.Automation.Language.ExpandableStringExpressionAst] }, $true)
+            @($strings | Where-Object { $_.Value -match '(?i)(^|\s)-(Speak|NoSpeech)\b' } | ForEach-Object { "${name}: $($_.Value)" }) |
+                Should -BeNullOrEmpty
+        }
     }
 }
 

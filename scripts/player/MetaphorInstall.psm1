@@ -322,18 +322,127 @@ function Get-FindWindow {
     $script:FindWindowType
 }
 
-# Whether to speak with Windows' voice, and the line saying why not. -NoSpeech wins, then -Speak. Without a console it
-# prints only; with a screen reader running it prints only too, since the reader reads the window and two voices at
-# once can't be followed.
+# How to speak: with Windows' voice (Speak), through the running screen reader (Reader, its name), or neither, and the
+# line saying why not. -NoSpeech wins, then -Speak. Without a console it prints only. With a screen reader running the
+# lines go through the reader itself (#601): it doesn't reliably read new lines in the window, and two voices at once
+# can't be followed.
 function Select-Speech([bool] $Speak, [bool] $NoSpeech, [bool] $Interactive, [string[]] $Readers) {
-    $result = { param($On, $Why) [pscustomobject]@{ Speak = $On; Message = $Why } }
-    if ($NoSpeech) { return & $result $false $null }
-    if ($Speak) { return & $result $true $null }
-    if (-not $Interactive) { return & $result $false 'No console, so printing only.' }
-    if (@($Readers).Count -gt 0) {
-        return & $result $false "$(@($Readers)[0]) is running and reads this window, so printing only. Add -Speak to hear Windows' voice as well."
+    $result = { param($On, $Why, $Reader) [pscustomobject]@{ Speak = $On; Message = $Why; Reader = $Reader } }
+    if ($NoSpeech) { return & $result $false $null $null }
+    if ($Speak) { return & $result $true $null $null }
+    if (-not $Interactive) { return & $result $false 'No console, so printing only.' $null }
+    if (@($Readers).Count -gt 0) { return & $result $false $null @($Readers)[0] }
+    & $result $true $null $null
+}
+
+# The screen readers the installer speaks through, in the order it tries them: the first three of the mod's fixed list
+# (ADR 0005; src/Metaphor.Hooks/PrismSpeech.cs), with Prism v0.18.3's IDs
+# (docs/raw-sources/installer-prism-speech-2026-11-20.md). Never a backend that loads a DLL by bare name.
+$PrismReaders = @(
+    @{ Name = 'NVDA'; Id = [UInt64]::Parse('89CC19C5C4AC1A56', 'AllowHexSpecifier') },
+    @{ Name = 'JAWS'; Id = [UInt64]::Parse('AC3D60E9BD84B53E', 'AllowHexSpecifier') },
+    @{ Name = 'ZoomText'; Id = [UInt64]::Parse('AE439D62DC7B1479', 'AllowHexSpecifier') }
+)
+
+# A type with prism.dll's calls, bound to the file at PATH by its full path, and kernel32's LoadLibraryExW, built in
+# memory as Get-FindWindow is (#459). One per path.
+$PrismTypes = @{}
+function Get-PrismNative([string] $Path) {
+    if (-not $script:PrismTypes.ContainsKey($Path)) {
+        $name = "MetaphorInstallPrism$($script:PrismTypes.Count)"
+        $access = [Reflection.Emit.AssemblyBuilderAccess]::Run
+        $assembly = [Reflection.Emit.AssemblyBuilder]::DefineDynamicAssembly((New-Object Reflection.AssemblyName $name), $access)
+        $type = $assembly.DefineDynamicModule($name).DefineType("$name.Native", [Reflection.TypeAttributes] 'Public, Abstract, Sealed')
+        $calls = @(
+            @('kernel32.dll', 'LoadLibraryExW', [IntPtr], @([string], [IntPtr], [UInt32]), 'Winapi'),
+            @($Path, 'prism_init', [IntPtr], @([IntPtr]), 'Cdecl'),
+            @($Path, 'prism_shutdown', [void], @([IntPtr]), 'Cdecl'),
+            @($Path, 'prism_registry_create', [IntPtr], @([IntPtr], [UInt64]), 'Cdecl'),
+            @($Path, 'prism_backend_initialize', [Int32], @([IntPtr]), 'Cdecl'),
+            @($Path, 'prism_backend_free', [void], @([IntPtr]), 'Cdecl'),
+            # Text is NUL-terminated UTF-8; C's bool is one byte.
+            @($Path, 'prism_backend_speak', [Int32], @([IntPtr], [byte[]], [byte]), 'Cdecl'))
+        foreach ($call in $calls) {
+            $method = $type.DefinePInvokeMethod($call[1], $call[0], $call[1], [Reflection.MethodAttributes] 'Public, Static, PinvokeImpl',
+                [Reflection.CallingConventions]::Standard, $call[2], [Type[]] $call[3],
+                [Runtime.InteropServices.CallingConvention] $call[4], [Runtime.InteropServices.CharSet]::Unicode)
+            $method.SetImplementationFlags([Reflection.MethodImplAttributes]::PreserveSig)
+        }
+        $script:PrismTypes[$Path] = $type.CreateType()
     }
-    & $result $true $null
+    $script:PrismTypes[$Path]
+}
+
+# Loads prism.dll from its full PATH, searching only its own folder and System32 for what it needs
+# (LOAD_LIBRARY_SEARCH_DLL_LOAD_DIR | LOAD_LIBRARY_SEARCH_SYSTEM32), never PATH or the working folder, and returns its
+# calls: Init, Shutdown, Create, Initialize, Free and Speak. Throws when it doesn't load.
+function Open-Prism([string] $Path) {
+    $native = Get-PrismNative $Path
+    if ($native::LoadLibraryExW($Path, [IntPtr]::Zero, 0x900) -eq [IntPtr]::Zero) { throw 'prism.dll did not load' }
+    # Binds each call now, to the library just loaded by the same full path.
+    foreach ($method in $native.GetMethods()) { if ($method.Name -like 'prism_*') { [Runtime.InteropServices.Marshal]::Prelink($method) } }
+    $prism = [pscustomobject]@{ Native = $native }
+    $prism | Add-Member ScriptMethod Init { $n = $this.Native; $n::prism_init([IntPtr]::Zero) }
+    $prism | Add-Member ScriptMethod Shutdown { param($Context) $n = $this.Native; $n::prism_shutdown($Context) }
+    $prism | Add-Member ScriptMethod Create { param($Context, $Id) $n = $this.Native; $n::prism_registry_create($Context, [UInt64] $Id) }
+    $prism | Add-Member ScriptMethod Initialize { param($Backend) $n = $this.Native; $n::prism_backend_initialize($Backend) }
+    $prism | Add-Member ScriptMethod Free { param($Backend) $n = $this.Native; $n::prism_backend_free($Backend) }
+    $prism | Add-Member ScriptMethod Speak {
+        param($Backend, [string] $Text, [bool] $Interrupt)
+        $n = $this.Native
+        $n::prism_backend_speak($Backend, [Text.Encoding]::UTF8.GetBytes($Text + [char] 0), [byte] $Interrupt)
+    }
+    $prism
+}
+
+# Speech through the running screen reader, with the prism.dll the release ships in FOLDER (#601), or $null when it
+# can't start: no prism.dll or prism.json, a prism.dll other than the pinned one, or no screen reader that starts.
+# Prism is loaded by full path, held open from the hash check until it has loaded, as the mod loads it (ADR 0005).
+# The speaker has Speak, which queues the line after what the reader is saying, Dispose, and Voice.Name, the reader's.
+# OPENPRISM stands in for Open-Prism in tests.
+function New-ReaderSpeech([string] $Folder, [scriptblock] $OpenPrism = { param($Path) Open-Prism $Path }) {
+    $path = [IO.Path]::GetFullPath((Join-Path $Folder 'prism.dll'))
+    $pin = [string] (Get-Property (Read-JsonOrNull (Join-Path $Folder 'prism.json')) 'dllSha256')
+    if (-not $pin -or -not (Test-Path -LiteralPath $path -PathType Leaf)) { Write-Verbose 'no prism.dll or prism.json'; return $null }
+    try {
+        $held = [IO.File]::Open($path, [IO.FileMode]::Open, [IO.FileAccess]::Read, [IO.FileShare]::Read)
+        try {
+            if ((Get-StreamSha256 $held) -ne $pin) { Write-Verbose 'prism.dll is not the pinned one'; return $null }
+            $prism = & $OpenPrism $path
+        }
+        finally { $held.Dispose() }
+        $context = $prism.Init()
+        if ($context -eq [IntPtr]::Zero) { Write-Verbose 'prism_init failed'; return $null }
+        foreach ($reader in $script:PrismReaders) {
+            $backend = $prism.Create($context, $reader.Id)
+            if ($backend -eq [IntPtr]::Zero) { continue }
+            if ($prism.Initialize($backend) -eq 0) { return New-ReaderSpeaker $prism $context $backend $reader.Name }
+            $prism.Free($backend)
+        }
+        $prism.Shutdown($context)
+    }
+    catch { Write-Verbose "Prism did not start: $_" }
+    $null
+}
+
+# The speaker New-ReaderSpeech returns, over PRISM's started BACKEND for the reader NAME.
+function New-ReaderSpeaker($Prism, $Context, $Backend, [string] $Name) {
+    $speaker = [pscustomobject]@{ Prism = $Prism; Context = $Context; Backend = $Backend
+        Voice = [pscustomobject]@{ Name = $Name; Culture = $null } }
+    $speaker | Add-Member ScriptMethod Speak {
+        param([string] $Text)
+        if ($this.Backend -eq [IntPtr]::Zero) { return }
+        # Not interrupting, so a line never cuts off the one before it.
+        $status = $this.Prism.Speak($this.Backend, $Text, $false)
+        if ($status -ne 0) { Write-Verbose "the screen reader did not take the line (Prism error $status)" }
+    }
+    $speaker | Add-Member ScriptMethod Dispose {
+        if ($this.Backend -eq [IntPtr]::Zero) { return }
+        $this.Prism.Free($this.Backend)
+        $this.Prism.Shutdown($this.Context)
+        $this.Backend = [IntPtr]::Zero
+    }
+    $speaker
 }
 
 # Windows' own voice through System.Speech (SAPI), or $null when it can't start. NEWSYNTHESIZER stands in for the
@@ -496,10 +605,18 @@ function Select-InstallerVoice([scriptblock] $NewSynthesizer, [scriptblock] $New
     $null
 }
 
-# Windows' voice for SPEECH (Select-Speech), or $null for printing only. Prints SPEECH's message, and says once when
-# the voice is not English. NEWSYNTHESIZER as for New-Voice, NEWONECORE as for New-OneCoreVoice.
-function Start-Voice($Speech, [scriptblock] $NewSynthesizer, [scriptblock] $NewOneCore) {
+# The voice for SPEECH (Select-Speech): the screen reader's, Windows', or $null for printing only. Prints SPEECH's
+# message, and says once when Windows' voice is not English. NEWSYNTHESIZER as for New-Voice, NEWONECORE as for
+# New-OneCoreVoice, NEWREADER (the speaker, or $null) for New-ReaderSpeech over this module's folder.
+function Start-Voice($Speech, [scriptblock] $NewSynthesizer, [scriptblock] $NewOneCore,
+    [scriptblock] $NewReader = { New-ReaderSpeech $PSScriptRoot }) {
     if ($Speech.Message) { Write-Host $Speech.Message }
+    if ($Speech.PSObject.Properties['Reader'] -and $Speech.Reader) {
+        $reader = & $NewReader
+        if ($reader) { return $reader }
+        Write-Host "The installer could not speak through $($Speech.Reader), so it will only print from here on."
+        return $null
+    }
     if (-not $Speech.Speak) { return $null }
     $voice = Select-InstallerVoice $NewSynthesizer $NewOneCore
     if (-not $voice) {

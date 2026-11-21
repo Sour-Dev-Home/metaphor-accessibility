@@ -148,9 +148,10 @@ BeforeAll {
     # pins, no signature check on them (the stand-ins are unsigned), and running as admin (CI's runners are). Any switch
     # also sets CI=true, without which none counts. ENVIRONMENT sets more variables for the run.
     function Invoke-Install([string[]] $Answers = @(), [switch] $NonInteractive, [string] $Shell = $pwsh,
-        [string] $Folder = $release, [string[]] $Switches = @('FILES', 'UNSIGNED', 'ALLOW_ADMIN'), [hashtable] $Environment = @{}) {
+        [string] $Folder = $release, [string[]] $Switches = @('FILES', 'UNSIGNED', 'ALLOW_ADMIN'), [hashtable] $Environment = @{},
+        [switch] $FromLauncher) {
         $script = Join-Path $Folder 'install.ps1'
-        $common = "-NoSpeech -ReloadedConfig $(ConvertTo-Literal $config) -ReloadedFolder $(ConvertTo-Literal $reloadedFolder) " +
+        $common = "$(if ($FromLauncher) { '-FromLauncher ' })-NoSpeech -ReloadedConfig $(ConvertTo-Literal $config) -ReloadedFolder $(ConvertTo-Literal $reloadedFolder) " +
             "-SteamRoot $(ConvertTo-Literal $steam) -Desktop $(ConvertTo-Literal $desktop) -DotnetRoot $(ConvertTo-Literal $dotnet) " +
             "-VcRuntimeKey $(ConvertTo-Literal $vcKey) -Pins $(ConvertTo-Literal $pins)"
         $vars = @{ METAPHOR_RELOADED_EXE = $null; METAPHOR_GAME_EXE = $null; CI = $null }
@@ -364,6 +365,17 @@ Describe 'install.ps1' {
         $result.ExitCode | Should -Be 1
         $result.Output | Should -Match 'already holds other files, so it was left alone'
         @(Get-ChildItem -LiteralPath $reloadedFolder).Name | Should -Be @('notes.txt')
+    }
+
+    # #601: install.cmd's own closing line was printed by cmd, so the screen reader never said it.
+    It 'says last that it has finished, and to press a key when install.cmd waits for one' {
+        $press = 'The installer has finished. Read what it said above, then press any key to close this window.'
+        foreach ($answers in @($freshAnswers), @('no')) {
+            $result = Invoke-Install $answers -FromLauncher
+            @($result.Output -split "`n" | Where-Object { $_ })[-1] | Should -Be $press
+        }
+        $result = Invoke-Install @('no')
+        @($result.Output -split "`n" | Where-Object { $_ })[-1] | Should -Be 'The installer has finished.'
     }
 
     It 'changes nothing without a console to answer on' {
@@ -602,14 +614,15 @@ exit 3
         $ran.Root | Should -Be $folder
         $ran.Edition | Should -Be 'Desktop'
         $ran.Policy | Should -Be 'Bypass'
-        @($ran.Arguments) | Should -Be @('-Speak')
+        @($ran.Arguments) | Should -Be @('-FromLauncher', '-Speak')
         $result.ExitCode | Should -Be 3
     }
 
-    It 'keeps the window open after the installer, saying how to close it' -Skip:(
+    # #601: install.ps1 says the closing line, so the screen reader speaks it; cmd printing it too would say it twice.
+    It 'leaves the closing line to install.ps1, and prints nothing after it' -Skip:(
         -not (Get-Command powershell.exe -ErrorAction SilentlyContinue)) {
         $result = Invoke-Launcher (New-LauncherFolder)
-        $result.Output | Should -Match '(?s)stand-in installer ran.*press any key to close this window'
+        $result.Output.Trim() | Should -Be 'stand-in installer ran'
     }
 
     It 'starts Windows PowerShell from System32, not a powershell file in its own folder' -Skip:(
@@ -630,6 +643,7 @@ exit 3
         foreach ($file in $shipped) { Copy-Item -LiteralPath (Join-Path $repo "scripts/player/$file") $folder -Force }
         $result = Invoke-Launcher $folder -Arguments '-NoSpeech'
         $result.Output | Should -Match 'not in the mod''s folder'
+        ([regex]::Matches($result.Output, 'press any key to close this window')).Count | Should -Be 1
         $result.ExitCode | Should -Be 1
     }
 
