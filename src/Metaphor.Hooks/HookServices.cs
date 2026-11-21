@@ -122,10 +122,17 @@ internal sealed record HookServices
         var lines = new DialogueLines(new ShownSpeakers(library, names), dialogue);
         events.ObserveLines(lines);
         events.ObserveShownLines(lines);
-        events.ObserveChoices(new DialogueChoices(library, dialogue));
+        // A choice's prompt, spoken as it opens, isn't spoken again when the window shows it (#541).
+        events.ObserveChoices(lines);
+        var choices = new DialogueChoices(library, dialogue);
+        events.ObserveChoices(choices);
         var choiceFocus = new ChoiceFocus(library, announcer, cleaner);
         events.ObserveChoices(choiceFocus);
         events.ObserveLines(choiceFocus);
+        // A reply choice opened outside the scripts reaches only the select window call (#541).
+        var selectChoices = new SelectWindowChoices(lines, choices, choiceFocus);
+        events.ObserveChoices(selectChoices);
+        events.ObserveSelects(selectChoices);
         cursors.Observe(screens);
         cursors.Observe(choiceFocus);
         if (report is not null)

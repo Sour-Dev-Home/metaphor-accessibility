@@ -4,13 +4,15 @@ namespace Metaphor.Features.Dialogue;
 
 /// <summary>Speaks the line the game asks for by label (#56), and the line it puts in its message window by any other
 /// route (#526), looked up in the messages the game has compiled (<see cref="MessageLibrary"/>). A line asked for by
-/// label is shown right after, in the same call, so it is spoken once.</summary>
-public sealed class DialogueLines : ILineRequestObserver, ILineShownObserver
+/// label is shown right after, in the same call, so it is spoken once; so is a choice's prompt, which
+/// <see cref="DialogueChoices"/> speaks as the choice opens and the window shows next (#541,
+/// docs/findings/reply-choice-routes-static.md).</summary>
+public sealed class DialogueLines : ILineRequestObserver, ILineShownObserver, IChoiceRequestObserver
 {
     private readonly IMessageLookup messages;
     private readonly DialogueAnnouncer dialogue;
     private readonly Lock gate = new();
-    // The label just spoken as requested, until the window shows it.
+    // The label just spoken as requested or as a choice's prompt, until the window shows it.
     private string? requested;
 
     public DialogueLines(IMessageLookup messages, DialogueAnnouncer dialogue)
@@ -35,6 +37,19 @@ public sealed class DialogueLines : ILineRequestObserver, ILineShownObserver
                 requested = message.Label;
             }
             dialogue.Show(message.Speaker, message.Text);
+        }
+    }
+
+    /// <summary>Notes the prompt of a choice that opened, when it has a message, as spoken.</summary>
+    public void Observe(ChoiceRequested choice)
+    {
+        ArgumentNullException.ThrowIfNull(choice);
+        if (choice.PromptLabel is { } label && messages.Find(label) is { } message)
+        {
+            lock (gate)
+            {
+                requested = message.Label;
+            }
         }
     }
 
