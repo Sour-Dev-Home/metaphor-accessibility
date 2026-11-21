@@ -47,8 +47,8 @@ the DevOnly listeners in `src/Metaphor.Hooks/TutorialWindowListeners.cs` log wha
 - **Know a pop-up opened, and which:** a hook on `0xfadf00` (and `0xfae440`) reads the tutorial number. The table
   behind the `.text1` accessors is `COMMON/ui/tutorial/TutorialIDPC.bin`, which maps the number to its title's and
   pages' labels ([finding](tutorial-table-maps-numbers-to-labels.md)); the mod reads it from the archive.
-- **Know which page shows:** unknown. The update hook logs the window's fields and its `+0xe0` object's on each change,
-  so a page turn (cue 27) should show as the field that moves with it.
+- **Know which page shows:** the `+0xe0` object's `+0x8`, from 0, beside the page count at `+0xc`: it stepped with each
+  page turn of a by-ear run ([raw source](../raw-sources/tutorial-page-index-by-ear-2026-11-21.md)).
 - **The text:** once the label is known, the mod already has it: the message library keeps every compiled file by
   label, and both tutorial files compile as each pop-up opens.
 

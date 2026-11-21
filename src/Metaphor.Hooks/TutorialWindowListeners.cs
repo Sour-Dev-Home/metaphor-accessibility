@@ -135,8 +135,8 @@ internal sealed class TutorialWindowShowOtherListener : IGameHook, IObserves4Wit
 }
 
 /// <summary>The tutorial pop-up window's per-frame update (<c>UUIC_Common_TutorialWindow</c>'s vtable slot 13):
-/// <c>void (window*)</c>. After each run it hands the window's tutorial number, object and state to
-/// <see cref="TutorialPopups"/>, which speaks a pop-up as it opens. In a development run with
+/// <c>void (window*)</c>. After each run it hands the window's tutorial number, object, page and state to
+/// <see cref="TutorialPopups"/>, which speaks a pop-up as it opens and each page it turns to. In a development run with
 /// <see cref="OptInFile"/> in the mod's folder it also logs the window, its object and what each points to whenever
 /// they change, so a page turn shows as the field that moves with it; it stops after <see cref="MaxRecords"/>
 /// records.</summary>
@@ -156,6 +156,10 @@ internal sealed class TutorialWindowUpdateHook : IGameHook, IObserves4WithResult
     private const int NumberAt = 0x1c;
     private const int ModelAt = TutorialWindowState.ModelAt;
     private const int Ended = 3;
+
+    // The object's page shown, from 0: it stepped 0, 1, 2, 1, 0 with the page turns of a by-ear run, beside the page
+    // count at +0xc (docs/raw-sources/tutorial-page-index-by-ear-2026-11-21.md).
+    private const int PageAt = 0x8;
 
     private readonly TutorialPopups popups;
     private readonly MessageLog? log;
@@ -181,11 +185,20 @@ internal sealed class TutorialWindowUpdateHook : IGameHook, IObserves4WithResult
         {
             return;
         }
-        popups.WindowUpdated(window, number, model, ended: state == Ended);
+        popups.WindowUpdated(window, number, model, Page(model), ended: state == Ended);
         if (log is not null && records < MaxRecords)
         {
             LogChange(log, window);
         }
+    }
+
+    // The object comes from the window's unverified layout, so it is read only through the guarded reader.
+    private static int? Page(nint model)
+    {
+        var bytes = new byte[sizeof(int)];
+        return model != 0 && ModuleMemoryReader.ReadBytesAvoidingGuardPages(model + PageAt, bytes)
+            ? System.Buffers.Binary.BinaryPrimitives.ReadInt32LittleEndian(bytes)
+            : null;
     }
 
     private void LogChange(MessageLog to, nint window)

@@ -66,7 +66,7 @@ public sealed class TutorialPopupsTests
     {
         Compiled();
 
-        popups.WindowUpdated(Window, number: 0, Model, ended: false);
+        popups.WindowUpdated(Window, number: 0, Model, page: 0, ended: false);
 
         Assert.Equal(["Walking About, 3 pages. Press to walk. More here."], Said());
         Assert.True(announcer.Said.Single().Interrupt);
@@ -77,7 +77,7 @@ public sealed class TutorialPopupsTests
     {
         Compiled();
 
-        popups.WindowUpdated(Window, number: 1, Model, ended: false);
+        popups.WindowUpdated(Window, number: 1, Model, page: 0, ended: false);
 
         Assert.Equal(["One Thing, 1 page. Only page."], Said());
     }
@@ -87,9 +87,9 @@ public sealed class TutorialPopupsTests
     {
         Compiled();
 
-        popups.WindowUpdated(Window, 0, Model, ended: false);
-        popups.WindowUpdated(Window, 0, Model, ended: false);
-        popups.WindowUpdated(Window, 0, Model, ended: false);
+        popups.WindowUpdated(Window, 0, Model, page: 0, ended: false);
+        popups.WindowUpdated(Window, 0, Model, page: 0, ended: false);
+        popups.WindowUpdated(Window, 0, Model, page: 0, ended: false);
 
         Assert.Single(Said());
     }
@@ -99,9 +99,9 @@ public sealed class TutorialPopupsTests
     {
         Compiled();
 
-        popups.WindowUpdated(Window, 1, Model, ended: false);
-        popups.WindowUpdated(Window, 1, Model, ended: true);
-        popups.WindowUpdated(Window, 1, Model, ended: false);
+        popups.WindowUpdated(Window, 1, Model, page: 0, ended: false);
+        popups.WindowUpdated(Window, 1, Model, page: 0, ended: true);
+        popups.WindowUpdated(Window, 1, Model, page: 0, ended: false);
 
         Assert.Equal(2, Said().Count());
     }
@@ -111,9 +111,9 @@ public sealed class TutorialPopupsTests
     {
         Compiled();
 
-        popups.WindowUpdated(Window, 1, Model, ended: false);
-        popups.WindowUpdated(Window, 1, model: 0, ended: false);
-        popups.WindowUpdated(Window, 1, Model, ended: false);
+        popups.WindowUpdated(Window, 1, Model, page: 0, ended: false);
+        popups.WindowUpdated(Window, 1, model: 0, page: 0, ended: false);
+        popups.WindowUpdated(Window, 1, Model, page: 0, ended: false);
 
         Assert.Equal(2, Said().Count());
     }
@@ -123,9 +123,9 @@ public sealed class TutorialPopupsTests
     {
         Compiled();
 
-        popups.WindowUpdated(Window, 0, Model, ended: false);
-        popups.WindowUpdated(Window, 1, Model, ended: false);
-        popups.WindowUpdated(Window, 1, Model + 0x100, ended: false);
+        popups.WindowUpdated(Window, 0, Model, page: 0, ended: false);
+        popups.WindowUpdated(Window, 1, Model, page: 0, ended: false);
+        popups.WindowUpdated(Window, 1, Model + 0x100, page: 0, ended: false);
 
         Assert.Equal(
             ["Walking About, 3 pages. Press to walk. More here.", "One Thing, 1 page. Only page.", "One Thing, 1 page. Only page."],
@@ -137,8 +137,8 @@ public sealed class TutorialPopupsTests
     {
         Compiled();
 
-        popups.WindowUpdated(Window, 0, Model, ended: true);
-        popups.WindowUpdated(Window, 0, model: 0, ended: false);
+        popups.WindowUpdated(Window, 0, Model, page: 0, ended: true);
+        popups.WindowUpdated(Window, 0, model: 0, page: 0, ended: false);
 
         Assert.Empty(Said());
     }
@@ -148,7 +148,7 @@ public sealed class TutorialPopupsTests
     {
         Compiled();
 
-        popups.WindowUpdated(Window, 2, Model, ended: false);
+        popups.WindowUpdated(Window, 2, Model, page: 0, ended: false);
 
         Assert.Equal(["Tutorial, 2 pages. Only page."], Said());
     }
@@ -156,7 +156,7 @@ public sealed class TutorialPopupsTests
     [Fact]
     public void WithoutItsFilesCompiledOnlyThePageCountIsKnown()
     {
-        popups.WindowUpdated(Window, 0, Model, ended: false);
+        popups.WindowUpdated(Window, 0, Model, page: 0, ended: false);
 
         Assert.Equal(["Tutorial, 3 pages"], Said());
     }
@@ -168,9 +168,72 @@ public sealed class TutorialPopupsTests
     {
         Compiled();
 
-        popups.WindowUpdated(Window, number, Model, ended: false);
+        popups.WindowUpdated(Window, number, Model, page: 0, ended: false);
 
         Assert.Equal([TutorialPopups.Untitled], Said());
+    }
+
+    // The by-ear run's turns: forward twice, then back twice (2026-11-21).
+    [Fact]
+    public void EachPageTurnedToIsSpokenWithItsPosition()
+    {
+        Compiled();
+
+        popups.WindowUpdated(Window, 0, Model, page: 0, ended: false);
+        popups.WindowUpdated(Window, 0, Model, page: 1, ended: false);
+        popups.WindowUpdated(Window, 0, Model, page: 1, ended: false);
+        popups.WindowUpdated(Window, 0, Model, page: 0, ended: false);
+
+        Assert.Equal(
+            ["Walking About, 3 pages. Press to walk. More here.", "Page 2 of 3. Second.", "Page 1 of 3. Press to walk. More here."],
+            Said());
+        Assert.All(announcer.Said, said => Assert.True(said.Interrupt));
+    }
+
+    [Fact]
+    public void APageWhoseTextIsMissingIsSaidByItsPositionAlone()
+    {
+        Compiled();
+
+        popups.WindowUpdated(Window, 0, Model, page: 0, ended: false);
+        popups.WindowUpdated(Window, 0, Model, page: 2, ended: false);
+
+        Assert.Equal("Page 3 of 3", Said().Last());
+    }
+
+    [Theory]
+    [InlineData(3)]
+    [InlineData(-1)]
+    public void APageOutsideThePopUpIsNotSpoken(int page)
+    {
+        Compiled();
+
+        popups.WindowUpdated(Window, 0, Model, page: 0, ended: false);
+        popups.WindowUpdated(Window, 0, Model, page, ended: false);
+
+        Assert.Single(Said());
+    }
+
+    [Fact]
+    public void AnUnreadPageIsNotATurn()
+    {
+        Compiled();
+
+        popups.WindowUpdated(Window, 0, Model, page: 1, ended: false);
+        popups.WindowUpdated(Window, 0, Model, page: null, ended: false);
+        popups.WindowUpdated(Window, 0, Model, page: 1, ended: false);
+
+        Assert.Equal(["Walking About, 3 pages. Second."], Said());
+    }
+
+    [Fact]
+    public void APopUpOpenedUnreadStartsOnItsFirstPage()
+    {
+        Compiled();
+
+        popups.WindowUpdated(Window, 1, Model, page: null, ended: false);
+
+        Assert.Equal(["One Thing, 1 page. Only page."], Said());
     }
 
     [Fact]
@@ -179,7 +242,7 @@ public sealed class TutorialPopupsTests
         Compiled();
         table = null;
 
-        popups.WindowUpdated(Window, 0, Model, ended: false);
+        popups.WindowUpdated(Window, 0, Model, page: 0, ended: false);
 
         Assert.Equal([TutorialPopups.Untitled], Said());
     }
