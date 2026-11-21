@@ -212,6 +212,16 @@ public sealed class MessageLogTests
     }
 
     [Fact]
+    public void RecordsATutorialEvent()
+    {
+        var (log, text) = NewLog(now: 9);
+
+        log.TutorialSeen("open", "via=X id=12");
+
+        Assert.Equal($"9 ms tutorial open via=X id=12{Environment.NewLine}", text.ToString());
+    }
+
+    [Fact]
     public void ARequestedLabelStaysOnOneLine()
     {
         var (log, text) = NewLog(now: 1);

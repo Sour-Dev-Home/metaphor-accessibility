@@ -103,6 +103,9 @@ outside the repository, so none is ever committed. `run -OptIn <name>` adds the 
   scan, and counts as expected like any other. Use it for one short, separate run.
 - `opt-in-ui-text-panes.txt`: the same, for the listener on the UI text pane's draw (#93), which runs every frame and
   logs drawn text (`docs/raw-sources/ui-focus-candidates-2026-11-16.md`).
+- `opt-in-tutorial-window.txt`: the same, for the listener on the tutorial pop-up's update (#118), which runs every
+  frame while a pop-up exists and logs its fields as they change
+  ([finding](../../findings/tutorial-popup-window-static.md)).
 - `opt-in-dialogue-window.txt`: turns on the two dialogue window hooks, which only log (#232)
   ([turn on the dialogue window hooks](turn-on-the-dialogue-window-hooks.md)).
 - `opt-in-inspector.txt`: opens the live inspector's pipe in a Debug build
