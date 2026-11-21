@@ -257,5 +257,26 @@
     "pattern": "41 56 48 83 EC 30 83 79 18 03 4C 8B F1 0F 84 ?? ?? ?? ?? 48 8B 01 FF 50 08 84 C0 0F 84 ?? ?? ?? ?? 41 8B 4E 18 48 89 5C 24 50",
     "gameBuilds": ["548ddc955c176867f062c44f94c03dd9ac33caefb278a5ac388e792aedf09504"],
     "evidence": "Our reading of the exe in Ghidra 12.2: UUIC_Common_TutorialWindow's vtable slot 13 (vtable 0x22576a0), its per-frame update (docs/findings/tutorial-popup-window-static.md); one match on disk; not yet checked in memory"
+  },
+  {
+    "name": "TravelMapPanelShow",
+    "section": ".ecode",
+    "pattern": "44 88 44 24 18 89 54 24 10 48 89 4C 24 08 55 53 56 57 41 54 41 55 41 56 41 57 48 8B EC 48 83 EC 78 C5 F8 29 74 24 60 C5 F8 29 7C 24 50 49 8B F1",
+    "gameBuilds": ["548ddc955c176867f062c44f94c03dd9ac33caefb278a5ac388e792aedf09504"],
+    "evidence": "Our reading of the exe in Ghidra 12.2: sortie::map::Detail's show-a-destination, 0xcccf50 (docs/findings/world-map-destination-panel-static.md, docs/findings/travel-map-destination-text-static.md); one match on disk; not yet checked in memory"
+  },
+  {
+    "name": "FieldMapNameCompose",
+    "section": ".ecode",
+    "pattern": "48 89 5C 24 08 48 89 7C 24 10 55 48 8B EC 48 83 EC 40 48 8B FA 48 8B D9 C5 F9 EF C0 C5 FA 7F 45 E0 48 C7 45 F0 00 00 00 00 E8",
+    "gameBuilds": ["548ddc955c176867f062c44f94c03dd9ac33caefb278a5ac388e792aedf09504"],
+    "evidence": "Our reading of the exe in Ghidra 12.2: the field map name strip's name composer, 0xefe180 (docs/findings/field-map-region-area-name-static.md); one match on disk; not yet checked in memory"
+  },
+  {
+    "name": "FieldMapNameSetId",
+    "section": ".ecode",
+    "pattern": "48 89 5C 24 18 55 56 57 41 56 41 57 48 83 EC 20 8B 02 48 8B F1 89 81 E8 07 00 00 48 8B FA",
+    "gameBuilds": ["548ddc955c176867f062c44f94c03dd9ac33caefb278a5ac388e792aedf09504"],
+    "evidence": "Our reading of the exe in Ghidra 12.2: the field map name strip's set-the-place, 0xc93070 (docs/findings/field-map-region-area-name-static.md); one match on disk; not yet checked in memory"
   }
 ]
