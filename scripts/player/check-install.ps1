@@ -8,8 +8,9 @@ the mod knows, the speech library is in place, and how the mod last started, and
 supports is running (MetaphorInstall.psm1 lists what each reads). Prints each result, then names the first thing to fix.
 
 With no screen reader running it also speaks each result with Windows' own voice, so it works when the mod's speech
-doesn't. With one running it prints only, and the reader reads the window; -Speak adds Windows' voice anyway. Spoken
-lines leave out paths and hashes; the printed lines keep them.
+doesn't. With NVDA, JAWS or ZoomText running it speaks each result through that reader with the speech library in this
+folder (prism.dll, checked by its hash), and prints only if that can't start. Spoken lines leave out paths and hashes;
+the printed lines keep them.
 
 It changes no file or setting and reads nothing over the network. In Windows PowerShell 5.1 the search for JAWS and
 ZoomText compiles a small helper, which writes temporary files in your temp folder and removes them. Runs in Windows
@@ -19,13 +20,10 @@ Exit codes: 0 nothing to fix (notes don't count); 1 something to fix.
 
 .EXAMPLE
 powershell -ExecutionPolicy Bypass -NoExit -File check-install.ps1
-
-.EXAMPLE
-powershell -ExecutionPolicy Bypass -NoExit -File check-install.ps1 -Speak
 #>
 [CmdletBinding()]
 param(
-    # Speak with Windows' voice even while a screen reader is running.
+    # Speak with Windows' voice instead of the screen reader (for testing; players need no switch).
     [switch] $Speak,
     # Print only. Without a console to speak to (as in tests, or -NonInteractive), it prints only anyway.
     [switch] $NoSpeech,

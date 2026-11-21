@@ -20,7 +20,7 @@ public sealed class InputFrameReplayTests
     private const int X = 0x8000;
     private const int LeftBumper = 0x0400;
     private const int LbRb = 0x0400 | 0x0800;
-    private const int Tab = 0x09;
+    private const int KeyF = 0x46;
     private const int KeyR = 0x52;
     private const int KeyT = 0x54;
     private const long OpenWindow = 0x1315afe20;
@@ -227,7 +227,7 @@ public sealed class InputFrameReplayTests
         var keys = new List<int>();
         if ((buttons & R3) != 0)
         {
-            keys.Add(Tab);
+            keys.Add(KeyF);
         }
         if ((buttons & X) != 0)
         {
@@ -245,7 +245,7 @@ public sealed class InputFrameReplayTests
     private static int AsButtons(int buttons, IReadOnlyList<int> handed)
     {
         var translated = (buttons & (R3 | X)) | ((buttons & LbRb) == LbRb ? LbRb : 0);
-        var kept = (handed.Contains(Tab) ? R3 : 0) | (handed.Contains(KeyR) ? X : 0) | (handed.Contains(KeyT) ? LbRb : 0);
+        var kept = (handed.Contains(KeyF) ? R3 : 0) | (handed.Contains(KeyR) ? X : 0) | (handed.Contains(KeyT) ? LbRb : 0);
         return (buttons & ~translated) | kept;
     }
 
@@ -279,7 +279,7 @@ public sealed class InputFrameReplayTests
     {
         public int Pad(int pad, int buttons, bool made) => buttons | 0x0001;
 
-        public IReadOnlyList<int> Keys(IReadOnlyList<int> keys) => [.. keys, Tab];
+        public IReadOnlyList<int> Keys(IReadOnlyList<int> keys) => [.. keys, KeyF];
 
         public void WindowRead(long? currentMessage)
         {
