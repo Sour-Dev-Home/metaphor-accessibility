@@ -12,6 +12,9 @@ namespace Metaphor.Features.Updates;
 /// goes to the log. Safe to use from several threads.</summary>
 public sealed class UpdateNotice : IScreenObserver
 {
+    /// <summary>The longest tag taken; a longer one is skipped rather than read out in full.</summary>
+    public const int MaxTagLength = 64;
+
     private readonly string runningVersion;
     private readonly Screen titleScreen;
     private readonly IAnnouncer announcer;
@@ -84,7 +87,7 @@ public sealed class UpdateNotice : IScreenObserver
             log($"update check failed: {e.GetType().Name}: {e.Message}");
             return;
         }
-        var newest = tags.Select(ReleaseVersion.Parse).OfType<ReleaseVersion>()
+        var newest = tags.Where(tag => tag.Length <= MaxTagLength).Select(ReleaseVersion.Parse).OfType<ReleaseVersion>()
             .Aggregate((ReleaseVersion?)null, (best, next) => best is null || next.IsNewerThan(best) ? next : best);
         log($"update check: running {running.Text}, newest release {newest?.Text ?? "none"}");
         if (newest is null || !newest.IsNewerThan(running))

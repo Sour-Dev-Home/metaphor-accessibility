@@ -1,4 +1,3 @@
-using System.Net;
 using System.Net.Http.Headers;
 using System.Text.Json;
 
@@ -48,15 +47,13 @@ public sealed class GitHubReleases : IReleaseSource, IDisposable
     /// <summary>A source over the network, with <see cref="DefaultTimeout"/>.</summary>
     public static GitHubReleases Create() => new(NewHandler(), DefaultTimeout);
 
-    /// <summary>The handler <see cref="Create"/> uses: no redirects, no cookies, no credentials.</summary>
+    /// <summary>The handler <see cref="Create"/> uses: no redirects and no cookies. Credentials, proxy credentials and
+    /// pre-authentication stay at their defaults, none and off (the tests check), so the assembly needs no System.Net
+    /// type outside HTTP (architecture rule 3).</summary>
     internal static SocketsHttpHandler NewHandler() => new()
     {
         AllowAutoRedirect = false,
         UseCookies = false,
-        Credentials = null,
-        DefaultProxyCredentials = null,
-        PreAuthenticate = false,
-        AutomaticDecompression = DecompressionMethods.None,
     };
 
     public async Task<IReadOnlyList<string>> ReleaseTagsAsync(CancellationToken cancellationToken)

@@ -39,6 +39,19 @@ public sealed class NetworkingRuleTests
         Assert.NotEmpty(Rules.NoNetworking(Plant.Compile(Rules.HookLayer, code)));
     }
 
+    // The exception covers HTTP only: sockets, web sockets and the rest of System.Net still fail there.
+    [Theory]
+    [InlineData("new System.Net.Sockets.TcpClient()", "System.Net.Sockets.TcpClient")]
+    [InlineData("new System.Net.WebSockets.ClientWebSocket()", "System.Net.WebSockets.ClientWebSocket")]
+    [InlineData("System.Net.Dns.GetHostName()", "System.Net.Dns")]
+    public void TheUpdateCheckMayNotUseOtherNetworking(string expression, string type)
+    {
+        var assembly = Plant.Compile(
+            "Metaphor.Features.Updates", $"public static class C {{ public static object M() => {expression}; }}");
+
+        Assert.Contains(Rules.NoNetworking(assembly), v => v.Contains(type, StringComparison.Ordinal));
+    }
+
     [Fact]
     public void CodeWithoutNetworkingPasses()
     {

@@ -89,6 +89,21 @@ public sealed class UpdateNoticeTests
         Assert.Equal([Said("0.0.1-unstable.10")], announcer.Said);
     }
 
+    // A tag too long to say is skipped, not read out in full.
+    [Fact]
+    public async Task ATagLongerThan64CharactersIsIgnored()
+    {
+        var notice = Notice();
+        var longTag = "v0.0.1-unstable." + new string('9', UpdateNotice.MaxTagLength - "v0.0.1-unstable.".Length + 1);
+        var longestTag = "v0.0.1-unstable." + new string('8', UpdateNotice.MaxTagLength - "v0.0.1-unstable.".Length);
+        await notice.CheckAsync(new FakeSource(longTag, longestTag), CancellationToken.None);
+
+        notice.Observe(On(Title));
+
+        Assert.Equal(64, UpdateNotice.MaxTagLength);
+        Assert.Equal([Said(longestTag[1..])], announcer.Said);
+    }
+
     [Fact]
     public async Task OnlyTheTitleScreenSaysIt()
     {

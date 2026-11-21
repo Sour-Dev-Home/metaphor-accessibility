@@ -130,6 +130,7 @@ public sealed class GitHubReleasesTests
         Assert.Null(handler.Credentials);
         Assert.Null(handler.DefaultProxyCredentials);
         Assert.False(handler.PreAuthenticate);
+        Assert.Equal(DecompressionMethods.None, handler.AutomaticDecompression);
     }
 
     /// <summary>One request as the handler saw it: its method, address, headers as "Name: value" in name order, and

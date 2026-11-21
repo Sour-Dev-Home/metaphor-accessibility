@@ -18,7 +18,8 @@ internal static class Rules
     /// <summary>The attribute that marks a hook and names its game builds.</summary>
     public const string GameHookAttribute = "Metaphor.Hooks.GameHookAttribute";
 
-    /// <summary>Assemblies allowed to use networking, each with the ADR that approved it.</summary>
+    /// <summary>Assemblies allowed to use HTTP (System.Net.Http and its Headers namespace, nothing else in System.Net),
+    /// each with the ADR that approved it.</summary>
     private static readonly Dictionary<string, string> NetworkingExceptions = new()
     {
         // One request per launch to this repository's GitHub releases, which the settings can turn off (#576).
@@ -112,13 +113,27 @@ internal static class Rules
 
     private const int System32SearchPath = 0x800; // DllImportSearchPath.System32
 
-    /// <summary>No assembly uses networking without an ADR-approved exception.</summary>
-    public static IReadOnlyList<string> NoNetworking(AssemblyDefinition assembly) =>
-        NetworkingExceptions.ContainsKey(assembly.Name.Name)
-            ? []
-            : [.. ExternalTypes(assembly)
-                .Where(type => IsInNamespace(type, "System.Net"))
-                .Select(type => $"{assembly.Name.Name} uses networking type {type.FullName}")];
+    /// <summary>The namespaces an exception allows: HTTP only, so no sockets, web sockets or other System.Net types.</summary>
+    private static readonly string[] HttpNamespaces = ["System.Net.Http", "System.Net.Http.Headers"];
+
+    /// <summary>No assembly uses networking without an ADR-approved exception, and an exception covers HTTP only.
+    /// </summary>
+    public static IReadOnlyList<string> NoNetworking(AssemblyDefinition assembly)
+    {
+        var excepted = NetworkingExceptions.ContainsKey(assembly.Name.Name);
+        return [.. ExternalTypes(assembly)
+            .Where(type => IsInNamespace(type, "System.Net") && !(excepted && HttpNamespaces.Contains(OuterNamespace(type))))
+            .Select(type => $"{assembly.Name.Name} uses networking type {type.FullName}")];
+    }
+
+    private static string OuterNamespace(TypeReference type)
+    {
+        while (type.DeclaringType is not null)
+        {
+            type = type.DeclaringType;
+        }
+        return type.Namespace;
+    }
 
     /// <summary>No Release assembly uses named pipes, so the live inspector (#291), the mod's one way in from outside the
     /// game, never reaches players: it is compiled into Debug builds only.</summary>
