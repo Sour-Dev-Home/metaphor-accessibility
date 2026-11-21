@@ -58,6 +58,28 @@ public sealed class InputFrameTests
         public void WindowRead(long? currentMessage) => WindowReads.Add(currentMessage);
     }
 
+    private sealed class Watcher : IKeyWatcher
+    {
+        public List<string> Seen { get; } = [];
+
+        public void Keys(IReadOnlyList<int> keys) => Seen.Add(string.Join(",", keys));
+    }
+
+    // #585: the name entry's Enter hint sees each keyboard read as the game read it, before the menu controls drop
+    // their keys, and changes nothing.
+    [Fact]
+    public void AKeyWatcherSeesTheGamesReadAndChangesNothing()
+    {
+        var watcher = new Watcher();
+        menus.OnKeys = keys => [.. keys.Where(key => key != 0x09)];
+        var frame = new InputFrame(game, screens, menus, dialogue, watcher);
+
+        var answer = frame.Keys([0x09, 0x0D]);
+
+        Assert.Equal(["9,13"], watcher.Seen);
+        Assert.Equal([0x0D], answer.Keys);
+    }
+
     [Fact]
     public void MissingPartsAreRefused()
     {

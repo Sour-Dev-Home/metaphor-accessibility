@@ -1,5 +1,6 @@
 using Metaphor.Core;
 using Metaphor.Core.Announcements;
+using Metaphor.Core.Input;
 using Metaphor.Core.Menus;
 using Metaphor.Core.Messages;
 using Metaphor.Core.Settings;
@@ -46,6 +47,14 @@ internal sealed record HookServices
     /// <summary>Where the name entry hook reports each update of the box (#585): nowhere unless the menus feature is
     /// speaking it.</summary>
     public INameEntryObserver NameEntry { get; init; } = new NoNameEntry();
+
+    /// <summary>What the input hooks' frame (#301) shows each keyboard read to, unchanged: the name entry's Enter hint
+    /// (#585), or nothing.</summary>
+    public IKeyWatcher? KeyWatcher { get; init; }
+
+    /// <summary>Whether a name entry screen is up (#585), so the keyboard hook's dev log gives a key count, not the
+    /// codes of a name being typed.</summary>
+    public Func<bool> NameEntryUp { get; init; } = () => false;
 
     /// <summary>Reads the message the dialogue window holds (#232); the loader locates what it reads (#300).</summary>
     public DialogueWindowPointer DialogueWindow { get; init; } = new();
@@ -155,6 +164,8 @@ internal sealed record HookServices
             MenuControls = menuControls,
             MenuScreens = screens,
             NameEntry = nameEntry,
+            KeyWatcher = nameEntry,
+            NameEntryUp = nameEntry.OnScreen,
             GameData = gameData,
             CharacterTable = characterTable,
             FollowerTable = followerTable,

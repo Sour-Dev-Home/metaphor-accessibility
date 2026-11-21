@@ -1,19 +1,31 @@
 using Metaphor.Core.Announcements;
+using Metaphor.Core.Input;
 using Metaphor.Core.Menus;
 using Metaphor.Core.Messages;
 
 namespace Metaphor.Features.Menus;
 
 /// <summary>Speaks a name entry screen (#585): its title when the player reaches it, then each character typed or
-/// deleted, and the game's "name cannot be used" message. The title and the error are the game's own messages, looked up
+/// deleted, how to confirm when Enter is pressed, and the game's "name cannot be used" message. The title and the error are the game's own messages, looked up
 /// at run time (<see cref="MessageLibrary"/>). Typed characters are the player's name: they go out as private
 /// announcements, spoken but never recorded. Safe to call from several threads.</summary>
 /// <remarks>On build 548ddc95 the screen's update shows <c>System_NameEntry_07</c> for the player's own name and
 /// <c>System_NameEntry_01</c> for the protagonist's, and <c>System_NameEntry_Error</c> as a kind-1 window line when a
 /// name is refused (docs/findings/name-entry-static.md). That the title is up when the first update runs, and that the
 /// error reaches the window hook, are <c>[NEEDS VERIFICATION]</c> by ear.</remarks>
-public sealed class NameEntrySpeech : INameEntryObserver, ILineShownObserver
+public sealed class NameEntrySpeech : INameEntryObserver, ILineShownObserver, IKeyWatcher
 {
+    /// <summary>What is said when Enter is pressed on the screen: the name is confirmed with Tab or the pad's Menu
+    /// button, not Enter (the maintainer, by ear and by hand, on #593, 2026-11-21).</summary>
+    public const string ConfirmHint = "Press Tab or the Menu button to confirm.";
+
+    /// <summary>An Enter pressed this long after the screen's last update isn't on the screen.</summary>
+    public const long OnScreenMilliseconds = 1000;
+
+    // Windows' virtual-key code for Enter, which the game's keyboard read lists when held
+    // (docs/raw-sources/pad-and-keyboard-state-2026-11-16.md).
+    private const int EnterKey = 0x0D;
+
     /// <summary>The player's own name entry title.</summary>
     public const string PlayerTitleLabel = "System_NameEntry_07";
 
@@ -41,6 +53,7 @@ public sealed class NameEntrySpeech : INameEntryObserver, ILineShownObserver
     private bool playerName;
     private long lastSeen;
     private string text = "";
+    private bool enterHeld;
 
     public NameEntrySpeech(IMessageLookup messages, IAnnouncer announcer, TextCleaner cleaner, Func<long> milliseconds)
     {
@@ -89,6 +102,34 @@ public sealed class NameEntrySpeech : INameEntryObserver, ILineShownObserver
         foreach (var announcement in said)
         {
             announcer.Announce(announcement);
+        }
+    }
+
+    /// <summary>Whether the screen updated within the last <see cref="OnScreenMilliseconds"/>, so the keys being read
+    /// may be the player's name: the keyboard's dev log then gives a count instead of key codes.</summary>
+    public bool OnScreen()
+    {
+        lock (gate)
+        {
+            return entry is not null && milliseconds() - lastSeen <= OnScreenMilliseconds;
+        }
+    }
+
+    /// <summary>Says how to confirm the name when Enter goes down while the screen is up: once a press, nothing for a
+    /// held key or away from the screen. The keys reach the game unchanged.</summary>
+    public void Keys(IReadOnlyList<int> keys)
+    {
+        ArgumentNullException.ThrowIfNull(keys);
+        var held = keys.Contains(EnterKey);
+        bool pressed;
+        lock (gate)
+        {
+            pressed = held && !enterHeld && entry is not null && milliseconds() - lastSeen <= OnScreenMilliseconds;
+            enterHeld = held;
+        }
+        if (pressed)
+        {
+            announcer.Announce(new Announcement(ConfirmHint, Interrupt: true));
         }
     }
 

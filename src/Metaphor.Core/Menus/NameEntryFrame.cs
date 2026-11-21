@@ -14,8 +14,14 @@ public sealed class NameEntryFrame(long entry, bool playerName, string text)
     /// <summary>Whether the screen asks for the player's name; false for the protagonist's.</summary>
     public bool PlayerName { get; } = playerName;
 
-    /// <summary>What the box holds.</summary>
-    public string Text { get; } = text ?? throw new ArgumentNullException(nameof(text));
+    /// <summary>What the box holds: the text given, up to its first zero character. The game's array always
+    /// counts 10 characters and pads the name with zeros (the dev log of 2026-11-21 on #593: <c>chars=10</c> throughout
+    /// typing and deleting), so a deletion turns a character into a zero rather than shortening the array.</summary>
+    public string Text { get; } = UpToZero(text ?? throw new ArgumentNullException(nameof(text)));
+
+    private static string UpToZero(string text) => text.IndexOf('\0', StringComparison.Ordinal) is var end and >= 0
+        ? text[..end]
+        : text;
 
     /// <summary>The frame as log fields: the text's length only.</summary>
     public override string ToString() =>

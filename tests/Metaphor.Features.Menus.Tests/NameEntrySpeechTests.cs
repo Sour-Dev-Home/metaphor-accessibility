@@ -95,6 +95,25 @@ public sealed class NameEntrySpeechTests
             announcer.Said.Skip(1));
     }
 
+    // #593, by ear: Backspace was silent. The game's array always holds 10 characters, the name padded with zeros, so a
+    // deletion turns the last letter into a zero (dev log: chars=10 throughout).
+    [Fact]
+    public void ADeletionInTheZeroPaddedArrayIsSpoken()
+    {
+        SystemFileCompiled();
+        Frame(new string('\0', 10));
+
+        Frame("K" + new string('\0', 9));
+        Frame(new string('\0', 10));
+
+        Assert.Equal(
+            [
+                new Announcement("K", Interrupt: true, Private: true),
+                new Announcement("deleted K", Interrupt: true, Private: true),
+            ],
+            announcer.Said.Skip(1));
+    }
+
     [Theory]
     [InlineData("Ann", "Ann", null)]
     [InlineData("An", "Ann", "n")]
@@ -138,6 +157,49 @@ public sealed class NameEntrySpeechTests
         messages.Shown(new LineShown(1, MessageLibrary.LabelHash(NameEntrySpeech.ProtagonistTitleLabel)));
 
         Assert.Equal([new Announcement("Not that one.", Interrupt: true)], announcer.Said);
+    }
+
+    // #593, by ear: Enter doesn't confirm the name; Tab or the pad's Menu button does.
+    [Fact]
+    public void EnterOnTheScreenSaysHowToConfirmOncePerPress()
+    {
+        SystemFileCompiled();
+        Frame("Ada");
+        var before = announcer.Said.Count;
+
+        speech.Keys([0x0D]);
+        speech.Keys([0x0D]);
+        speech.Keys([]);
+        now += 16;
+        speech.Keys([0x41, 0x0D]);
+
+        Assert.Equal(
+            [new Announcement(NameEntrySpeech.ConfirmHint, Interrupt: true), new Announcement(NameEntrySpeech.ConfirmHint, Interrupt: true)],
+            announcer.Said.Skip(before));
+        Assert.Equal("Press Tab or the Menu button to confirm.", NameEntrySpeech.ConfirmHint);
+    }
+
+    // The keyboard's dev log listed the typed name's key codes (#593's review); it hides them while the screen is up.
+    [Fact]
+    public void TheScreenIsUpOnlyWhileItUpdates()
+    {
+        Assert.False(speech.OnScreen());
+        Frame("");
+        Assert.True(speech.OnScreen());
+        now += NameEntrySpeech.OnScreenMilliseconds + 1;
+        Assert.False(speech.OnScreen());
+    }
+
+    [Fact]
+    public void EnterAwayFromTheScreenSaysNothing()
+    {
+        speech.Keys([0x0D]);
+        Frame("");
+        speech.Keys([]);
+        now += NameEntrySpeech.OnScreenMilliseconds + 1;
+        speech.Keys([0x0D]);
+
+        Assert.DoesNotContain(announcer.Said, said => said.Text == NameEntrySpeech.ConfirmHint);
     }
 
     [Fact]

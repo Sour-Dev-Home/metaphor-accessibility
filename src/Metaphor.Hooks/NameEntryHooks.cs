@@ -13,7 +13,8 @@ namespace Metaphor.Hooks;
 /// <summary>What <c>fclNameEntry</c>'s update runs in its typing state: <c>(fclNameEntry* this) → 0</c>, once a frame
 /// while the box takes input. Observed after it returns, it reads the keyboard object at <c>this+0x20</c> and that
 /// object's text array at <c>+0x20</c>: 16-bit characters, their count at <c>+0x28</c>, the characters from
-/// <c>+0x30</c>. The array's type is set in protected code, so it is read only when its vtable is the one the screen's
+/// <c>+0x30</c>. The count stayed 10 in the game, the name padded with zeros (dev log on #593, 2026-11-21);
+/// <see cref="NameEntryFrame"/> ends the text at the first zero. The array's type is set in protected code, so it is read only when its vtable is the one the screen's
 /// own name array at <c>this+0x458</c> has (<c>fw::StaticArray&lt;wchar_t,10&gt;</c>) and the count is at most 10;
 /// otherwise nothing is reported. Six small reads a frame.</summary>
 [GameHook(GameBuilds.Steam18330018)]
@@ -58,10 +59,11 @@ internal sealed class NameEntryInputHook : IGameHook, IObserves1WithResult
             return;
         }
         var frame = new NameEntryFrame(entry, flag[0] != 0, Encoding.Unicode.GetString(characters));
-        if (log is not null && (entry != loggedEntry || count != loggedLength))
+        // The array's count stays 10 while the name is padded with zeros (#593), so the log follows the name's length.
+        if (log is not null && (entry != loggedEntry || frame.Text.Length != loggedLength))
         {
             loggedEntry = entry;
-            loggedLength = count;
+            loggedLength = frame.Text.Length;
             log.NameEntryChanged(frame);
         }
         observer.Observe(frame);
