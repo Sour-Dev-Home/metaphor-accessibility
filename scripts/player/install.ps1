@@ -58,7 +58,9 @@ param(
     # (docs/raw-sources/spoken-installer-sources-2026-11-19.md).
     [string] $VcRuntimeKey = 'HKLM:\SOFTWARE\WOW6432Node\Microsoft\VisualStudio\14.0\VC\Runtimes\x64',
     # What may be downloaded: URLs, file names and SHA-256s. Defaults to install-pins.json beside this script.
-    [string] $Pins = ''
+    [string] $Pins = '',
+    # Set by install.cmd, which waits for a key after the installer: the last line then says to press one.
+    [switch] $FromLauncher
 )
 
 Set-StrictMode -Version Latest
@@ -154,6 +156,12 @@ try {
 }
 finally {
     if ($workFolder) { Remove-Item -LiteralPath $workFolder -Recurse -Force -ErrorAction SilentlyContinue }
+    # Said after every ending, so a player who can't see the window hears that it's over (#601).
+    if ($FromLauncher) {
+        Out-Line 'The installer has finished. Read what it said above, then press any key to close this window.' `
+            'The installer has finished. Press any key to close this window.'
+    }
+    else { Out-Line 'The installer has finished.' }
     if ($voice) { $voice.Dispose() }
 }
 exit $exitCode
