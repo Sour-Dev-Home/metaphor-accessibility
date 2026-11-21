@@ -1,5 +1,6 @@
 using Metaphor.Core;
 using Metaphor.Core.Announcements;
+using Metaphor.Core.Input;
 using Metaphor.Core.Menus;
 using Metaphor.Core.Messages;
 using Metaphor.Core.Settings;
@@ -43,6 +44,18 @@ internal sealed record HookServices
 
     /// <summary>Reads whether the game has its menus open (#268); the loader locates what it reads (#300).</summary>
     public MenusOpenRead MenusOpen { get; init; } = new();
+
+    /// <summary>Where the name entry hook reports each update of the box (#585): nowhere unless the menus feature is
+    /// speaking it.</summary>
+    public INameEntryObserver NameEntry { get; init; } = new NoNameEntry();
+
+    /// <summary>What the input hooks' frame (#301) shows each keyboard read to, unchanged: the name entry's Enter hint
+    /// (#585), or nothing.</summary>
+    public IKeyWatcher? KeyWatcher { get; init; }
+
+    /// <summary>Whether a name entry screen is up (#585), so the keyboard hook's dev log gives a key count, not the
+    /// codes of a name being typed.</summary>
+    public Func<bool> NameEntryUp { get; init; } = () => false;
 
     /// <summary>Reads the message the dialogue window holds (#232); the loader locates what it reads (#300).</summary>
     public DialogueWindowPointer DialogueWindow { get; init; } = new();
@@ -148,12 +161,15 @@ internal sealed record HookServices
             ReaderKey = DialogueBindings.Default.ReaderKey,
         };
         var menuControls = new MenuControls(menuBindings, screens, reader, []);
+        // Name entry (#585): the title and refusals through the reader, typed characters as private announcements.
+        var nameEntry = new NameEntrySpeech(library, reader, cleaner, () => Environment.TickCount64);
         screens.Observe(menuControls);
         events.ObserveFiles(library);
         events.ObserveFiles(serials);
         var lines = new DialogueLines(new ShownSpeakers(library, names), dialogue);
         events.ObserveLines(lines);
         events.ObserveShownLines(lines);
+        events.ObserveShownLines(nameEntry);
         // A choice's prompt, spoken as it opens, isn't spoken again when the window shows it (#541).
         events.ObserveChoices(lines);
         var choices = new DialogueChoices(library, dialogue);
@@ -206,6 +222,9 @@ internal sealed record HookServices
             DialogueControls = controls,
             MenuControls = menuControls,
             MenuScreens = screens,
+            NameEntry = nameEntry,
+            KeyWatcher = nameEntry,
+            NameEntryUp = nameEntry.OnScreen,
             GameData = gameData,
             CharacterTable = characterTable,
             FollowerTable = followerTable,
@@ -220,5 +239,13 @@ internal sealed record HookServices
             FieldPlace = place,
             FieldControls = fieldControls,
         };
+    }
+}
+
+/// <summary>A name entry observer that ignores every update: what the hook reports to when no feature listens.</summary>
+internal sealed class NoNameEntry : INameEntryObserver
+{
+    public void Observe(NameEntryFrame frame)
+    {
     }
 }

@@ -35,6 +35,21 @@ public sealed class TranscriptAnnouncerTests : IDisposable
         Assert.Equal(["First part second part"], File.ReadAllLines(TranscriptPath));
     }
 
+    // #585: the name the player types is spoken but never written down.
+    [Fact]
+    public void APrivateAnnouncementIsSpokenButOnlyItsLengthIsWritten()
+    {
+        var announcer = new TranscriptAnnouncer(speech, folder);
+        var typed = new Announcement("Ada", Interrupt: true, Private: true);
+
+        announcer.Announce(typed);
+
+        Assert.Equal([TranscriptAnnouncer.PrivateLine(3)], File.ReadAllLines(TranscriptPath));
+        Assert.DoesNotContain("Ada", File.ReadAllText(TranscriptPath), StringComparison.Ordinal);
+        Assert.DoesNotContain("Ada", typed.ToString(), StringComparison.Ordinal);
+        Assert.Equal([typed], speech.Said);
+    }
+
     [Fact]
     public void StartsAFreshTranscriptForEachRun()
     {
