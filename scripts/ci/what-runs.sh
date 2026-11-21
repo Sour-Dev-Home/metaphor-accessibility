@@ -12,8 +12,9 @@
 #                                           tests/pester/, the stand-in game and the workflows
 #     docs                       <reason>   the docs stage
 #     check-tests                <reason>   tests/check/test-check.sh (run-check-suites.sh --select)
-#     varied-setup               <reason>   CI's pester-varied-setup job (#655): the player and setup scripts, the
-#                                           Pester tests, their runner, the Pester install and ci.yml
+#     varied-setup               <reason>   CI's pester-varied-setup job (#655): the player, setup and release
+#                                           scripts, the Pester tests, their runner, the Pester install
+#                                           and ci.yml
 #   what-runs.sh --job code|scripts|varied-setup [BASE HEAD]
 #                                           CI: prints "run=true" or "run=false" (and appends it to $GITHUB_OUTPUT when
 #                                           set) from the `code`, `pester` or `varied-setup` line for the diff BASE...HEAD
@@ -132,7 +133,7 @@ select_runs() {
     # What a player's or contributor's culture and paths can break: the installer and the setup scripts, with the
     # job's own tests and how it runs them.
     case "$f" in
-      scripts/player/* | scripts/setup/* | tests/pester/* | scripts/check/run-pester.sh | scripts/ci/install-pester.sh | \
+      scripts/player/* | scripts/setup/* | scripts/release/* | tests/pester/* | scripts/check/run-pester.sh | scripts/ci/install-pester.sh | \
         .github/workflows/ci.yml) varied="${varied:-$f}" ;;
     esac
     best="" owner=""
