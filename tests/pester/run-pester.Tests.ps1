@@ -3,15 +3,14 @@
 
 BeforeAll {
     $script:repo = (Resolve-Path (Join-Path $PSScriptRoot '../..')).Path
-    # Git Bash beside git on Windows, as install.Tests finds it, so a plain pwsh never picks WSL's bash.exe from System32.
-    $script:bash = 'bash'
-    $git = Get-Command git -CommandType Application -ErrorAction SilentlyContinue | Select-Object -First 1
-    if ($IsWindows -and $git) {
-        $dir = Split-Path $git.Source
-        $found = (Join-Path $dir 'bash.exe'), (Join-Path $dir '..\bin\bash.exe'), (Join-Path $dir '..\..\bin\bash.exe') |
-            Where-Object { Test-Path -LiteralPath $_ } | Select-Object -First 1
-        if ($found) { $script:bash = [IO.Path]::GetFullPath($found) }
-    }
+    # Git Bash beside git on Windows, so a plain pwsh never picks WSL's bash.exe from System32. Found by onboard.ps1's
+    # Find-GitBash, taken from its syntax tree so nothing else in the script runs: it knows every folder git can come
+    # from, including <env>\libexec\git-core, which git puts first on PATH when it runs the pre-push hook.
+    $tree = [Management.Automation.Language.Parser]::ParseFile((Join-Path $repo 'scripts/setup/onboard.ps1'),
+        [ref] $null, [ref] $null)
+    . ([scriptblock]::Create($tree.Find({ param($node) $node -is [Management.Automation.Language.FunctionDefinitionAst] -and
+                    $node.Name -eq 'Find-GitBash' }, $true).Extent.Text))
+    $script:bash = if ($IsWindows) { Find-GitBash } else { 'bash' }
     Add-Type -Namespace RunPesterTests -Name Console -MemberDefinition @'
 [DllImport("kernel32.dll")] public static extern uint GetConsoleOutputCP();
 [DllImport("kernel32.dll")] public static extern bool SetConsoleOutputCP(uint codePage);
@@ -24,6 +23,7 @@ Describe 'run-pester.sh' {
     # here switches its console's code page and leaves it switched; run through run-pester.sh, that must not reach the
     # console run-pester.sh runs in.
     It 'runs each Pester process in a console of its own' -Skip:(-not $IsWindows) {
+        $bash | Should -Not -BeNullOrEmpty -Because 'it runs run-pester.sh in Git Bash, and none is beside the first git on PATH'
         $before = [RunPesterTests.Console]::GetConsoleOutputCP()
         if ($before -eq 0) { Set-ItResult -Skipped -Because 'this process has no console' }
         $other = if ($before -eq 65001) { 437 } else { 65001 }
