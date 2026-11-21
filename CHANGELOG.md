@@ -11,6 +11,14 @@ checks them in the first game session and removes the tag.
 
 - **Tutorial pop-ups say what they are.** When a tutorial opens, the mod reads its title, how many pages it has, and
   its first page. Each page you turn to is read as "Page 2 of 3" and its text (#118). `[NEEDS VERIFICATION by ear]`
+- **What is near, and where am I.** In the field, `N` says the people, doors, chests and enemies near you, nearest
+  first, with rough steps and a direction from your facing; `LB` with the D-pad's Down and Up steps through them. `L`,
+  or `LB` with Left, says the place name the game last showed (#181). `[NEEDS VERIFICATION by ear]`
+- **Sound cues can be turned off and their volume set.** The mod can now play short sounds of its own, explained in
+  [sound cues](docs/players/reference/sound-cues.md); `soundCues` and `soundCueVolume` in `settings.json` control
+  them. The battle hit sounds arrive with spoken battle hits (#247, #636). `[NEEDS VERIFICATION by ear]`
+- **Sound cues can overlap and come from the left or right.** Two cues at once both play, and the mod can now hold a
+  steady tone that moves and changes pitch, ready for guidance and wall sounds (#637). `[NEEDS VERIFICATION by ear]`
 - **One file to open after extracting.** The zip's top level holds `Install Metaphor accessibility.cmd` beside the
   mod's folder: extract the zip and press Enter on it, with no search through the mod's files (#604).
   `[NEEDS VERIFICATION by ear]`
