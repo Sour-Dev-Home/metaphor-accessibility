@@ -9,7 +9,9 @@ checks them in the first game session and removes the tag.
 
 ## Unreleased
 
-Nothing yet.
+- **One file to open after extracting.** The zip's top level holds `Install Metaphor accessibility.cmd` beside the
+  mod's folder: extract the zip and press Enter on it, with no search through the mod's files (#604).
+  `[NEEDS VERIFICATION by ear]`
 
 ## 0.1.0 - not released yet
 
