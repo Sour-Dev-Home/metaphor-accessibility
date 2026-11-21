@@ -66,8 +66,8 @@ public sealed class BattleStatus : IInputControls
     public string Status()
     {
         var members = party.Members().OrderBy(member => member.Slot).Select(member => member.HpMax is { } max
-            ? string.Create(CultureInfo.InvariantCulture, $"{hits.MemberLabel(member.Slot, member.Unit)} {member.Hp} of {max}")
-            : string.Create(CultureInfo.InvariantCulture, $"{hits.MemberLabel(member.Slot, member.Unit)} {member.Hp} HP"));
+            ? hits.MemberSays(member.Slot, member.Unit, string.Create(CultureInfo.InvariantCulture, $"{member.Hp} of {max}"))
+            : hits.MemberSays(member.Slot, member.Unit, string.Create(CultureInfo.InvariantCulture, $"{member.Hp} HP")));
         var enemies = hits.KnownEnemies()
             .Select(enemy => string.Create(CultureInfo.InvariantCulture, $"{enemy.Label}, {enemy.Hp}"));
         var parts = new[] { string.Join(", ", members) }.Where(part => part.Length > 0).Concat(enemies).ToList();

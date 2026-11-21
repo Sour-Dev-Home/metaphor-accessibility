@@ -101,7 +101,7 @@ public sealed class HitLinesTests : IDisposable
 
         time.Advance(1);
 
-        Assert.Equal(["30", "20", "Rowan 89, Ally 2 60"], Said());
+        Assert.Equal(["30", "20", "Rowan 89, Second ally, 60"], Said());
     }
 
     [Fact]
@@ -122,7 +122,7 @@ public sealed class HitLinesTests : IDisposable
         lines.Observe(Enemy(0xa0, -10, 40));
         time.Advance(Gap);
 
-        Assert.Equal("Enemy 1, 40. Enemy 2, 70", Said().Last());
+        Assert.Equal("First enemy, 40. Second enemy, 70", Said().Last());
     }
 
     [Fact]
@@ -132,7 +132,7 @@ public sealed class HitLinesTests : IDisposable
         lines.Observe(Enemy(0xb0, -5, 20));
         time.Advance(Gap);
 
-        Assert.Equal(["0", "5", "Enemy 2, 20"], Said());
+        Assert.Equal(["0", "5", "Second enemy, 20"], Said());
     }
 
     [Fact]
@@ -157,6 +157,22 @@ public sealed class HitLinesTests : IDisposable
 
         Assert.Equal("Enemy, 30", Said().Last());
         Assert.Equal([("Enemy", 30)], lines.KnownEnemies());
+    }
+
+    // By ear (maintainer, 2026-11-21): "Ally 1 141" sounds like 1141, so a label never puts a digit next to the number.
+    [Fact]
+    public void ALabelFollowedByANumberNeverPutsTwoDigitRunsTogether()
+    {
+        using var nameless = new HitLines(announcer, time, _ => string.Empty);
+        nameless.Observe(Ally(0, 3, -9, 141));
+        nameless.Observe(Enemy(0xa0, -9, 52));
+        nameless.Observe(Enemy(0xb0, -9, 60));
+        time.Advance(Gap);
+
+        var summary = Said().Last();
+
+        Assert.Equal("First ally, 141. First enemy, 52. Second enemy, 60", summary);
+        Assert.DoesNotMatch(@"\d\s+\d", summary);
     }
 
     // The summary runs on the timer's thread: a name lookup that throws must not escape it.

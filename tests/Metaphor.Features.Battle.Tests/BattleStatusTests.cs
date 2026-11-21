@@ -80,7 +80,7 @@ public sealed class BattleStatusTests : IDisposable
 
         Assert.Equal(0, status.Pad(0, BattleStatus.LeftThumb, made: true));
 
-        Assert.Equal(new Announcement("Rowan 89 of 120, Ally 2 40 HP. Enemy, 55", Interrupt: true), announcer.Said[^1]);
+        Assert.Equal(new Announcement("Rowan 89 of 120, Second ally, 40 HP. Enemy, 55", Interrupt: true), announcer.Said[^1]);
     }
 
     [Fact]

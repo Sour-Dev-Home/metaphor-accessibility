@@ -16,12 +16,13 @@ public interface IHitCue
 /// <summary>Says each target a battle action hits (#247, wording by the maintainer on 2026-11-21): the number alone for
 /// damage ("34"), "34 healed" for a gain, each queued after the last. Once the action's hits stop for
 /// <see cref="ActionGapMilliseconds"/>, one summary of who changed: party members as "name HP" ("Strohl 89, Hulkenberg
-/// 120"), then each enemy as "Enemy, 40", numbered by the order the battle first hit them when it has hit more than one
-/// ("Enemy 2, 40"). Only hits whose popup carries a number are said. Safe to call from several threads.</summary>
+/// 120"), then each enemy as "Enemy, 40", given an ordinal by the order the battle first hit them when it has hit
+/// more than one ("Second enemy, 40"; a label never ends in a digit before the number, since "Ally 1 141" sounds like
+/// 1141). Only hits whose popup carries a number are said. Safe to call from several threads.</summary>
 /// <remarks>
 /// <para>No safe read of a unit's name is known yet: a party member is named by <c>memberName</c> when it knows its unit
-/// number, else "Ally" and its slot; an enemy is "Enemy". An enemy's number is the order it was first hit, not its place
-/// on screen, which isn't read.</para>
+/// number, else "First ally" and so on by slot; an enemy is "Enemy". An enemy's ordinal is the order it was first hit,
+/// not its place on screen, which isn't read.</para>
 /// <para>The game gives no "action over" signal the mod reads, so an action ends at a quiet gap, and a battle at a long
 /// one (<see cref="BattleGapMilliseconds"/>), which forgets its enemies; both lengths are guesses to check by ear.</para>
 /// </remarks>
@@ -111,11 +112,21 @@ public sealed class HitLines : IBattleHitObserver, IDisposable
         }
     }
 
-    /// <summary>A party member's name: <c>memberName</c>'s, or "Ally" and its slot from 1.</summary>
-    public string MemberLabel(int slot, int? unit) =>
+    /// <summary>A party member's name followed by <paramref name="rest"/> (a number): <c>memberName</c>'s, or "First
+    /// ally," and so on by slot. The comma and the ordinal word keep the reader from running the slot into the number
+    /// ("Ally 1 141" sounds like 1141).</summary>
+    public string MemberSays(int slot, int? unit, string rest) =>
         unit is { } known && memberName(known) is { Length: > 0 } name
-            ? name
-            : string.Create(CultureInfo.InvariantCulture, $"Ally {slot + 1}");
+            ? $"{name} {rest}"
+            : $"{Ordinal(slot + 1, "ally")}, {rest}";
+
+    /// <summary>"First ally", "Second enemy", ... ; past the tenth, "11th ally".</summary>
+    private static string Ordinal(int n, string noun) => n >= 1 && n <= Ordinals.Length
+        ? $"{Ordinals[n - 1]} {noun}"
+        : string.Create(CultureInfo.InvariantCulture, $"{n}th {noun}");
+
+    private static readonly string[] Ordinals =
+        ["First", "Second", "Third", "Fourth", "Fifth", "Sixth", "Seventh", "Eighth", "Ninth", "Tenth"];
 
     public void Dispose() => timer.Dispose();
 
@@ -157,8 +168,9 @@ public sealed class HitLines : IBattleHitObserver, IDisposable
             var targets = order.Where(changed.Contains).Select(target => last[target]).ToList();
             var allies = targets.Where(hit => hit.Side == BattleSide.Ally)
                 .OrderBy(hit => hit.Slot ?? int.MaxValue)
-                .Select(hit => string.Create(CultureInfo.InvariantCulture,
-                    $"{(hit.Slot is { } slot ? MemberLabel(slot, hit.Unit) : "Ally")} {hit.HpLeft}"))
+                .Select(hit => hit.Slot is { } slot
+                    ? MemberSays(slot, hit.Unit, hit.HpLeft.ToString(CultureInfo.InvariantCulture))
+                    : string.Create(CultureInfo.InvariantCulture, $"Ally, {hit.HpLeft}"))
                 .ToList();
             var others = targets.Where(hit => hit.Side != BattleSide.Ally)
                 .Select(hit => string.Create(CultureInfo.InvariantCulture,
@@ -175,7 +187,7 @@ public sealed class HitLines : IBattleHitObserver, IDisposable
     // Called under the gate.
     private string EnemyLabel(long enemy) =>
         enemies.Count > 1
-            ? string.Create(CultureInfo.InvariantCulture, $"Enemy {enemies.IndexOf(enemy) + 1}")
+            ? Ordinal(enemies.IndexOf(enemy) + 1, "enemy")
             : "Enemy";
 
     private long Now() => time.GetUtcNow().ToUnixTimeMilliseconds();
