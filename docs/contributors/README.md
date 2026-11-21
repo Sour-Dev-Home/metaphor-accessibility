@@ -188,7 +188,8 @@ Reference: [checks](reference/checks.md), every check stage and how CI runs them
 [branch rules](reference/branch-rules.md), the ruleset and the merge queue.
 
 Explanation: [how a change reaches main](explanation/how-a-change-reaches-main.md), a diagram of the hooks, CI and the
-merge queue; [security model](explanation/security-model.md), each security decision and what it protects.
+merge queue; [security model](explanation/security-model.md), each security decision and what it protects;
+[TLOU2's accessibility options](explanation/tlou2-accessibility-feasibility.md), which of them this mod can have.
 
 Notes on the game go in [`findings/`](../findings/README.md), citing sources saved in
 [`raw-sources/`](../raw-sources/README.md); decisions in [`adr/`](../adr/); terms in [`GLOSSARY.md`](../../GLOSSARY.md).
