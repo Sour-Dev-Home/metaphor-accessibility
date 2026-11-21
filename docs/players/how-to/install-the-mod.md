@@ -10,13 +10,51 @@ hear.
 
 You need the game installed on PC (single-player only) and NVDA running.
 
+## If Windows says the file is from the internet
+
+Windows marks a downloaded file as from the internet, and the mod's scripts aren't code-signed, so it may warn or ask
+before running them. Check the download first ([Check a download](check-a-download.md)); only then follow these.
+Every step is by keyboard. `[NEEDS VERIFICATION]` All the spoken phrases below, by ear with NVDA and Narrator
+([#573](https://github.com/Sour-Dev-Home/metaphor-accessibility/issues/573)); Microsoft doesn't document them
+([notes](../../raw-sources/smartscreen-and-unblock-microsoft-docs-2026-11-20.md)).
+
+### Unblock the zip before you unzip it
+
+Unzipping in File Explorer copies the mark to every file inside, so clearing it on the zip first saves a warning later.
+
+1. In File Explorer, move to the zip with the arrow keys. Press `Alt+Enter`. A Properties window opens and the screen
+   reader reads its title, the zip's name followed by "Properties".
+2. On the General tab, press `Tab` until you reach a check box named "Unblock", near the bottom, in the Security
+   group. The screen reader reads "Unblock", "check box", "not checked". If there is no such check box, the file isn't
+   marked: close the window with `Escape` and go on.
+3. Press `Space`. It reads "checked".
+4. Press `Tab` to "OK" and press `Enter`. The window closes.
+5. Unzip: press the `Applications` key (or `Shift+F10`), choose "Extract All...", then press `Enter` on "Extract".
+
+If you unzipped first, repeat steps 1 to 4 on `install.cmd` in the extracted folder.
+
+### Get past "Windows protected your PC"
+
+SmartScreen shows this blue window when a downloaded program has no reputation yet. It is not a verdict that the file
+is harmful. `install.cmd` usually gets the older "Open File - Security Warning" window instead (step 3 of the
+installer section below).
+
+1. The window opens and the screen reader reads "Windows protected your PC", then its text, which names the file.
+   Press `Tab`: focus lands on the link "More info". Press `Enter`.
+2. A button "Run anyway" appears. Press `Tab` until the screen reader reads "Run anyway", "button", then press `Enter`.
+   The file runs.
+3. If the window offers only "Don't run", or you are on a work or school PC, an administrator has blocked the file;
+   you can't go on from here. With Smart App Control on, Windows blocks the file with no such button: unblock it as
+   above (`[NEEDS VERIFICATION]` whether that lifts the block), or start the installer with the command at the end of
+   the next section.
+
 ## Install with the spoken installer
 
 The mod's folder holds `install.cmd`, which starts the installer, `install.ps1`. It does every step on this page for
 you and says each one as it goes. It needs no clicks in Reloaded-II's window. `[NEEDS VERIFICATION]` All of this
 section, by ear.
 
-1. Unzip the mod's zip. You get a folder named `metaphor.accessibility`.
+1. Unzip the mod's zip (unblock it first if Windows marked it, above). You get a folder named `metaphor.accessibility`.
 2. Open that folder in File Explorer and move to `install.cmd` with the arrow keys, or type `install`. With file
    extensions hidden, two files are named `install`: the one to open is the "Windows Command Script", not the
    "Windows PowerShell Script", which opens in Notepad. Press Enter. `[NEEDS VERIFICATION]` What NVDA reads for each.
