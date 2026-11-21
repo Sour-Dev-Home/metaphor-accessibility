@@ -111,12 +111,14 @@ internal sealed record HookServices
         var voiceLanguage = new VoiceLanguageRead();
         var dialogue = new DialogueAnnouncer(
             reader, cleaner, history, () => settings.Current.VoicedLines, voiceLanguage.Read);
-        var controls = new DialogueControls(DialogueBindings.Default, history, reader, announcer, dialogue.EndConversation);
-        // Menus speak through the reader too (#214), and their controls toggle it with the dialogue's binding.
-        var screens = new MenuScreens(KnownScreens.All);
         // Tutorial pop-ups speak through the reader too, once their table has loaded (#118).
         var tutorials = new TutorialTableSource();
         var tutorialPopups = new TutorialPopups(library, reader, cleaner, () => tutorials.Table);
+        // While a pop-up is up, the repeat binding says its page again (by-ear finding of 2026-11-21).
+        var controls = new DialogueControls(
+            DialogueBindings.Default, history, reader, announcer, dialogue.EndConversation, () => tutorialPopups.OnScreen);
+        // Menus speak through the reader too (#214), and their controls toggle it with the dialogue's binding.
+        var screens = new MenuScreens(KnownScreens.All);
         screens.Observe(new TitleMenuFocus(library, reader, cleaner));
         screens.Observe(new MainMenuFocus(reader));
         // A yes/no dialog hears each scripted choice and each select window too, to say the text of one opened outside

@@ -27,10 +27,11 @@ public sealed class TutorialPopupsTests
         ("Missing_Title", ["Made_Page_02_01", "Made_Page_01_02"])));
 
     private readonly TutorialPopups popups;
+    private long now = 1_000;
 
     public TutorialPopupsTests()
     {
-        popups = new(library, announcer, new TextCleaner(TextCleanerRules.None), () => table);
+        popups = new(library, announcer, new TextCleaner(TextCleanerRules.None), () => table, () => now);
     }
 
     // The table's layout (docs/findings/tutorial-table-maps-numbers-to-labels.md), unused slots as the empty label's
@@ -260,5 +261,60 @@ public sealed class TutorialPopupsTests
         popups.WindowUpdated(Window, 0, Model, page: 0, ended: false);
 
         Assert.Equal([TutorialPopups.Untitled], Said());
+    }
+
+    // The by-ear finding of 2026-11-21: repeat on page 2 should say page 2 again.
+    [Fact]
+    public void OnScreenIsWhatWasLastSaidForTheOpenPopUp()
+    {
+        Compiled();
+        Assert.Null(popups.OnScreen);
+
+        popups.WindowUpdated(Window, 0, Model, page: 0, ended: false);
+        Assert.Equal("Walking About, 3 pages. Press to walk. More here.", popups.OnScreen);
+
+        popups.WindowUpdated(Window, 0, Model, page: 1, ended: false);
+        Assert.Equal("Page 2 of 3. Second.", popups.OnScreen);
+    }
+
+    [Fact]
+    public void AnEndedPopUpLeavesNothingOnScreen()
+    {
+        Compiled();
+        popups.WindowUpdated(Window, 0, Model, page: 0, ended: false);
+
+        popups.WindowUpdated(Window, 0, Model, page: 0, ended: true);
+
+        Assert.Null(popups.OnScreen);
+    }
+
+    // A window can stop updating without saying it ended, as the party-join one does, whose update isn't followed.
+    [Fact]
+    public void APopUpWhoseWindowStopsUpdatingLeavesTheScreen()
+    {
+        Compiled();
+        popups.WindowUpdated(Window, 0, Model, page: 0, ended: false);
+
+        now += TutorialPopups.StaleMilliseconds - 1;
+        Assert.NotNull(popups.OnScreen);
+        popups.WindowUpdated(Window, 0, Model, page: 0, ended: false);
+        now += TutorialPopups.StaleMilliseconds;
+
+        Assert.Null(popups.OnScreen);
+    }
+
+    [Fact]
+    public void TheMostRecentlySpokenOfTwoOpenPopUpsIsOnScreen()
+    {
+        const long Other = 0x6000;
+        Compiled();
+
+        popups.WindowUpdated(Window, 0, Model, page: 0, ended: false);
+        popups.WindowUpdated(Other, 1, Model + 0x100, page: 0, ended: false);
+        popups.WindowUpdated(Window, 0, Model, page: 0, ended: false);
+
+        Assert.Equal("One Thing, 1 page. Only page.", popups.OnScreen);
+        popups.WindowUpdated(Other, 1, Model + 0x100, page: 0, ended: true);
+        Assert.Equal("Walking About, 3 pages. Press to walk. More here.", popups.OnScreen);
     }
 }
