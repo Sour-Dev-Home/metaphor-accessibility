@@ -551,6 +551,13 @@ internal static class Rules
         ["kernel32.dll!GetCurrentThreadStackLimits"] = "CallerAddress: reads no address it is given",
         ["kernel32.dll!WriteProcessMemory"] =
             "PadReadHook, KeyboardReadHook: writes through the kernel, which fails instead of faulting (ADR 0007)",
+        // ADR 0019: WaveOutHandle passes only its own handle and the headers and buffers it keeps pinned until close.
+        ["winmm.dll!waveOutOpen"] = "WaveOutHandle: reads the format on its own stack, writes the handle (ADR 0019)",
+        ["winmm.dll!waveOutPrepareHeader"] = "WaveOutHandle: the mod's own pinned header and buffer (ADR 0019)",
+        ["winmm.dll!waveOutWrite"] = "WaveOutHandle: the mod's own pinned header and buffer (ADR 0019)",
+        ["winmm.dll!waveOutUnprepareHeader"] = "WaveOutHandle: the mod's own pinned header (ADR 0019)",
+        ["winmm.dll!waveOutReset"] = "WaveOutHandle: takes only the mod's own handle (ADR 0019)",
+        ["winmm.dll!waveOutClose"] = "WaveOutHandle: takes only the mod's own handle (ADR 0019)",
     };
 
     /// <summary>What <see cref="MemoryReads"/> reports for a call through a function pointer, or for making one: the
