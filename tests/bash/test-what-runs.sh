@@ -194,6 +194,7 @@ job "varied setup: a game-feature change skips it" false varied-setup merge_grou
 job "varied setup: a dev script change skips it" false varied-setup merge_group scripts/dev/session.ps1
 job "varied setup: an installer change runs it" true varied-setup merge_group scripts/player/install.ps1
 job "varied setup: a setup script change runs it" true varied-setup merge_group scripts/setup/onboard.ps1
+job "varied setup: a release script change runs it" true varied-setup merge_group scripts/release/package-mod.sh
 job "varied setup: a Pester test change runs it" true varied-setup merge_group tests/pester/install.Tests.ps1
 job "varied setup: its runner changing runs it" true varied-setup merge_group scripts/check/run-pester.sh
 job "varied setup: its Pester install changing runs it" true varied-setup merge_group scripts/ci/install-pester.sh
