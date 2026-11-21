@@ -31,5 +31,5 @@ Capital letters don't matter.
 
 ## If something is wrong
 
-If the file is missing, isn't valid JSON, or the value isn't one of the four, the mod uses `auto`. Other keys in the
-file are ignored.
+If the file is missing, isn't valid JSON, or the value isn't one of the four, the mod uses `auto`. Keys the mod
+doesn't know are ignored; the file can also [turn off the update check](turn-off-the-update-check.md).

@@ -2,7 +2,10 @@ using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using Metaphor.Core;
 using Metaphor.Core.Announcements;
+using Metaphor.Core.Menus;
 using Metaphor.Core.Settings;
+using Metaphor.Features.Menus;
+using Metaphor.Features.Updates;
 using Reloaded.Mod.Interfaces;
 using Reloaded.Mod.Interfaces.Internal;
 
@@ -135,6 +138,13 @@ public sealed class ModEntryPoint : IMod
             var settings = new SettingsReloader(announcer, LogError);
             settingsFile = SettingsFile.Open(configFolder, settings, LogError);
             var services = HookServices.Speaking(announcer, settings, report, messageLog, folder);
+            // Before the hooks, so the title screen's first events reach it; its outcome is logged in Debug builds only.
+#if DEBUG
+            Action<string> updateLog = Log;
+#else
+            Action<string> updateLog = _ => { };
+#endif
+            StartUpdateCheck(config.ModVersion ?? "", announcer, settings, services.MenuScreens, updateLog);
             // The mod runs inside the game, so this process's exe is the game executable whose hash identifies the
             // build (seen in docs/raw-sources/mod-entry-point-first-run-2026-11-15.md). Hooks go in only on a known
             // build, through the loader (#39). Issue #21's spike scans first, so it reads the game's own bytes (#92).
@@ -165,6 +175,35 @@ public sealed class ModEntryPoint : IMod
         {
             // ModStartup doesn't throw; this covers the loader API, whose failures we can't report anywhere.
         }
+    }
+
+    /// <summary>The update notice (#576, ADR 0018): it hears the menu screens, and one request for this repository's
+    /// releases goes out on a pool thread, unless the settings file turns the check off. The request has a short
+    /// timeout and fails silently.</summary>
+    [SuppressMessage("Design", "CA1031", Justification = "A failed update check must never reach the game.")]
+    private static void StartUpdateCheck(
+        string modVersion, IAnnouncer announcer, SettingsReloader settings, MenuScreens screens, Action<string> log)
+    {
+        var notice = new UpdateNotice(
+            modVersion, TitleMenuFocus.Screen, announcer, () => settings.Current.CheckForUpdates, log);
+        screens.Observe(notice);
+        if (!settings.Current.CheckForUpdates)
+        {
+            log("update check: off in the settings");
+            return;
+        }
+        _ = Task.Run(async () =>
+        {
+            try
+            {
+                using var releases = GitHubReleases.Create();
+                await notice.CheckAsync(releases, CancellationToken.None).ConfigureAwait(false);
+            }
+            catch (Exception e)
+            {
+                log($"update check failed: {e.GetType().Name}");
+            }
+        });
     }
 
     /// <summary>Issue #21's spike: runs once, only when scripts/dev/session.ps1 spike put a probes file in the mod's
