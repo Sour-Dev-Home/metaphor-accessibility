@@ -89,8 +89,8 @@ public sealed class MessageLibrary : IMessageLookup, IMessageFileObserver
 
     // The shape logged on build 548ddc95 (docs/raw-sources/message-listening-run-2026-11-16.md): "@label", then the
     // body between lines "{" and "}", the speaker in <NS>…<NE>. A line #SPEAKER_ID "51" before the label gives the
-    // speaker's number; other lines outside a body are skipped.
-    private static List<GameMessage> Parse(string source)
+    // speaker's number; other lines outside a body are skipped. In file order, which MessageSerials relies on.
+    internal static List<GameMessage> Parse(string source)
     {
         var messages = new List<GameMessage>();
         string? label = null;

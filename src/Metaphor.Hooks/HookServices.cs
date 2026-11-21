@@ -68,6 +68,10 @@ internal sealed record HookServices
     /// cursor hook asks it for each input.</summary>
     public ScreenClassLookup ScreenClasses { get; init; } = new();
 
+    /// <summary>The messages the game fetches by serial (#584), from the files it compiled; empty unless the message
+    /// file hook is feeding it.</summary>
+    public MessageSerials Serials { get; init; } = new([]);
+
     /// <summary>The mod's folder, outside the repository, where a development run leaves files for its hooks.</summary>
     public required string ModFolder { get; init; }
 
@@ -81,6 +85,8 @@ internal sealed record HookServices
     {
         ArgumentNullException.ThrowIfNull(settings);
         var library = new MessageLibrary();
+        // Serials as build 548ddc95 numbers them; the message file hook that feeds it installs on that build only.
+        var serials = new MessageSerials(MessageSerials.Steam18330018);
         var history = new DialogueHistory();
         var events = new MessageEvents();
         var cursors = new CursorEvents();
@@ -105,6 +111,7 @@ internal sealed record HookServices
         screens.Observe(new YesNoDialogFocus(library, reader, cleaner));
         screens.Observe(new DifficultyFocus(library, reader, cleaner));
         screens.Observe(new SettingsFocus(library, reader, cleaner));
+        screens.Observe(new QuickMenuFocus(library, reader, cleaner));
         screens.Observe(new UnknownScreenFocus(reader));
         var menuBindings = MenuBindings.Default with
         {
@@ -114,6 +121,7 @@ internal sealed record HookServices
         var menuControls = new MenuControls(menuBindings, screens, reader, []);
         screens.Observe(menuControls);
         events.ObserveFiles(library);
+        events.ObserveFiles(serials);
         var lines = new DialogueLines(new ShownSpeakers(library, names), dialogue);
         events.ObserveLines(lines);
         events.ObserveShownLines(lines);
@@ -143,6 +151,7 @@ internal sealed record HookServices
             Cursors = cursors,
             Log = log,
             ModFolder = modFolder,
+            Serials = serials,
             DialogueHistory = history,
             DialogueControls = controls,
             MenuControls = menuControls,
