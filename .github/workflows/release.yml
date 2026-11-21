@@ -58,6 +58,12 @@ jobs:
               echo "::error::Tag $GITHUB_REF_NAME points at $commit, which isn't on main"
               exit 1
             fi
+            # The mod compares its ModVersion with the newest release's tag (ADR 0018), so they must agree.
+            mod_version="$(git show "$commit:src/Metaphor.Hooks/ModConfig.json" | jq -r '.ModVersion')"
+            if [ "$GITHUB_REF_NAME" != "v$mod_version" ]; then
+              echo "::error::Tag $GITHUB_REF_NAME isn't v + ModVersion in src/Metaphor.Hooks/ModConfig.json (v$mod_version); bump ModVersion before tagging"
+              exit 1
+            fi
             name="metaphor-accessibility-$GITHUB_REF_NAME"
           else
             if [ "$GITHUB_REF" != refs/heads/main ]; then

@@ -103,4 +103,38 @@ public sealed class ModSettingsTests
     {
         Assert.Equal(VoicedLinesMode.Nothing, Parse("""{ "future": 1, "voicedLines": "nothing" }""").VoicedLines);
     }
+
+    // The update check is on unless the file turns it off (#576, ADR 0018).
+    [Fact]
+    public void TheUpdateCheckIsOnByDefault()
+    {
+        Assert.True(ModSettings.Defaults.CheckForUpdates);
+        Assert.True(Parse("{}").CheckForUpdates);
+        Assert.Empty(logged);
+    }
+
+    [Theory]
+    [InlineData("false", false)]
+    [InlineData("true", true)]
+    public void TheUpdateCheckIsRead(string value, bool expected)
+    {
+        var settings = Parse($$"""{ "voicedLines": "nothing", "checkForUpdates": {{value}} }""");
+
+        Assert.Equal(expected, settings.CheckForUpdates);
+        Assert.Equal(VoicedLinesMode.Nothing, settings.VoicedLines);
+        Assert.Empty(logged);
+    }
+
+    [Theory]
+    [InlineData("\"false\"")]
+    [InlineData("0")]
+    [InlineData("null")]
+    public void AnUpdateCheckValueThatIsNotTrueOrFalseLeavesItOnAndIsLogged(string value)
+    {
+        var settings = Parse($$"""{ "voicedLines": "nothing", "checkForUpdates": {{value}} }""");
+
+        Assert.True(settings.CheckForUpdates);
+        Assert.Equal(VoicedLinesMode.Nothing, settings.VoicedLines);
+        Assert.Contains("\"checkForUpdates\" is not true or false; using true", Assert.Single(logged), StringComparison.Ordinal);
+    }
 }

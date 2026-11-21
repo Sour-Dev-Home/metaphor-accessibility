@@ -33,7 +33,12 @@ A run by hand builds, attests and verifies a zip of `main`'s tip, and drafts not
 
 1. Pick the version. The gate takes `v` and three numbers, with an optional suffix of letters, digits and dots after a
    hyphen: `v0.1.0`, `v1.2.3-beta.1`. Anything else fails the run before it builds. A version is never reused.
-2. Tag the commit on `main` with an annotated tag, and push that tag alone:
+2. Bump the version first: set `ModVersion` in
+   [`src/Metaphor.Hooks/ModConfig.json`](../../../src/Metaphor.Hooks/ModConfig.json) to it without the `v`, such as
+   `0.1.0`, and merge that to `main`. The mod's update notice compares it with the tags
+   ([ADR 0018](../../adr/0018-one-update-check-per-launch.md)), and the gate fails a tag that isn't `v` plus
+   `ModVersion` in the tagged commit.
+3. Tag the commit on `main` with an annotated tag, and push that tag alone:
 
    ```sh
    git fetch origin
@@ -43,9 +48,9 @@ A run by hand builds, attests and verifies a zip of `main`'s tip, and drafts not
 
    GitHub starts no workflow for tags when more than three are pushed at once
    ([sources](../../raw-sources/github-release-provenance-2026-11-18.md)), so push one at a time.
-3. The push starts `Release`. `gate` fails a tag whose commit isn't on `main`. Then `build` builds and rebuilds,
-   `attest` signs and verifies the zip, and `release` drafts the release `v0.1.0` with two assets:
-   `metaphor-accessibility-v0.1.0.zip` and `SHA256SUMS`.
+4. The push starts `Release`. `gate` fails a tag whose commit isn't on `main`, or that doesn't match `ModVersion`.
+   Then `build` builds and rebuilds, `attest` signs and verifies the zip, and `release` drafts the release `v0.1.0`
+   with two assets: `metaphor-accessibility-v0.1.0.zip` and `SHA256SUMS`.
 
 ## 3. Publish
 

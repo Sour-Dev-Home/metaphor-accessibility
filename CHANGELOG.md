@@ -22,6 +22,10 @@ checks them in the first game session and removes the tag.
 - **One file to open after extracting.** The zip's top level holds `Install Metaphor accessibility.cmd` beside the
   mod's folder: extract the zip and press Enter on it, with no search through the mod's files (#604).
   `[NEEDS VERIFICATION by ear]`
+- **Update notice.** Once per game start the mod asks GitHub for its newest release, and the title screen says "A
+  newer version of the mod is available:" and the version when there is one. It sends nothing about you;
+  `"checkForUpdates": false` in `settings.json` turns it off. See
+  [Turn off the update check](docs/players/how-to/turn-off-the-update-check.md) (#576). `[NEEDS VERIFICATION by ear]`
 
 ## 0.1.0 - not released yet
 
