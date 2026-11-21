@@ -9,6 +9,8 @@ checks them in the first game session and removes the tag.
 
 ## Unreleased
 
+- **Tutorial pop-ups say what they are.** When a tutorial opens, the mod reads its title, how many pages it has, and
+  its first page. Later pages are not read yet (#118). `[NEEDS VERIFICATION by ear]`
 - **One file to open after extracting.** The zip's top level holds `Install Metaphor accessibility.cmd` beside the
   mod's folder: extract the zip and press Enter on it, with no search through the mod's files (#604).
   `[NEEDS VERIFICATION by ear]`

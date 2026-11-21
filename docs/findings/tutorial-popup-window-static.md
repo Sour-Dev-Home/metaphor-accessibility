@@ -44,10 +44,9 @@ the DevOnly listeners in `src/Metaphor.Hooks/TutorialWindowListeners.cs` log wha
 
 ## What the mod could do
 
-- **Know a pop-up opened, and which:** a hook on `0xfadf00` (and `0xfae440`) reads the tutorial number. Mapping a
-  number to its label family (`Field_Tutorial_…_58`) needs the tutorial table, which is behind `.text1` accessors;
-  the shipped data (`COMMON/event/Tutorial.dat`, `COMMON/ui/tutorial/TutorialIDPC.bin`) is the next place to look
-  `[NEEDS VERIFICATION]`.
+- **Know a pop-up opened, and which:** a hook on `0xfadf00` (and `0xfae440`) reads the tutorial number. The table
+  behind the `.text1` accessors is `COMMON/ui/tutorial/TutorialIDPC.bin`, which maps the number to its title's and
+  pages' labels ([finding](tutorial-table-maps-numbers-to-labels.md)); the mod reads it from the archive.
 - **Know which page shows:** unknown. The update hook logs the window's fields and its `+0xe0` object's on each change,
   so a page turn (cue 27) should show as the field that moves with it.
 - **The text:** once the label is known, the mod already has it: the message library keeps every compiled file by
