@@ -8,7 +8,7 @@ BeforeAll {
     $script:repo = (Resolve-Path "$PSScriptRoot/../..").Path
     Import-Module (Join-Path $repo 'scripts/player/MetaphorInstall.psm1') -Force
     # What the package ships for the installer and the check, beside the mod's own files (Metaphor.Hooks.csproj).
-    $script:shipped = 'install.ps1', 'MetaphorInstall.psm1', 'install-pins.json', 'check-install.ps1'
+    $script:shipped = 'install.ps1', 'install.cmd', 'MetaphorInstall.psm1', 'install-pins.json', 'check-install.ps1'
     $script:modId = 'metaphor.accessibility'
     $script:pwsh = (Get-Process -Id $PID).Path
 
@@ -545,6 +545,101 @@ Describe 'install.ps1' {
         $app = Get-Content -Raw (Join-Path $reloadedFolder 'Apps/metaphor.exe/AppConfig.json') | ConvertFrom-Json
         @($app.EnabledMods) | Should -Be @($modId)
         [IO.File]::ReadAllBytes($config)[0] | Should -Not -Be 0xEF
+    }
+}
+
+# The launcher a player opens with Enter in File Explorer (#574). A stand-in install.ps1 records how it was started, so
+# these tests run nothing of the real installer.
+Describe 'install.cmd' {
+    BeforeAll {
+        $script:launcher = Join-Path $repo 'scripts/player/install.cmd'
+        # Explorer opens a .cmd as "%1" %* (HKCR\cmdfile\shell\open\command) from the file's folder; CreateProcess on the
+        # file is the same start. Standard input is closed, so the pause at the end returns at once.
+        function Invoke-Launcher([string] $Folder, [string[]] $Arguments = @()) {
+            $start = [Diagnostics.ProcessStartInfo]::new((Join-Path $Folder 'install.cmd'))
+            foreach ($argument in $Arguments) { $start.ArgumentList.Add($argument) }
+            $start.Environment['METAPHOR_INSTALL_TEST_ALLOW_ADMIN'] = '1' # honoured on CI only, whose runners are admin
+            $start.WorkingDirectory = $Folder
+            $start.UseShellExecute = $false
+            $start.RedirectStandardInput = $true
+            $start.RedirectStandardOutput = $true
+            $process = [Diagnostics.Process]::Start($start)
+            $process.StandardInput.Close()
+            $output = $process.StandardOutput.ReadToEnd()
+            if (-not $process.WaitForExit(120000)) { $process.Kill(); throw 'install.cmd did not finish' }
+            [pscustomobject]@{ Output = $output; ExitCode = $process.ExitCode }
+        }
+        # A folder whose path has spaces, an ampersand and non-ASCII letters, holding the launcher and a stand-in
+        # install.ps1 that writes what it saw to ran.json and exits 3. Both carry the downloaded-file mark, as after
+        # unzipping a downloaded zip in File Explorer.
+        function New-LauncherFolder {
+            $name = "Mod folder & co $([char]0x00E9)$([char]0x00FC) $([char]0x65E5)$([char]0x672C)"
+            $folder = New-Item -ItemType Directory -Force (Join-Path $TestDrive "$(New-Guid)/$name")
+            Copy-Item -LiteralPath $launcher -Destination $folder
+            Set-Content -LiteralPath (Join-Path $folder 'install.ps1') -Encoding ascii -Value @'
+@{
+    Root = $PSScriptRoot
+    Edition = $PSVersionTable.PSEdition
+    Policy = "$(Get-ExecutionPolicy -Scope Process)"
+    Arguments = @($args)
+} | ConvertTo-Json | Set-Content -LiteralPath (Join-Path $PSScriptRoot 'ran.json') -Encoding UTF8
+Write-Host 'stand-in installer ran'
+exit 3
+'@
+            foreach ($file in 'install.cmd', 'install.ps1') {
+                Set-Content -LiteralPath (Join-Path $folder $file) -Stream Zone.Identifier -Value "[ZoneTransfer]`r`nZoneId=3"
+            }
+            $folder.FullName
+        }
+    }
+
+    # Started from PowerShell 7 here, as a player may: 5.1 then failed to load its own modules (#574).
+    It 'runs install.ps1 from its own folder in Windows PowerShell 5.1, the policy bypassed for that process only' -Skip:(
+        -not (Get-Command powershell.exe -ErrorAction SilentlyContinue)) {
+        $folder = New-LauncherFolder
+        $result = Invoke-Launcher $folder -Arguments '-Speak'
+        $ran = Get-Content -Raw -Encoding utf8 (Join-Path $folder 'ran.json') | ConvertFrom-Json
+        $ran.Root | Should -Be $folder
+        $ran.Edition | Should -Be 'Desktop'
+        $ran.Policy | Should -Be 'Bypass'
+        @($ran.Arguments) | Should -Be @('-Speak')
+        $result.ExitCode | Should -Be 3
+    }
+
+    It 'keeps the window open after the installer, saying how to close it' -Skip:(
+        -not (Get-Command powershell.exe -ErrorAction SilentlyContinue)) {
+        $result = Invoke-Launcher (New-LauncherFolder)
+        $result.Output | Should -Match '(?s)stand-in installer ran.*press any key to close this window'
+    }
+
+    It 'starts Windows PowerShell from System32, not a powershell file in its own folder' -Skip:(
+        -not (Get-Command powershell.exe -ErrorAction SilentlyContinue)) {
+        $folder = New-LauncherFolder
+        foreach ($planted in 'powershell.bat', 'powershell.cmd') {
+            Set-Content -LiteralPath (Join-Path $folder $planted) -Value "@echo planted`r`n@exit /b 9" -Encoding ascii
+        }
+        $result = Invoke-Launcher $folder
+        $result.Output | Should -Not -Match 'planted'
+        $result.ExitCode | Should -Be 3
+    }
+
+    # The real installer, with its own defaults, in a folder without the mod: it gets as far as saying so.
+    It 'starts the real installer with its default pins file in Windows PowerShell 5.1' -Skip:(
+        -not (Get-Command powershell.exe -ErrorAction SilentlyContinue)) {
+        $folder = New-LauncherFolder
+        foreach ($file in $shipped) { Copy-Item -LiteralPath (Join-Path $repo "scripts/player/$file") $folder -Force }
+        $result = Invoke-Launcher $folder -Arguments '-NoSpeech'
+        $result.Output | Should -Match 'not in the mod''s folder'
+        $result.ExitCode | Should -Be 1
+    }
+
+    It 'ships in the package, ASCII only, with Windows line endings' {
+        $project = Get-Content -Raw -LiteralPath (Join-Path $repo 'src/Metaphor.Hooks/Metaphor.Hooks.csproj')
+        $project | Should -Match ([regex]::Escape('../../scripts/player/install.cmd'))
+        $bytes = [IO.File]::ReadAllBytes($launcher)
+        $bytes | Where-Object { $_ -gt 127 } | Should -BeNullOrEmpty
+        $text = [Text.Encoding]::ASCII.GetString($bytes)
+        ($text -replace "`r`n", '') | Should -Not -Match "[`r`n]"
     }
 }
 

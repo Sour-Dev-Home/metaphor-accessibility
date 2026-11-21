@@ -1,3 +1,6 @@
 # LF everywhere, on every checkout: shell scripts and hooks need it to run, and the C# formatting check (.editorconfig
 # end_of_line = lf) would otherwise fail on a Windows checkout that converts to CRLF.
 * text=auto eol=lf
+# Except batch files, which players run with cmd.exe: Windows' own line endings, as Notepad shows them.
+*.cmd text eol=crlf
+*.bat text eol=crlf
