@@ -107,6 +107,25 @@ public sealed class MenuScreensTests
             seen.Select(change => (change.Change, change.OffList)));
     }
 
+    // #563: a grid cursor's events carry its cells, so a feature can say the column; repeating keeps it.
+    [Fact]
+    public void EachEventCarriesTheGridOfTheInputBehindIt()
+    {
+        var (screens, seen) = Watched();
+        var first = GridCursor.Of(columns: 2, column: 0, line: 1, scroll: 0, page: 0, pageStride: 0);
+        var second = GridCursor.Of(columns: 2, column: 1, line: 1, scroll: 0, page: 0, pageStride: 0);
+
+        screens.Observe(new CursorInput(0xa0, GridCursor.ClassRva, Command: 0x1, Result: 1, Top: 2, Row: 0, Flags: 0x46,
+            ItemClass, Count: 23, Grid: first));
+        screens.Observe(new CursorInput(0xa0, GridCursor.ClassRva, Command: 0x1, Result: 1, Top: 3, Row: 0, Flags: 0x46,
+            ItemClass, Count: 23, Grid: second));
+        screens.RepeatCurrent();
+
+        Assert.Equal(
+            [(ScreenChange.Entered, 2, first), (ScreenChange.FocusMoved, 3, second), (ScreenChange.Entered, 3, second)],
+            seen.Select(change => (change.Change, change.Index, change.Grid)));
+    }
+
     [Theory]
     [InlineData("TitleChoice@ope@ui@app", 0x4a8)]
     [InlineData("RootMenuChoice@ope@ui@app", null)]

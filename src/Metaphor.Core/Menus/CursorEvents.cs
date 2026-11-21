@@ -11,13 +11,16 @@ namespace Metaphor.Core.Menus;
 /// manager keeps, read with this input since a manager can be reused by another screen, or null when unreadable
 /// (docs/raw-sources/list-count-session6-2026-11-17.md). <paramref name="Mode"/> is the owner's own mode field, for a
 /// choice that serves more than one list (<see cref="ScreenModes"/>), or null when it has none or it is unreadable.
+/// <paramref name="Grid"/> is the grid cursor's own fields (<see cref="GridCursor"/>, #563) when the manager is one and
+/// they read as a grid, else null.
 /// </summary>
 public sealed record CursorInput(
     long Manager, long? ClassRva, int Command, int Result, int Top, int Row, int Flags, string? ScreenClass = null,
-    int? Count = null, int? Mode = null)
+    int? Count = null, int? Mode = null, GridCursor? Grid = null)
 {
-    /// <summary>The cursor's position: what the class's index getter returns.</summary>
-    public int Index => Top + Row;
+    /// <summary>The cursor's position: what the class's index getter returns, the grid's own for a grid cursor.
+    /// </summary>
+    public int Index => Grid?.Index ?? Top + Row;
 
     /// <summary>Whether this is one of the four commands the handler moves the cursor for (<c>0x14</c>–<c>0x17</c>). A
     /// move can be refused and put back on the next call (docs/raw-sources/title-menu-labels-2026-11-16.md), so where

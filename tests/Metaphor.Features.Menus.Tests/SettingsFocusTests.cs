@@ -18,6 +18,7 @@ public sealed class SettingsFocusTests
     private const string SoundPage = "?$ConfigMenuChoicePcT@$0HH@@ope@ui@app";
     private const string GraphicsPage = "?$ConfigMenuChoicePcT@$0HI@@ope@ui@app";
     private const string DisplayPage = "?$ConfigMenuChoicePcT@$0HJ@@ope@ui@app";
+    private const string KeyConfigPage = "ConfigMenuChoiceKeyConfig@ope@ui@app";
     private const int Settle = 0x1;
 
     private readonly RecordingAnnouncer announcer = new();
@@ -135,6 +136,61 @@ public sealed class SettingsFocusTests
         Cursor(2, ListClass, count: 5);
 
         Assert.Equal(["Settings, Beta Pane, 2 of 5", "Beta Pane, 1 of 6", "Settings, Gamma Pane, 3 of 5"], Said());
+    }
+
+    // #563: Key Configuration's grid cursor, two cells to a row (docs/raw-sources/grid-cursor-fields-static-2026-11-21.md).
+    private void GridCursor(int line, int column, int? count = 23, int scroll = 0, int page = 0) =>
+        cursors.Handled(new CursorInput(0xc0, Core.Menus.GridCursor.ClassRva, Settle, Result: 1, Top: (line * 2) + column,
+            Row: scroll, Flags: 0x46, KeyConfigPage, count,
+            Grid: Core.Menus.GridCursor.Of(columns: 2, column, line, scroll, page, pageStride: 0)));
+
+    [Fact]
+    public void OpeningKeyConfigurationSaysItsNameTheColumnAndTheRow()
+    {
+        SystemFileCompiled();
+        Cursor(4, ListClass, count: 5);
+
+        GridCursor(line: 0, column: 0);
+
+        Assert.Equal("Epsilon Pane, column 1, row 1 of 12", Said().Last());
+    }
+
+    [Fact]
+    public void MovingOnTheGridSaysTheColumnAndTheRowFromTheTopOfTheList()
+    {
+        SystemFileCompiled();
+        GridCursor(line: 0, column: 0);
+
+        GridCursor(line: 0, column: 1);
+        GridCursor(line: 3, column: 1, scroll: 2);
+
+        Assert.Equal(["Epsilon Pane, column 1, row 1 of 12", "column 2, row 1 of 12", "column 2, row 6 of 12"], Said());
+    }
+
+    [Fact]
+    public void AGridWhoseCountIsUnreadableSaysTheRowWithoutATotal()
+    {
+        GridCursor(line: 1, column: 1, count: null);
+
+        Assert.Equal(["column 2, row 2"], Said());
+    }
+
+    [Fact]
+    public void AGridOnALaterPageSaysTheRowWithoutATotal()
+    {
+        // How a page's cells number against the count isn't known, so its rows have no total.
+        GridCursor(line: 1, column: 0, page: 1);
+
+        Assert.Equal(["column 1, row 2"], Said());
+    }
+
+    [Fact]
+    public void KeyConfigurationWithoutItsGridSaysThePosition()
+    {
+        cursors.Handled(new CursorInput(0xc0, Core.Menus.GridCursor.ClassRva, Settle, Result: 1, Top: 2, Row: 0,
+            Flags: 0x46, KeyConfigPage, Count: 23));
+
+        Assert.Equal(["3 of 23"], Said());
     }
 
     [Fact]

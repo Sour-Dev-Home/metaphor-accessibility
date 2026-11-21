@@ -7,7 +7,8 @@ namespace Metaphor.Features.Menus;
 /// <summary>Speaks the Settings category list and names its pages (#559, parent #96): on opening the list, "Settings"
 /// and the focused category, then each category's text from the game's message file and "n of 5"; on opening the System, Sound, Graphics or Display page, that page's
 /// category text and the focused row, then on each move the row: its name when <see cref="SettingsPageRows"/> knows it,
-/// then its position (#560), or "OK, button" on the button after the last row. Each
+/// then its position (#560), or "OK, button" on the button after the last row; on Key Configuration, its category text
+/// on opening, then each grid cell's column and row (#563). Each
 /// announcement cuts off the last. The text is looked up at run time (<see cref="MessageLibrary"/>), so nothing here is
 /// game content. Safe to call from several threads.</summary>
 /// <remarks>Labels, classes and which row opens which page on build 548ddc95:
@@ -40,8 +41,13 @@ public sealed class SettingsFocus : IScreenObserver
     // which message names it (System_Option_88 is a candidate) is [NEEDS VERIFICATION].
     private const string OkButton = "OK, button";
 
-    /// <summary>The category list (both its classes) and the four pages, for the menu-screens module.</summary>
-    public static IReadOnlyList<Screen> Screens { get; } = [List, ListInPlay, .. Pages];
+    // Key Configuration, the list's fifth row, on the grid cursor (#563): docs/findings/settings-screens-inventory-static.md.
+    private static readonly Screen KeyConfig = new("Key Configuration", SettingsPages.KeyConfigClass);
+    private const int KeyConfigCategory = 4;
+
+    /// <summary>The category list (both its classes), the four pages and Key Configuration, for the menu-screens
+    /// module.</summary>
+    public static IReadOnlyList<Screen> Screens { get; } = [List, ListInPlay, .. Pages, KeyConfig];
 
     private readonly IMessageLookup messages;
     private readonly IAnnouncer announcer;
@@ -91,6 +97,11 @@ public sealed class SettingsFocus : IScreenObserver
             var item = Join(CategoryText(change.Index), $"{change.Index + 1} of {CategoryCount}");
             return change.Change == ScreenChange.Entered ? $"{ListName}, {item}" : item;
         }
+        if (change.Screen == KeyConfig)
+        {
+            var cell = Cell(change);
+            return change.Change == ScreenChange.Entered ? Join(CategoryText(KeyConfigCategory), cell) : cell;
+        }
         var page = Array.IndexOf(Pages, change.Screen);
         if (page < 0)
         {
@@ -114,6 +125,26 @@ public sealed class SettingsFocus : IScreenObserver
             && cleaner.Clean(message.Text) is { Length: > 0 } text
             ? text
             : null;
+
+    // A Key Configuration cell by its column and its row from the top of the list, with the rows' total when the
+    // grid's count is known and it is on the first page (how a later page's cells number against the count isn't
+    // known). The words are ours, English only, pending the maintainer's: the game's own column headings and the
+    // action each row binds (System_Keybind_name_PC_*) aren't pinned to a row, and that the columns are the two binding
+    // columns is [NEEDS VERIFICATION] (docs/raw-sources/grid-cursor-fields-static-2026-11-21.md). Without the grid's
+    // fields, its position as any page's row.
+    private static string Cell(ScreenEvent change)
+    {
+        if (change.Grid is not { } grid)
+        {
+            return change.Total is { } total ? $"{change.Index + 1} of {total}" : $"{change.Index + 1}";
+        }
+        var row = $"row {grid.Row + 1}";
+        if (grid.Page == 0 && change.Total is { } cells)
+        {
+            row += $" of {(cells + grid.Columns - 1) / grid.Columns}";
+        }
+        return $"column {grid.Column + 1}, {row}";
+    }
 
     private static string Join(string? name, string position) => name is null ? position : $"{name}, {position}";
 
