@@ -18,6 +18,8 @@ public sealed class SettingsConfirmQuestionTests
     private const string YesNoClass = "YesNoChoiceSample@ope@ui@app";
     private const string ListClass = "?$ConfigTopChoicePc@VConfigTopChoicePcLayoutInit@ui@app@@@ope@ui@app";
     private const string SubScreenClass = "ConfigBrightnessChoice@ope@ui@app";
+    private const string KeyConfigClass = "ConfigMenuChoiceKeyConfig@ope@ui@app";
+    private const int OnKeyConfig = 0x46;
     private const int Settle = 0x1;
     private const int OnRow = 0x47;
     private const int OnOkButton = 0x43;
@@ -82,6 +84,31 @@ public sealed class SettingsConfirmQuestionTests
         DialogOpens();
 
         Assert.Equal("Back to the start? Aye, 1 of 2", LastSaid());
+    }
+
+    // Start on Key Configuration opened its Restore Defaults dialog with no select window
+    // (docs/raw-sources/key-config-restore-defaults-session-2026-11-21.md).
+    [Fact]
+    public void StartOnKeyConfigurationOpensTheRestoreDefaultsQuestion()
+    {
+        Cursor(KeyConfigClass, row: 4, flags: OnKeyConfig, count: 23);
+
+        Press(Start);
+        DialogOpens();
+
+        Assert.Equal("Back to the start? Aye, 1 of 2", LastSaid());
+    }
+
+    // No save question was seen there: B opened no dialog in that run.
+    [Fact]
+    public void BOnKeyConfigurationGivesNoQuestion()
+    {
+        Cursor(KeyConfigClass, row: 4, flags: OnKeyConfig, count: 23);
+
+        Press(B);
+        DialogOpens();
+
+        Assert.Equal("Aye, 1 of 2", LastSaid());
     }
 
     [Fact]
