@@ -316,13 +316,13 @@ install does. `[NEEDS VERIFICATION]` All of this section, by ear.
 
    `powershell -ExecutionPolicy Bypass -NoExit -File "<folder>\install.ps1" -Uninstall`
 
-3. NVDA reads "Uninstall the mod?" and what it does. Type `yes` and press `Enter`. Enter alone stops without changing
-   anything.
+3. A window with a Yes and a No button asks "Uninstall the mod?" and says what it does, as the install's questions do.
+   Press `Y` for Yes. The focus starts on No, so `Enter` alone, or `N`, stops without changing anything.
 4. It says five steps, each starting with "Done", "Nothing to remove" or "Failed": it turns the mod off for the game in
    Reloaded-II, keeping your other mods on; removes the mod's folder and the mod's settings from Reloaded-II; deletes
    the desktop shortcut "Metaphor ReFantazio with accessibility"; and checks Reloaded-II.
-5. If the installer installed Reloaded-II, it asks "Remove Reloaded-II too?". That also removes every other mod and game
-   you added to Reloaded-II, so press `Enter` alone to keep it, or type `yes` and press `Enter` to remove it. A
+5. If the installer installed Reloaded-II, a second window asks "Remove Reloaded-II too?". That also removes every other
+   mod and game you added to Reloaded-II, so press `Enter` alone (No) to keep it, or `Y` to remove it. A
    Reloaded-II you installed yourself is kept without asking.
 6. It says it kept the .NET 9 Desktop Runtime and the Visual C++ Redistributable, which other programs may use. To
    remove them, use Installed apps in Windows Settings.
