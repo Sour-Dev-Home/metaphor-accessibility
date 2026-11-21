@@ -45,6 +45,9 @@ public sealed partial class YesNoDialogFocus : IScreenObserver, IChoiceRequestOb
     // The label of the text the next yes/no dialog to open shows, until it opens or another screen does.
     private string? pendingText;
 
+    // The next dialog opened from a scripts' choice, whose prompt is being spoken: its first focus waits its turn.
+    private bool afterScriptsPrompt;
+
     public YesNoDialogFocus(IMessageLookup messages, IAnnouncer announcer, TextCleaner cleaner)
     {
         ArgumentNullException.ThrowIfNull(messages);
@@ -76,6 +79,7 @@ public sealed partial class YesNoDialogFocus : IScreenObserver, IChoiceRequestOb
                 choice.PromptLabel == window.PromptLabel && choice.ChoiceLabel == window.ChoiceLabel;
             scripted = null;
             pendingText = !fromScripts && window.ChoiceLabel == ChoicesLabel ? window.PromptLabel : null;
+            afterScriptsPrompt = fromScripts && window.ChoiceLabel == ChoicesLabel;
         }
     }
 
@@ -85,12 +89,15 @@ public sealed partial class YesNoDialogFocus : IScreenObserver, IChoiceRequestOb
     {
         ArgumentNullException.ThrowIfNull(change);
         string? textLabel = null;
+        var waitsItsTurn = false;
         if (change.Change == ScreenChange.Entered)
         {
             lock (gate)
             {
                 textLabel = change.Screen == Screen ? pendingText : null;
+                waitsItsTurn = change.Screen == Screen && afterScriptsPrompt;
                 pendingText = null;
+                afterScriptsPrompt = false;
             }
         }
         var heading = textLabel is null ? null : Text(textLabel);
@@ -98,7 +105,9 @@ public sealed partial class YesNoDialogFocus : IScreenObserver, IChoiceRequestOb
             change, Screen, heading, ChoiceCount, index => MessageLines.Line(messages, cleaner, ChoicesLabel, index));
         if (said is not null)
         {
-            announcer.Announce(said);
+            // After a scripts' choice spoke the prompt and "Choose: …" (DialogueChoices, #82), the first focus queues
+            // behind them instead of cutting them off (the save prompt, heard 2026-11-21); later moves cut off as usual.
+            announcer.Announce(waitsItsTurn ? said with { Interrupt = false } : said);
         }
     }
 
