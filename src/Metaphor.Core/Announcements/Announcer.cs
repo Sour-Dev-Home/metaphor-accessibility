@@ -3,7 +3,15 @@ namespace Metaphor.Core.Announcements;
 /// <summary>Text for the screen reader to speak (glossary: announcement).</summary>
 /// <param name="Text">What is said.</param>
 /// <param name="Interrupt">Whether it stops what is still being said. False queues it after.</param>
-public sealed record Announcement(string Text, bool Interrupt);
+/// <param name="Private">Whether the text is personal data, such as the name the player types (#585): it is spoken but
+/// never recorded, so the transcript holds its length only.</param>
+public sealed record Announcement(string Text, bool Interrupt, bool Private = false)
+{
+    /// <summary>The announcement as a record would show it: for a private one, its length only.</summary>
+    public override string ToString() => Private
+        ? $"Announcement {{ Private, {Text.Length} characters, Interrupt = {Interrupt} }}"
+        : $"Announcement {{ Text = {Text}, Interrupt = {Interrupt} }}";
+}
 
 /// <summary>The one interface every feature hands its announcements to (ADR 0004). Behind it sit the speech backend
 /// and, in dev builds, the transcript. Implementations run inside the game, so a failure to speak or to record never
