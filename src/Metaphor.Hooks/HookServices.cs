@@ -72,6 +72,14 @@ internal sealed record HookServices
     /// file hook is feeding it.</summary>
     public MessageSerials Serials { get; init; } = new([]);
 
+    /// <summary>The game's tutorial table (#118), which the entry point loads from the game's archive once the hooks
+    /// are in.</summary>
+    public TutorialTableSource Tutorials { get; init; } = new();
+
+    /// <summary>Speaks tutorial pop-ups as they open (#118); silent unless built by <see cref="Speaking"/>.</summary>
+    public TutorialPopups TutorialPopups { get; init; } =
+        new(new MessageLibrary(), new SilentAnnouncer(), new TextCleaner(TextCleanerRules.None), () => null);
+
     /// <summary>The mod's folder, outside the repository, where a development run leaves files for its hooks.</summary>
     public required string ModFolder { get; init; }
 
@@ -106,6 +114,9 @@ internal sealed record HookServices
         var controls = new DialogueControls(DialogueBindings.Default, history, reader, announcer, dialogue.EndConversation);
         // Menus speak through the reader too (#214), and their controls toggle it with the dialogue's binding.
         var screens = new MenuScreens(KnownScreens.All);
+        // Tutorial pop-ups speak through the reader too, once their table has loaded (#118).
+        var tutorials = new TutorialTableSource();
+        var tutorialPopups = new TutorialPopups(library, reader, cleaner, () => tutorials.Table);
         screens.Observe(new TitleMenuFocus(library, reader, cleaner));
         screens.Observe(new MainMenuFocus(reader));
         // A yes/no dialog hears each scripted choice and each select window too, to say the text of one opened outside
@@ -173,6 +184,8 @@ internal sealed record HookServices
             CharacterTable = characterTable,
             FollowerTable = followerTable,
             Voice = voiceLanguage,
+            Tutorials = tutorials,
+            TutorialPopups = tutorialPopups,
         };
     }
 }
