@@ -35,7 +35,7 @@ public sealed class SettingsReloader
     }
 
     /// <summary>Applies the file after a change (null when it is gone) and announces each value that differs from the
-    /// one in force: voiced lines, then the update check, the second queued after the first.</summary>
+    /// one in force, in the file's documented order, each after the one before.</summary>
     public void Reload(string? json)
     {
         lock (gate)
@@ -49,6 +49,14 @@ public sealed class SettingsReloader
             if (next.CheckForUpdates != current.CheckForUpdates)
             {
                 said.Add($"Update check: {(next.CheckForUpdates ? "on" : "off")}.");
+            }
+            if (next.SoundCues != current.SoundCues)
+            {
+                said.Add($"Sound cues: {(next.SoundCues ? "on" : "off")}.");
+            }
+            if (next.SoundCueVolume != current.SoundCueVolume)
+            {
+                said.Add($"Sound cue volume: {next.SoundCueVolume}.");
             }
             current = next;
             for (var i = 0; i < said.Count; i++)
