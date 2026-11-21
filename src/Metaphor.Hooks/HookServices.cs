@@ -72,6 +72,13 @@ internal sealed record HookServices
     /// file hook is feeding it.</summary>
     public MessageSerials Serials { get; init; } = new([]);
 
+    /// <summary>The travel map's destination panel (#545): the panel hook hands it each destination shown.</summary>
+    public required TravelMapDestination TravelMap { get; init; }
+
+    /// <summary>The field map's name strip (#586): its composer and set hooks hand it each place's name and showing.
+    /// </summary>
+    public required FieldMapName FieldMapName { get; init; }
+
     /// <summary>The mod's folder, outside the repository, where a development run leaves files for its hooks.</summary>
     public required string ModFolder { get; init; }
 
@@ -86,7 +93,7 @@ internal sealed record HookServices
         ArgumentNullException.ThrowIfNull(settings);
         var library = new MessageLibrary();
         // Serials as build 548ddc95 numbers them; the message file hook that feeds it installs on that build only.
-        var serials = new MessageSerials(MessageSerials.Steam18330018);
+        var serials = new MessageSerials([.. MessageSerials.Steam18330018, .. MessageSerials.Steam18330018PlaceNames]);
         var history = new DialogueHistory();
         var events = new MessageEvents();
         var cursors = new CursorEvents();
@@ -165,6 +172,8 @@ internal sealed record HookServices
             Log = log,
             ModFolder = modFolder,
             Serials = serials,
+            TravelMap = new TravelMapDestination(serials, reader, cleaner, () => Environment.TickCount64),
+            FieldMapName = new FieldMapName(reader, cleaner),
             DialogueHistory = history,
             DialogueControls = controls,
             MenuControls = menuControls,

@@ -3,8 +3,9 @@ using Metaphor.Core.Announcements;
 namespace Metaphor.Core.Messages;
 
 /// <summary>A message file's serial numbers on one game build: its path from the <c>message</c> folder on, its first
-/// serial and how many messages it holds.</summary>
-public sealed record SerialRange(string File, int First, int Count);
+/// serial and how many messages it holds; and, when known, its <paramref name="Entry"/> in the game's message-file
+/// table, the number a message reference names its file by (<see cref="MessageReference"/>).</summary>
+public sealed record SerialRange(string File, int First, int Count, int? Entry = null);
 
 /// <summary>Finds a game message by the serial number the game fetches it by.</summary>
 public interface IMessageBySerial
@@ -18,7 +19,7 @@ public interface IMessageBySerial
 /// start-up, so their messages are known before any menu asks for one (docs/findings/message-serials-from-file-positions.md).
 /// Only the files in its table are kept, and only when they hold the table's number of messages: another count means
 /// another build's file, whose positions can't be trusted. Safe to use from several threads.</summary>
-public sealed class MessageSerials : IMessageBySerial, IMessageFileObserver
+public sealed class MessageSerials : IMessageBySerial, IMessageByReference, IMessageFileObserver
 {
     private const string MessageFolder = "message/";
 
@@ -31,6 +32,16 @@ public sealed class MessageSerials : IMessageBySerial, IMessageFileObserver
     [
         new("message/system/System_Message.msg", 1142, 790),
         new("message/system/System_Message_PC.msg", 11453, 354),
+    ];
+
+    /// <summary>The place-name files on game build 548ddc95… (Steam build 18330018), for the travel map (#545): each
+    /// table entry, first serial and count is read from the exe's message-file table
+    /// (docs/findings/travel-map-destination-text-static.md).</summary>
+    public static IReadOnlyList<SerialRange> Steam18330018PlaceNames { get; } =
+    [
+        new("message/AccessPointName.msg", 10873, 408, Entry: 34),
+        new("message/system/Big_Mapname.msg", 10102, 23, Entry: 40),
+        new("message/system/WorldMap_Message.msg", 10860, 13, Entry: 66),
     ];
 
     private readonly SerialRange[] ranges;
@@ -77,6 +88,17 @@ public sealed class MessageSerials : IMessageBySerial, IMessageFileObserver
             }
         }
         return null;
+    }
+
+    /// <summary>The message a reference names (#545): the one at its position in the file with its table entry, or null
+    /// when no file kept has that entry or the position is outside it.</summary>
+    public GameMessage? Find(MessageReference reference)
+    {
+        ArgumentNullException.ThrowIfNull(reference);
+        var range = Array.Find(ranges, range => range.Entry == reference.File);
+        return range is not null && reference.Position >= 0 && reference.Position < range.Count
+            ? FindBySerial(range.First + reference.Position)
+            : null;
     }
 
     /// <summary>The message's text as <paramref name="cleaner"/> says it, or null when it is unknown or empty.</summary>
