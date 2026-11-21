@@ -84,6 +84,9 @@ check "release.yml's release job asks for contents: write only" [ "$(permissions
 check "gate fails a tag whose commit isn't on main" has "$gate" 'git merge-base --is-ancestor "\$commit" origin/main'
 check "gate takes a run by hand from main only" has "$gate" '"\$GITHUB_REF" != refs/heads/main'
 check "gate takes only version tags" has "$gate" '\^refs/tags/v\[0-9\]\+\\\.\[0-9\]\+\\\.\[0-9\]\+'
+check "gate reads ModVersion from the tagged commit's ModConfig.json (ADR 0018)" \
+  has "$gate" "mod_version=\"\\\$\\(git show \"\\\$commit:src/Metaphor\\.Hooks/ModConfig\\.json\" \\| jq -r '\\.ModVersion'\\)\""
+check "gate fails a tag that isn't v + ModVersion" has "$gate" '"\$GITHUB_REF_NAME" != "v\$mod_version"'
 check "build waits for the gate" has "$rbuild" '^    needs: \[?gate\]?$'
 # Every checkout takes the run's own commit: a ref computed in the run is code a job's output chose, which CodeQL's
 # cache-poisoning query flags. The gate pins the tag to the run's commit instead, and release checks it again.

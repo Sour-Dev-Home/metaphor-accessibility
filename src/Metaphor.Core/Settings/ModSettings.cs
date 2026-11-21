@@ -26,12 +26,17 @@ public sealed record ModSettings
     public const string FileName = "settings.json";
 
     private const string VoicedLinesKey = "voicedLines";
+    private const string CheckForUpdatesKey = "checkForUpdates";
 
     /// <summary>What every setting is without a usable file.</summary>
     public static ModSettings Defaults { get; } = new();
 
     /// <summary>How voiced dialogue lines are spoken.</summary>
     public VoicedLinesMode VoicedLines { get; init; } = VoicedLinesMode.Auto;
+
+    /// <summary>Whether the mod asks GitHub once per launch for a newer release (#576, ADR 0018). On by default; false
+    /// turns the request off.</summary>
+    public bool CheckForUpdates { get; init; } = true;
 
     /// <summary>Reads the file's text; null means no file. Anything unusable, whether the whole file or one setting,
     /// gives the default and a line to <paramref name="log"/>. Keys it doesn't know are ignored, so later settings can
@@ -51,7 +56,11 @@ public sealed record ModSettings
                 log("settings file is not a JSON object; using defaults");
                 return Defaults;
             }
-            return new ModSettings { VoicedLines = ReadMode(document.RootElement, log) };
+            return new ModSettings
+            {
+                VoicedLines = ReadMode(document.RootElement, log),
+                CheckForUpdates = ReadCheckForUpdates(document.RootElement, log),
+            };
         }
         // A lone surrogate, raw or escaped, is ArgumentException or InvalidOperationException rather than JsonException
         // (found by the property tests, #443).
@@ -76,6 +85,21 @@ public sealed record ModSettings
         }
         log($"settings file: \"{VoicedLinesKey}\" is not one of auto, nameOnly, fullLine, nothing; using auto");
         return Defaults.VoicedLines;
+    }
+
+    // JSON true or false only: a string or a number is a typo, so the check stays on and the log says why.
+    private static bool ReadCheckForUpdates(JsonElement root, Action<string> log)
+    {
+        if (!root.TryGetProperty(CheckForUpdatesKey, out var value))
+        {
+            return Defaults.CheckForUpdates;
+        }
+        if (value.ValueKind is JsonValueKind.True or JsonValueKind.False)
+        {
+            return value.GetBoolean();
+        }
+        log($"settings file: \"{CheckForUpdatesKey}\" is not true or false; using true");
+        return Defaults.CheckForUpdates;
     }
 
     private static VoicedLinesMode? Named(string? text)
