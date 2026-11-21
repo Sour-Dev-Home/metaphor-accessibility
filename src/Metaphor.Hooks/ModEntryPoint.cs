@@ -2,6 +2,7 @@ using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using Metaphor.Core;
 using Metaphor.Core.Announcements;
+using Metaphor.Core.Cues;
 using Metaphor.Core.Menus;
 using Metaphor.Core.Settings;
 using Metaphor.Features.Menus;
@@ -94,6 +95,8 @@ public sealed class ModEntryPoint : IMod
 
     // Kept so the watcher lives as long as the game process.
     private SettingsFile? settingsFile;
+    // The sound cue player and its background thread, for the same reason; never disposed, like the watcher.
+    private ICuePlayer? cues;
 #if DEBUG
     // The live inspector (#291), Debug and opt-in only; kept for the same reason.
     private LiveInspector? liveInspector;
@@ -137,7 +140,10 @@ public sealed class ModEntryPoint : IMod
             // The settings report only a file they can't use, so each of their lines is an error.
             var settings = new SettingsReloader(announcer, LogError);
             settingsFile = SettingsFile.Open(configFolder, settings, LogError);
-            var services = HookServices.Speaking(announcer, settings, report, messageLog, folder);
+            // Sound cues play on their own thread through waveOut channels, at the settings in force (#636, #637,
+            // ADR 0019).
+            cues = new CuePlayer(new WaveOutDevice(), () => settings.Current, LogError);
+            var services = HookServices.Speaking(announcer, cues, settings, report, messageLog, folder);
             // Before the hooks, so the title screen's first events reach it; its outcome is logged in Debug builds only.
 #if DEBUG
             Action<string> updateLog = Log;
