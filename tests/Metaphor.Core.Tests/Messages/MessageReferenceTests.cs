@@ -2,26 +2,12 @@ using Metaphor.Core.Messages;
 
 namespace Metaphor.Core.Tests.Messages;
 
-/// <summary>A message reference (#545): a file's entry in the game's message-file table and a position in it, read
-/// from the bytes a UI panel is handed, and found through the serials of the file with that entry
+/// <summary>A message reference (#545): the id a file was compiled under and a position in it, read from the bytes a UI
+/// panel is handed, as the travel map's references read in play on 2026-11-21
 /// (docs/findings/travel-map-destination-text-static.md). File names follow the game's; the text is made up.</summary>
 [Trait("Category", "Unit")]
 public sealed class MessageReferenceTests
 {
-    private const string Places = "EN/message/Test_Places.msg";
-
-    private const string PlacesSource = """
-        @Test_Place_000
-        {
-        Harbour
-        }
-
-        @Test_Place_001
-        {
-        Old Mill
-        }
-        """;
-
     private static byte[] Bytes(int file, int position, byte fill = 0)
     {
         var bytes = Enumerable.Repeat(fill, MessageReference.Length).ToArray();
@@ -30,59 +16,58 @@ public sealed class MessageReferenceTests
         return bytes;
     }
 
-    private static MessageSerials Serials()
-    {
-        var serials = new MessageSerials([
-            new SerialRange("message/system/Test_Menu.msg", 500, 3),
-            new SerialRange("message/Test_Places.msg", 700, 2, Entry: 12),
-        ]);
-        serials.Observe(new MessageFileCompiled(Places, -1, PlacesSource));
-        return serials;
-    }
+    private static string Source(string label, int count) =>
+        string.Join("\n\n", Enumerable.Range(0, count).Select(i => $"@{label}_{i:00}\n{{\n{label} {i}\n}}"));
 
     [Fact]
     public void AReferenceIsItsFirstTwoNumbersWhateverFollows()
     {
-        Assert.Equal(new MessageReference(34, 7), MessageReference.Read(Bytes(34, 7, fill: 0xAB)));
+        // The shape logged on the travel map: id 4, position 0x17e, then bytes the mod doesn't read.
+        Assert.Equal(new MessageReference(4, 382),
+            MessageReference.Read(Convert.FromHexString("040000007e010000ffffffff00000000ffffffff0000000000000000")));
+        Assert.Equal(new MessageReference(124, 15), MessageReference.Read(Bytes(124, 15, fill: 0xAB)));
     }
 
     [Fact]
     public void AShortOrUnsetReferenceReadsAsNone()
     {
-        Assert.Null(MessageReference.Read(Bytes(34, 7).AsSpan(0, MessageReference.Length - 1)));
+        Assert.Null(MessageReference.Read(Bytes(4, 7).AsSpan(0, MessageReference.Length - 1)));
         Assert.Null(MessageReference.Read(Bytes(-1, -1)));
-        Assert.Null(MessageReference.Read(Bytes(34, -1)));
+        Assert.Null(MessageReference.Read(Bytes(4, -1)));
     }
 
     [Fact]
-    public void AReferenceFindsTheMessageAtItsPositionInTheFileWithItsEntry()
+    public void AReferenceFindsTheMessageAtItsPositionInTheFileCompiledUnderItsId()
     {
-        var serials = Serials();
+        var files = new MessageFilesById();
+        files.Observe(new MessageFileCompiled("EN/message/Test_Names.msg", 4, Source("Test_Name", 400)));
+        files.Observe(new MessageFileCompiled("EN/message/system/Test_Region.msg", 124, Source("Test_Spot", 16)));
 
-        Assert.Equal("Test_Place_001", serials.Find(new MessageReference(12, 1))?.Label);
-        Assert.Equal("Test_Place_000", serials.Find(new MessageReference(12, 0))?.Label);
+        Assert.Equal("Test_Name_382", files.Find(new MessageReference(4, 382))?.Label);
+        Assert.Equal("Test_Spot_15", files.Find(new MessageReference(124, 15))?.Label);
     }
 
     [Fact]
-    public void AReferenceToAnotherEntryOrPastTheFileFindsNothing()
+    public void AnUnknownIdAPositionPastTheFileOrAFileWithoutAnIdFindsNothing()
     {
-        var serials = Serials();
+        var files = new MessageFilesById();
+        files.Observe(new MessageFileCompiled("EN/message/Test_Names.msg", 4, Source("Test_Name", 3)));
+        files.Observe(new MessageFileCompiled("EN/message/event/Test_Event.msg", -1, Source("Test_Event", 3)));
 
-        Assert.Null(serials.Find(new MessageReference(13, 0)));
-        Assert.Null(serials.Find(new MessageReference(12, 2)));
+        Assert.Null(files.Find(new MessageReference(5, 0)));
+        Assert.Null(files.Find(new MessageReference(4, 3)));
+        Assert.Null(files.Find(new MessageReference(-1, 0)));
     }
 
-    // As the message-file table at 0x27b0cd0 holds them on build 548ddc95: entry, then the range test's first serial
-    // and count.
     [Fact]
-    public void TheBuildsPlaceNameTableHoldsTheThreeFilesWithTheirEntries()
+    public void AFileCompiledUnderAnIdReplacesWhatTheIdHeld()
     {
-        Assert.Equal(
-            [
-                new SerialRange("message/AccessPointName.msg", 10873, 408, 34),
-                new SerialRange("message/system/Big_Mapname.msg", 10102, 23, 40),
-                new SerialRange("message/system/WorldMap_Message.msg", 10860, 13, 66),
-            ],
-            MessageSerials.Steam18330018PlaceNames);
+        var files = new MessageFilesById();
+        files.Observe(new MessageFileCompiled("EN/message/system/Test_Region.msg", 124, Source("Test_Spot", 2)));
+        files.Observe(new MessageFileCompiled("EN/message/system/Test_Other.msg", 124, Source("Test_Other", 2)));
+        files.Observe(new MessageFileCompiled("EN/message/system/Test_Region.msg", 135, Source("Test_Spot", 2)));
+
+        Assert.Equal("Test_Other_01", files.Find(new MessageReference(124, 1))?.Label);
+        Assert.Equal("Test_Spot_01", files.Find(new MessageReference(135, 1))?.Label);
     }
 }

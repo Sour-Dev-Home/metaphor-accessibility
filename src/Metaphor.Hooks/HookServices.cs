@@ -93,7 +93,8 @@ internal sealed record HookServices
         ArgumentNullException.ThrowIfNull(settings);
         var library = new MessageLibrary();
         // Serials as build 548ddc95 numbers them; the message file hook that feeds it installs on that build only.
-        var serials = new MessageSerials([.. MessageSerials.Steam18330018, .. MessageSerials.Steam18330018PlaceNames]);
+        var serials = new MessageSerials(MessageSerials.Steam18330018);
+        var filesById = new MessageFilesById();
         var history = new DialogueHistory();
         var events = new MessageEvents();
         var cursors = new CursorEvents();
@@ -134,6 +135,7 @@ internal sealed record HookServices
         screens.Observe(menuControls);
         events.ObserveFiles(library);
         events.ObserveFiles(serials);
+        events.ObserveFiles(filesById);
         var lines = new DialogueLines(new ShownSpeakers(library, names), dialogue);
         events.ObserveLines(lines);
         events.ObserveShownLines(lines);
@@ -172,7 +174,7 @@ internal sealed record HookServices
             Log = log,
             ModFolder = modFolder,
             Serials = serials,
-            TravelMap = new TravelMapDestination(serials, reader, cleaner, () => Environment.TickCount64),
+            TravelMap = new TravelMapDestination(filesById, reader, cleaner, () => Environment.TickCount64),
             FieldMapName = new FieldMapName(reader, cleaner),
             DialogueHistory = history,
             DialogueControls = controls,

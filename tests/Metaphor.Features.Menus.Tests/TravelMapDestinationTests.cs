@@ -9,24 +9,22 @@ namespace Metaphor.Features.Menus.Tests;
 [Trait("Category", "Unit")]
 public sealed class TravelMapDestinationTests
 {
-    private const int Places = 34;
-    private const int Lines = 66;
+    // As in play: the names in a shared file compiled under one id, each region's detail lines in a file of its own.
+    private const int Places = 4;
+    private const int Lines = 124;
 
     private readonly RecordingAnnouncer announcer = new();
-    private readonly MessageSerials serials = new([
-        new SerialRange("message/Test_Places.msg", 700, 3, Entry: Places),
-        new SerialRange("message/system/Test_Lines.msg", 900, 2, Entry: Lines),
-    ]);
+    private readonly MessageFilesById files = new();
     private long now;
     private readonly TravelMapDestination destination;
 
     public TravelMapDestinationTests()
     {
-        serials.Observe(new MessageFileCompiled("EN/message/Test_Places.msg", -1,
+        files.Observe(new MessageFileCompiled("EN/message/Test_Places.msg", Places,
             Source("Test_Place", "Harbour", "Old Mill<COLOR 3>", "")));
-        serials.Observe(new MessageFileCompiled("EN/message/system/Test_Lines.msg", -1,
+        files.Observe(new MessageFileCompiled("EN/message/system/Test_Lines.msg", Lines,
             Source("Test_Line", "A town by the sea.", "Grain is ground here.")));
-        destination = new TravelMapDestination(serials, announcer, new TextCleaner(TextCleanerRules.None), () => now);
+        destination = new TravelMapDestination(files, announcer, new TextCleaner(TextCleanerRules.None), () => now);
     }
 
     private static string Source(string label, params string[] texts) =>

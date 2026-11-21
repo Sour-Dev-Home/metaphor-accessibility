@@ -2,10 +2,11 @@ using System.Buffers.Binary;
 
 namespace Metaphor.Core.Messages;
 
-/// <summary>A message as a UI panel is handed it (#545): the <paramref name="File"/>'s entry in the game's message-file
-/// table and the message's <paramref name="Position"/> in that file, the pair the game resolves a label to.</summary>
-/// <remarks>On game build 548ddc95… (Steam build 18330018) the reference is <see cref="Length"/> bytes, the pair first;
-/// that the pair is (table entry, position) is read from the exe, not yet seen in play
+/// <summary>A message as a UI panel is handed it (#545): the id its <paramref name="File"/> was compiled under (the
+/// compile hook's <see cref="MessageFileCompiled.Id"/>) and the message's <paramref name="Position"/> in that file, the
+/// pair the game resolves a label to.</summary>
+/// <remarks>On game build 548ddc95… (Steam build 18330018) the reference is <see cref="Length"/> bytes, the pair first.
+/// The travel map's references named compile ids and positions in play on 2026-11-21
 /// (docs/findings/travel-map-destination-text-static.md). What the other bytes hold is not known.</remarks>
 public sealed record MessageReference(int File, int Position)
 {
