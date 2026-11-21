@@ -106,14 +106,30 @@ public static class Nearby
         _ => null,
     };
 
-    private static NearbyThing Place(FieldView view, FieldUnit unit)
+    /// <summary>Ground distance the reach callout's hold adds to the reach and height limits, half a step, so standing
+    /// at the edge doesn't flicker in and out (#644). The mod's own choice, not the game's.</summary>
+    public const double HoldDistanceSlack = 50;
+
+    /// <summary>Angle the reach callout's hold adds to the facing limit, 20°, for the same reason (#644).</summary>
+    public const double HoldFacingSlack = Math.PI / 9;
+
+    /// <summary>Whether <paramref name="unit"/> passes the game's reach test widened by <see cref="HoldDistanceSlack"/>
+    /// and <see cref="HoldFacingSlack"/>: what keeps a thing already in reach held there (#644).</summary>
+    public static bool NearReach(FieldView view, FieldUnit unit)
+    {
+        ArgumentNullException.ThrowIfNull(view);
+        ArgumentNullException.ThrowIfNull(unit);
+        return Place(view, unit, HoldDistanceSlack, HoldFacingSlack).InReach;
+    }
+
+    private static NearbyThing Place(FieldView view, FieldUnit unit, double slack = 0, double facingSlack = 0)
     {
         var dx = unit.X - view.X;
         var dz = unit.Z - view.Z;
         var distance = Math.Sqrt(dx * dx + dz * dz);
         var bearing = Normalised(Math.Atan2(dx, dz) - view.Heading);
-        var inReach = ReachLimit(unit.Kind, view.DoorReachValue) is { } limit && distance < limit &&
-            Math.Abs(unit.Y - view.Y) < HeightReach && Math.Abs(bearing) < FacingReach;
+        var inReach = ReachLimit(unit.Kind, view.DoorReachValue) is { } limit && distance < limit + slack &&
+            Math.Abs(unit.Y - view.Y) < HeightReach + slack && Math.Abs(bearing) < FacingReach + facingSlack;
         return new(unit, distance, bearing, inReach);
     }
 

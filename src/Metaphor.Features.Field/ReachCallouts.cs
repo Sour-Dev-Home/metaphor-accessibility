@@ -4,8 +4,9 @@ using Metaphor.Core.Announcements;
 namespace Metaphor.Features.Field;
 
 /// <summary>Says a door or chest as it comes into reach (#644), the moment the game's action prompt would show: "Door, in
-/// reach". It's said once, and again only after the thing has left reach and come back. Reach is the game's own test
-/// (<see cref="Nearby.InReach"/>), so people stay out until theirs is found. The game's prompt itself, and the target it
+/// reach". It's said once, and again only after the thing has been out of reach for <see cref="LeaveMilliseconds"/>
+/// and come back; a slightly wider reach (<see cref="Nearby.NearReach"/>) holds it meanwhile, so standing at the edge
+/// doesn't flicker. Reach is the game's own test (<see cref="Nearby.InReach"/>), so people stay out until theirs is found. The game's prompt itself, and the target it
 /// picks, sit behind <c>.text1</c> and aren't read (docs/findings/field-interaction-prompt-static.md); its words from
 /// <c>AccessPointName.msg</c> are <c>[NEEDS VERIFICATION]</c>, so the kind word stands in.
 /// <para>The field controls call <see cref="Check"/> on every keyboard read, which the game makes once a frame by its
@@ -18,12 +19,19 @@ public sealed class ReachCallouts
     /// <summary>The least time between two reads of the field: ten a second, quick enough for a walk.</summary>
     public const long CheckIntervalMilliseconds = 100;
 
+    /// <summary>How long a thing must stay out of near reach (<see cref="Nearby.NearReach"/>) before it counts as gone
+    /// and may be said again: one second, so a read that misses it, or the player's idle sway at the edge, isn't a new
+    /// arrival (#644). Time outside free roam counts: what stays in reach through a dialogue is still held after it.</summary>
+    public const long LeaveMilliseconds = 1000;
+
+    /// <summary>Ground distance within which a thing of the same kind is the one already held, a step.</summary>
+    public const double SameThingDistance = 100;
+
     private readonly Lock gate = new();
     private readonly IFieldReads field;
     private readonly IAnnouncer announcer;
     private readonly Func<long> milliseconds;
-    private HashSet<Spot> inReach = [];
-    private HashSet<Spot> seen = [];
+    private readonly List<Held> held = [];
     private long checkedAt;
     private bool checkedOnce;
 
@@ -57,7 +65,7 @@ public sealed class ReachCallouts
             checkedAt = now;
             try
             {
-                text = field.InFreeRoam() && field.Read() is { } view ? Entered(view) : null;
+                text = field.InFreeRoam() && field.Read() is { } view ? Entered(view, now) : null;
             }
             catch (Exception)
             {
@@ -70,27 +78,54 @@ public sealed class ReachCallouts
         }
     }
 
-    /// <summary>Swaps in what is in reach now and returns what came into it, or null for nothing.</summary>
-    private string? Entered(FieldView view)
+    /// <summary>Holds on to what is still near reach, lets go of what has been away for <see cref="LeaveMilliseconds"/>,
+    /// and returns what newly came into reach, or null for nothing.</summary>
+    private string? Entered(FieldView view, long now)
     {
-        var things = Nearby.InReach(view);
-        seen.Clear();
+        foreach (var unit in view.Units)
+        {
+            if (Nearby.NearReach(view, unit) && Holding(unit) is { } thing)
+            {
+                thing.At(unit, now);
+            }
+        }
+        held.RemoveAll(thing => now - thing.HeldAt >= LeaveMilliseconds);
         List<string>? entered = null;
-        foreach (var thing in things)
+        foreach (var thing in Nearby.InReach(view))
         {
             var unit = thing.Unit;
-            var spot = new Spot(unit.Kind, unit.X, unit.Y, unit.Z);
-            seen.Add(spot);
-            if (!inReach.Contains(spot))
+            if (Holding(unit) is null)
             {
+                var kept = new Held(unit.Kind);
+                kept.At(unit, now);
+                held.Add(kept);
                 (entered ??= []).Add($"{unit.Name ?? Nearby.KindWord(unit.Kind)}, in reach");
             }
         }
-        (inReach, seen) = (seen, inReach);
         return entered is null ? null : string.Join(". ", entered);
     }
 
-    /// <summary>A thing told apart from the others by its kind and position: doors and chests stay put. One that moves,
-    /// such as a door that swings, may be said again [NEEDS VERIFICATION].</summary>
-    private readonly record struct Spot(FieldKind Kind, float X, float Y, float Z);
+    private Held? Holding(FieldUnit unit) => held.Find(thing => thing.Matches(unit));
+
+    /// <summary>A thing in reach, told apart from the others by its kind and where it was last seen: within
+    /// <see cref="SameThingDistance"/> is the same thing, so a door that shifts a little as it opens stays one door.</summary>
+    private sealed class Held(FieldKind kind)
+    {
+        private float x;
+        private float z;
+
+        public long HeldAt { get; private set; }
+
+        public bool Matches(FieldUnit unit)
+        {
+            var dx = unit.X - x;
+            var dz = unit.Z - z;
+            return unit.Kind == kind && dx * dx + dz * dz < SameThingDistance * SameThingDistance;
+        }
+
+        public void At(FieldUnit unit, long now)
+        {
+            (x, z, HeldAt) = (unit.X, unit.Z, now);
+        }
+    }
 }

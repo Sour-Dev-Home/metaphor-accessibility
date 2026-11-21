@@ -60,11 +60,20 @@ public sealed class ReachCalloutsTests
         Assert.Equal(["Door, in reach"], Said());
     }
 
+    // Enough checks, one interval apart, to outlast the leave time.
+    private void Away(FieldView view)
+    {
+        for (var i = 0; i < ReachCallouts.LeaveMilliseconds / ReachCallouts.CheckIntervalMilliseconds; i++)
+        {
+            Tick(view);
+        }
+    }
+
     [Fact]
     public void LeavingAndReenteringSaysItAgain()
     {
         Tick(Standing(0, Door(100)));
-        Tick(Standing(0, Door(900)));
+        Away(Standing(0, Door(900)));
         Tick(Standing(0, Door(100)));
 
         Assert.Equal(["Door, in reach", "Door, in reach"], Said());
@@ -74,10 +83,78 @@ public sealed class ReachCalloutsTests
     public void TurningAwayAndBackSaysItAgain()
     {
         Tick(Standing(0, Door(100)));
-        Tick(Standing(Math.PI, Door(100)));
+        Away(Standing(Math.PI, Door(100)));
         Tick(Standing(0, Door(100)));
 
         Assert.Equal(["Door, in reach", "Door, in reach"], Said());
+    }
+
+    [Fact]
+    public void StandingStillForManyIntervalsSaysItOnce()
+    {
+        for (var i = 0; i < 100; i++)
+        {
+            Tick(Standing(0, Door(100)));
+        }
+
+        Assert.Equal(["Door, in reach"], Said());
+    }
+
+    [Fact]
+    public void StandingAtTheEdgeOfReachDoesNotFlicker()
+    {
+        // The door's reach is 150 and its facing limit 90°: sway either side of both, well inside the hold's slack.
+        for (var i = 0; i < 50; i++)
+        {
+            Tick(Standing(0, Door(i % 2 == 0 ? 149 : 160)));
+            Tick(Standing(i % 2 == 0 ? 0 : 1.7, Door(100)));
+        }
+
+        Assert.Equal(["Door, in reach"], Said());
+    }
+
+    [Fact]
+    public void AReadThatMissesItOrADoorThatShiftsAsItOpensIsNotANewArrival()
+    {
+        Tick(Standing(0, Door(100)));
+        Tick(Standing(0));
+        Tick(Standing(0, new FieldUnit(FieldKind.Door, 30, 0, 120)));
+        Tick(Standing(0, Door(100)));
+
+        Assert.Equal(["Door, in reach"], Said());
+    }
+
+    [Fact]
+    public void LeavingForLessThanTheLeaveTimeDoesNotSayItAgain()
+    {
+        Tick(Standing(0, Door(100)));
+        Tick(Standing(0, Door(900)));
+        Tick(Standing(0, Door(100)));
+
+        Assert.Equal(["Door, in reach"], Said());
+    }
+
+    [Fact]
+    public void ASecondThingComingIntoReachIsSaidOnItsOwn()
+    {
+        Tick(Standing(0, Door(100)));
+        Tick(Standing(0, Door(100)));
+        Tick(Standing(0, Door(100), new FieldUnit(FieldKind.Chest, 50, 0, 200, "Box")));
+        Tick(Standing(0, Door(100), new FieldUnit(FieldKind.Chest, 50, 0, 200, "Box")));
+
+        Assert.Equal(["Door, in reach", "Box, in reach"], Said());
+    }
+
+    [Fact]
+    public void ALongDialogueDoesNotLetGoOfWhatStayedInReach()
+    {
+        Tick(Standing(0, Door(100)));
+        field.Roaming = false;
+        Away(Standing(0, Door(100)));
+        field.Roaming = true;
+        Tick(Standing(0, Door(100)));
+
+        Assert.Equal(["Door, in reach"], Said());
     }
 
     [Fact]
