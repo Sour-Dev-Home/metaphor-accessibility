@@ -19,7 +19,14 @@ checks them in the first game session and removes the tag.
 - **A status key.** In a battle, H, or L3 on the pad, pressed on its own, says each party member's HP, then the
   enemies' (#631). Outside a battle both keys reach the game as before, so L3 still recentres the world map.
   `[NEEDS VERIFICATION by ear]`
-
+- **What is near, and where am I.** In the field, `N` says the people, doors, chests and enemies near you, nearest
+  first, with rough steps and a direction from your facing; `LB` with the D-pad's Down and Up steps through them. `L`,
+  or `LB` with Left, says the place name the game last showed (#181). `[NEEDS VERIFICATION by ear]`
+- **Sound cues can be turned off and their volume set.** The mod can now play short sounds of its own, explained in
+  [sound cues](docs/players/reference/sound-cues.md); `soundCues` and `soundCueVolume` in `settings.json` control
+  them. The battle hit sounds arrive with spoken battle hits (#247, #636). `[NEEDS VERIFICATION by ear]`
+- **Sound cues can overlap and come from the left or right.** Two cues at once both play, and the mod can now hold a
+  steady tone that moves and changes pitch, ready for guidance and wall sounds (#637). `[NEEDS VERIFICATION by ear]`
 - **One file to open after extracting.** The zip's top level holds `Install Metaphor accessibility.cmd` beside the
   mod's folder: extract the zip and press Enter on it, with no search through the mod's files (#604).
   `[NEEDS VERIFICATION by ear]`

@@ -41,6 +41,13 @@ public interface IWindowInputControls : IInputControls
     void WindowRead(long? currentMessage);
 }
 
+/// <summary>Watches each keyboard read without changing it, such as the name entry's Enter hint (#585).</summary>
+public interface IKeyWatcher
+{
+    /// <summary>Takes one read of the keys held down, as the game read them.</summary>
+    void Keys(IReadOnlyList<int> keys);
+}
+
 /// <summary>What the frame hands the game for one pad read, and the window read it was decided on.</summary>
 public readonly record struct PadAnswer(int Buttons, long? Window);
 
@@ -59,17 +66,35 @@ public sealed class InputFrame
     private readonly MenuScreens screens;
     private readonly IInputControls menus;
     private readonly IWindowInputControls dialogue;
+    private readonly IInputControls field;
+    private readonly IKeyWatcher? watcher;
 
     public InputFrame(IGameInputState game, MenuScreens screens, IInputControls menus, IWindowInputControls dialogue)
+        : this(game, screens, menus, dialogue, NoControls)
     {
+    }
+
+    /// <summary>Controls that hand every read on unchanged, for a frame without field controls.</summary>
+    public static IInputControls NoControls => PassThrough.Instance;
+
+    /// <summary>A frame whose <paramref name="field"/> controls (#181) get what the dialogue controls leave;
+    /// <paramref name="watcher"/>, when given, sees each keyboard read first, as the game read it, and changes
+    /// nothing.</summary>
+    public InputFrame(
+        IGameInputState game, MenuScreens screens, IInputControls menus, IWindowInputControls dialogue,
+        IInputControls field, IKeyWatcher? watcher = null)
+    {
+        this.watcher = watcher;
         ArgumentNullException.ThrowIfNull(game);
         ArgumentNullException.ThrowIfNull(screens);
         ArgumentNullException.ThrowIfNull(menus);
         ArgumentNullException.ThrowIfNull(dialogue);
+        ArgumentNullException.ThrowIfNull(field);
         this.game = game;
         this.screens = screens;
         this.menus = menus;
         this.dialogue = dialogue;
+        this.field = field;
     }
 
     /// <summary>Takes one read of <paramref name="pad"/>'s 16-bit <paramref name="buttons"/>, made or not, and returns
@@ -77,7 +102,7 @@ public sealed class InputFrame
     public PadAnswer Pad(int pad, int buttons, bool made)
     {
         var window = ReadState();
-        var handed = dialogue.Pad(pad, menus.Pad(pad, buttons, made), made);
+        var handed = field.Pad(pad, dialogue.Pad(pad, menus.Pad(pad, buttons, made), made), made);
         return new(handed & buttons, window);
     }
 
@@ -87,8 +112,19 @@ public sealed class InputFrame
     {
         ArgumentNullException.ThrowIfNull(keys);
         var window = ReadState();
-        var handed = dialogue.Keys(menus.Keys(keys));
+        watcher?.Keys(keys);
+        var handed = field.Keys(dialogue.Keys(menus.Keys(keys)));
         return new(Kept(keys, handed), window);
+    }
+
+    /// <summary>Controls that hand every read on unchanged, for a frame without field controls.</summary>
+    private sealed class PassThrough : IInputControls
+    {
+        public static PassThrough Instance { get; } = new();
+
+        public int Pad(int pad, int buttons, bool made) => buttons;
+
+        public IReadOnlyList<int> Keys(IReadOnlyList<int> keys) => keys;
     }
 
     private long? ReadState()

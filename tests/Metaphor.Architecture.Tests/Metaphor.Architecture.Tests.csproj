@@ -24,6 +24,8 @@
                       SkipGetTargetFrameworkProperties="true" OutputItemType="ScannedAssembly" />
     <ProjectReference Include="..\..\src\Metaphor.Features.Dialogue\Metaphor.Features.Dialogue.csproj"
                       ReferenceOutputAssembly="false" OutputItemType="ScannedAssembly" />
+    <ProjectReference Include="..\..\src\Metaphor.Features.Field\Metaphor.Features.Field.csproj"
+                      ReferenceOutputAssembly="false" OutputItemType="ScannedAssembly" />
     <ProjectReference Include="..\..\src\Metaphor.Features.Menus\Metaphor.Features.Menus.csproj"
                       ReferenceOutputAssembly="false" OutputItemType="ScannedAssembly" />
     <ProjectReference Include="..\..\src\Metaphor.Features.Battle\Metaphor.Features.Battle.csproj"

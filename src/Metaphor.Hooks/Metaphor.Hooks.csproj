@@ -9,6 +9,7 @@
   <ItemGroup>
     <ProjectReference Include="..\Metaphor.Core\Metaphor.Core.csproj" />
     <ProjectReference Include="..\Metaphor.Features.Dialogue\Metaphor.Features.Dialogue.csproj" />
+    <ProjectReference Include="..\Metaphor.Features.Field\Metaphor.Features.Field.csproj" />
     <ProjectReference Include="..\Metaphor.Features.Menus\Metaphor.Features.Menus.csproj" />
     <ProjectReference Include="..\Metaphor.Features.Battle\Metaphor.Features.Battle.csproj" />
     <ProjectReference Include="..\Metaphor.Features.Updates\Metaphor.Features.Updates.csproj" />
