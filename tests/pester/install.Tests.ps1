@@ -1004,6 +1004,43 @@ Describe 'Confirm-Question' {
     }
 }
 
+Describe 'Show-OpenFileBox' {
+    BeforeAll {
+        # Shows the Open dialog with CONSOLE as the console window's handle; the stand-in dialog records its owner
+        # and, with CHOSEN, picks that file.
+        function Invoke-OpenBox([long] $Console, [string] $Chosen) {
+            InModuleScope MetaphorInstall -Parameters @{ Console = $Console; Chosen = $Chosen } {
+                param($Console, $Chosen)
+                $seen = @{}
+                $show = {
+                    param($Dialog, $Owner)
+                    $seen.Owner = $Owner; $seen.Title = $Dialog.Title; $seen.Filter = $Dialog.Filter
+                    if ($Chosen) { $Dialog.FileName = $Chosen; [Windows.Forms.DialogResult]::OK } else { [Windows.Forms.DialogResult]::Cancel }
+                }.GetNewClosure()
+                $file = Show-OpenFileBox 'Choose it.' 'METAPHOR.exe' -ConsoleWindow { [IntPtr] $Console }.GetNewClosure() -ShowDialog $show
+                [pscustomobject]@{ File = $file; Owner = $seen.Owner; Title = $seen.Title; Filter = $seen.Filter }
+            }
+        }
+    }
+
+    It 'names the console window as the owner without taking it over, and shows only METAPHOR.exe' {
+        $chosen = Join-Path $TestDrive 'METAPHOR.exe'
+        $result = Invoke-OpenBox 4660 $chosen
+        $result.File | Should -Be $chosen
+        $result.Owner | Should -BeOfType ([Windows.Forms.IWin32Window])
+        $result.Owner | Should -Not -BeOfType ([Windows.Forms.NativeWindow])
+        $result.Owner.Handle | Should -Be ([IntPtr] 4660)
+        $result.Title | Should -Be 'Choose it.'
+        $result.Filter | Should -Be 'METAPHOR.exe|METAPHOR.exe'
+    }
+
+    It 'shows the dialog without an owner when there is no console window, and gives nothing when cancelled' {
+        $result = Invoke-OpenBox 0
+        $result.Owner | Should -BeNullOrEmpty
+        $result.File | Should -BeNullOrEmpty
+    }
+}
+
 Describe 'Select-InstallGame in question windows' {
     BeforeAll {
         $script:gameFolder = (New-Item -ItemType Directory (Join-Path $TestDrive 'games')).FullName

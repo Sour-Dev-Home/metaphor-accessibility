@@ -181,28 +181,69 @@ function Show-MessageBox([string] $Text, [string] $Caption, [UInt32] $Flags) {
     $native::MessageBoxW($native::GetConsoleWindow(), $Text, $Caption, $Flags)
 }
 
+# A type that implements WinForms' IWin32Window with a handle given to its constructor and nothing else, built in memory
+# as Get-FindWindow is (#459). It only reports the console window as a dialog's owner: NativeWindow.AssignHandle would
+# subclass that window, which belongs to the console host's process, not this one.
+$OwnerType = $null
+function Get-OwnerType {
+    if (-not $script:OwnerType) {
+        Add-Type -AssemblyName System.Windows.Forms
+        $access = [Reflection.Emit.AssemblyBuilderAccess]::Run
+        $assembly = [Reflection.Emit.AssemblyBuilder]::DefineDynamicAssembly((New-Object Reflection.AssemblyName 'MetaphorInstallOwner'), $access)
+        $type = $assembly.DefineDynamicModule('MetaphorInstallOwner').DefineType('MetaphorInstallOwner.Owner',
+            [Reflection.TypeAttributes] 'Public, Sealed, Class', [object], [Type[]] @([Windows.Forms.IWin32Window]))
+        $field = $type.DefineField('handle', [IntPtr], [Reflection.FieldAttributes]::Private)
+        $constructor = $type.DefineConstructor([Reflection.MethodAttributes] 'Public, HideBySig', [Reflection.CallingConventions]::Standard,
+            [Type[]] @([IntPtr]))
+        $il = $constructor.GetILGenerator()
+        $il.Emit([Reflection.Emit.OpCodes]::Ldarg_0)
+        $il.Emit([Reflection.Emit.OpCodes]::Call, [object].GetConstructor([Type]::EmptyTypes))
+        $il.Emit([Reflection.Emit.OpCodes]::Ldarg_0)
+        $il.Emit([Reflection.Emit.OpCodes]::Ldarg_1)
+        $il.Emit([Reflection.Emit.OpCodes]::Stfld, $field)
+        $il.Emit([Reflection.Emit.OpCodes]::Ret)
+        $getter = $type.DefineMethod('get_Handle', [Reflection.MethodAttributes] 'Public, Virtual, Final, NewSlot, HideBySig, SpecialName',
+            [IntPtr], [Type]::EmptyTypes)
+        $il = $getter.GetILGenerator()
+        $il.Emit([Reflection.Emit.OpCodes]::Ldarg_0)
+        $il.Emit([Reflection.Emit.OpCodes]::Ldfld, $field)
+        $il.Emit([Reflection.Emit.OpCodes]::Ret)
+        $type.DefineMethodOverride($getter, [Windows.Forms.IWin32Window].GetMethod('get_Handle'))
+        $property = $type.DefineProperty('Handle', [Reflection.PropertyAttributes]::None, [IntPtr], [Type]::EmptyTypes)
+        $property.SetGetMethod($getter)
+        $script:OwnerType = $type.CreateType()
+    }
+    $script:OwnerType
+}
+
+# An IWin32Window that names HANDLE as a dialog's owner, or $null for no window (0).
+function New-DialogOwner([IntPtr] $Handle) {
+    if ($Handle -eq [IntPtr]::Zero) { return $null }
+    (Get-OwnerType)::new($Handle)
+}
+
 # The file chosen in Windows' Open dialog, titled TITLE and showing only files named FILENAME, owned by the console
-# window; $null when cancelled. Throws where the dialog can't open: it needs a single-threaded apartment, which Windows
-# PowerShell 5.1's console has.
-function Show-OpenFileBox([string] $Title, [string] $FileName) {
-    if ([Threading.Thread]::CurrentThread.GetApartmentState() -ne 'STA') { throw 'the Open dialog needs an STA thread' }
+# window (CONSOLEWINDOW gives its handle) [NEEDS VERIFICATION] by ear (#573); $null when cancelled. SHOWDIALOG shows
+# the dialog with its owner, or none, and stands in for it in tests. It throws where the dialog can't open: it needs a
+# single-threaded apartment, which Windows PowerShell 5.1's console has.
+function Show-OpenFileBox([string] $Title, [string] $FileName,
+    [scriptblock] $ConsoleWindow = { (Get-DialogNative)::GetConsoleWindow() },
+    [scriptblock] $ShowDialog = {
+        param($Dialog, $Owner)
+        if ([Threading.Thread]::CurrentThread.GetApartmentState() -ne 'STA') { throw 'the Open dialog needs an STA thread' }
+        if ($Owner) { $Dialog.ShowDialog($Owner) } else { $Dialog.ShowDialog() }
+    }) {
     Add-Type -AssemblyName System.Windows.Forms
     $dialog = New-Object Windows.Forms.OpenFileDialog
-    $owner = New-Object Windows.Forms.NativeWindow
     try {
         $dialog.Title = $Title
         $dialog.Filter = "$FileName|$FileName"
         $dialog.CheckFileExists = $true
-        # The console window as the owner, as the message boxes have it [NEEDS VERIFICATION] by ear (#573): the window
-        # belongs to the console host's process.
-        $owner.AssignHandle((Get-DialogNative)::GetConsoleWindow())
-        if ($dialog.ShowDialog($owner) -eq [Windows.Forms.DialogResult]::OK) { return $dialog.FileName }
+        $owner = New-DialogOwner (& $ConsoleWindow)
+        if ((& $ShowDialog $dialog $owner) -eq [Windows.Forms.DialogResult]::OK) { return $dialog.FileName }
         return $null
     }
-    finally {
-        if ($owner.Handle -ne [IntPtr]::Zero) { $owner.ReleaseHandle() }
-        $dialog.Dispose()
-    }
+    finally { $dialog.Dispose() }
 }
 
 # How install.ps1 asks its questions: in windows (DIALOGS), else typed in the console, or from ANSWERS in order with
