@@ -70,8 +70,16 @@ jobs:
           bash "$gate/check.sh" commits "$BASE..$HEAD"
       - name: Install the docs tools
         run: bash scripts/setup/install-docs-tools.sh
+      # The flake rule (#655): a failed test step runs once more, and a pass then is recorded for flake-report.yml. Only
+      # this step retries here; the rules, docs and commit checks are guards, not tests.
       - name: Test the check scripts
-        run: bash scripts/check/run-check-suites.sh
+        run: bash scripts/ci/retry-test.sh "$GITHUB_JOB" bash scripts/check/run-check-suites.sh
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: flake-${{ github.job }}
+          path: ${{ runner.temp }}/flake/flake.txt
+          if-no-files-found: ignore
+          retention-days: 3
       - name: Check every tracked file
         env:
           # The private list reaches pushes to this repository's main only, never a pull request, so a fork's code
@@ -230,9 +238,19 @@ jobs:
         if: steps.changes.outputs.run == 'true'
         env:
           TEST_FILE: tests/pester/${{ matrix.file }}.Tests.ps1
-        # Any Pester 5 or later runs; one other than the pin only warns, as in run-pester.sh.
+          MATRIX_FILE: ${{ matrix.file }}
+        # Any Pester 5 or later runs; one other than the pin only warns, as in run-pester.sh. A failure runs once more
+        # (the flake rule, #655).
         run: |
-          pwsh -NoProfile -Command '$m = Import-Module Pester -MinimumVersion 5.0 -PassThru; if ("$($m.Version)" -ne $env:PESTER_PIN) { "::warning::Pester $($m.Version) loaded, not the pinned $env:PESTER_PIN" }; $r = Invoke-Pester $env:TEST_FILE -PassThru -Output Normal; exit $r.FailedCount'
+          bash scripts/ci/retry-test.sh "$GITHUB_JOB ($MATRIX_FILE)" pwsh -NoProfile -Command '$m = Import-Module Pester -MinimumVersion 5.0 -PassThru; if ("$($m.Version)" -ne $env:PESTER_PIN) { "::warning::Pester $($m.Version) loaded, not the pinned $env:PESTER_PIN" }; $r = Invoke-Pester $env:TEST_FILE -PassThru -Output Normal; exit $r.FailedCount'
+      # The flake rule's record (#655), when the step above passed on its retry.
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: steps.changes.outputs.run == 'true'
+        with:
+          name: flake-${{ github.job }}-${{ matrix.file }}
+          path: ${{ runner.temp }}/flake/flake.txt
+          if-no-files-found: ignore
+          retention-days: 3
 
   # Every Pester file once more, on a setup unlike the runner's default (#459): a German culture, a checkout whose path
   # holds a space, é and Japanese, and a temporary folder whose path holds a space and é, as a player's or
@@ -296,7 +314,15 @@ jobs:
           temp="$RUNNER_TEMP/Temp é"
           mkdir -p "$temp"
           export TMPDIR="$temp" TEMP="$(cygpath -w "$temp")" TMP="$(cygpath -w "$temp")"
-          bash scripts/check/run-pester.sh
+          bash scripts/ci/retry-test.sh "$GITHUB_JOB" bash scripts/check/run-pester.sh
+      # The flake rule's record (#655), when the step above passed on its retry.
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: steps.changes.outputs.run == 'true'
+        with:
+          name: flake-${{ github.job }}
+          path: ${{ runner.temp }}/flake/flake.txt
+          if-no-files-found: ignore
+          retention-days: 3
 
   # The required check named `scripts` (the ruleset asks for it by name): it passes when every Pester job passed, or was
   # skipped on the one event its `if` skips it on, and fails otherwise: failed, cancelled, or skipped where it should
