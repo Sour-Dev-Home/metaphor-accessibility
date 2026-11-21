@@ -104,6 +104,11 @@ public sealed class MessageLog(TextWriter writer, Func<long> millisecondsSinceSt
     public void TutorialSeen(string what, string details) =>
         Write(() => Line($"{millisecondsSinceStart()} ms tutorial {what} {details}"));
 
+    /// <summary>A map screen's place text (#545, #586): which part (<c>panel</c>, <c>compose</c> or <c>strip</c>) and
+    /// its details as the hook formatted them: numbers, raw reference bytes and the text that was said or read.</summary>
+    public void MapSeen(string what, string details) =>
+        Write(() => Line($"{millisecondsSinceStart()} ms map {what} {details}"));
+
     /// <summary>An input a menu's cursor manager handled that changed something (#93, #94). Numbers only, no game
     /// text.</summary>
     public void Observe(CursorInput input) => Write(() => Line(
