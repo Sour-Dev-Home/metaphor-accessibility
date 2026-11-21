@@ -74,9 +74,24 @@ out="$(cat "$WSL_ENV" 2> /dev/null)"
 check "no live log: WSLENV doesn't carry one" lacks "METAPHOR_LIVE_LOG"
 # The job count: the pool's default (cores up to 8, shared among the runs holding a build slot), worked out on the Git
 # Bash side, where the slots' locks are; the distro can't see them.
+# The slot folder is this test's own, so other check suites taking and releasing slots can't change the count between the
+# run and the worked-out value (#629).
+export METAPHOR_CHECK_LOCK="$WORK/slots/lock"
+unset METAPHOR_CHECK_HELD METAPHOR_TEST_JOBS
+mkdir -p "$WORK/slots"
+run_suite
+out="$(cat "$WSL_ENV" 2> /dev/null)"
 expected="$(source "$ROOT/scripts/check/pool.sh" && pool_default_jobs)"
 check "job count: the pool's default goes over" grep -qx "JOBS=$expected" <<< "$out"
 check "job count: capped at 8" [ "$expected" -le 8 ]
+# A live run holding a slot shares the cores: the count handed over is the shared one, not the lone one.
+mkdir "$WORK/slots/lock" && echo "$$" > "$WORK/slots/lock/pid"
+run_suite
+out="$(cat "$WSL_ENV" 2> /dev/null)"
+shared="$(source "$ROOT/scripts/check/pool.sh" && pool_default_jobs)"
+check "job count: a held slot shares the cores" [ "$shared" -le "$expected" ]
+check "job count: the shared count goes over" grep -qx "JOBS=$shared" <<< "$out"
+rm -rf "$WORK/slots/lock"
 METAPHOR_TEST_JOBS=3 run_suite
 out="$(cat "$WSL_ENV" 2> /dev/null)"
 check "job count: METAPHOR_TEST_JOBS goes over as it is" grep -qx "JOBS=3" <<< "$out"

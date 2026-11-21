@@ -9,6 +9,9 @@ checks them in the first game session and removes the tag.
 
 ## Unreleased
 
+- **Yes and No buttons.** The installer asks each question in a small window with Yes and No buttons, which your
+  screen reader reads, instead of asking you to type an answer. Where it can't find the game, you choose
+  `METAPHOR.exe` in Windows' Open window (#607). `[NEEDS VERIFICATION by ear]`
 - **Battle hits are read.** Each hit says its damage, such as "34", or "34 healed". After the action, one line says
   who changed: party members by slot, such as "Ally 1 89, Ally 2 120", and each enemy with its HP left, numbered when
   there are several. Misses and blocked hits aren't read yet, and names aren't known yet (#247).
@@ -59,7 +62,9 @@ The first early-access release. It is for the Steam version of Metaphor: ReFanta
   - it refuses to run as administrator, and if User Account Control is turned off it says so and asks before going on;
   - when Windows' Controlled folder access blocks a write, it names that as the cause;
   - it puts a shortcut called "Metaphor ReFantazio with accessibility" on your desktop, and ends with a check of the
-    install. Run it again to update the mod.
+    install. Run it again to update the mod;
+  - `uninstall.cmd` removes the mod, its settings, its shortcut and its entry for the game, and asks before
+    removing a Reloaded-II it installed. It keeps the runtimes.
 
   `[NEEDS VERIFICATION by ear]` The installer's spoken wording. See
   [Install the mod](docs/players/how-to/install-the-mod.md).
