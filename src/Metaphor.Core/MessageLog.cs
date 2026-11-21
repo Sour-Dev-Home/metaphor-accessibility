@@ -99,6 +99,11 @@ public sealed class MessageLog(TextWriter writer, Func<long> millisecondsSinceSt
     public void WindowHook(string which) =>
         Write(() => Line($"{millisecondsSinceStart()} ms msgwindow-hook {which}"));
 
+    /// <summary>A tutorial pop-up event (#118): which one (<c>open</c>, or <c>window</c> for a new window state) and its
+    /// details as the listening hook formatted them. Numbers, and the window's strings, which are file paths.</summary>
+    public void TutorialSeen(string what, string details) =>
+        Write(() => Line($"{millisecondsSinceStart()} ms tutorial {what} {details}"));
+
     /// <summary>An input a menu's cursor manager handled that changed something (#93, #94). Numbers only, no game
     /// text.</summary>
     public void Observe(CursorInput input) => Write(() => Line(
