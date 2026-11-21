@@ -73,6 +73,33 @@ public sealed class SettingsReloaderTests
         Assert.Equal([new Announcement("Voiced lines: auto.", Interrupt: true)], announcer.Said);
     }
 
+    [Theory]
+    [InlineData(false, "Update check: off.")]
+    [InlineData(true, "Update check: on.")]
+    public void AChangedUpdateCheckIsAnnounced(bool value, string said)
+    {
+        var reloader = Reloader();
+        reloader.Load($$"""{ "checkForUpdates": {{(!value).ToString().ToLowerInvariant()}} }""");
+
+        reloader.Reload($$"""{ "checkForUpdates": {{value.ToString().ToLowerInvariant()}} }""");
+
+        Assert.Equal(value, reloader.Current.CheckForUpdates);
+        Assert.Equal([new Announcement(said, Interrupt: true)], announcer.Said);
+    }
+
+    // Both said, the second after the first.
+    [Fact]
+    public void TwoChangesAreBothAnnounced()
+    {
+        var reloader = Reloader();
+
+        reloader.Reload("""{ "voicedLines": "nothing", "checkForUpdates": false }""");
+
+        Assert.Equal(
+            [new Announcement("Voiced lines: nothing.", Interrupt: true), new Announcement("Update check: off.", Interrupt: false)],
+            announcer.Said);
+    }
+
     [Fact]
     public void ABrokenFileFallsBackToDefaultsAndLogs()
     {
