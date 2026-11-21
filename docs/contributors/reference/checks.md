@@ -98,6 +98,7 @@ public.
 
 The general patterns are local user folders (`C:\Users\<name>` and its Git Bash, WSL, Linux and macOS forms) and email
 addresses, apart from reserved example domains, GitHub no-reply addresses, SSH remotes and `@2x` image names. A
-third-party licence notice, a file named `LICENSE*`, `COPYING*` or `NOTICE*` directly inside `licenses/<project>/`,
-skips the email rule only, because it ships verbatim with its author's address
+third-party licence notice, a file named `LICENSE`, `COPYING` or `NOTICE` (with at most one extension, such as `.MIT`)
+directly inside `src/<project>/licenses/<library>/`, skips the email rule only, because it ships verbatim with its
+author's address
 ([ADR 0005](../../adr/0005-prism-speech-backend.md)). The user-folder and private patterns still apply to it.

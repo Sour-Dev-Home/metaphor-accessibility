@@ -111,7 +111,8 @@ email_re='[a-z0-9._%+-]+@[a-z0-9-]+(\.[a-z0-9-]+)*\.[a-z]{2,}'
 not_email_re='@([a-z0-9-]+\.)*(example\.(com|org|net)|[a-z0-9-]+\.(invalid|example|test)|users\.noreply\.github\.com)$'
 not_email_re+='|^git@|@[0-9]+x\.[a-z]+$'
 # A third-party licence notice, such as src/Metaphor.Core/licenses/fastlz/LICENSE.MIT: the email rule skips it.
-licence_notice_re='(^|/)licenses/[^/]+/(LICENSE|COPYING|NOTICE)[^/]*$'
+# Only src/<project>/licenses/<library>/, and only LICENSE, COPYING or NOTICE with at most one extension.
+licence_notice_re='^src/[^/]+/licenses/[^/]+/(LICENSE|COPYING|NOTICE)(\.[A-Za-z0-9]+)?$'
 
 # The scan (issue #297). Process starts dominate the run time in Git Bash, so nothing starts once per file: one
 # `git cat-file --batch` writes every blob to $blobs/<n> (n is its index in `paths`), one sha256sum pass hashes them,
