@@ -17,6 +17,20 @@ internal static class TutorialListening
     private const int MaxPointees = 8;
     private const int PointeeLength = 0x80;
 
+    // The object's page shown, from 0: it stepped 0, 1, 2, 1, 0 with the page turns of a by-ear run, beside the page
+    // count at +0xc (docs/raw-sources/tutorial-page-index-by-ear-2026-11-21.md).
+    private const int PageAt = 0x8;
+
+    /// <summary>The page the tutorial's object shows, from 0, or null when it can't be read. The object comes from the
+    /// window's unverified layout, so it is read only through the guarded reader.</summary>
+    public static int? Page(nint model)
+    {
+        var bytes = new byte[sizeof(int)];
+        return model != 0 && ModuleMemoryReader.ReadBytesAvoidingGuardPages(model + PageAt, bytes)
+            ? System.Buffers.Binary.BinaryPrimitives.ReadInt32LittleEndian(bytes)
+            : null;
+    }
+
     public static string Number(nint at) =>
         ModuleMemoryReader.ReadInt32(at) is { } number ? number.ToString(CultureInfo.InvariantCulture) : "?";
 
@@ -103,20 +117,29 @@ internal sealed class TutorialWindowShowListener : IGameHook, IObserves5
             $"via={SignatureName} window=0x{window:x} id={TutorialListening.Number(tutorial)} force={TutorialListening.Byte(force)} b4={TutorialListening.Byte(fourth)} b5={TutorialListening.Byte(fifth)}"));
 }
 
-/// <summary>The controller's other open, on a second tutorial window: <c>void (window*, uint32* tutorial, bool
-/// force)</c>. Logged after it runs: the tutorial number, the flag, and the window's object at <c>+0x30</c>.</summary>
-[GameHook(GameBuilds.Steam18330018, DevOnly = true)]
-internal sealed class TutorialWindowShowOtherListener : IGameHook, IObserves4WithResult
+/// <summary>The controller's other open, on a second tutorial window, the one that shows a party member joining:
+/// <c>void (window*, uint32* tutorial, bool force)</c>. After it runs it hands the window's tutorial number and object
+/// to <see cref="TutorialPopups"/>, which speaks the pop-up; nothing here hooks this window's update, so its page turns
+/// aren't followed. In a development run it also logs the number, the flag and the object.</summary>
+/// <remarks>The open returns early, writing nothing, for a tutorial already seen unless forced; a real open writes the
+/// new object to <c>+0x30</c>, 0 to the state at <c>+0x18</c> and the number to <c>+0x1c</c> (our reading of
+/// <c>0xfae440</c> in Ghidra 12.2 on build 548ddc95). So an early return leaves the last object and number, which
+/// <see cref="TutorialPopups"/> doesn't speak again. The object is the same class as the other window's, page at
+/// <c>+0x8</c> and count at <c>+0xc</c> (docs/raw-sources/tutorial-page-index-by-ear-2026-11-21.md).</remarks>
+[GameHook(GameBuilds.Steam18330018)]
+internal sealed class TutorialWindowShowOtherHook : IGameHook, IObserves4WithResult
 {
-    // Where this window keeps the object its open builds (the finding's step 4).
+    private const int NumberAt = 0x1c;
     private const int ModelAt = 0x30;
 
+    private readonly TutorialPopups popups;
     private readonly MessageLog? log;
     private readonly CallerAddress module = new();
 
-    public TutorialWindowShowOtherListener(HookServices services)
+    public TutorialWindowShowOtherHook(HookServices services)
     {
         ArgumentNullException.ThrowIfNull(services);
+        popups = services.TutorialPopups;
         log = services.Log;
     }
 
@@ -124,12 +147,13 @@ internal sealed class TutorialWindowShowOtherListener : IGameHook, IObserves4Wit
 
     public void Observe(nint window, nint tutorial, nint force, nint unused4, nint result)
     {
-        if (log is null)
-        {
-            return;
-        }
+        // The window is the game's own argument, as the open itself writes it.
         var model = ModuleMemoryReader.ReadPointer(window + ModelAt) ?? 0;
-        log.TutorialSeen("open", string.Create(CultureInfo.InvariantCulture,
+        if (ModuleMemoryReader.ReadInt32(window + NumberAt) is { } number)
+        {
+            popups.WindowUpdated(window, number, model, TutorialListening.Page(model), ended: false);
+        }
+        log?.TutorialSeen("open", string.Create(CultureInfo.InvariantCulture,
             $"via={SignatureName} window=0x{window:x} id={TutorialListening.Number(tutorial)} force={TutorialListening.Byte(force)}{TutorialListening.Model(model, TutorialListening.ModelBytes(model), module)}"));
     }
 }
@@ -157,10 +181,6 @@ internal sealed class TutorialWindowUpdateHook : IGameHook, IObserves4WithResult
     private const int ModelAt = TutorialWindowState.ModelAt;
     private const int Ended = 3;
 
-    // The object's page shown, from 0: it stepped 0, 1, 2, 1, 0 with the page turns of a by-ear run, beside the page
-    // count at +0xc (docs/raw-sources/tutorial-page-index-by-ear-2026-11-21.md).
-    private const int PageAt = 0x8;
-
     private readonly TutorialPopups popups;
     private readonly MessageLog? log;
     private readonly CallerAddress module = new();
@@ -185,20 +205,11 @@ internal sealed class TutorialWindowUpdateHook : IGameHook, IObserves4WithResult
         {
             return;
         }
-        popups.WindowUpdated(window, number, model, Page(model), ended: state == Ended);
+        popups.WindowUpdated(window, number, model, TutorialListening.Page(model), ended: state == Ended);
         if (log is not null && records < MaxRecords)
         {
             LogChange(log, window);
         }
-    }
-
-    // The object comes from the window's unverified layout, so it is read only through the guarded reader.
-    private static int? Page(nint model)
-    {
-        var bytes = new byte[sizeof(int)];
-        return model != 0 && ModuleMemoryReader.ReadBytesAvoidingGuardPages(model + PageAt, bytes)
-            ? System.Buffers.Binary.BinaryPrimitives.ReadInt32LittleEndian(bytes)
-            : null;
     }
 
     private void LogChange(MessageLog to, nint window)

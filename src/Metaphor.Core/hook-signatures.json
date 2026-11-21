@@ -242,7 +242,7 @@
     "section": ".ecode",
     "pattern": "48 8B C4 48 89 58 10 48 89 70 18 55 57 41 56 48 8D 68 A1 48 81 EC D0 00 00 00 C5 F8 29 70 D8 41 0F B6 F8 48 8B F2 48 8B D9 48 8B 41 20 48 85 C0 0F 84",
     "gameBuilds": ["548ddc955c176867f062c44f94c03dd9ac33caefb278a5ac388e792aedf09504"],
-    "evidence": "Our reading of the exe in Ghidra 12.2: the controller's other open, on a second tutorial window, reads the tutorial number through its second argument (docs/findings/tutorial-popup-window-static.md); one match on disk; not yet checked in memory"
+    "evidence": "Our reading of the exe in Ghidra 12.2: the controller's other open, on a second tutorial window, reads the tutorial number through its second argument (docs/findings/tutorial-popup-window-static.md); one match on disk; hooked in the by-ear run of 2026-11-21, which logged the party-join pop-up's open (docs/raw-sources/tutorial-party-join-window-by-ear-2026-11-21.md)"
   },
   {
     "name": "TutorialWindowUpdate",

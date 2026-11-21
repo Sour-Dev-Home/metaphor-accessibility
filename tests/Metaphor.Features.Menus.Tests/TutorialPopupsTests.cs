@@ -236,6 +236,21 @@ public sealed class TutorialPopupsTests
         Assert.Equal(["One Thing, 1 page. Only page."], Said());
     }
 
+    // The party-join pop-up's window, whose open alone is followed (by-ear run of 2026-11-21).
+    [Fact]
+    public void EachWindowKeepsItsOwnPopUp()
+    {
+        const long Other = 0x6000;
+        Compiled();
+
+        popups.WindowUpdated(Window, 0, Model, page: 0, ended: false);
+        popups.WindowUpdated(Other, 1, Model + 0x100, page: 0, ended: false);
+        popups.WindowUpdated(Window, 0, Model, page: 0, ended: false);
+        popups.WindowUpdated(Other, 1, Model + 0x100, page: 0, ended: false);
+
+        Assert.Equal(["Walking About, 3 pages. Press to walk. More here.", "One Thing, 1 page. Only page."], Said());
+    }
+
     [Fact]
     public void WhileTheTableLoadsAPopUpIsSaidAsTutorial()
     {

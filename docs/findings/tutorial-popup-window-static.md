@@ -32,7 +32,8 @@ the DevOnly listeners in `src/Metaphor.Hooks/TutorialWindowListeners.cs` log wha
    (`0x3e2ad0`, a `jmp` into `.text1`), hands the number to a `.text1` thunk with the child at `+0x20`, builds a
    `0x98`-byte object in `.text1` into `+0xe0`, then calls `0x92e3e0` with `0x1d` (29, probably the open's sound, by
    item 5). `0xfae440` (`void (window*, uint32* tutorial, bool force)`) is the same for the other window (object at
-   `+0x30`); which class that is, is `[NEEDS VERIFICATION]`. The per-tutorial data accessors near
+   `+0x30`); its class is `[NEEDS VERIFICATION]`, but it shows the party-join pop-up
+   ([raw source](../raw-sources/tutorial-party-join-window-by-ear-2026-11-21.md)). The per-tutorial data accessors near
    `0x3e2a70` all jump into `.text1`.
 5. **The sounds match the run.** In the by-ear run of 2026-11-20 (maintainer; logs local, counts and cue numbers only)
    each of the five pop-ups logs cue 29 about 35 ms after the two files compile, cue 27 once per page turn and cue 1
