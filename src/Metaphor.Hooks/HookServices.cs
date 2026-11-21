@@ -81,6 +81,10 @@ internal sealed record HookServices
     /// cursor hook asks it for each input.</summary>
     public ScreenClassLookup ScreenClasses { get; init; } = new();
 
+    /// <summary>The messages the game fetches by serial (#584), from the files it compiled; empty unless the message
+    /// file hook is feeding it.</summary>
+    public MessageSerials Serials { get; init; } = new([]);
+
     /// <summary>The mod's folder, outside the repository, where a development run leaves files for its hooks.</summary>
     public required string ModFolder { get; init; }
 
@@ -94,6 +98,8 @@ internal sealed record HookServices
     {
         ArgumentNullException.ThrowIfNull(settings);
         var library = new MessageLibrary();
+        // Serials as build 548ddc95 numbers them; the message file hook that feeds it installs on that build only.
+        var serials = new MessageSerials(MessageSerials.Steam18330018);
         var history = new DialogueHistory();
         var events = new MessageEvents();
         var cursors = new CursorEvents();
@@ -115,9 +121,15 @@ internal sealed record HookServices
         var screens = new MenuScreens(KnownScreens.All);
         screens.Observe(new TitleMenuFocus(library, reader, cleaner));
         screens.Observe(new MainMenuFocus(reader));
-        screens.Observe(new YesNoDialogFocus(library, reader, cleaner));
+        // A yes/no dialog hears each scripted choice and each select window too, to say the text of one opened outside
+        // the scripts (#569).
+        var yesNo = new YesNoDialogFocus(library, reader, cleaner);
+        screens.Observe(yesNo);
+        events.ObserveChoices(yesNo);
+        events.ObserveSelects(yesNo);
         screens.Observe(new DifficultyFocus(library, reader, cleaner));
         screens.Observe(new SettingsFocus(library, reader, cleaner));
+        screens.Observe(new QuickMenuFocus(library, reader, cleaner));
         screens.Observe(new UnknownScreenFocus(reader));
         var menuBindings = MenuBindings.Default with
         {
@@ -129,14 +141,22 @@ internal sealed record HookServices
         var nameEntry = new NameEntrySpeech(library, reader, cleaner, () => Environment.TickCount64);
         screens.Observe(menuControls);
         events.ObserveFiles(library);
+        events.ObserveFiles(serials);
         var lines = new DialogueLines(new ShownSpeakers(library, names), dialogue);
         events.ObserveLines(lines);
         events.ObserveShownLines(lines);
         events.ObserveShownLines(nameEntry);
-        events.ObserveChoices(new DialogueChoices(library, dialogue));
+        // A choice's prompt, spoken as it opens, isn't spoken again when the window shows it (#541).
+        events.ObserveChoices(lines);
+        var choices = new DialogueChoices(library, dialogue);
+        events.ObserveChoices(choices);
         var choiceFocus = new ChoiceFocus(library, announcer, cleaner);
         events.ObserveChoices(choiceFocus);
         events.ObserveLines(choiceFocus);
+        // A reply choice opened outside the scripts reaches only the select window call (#541).
+        var selectChoices = new SelectWindowChoices(lines, choices, choiceFocus);
+        events.ObserveChoices(selectChoices);
+        events.ObserveSelects(selectChoices);
         cursors.Observe(screens);
         cursors.Observe(choiceFocus);
         if (report is not null)
@@ -151,6 +171,7 @@ internal sealed record HookServices
             events.ObserveFiles(log);
             events.ObserveLines(log);
             events.ObserveChoices(log);
+            events.ObserveSelects(log);
             cursors.Observe(log);
         }
         return new()
@@ -159,6 +180,7 @@ internal sealed record HookServices
             Cursors = cursors,
             Log = log,
             ModFolder = modFolder,
+            Serials = serials,
             DialogueHistory = history,
             DialogueControls = controls,
             MenuControls = menuControls,

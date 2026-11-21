@@ -7,7 +7,8 @@
 # 1. Packages the mod into OUT_DIR/mod (scripts/release/package-mod.sh; --no-build packages the build `check.sh full` made).
 # 2. Fails unless Metaphor.Hooks.dll names this checkout's commit (HEAD) as a clean build.
 # 3. Zips the package reproducibly into OUT_DIR/release/NAME.zip, stamped with the commit's time
-#    (scripts/release/zip-package.ps1), and writes OUT_DIR/release/SHA256SUMS beside it.
+#    (scripts/release/zip-package.ps1), the launcher players open at its top level (#604), and writes
+#    OUT_DIR/release/SHA256SUMS beside it.
 # 4. Rebuilds from scratch in a second checkout at another path, with that checkout's own scripts, and fails unless the
 #    package and the zip both match.
 #

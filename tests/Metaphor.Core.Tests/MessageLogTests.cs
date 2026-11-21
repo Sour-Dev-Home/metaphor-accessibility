@@ -169,6 +169,19 @@ public sealed class MessageLogTests
             text.ToString());
     }
 
+    // #569: which prompt a yes/no dialog opened with, so a by-ear run can tell the name entry's two labels apart.
+    [Fact]
+    public void RecordsASelectWindowWithBothLabels()
+    {
+        var (log, text) = NewLog(now: 4200);
+
+        log.Observe(new SelectRequested(Kind: 1, PromptLabel: "MES_a", ChoiceLabel: null));
+
+        Assert.Equal(
+            $"4200 ms select-window kind=1 prompt=\"MES_a\" choice=(unreadable){Environment.NewLine}",
+            text.ToString());
+    }
+
     [Fact]
     public void ASelectedLabelStaysOnOneLine()
     {
@@ -220,6 +233,16 @@ public sealed class MessageLogTests
         log.WindowHook("open");
 
         Assert.Equal($"9 ms msgwindow-hook open{Environment.NewLine}", text.ToString());
+    }
+
+    [Fact]
+    public void RecordsATutorialEvent()
+    {
+        var (log, text) = NewLog(now: 9);
+
+        log.TutorialSeen("open", "via=X id=12");
+
+        Assert.Equal($"9 ms tutorial open via=X id=12{Environment.NewLine}", text.ToString());
     }
 
     [Fact]

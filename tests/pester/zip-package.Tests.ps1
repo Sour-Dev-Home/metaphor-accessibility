@@ -2,6 +2,7 @@
 
 BeforeAll {
     $script:zipScript = (Resolve-Path "$PSScriptRoot/../../scripts/release/zip-package.ps1").Path
+    $script:launcher = (Resolve-Path "$PSScriptRoot/../../scripts/player/zip-launcher.cmd").Path
     Add-Type -AssemblyName System.IO.Compression.FileSystem
 
     function Get-Sha256([string] $Path) { (Get-FileHash -LiteralPath $Path -Algorithm SHA256).Hash.ToLowerInvariant() }
@@ -12,6 +13,7 @@ BeforeAll {
             'ModConfig.json'               = "{ `"ModId`": `"$ModId`" }"
             'Metaphor.Hooks.dll'           = 'pretend mod'
             'prism.dll'                    = 'pretend prism'
+            'install.cmd'                  = 'pretend installer launcher'
             'LICENSES/prism/mpl-2.0.txt'   = 'MPL'
             'LICENSES/SOURCE.md'           = 'source'
             'Zeta.dll'                     = 'sorts last'
@@ -26,8 +28,8 @@ BeforeAll {
         }
     }
 
-    function Invoke-Zip([string] $Path, [string] $Destination, [long] $Timestamp = 1763251200) {
-        $output = & pwsh -NoProfile -File $script:zipScript -Path $Path -Destination $Destination -Timestamp $Timestamp 2>&1
+    function Invoke-Zip([string] $Path, [string] $Destination, [long] $Timestamp = 1763251200, [string[]] $More = @()) {
+        $output = & pwsh -NoProfile -File $script:zipScript -Path $Path -Destination $Destination -Timestamp $Timestamp @More 2>&1
         [pscustomobject]@{ ExitCode = $LASTEXITCODE; Output = ($output -join "`n") }
     }
 
@@ -53,7 +55,7 @@ Describe 'zip-package.ps1' {
         New-Package $script:package
     }
 
-    It 'zips every file under a folder named for the mod ID, in ordinal path order, and prints the zip''s SHA-256' {
+    It 'zips the launcher first, then every file under a folder named for the mod ID, in ordinal path order, and prints the zip''s SHA-256' {
         $zip = Join-Path $script:root 'out.zip'
         $result = Invoke-Zip $script:package $zip
         $result.ExitCode | Should -Be 0
@@ -61,15 +63,56 @@ Describe 'zip-package.ps1' {
 
         $entries = @(Get-Entries $zip)
         $entries.Name | Should -Be @(
+            'Install Metaphor accessibility.cmd'
             'metaphor.accessibility/LICENSES/SOURCE.md'
             'metaphor.accessibility/LICENSES/prism/mpl-2.0.txt'
             'metaphor.accessibility/Metaphor.Hooks.dll'
             'metaphor.accessibility/ModConfig.json'
             'metaphor.accessibility/Zeta.dll'
             'metaphor.accessibility/a-lower.txt'
+            'metaphor.accessibility/install.cmd'
             'metaphor.accessibility/prism.dll'
         )
         ($entries | Where-Object Name -EQ 'metaphor.accessibility/prism.dll').Text | Should -Be 'pretend prism'
+    }
+
+    # #604: a player extracts the zip and opens its one top-level file; the mod's files stay in their folder.
+    It 'puts the player launcher, byte for byte, at the top level beside the mod''s folder' {
+        $zip = Join-Path $script:root 'out.zip'
+        (Invoke-Zip $script:package $zip).ExitCode | Should -Be 0
+        $entries = @(Get-Entries $zip)
+        @($entries.Name | ForEach-Object { ($_ -split '/')[0] } | Select-Object -Unique) |
+            Should -Be @('Install Metaphor accessibility.cmd', 'metaphor.accessibility')
+        $top = $entries | Where-Object Name -EQ 'Install Metaphor accessibility.cmd'
+        $top.Text | Should -BeExactly ([IO.File]::ReadAllText($script:launcher))
+        $top.Text | Should -Match ([regex]::Escape('"%~dp0metaphor.accessibility\install.cmd" %*'))
+    }
+
+    It 'refuses a package without install.cmd, which the launcher starts' {
+        Remove-Item -LiteralPath (Join-Path $script:package 'install.cmd')
+        $zip = Join-Path $script:root 'out.zip'
+        $result = Invoke-Zip $script:package $zip
+        $result.ExitCode | Should -Be 1
+        $result.Output | Should -Match 'install\.cmd'
+        Test-Path -LiteralPath $zip | Should -BeFalse
+    }
+
+    It 'refuses a launcher that doesn''t start the mod''s folder in this zip' {
+        $wrong = Join-Path $script:root 'wrong.cmd'
+        Set-Content -LiteralPath $wrong -Value '"%~dp0other.mod\install.cmd" %*' -Encoding ascii
+        $zip = Join-Path $script:root 'out.zip'
+        $result = Invoke-Zip $script:package $zip -More '-Launcher', $wrong
+        $result.ExitCode | Should -Be 1
+        $result.Output | Should -Match 'launcher'
+        Test-Path -LiteralPath $zip | Should -BeFalse
+    }
+
+    It 'refuses a launcher that isn''t there' {
+        $zip = Join-Path $script:root 'out.zip'
+        $result = Invoke-Zip $script:package $zip -More '-Launcher', (Join-Path $script:root 'missing.cmd')
+        $result.ExitCode | Should -Be 1
+        $result.Output | Should -Match 'no launcher'
+        Test-Path -LiteralPath $zip | Should -BeFalse
     }
 
     It 'stores files uncompressed, each stamped with the given time' {

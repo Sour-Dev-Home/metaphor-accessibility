@@ -10,8 +10,12 @@ without compression (a compressor's output can change between versions; stored b
 to -Timestamp. CI passes the commit's time. Nothing else from the disk (file times, attributes, creation order) reaches
 the zip. Builds on one operating system match; .NET records the system that wrote a zip in each entry.
 
+Beside that folder, at the zip's top level and first, goes -Launcher as "Install Metaphor accessibility.cmd" (#604):
+the one file a player opens after extracting. It starts install.cmd in the mod's folder.
+
 Prints the zip's SHA-256. Exit codes: 0 written; 1 refused (no ModConfig.json, a ModId that isn't a plain folder name,
-a link in the package, the zip inside the package, or a time a zip can't hold).
+no install.cmd in the package, a launcher missing or not naming the mod's folder, a link in the package, the zip inside
+the package, or a time a zip can't hold).
 
 .EXAMPLE
 pwsh scripts/release/zip-package.ps1 -Path artifacts/mod -Destination artifacts/release/mod.zip -Timestamp (git log -1 --format=%ct)
@@ -21,8 +25,13 @@ param(
     [Parameter(Mandatory)] [string] $Path,
     [Parameter(Mandatory)] [string] $Destination,
     # Seconds since 1970 (UTC). A zip holds times from 1980 to 2107 only.
-    [Parameter(Mandatory)] [long] $Timestamp
+    [Parameter(Mandatory)] [long] $Timestamp,
+    # The zip's top-level launcher. Defaults to scripts/player/zip-launcher.cmd in this script's own checkout.
+    [string] $Launcher = (Join-Path $PSScriptRoot '../player/zip-launcher.cmd')
 )
+
+# Reads and sorts first in File Explorer's list of files; ASCII, nothing cmd.exe treats specially.
+$launcherName = 'Install Metaphor accessibility.cmd'
 
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
@@ -55,17 +64,26 @@ if ($links) { Stop-Zip "the package holds a link, which a zip would follow: $($l
 $names = [string[]]@($items | Where-Object { -not $_.PSIsContainer } |
         ForEach-Object { $_.FullName.Substring($prefix.Length).Replace('\', '/') })
 [array]::Sort($names, [StringComparer]::Ordinal)
+if ($names -cnotcontains 'install.cmd') { Stop-Zip "the package has no install.cmd, which the zip's launcher starts" }
+
+if (-not (Test-Path -LiteralPath $Launcher -PathType Leaf)) { Stop-Zip "no launcher at $Launcher" }
+$launcherPath = (Resolve-Path -LiteralPath $Launcher).ProviderPath
+if (-not ([IO.File]::ReadAllText($launcherPath)).Contains("`"%~dp0$modId\install.cmd`" %*")) {
+    Stop-Zip "the launcher must start `"%~dp0$modId\install.cmd`" %*, the mod's folder in this zip"
+}
 
 New-Item -ItemType Directory -Force (Split-Path $destination) | Out-Null
 $stream = [IO.File]::Open($destination, [IO.FileMode]::Create, [IO.FileAccess]::ReadWrite, [IO.FileShare]::None)
 try {
     $zip = [IO.Compression.ZipArchive]::new($stream, [IO.Compression.ZipArchiveMode]::Create)
     try {
-        foreach ($name in $names) {
-            $entry = $zip.CreateEntry("$modId/$name", [IO.Compression.CompressionLevel]::NoCompression)
+        $files = @([pscustomobject]@{ Entry = $launcherName; Source = $launcherPath }) +
+            @($names | ForEach-Object { [pscustomobject]@{ Entry = "$modId/$_"; Source = Join-Path $root $_ } })
+        foreach ($file in $files) {
+            $entry = $zip.CreateEntry($file.Entry, [IO.Compression.CompressionLevel]::NoCompression)
             $entry.LastWriteTime = $time
             $entry.ExternalAttributes = 0
-            $source = [IO.File]::OpenRead((Join-Path $root $name))
+            $source = [IO.File]::OpenRead($file.Source)
             try {
                 $target = $entry.Open()
                 try { $source.CopyTo($target) } finally { $target.Dispose() }
