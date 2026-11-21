@@ -77,6 +77,13 @@ internal sealed record HookServices
     /// <summary>Where the battle hit hook reports each target an action hit (#247).</summary>
     public IBattleHitObserver BattleHits { get; init; } = new NoBattleHits();
 
+    /// <summary>The party as the game data holds it (#247), for the battle hit hook's sides and the status key.</summary>
+    public required BattlePartyMemory BattleParty { get; init; }
+
+    /// <summary>The battle status key (#631), which the input frame hands each read after the menu controls; null for
+    /// none.</summary>
+    public BattleStatus? BattleStatus { get; init; }
+
     /// <summary>The mod's folder, outside the repository, where a development run leaves files for its hooks.</summary>
     public required string ModFolder { get; init; }
 
@@ -98,6 +105,7 @@ internal sealed record HookServices
         // Speakers and name tags are named as the screen shows them (#81, #107), read from the game when a line is
         // shown; a read that fails falls back to the file's speaker, and drops the tag as before.
         var gameData = new GameDataRead();
+        var party = new BattlePartyMemory(gameData);
         var characterTable = DataTableRead.Characters();
         var followerTable = DataTableRead.Followers();
         var names = new GameNames(new GameNameMemory(gameData, characterTable, followerTable), library);
@@ -123,11 +131,12 @@ internal sealed record HookServices
         screens.Observe(new SettingsFocus(library, reader, cleaner));
         screens.Observe(new QuickMenuFocus(library, reader, cleaner));
         // Battle's skill and item lists say each row by the name the game fetched for it by serial (#247).
-        foreach (var list in new[]
-        {
+        BattleListFocus[] battleLists =
+        [
             BattleListFocus.Skills(serials, reader, cleaner, () => Environment.TickCount64),
             BattleListFocus.Items(serials, reader, cleaner, () => Environment.TickCount64),
-        })
+        ];
+        foreach (var list in battleLists)
         {
             screens.Observe(list);
             events.ObserveSerials(list);
@@ -138,7 +147,9 @@ internal sealed record HookServices
             ReaderButtons = DialogueBindings.Default.ReaderButtons,
             ReaderKey = DialogueBindings.Default.ReaderKey,
         };
-        var menuControls = new MenuControls(menuBindings, screens, reader, []);
+        // The details key reads a battle list's description (#247); on a screen shown outside the menus it answers only
+        // while that screen's cursor is still called.
+        var menuControls = new MenuControls(menuBindings, screens, reader, battleLists, cursors.CalledRecently);
         screens.Observe(menuControls);
         events.ObserveFiles(library);
         events.ObserveFiles(serials);
@@ -173,6 +184,7 @@ internal sealed record HookServices
             events.ObserveSelects(log);
             cursors.Observe(log);
         }
+        var hitLines = new HitLines(reader, TimeProvider.System, _ => null);
         return new()
         {
             Messages = events,
@@ -180,8 +192,11 @@ internal sealed record HookServices
             Log = log,
             ModFolder = modFolder,
             Serials = serials,
-            // Each hit is spoken through the reader, queued (#247).
-            BattleHits = new HitLines(reader, () => Environment.TickCount64),
+            // Each hit is spoken through the reader, queued, with a summary after each action (#247, #631). No safe
+            // read of a party member's name is known yet, so each is named by its slot.
+            BattleHits = hitLines,
+            BattleParty = party,
+            BattleStatus = new BattleStatus(party, hitLines, reader),
             DialogueHistory = history,
             DialogueControls = controls,
             MenuControls = menuControls,

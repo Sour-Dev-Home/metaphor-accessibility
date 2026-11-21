@@ -5,29 +5,62 @@ using Metaphor.Core.Battle;
 
 namespace Metaphor.Features.Battle;
 
-/// <summary>Says each target a battle action hits (#247): "35 damage, 89 HP left", or "20 healed" for a gain, each
-/// queued after the last so a fast run of hits loses none. Only hits whose popup carries a number are said: which of the
-/// others is a miss, a block or a drain isn't known yet. The target isn't named: no safe read of its name is known.
-/// Safe to call from several threads.</summary>
-/// <remarks>That a negative change is damage is the static note's lead, <c>[NEEDS VERIFICATION]</c> by ear
-/// (docs/findings/battle-hit-result-hp-left-static.md, build 548ddc95…).</remarks>
-public sealed class HitLines : IBattleHitObserver
+/// <summary>A sound played before a hit's number, by the target's side (#631: the maintainer's sound cues, built as
+/// their own feature). This feature only calls it.</summary>
+public interface IHitCue
 {
-    /// <summary>How long the same hit told again is taken as the same one: the game function runs once per target, as
-    /// far as the static note reads it, so this only guards against a caller that repeats it.</summary>
+    void Before(BattleSide side);
+}
+
+/// <summary>Says each target a battle action hits (#247, wording by the maintainer on 2026-11-21): the number alone for
+/// damage ("34"), "34 healed" for a gain, each queued after the last. Once the action's hits stop for
+/// <see cref="ActionGapMilliseconds"/>, one summary of who changed: party members as "name HP" ("Strohl 89, Hulkenberg
+/// 120"), then each enemy as "Enemy, 40", numbered by the order the battle first hit them when it has hit more than one
+/// ("Enemy 2, 40"). Only hits whose popup carries a number are said. Safe to call from several threads.</summary>
+/// <remarks>
+/// <para>No safe read of a unit's name is known yet: a party member is named by <c>memberName</c> when it knows its unit
+/// number, else "Ally" and its slot; an enemy is "Enemy". An enemy's number is the order it was first hit, not its place
+/// on screen, which isn't read.</para>
+/// <para>The game gives no "action over" signal the mod reads, so an action ends at a quiet gap, and a battle at a long
+/// one (<see cref="BattleGapMilliseconds"/>), which forgets its enemies; both lengths are guesses to check by ear.</para>
+/// </remarks>
+public sealed class HitLines : IBattleHitObserver, IDisposable
+{
+    /// <summary>How long the same hit told again is taken as the same one.</summary>
     public const long RepeatMilliseconds = 500;
 
-    private readonly IAnnouncer announcer;
-    private readonly RepeatGate repeats;
+    /// <summary>How long after an action's last hit its summary is said.</summary>
+    public const long ActionGapMilliseconds = 1500;
 
-    /// <summary>Hits said through <paramref name="announcer"/>, repeats timed by <paramref name="millisecondsNow"/>.
-    /// </summary>
-    public HitLines(IAnnouncer announcer, Func<long> millisecondsNow)
+    /// <summary>How long without a hit before the next hit starts a new battle.</summary>
+    public const long BattleGapMilliseconds = 180_000;
+
+    private readonly IAnnouncer announcer;
+    private readonly TimeProvider time;
+    private readonly Func<int, string?> memberName;
+    private readonly IHitCue? cue;
+    private readonly RepeatGate repeats;
+    private readonly Lock gate = new();
+    private readonly List<long> enemies = [];
+    private readonly Dictionary<long, int> enemyHp = [];
+    private readonly List<BattleHit> action = [];
+    private readonly ITimer timer;
+    private long lastHit = long.MinValue / 2;
+
+    /// <summary>Hits said through <paramref name="announcer"/>, timed by <paramref name="time"/>; party members named
+    /// by <paramref name="memberName"/> from their unit number, or null when unknown; <paramref name="cue"/> is played
+    /// before each number, when there is one.</summary>
+    public HitLines(IAnnouncer announcer, TimeProvider time, Func<int, string?> memberName, IHitCue? cue = null)
     {
         ArgumentNullException.ThrowIfNull(announcer);
-        ArgumentNullException.ThrowIfNull(millisecondsNow);
+        ArgumentNullException.ThrowIfNull(time);
+        ArgumentNullException.ThrowIfNull(memberName);
         this.announcer = announcer;
-        repeats = new RepeatGate(RepeatMilliseconds, millisecondsNow);
+        this.time = time;
+        this.memberName = memberName;
+        this.cue = cue;
+        repeats = new RepeatGate(RepeatMilliseconds, Now);
+        timer = time.CreateTimer(_ => Summarize(), null, Timeout.InfiniteTimeSpan, Timeout.InfiniteTimeSpan);
     }
 
     public void Observe(BattleHit hit)
@@ -37,13 +70,99 @@ public sealed class HitLines : IBattleHitObserver
         {
             return;
         }
-        var change = hit.HpChange switch
+        lock (gate)
         {
-            < 0 => string.Create(CultureInfo.InvariantCulture, $"{-(long)hit.HpChange} damage"),
+            var now = Now();
+            if (now - lastHit > BattleGapMilliseconds)
+            {
+                enemies.Clear();
+                enemyHp.Clear();
+            }
+            lastHit = now;
+            if (hit.Side == BattleSide.Enemy)
+            {
+                if (!enemies.Contains(hit.Target))
+                {
+                    enemies.Add(hit.Target);
+                }
+                enemyHp[hit.Target] = hit.HpLeft;
+            }
+            action.Add(hit);
+            timer.Change(TimeSpan.FromMilliseconds(ActionGapMilliseconds), Timeout.InfiniteTimeSpan);
+        }
+        cue?.Before(hit.Side);
+        var number = hit.HpChange switch
+        {
+            < 0 => string.Create(CultureInfo.InvariantCulture, $"{-(long)hit.HpChange}"),
             > 0 => string.Create(CultureInfo.InvariantCulture, $"{hit.HpChange} healed"),
-            _ => "no damage",
+            _ => "0",
         };
-        announcer.Announce(new Announcement(
-            string.Create(CultureInfo.InvariantCulture, $"{change}, {hit.HpLeft} HP left"), Interrupt: false));
+        announcer.Announce(new Announcement(number, Interrupt: false));
     }
+
+    /// <summary>The enemies this battle has hit, by label, with the HP each had left at its last hit, in the order first
+    /// hit: for the status key.</summary>
+    public IReadOnlyList<(string Label, int Hp)> KnownEnemies()
+    {
+        lock (gate)
+        {
+            return [.. enemies.Select(enemy => (EnemyLabel(enemy), enemyHp[enemy]))];
+        }
+    }
+
+    /// <summary>A party member's name: <c>memberName</c>'s, or "Ally" and its slot from 1.</summary>
+    public string MemberLabel(int slot, int? unit) =>
+        unit is { } known && memberName(known) is { Length: > 0 } name
+            ? name
+            : string.Create(CultureInfo.InvariantCulture, $"Ally {slot + 1}");
+
+    public void Dispose() => timer.Dispose();
+
+    private void Summarize()
+    {
+        string? said;
+        lock (gate)
+        {
+            // Each target once, at its last hit, in the order first hit; only who changed.
+            var last = new Dictionary<long, BattleHit>();
+            var order = new List<long>();
+            var changed = new HashSet<long>();
+            foreach (var hit in action)
+            {
+                if (!last.ContainsKey(hit.Target))
+                {
+                    order.Add(hit.Target);
+                }
+                last[hit.Target] = hit;
+                if (hit.HpChange != 0)
+                {
+                    changed.Add(hit.Target);
+                }
+            }
+            action.Clear();
+            var targets = order.Where(changed.Contains).Select(target => last[target]).ToList();
+            var allies = targets.Where(hit => hit.Side == BattleSide.Ally)
+                .OrderBy(hit => hit.Slot ?? int.MaxValue)
+                .Select(hit => string.Create(CultureInfo.InvariantCulture,
+                    $"{(hit.Slot is { } slot ? MemberLabel(slot, hit.Unit) : "Ally")} {hit.HpLeft}"))
+                .ToList();
+            var others = targets.Where(hit => hit.Side != BattleSide.Ally)
+                .Select(hit => string.Create(CultureInfo.InvariantCulture,
+                    $"{(hit.Side == BattleSide.Enemy ? EnemyLabel(hit.Target) : "Target")}, {hit.HpLeft}"));
+            var parts = (allies.Count > 0 ? [string.Join(", ", allies)] : Array.Empty<string>()).Concat(others).ToList();
+            said = parts.Count > 0 ? string.Join(". ", parts) : null;
+        }
+        if (said is not null)
+        {
+            announcer.Announce(new Announcement(said, Interrupt: false));
+        }
+    }
+
+    // Called under the gate.
+    private string EnemyLabel(long enemy) =>
+        enemies.Count > 1
+            ? string.Create(CultureInfo.InvariantCulture, $"Enemy {enemies.IndexOf(enemy) + 1}")
+            : "Enemy";
+
+    private long Now() => time.GetUtcNow().ToUnixTimeMilliseconds();
 }

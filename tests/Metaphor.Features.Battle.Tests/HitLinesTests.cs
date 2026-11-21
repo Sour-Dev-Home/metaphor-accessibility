@@ -3,54 +3,56 @@ using Metaphor.Core.Battle;
 
 namespace Metaphor.Features.Battle.Tests;
 
-/// <summary>Each target a battle action hits is said as its HP change and the HP it has left (#247), from what
-/// <c>BattleHitResult</c> wrote (docs/findings/battle-hit-result-hp-left-static.md). Hits in, announcements out; made-up
-/// numbers only.</summary>
+/// <summary>Each target a battle action hits is said by its number alone, or "n healed", and once the action's hits stop,
+/// one summary of who changed (#247, the maintainer's wording of 2026-11-21). Hits in, announcements out; made-up
+/// numbers and names only.</summary>
 [Trait("Category", "Unit")]
-public sealed class HitLinesTests
+public sealed class HitLinesTests : IDisposable
 {
     private const int Number = 1;
+    private const long Gap = HitLines.ActionGapMilliseconds;
 
     private readonly RecordingAnnouncer announcer = new();
-    private long now = 10_000;
+    private readonly ManualTime time = new();
+    private readonly List<BattleSide> cues = [];
     private readonly HitLines lines;
 
-    public HitLinesTests() => lines = new HitLines(announcer, () => now);
+    public HitLinesTests() =>
+        lines = new HitLines(announcer, time, unit => unit == 3 ? "Rowan" : null, new Cue(cues));
+
+    public void Dispose() => lines.Dispose();
 
     private IEnumerable<string> Said() => announcer.Said.Select(said => said.Text);
 
-    [Fact]
-    public void ANegativeChangeIsSaidAsDamageWithTheHpLeft()
-    {
-        lines.Observe(new BattleHit(0xa0, HpChange: -35, HpLeft: 89, Number));
+    private static BattleHit Enemy(long target, int change, int left, int kind = Number) =>
+        new(target, change, left, kind, BattleSide.Enemy);
 
-        Assert.Equal(["35 damage, 89 HP left"], Said());
+    private static BattleHit Ally(int slot, int unit, int change, int left) =>
+        new(0x1000 + slot, change, left, Number, BattleSide.Ally, slot, Unit: unit);
+
+    [Fact]
+    public void DamageIsSaidAsItsNumberAlone()
+    {
+        lines.Observe(Enemy(0xa0, -34, 89));
+
+        Assert.Equal(["34"], Said());
     }
 
     [Fact]
-    public void APositiveChangeIsSaidAsHealing()
+    public void AGainIsSaidAsHealed()
     {
-        lines.Observe(new BattleHit(0xa0, HpChange: 20, HpLeft: 120, 0x400));
+        lines.Observe(Ally(0, 3, 20, 120));
 
-        Assert.Equal(["20 healed, 120 HP left"], Said());
+        Assert.Equal(["20 healed"], Said());
     }
 
-    [Fact]
-    public void NoChangeIsSaidAsNoDamage()
-    {
-        lines.Observe(new BattleHit(0xa0, HpChange: 0, HpLeft: 50, 0x1000));
-
-        Assert.Equal(["no damage, 50 HP left"], Said());
-    }
-
-    // Outcomes queue, so a fast run of hits loses none (spec #247, story 19).
     [Fact]
     public void EachHitQueuesAfterTheLast()
     {
-        lines.Observe(new BattleHit(0xa0, -10, 40, Number));
-        lines.Observe(new BattleHit(0xb0, -12, 30, Number));
+        lines.Observe(Enemy(0xa0, -10, 40));
+        lines.Observe(Enemy(0xb0, -12, 30));
 
-        Assert.Equal(["10 damage, 40 HP left", "12 damage, 30 HP left"], Said());
+        Assert.Equal(["10", "12"], Said());
         Assert.All(announcer.Said, said => Assert.False(said.Interrupt));
     }
 
@@ -62,7 +64,8 @@ public sealed class HitLinesTests
     [InlineData(0)]
     public void AKindWithoutANumberSaysNothing(int kind)
     {
-        lines.Observe(new BattleHit(0xa0, -10, 40, kind));
+        lines.Observe(Enemy(0xa0, -10, 40, kind));
+        time.Advance(Gap);
 
         Assert.Empty(Said());
     }
@@ -70,20 +73,94 @@ public sealed class HitLinesTests
     [Fact]
     public void TheSameHitToldTwiceAtOnceIsSaidOnce()
     {
-        lines.Observe(new BattleHit(0xa0, -10, 40, Number));
-        now += HitLines.RepeatMilliseconds - 1;
-        lines.Observe(new BattleHit(0xa0, -10, 40, Number));
+        lines.Observe(Enemy(0xa0, -10, 40));
+        time.Advance(HitLines.RepeatMilliseconds - 1);
+        lines.Observe(Enemy(0xa0, -10, 40));
 
-        Assert.Equal(["10 damage, 40 HP left"], Said());
+        Assert.Equal(["10"], Said().Take(1));
+        Assert.Single(Said(), said => said == "10");
+    }
+
+    // The sound-cue hook point: called with the target's side before its number.
+    [Fact]
+    public void TheCueHearsEachHitsSideFirst()
+    {
+        lines.Observe(Ally(1, 5, -3, 50));
+        lines.Observe(Enemy(0xa0, -9, 1));
+
+        Assert.Equal([BattleSide.Ally, BattleSide.Enemy], cues);
     }
 
     [Fact]
-    public void TheSameNumbersLaterAreANewHit()
+    public void AfterTheActionOneSummarySaysEachHurtMemberByNameOrSlot()
     {
-        lines.Observe(new BattleHit(0xa0, -10, 0, Number));
-        now += HitLines.RepeatMilliseconds;
-        lines.Observe(new BattleHit(0xa0, -10, 0, Number));
+        lines.Observe(Ally(1, 5, -30, 60));
+        lines.Observe(Ally(0, 3, -20, 89));
+        time.Advance(Gap - 1);
+        Assert.Equal(["30", "20"], Said());
 
-        Assert.Equal(["10 damage, 0 HP left", "10 damage, 0 HP left"], Said());
+        time.Advance(1);
+
+        Assert.Equal(["30", "20", "Rowan 89, Ally 2 60"], Said());
+    }
+
+    [Fact]
+    public void ALoneEnemyIsSaidWithoutANumber()
+    {
+        lines.Observe(Enemy(0xa0, -34, 89));
+        time.Advance(Gap);
+
+        Assert.Equal("Enemy, 89", Said().Last());
+    }
+
+    // Numbered by the order the battle first hit them; each at its last HP.
+    [Fact]
+    public void SeveralEnemiesAreNumberedAndEachSaidOnceAtItsLastHp()
+    {
+        lines.Observe(Enemy(0xa0, -10, 50));
+        lines.Observe(Enemy(0xb0, -10, 70));
+        lines.Observe(Enemy(0xa0, -10, 40));
+        time.Advance(Gap);
+
+        Assert.Equal("Enemy 1, 40. Enemy 2, 70", Said().Last());
+    }
+
+    [Fact]
+    public void OnlyWhoChangedIsInTheSummary()
+    {
+        lines.Observe(Enemy(0xa0, 0, 50));
+        lines.Observe(Enemy(0xb0, -5, 20));
+        time.Advance(Gap);
+
+        Assert.Equal(["0", "5", "Enemy 2, 20"], Said());
+    }
+
+    [Fact]
+    public void EachActionHasItsOwnSummary()
+    {
+        lines.Observe(Enemy(0xa0, -10, 50));
+        time.Advance(Gap);
+        lines.Observe(Ally(0, 3, -7, 80));
+        time.Advance(Gap);
+
+        Assert.Equal(["10", "Enemy, 50", "7", "Rowan 80"], Said());
+    }
+
+    [Fact]
+    public void ALongQuietStartsANewBattleThatForgetsItsEnemies()
+    {
+        lines.Observe(Enemy(0xa0, -10, 50));
+        lines.Observe(Enemy(0xb0, -10, 50));
+        time.Advance(HitLines.BattleGapMilliseconds + 1);
+        lines.Observe(Enemy(0xc0, -10, 30));
+        time.Advance(Gap);
+
+        Assert.Equal("Enemy, 30", Said().Last());
+        Assert.Equal([("Enemy", 30)], lines.KnownEnemies());
+    }
+
+    private sealed class Cue(List<BattleSide> cues) : IHitCue
+    {
+        public void Before(BattleSide side) => cues.Add(side);
     }
 }

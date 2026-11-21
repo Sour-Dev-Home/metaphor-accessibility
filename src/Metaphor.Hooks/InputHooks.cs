@@ -32,9 +32,11 @@ internal sealed class GameInputReads(DialogueWindowPointer window, MenusOpenRead
 
     public bool MenusOpen() => menus.IsOpen();
 
-    /// <summary>The input frame over <paramref name="services"/>' readers, menu screens and controls.</summary>
+    /// <summary>The input frame over <paramref name="services"/>' readers, menu screens and controls; the menu controls
+    /// take each read first, then the battle status key (#631), then the dialogue controls.</summary>
     public static InputFrame Frame(HookServices services) =>
-        new(new GameInputReads(services.DialogueWindow, services.MenusOpen), services.MenuScreens, services.MenuControls,
+        new(new GameInputReads(services.DialogueWindow, services.MenusOpen), services.MenuScreens,
+            services.BattleStatus is { } status ? new ChainedControls(services.MenuControls, status) : services.MenuControls,
             services.DialogueControls);
 }
 

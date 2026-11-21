@@ -16,13 +16,15 @@ public sealed class BattleListFocusTests
     private const int Settle = 0x1;
     private const int SkillFirst = 700;
     private const int ItemFirst = 300;
-    private const int DescriptionFlags = 7;
+    private const int DescriptionFlags = BattleListFocus.DescriptionFlags;
+    private const int SkillDescriptionFirst = 900;
     private const long Later = BattleListFocus.RunGapMilliseconds + 1;
 
     private readonly RecordingAnnouncer announcer = new();
     private readonly MessageEvents messages = new();
     private readonly CursorEvents cursors;
     private readonly MenuScreens screens = new(KnownScreens.All);
+    private readonly BattleListFocus skills;
     private long now = 50_000;
 
     public BattleListFocusTests()
@@ -31,13 +33,14 @@ public sealed class BattleListFocusTests
         var serials = new MessageSerials([
             new SerialRange(MessageSerials.SkillNames, SkillFirst, 3),
             new SerialRange(MessageSerials.ItemNames, ItemFirst, 2),
+            new SerialRange(MessageSerials.SkillDescriptions, SkillDescriptionFirst, 2),
         ]);
         var cleaner = new TextCleaner(TextCleanerRules.None);
         messages.ObserveFiles(serials);
         // A battle: the menus read closed.
         screens.MenusRead(open: false);
         cursors.Observe(screens);
-        var skills = BattleListFocus.Skills(serials, announcer, cleaner, () => now);
+        skills = BattleListFocus.Skills(serials, announcer, cleaner, () => now);
         var items = BattleListFocus.Items(serials, announcer, cleaner, () => now);
         screens.Observe(skills);
         screens.Observe(items);
@@ -48,6 +51,8 @@ public sealed class BattleListFocusTests
             Source("Skill", "Spark", "Gust", "Frost <COLOR 3>")));
         messages.Compiled(new MessageFileCompiled("EN/message/system/Item_Message_1.msg", 21,
             Source("Item", "Tonic", "Salve")));
+        messages.Compiled(new MessageFileCompiled("EN/message/system/Skill_Message_2.msg", 22,
+            Source("SkillHelp", "Burns one foe", "Cuts all foes")));
     }
 
     private static string Source(string prefix, params string[] texts) => string.Join("\n\n",
@@ -241,6 +246,37 @@ public sealed class BattleListFocusTests
 
         Assert.Equal(["Skills, 1 of 3"], spoken.Said.Select(said => said.Text));
     }
+
+    // The details key (#247): the description the list fetched for its help line.
+    [Fact]
+    public void TheDetailsAreTheLastDescriptionTheListFetched()
+    {
+        Fetched(SkillFirst, SkillFirst + 1);
+        messages.Resolved(new SerialResolved(SkillDescriptionFirst, DescriptionFlags));
+        Cursor(SkillClass, 0, count: 2);
+        Assert.Equal("Burns one foe", skills.Details(Focus(SkillClass, 0)));
+
+        Cursor(SkillClass, 1, count: 2);
+        messages.Resolved(new SerialResolved(SkillDescriptionFirst + 1, DescriptionFlags));
+
+        Assert.Equal("Cuts all foes", skills.Details(Focus(SkillClass, 1)));
+    }
+
+    [Fact]
+    public void ThereAreNoDetailsOffTheListOrBeforeADescription()
+    {
+        Fetched(SkillFirst);
+        Cursor(SkillClass, 0, count: 1);
+        Assert.Null(skills.Details(Focus(SkillClass, 0)));
+
+        messages.Resolved(new SerialResolved(SkillDescriptionFirst, DescriptionFlags));
+        Cursor(DifficultyClass, 0, count: 5, manager: 0xb0);
+
+        Assert.Null(skills.Details(Focus(SkillClass, 0)));
+    }
+
+    private static ScreenEvent Focus(string screenClass, int index) =>
+        new(ScreenChange.FocusMoved, KnownScreens.All.First(screen => screen.ScreenClass == screenClass), screenClass, index);
 
     [Fact]
     public void BothListsAreKnownScreensShownOutsideTheMenus()

@@ -21,10 +21,13 @@ namespace Metaphor.Features.Menus;
 /// fetches those, and in what order, is unknown, so a long list may be said by position, or wrongly, past its first
 /// rows.</para>
 /// </remarks>
-public sealed class BattleListFocus : IScreenObserver, ISerialResolveObserver
+public sealed class BattleListFocus : IScreenObserver, ISerialResolveObserver, IScreenDetails
 {
     /// <summary>The flags the battle lists fetch a row's name with.</summary>
     public const int NameFlags = 9;
+
+    /// <summary>The flags they fetch the focused row's description with, for its help line.</summary>
+    public const int DescriptionFlags = 7;
 
     /// <summary>How long after the list's last focus or fetch a name fetch starts a new run of rows: many frames, far
     /// less than a turn (<see cref="CursorEvents.QuietMilliseconds"/>).</summary>
@@ -37,7 +40,9 @@ public sealed class BattleListFocus : IScreenObserver, ISerialResolveObserver
     private readonly IAnnouncer announcer;
     private readonly TextCleaner cleaner;
     private readonly string namesFile;
+    private readonly string descriptionsFile;
     private readonly Func<long> millisecondsNow;
+    private int? description;
     private readonly Lock gate = new();
     private readonly List<int> rows = [];
     private ScreenEvent? waiting;
@@ -51,9 +56,10 @@ public sealed class BattleListFocus : IScreenObserver, ISerialResolveObserver
     private long focusStep;
 
     private BattleListFocus(
-        Screen screen, string namesFile, MessageSerials serials, IAnnouncer announcer, TextCleaner cleaner,
-        Func<long> millisecondsNow)
+        Screen screen, string namesFile, string descriptionsFile, MessageSerials serials, IAnnouncer announcer,
+        TextCleaner cleaner, Func<long> millisecondsNow)
     {
+        this.descriptionsFile = descriptionsFile;
         ArgumentNullException.ThrowIfNull(serials);
         ArgumentNullException.ThrowIfNull(announcer);
         ArgumentNullException.ThrowIfNull(cleaner);
@@ -79,13 +85,30 @@ public sealed class BattleListFocus : IScreenObserver, ISerialResolveObserver
     /// </summary>
     public static BattleListFocus Skills(
         MessageSerials serials, IAnnouncer announcer, TextCleaner cleaner, Func<long> millisecondsNow) =>
-        new(SkillList, MessageSerials.SkillNames, serials, announcer, cleaner, millisecondsNow);
+        new(SkillList, MessageSerials.SkillNames, MessageSerials.SkillDescriptions, serials, announcer, cleaner,
+            millisecondsNow);
 
     /// <summary>The item list, its names from the item names file, timed by <paramref name="millisecondsNow"/>.
     /// </summary>
     public static BattleListFocus Items(
         MessageSerials serials, IAnnouncer announcer, TextCleaner cleaner, Func<long> millisecondsNow) =>
-        new(ItemList, MessageSerials.ItemNames, serials, announcer, cleaner, millisecondsNow);
+        new(ItemList, MessageSerials.ItemNames, MessageSerials.ItemDescriptions, serials, announcer, cleaner,
+            millisecondsNow);
+
+    /// <summary>The focused row's description for the details key (#247): the last description the list fetched from
+    /// its descriptions file while on it, as its help line shows. Null on another screen or before any fetch. That the
+    /// help line is fetched again on each focus move is <c>[NEEDS VERIFICATION]</c> by ear; the skill's cost is not
+    /// read.</summary>
+    public string? Details(ScreenEvent focus)
+    {
+        ArgumentNullException.ThrowIfNull(focus);
+        int? serial;
+        lock (gate)
+        {
+            serial = focus.Screen == Screen && onList ? description : null;
+        }
+        return serial is { } known ? serials.TextOf(known, cleaner) : null;
+    }
 
     /// <summary>Speaks the focus when the list is entered or its focus moves, or waits for its row's name. Leaving the
     /// list forgets the rows its visit used; entering another screen forgets them all.</summary>
@@ -101,6 +124,7 @@ public sealed class BattleListFocus : IScreenObserver, ISerialResolveObserver
                 if (change.Change == ScreenChange.Entered)
                 {
                     Forget();
+                    description = null;
                     onList = false;
                     Volatile.Write(ref otherScreen, true);
                 }
@@ -152,7 +176,19 @@ public sealed class BattleListFocus : IScreenObserver, ISerialResolveObserver
     /// for it. Ignored while another screen is current.</summary>
     public void Observe(SerialResolved resolve)
     {
-        if (resolve.Flags != NameFlags || Volatile.Read(ref otherScreen) || !serials.InFile(resolve.Serial, namesFile))
+        if (Volatile.Read(ref otherScreen))
+        {
+            return;
+        }
+        if (resolve.Flags == DescriptionFlags && serials.InFile(resolve.Serial, descriptionsFile))
+        {
+            lock (gate)
+            {
+                description = resolve.Serial;
+            }
+            return;
+        }
+        if (resolve.Flags != NameFlags || !serials.InFile(resolve.Serial, namesFile))
         {
             return;
         }

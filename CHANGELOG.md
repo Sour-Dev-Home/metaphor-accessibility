@@ -9,11 +9,15 @@ checks them in the first game session and removes the tag.
 
 ## Unreleased
 
-- **Battle hits are read.** After each hit, the mod says the damage and the HP the target has left, such as "35
-  damage, 89 HP left", or what was healed. Misses and blocked hits aren't read yet, nor who was hit (#247).
+- **Battle hits are read.** Each hit says its damage, such as "34", or "34 healed". After the action, one line says
+  who changed: party members by slot, such as "Ally 1 89, Ally 2 120", and each enemy with its HP left, numbered when
+  there are several. Misses and blocked hits aren't read yet, and names aren't known yet (#247).
   `[NEEDS VERIFICATION by ear]`
 - **Battle's skill and item lists are read**: "Skills" or "Items" as the list opens, then each skill or item's name
-  and "n of total" as you move (#247). `[NEEDS VERIFICATION by ear]`
+  and "n of total" as you move. F, or R3 on the pad, reads the focused one's description (#247).
+  `[NEEDS VERIFICATION by ear]`
+- **A status key.** H, or L3 on the pad, pressed on its own, says each party member's HP, then the enemies' (#631).
+  `[NEEDS VERIFICATION by ear]`
 
 - **One file to open after extracting.** The zip's top level holds `Install Metaphor accessibility.cmd` beside the
   mod's folder: extract the zip and press Enter on it, with no search through the mod's files (#604).
