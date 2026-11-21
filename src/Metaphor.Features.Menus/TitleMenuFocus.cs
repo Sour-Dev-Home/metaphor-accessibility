@@ -88,8 +88,9 @@ public sealed class TitleMenuFocus : IScreenObserver
             change = change with { Change = ScreenChange.Entered };
         }
 
+        // The System submenu has no heading: the maintainer chose "Settings, 1 of 2" alone, on entry and on return (#210).
         var said = change.Mode == SystemMenuMode
-            ? ListFocus.Of(change, Screen, "System menu", SystemMenuItems.Length, index => SystemMenuItems[index])
+            ? ListFocus.Of(change, Screen, heading: null, SystemMenuItems.Length, index => SystemMenuItems[index])
             : ListFocus.Of(change, Screen, "Main menu", ItemCount, ItemText);
         if (said is not null)
         {

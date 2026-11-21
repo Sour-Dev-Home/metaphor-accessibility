@@ -243,15 +243,15 @@ public sealed class TitleMenuFocusTests
         now += 7000;
         Timed(Title, TitleClass, row: 0, mode: SystemMode);
 
-        Assert.Equal(["System menu, Settings, 1 of 2", "System menu, Settings, 1 of 2"], Said());
+        Assert.Equal(["Settings, 1 of 2", "Settings, 1 of 2"], Said());
     }
 
     [Fact]
-    public void TheSystemSubmenuEnteredAfreshSaysItsName()
+    public void TheSystemSubmenuEnteredAfreshSaysOnlyItsFocus()
     {
         Cursor(Settle, row: 1, mode: SystemMode);
 
-        Assert.Equal(["System menu, Credits, 2 of 2"], Said());
+        Assert.Equal(["Credits, 2 of 2"], Said());
     }
 
     [Fact]
@@ -261,7 +261,7 @@ public sealed class TitleMenuFocusTests
 
         Cursor(Settle, row: 2, mode: SystemMode);
 
-        Assert.Equal(["System menu, Settings, 1 of 2"], Said());
+        Assert.Equal(["Settings, 1 of 2"], Said());
     }
 
     // #555: before a button is pressed the choice's mode is 0 and "Press any button" shows, no menu; the decide handler
