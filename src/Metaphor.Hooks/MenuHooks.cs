@@ -102,7 +102,8 @@ internal sealed class MenuCursorHook : IGameHook, IObserves4WithResult
         {
             return;
         }
-        Span<byte> bytes = stackalloc byte[SettingsPages.WorkingCopyLength];
+        // An array, not stackalloc: a stack buffer's loads are raw-memory reads outside the reader (architecture rule 10).
+        var bytes = new byte[SettingsPages.WorkingCopyLength];
         if (ModuleMemoryReader.ReadBytes((nint)(owner + SettingsPages.WorkingCopyOffset), bytes)
             && settingsCopies.Changed(owner, bytes) is { } hex)
         {
