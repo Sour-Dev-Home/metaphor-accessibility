@@ -18,13 +18,14 @@ public sealed record MenuBindings(int DetailsButtons, int DetailsKey)
     /// <summary>The key that turns the reader on or off, as <see cref="ReaderButtons"/>.</summary>
     public int ReaderKey { get; init; }
 
-    /// <summary>R3 and Tab, the maintainer's choice on #214: neither did anything on the main menu in session 4
-    /// (docs/raw-sources/screen-class-session-2026-11-17.md). The game's mask puts XInput's right thumb at <c>0x0004</c>
-    /// on game build 548ddc95… (Steam build 18330018), and its keyboard read lists Tab (<c>VK_TAB</c>, 0x09) when
-    /// held, as it skips no code below 32 outside its bit table <c>0xF7E71000</c>, where bit 9 is clear:
-    /// docs/raw-sources/pad-and-keyboard-state-2026-11-16.md. Constants until #104's settings file can hold them.
+    /// <summary>R3 and F, the maintainer's choices: R3 on #214, as it did nothing on the main menu in session 4
+    /// (docs/raw-sources/screen-class-session-2026-11-17.md); F on 2026-11-20, replacing Tab, which is the game's
+    /// exit-game key on PC (maintainer, by ear). The game's mask puts XInput's right thumb at <c>0x0004</c> on game build
+    /// 548ddc95… (Steam build 18330018), and its keyboard read skips codes only by two bit tables, below 32 and from
+    /// <c>0xA6</c>, so it lists F (<c>0x46</c>) when held: docs/raw-sources/pad-and-keyboard-state-2026-11-16.md.
+    /// Constants until #104's settings file can hold them.
     /// </summary>
-    public static MenuBindings Default { get; } = new(0x0004, 0x09);
+    public static MenuBindings Default { get; } = new(0x0004, 0x46);
 }
 
 /// <summary>The menu controls (#214), while a menu is open: the details key asks the current screen's feature
@@ -32,7 +33,7 @@ public sealed record MenuBindings(int DetailsButtons, int DetailsKey)
 /// binding turns the reader on or off, speaking the current screen and focus again when it comes on. Both are hidden from
 /// the game then, and the game sees them as usual otherwise. A menu is open while the menu-screens module reads the
 /// game's menus as open (#268) and has a screen entered and not left, by its own events (judgement rule 5); so in the
-/// field, a battle or dialogue, R3, Tab and the reader binding reach the game. A press is an up-to-down edge of a binding held on any pad or the keyboard, as for the
+/// field, a battle or dialogue, R3, F and the reader binding reach the game. A press is an up-to-down edge of a binding held on any pad or the keyboard, as for the
 /// dialogue controls, so a mirroring second pad can't fire it again. Menu speech goes through the reader, so it's
 /// silent while the reader is off. The input frame (#301) hands it each pad and keyboard read from any of the game's
 /// threads.</summary>

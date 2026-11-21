@@ -16,7 +16,7 @@ public sealed class MenuControlsTests
     private const int R3 = 0x0004;
     private const int A = 0x4000;
     private const int LbRb = 0x400 | 0x800;
-    private const int Tab = 0x09;
+    private const int KeyF = 0x46;
     private const int KeyT = 0x54;
 
     private static readonly Screen Items = new("Items", ItemClass);
@@ -71,7 +71,7 @@ public sealed class MenuControlsTests
         Cursor(ItemClass, row: 0);
         Cursor(ItemClass, row: 1);
 
-        controls.Keys([Tab]);
+        controls.Keys([KeyF]);
 
         Assert.Equal("Details of item 2", Said().Last());
     }
@@ -94,14 +94,25 @@ public sealed class MenuControlsTests
         Cursor(ItemClass, row: 0);
 
         Assert.Equal(A, controls.Pad(0, R3 | A));
-        Assert.Equal([0x41], controls.Keys([Tab, 0x41]));
+        Assert.Equal([0x41], controls.Keys([KeyF, 0x41]));
+    }
+
+    // Tab was the details key and was hidden from the game in menus, but it's the game's exit-game key on PC (maintainer,
+    // 2026-11-20), so the details key moved to F and Tab always reaches the game.
+    [Fact]
+    public void TabReachesTheGameInAMenu()
+    {
+        Cursor(ItemClass, row: 0);
+
+        Assert.Equal([0x09], controls.Keys([0x09]));
+        Assert.DoesNotContain(announcer.Said, said => said.Text.StartsWith("Details", StringComparison.Ordinal));
     }
 
     [Fact]
     public void BeforeAnyScreenIsEnteredTheDetailsKeyDoesNothingAndReachesTheGame()
     {
         Assert.Equal(R3, controls.Pad(0, R3));
-        Assert.Equal([Tab], controls.Keys([Tab]));
+        Assert.Equal([KeyF], controls.Keys([KeyF]));
         Assert.Empty(announcer.Said);
     }
 
@@ -182,7 +193,7 @@ public sealed class MenuControlsTests
         screens.MenusRead(open: false);
 
         Assert.Equal(R3 | LbRb, controls.Pad(0, R3 | LbRb));
-        Assert.Equal([Tab, KeyT], controls.Keys([Tab, KeyT]));
+        Assert.Equal([KeyF, KeyT], controls.Keys([KeyF, KeyT]));
         Assert.Equal(before, announcer.Said.Count);
         Assert.True(reader.IsOn);
     }
@@ -195,7 +206,7 @@ public sealed class MenuControlsTests
         Cursor(ItemClass, row: 0);
 
         Assert.Equal(R3, controls.Pad(0, R3));
-        Assert.Equal([Tab], controls.Keys([Tab]));
+        Assert.Equal([KeyF], controls.Keys([KeyF]));
     }
 
     [Fact]
@@ -212,7 +223,7 @@ public sealed class MenuControlsTests
     [Fact]
     public void PartOfABindingsChordReachesTheGameAndTheWholeChordIsHidden()
     {
-        var chord = new MenuControls(new MenuBindings(R3 | A, Tab), screens, reader, [new ItemDetails()]);
+        var chord = new MenuControls(new MenuBindings(R3 | A, KeyF), screens, reader, [new ItemDetails()]);
         screens.Observe(chord);
         Cursor(ItemClass, row: 0);
 
@@ -232,7 +243,7 @@ public sealed class MenuControlsTests
         var before = announcer.Said.Count;
 
         Assert.Equal(R3, controls.Pad(0, R3));
-        Assert.Equal([Tab], controls.Keys([Tab]));
+        Assert.Equal([KeyF], controls.Keys([KeyF]));
         Assert.Equal(before, announcer.Said.Count);
     }
 
