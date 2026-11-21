@@ -82,12 +82,12 @@ Control on.
 `powershell -ExecutionPolicy Bypass -NoExit -File "<folder>\install.ps1"`
 
 Each step says whether it worked. A step that fails says what to do and stops there. Run it again after fixing that,
-or to update the mod: it changes only what needs changing and says so. With NVDA running it prints only, and NVDA
-reads the window; Windows' own voice speaks the steps when no screen reader is running. That voice is an English one
-when Windows has one; otherwise the installer says so and uses Windows' default voice. Open it with Enter, not "Run as
+or to update the mod: it changes only what needs changing and says so. With NVDA, JAWS or ZoomText running, it speaks
+each line and question through your screen reader, with the speech library the mod ships, so you don't need to read
+the window. Windows' own voice speaks the steps when no screen reader is running. That voice is an English one when
+Windows has one; otherwise the installer says so and uses Windows' default voice. Open it with Enter, not "Run as
 administrator": it refuses to run as administrator. With User Account Control turned off every window is
-administrator, so it says so and asks before going on. `install.cmd` passes on what you add after its name, such as
-`-Speak` to hear Windows' voice as well as NVDA.
+administrator, so it says so and asks before going on. `[NEEDS VERIFICATION]` By ear with NVDA (#601).
 
 The installer checks every file it downloads against a recorded hash. A download that gets no data for a minute, or
 takes more than half an hour, stops, and the installer says what to do. If you ever open Reloaded-II's own window, it may
@@ -199,7 +199,7 @@ message, the install worked.
 
 The mod folder holds `check-install.ps1`, which says why the mod didn't load. It prints each result. With no screen
 reader running, it also speaks each one with Windows' own voice, so it works when the mod's speech doesn't. With NVDA,
-JAWS or ZoomText running it only prints, and your screen reader reads the window. Spoken lines leave out folder paths
+JAWS or ZoomText running it speaks each one through your screen reader. Spoken lines leave out folder paths
 and long codes; the printed lines keep them. It changes no file or setting and reads nothing over the network. In
 Windows PowerShell 5.1 it writes temporary files in your temp folder while it looks for JAWS and ZoomText, and removes
 them.
@@ -214,8 +214,6 @@ them.
    started. Each line starts with "Pass", "Problem" or "Not checked". A last "Note" says when no screen reader the
    mod supports is running; that isn't counted as a problem, since the mod then uses Windows' own voice.
 3. The last line names the first thing to fix. Fix it, then run the check again.
-4. To hear Windows' voice as well as your screen reader, add `-Speak` at the end of the line. To turn Windows' voice
-   off, add `-NoSpeech`.
 
 `[NEEDS VERIFICATION]` By ear with NVDA, and whether Windows asks before running a script from a downloaded zip. If the
 check finds nothing wrong and the mod is still silent, send its output with the

@@ -1,6 +1,6 @@
 @echo off
 rem Starts the spoken installer, install.ps1 beside this file, for a player who opens this file with Enter in File
-rem Explorer instead of typing a PowerShell command (#574). Arguments pass through, such as -Speak or -NoSpeech.
+rem Explorer instead of typing a PowerShell command (#574). Arguments pass through, for testing; players need none.
 rem
 rem - Windows PowerShell 5.1 by its full path, so no powershell file in this folder or on PATH runs instead.
 rem - -ExecutionPolicy Bypass holds for this one process only; nothing is saved. A Group Policy setting still wins
