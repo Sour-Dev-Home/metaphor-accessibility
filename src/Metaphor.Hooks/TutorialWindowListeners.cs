@@ -18,13 +18,13 @@ internal static class TutorialListening
 
     public static string Byte(nint value) => ((byte)value).ToString(CultureInfo.InvariantCulture);
 
-    /// <summary>The window's state, or null when its bytes can't be read.</summary>
+    /// <summary>The window's state, or null when its bytes can't be read. The window is the game's own argument; the
+    /// string buffers it points to are read only through the guarded reader, since the layout is still a lead.</summary>
     public static (TutorialWindowState State, byte[] Key)? Window(nint window, CallerAddress module)
     {
         var bytes = new byte[TutorialWindowState.Length];
         if (!ModuleMemoryReader.ReadBytes(window, bytes) ||
-            TutorialWindowState.Read(window, module.ModuleBase, module.ModuleSize, bytes,
-                (address, length) => ModuleMemoryReader.ReadUtf8((nint)address, length)) is not { } state)
+            TutorialWindowState.Read(window, module.ModuleBase, module.ModuleSize, bytes, GuardedText) is not { } state)
         {
             return null;
         }
@@ -32,14 +32,24 @@ internal static class TutorialListening
     }
 
     /// <summary>The fields of the object the open builds for the tutorial, <c>model …</c>, or empty when it can't be
-    /// read.</summary>
+    /// read. The pointer comes from the window's unverified layout, so it is read only through the guarded
+    /// reader.</summary>
     public static string Model(long model, CallerAddress module)
     {
         var bytes = new byte[ModelLength];
-        return model != 0 && ModuleMemoryReader.ReadBytes((nint)model, bytes) &&
+        return model != 0 && ModuleMemoryReader.ReadBytesAvoidingGuardPages((nint)model, bytes) &&
             ObjectFields.Read(model, module.ModuleBase, module.ModuleSize, bytes, sizeof(long)) is { } fields
             ? $" model {fields}"
             : "";
+    }
+
+    // A string's heap buffer, by address and length (MsvcString caps the length), through the guarded reader.
+    private static string? GuardedText(long address, int length)
+    {
+        var bytes = new byte[length];
+        return ModuleMemoryReader.ReadBytesAvoidingGuardPages((nint)address, bytes)
+            ? System.Text.Encoding.UTF8.GetString(bytes)
+            : null;
     }
 
     // The object's allocation size in both opens (the finding's step 4).
