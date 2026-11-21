@@ -37,6 +37,11 @@ public sealed class MessageLog(TextWriter writer, Func<long> millisecondsSinceSt
     public void LookedUp(long messageId, int labelIndex) =>
         Write(() => Line($"{millisecondsSinceStart()} ms lookup id={messageId} label={labelIndex}"));
 
+    /// <summary>What a field key read (#181), as the field controls describe it: positions, kinds, ids and reach, numbers
+    /// only, so a session can measure the game's units and check its reach test.</summary>
+    public void FieldRead(string text) =>
+        Write(() => Line($"{millisecondsSinceStart()} ms field {text}"));
+
     /// <summary>A function the game registered for its scripts: its script name, and where the native function is in
     /// the game module. <paramref name="viaUserdata"/> says the address came from the userdata the game pushed (a game
     /// function behind a shared trampoline) and not from the registered function itself.</summary>

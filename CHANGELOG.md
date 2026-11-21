@@ -9,6 +9,10 @@ checks them in the first game session and removes the tag.
 
 ## Unreleased
 
+- **What is near, and where am I.** In the field, `N` says the people, doors, chests and enemies near you, nearest
+  first, with rough steps and a direction from your facing; `LB` with the D-pad's Down and Up steps through them. `L`,
+  or `LB` with Left, says the place name the game last showed (#181). `[NEEDS VERIFICATION by ear]`
+
 - **One file to open after extracting.** The zip's top level holds `Install Metaphor accessibility.cmd` beside the
   mod's folder: extract the zip and press Enter on it, with no search through the mod's files (#604).
   `[NEEDS VERIFICATION by ear]`

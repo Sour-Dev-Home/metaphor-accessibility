@@ -108,6 +108,23 @@ public sealed class InputFrameTests
     }
 
     [Fact]
+    public void TheFieldControlsGetWhatTheDialogueControlsLeave()
+    {
+        var field = new Controls { OnPad = buttons => buttons & ~B, OnKeys = keys => [.. keys.Where(key => key != 2)] };
+        dialogue.OnPad = buttons => buttons & ~A;
+        dialogue.OnKeys = keys => [.. keys.Where(key => key != 1)];
+
+        var frame = new InputFrame(game, screens, menus, dialogue, field);
+        var pad = frame.Pad(1, A | B | 0x4, made: true);
+        var keys = frame.Keys([1, 2, 3]);
+
+        Assert.Equal(0x4, pad.Buttons);
+        Assert.Equal([3], keys.Keys);
+        Assert.Equal(["pad 1 0x2004 True", "keys 2,3"], field.Seen);
+        Assert.Throws<ArgumentNullException>("field", () => new InputFrame(game, screens, menus, dialogue, null!));
+    }
+
+    [Fact]
     public void ControlsCannotAddButtonsOrKeysTheGameDidNotRead()
     {
         dialogue.OnPad = buttons => buttons | B;
