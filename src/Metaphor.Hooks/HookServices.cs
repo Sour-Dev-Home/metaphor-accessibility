@@ -131,9 +131,10 @@ internal sealed record HookServices
     /// when there are, hear every event last.</summary>
     /// <remarks>Features that play sound cues (#636) are handed <paramref name="cues"/>.</remarks>
     public static HookServices Speaking(
-        IAnnouncer announcer, ICuePlayer cues, SettingsReloader settings, ReportLog? report, MessageLog? log,
+        StoppableAnnouncer announcer, ICuePlayer cues, SettingsReloader settings, ReportLog? report, MessageLog? log,
         string modFolder)
     {
+        ArgumentNullException.ThrowIfNull(announcer);
         ArgumentNullException.ThrowIfNull(cues);
         ArgumentNullException.ThrowIfNull(settings);
         var library = new MessageLibrary();
@@ -154,9 +155,14 @@ internal sealed record HookServices
         // Auto follows the game's voice language, read on each line (#538); unknown speaks the full line.
         var reader = new DialogueReader(announcer);
         var voiceLanguage = new VoiceLanguageRead();
+        // The window's lines, choices and repeat stop when the window closes (#676), while still the last
+        // thing said.
+        var windowSpeech = announcer.Source();
         var dialogue = new DialogueAnnouncer(
-            reader, cleaner, history, () => settings.Current.VoicedLines, voiceLanguage.Read);
-        var controls = new DialogueControls(DialogueBindings.Default, history, reader, announcer, dialogue.EndConversation);
+            windowSpeech.Through(reader), cleaner, history, () => settings.Current.VoicedLines, voiceLanguage.Read);
+        var controls = new DialogueControls(
+            DialogueBindings.Default, history, reader, windowSpeech.Through(announcer), dialogue.EndConversation,
+            windowSpeech);
         // Menus speak through the reader too (#214), and their controls toggle it with the dialogue's binding.
         var screens = new MenuScreens(KnownScreens.All);
         screens.Observe(new TitleMenuFocus(library, reader, cleaner));

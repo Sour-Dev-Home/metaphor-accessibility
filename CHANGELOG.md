@@ -9,6 +9,9 @@ checks them in the first game session and removes the tag.
 
 ## Unreleased
 
+- **Closing a conversation stops its line.** When you close the dialogue window before a line has finished, the line
+  stops, as a screen reader stops when you move away. What the next screen says still plays (#676).
+  `[NEEDS VERIFICATION by ear]`
 - **Yes and No buttons.** The installer asks each question in a small window with Yes and No buttons, which your
   screen reader reads, instead of asking you to type an answer. Where it can't find the game, you choose
   `METAPHOR.exe` in Windows' Open window (#607). `[NEEDS VERIFICATION by ear]`

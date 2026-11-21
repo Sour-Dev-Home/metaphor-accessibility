@@ -36,15 +36,26 @@ public sealed class DialogueControls : IWindowInputControls
     private readonly DialogueReader reader;
     private readonly IAnnouncer announcer;
     private readonly Action? onClose;
+    private readonly SpeechSource? windowSpeech;
     private readonly Binding repeat = new();
     private readonly Binding toggle = new();
     private bool open;
     // The history's count when the window last closed: repeat speaks only lines recorded after it (#526).
     private long closedAt;
 
-    public DialogueControls(DialogueBindings bindings, DialogueHistory history, DialogueReader reader, IAnnouncer announcer, Action? onClose = null)
+    /// <param name="bindings">The buttons and keys the controls use.</param>
+    /// <param name="history">The lines the repeat binding speaks from.</param>
+    /// <param name="reader">The switch the reader binding toggles.</param>
+    /// <param name="announcer">Where the repeat is said, reader on or off.</param>
+    /// <param name="onClose">Called when the window closes.</param>
+    /// <param name="windowSpeech">The window's speech, stopped when the window closes (#676); its lines and the repeat
+    /// go through it.</param>
+    public DialogueControls(
+        DialogueBindings bindings, DialogueHistory history, DialogueReader reader, IAnnouncer announcer,
+        Action? onClose = null, SpeechSource? windowSpeech = null)
     {
         this.onClose = onClose;
+        this.windowSpeech = windowSpeech;
         ArgumentNullException.ThrowIfNull(bindings);
         ArgumentNullException.ThrowIfNull(history);
         ArgumentNullException.ThrowIfNull(reader);
@@ -61,16 +72,28 @@ public sealed class DialogueControls : IWindowInputControls
     /// every line so far stale, so repeat in the next window never replays the last window's line (#526).</summary>
     public void WindowRead(long? currentMessage)
     {
+        var nowOpen = currentMessage is { } message && message != 0;
+        bool closed;
         lock (gate)
         {
-            var nowOpen = currentMessage is { } message && message != 0;
-            if (open && !nowOpen)
+            closed = open && !nowOpen;
+            if (closed)
             {
                 closedAt = history.Recorded;
                 // A closed window ends the conversation: the next line says its speaker again (#539).
                 onClose?.Invoke();
             }
             open = nowOpen;
+        }
+        // Outside the lock, as speech is (#676): a read that finds the window open marks its line as on screen, and the
+        // close stops that line if it's still the last thing said.
+        if (nowOpen)
+        {
+            windowSpeech?.Shown();
+        }
+        else if (closed)
+        {
+            windowSpeech?.StopSpeaking();
         }
     }
 

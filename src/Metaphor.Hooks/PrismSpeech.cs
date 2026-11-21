@@ -53,6 +53,7 @@ internal sealed unsafe class PrismSpeech
     private readonly delegate* unmanaged[Cdecl]<nint, void> free;
     private readonly delegate* unmanaged[Cdecl]<nint, byte*, byte, int> speak;
     private readonly delegate* unmanaged[Cdecl]<nint, byte*, byte, int> output;
+    private readonly delegate* unmanaged[Cdecl]<nint, int> stop;
 
     private PrismSpeech(
         nint context,
@@ -60,7 +61,8 @@ internal sealed unsafe class PrismSpeech
         delegate* unmanaged[Cdecl]<nint, int> initialize,
         delegate* unmanaged[Cdecl]<nint, void> free,
         delegate* unmanaged[Cdecl]<nint, byte*, byte, int> speak,
-        delegate* unmanaged[Cdecl]<nint, byte*, byte, int> output)
+        delegate* unmanaged[Cdecl]<nint, byte*, byte, int> output,
+        delegate* unmanaged[Cdecl]<nint, int> stop)
     {
         this.context = context;
         this.create = create;
@@ -68,6 +70,7 @@ internal sealed unsafe class PrismSpeech
         this.free = free;
         this.speak = speak;
         this.output = output;
+        this.stop = stop;
     }
 
     /// <summary>Starts speech from <paramref name="modFolder"/>'s <c>prism.dll</c>, or says why it couldn't. Started,
@@ -102,6 +105,8 @@ internal sealed unsafe class PrismSpeech
             var free = (delegate* unmanaged[Cdecl]<nint, void>)NativeLibrary.GetExport(library, "prism_backend_free");
             var speak = (delegate* unmanaged[Cdecl]<nint, byte*, byte, int>)NativeLibrary.GetExport(library, "prism_backend_speak");
             var output = (delegate* unmanaged[Cdecl]<nint, byte*, byte, int>)NativeLibrary.GetExport(library, "prism_backend_output");
+            // prism.h v0.18.3 lines 413-414 (docs/raw-sources/prism-backend-stop-2026-11-21.md).
+            var stop = (delegate* unmanaged[Cdecl]<nint, int>)NativeLibrary.GetExport(library, "prism_backend_stop");
 
             var config = configInit();
             if (config.Version != ConfigVersion)
@@ -118,7 +123,7 @@ internal sealed unsafe class PrismSpeech
                 return (null, "prism_init failed");
             }
 
-            var prism = new PrismSpeech(context, create, initialize, free, speak, output);
+            var prism = new PrismSpeech(context, create, initialize, free, speak, output, stop);
             return (new SwitchingAnnouncer(
                 prism.FirstStarted(0, ScreenReaderCount),
                 prism.FirstStarted(ScreenReaderCount, Backends.Length),
@@ -174,6 +179,8 @@ internal sealed unsafe class PrismSpeech
         public int Output(string text, bool interrupt) => Call(prism.output, text, interrupt);
 
         public int Speak(string text, bool interrupt) => Call(prism.speak, text, interrupt);
+
+        public int StopSpeaking() => handle == 0 ? 1 : prism.stop(handle); // 1: PRISM_ERROR_NOT_INITIALIZED
 
         public void Dispose()
         {
