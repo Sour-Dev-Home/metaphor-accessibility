@@ -36,8 +36,8 @@ If you unzipped first, repeat steps 1 to 4 on `Install Metaphor accessibility.cm
 ### Get past "Windows protected your PC"
 
 SmartScreen shows this blue window when a downloaded program has no reputation yet. It is not a verdict that the file
-is harmful. `Install Metaphor accessibility.cmd` usually gets the older "Open File - Security Warning" window instead (step 3 of the
-installer section below).
+is harmful. `Install Metaphor accessibility.cmd` usually gets the older "Open File - Security Warning" window
+instead (step 3 of the installer section below).
 
 1. The window opens and the screen reader reads "Windows protected your PC", then its text, which names the file.
    Press `Tab`: focus lands on the link "More info". Press `Enter`.
