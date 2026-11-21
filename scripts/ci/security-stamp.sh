@@ -23,16 +23,16 @@ set -uo pipefail
 
 # This list is the scope's one home; docs link here instead of restating it. It names directories, so a file added
 # under one is in scope with no edit here (#410, docs/adr/0014-review-scope-by-directory.md); there are no exclusions.
-# It covers the hook layer, every script (those that deploy, launch, package or fetch native code, and the guards
-# (#306): everything the checks, the git hooks and CI run, transitively, plus what they read to decide), and the
-# reviewer's own prompt. tests/check/test-check.sh fails when a script the gate runs falls outside it. The last line is
+# It covers the hook layer, the update check (the mod's one network request, ADR 0018), every script (those that
+# deploy, launch, package or fetch native code, and the guards (#306): everything the checks, the git hooks and CI
+# run, transitively, plus what they read to decide), and the reviewer's own prompt. tests/check/test-check.sh fails when a script the gate runs falls outside it. The last line is
 # what decides dotnet restore, and so the lock files the security job's vulnerability audit reads, in any folder (#322,
 # #324): MSBuild's auto-imported files, the SDK pin and the package sources, whose targets or feeds could hide a
 # vulnerable package. Entries are git pathspecs, where * also matches /; noglob keeps bash from expanding them, and
 # other scripts read this list as text.
 set -f
-scope=(scripts/ src/Metaphor.Hooks/ .github/workflows/ tests/check/ tests/bash/ tools/docs/ tools/slow/
-  .config/dotnet-tools.json .claude/agents/security-reviewer.md
+scope=(scripts/ src/Metaphor.Hooks/ src/Metaphor.Features.Updates/ .github/workflows/ tests/check/ tests/bash/
+  tools/docs/ tools/slow/ .config/dotnet-tools.json .claude/agents/security-reviewer.md
   *Directory.Build.* *Directory.Packages.props *Directory.Solution.* *.sln.targets *global.json
   *nuget.config *NuGet.config *NuGet.Config)
 set +f

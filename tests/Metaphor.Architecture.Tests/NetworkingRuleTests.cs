@@ -28,6 +28,17 @@ public sealed class NetworkingRuleTests
         Assert.Contains(Rules.NoNetworking(assembly), v => v.Contains("System.Net.Sockets.TcpClient"));
     }
 
+    // ADR 0018's exception: the update check's assembly, and no other (#576).
+    [Fact]
+    public void OnlyTheUpdateCheckMayUseHttp()
+    {
+        const string code = "public static class C { public static object M() => new System.Net.Http.HttpClient(); }";
+
+        Assert.Empty(Rules.NoNetworking(Plant.Compile("Metaphor.Features.Updates", code)));
+        Assert.NotEmpty(Rules.NoNetworking(Plant.Compile("Metaphor.Features.Updates2", code)));
+        Assert.NotEmpty(Rules.NoNetworking(Plant.Compile(Rules.HookLayer, code)));
+    }
+
     [Fact]
     public void CodeWithoutNetworkingPasses()
     {

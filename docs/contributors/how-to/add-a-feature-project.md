@@ -12,7 +12,7 @@ interfaces in `Metaphor.Core`; the hook layer feeds it. The rules are
 | Features are independent | the assembly references any other `Metaphor.Features.*` | depend on `Metaphor.Core` only; share code by moving it into Core |
 | Plain library | the project targets Windows, references Reloaded-II, or uses `Microsoft.Win32` | target `net9.0`, not `net9.0-windows` |
 | No raw memory | it allows unsafe code, or uses pointers, P/Invoke, `Marshal`, `MemoryMarshal` or `Unsafe` | read game memory through an interface Core defines and the hook layer implements |
-| No networking | it uses `System.Net` | don't |
+| No networking | it uses `System.Net` | don't; the one exception is the update check ([ADR 0018](../../adr/0018-one-update-check-per-launch.md)) |
 
 A feature never patches or hooks anything ([ADR 0003](../../adr/0003-thin-hook-layer.md)).
 

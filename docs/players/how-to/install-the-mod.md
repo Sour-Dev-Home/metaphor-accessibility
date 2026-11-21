@@ -269,6 +269,13 @@ The choices are `auto`, `nameOnly`, `fullLine` and `nothing`. The mod reads the 
 it, and says "Voiced lines: name only." (or the new value) when it changes. A file it can't use is ignored and the
 default applies.
 
+### Update check
+
+Each time the game starts, the mod asks GitHub once for its newest release, and the title screen says "A newer version
+of the mod is available:" and the version when there is one. It sends nothing about you. To stop it, add
+`"checkForUpdates": false` to the same `settings.json`; see
+[turn off the update check](turn-off-the-update-check.md).
+
 ### Braille
 
 There is no braille setting. Each announcement goes to your screen reader's speech and braille together, where it

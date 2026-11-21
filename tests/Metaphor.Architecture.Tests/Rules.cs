@@ -18,8 +18,12 @@ internal static class Rules
     /// <summary>The attribute that marks a hook and names its game builds.</summary>
     public const string GameHookAttribute = "Metaphor.Hooks.GameHookAttribute";
 
-    /// <summary>Assemblies allowed to use networking, each with the ADR that approved it. None so far.</summary>
-    private static readonly Dictionary<string, string> NetworkingExceptions = [];
+    /// <summary>Assemblies allowed to use networking, each with the ADR that approved it.</summary>
+    private static readonly Dictionary<string, string> NetworkingExceptions = new()
+    {
+        // One request per launch to this repository's GitHub releases, which the settings can turn off (#576).
+        ["Metaphor.Features.Updates"] = "ADR 0018",
+    };
 
     /// <summary>Assemblies allowed to load native libraries themselves, each with the ADR that approved it.</summary>
     private static readonly Dictionary<string, string> NativeLoadingExceptions = new()
