@@ -10,6 +10,7 @@ This mod stands on other people's work. Each entry names the project, its licenc
 | [Reloaded-II](https://github.com/Reloaded-Project/Reloaded-II) | GPL-3.0 | The mod loader and the mod interfaces (`Reloaded.Mod.Interfaces`) the mod is built against |
 | [Reloaded.Hooks](https://github.com/Reloaded-Project/Reloaded.Hooks) (`Reloaded.SharedLib.Hooks` 1.9.0, `Reloaded.Hooks.Definitions` 1.11.0) | LGPL-3.0 | The shared hooks library our hooks go through (ADR 0006) |
 | [Prism](https://github.com/ethindp/prism) v0.18.3 | MPL-2.0 | Speech and braille output, fetched by SHA-256 at package time with its licences (ADR 0005) |
+| [FastLZ](https://github.com/ariya/FastLZ) at `b1342dab` | MIT | Its decompressor (`fastlz.c`), ported to C# in `src/Metaphor.Core/Navigation/FastLz.cs` with its notice, to read the field `.NAV` tiles (#179). The licence ships in `licenses/fastlz/` ([note](docs/raw-sources/fastlz-and-recast-layer-cells-2026-11-21.md)) |
 
 Build and test tools, not shipped: CsCheck, Mono.Cecil, Microsoft.CodeAnalysis.CSharp, xUnit and Microsoft.NET.Test.Sdk
 (versions pinned in `Directory.Packages.props`); [Stryker.NET](https://github.com/stryker-mutator/stryker-net) and
