@@ -49,7 +49,9 @@ The first early-access release. It is for the Steam version of Metaphor: ReFanta
   - it refuses to run as administrator, and if User Account Control is turned off it says so and asks before going on;
   - when Windows' Controlled folder access blocks a write, it names that as the cause;
   - it puts a shortcut called "Metaphor ReFantazio with accessibility" on your desktop, and ends with a check of the
-    install. Run it again to update the mod.
+    install. Run it again to update the mod;
+  - `uninstall.cmd` removes the mod, its settings, its shortcut and its entry for the game, and asks before
+    removing a Reloaded-II it installed. It keeps the runtimes.
 
   `[NEEDS VERIFICATION by ear]` The installer's spoken wording. See
   [Install the mod](docs/players/how-to/install-the-mod.md).
