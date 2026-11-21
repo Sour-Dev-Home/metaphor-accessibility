@@ -153,6 +153,38 @@ public sealed class MessageEventsTests
         Assert.Equal(["lists:serial:6000:9", "log:serial:6000:9"], seen);
     }
 
+    private sealed class Deaf : ISerialResolveObserver
+    {
+        public void Observe(SerialResolved resolve)
+        {
+        }
+
+        public bool Listening => false;
+    }
+
+    private sealed class ThrowsOnListening : ISerialResolveObserver
+    {
+        public void Observe(SerialResolved resolve)
+        {
+        }
+
+        public bool Listening => throw new InvalidOperationException("observer failed");
+    }
+
+    // The hook reads nothing unless some serial observer listens now.
+    [Fact]
+    public void SerialsAreWantedOnlyWhileSomeObserverListens()
+    {
+        Assert.False(events.SerialsWanted);
+        events.ObserveSerials(new Deaf());
+        events.ObserveSerials(new ThrowsOnListening());
+        Assert.False(events.SerialsWanted);
+
+        events.ObserveSerials(new Recording("lists", seen));
+
+        Assert.True(events.SerialsWanted);
+    }
+
     [Fact]
     public void AMissingObserverIsRefusedWhenAdded()
     {

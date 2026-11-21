@@ -31,6 +31,10 @@ public readonly record struct SerialResolved(int Serial, int Flags);
 public interface ISerialResolveObserver
 {
     void Observe(SerialResolved resolve);
+
+    /// <summary>Whether it wants fetches now; the hook skips its reads when no observer does. True unless the observer
+    /// says otherwise.</summary>
+    bool Listening => true;
 }
 
 /// <summary>Told of each message file the game compiles.</summary>
@@ -83,6 +87,31 @@ public sealed class MessageEvents
         lock (gate)
         {
             serialObservers = [.. serialObservers, observer];
+        }
+    }
+
+    /// <summary>Whether any serial observer wants fetches now (<see cref="ISerialResolveObserver.Listening"/>), so the
+    /// hook, which runs from about 250 places, reads nothing when none does. One that throws counts as not listening.
+    /// </summary>
+    [SuppressMessage("Design", "CA1031", Justification = "One observer's failure must not reach the game.")]
+    public bool SerialsWanted
+    {
+        get
+        {
+            foreach (var observer in Volatile.Read(ref serialObservers))
+            {
+                try
+                {
+                    if (observer.Listening)
+                    {
+                        return true;
+                    }
+                }
+                catch (Exception)
+                {
+                }
+            }
+            return false;
         }
     }
 

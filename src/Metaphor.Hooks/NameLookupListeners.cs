@@ -131,8 +131,8 @@ internal sealed class MessageSerialByHashListener : IGameHook, IObserves4WithRes
 /// <summary>A message fetched by serial number (#247): each fetch whose serial and flags can be read goes to
 /// <see cref="HookServices.Messages"/>, for the battle lists, which say a row by the name fetched for it. In a Debug
 /// build it also logs the number, the flags, whether a message came back, and the label and text the mod's serial table
-/// gives that number (#584). Called from about 250 places, some every frame, so it reads two numbers and nothing else,
-/// and the log drops repeats within the quiet window. Release since #247; until then a Debug-only listener.</summary>
+/// gives that number (#584). Called from about 250 places, some every frame, so in Release it reads only while an
+/// observer is listening, two numbers and nothing else, and the log drops repeats within the quiet window. Release since #247; until then a Debug-only listener.</summary>
 [GameHook(GameBuilds.Steam18330018)]
 internal sealed class GetMessageBySerialHook : IGameHook, IObserves4WithResult
 {
@@ -155,6 +155,12 @@ internal sealed class GetMessageBySerialHook : IGameHook, IObserves4WithResult
     /// flags and configs.</summary>
     public void Observe(nint serial, nint flags, nint configs, nint unused4, nint result)
     {
+        // Each read is a ReadProcessMemory call, so nothing is read unless an observer wants fetches now (the battle
+        // lists stop listening while another screen is current) or the Debug log is on.
+        if (log is null && !events.SerialsWanted)
+        {
+            return;
+        }
         var number = NameListening.Int32At(serial);
         var flagBits = NameListening.Int32At(flags);
         if (number is { } read && flagBits is { } style)

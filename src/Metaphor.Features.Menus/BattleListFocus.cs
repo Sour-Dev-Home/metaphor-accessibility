@@ -42,6 +42,8 @@ public sealed class BattleListFocus : IScreenObserver, ISerialResolveObserver
     private readonly List<int> rows = [];
     private ScreenEvent? waiting;
     private long lastActivity = long.MinValue / 2;
+    private bool onList;
+    private bool otherScreen;
 
     // Steps, so a Left can tell whether the rows were fetched for the visit it ends or after it.
     private long step;
@@ -95,15 +97,24 @@ public sealed class BattleListFocus : IScreenObserver, ISerialResolveObserver
         {
             if (change.Screen != Screen)
             {
+                // While another screen is current (a field menu, the title), its fetches are none of this list's.
                 if (change.Change == ScreenChange.Entered)
                 {
                     Forget();
+                    onList = false;
+                    Volatile.Write(ref otherScreen, true);
+                }
+                else if (change.Change == ScreenChange.Left)
+                {
+                    Volatile.Write(ref otherScreen, false);
                 }
                 return;
             }
+            Volatile.Write(ref otherScreen, false);
             waiting = null;
             if (change.Change == ScreenChange.Left)
             {
+                onList = false;
                 // Rows fetched after this visit's last focus belong to the next visit, which fetched them already.
                 if (runStep < focusStep)
                 {
@@ -111,7 +122,15 @@ public sealed class BattleListFocus : IScreenObserver, ISerialResolveObserver
                 }
                 return;
             }
-            lastActivity = millisecondsNow();
+            var now = millisecondsNow();
+            // The list fetches its names just before its cursor settles: rows fetched long before it opened came from
+            // something else. Entered again while on the list (the reader turned back on) keeps them.
+            if (change.Change == ScreenChange.Entered && !onList && now - lastActivity > RunGapMilliseconds)
+            {
+                Forget();
+            }
+            onList = true;
+            lastActivity = now;
             focusStep = ++step;
             said = LineFor(change);
             if (said is null && change.Index >= 0)
@@ -125,11 +144,15 @@ public sealed class BattleListFocus : IScreenObserver, ISerialResolveObserver
         }
     }
 
+    /// <summary>Whether this list wants the game's fetches: not while another screen is current, so the hook can skip
+    /// its reads then.</summary>
+    public bool Listening => !Volatile.Read(ref otherScreen);
+
     /// <summary>Keeps each row name the game fetches from the names file, in order, and speaks a focus that was waiting
-    /// for it.</summary>
+    /// for it. Ignored while another screen is current.</summary>
     public void Observe(SerialResolved resolve)
     {
-        if (resolve.Flags != NameFlags || !serials.InFile(resolve.Serial, namesFile))
+        if (resolve.Flags != NameFlags || Volatile.Read(ref otherScreen) || !serials.InFile(resolve.Serial, namesFile))
         {
             return;
         }

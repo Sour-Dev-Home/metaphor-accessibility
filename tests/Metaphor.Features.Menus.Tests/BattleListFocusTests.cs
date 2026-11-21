@@ -182,6 +182,50 @@ public sealed class BattleListFocusTests
         Assert.DoesNotContain(Said(), said => said.Contains("Spark", StringComparison.Ordinal));
     }
 
+    // A field menu fetches item names while it is current; they are no battle list's rows, and the list stops
+    // listening then, so the hook can skip its reads.
+    [Fact]
+    public void NamesFetchedWhileAnotherScreenIsCurrentAreNoRows()
+    {
+        Cursor(DifficultyClass, 0, count: 5, manager: 0xb0);
+        Assert.False(messages.SerialsWanted);
+        Fetched(ItemFirst, ItemFirst + 1);
+        screens.MenusRead(open: true);
+        screens.MenusRead(open: false);
+        Assert.True(messages.SerialsWanted);
+
+        Cursor(ItemClass, 0, count: 2, manager: 0xc0);
+
+        Assert.DoesNotContain(Said(), said => said.Contains("Tonic", StringComparison.Ordinal));
+    }
+
+    // Names fetched long before the list opened came from something else: the list waits for its own.
+    [Fact]
+    public void NamesFetchedLongBeforeTheListOpensAreNoRows()
+    {
+        Fetched(ItemFirst);
+        now += 5_000;
+        Cursor(ItemClass, 0, count: 1);
+        Assert.Empty(Said());
+
+        Fetched(ItemFirst + 1);
+
+        Assert.Equal(["Items, Salve, 1 of 1"], Said());
+    }
+
+    // The reader turned back on enters the current screen again; its rows stay.
+    [Fact]
+    public void TheListEnteredAgainWhileOnItKeepsItsRows()
+    {
+        Fetched(SkillFirst);
+        Cursor(SkillClass, 0, count: 1);
+        now += 5_000;
+
+        screens.RepeatCurrent();
+
+        Assert.Equal(["Skills, Spark, 1 of 1", "Skills, Spark, 1 of 1"], Said());
+    }
+
     // A row fetched from a file the game didn't compile, or compiled with another count, has no known text.
     [Fact]
     public void ARowWithNoKnownTextIsSaidByItsPosition()
