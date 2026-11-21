@@ -1,6 +1,7 @@
 using Metaphor.Core.Announcements;
 using Metaphor.Core.Menus;
 using Metaphor.Core.Messages;
+using Metaphor.Core.Settings;
 
 namespace Metaphor.Features.Menus;
 
@@ -11,6 +12,7 @@ namespace Metaphor.Features.Menus;
 /// game content. Safe to call from several threads.</summary>
 /// <remarks>Labels, classes and which row opens which page on build 548ddc95:
 /// docs/raw-sources/settings-category-labels-session1-2026-11-20.md.</remarks>
+[FeatureSetting(Feature.Menus)]
 public sealed class SettingsFocus : IScreenObserver
 {
     // The category list, opened from the title or the field's quick menu, and from the main menu in play: one list.

@@ -1,5 +1,6 @@
 using Metaphor.Core.Announcements;
 using Metaphor.Core.Menus;
+using Metaphor.Core.Settings;
 
 namespace Metaphor.Features.Menus;
 
@@ -8,6 +9,7 @@ namespace Metaphor.Features.Menus;
 /// count the game keeps (<see cref="ScreenEvent.Total"/>); when it can't be read, or can't hold the focus, the position
 /// alone is said. Known screens are their features' to speak, and dialogue choices
 /// (<see cref="DialogueChoice"/>, known too) are <c>ChoiceFocus</c>'s (#95). Safe to call from several threads.</summary>
+[FeatureSetting(Feature.Menus)]
 public sealed class UnknownScreenFocus : IScreenObserver
 {
     /// <summary>A dialogue's reply choice: a known screen that no menu feature speaks, as the dialogue feature's

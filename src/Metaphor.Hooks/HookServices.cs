@@ -31,13 +31,13 @@ internal sealed record HookServices
     /// the dialogue feature is feeding it.</summary>
     public DialogueHistory DialogueHistory { get; init; } = new();
 
-    /// <summary>The dialogue controls (#58): the input hooks' frame (#301) hands them each read and, with it, the
-    /// dialogue window's message pointer (#232).</summary>
-    public required DialogueControls DialogueControls { get; init; }
+    /// <summary>The dialogue controls (#58), behind their setting's gate (#661): the input hooks' frame (#301) hands
+    /// them each read and, with it, the dialogue window's message pointer (#232).</summary>
+    public required IWindowInputControls DialogueControls { get; init; }
 
-    /// <summary>The menu controls (#214): the input hooks' frame (#301) hands them each read before the dialogue
-    /// controls.</summary>
-    public required MenuControls MenuControls { get; init; }
+    /// <summary>The menu controls (#214), behind their setting's gate (#661): the input hooks' frame (#301) hands them
+    /// each read before the dialogue controls.</summary>
+    public required IInputControls MenuControls { get; init; }
 
     /// <summary>The menu screens (#211): the input hooks' frame (#301) hands them each read of <see cref="MenusOpen"/>
     /// (#268) before the menu controls take the read.</summary>
@@ -129,7 +129,10 @@ internal sealed record HookServices
     /// hears each compiled file first, speech each requested line and choice first, and the menu screens (#208, which
     /// tell the title menu, #94, the main menu and any other screen, #97) and a choice's focus (#95) each cursor input; the report log (#188) and the message log,
     /// when there are, hear every event last.</summary>
-    /// <remarks>Features that play sound cues (#636) are handed <paramref name="cues"/>.</remarks>
+    /// <remarks>Features that play sound cues (#636) are handed <paramref name="cues"/>. Each feature speaks and takes
+    /// keys through its own setting's gate (#661): <c>settings.Speech</c> in front of its announcer,
+    /// <c>settings.Input</c> in front of its controls, read live, so a changed file applies without a restart. A new
+    /// feature is gated here with the <see cref="Feature"/> its class is marked with.</remarks>
     public static HookServices Speaking(
         IAnnouncer announcer, ICuePlayer cues, SettingsReloader settings, ReportLog? report, MessageLog? log,
         string modFolder)
@@ -154,31 +157,36 @@ internal sealed record HookServices
         // Auto follows the game's voice language, read on each line (#538); unknown speaks the full line.
         var reader = new DialogueReader(announcer);
         var voiceLanguage = new VoiceLanguageRead();
+        var dialogueSpeech = settings.Speech(Feature.Dialogue, reader);
         var dialogue = new DialogueAnnouncer(
-            reader, cleaner, history, () => settings.Current.VoicedLines, voiceLanguage.Read);
-        var controls = new DialogueControls(DialogueBindings.Default, history, reader, announcer, dialogue.EndConversation);
+            dialogueSpeech, cleaner, history, () => settings.Current.VoicedLines, voiceLanguage.Read);
+        // The bindings are the settings file's (#661), worked out again only when it changes.
+        var dialogueBindings = settings.Live(DialogueBindings.From);
+        var controls = new DialogueControls(dialogueBindings, history, reader, announcer, dialogue.EndConversation);
         // Menus speak through the reader too (#214), and their controls toggle it with the dialogue's binding.
+        var menuSpeech = settings.Speech(Feature.Menus, reader);
         var screens = new MenuScreens(KnownScreens.All);
-        screens.Observe(new TitleMenuFocus(library, reader, cleaner));
-        screens.Observe(new MainMenuFocus(reader));
+        screens.Observe(new TitleMenuFocus(library, menuSpeech, cleaner));
+        screens.Observe(new MainMenuFocus(menuSpeech));
         // A yes/no dialog hears each scripted choice and each select window too, to say the text of one opened outside
         // the scripts (#569).
-        var yesNo = new YesNoDialogFocus(library, reader, cleaner);
+        var yesNo = new YesNoDialogFocus(library, menuSpeech, cleaner);
         screens.Observe(yesNo);
         events.ObserveChoices(yesNo);
         events.ObserveSelects(yesNo);
-        screens.Observe(new DifficultyFocus(library, reader, cleaner));
-        screens.Observe(new SettingsFocus(library, reader, cleaner));
-        screens.Observe(new QuickMenuFocus(library, reader, cleaner));
-        screens.Observe(new UnknownScreenFocus(reader));
-        var menuBindings = MenuBindings.Default with
+        screens.Observe(new DifficultyFocus(library, menuSpeech, cleaner));
+        screens.Observe(new SettingsFocus(library, menuSpeech, cleaner));
+        screens.Observe(new QuickMenuFocus(library, menuSpeech, cleaner));
+        screens.Observe(new UnknownScreenFocus(menuSpeech));
+        var menuBindings = settings.Live(now =>
         {
-            ReaderButtons = DialogueBindings.Default.ReaderButtons,
-            ReaderKey = DialogueBindings.Default.ReaderKey,
-        };
+            var reading = dialogueBindings();
+            return MenuBindings.From(now, reading.ReaderButtons, reading.ReaderKey);
+        });
         var menuControls = new MenuControls(menuBindings, screens, reader, []);
         // Name entry (#585): the title and refusals through the reader, typed characters as private announcements.
-        var nameEntry = new NameEntrySpeech(library, reader, cleaner, () => Environment.TickCount64);
+        var nameEntry = new NameEntrySpeech(
+            library, settings.Speech(Feature.NameEntry, reader), cleaner, () => Environment.TickCount64);
         screens.Observe(menuControls);
         events.ObserveFiles(library);
         events.ObserveFiles(serials);
@@ -191,7 +199,7 @@ internal sealed record HookServices
         events.ObserveChoices(lines);
         var choices = new DialogueChoices(library, dialogue);
         events.ObserveChoices(choices);
-        var choiceFocus = new ChoiceFocus(library, announcer, cleaner);
+        var choiceFocus = new ChoiceFocus(library, settings.Speech(Feature.Dialogue, announcer), cleaner);
         events.ObserveChoices(choiceFocus);
         events.ObserveLines(choiceFocus);
         // A reply choice opened outside the scripts reaches only the select window call (#541).
@@ -210,9 +218,10 @@ internal sealed record HookServices
         var field = new FieldMemory(fieldWorld, fieldScene, fieldDatabase, personTable, names, menusOpen, window);
         var place = new FieldPlace(cleaner);
         events.ObserveFiles(place);
+        // Its two settings, the nearby list and "where am I", are read by the controls on each read (#661).
         var fieldControls = new FieldControls(
-            FieldBindings.Default, field, place, announcer, () => Environment.TickCount64,
-            log is null ? null : log.FieldRead);
+            settings.Live(FieldBindings.From), feature => settings.Current.IsOn(feature), field, place, announcer,
+            () => Environment.TickCount64, log is null ? null : log.FieldRead);
         if (report is not null)
         {
             events.ObserveFiles(report);
@@ -235,11 +244,12 @@ internal sealed record HookServices
             Log = log,
             ModFolder = modFolder,
             Serials = serials,
-            TravelMap = new TravelMapDestination(filesById, reader, cleaner, () => Environment.TickCount64),
-            FieldMapName = new FieldMapName(reader, cleaner),
+            TravelMap = new TravelMapDestination(
+                filesById, settings.Speech(Feature.TravelMap, reader), cleaner, () => Environment.TickCount64),
+            FieldMapName = new FieldMapName(settings.Speech(Feature.PlaceNames, reader), cleaner),
             DialogueHistory = history,
-            DialogueControls = controls,
-            MenuControls = menuControls,
+            DialogueControls = settings.Input(Feature.Dialogue, controls),
+            MenuControls = settings.Input(Feature.Menus, menuControls),
             MenuScreens = screens,
             NameEntry = nameEntry,
             KeyWatcher = nameEntry,

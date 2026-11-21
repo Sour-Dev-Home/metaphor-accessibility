@@ -224,7 +224,8 @@ check finds nothing wrong and the mod is still silent, send its output with the
 
 ## Keys and buttons
 
-Everything the mod reads is here. The mod reads no mouse input.
+Everything the mod reads is here. The mod reads no mouse input. Every key and button can be moved, and every part of
+the mod turned off, in the settings file: see [the settings reference](../reference/settings.md).
 
 ### Repeat and reader toggle
 
@@ -234,7 +235,7 @@ Everything the mod reads is here. The mod reads no mouse input.
    "Dialogue reader on" or "Dialogue reader off".
 
 A press counts when the key goes down, not while it is held. A key already held when a dialogue window opens does
-nothing. They can't be rebound yet.
+nothing.
 
 They work only while a dialogue window is open, a line or a choice, and the game doesn't see them then. Anywhere else,
 such as a menu or the field, they do nothing and keep their normal job in the game. Reader off silences dialogue lines

@@ -184,8 +184,10 @@ public sealed class ModEntryPoint : IMod
     private static void StartUpdateCheck(
         string modVersion, IAnnouncer announcer, SettingsReloader settings, MenuScreens screens, Action<string> log)
     {
+        // The notice's speech has its own setting (#661); the request is still checkForUpdates'.
         var notice = new UpdateNotice(
-            modVersion, TitleMenuFocus.Screen, announcer, () => settings.Current.CheckForUpdates, log);
+            modVersion, TitleMenuFocus.Screen, settings.Speech(Feature.UpdateNotice, announcer),
+            () => settings.Current.CheckForUpdates, log);
         screens.Observe(notice);
         if (!settings.Current.CheckForUpdates)
         {

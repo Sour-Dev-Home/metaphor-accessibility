@@ -1,13 +1,18 @@
+using Metaphor.Core.Settings;
+
 namespace Metaphor.Core.Cues;
 
 /// <summary>A short sound the mod plays to say what just happened, faster than words (#636, ADR 0019). Each one is
-/// explained for players in <c>docs/players/reference/sound-cues.md</c>; a new cue is added here and there.</summary>
+/// explained for players in <c>docs/players/reference/sound-cues.md</c>; a new cue is added here and there, with its
+/// own key in the settings file's <c>sounds</c> object (#661).</summary>
 public enum Cue
 {
     /// <summary>One of the player's party was hit: two low notes, falling.</summary>
+    [SettingKey("sounds", "allyHit", "Ally hit sound")]
     AllyHit,
 
     /// <summary>An enemy was hit: two high notes, rising.</summary>
+    [SettingKey("sounds", "enemyHit", "Enemy hit sound")]
     EnemyHit,
 }
 

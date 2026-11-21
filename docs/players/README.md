@@ -8,6 +8,8 @@ For people installing and using the mods. Nothing is released yet, so pages here
   setting that stops it.
 - [Check a download](how-to/check-a-download.md) (draft): that a zip of the mod, a release or a dev build, is the
   one CI built.
+- [Settings](reference/settings.md) (draft): every setting in the settings file, to turn off any part of the mod or
+  move its keys. Everything is on by default.
 - [Sound cues](reference/sound-cues.md) (draft): the short sounds the mod plays, what each means, and how to turn them
   off or change their volume.
 

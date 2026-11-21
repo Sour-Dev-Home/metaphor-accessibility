@@ -1,6 +1,7 @@
 using Metaphor.Core.Announcements;
 using Metaphor.Core.Menus;
 using Metaphor.Core.Messages;
+using Metaphor.Core.Settings;
 
 namespace Metaphor.Features.Menus;
 
@@ -13,6 +14,7 @@ namespace Metaphor.Features.Menus;
 /// help lines by serial in cursor order, and each help line's label names its item's label
 /// (docs/findings/message-serials-from-file-positions.md). The order was heard right by the maintainer on 2026-11-21
 /// (#591).</remarks>
+[FeatureSetting(Feature.Menus)]
 public sealed class QuickMenuFocus : IScreenObserver
 {
     /// <summary>The quick menu, by its owner's class on build 548ddc95.</summary>

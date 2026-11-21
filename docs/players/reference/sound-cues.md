@@ -34,3 +34,6 @@ number. You don't need to restart the game.
 
 If a value can't be used, such as a volume of 120 or the word "off" instead of `false`, the mod uses the default:
 sounds on, at volume 50.
+
+Each sound can also be turned off or made quieter on its own: see the sounds in
+[the settings reference](settings.md#sounds).
