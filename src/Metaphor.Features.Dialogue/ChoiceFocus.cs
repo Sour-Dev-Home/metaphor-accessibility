@@ -12,6 +12,10 @@ namespace Metaphor.Features.Dialogue;
 /// Safe to call from several threads.</summary>
 public sealed class ChoiceFocus : IChoiceRequestObserver, ILineRequestObserver, ICursorObserver
 {
+    // The yes/no dialog's screen class on build 548ddc95, as the menus' YesNoDialogFocus names it
+    // (docs/findings/difficulty-select-shared-cursor.md).
+    private const string YesNoDialogClass = "YesNoChoiceSample@ope@ui@app";
+
     private readonly IMessageLookup messages;
     private readonly IAnnouncer announcer;
     private readonly TextCleaner cleaner;
@@ -64,6 +68,18 @@ public sealed class ChoiceFocus : IChoiceRequestObserver, ILineRequestObserver, 
         ArgumentNullException.ThrowIfNull(input);
         if (input.IsMove)
         {
+            return;
+        }
+        if (input.ScreenClass == YesNoDialogClass)
+        {
+            // A scripted yes/no (the save prompt) shows the yes/no dialog, whose focus the menus speak (#569): leave
+            // it to them, and close the choice so no later cursor is taken for it.
+            lock (gate)
+            {
+                options = [];
+                choiceCursor = null;
+                lastIndex = null;
+            }
             return;
         }
         bool first;

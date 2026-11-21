@@ -33,6 +33,20 @@ public sealed class ChoiceFocusTests
 
     private IEnumerable<string> Said() => announcer.Said.Select(said => said.Text);
 
+    // The save prompt of 2026-11-20 (game build 548ddc95…): a scripted yes/no whose cursor is the yes/no dialog's,
+    // which the menus already speak; "Yes, 1 of 2" was heard twice. The choice is left to them, and closed, so no later
+    // cursor is taken for it.
+    [Fact]
+    public void AChoiceOnTheYesNoDialogIsLeftToTheMenus()
+    {
+        ChoiceOpens();
+
+        focus.Observe(Input(Choice, Settle, row: 0) with { ScreenClass = "YesNoChoiceSample@ope@ui@app" });
+        focus.Observe(Input(Other, Settle, row: 1));
+
+        Assert.Empty(announcer.Said);
+    }
+
     [Fact]
     public void TheFirstFocusWaitsForTheOptionsToBeSpoken()
     {
