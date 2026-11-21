@@ -11,7 +11,7 @@ namespace Metaphor.Core;
 /// screen. Debug builds only; it holds game text, so it stays in the local mod folder and is never committed. Safe to
 /// call from any game thread, and never throws.</summary>
 public sealed class MessageLog(TextWriter writer, Func<long> millisecondsSinceStart)
-    : IMessageFileObserver, ILineRequestObserver, IChoiceRequestObserver, ICursorObserver
+    : IMessageFileObserver, ILineRequestObserver, IChoiceRequestObserver, ISelectRequestObserver, ICursorObserver
 {
     /// <summary>The log's file name in the mod's folder.</summary>
     public const string FileName = "message-log.txt";
@@ -53,6 +53,11 @@ public sealed class MessageLog(TextWriter writer, Func<long> millisecondsSinceSt
     public void Observe(ChoiceRequested choice) => Write(() => Line(
         $"{millisecondsSinceStart()} ms select kind={choice.Kind} first={Quoted(choice.PromptLabel)} second={Quoted(choice.ChoiceLabel)}"));
 
+    /// <summary>A select window any game code opened (#569): the request's kind, the prompt's label and the choice's
+    /// label.</summary>
+    public void Observe(SelectRequested window) => Write(() => Line(
+        $"{millisecondsSinceStart()} ms select-window kind={window.Kind} prompt={Quoted(window.PromptLabel)} choice={Quoted(window.ChoiceLabel)}"));
+
     /// <summary>The selection the game's scripts read back (#93): the value the selected-ID function returned, as 32
     /// bits.</summary>
     public void SelectedId(int id) => Write(() => Line($"{millisecondsSinceStart()} ms selected id={id}"));
@@ -93,6 +98,11 @@ public sealed class MessageLog(TextWriter writer, Func<long> millisecondsSinceSt
     /// <c>MsgClose</c>, to set beside the <c>msgwindow</c> records.</summary>
     public void WindowHook(string which) =>
         Write(() => Line($"{millisecondsSinceStart()} ms msgwindow-hook {which}"));
+
+    /// <summary>A tutorial pop-up event (#118): which one (<c>open</c>, or <c>window</c> for a new window state) and its
+    /// details as the listening hook formatted them. Numbers, and the window's strings, which are file paths.</summary>
+    public void TutorialSeen(string what, string details) =>
+        Write(() => Line($"{millisecondsSinceStart()} ms tutorial {what} {details}"));
 
     /// <summary>An input a menu's cursor manager handled that changed something (#93, #94). Numbers only, no game
     /// text.</summary>

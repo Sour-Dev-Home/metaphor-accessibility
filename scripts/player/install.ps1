@@ -4,7 +4,7 @@ Installs the mod by ear (#303): Reloaded-II if it's missing, the mod, turned on 
 starts the game with it. Run it from the mod's folder in the release zip.
 
 .DESCRIPTION
-It says each step as it goes, through Windows' own voice as well as on screen, and whether it worked. A step that fails
+It says each step as it goes, on screen and out loud, and whether it worked. A step that fails
 says what to do and stops the steps after it. Running it again repairs or updates an install: a step with nothing to do
 says so, and nothing it didn't put there is removed.
 
@@ -24,8 +24,10 @@ says so, and nothing it didn't put there is removed.
 It asks before it starts, and again before each download. Every download is pinned in install-pins.json to one version
 and its SHA-256 (and Microsoft's signature for the two runtimes), and a file that doesn't match is deleted unused. It
 refuses to run as administrator. With no answer to give (no console, -NonInteractive),
-every question counts as no. With a screen reader running it prints only, and the reader reads the window; -Speak adds
-Windows' voice anyway. Runs in Windows PowerShell 5.1 and PowerShell 7.
+every question counts as no. With NVDA, JAWS or ZoomText running it speaks each line and question through that screen
+reader, with the speech library the mod ships (prism.dll, checked by its hash), so speech doesn't depend on the reader
+reading new lines in the window; if that can't start, it prints only. With no screen reader running it speaks with
+Windows' own voice. Runs in Windows PowerShell 5.1 and PowerShell 7.
 
 Exit codes: 0 installed (the check may still say the game hasn't started with the mod yet); 1 a step failed, an answer
 was no, or the check found a problem.
@@ -46,7 +48,7 @@ uninstall.cmd in the same folder runs this for a player who opens it with Enter.
 #>
 [CmdletBinding()]
 param(
-    # Speak with Windows' voice even while a screen reader is running.
+    # Speak with Windows' voice instead of the screen reader (for testing; players need no switch).
     [switch] $Speak,
     # Print only.
     [switch] $NoSpeech,
@@ -69,7 +71,9 @@ param(
     # What may be downloaded: URLs, file names and SHA-256s. Defaults to install-pins.json beside this script.
     [string] $Pins = '',
     # Remove the mod instead of installing it.
-    [switch] $Uninstall
+    [switch] $Uninstall,
+    # Set by install.cmd and uninstall.cmd, which wait for a key after the script: the last line then says to press one.
+    [switch] $FromLauncher
 )
 
 Set-StrictMode -Version Latest
@@ -154,7 +158,7 @@ try {
         -VcRuntimeKey $VcRuntimeKey -WorkFolder $workFolder -Ask $ask -Say $say
     if ($Uninstall) { exit (Invoke-Uninstall $context) }
 
-    Out-Line "Installer for $($context.ModName) $($context.ModVersion). It says each step, and asks before each download."
+    Out-Line "Installer for $($context.ModName) $($context.ModVersion)."
     $go = Read-InstallAnswer (Format-YesNoQuestion 'Install the mod? It puts the mod in Reloaded-II, turns it on for the game, and puts a shortcut on your desktop.')
     if (-not (Test-Yes $go)) {
         Out-Line 'Nothing was changed, because the answer was no.'
@@ -200,6 +204,13 @@ try {
 }
 finally {
     if ($workFolder) { Remove-Item -LiteralPath $workFolder -Recurse -Force -ErrorAction SilentlyContinue }
+    # Said after every ending, so a player who can't see the window hears that it's over (#601).
+    $finished = if ($Uninstall) { 'The uninstall has finished.' } else { 'The installer has finished.' }
+    if ($FromLauncher) {
+        Out-Line "$finished Read what it said above, then press any key to close this window." `
+            "$finished Press any key to close this window."
+    }
+    else { Out-Line $finished }
     if ($voice) { $voice.Dispose() }
 }
 exit $exitCode

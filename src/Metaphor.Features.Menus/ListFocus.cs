@@ -22,7 +22,11 @@ internal static class ListFocus
         }
         var position = $"{change.Index + 1} of {count}";
         var item = label(change.Index) is { } text ? $"{text}, {position}" : position;
-        var headed = change.Change == ScreenChange.Entered && heading is not null;
-        return new Announcement(headed ? $"{heading}, {item}" : item, Interrupt: true);
+        return new Announcement(
+            change.Change == ScreenChange.Entered && !string.IsNullOrEmpty(heading) ? $"{heading}{Joiner(heading)}{item}" : item,
+            Interrupt: true);
     }
+
+    // A heading that ends a sentence, such as a dialog's question (#569), is followed by a space, not a comma.
+    private static string Joiner(string heading) => heading[^1] is '.' or '?' or '!' ? " " : ", ";
 }

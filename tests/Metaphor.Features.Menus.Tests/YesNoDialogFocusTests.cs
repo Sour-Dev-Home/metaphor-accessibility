@@ -13,7 +13,10 @@ public sealed class YesNoDialogFocusTests
 {
     private const string SystemFile = "EN/message/system/System_Message.msg";
     private const string SystemSource =
-        "@System_Choice_OK\n{\nFine\n<WAIT>\n}\n\n@System_Choice_YESNO SEL 0\n{\nAye<COLOR -1>\nNay\n<WAIT>\n}";
+        "@System_Choice_OK\n{\nFine\n<WAIT>\n}\n\n@System_Choice_YESNO SEL 0\n{\nAye<COLOR -1>\nNay\n<WAIT>\n}\n\n" +
+        "@System_NameEntry_08\n{\nIs the name <V 0>?\n<COLOR 0> *Settled *later.\n<WAIT>\n}\n\n" +
+        "@System_mode_13\n{\nBegin on this one?\n<WAIT>\n}";
+    private const string YesNo = "System_Choice_YESNO";
     private const string YesNoClass = "YesNoChoiceSample@ope@ui@app";
     private const long Dialog = 0xa0;
     private const int Settle = 0x1;
@@ -30,7 +33,10 @@ public sealed class YesNoDialogFocusTests
         screens.MenusRead(open: true);
         messages.ObserveFiles(library);
         cursors.Observe(screens);
-        screens.Observe(new YesNoDialogFocus(library, announcer, new TextCleaner(TextCleanerRules.None)));
+        var focus = new YesNoDialogFocus(library, announcer, new TextCleaner(TextCleanerRules.None));
+        screens.Observe(focus);
+        messages.ObserveChoices(focus);
+        messages.ObserveSelects(focus);
         screens.Observe(new UnknownScreenFocus(announcer));
     }
 
@@ -96,5 +102,100 @@ public sealed class YesNoDialogFocusTests
         Cursor(Settle, row: 1, screenClass: "SingleChoiceBase@ope@ui@app", manager: 0xb0);
 
         Assert.Equal(["2 of 2"], Said());
+    }
+
+    private void SelectOpened(string prompt, string choice = YesNo) =>
+        messages.SelectOpened(new SelectRequested(1, prompt, choice));
+
+    // #569: the name entry opens its confirmation itself, outside the scripts' choices, so its text was never heard.
+    // It is said once, with the first focus in one announcement so neither cuts the other off; its asterisk line is a
+    // note (the maintainer's wording, 2026-11-20). The typed name's tag is dropped until where it is held is known.
+    [Fact]
+    public void ADialogOpenedOutsideTheScriptsSpeaksItsTextWithTheFirstFocusOnly()
+    {
+        SystemFileCompiled();
+
+        SelectOpened("System_NameEntry_08");
+        Cursor(Settle, row: 0, top: 1);
+        Cursor(Up, row: 0);
+        Cursor(Settle, row: 0);
+
+        Assert.Equal(
+            [
+                new Announcement("Is the name? Note: Settled *later. Nay, 2 of 2", Interrupt: true),
+                new Announcement("Aye, 1 of 2", Interrupt: true),
+            ],
+            announcer.Said);
+    }
+
+    // #569's second case: the difficulty list's confirmation.
+    [Fact]
+    public void AQuestionIsJoinedToTheFocusWithoutAComma()
+    {
+        SystemFileCompiled();
+
+        SelectOpened("System_mode_13");
+        Cursor(Settle, row: 0, top: 1);
+
+        Assert.Equal(["Begin on this one? Nay, 2 of 2"], Said());
+    }
+
+    [Fact]
+    public void TheTextIsSpokenOncePerOpening()
+    {
+        SystemFileCompiled();
+
+        SelectOpened("System_mode_13");
+        Cursor(Settle, row: 0, top: 1);
+        Cursor(Settle, row: 0, top: 1, manager: 0xb0);
+
+        Assert.Equal(["Begin on this one? Nay, 2 of 2", "Nay, 2 of 2"], Said());
+    }
+
+    // The scripts' choices already speak their prompt (DialogueChoices, #82); the window they open is the same call.
+    [Fact]
+    public void AScriptsChoiceIsNotGivenItsPromptAgain()
+    {
+        SystemFileCompiled();
+
+        messages.ChoiceOpened(new ChoiceRequested(1, "System_mode_13", YesNo));
+        SelectOpened("System_mode_13");
+        Cursor(Settle, row: 0, top: 1);
+
+        Assert.Equal(["Nay, 2 of 2"], Said());
+    }
+
+    [Fact]
+    public void ASelectWithOtherChoicesGivesTheDialogNoText()
+    {
+        SystemFileCompiled();
+
+        SelectOpened("System_mode_13", choice: "System_Choice_OK");
+        Cursor(Settle, row: 0, top: 1);
+
+        Assert.Equal(["Nay, 2 of 2"], Said());
+    }
+
+    [Fact]
+    public void TheTextIsDroppedWhenAnotherScreenOpensFirst()
+    {
+        SystemFileCompiled();
+
+        SelectOpened("System_mode_13");
+        Cursor(Settle, row: 1, screenClass: "SingleChoiceBase@ope@ui@app", manager: 0xb0);
+        Cursor(Settle, row: 0, top: 1);
+
+        Assert.Equal(["2 of 2", "Nay, 2 of 2"], Said());
+    }
+
+    [Fact]
+    public void APromptWithNoMessageGivesTheDialogNoText()
+    {
+        SystemFileCompiled();
+
+        SelectOpened("System_missing");
+        Cursor(Settle, row: 0, top: 1);
+
+        Assert.Equal(["Nay, 2 of 2"], Said());
     }
 }

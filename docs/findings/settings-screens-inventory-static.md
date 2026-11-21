@@ -7,7 +7,8 @@
   [`chapter1-opening-inventory-own-capture-2026-11-20.md`](../raw-sources/chapter1-opening-inventory-own-capture-2026-11-20.md),
   [`screen-class-session-2026-11-17.md`](../raw-sources/screen-class-session-2026-11-17.md),
   [`ui-focus-candidates-2026-11-16.md`](../raw-sources/ui-focus-candidates-2026-11-16.md),
-  [`menu-hook-counts-2026-11-17.md`](../raw-sources/menu-hook-counts-2026-11-17.md)
+  [`menu-hook-counts-2026-11-17.md`](../raw-sources/menu-hook-counts-2026-11-17.md),
+  [`settings-pages-resolves-by-ear-2026-11-20.md`](../raw-sources/settings-pages-resolves-by-ear-2026-11-20.md)
 
 Static prep for #96, as #492 did for the title. Settings opens on a five-row category list, and each row opens a page
 with its own screen class. The System, Sound, Graphics and Display pages use the shared cursor class `0x22045e8`. Key
@@ -85,6 +86,11 @@ entry's position in the file. While Settings was open, session 1 logged `resolve
 - **Resolved when a page is built, not on each move.** The resolves cluster where pages open. A focus hook can't wait
   for a resolve to learn the focused row's label; it needs the row-to-entry map (above), or the drawn row text from
   `ui-text-panes` `[NEEDS VERIFICATION]`.
+- **Not every row resolves when a page opens.** In the by-ear run
+  ([`settings-pages-resolves-by-ear-2026-11-20.md`](../raw-sources/settings-pages-resolves-by-ear-2026-11-20.md)),
+  System (20 rows) resolves 14 serials as it opens, mostly a row name then a help line. Sound (6 rows) resolves 13.
+  Each page resolves the same set again on one later move. So the order of a page's resolves can't give its row
+  labels the way a plain list's can (#584); the row-to-entry map is still needed.
 - **Where values are stored.** A page keeps a working copy of every value: a dword per setting ID in a container at
   `choice+0x4c8`, with its length at `+0x4d0`. `ConfigMenuChoicePcT<0x76>::vf93` (`0x805de0`) fills it from the
   globals at `base+0x2ee8d30` on. It reads `base+0x2ee8b80`, a map from setting ID to an entry whose value is at
@@ -119,8 +125,11 @@ entry's position in the file. While Settings was open, session 1 logged `resolve
   strings `keyconfig_list_1` to `_12` suggest 12 visible rows `[NEEDS VERIFICATION]`.
 - **The cursor is the grid one.** `MultiLineCursorManager` (`0x22046a8`) logs `index`, `top` and `row` like the shared
   cursor (cmds `0x1` and `0x14`–`0x17`). Counts 23, 14 and 12 look like the sub-tabs' action counts; count 3 is a short
-  list, maybe the device tabs `[NEEDS VERIFICATION]`. Whether `index` counts cells or rows, and where the column is
-  kept, is `[NEEDS VERIFICATION]`.
+  list, maybe the device tabs `[NEEDS VERIFICATION]`. In the by-ear run one press of the pad button that steps the pages
+  down a row (`0x0040`) moved `index` by 2 (0 to 2,
+  then 2 to 4; [`settings-pages-resolves-by-ear-2026-11-20.md`](../raw-sources/settings-pages-resolves-by-ear-2026-11-20.md)),
+  which fits `index` counting cells, two to a row `[NEEDS VERIFICATION]`. Where the column is kept is
+  `[NEEDS VERIFICATION]`.
 - **Bindings are images.** The exe names 103 key images, `keyboard/key_<n>_wh` and `_bk`. Each `<n>` is a Windows
   virtual-key code: 1, 2, 4, 5 and 6 are the mouse buttons, 8 Backspace, 9 Tab, 32–40 Space to the arrows, 48–57 the
   digits, 65–90 the letters, 96–111 the keypad, 112–123 F1–F12, 160–165 Shift, Ctrl and Alt, and 186–226 the

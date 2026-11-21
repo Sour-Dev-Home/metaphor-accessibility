@@ -4,12 +4,14 @@
 - **Method:** Opening the shipped executable in a disassembler as-is, accepting that protected parts may be unreadable
 - **Sources:** [`msg-select-functions-2026-11-16.md`](../raw-sources/msg-select-functions-2026-11-16.md),
   [`msg-window-show-line-2026-11-20.md`](../raw-sources/msg-window-show-line-2026-11-20.md),
-  [`squirrel-script-functions-all-2026-11-16.md`](../raw-sources/squirrel-script-functions-all-2026-11-16.md)
+  [`squirrel-script-functions-all-2026-11-16.md`](../raw-sources/squirrel-script-functions-all-2026-11-16.md),
+  [`select-window-reply-choice-2026-11-20.md`](../raw-sources/select-window-reply-choice-2026-11-20.md)
 
 Static prep for #541, read in Ghidra only. Every reply choice reaches the window through `0x9eb890`, which four
 functions call. The choice hook (`MsgRequestSelectByName`, `0x9f8d70`) sits in front of only one of them, and only for
 script calls. A choice opened any other way sets no options for `ChoiceFocus`, so neither the choice nor its focus is
-spoken. Which route Gallica's choices take is `[NEEDS VERIFICATION]`; the session check below settles it.
+spoken. Gallica's first choice is a native call of `0x9ee5e0`: a 2026-11-20 run logged its select window, kind 0, and
+no scripted choice (the run's record is in the last source above). Which route her later choices take is `[NEEDS VERIFICATION]`; the session check below settles it.
 
 ## Evidence
 

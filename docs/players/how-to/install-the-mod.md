@@ -10,16 +10,56 @@ hear.
 
 You need the game installed on PC (single-player only) and NVDA running.
 
+## If Windows says the file is from the internet
+
+Windows marks a downloaded file as from the internet, and the mod's scripts aren't code-signed, so it may warn or ask
+before running them. Check the download first ([Check a download](check-a-download.md)); only then follow these.
+Every step is by keyboard. `[NEEDS VERIFICATION]` All the spoken phrases below, by ear with NVDA and Narrator
+([#573](https://github.com/Sour-Dev-Home/metaphor-accessibility/issues/573)); Microsoft doesn't document them
+([notes](../../raw-sources/smartscreen-and-unblock-microsoft-docs-2026-11-20.md)).
+
+### Unblock the zip before you unzip it
+
+Unzipping in File Explorer copies the mark to every file inside, so clearing it on the zip first saves a warning later.
+
+1. In File Explorer, move to the zip with the arrow keys. Press `Alt+Enter`. A Properties window opens and the screen
+   reader reads its title, the zip's name followed by "Properties".
+2. On the General tab, press `Tab` until you reach a check box named "Unblock", near the bottom, in the Security
+   group. The screen reader reads "Unblock", "check box", "not checked". If there is no such check box, the file isn't
+   marked: close the window with `Escape` and go on.
+3. Press `Space`. It reads "checked".
+4. Press `Tab` to "OK" and press `Enter`. The window closes.
+5. Unzip: press the `Applications` key (or `Shift+F10`), choose "Extract All...", then press `Enter` on "Extract".
+
+If you unzipped first, repeat steps 1 to 4 on `Install Metaphor accessibility.cmd` in the extracted folder.
+
+### Get past "Windows protected your PC"
+
+SmartScreen shows this blue window when a downloaded program has no reputation yet. It is not a verdict that the file
+is harmful. `Install Metaphor accessibility.cmd` usually gets the older "Open File - Security Warning" window
+instead (step 3 of the installer section below).
+
+1. The window opens and the screen reader reads "Windows protected your PC", then its text, which names the file.
+   Press `Tab`: focus lands on the link "More info". Press `Enter`.
+2. A button "Run anyway" appears. Press `Tab` until the screen reader reads "Run anyway", "button", then press `Enter`.
+   The file runs.
+3. If the window offers only "Don't run", or you are on a work or school PC, an administrator has blocked the file;
+   you can't go on from here. With Smart App Control on, Windows blocks the file with no such button: unblock it as
+   above (`[NEEDS VERIFICATION]` whether that lifts the block), or start the installer with the command at the end of
+   the next section.
+
 ## Install with the spoken installer
 
-The mod's folder holds `install.cmd`, which starts the installer, `install.ps1`. It does every step on this page for
-you and says each one as it goes. It needs no clicks in Reloaded-II's window. `[NEEDS VERIFICATION]` All of this
-section, by ear.
+The zip holds two things: the mod's folder, `metaphor.accessibility`, and one file beside it,
+`Install Metaphor accessibility.cmd`, which starts the installer in that folder. The installer does every step on this
+page for you and says each one as it goes. It needs no clicks in Reloaded-II's window. `[NEEDS VERIFICATION]` All of
+this section, by ear.
 
-1. Unzip the mod's zip. You get a folder named `metaphor.accessibility`.
-2. Open that folder in File Explorer and move to `install.cmd` with the arrow keys, or type `install`. With file
-   extensions hidden, two files are named `install`: the one to open is the "Windows Command Script", not the
-   "Windows PowerShell Script", which opens in Notepad. Press Enter. `[NEEDS VERIFICATION]` What NVDA reads for each.
+1. Extract the whole zip (unblock it first if Windows marked it, above). File Explorer opens the extracted folder.
+   Opening the file inside the zip without extracting doesn't work: it says to extract the zip first.
+2. Press `End` to reach the last item, "Install Metaphor accessibility", the one file there (File Explorer lists the
+   mod's folder before it), and press Enter. `[NEEDS VERIFICATION]` What NVDA reads for it, and whether File Explorer
+   opens the extracted folder after "Extract All".
 3. Windows probably asks first, because the file came from the internet and isn't signed: an "Open File - Security
    Warning" window asking whether to run it. Choose `Run`. `[NEEDS VERIFICATION]` Its wording, its buttons and which one
    has the focus, by ear. With Smart App Control on, Windows blocks the file instead; then use the command at the end of
@@ -37,19 +77,20 @@ section, by ear.
    key to close this window." Read back with NVDA's review cursor if you need to, then press a key.
 8. Start the game from the desktop shortcut.
 
-If Windows won't open `install.cmd`, start the installer by typing instead: press `Windows+R`, type this with the
-folder's full path in place of `<folder>`, and press Enter. `[NEEDS VERIFICATION]` Whether this works with Smart App
+`install.cmd` in the mod's folder does the same as `Install Metaphor accessibility.cmd`. If Windows won't open either,
+start the installer by typing instead: press `Windows+R`, type this with the mod's folder's full path in place of
+`<folder>`, and press Enter. `[NEEDS VERIFICATION]` Whether this works with Smart App
 Control on.
 
 `powershell -ExecutionPolicy Bypass -NoExit -File "<folder>\install.ps1"`
 
 Each step says whether it worked. A step that fails says what to do and stops there. Run it again after fixing that,
-or to update the mod: it changes only what needs changing and says so. With NVDA running it prints only, and NVDA
-reads the window; Windows' own voice speaks the steps when no screen reader is running. That voice is an English one
-when Windows has one; otherwise the installer says so and uses Windows' default voice. Open it with Enter, not "Run as
+or to update the mod: it changes only what needs changing and says so. With NVDA, JAWS or ZoomText running, it speaks
+each line and question through your screen reader, with the speech library the mod ships, so you don't need to read
+the window. Windows' own voice speaks the steps when no screen reader is running. That voice is an English one when
+Windows has one; otherwise the installer says so and uses Windows' default voice. Open it with Enter, not "Run as
 administrator": it refuses to run as administrator. With User Account Control turned off every window is
-administrator, so it says so and asks before going on. `install.cmd` passes on what you add after its name, such as
-`-Speak` to hear Windows' voice as well as NVDA.
+administrator, so it says so and asks before going on. `[NEEDS VERIFICATION]` By ear with NVDA (#601).
 
 The installer checks every file it downloads against a recorded hash. A download that gets no data for a minute, or
 takes more than half an hour, stops, and the installer says what to do. If you ever open Reloaded-II's own window, it may
@@ -161,7 +202,7 @@ message, the install worked.
 
 The mod folder holds `check-install.ps1`, which says why the mod didn't load. It prints each result. With no screen
 reader running, it also speaks each one with Windows' own voice, so it works when the mod's speech doesn't. With NVDA,
-JAWS or ZoomText running it only prints, and your screen reader reads the window. Spoken lines leave out folder paths
+JAWS or ZoomText running it speaks each one through your screen reader. Spoken lines leave out folder paths
 and long codes; the printed lines keep them. It changes no file or setting and reads nothing over the network. In
 Windows PowerShell 5.1 it writes temporary files in your temp folder while it looks for JAWS and ZoomText, and removes
 them.
@@ -176,8 +217,6 @@ them.
    started. Each line starts with "Pass", "Problem" or "Not checked". A last "Note" says when no screen reader the
    mod supports is running; that isn't counted as a problem, since the mod then uses Windows' own voice.
 3. The last line names the first thing to fix. Fix it, then run the check again.
-4. To hear Windows' voice as well as your screen reader, add `-Speak` at the end of the line. To turn Windows' voice
-   off, add `-NoSpeech`.
 
 `[NEEDS VERIFICATION]` By ear with NVDA, and whether Windows asks before running a script from a downloaded zip. If the
 check finds nothing wrong and the mod is still silent, send its output with the

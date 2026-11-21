@@ -150,9 +150,9 @@ BeforeAll {
     # -Uninstall.
     function Invoke-Install([string[]] $Answers = @(), [switch] $NonInteractive, [string] $Shell = $pwsh,
         [string] $Folder = $release, [string[]] $Switches = @('FILES', 'UNSIGNED', 'ALLOW_ADMIN'), [hashtable] $Environment = @{},
-        [switch] $Uninstall) {
+        [switch] $Uninstall, [switch] $FromLauncher) {
         $script = Join-Path $Folder 'install.ps1'
-        $common = "-NoSpeech -ReloadedConfig $(ConvertTo-Literal $config) -ReloadedFolder $(ConvertTo-Literal $reloadedFolder) " +
+        $common = "$(if ($FromLauncher) { '-FromLauncher ' })-NoSpeech -ReloadedConfig $(ConvertTo-Literal $config) -ReloadedFolder $(ConvertTo-Literal $reloadedFolder) " +
             "-SteamRoot $(ConvertTo-Literal $steam) -Desktop $(ConvertTo-Literal $desktop) -DotnetRoot $(ConvertTo-Literal $dotnet) " +
             "-VcRuntimeKey $(ConvertTo-Literal $vcKey) -Pins $(ConvertTo-Literal $pins)"
         if ($Uninstall) { $common += ' -Uninstall' }
@@ -367,6 +367,17 @@ Describe 'install.ps1' {
         $result.ExitCode | Should -Be 1
         $result.Output | Should -Match 'already holds other files, so it was left alone'
         @(Get-ChildItem -LiteralPath $reloadedFolder).Name | Should -Be @('notes.txt')
+    }
+
+    # #601: install.cmd's own closing line was printed by cmd, so the screen reader never said it.
+    It 'says last that it has finished, and to press a key when install.cmd waits for one' {
+        $press = 'The installer has finished. Read what it said above, then press any key to close this window.'
+        foreach ($answers in @($freshAnswers), @('no')) {
+            $result = Invoke-Install $answers -FromLauncher
+            @($result.Output -split "`n" | Where-Object { $_ })[-1] | Should -Be $press
+        }
+        $result = Invoke-Install @('no')
+        @($result.Output -split "`n" | Where-Object { $_ })[-1] | Should -Be 'The installer has finished.'
     }
 
     It 'changes nothing without a console to answer on' {
@@ -609,14 +620,15 @@ exit 3
         $ran.Root | Should -Be $folder
         $ran.Edition | Should -Be 'Desktop'
         $ran.Policy | Should -Be 'Bypass'
-        @($ran.Arguments) | Should -Be @($Passed + '-Speak')
+        @($ran.Arguments) | Should -Be @($Passed + '-FromLauncher' + '-Speak')
         $result.ExitCode | Should -Be 3
     }
 
-    It 'keeps the window open after the installer, saying how to close it' -Skip:(
+    # #601: install.ps1 says the closing line, so the screen reader speaks it; cmd printing it too would say it twice.
+    It 'leaves the closing line to install.ps1, and prints nothing after it' -Skip:(
         -not (Get-Command powershell.exe -ErrorAction SilentlyContinue)) {
         $result = Invoke-Launcher (New-LauncherFolder)
-        $result.Output | Should -Match '(?s)stand-in installer ran.*press any key to close this window'
+        $result.Output.Trim() | Should -Be 'stand-in installer ran'
     }
 
     It 'starts Windows PowerShell from System32, not a powershell file in its own folder' -Skip:(
@@ -637,6 +649,7 @@ exit 3
         foreach ($file in $shipped) { Copy-Item -LiteralPath (Join-Path $repo "scripts/player/$file") $folder -Force }
         $result = Invoke-Launcher $folder -Arguments '-NoSpeech'
         $result.Output | Should -Match 'not in the mod''s folder'
+        ([regex]::Matches($result.Output, 'press any key to close this window')).Count | Should -Be 1
         $result.ExitCode | Should -Be 1
     }
 
@@ -675,6 +688,14 @@ Describe 'install.ps1 -Uninstall' {
         New-Machine
     }
     AfterEach { Remove-Item -LiteralPath "HKCU:\$vcKeyPath" -Recurse -Force -ErrorAction SilentlyContinue }
+
+    It 'says last that the uninstall has finished, and to press a key when uninstall.cmd waits for one' {
+        Install-Mod
+        $result = Invoke-Install @('n') -Uninstall -FromLauncher
+        @($result.Output -split "`n" | Where-Object { $_ })[-1] | Should -Be 'The uninstall has finished. Read what it said above, then press any key to close this window.'
+        $result = Invoke-Install @('n') -Uninstall
+        @($result.Output -split "`n" | Where-Object { $_ })[-1] | Should -Be 'The uninstall has finished.'
+    }
 
     It 'removes the mod''s folder, its settings, the shortcut and its enabled entry, and keeps everything else' {
         Install-Mod
@@ -936,6 +957,81 @@ Describe 'Get-UninstallStep' {
             'Checking whether this installer installed Reloaded-II.')
         $exported = (Get-Module MetaphorInstall).ExportedFunctions.Keys
         foreach ($name in 'Disable-Mod', 'Remove-ModFiles', 'Remove-Shortcut', 'Remove-Reloaded', 'Get-RemovalProblem') { $exported | Should -Not -Contain $name }
+    }
+}
+
+# The launcher at the release zip's top level (#604), which zip-package.ps1 names "Install Metaphor accessibility.cmd",
+# beside the mod's folder. It hands over to the real install.cmd there; a stand-in install.ps1 records how it was run.
+Describe 'the zip''s top-level launcher' {
+    BeforeAll {
+        $script:topLauncher = Join-Path $repo 'scripts/player/zip-launcher.cmd'
+        $script:topName = 'Install Metaphor accessibility.cmd'
+        function Invoke-TopLauncher([string] $Folder, [string[]] $Arguments = @()) {
+            $start = [Diagnostics.ProcessStartInfo]::new((Join-Path $Folder $topName))
+            foreach ($argument in $Arguments) { $start.ArgumentList.Add($argument) }
+            $start.Environment['METAPHOR_INSTALL_TEST_ALLOW_ADMIN'] = '1'
+            $start.WorkingDirectory = $Folder
+            $start.UseShellExecute = $false
+            $start.RedirectStandardInput = $true
+            $start.RedirectStandardOutput = $true
+            $process = [Diagnostics.Process]::Start($start)
+            $process.StandardInput.Close()
+            $output = $process.StandardOutput.ReadToEnd()
+            if (-not $process.WaitForExit(120000)) { $process.Kill(); throw 'the launcher did not finish' }
+            [pscustomobject]@{ Output = $output; ExitCode = $process.ExitCode }
+        }
+        # The extracted zip, at a path with spaces, an ampersand, a percent sign, a caret and non-ASCII letters: the
+        # launcher at the top, the mod's folder beside it with install.cmd and a stand-in install.ps1 that exits 3.
+        function New-ExtractedZip([switch] $WithoutModFolder) {
+            $name = "Extracted 100% & ^co $([char]0x00E9)$([char]0x00FC) $([char]0x65E5)$([char]0x672C)"
+            $top = New-Item -ItemType Directory -Force (Join-Path $TestDrive "$(New-Guid)/$name")
+            Copy-Item -LiteralPath $topLauncher -Destination (Join-Path $top $topName)
+            if ($WithoutModFolder) { return $top.FullName }
+            $mod = New-Item -ItemType Directory (Join-Path $top 'metaphor.accessibility')
+            Copy-Item -LiteralPath (Join-Path $repo 'scripts/player/install.cmd') -Destination $mod
+            Set-Content -LiteralPath (Join-Path $mod 'install.ps1') -Encoding ascii -Value @'
+@{
+    Root = $PSScriptRoot
+    Edition = $PSVersionTable.PSEdition
+    Policy = "$(Get-ExecutionPolicy -Scope Process)"
+    Arguments = @($args)
+} | ConvertTo-Json | Set-Content -LiteralPath (Join-Path $PSScriptRoot 'ran.json') -Encoding UTF8
+Write-Host 'stand-in installer ran'
+exit 3
+'@
+            $top.FullName
+        }
+    }
+
+    It 'starts install.cmd in the mod''s folder beside it, and passes on its exit code' -Skip:(
+        -not (Get-Command powershell.exe -ErrorAction SilentlyContinue)) {
+        $top = New-ExtractedZip
+        $result = Invoke-TopLauncher $top -Arguments '-Speak'
+        $mod = Join-Path $top 'metaphor.accessibility'
+        $ran = Get-Content -Raw -Encoding utf8 (Join-Path $mod 'ran.json') | ConvertFrom-Json
+        $ran.Root | Should -Be $mod
+        $ran.Edition | Should -Be 'Desktop'
+        $ran.Policy | Should -Be 'Bypass'
+        @($ran.Arguments) | Should -Be @('-FromLauncher', '-Speak')
+        $result.Output.Trim() | Should -Be 'stand-in installer ran'
+        $result.ExitCode | Should -Be 3
+    }
+
+    # Opened inside the zip, File Explorer copies this one file out alone.
+    It 'says to extract the whole zip when the mod''s folder isn''t beside it' {
+        $result = Invoke-TopLauncher (New-ExtractedZip -WithoutModFolder)
+        $result.Output | Should -Match 'not beside this file\. Extract the whole zip first'
+        $result.Output | Should -Match 'Press any key to close this window'
+        $result.ExitCode | Should -Be 1
+    }
+
+    It 'is ASCII only, with Windows line endings, and not in the package' {
+        $bytes = [IO.File]::ReadAllBytes($topLauncher)
+        $bytes | Where-Object { $_ -gt 127 } | Should -BeNullOrEmpty
+        $text = [Text.Encoding]::ASCII.GetString($bytes)
+        ($text -replace "`r`n", '') | Should -Not -Match "[`r`n]"
+        $project = Get-Content -Raw -LiteralPath (Join-Path $repo 'src/Metaphor.Hooks/Metaphor.Hooks.csproj')
+        $project | Should -Not -Match 'zip-launcher'
     }
 }
 
@@ -1311,8 +1407,10 @@ Describe 'the package' {
         $project | Should -Not -Match 'scripts/dev/ReloadedDev\.psm1'
     }
 
+    # Except the zip's top-level launcher, which goes beside the package (#604).
     It 'ships exactly the player folder' {
-        @(git -C $repo ls-files scripts/player | ForEach-Object { Split-Path -Leaf $_ } | Sort-Object) |
+        @(git -C $repo ls-files scripts/player | ForEach-Object { Split-Path -Leaf $_ } |
+                Where-Object { $_ -ne 'zip-launcher.cmd' } | Sort-Object) |
             Should -Be @($shipped | Sort-Object)
     }
 

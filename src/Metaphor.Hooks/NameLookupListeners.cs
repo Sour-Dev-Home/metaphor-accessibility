@@ -2,6 +2,7 @@ using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
 using Metaphor.Core;
+using Metaphor.Core.Messages;
 
 namespace Metaphor.Hooks;
 
@@ -127,18 +128,21 @@ internal sealed class MessageSerialByHashListener : IGameHook, IObserves4WithRes
     }
 }
 
-/// <summary>A message fetched by serial number: the number, the flags it was asked with, and whether a message came
-/// back. Called from about 250 places, so repeats within the quiet window are dropped.</summary>
+/// <summary>A message fetched by serial number: the number, the flags it was asked with, whether a message came back,
+/// and the label and text the mod's serial table gives that number (#584), from files the game compiled. Called from
+/// about 250 places, so repeats within the quiet window are dropped.</summary>
 [GameHook(GameBuilds.Steam18330018, DevOnly = true)]
 internal sealed class GetMessageBySerialListener : IGameHook, IObserves4WithResult
 {
     private readonly MessageLog? log;
+    private readonly MessageSerials serials;
     private readonly RepeatGate repeats = NameListening.NewGate();
 
     public GetMessageBySerialListener(HookServices services)
     {
         ArgumentNullException.ThrowIfNull(services);
         log = services.Log;
+        serials = services.Serials;
     }
 
     public string SignatureName => "GetMessageBySerial";
@@ -154,7 +158,8 @@ internal sealed class GetMessageBySerialListener : IGameHook, IObserves4WithResu
             return;
         }
         log.Resolved(SignatureName,
-            $"{NameListening.Number("serial", number)} {NameListening.Number("flags", flagBits)} message={(result == 0 ? "null" : "set")}");
+            $"{NameListening.Number("serial", number)} {NameListening.Number("flags", flagBits)} message={(result == 0 ? "null" : "set")}" +
+            (number is { } known ? $" {serials.Describe(known)}" : ""));
     }
 }
 

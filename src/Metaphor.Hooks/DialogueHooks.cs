@@ -126,3 +126,25 @@ internal sealed class DialogueChoiceHook : IGameHook, IObserves6
         events.ChoiceOpened(new ChoiceRequested(
             (int)kind, ModuleMemoryReader.ReadAnsiString(promptLabel), ModuleMemoryReader.ReadAnsiString(choiceLabel)));
 }
+
+/// <summary>Reports each select window any game code opens (#569): the function <see cref="DialogueChoiceHook"/>'s
+/// calls, which the name entry and the difficulty list also call themselves. Its arguments (the kind, then the prompt's
+/// and the choice's labels as C strings) and the name (ours) are in docs/raw-sources/yes-no-dialog-text-2026-11-20.md.
+/// Only the kind's low 32 bits and the two labels are read.</summary>
+[GameHook(GameBuilds.Steam18330018)]
+internal sealed class SelectWindowHook : IGameHook, IObserves5
+{
+    private readonly MessageEvents events;
+
+    public SelectWindowHook(HookServices services)
+    {
+        ArgumentNullException.ThrowIfNull(services);
+        events = services.Messages;
+    }
+
+    public string SignatureName => "SelectWindowRequest";
+
+    public void Observe(nint kind, nint promptLabel, nint choiceLabel, nint fourth, nint options) =>
+        events.SelectOpened(new SelectRequested(
+            (int)kind, ModuleMemoryReader.ReadAnsiString(promptLabel), ModuleMemoryReader.ReadAnsiString(choiceLabel)));
+}
