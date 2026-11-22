@@ -54,6 +54,9 @@ spoken details for menu entries. Until details arrive, the menu key says "No mor
   you get there. Press again to stop: "Guidance off". A menu, dialogue or cutscene quiets it, and it beeps again when
   you can walk, unless you're on another map by then (#702). The beep points in a straight line and doesn't know about
   walls yet. It plays only while sound cues are on.
+- With no key: walking up to a door or chest says "Door, in reach" or "Chest, in reach" once, after anything being
+  said. Move away or turn, then come back, and it says it again. People aren't said this way yet. A menu, dialogue or
+  cutscene quiets these too (#702).
 - Distances are rough steps: treat them as near or far.
 
 ### Menus
