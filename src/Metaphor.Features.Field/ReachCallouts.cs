@@ -1,5 +1,6 @@
 using System.Diagnostics.CodeAnalysis;
 using Metaphor.Core.Announcements;
+using Metaphor.Core.Settings;
 
 namespace Metaphor.Features.Field;
 
@@ -14,6 +15,7 @@ namespace Metaphor.Features.Field;
 /// roam and at most once per <see cref="CheckIntervalMilliseconds"/>; the calls between allocate nothing. The callout
 /// queues behind what is being said rather than cutting it off: it's news the player didn't ask for, and the end of a
 /// line just spoken may still be playing as free roam comes back.</para></summary>
+[FeatureSetting(Feature.ReachCallouts)]
 public sealed class ReachCallouts
 {
     /// <summary>The least time between two reads of the field: ten a second, quick enough for a walk.</summary>

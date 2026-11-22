@@ -1,6 +1,7 @@
 using Metaphor.Core.Announcements;
 using Metaphor.Core.Menus;
 using Metaphor.Core.Messages;
+using Metaphor.Core.Settings;
 
 namespace Metaphor.Features.Menus;
 
@@ -12,6 +13,7 @@ namespace Metaphor.Features.Menus;
 /// <c>CursorManager</c> at its <c>+0x28</c>, index 0 at the bottom; the five labels and their order are in
 /// docs/findings/difficulty-select-shared-cursor.md. The order on screen, top first, was heard by the maintainer on
 /// 2026-11-20.</remarks>
+[FeatureSetting(Feature.Menus)]
 public sealed class DifficultyFocus : IScreenObserver
 {
     /// <summary>The difficulty list: its owner's class on build 548ddc95, from its run-time type information, shown

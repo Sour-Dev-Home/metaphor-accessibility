@@ -18,6 +18,12 @@ checks them in the first game session and removes the tag.
   repeating beep toward the thing you last stepped to, or the nearest you aren't already at: from its side, higher
   ahead, faster as you near it. It says when you reach it; press again to stop (#183). `K` and `J` step through the
   nearby list from the keyboard. `[NEEDS VERIFICATION by ear]`
+- **A welcome on first launch.** The first time the game starts with the mod, the title screen says which version is
+  running and that `N`, `L` and `G` are the field keys, once (#617). `[NEEDS VERIFICATION by ear]`
+- **A mark key for reports.** Press `F8` when something goes wrong: two short clicks, and a numbered marker with the
+  time goes into `report-log.txt`. The log also lists each screen and menu move the mod said nothing for. Nothing is
+  sent anywhere. The Alpha feedback form asks when you pressed it (#597). `[NEEDS VERIFICATION by ear]`
+
 - **The install check says the mod's version.** `check-install.ps1`, which the installer also runs at the end, now says
   "The mod is version ..." for the copy in Reloaded-II's mods folder, so you can hear which one you have (#674).
   `[NEEDS VERIFICATION by ear]`

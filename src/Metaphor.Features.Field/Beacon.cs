@@ -2,6 +2,7 @@ using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
 using Metaphor.Core.Announcements;
 using Metaphor.Core.Cues;
+using Metaphor.Core.Settings;
 
 namespace Metaphor.Features.Field;
 
@@ -18,6 +19,7 @@ public sealed record BeaconTarget(FieldUnit Unit, int? DoorReachValue);
 /// (<see cref="FreeRoamGate"/>, #702) it goes quiet at the next poll and keeps its target; when free roam comes back it
 /// pulses again at once, or stops silently if the map has changed meanwhile. <see cref="Tick"/> is called on every input read; it reads the field at most once per
 /// <see cref="PollMilliseconds"/>, and allocates nothing between a pulse's start and the next.</summary>
+[FeatureSetting(Feature.Guidance)]
 public sealed class Beacon
 {
     /// <summary>How often the field is read while guiding.</summary>

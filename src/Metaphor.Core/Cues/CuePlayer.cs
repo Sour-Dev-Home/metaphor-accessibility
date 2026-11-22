@@ -103,7 +103,10 @@ public sealed class CuePlayer : ICuePlayer, IDisposable
     public void Play(Cue cue, double pan)
     {
         var now = settings();
-        if (disposing || !now.SoundCues || now.SoundCueVolume == 0)
+        // Each cue's own setting is a share of the sound cue volume (#661).
+        var own = now.Sound(cue);
+        var volume = now.SoundCueVolume * own.Volume / 100;
+        if (disposing || !now.SoundCues || !own.On || volume == 0)
         {
             return;
         }
@@ -113,7 +116,7 @@ public sealed class CuePlayer : ICuePlayer, IDisposable
             Interlocked.Decrement(ref waitingCount);
             return;
         }
-        waiting.Enqueue((cue, pan, now.SoundCueVolume));
+        waiting.Enqueue((cue, pan, volume));
         Wake();
     }
 

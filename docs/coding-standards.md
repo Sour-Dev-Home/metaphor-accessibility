@@ -105,6 +105,13 @@ each rule on every assembly built from `src/`. Each test plants a violation to p
 17. **Pipes stay in Debug builds.** No Release assembly uses `System.IO.Pipes`, and the hook layer has `LiveInspector`
     exactly when it is a Debug build, so the read-only inspector's pipe never reaches players
     ([inspect the running game](contributors/how-to/inspect-the-running-game.md), #291).
+18. **Every feature can be turned off.** A feature class that speaks, plays a cue or takes a key is marked
+    `[FeatureSetting(Feature.X)]`, so a player with some sight can use less of the mod (#661). `X` is a member of
+    `Metaphor.Core.Settings.Feature`, whose `[SettingKey]` names its key in the settings file; the wiring
+    (`HookServices.Speaking`) puts the class behind `settings.Speech(Feature.X, ...)` or `settings.Input(Feature.X, ...)`,
+    which read the setting at each announcement and input read, so a changed file applies at once. A cue gets its own
+    `[SettingKey]` on its `Cue` member. Every default is on: a blind player never has to configure anything. Each
+    setting is listed in [the settings reference](players/reference/settings.md).
 19. **Field sounds go through the free-roam gate.** In `Metaphor.Features.Field`, every type that plays or holds a cue
     or speaks also calls `FreeRoamGate.Open`, so no field sound plays through a cutscene, dialogue, menu or scripted
     move (#702).

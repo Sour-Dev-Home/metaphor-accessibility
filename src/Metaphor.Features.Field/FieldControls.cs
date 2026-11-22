@@ -3,6 +3,7 @@ using System.Globalization;
 using Metaphor.Core.Announcements;
 using Metaphor.Core.Cues;
 using Metaphor.Core.Input;
+using Metaphor.Core.Settings;
 
 namespace Metaphor.Features.Field;
 
@@ -34,6 +35,24 @@ public sealed record FieldBindings(
     /// </summary>
     public static FieldBindings Default { get; } =
         new(0x4E, 0x4C, 0x0400, 0x0040, 0x0010, 0x0080, 0x47, 0x0020, 0x4B, 0x4A);
+
+    /// <summary>The bindings the settings file's <c>keys.field</c> object names (#661), each missing or unusable one
+    /// the default.</summary>
+    public static FieldBindings From(ModSettings settings)
+    {
+        ArgumentNullException.ThrowIfNull(settings);
+        return new(
+            settings.Binding("field", "nearbyKey", Default.NearbyKey),
+            settings.Binding("field", "placeKey", Default.PlaceKey),
+            settings.Binding("field", "holdButtons", Default.HoldButtons),
+            settings.Binding("field", "nextButton", Default.NextButton),
+            settings.Binding("field", "previousButton", Default.PreviousButton),
+            settings.Binding("field", "placeButton", Default.PlaceButton),
+            settings.Binding("field", "guideKey", Default.GuideKey),
+            settings.Binding("field", "guideButton", Default.GuideButton),
+            settings.Binding("field", "nextKey", Default.NextKey),
+            settings.Binding("field", "previousKey", Default.PreviousKey));
+    }
 }
 
 /// <summary>The field controls (#181), while the player roams the field: the nearby key speaks the list of things
@@ -46,7 +65,9 @@ public sealed record FieldBindings(
 /// The next and previous keys step as the chords do. The guide key and chord start the <see cref="Beacon"/> toward the
 /// thing last stepped to, or the nearest not already reached once that step is forgotten, and stop it when it's on;
 /// every read of the pad or keyboard moves it on.
-/// </summary>
+/// The nearby list, "where am I", the guidance beep and the reach call-outs each have their own setting (#661), read on
+/// each input read: one turned off leaves its keys and chords to the game.</summary>
+[FeatureSetting(Feature.Nearby, Feature.WhereAmI, Feature.Guidance, Feature.ReachCallouts)]
 public sealed class FieldControls : IInputControls
 {
     /// <summary>How long the pad's place on the list lasts after a step; the next step after that starts again at the
@@ -56,7 +77,8 @@ public sealed class FieldControls : IInputControls
     private const int KeyboardSource = -1;
 
     private readonly Lock gate = new();
-    private readonly FieldBindings bindings;
+    private readonly Func<FieldBindings> liveBindings;
+    private readonly Func<Feature, bool> isOn;
     private readonly IFieldReads field;
     private readonly FreeRoamGate roam;
     private readonly FieldPlace place;
@@ -82,13 +104,28 @@ public sealed class FieldControls : IInputControls
     public FieldControls(
         FieldBindings bindings, IFieldReads field, FieldPlace place, IAnnouncer announcer, ICuePlayer cues,
         Func<long> milliseconds, Action<string>? log = null, ReachCallouts? reach = null)
+        : this(() => bindings, _ => true, field, place, announcer, cues, milliseconds, log, reach)
     {
         ArgumentNullException.ThrowIfNull(bindings);
+    }
+
+    /// <summary>Field controls on the bindings and settings in force, read on each input read (#661):
+    /// <paramref name="isOn"/> says whether <see cref="Feature.Nearby"/>, <see cref="Feature.WhereAmI"/>,
+    /// <see cref="Feature.Guidance"/> and <see cref="Feature.ReachCallouts"/> are on.</summary>
+    public FieldControls(
+        Func<FieldBindings> bindings, Func<Feature, bool> isOn, IFieldReads field, FieldPlace place,
+        IAnnouncer announcer, ICuePlayer cues, Func<long> milliseconds, Action<string>? log = null,
+        ReachCallouts? reach = null)
+    {
+        ArgumentNullException.ThrowIfNull(cues);
+        ArgumentNullException.ThrowIfNull(bindings);
+        ArgumentNullException.ThrowIfNull(isOn);
         ArgumentNullException.ThrowIfNull(field);
         ArgumentNullException.ThrowIfNull(place);
         ArgumentNullException.ThrowIfNull(announcer);
         ArgumentNullException.ThrowIfNull(milliseconds);
-        this.bindings = bindings;
+        liveBindings = bindings;
+        this.isOn = isOn;
         this.field = field;
         roam = new FreeRoamGate(field);
         this.place = place;
@@ -116,14 +153,16 @@ public sealed class FieldControls : IInputControls
     {
         if (!made)
         {
-            beacon.Tick();
+            TickBeacon();
             return buttons;
         }
+        var bindings = liveBindings();
+        var listOn = isOn(Feature.Nearby);
         var holding = Holds(buttons, bindings.HoldButtons);
-        var nextHeld = holding && Holds(buttons, bindings.NextButton);
-        var previousHeld = holding && Holds(buttons, bindings.PreviousButton);
-        var placeHeld = holding && Holds(buttons, bindings.PlaceButton);
-        var guideHeld = holding && Holds(buttons, bindings.GuideButton);
+        var nextHeld = holding && listOn && Holds(buttons, bindings.NextButton);
+        var previousHeld = holding && listOn && Holds(buttons, bindings.PreviousButton);
+        var placeHeld = holding && isOn(Feature.WhereAmI) && Holds(buttons, bindings.PlaceButton);
+        var guideHeld = holding && isOn(Feature.Guidance) && Holds(buttons, bindings.GuideButton);
         var roaming = (nextHeld || previousHeld || placeHeld || guideHeld) && roam.Open();
         Press press;
         lock (gate)
@@ -136,7 +175,7 @@ public sealed class FieldControls : IInputControls
                 guidePressed ? Press.Guide : Press.None;
         }
         Act(press);
-        beacon.Tick();
+        TickBeacon();
         if (!roaming)
         {
             return buttons;
@@ -150,12 +189,17 @@ public sealed class FieldControls : IInputControls
     public IReadOnlyList<int> Keys(IReadOnlyList<int> keys)
     {
         ArgumentNullException.ThrowIfNull(keys);
-        reach?.Check();
-        var listHeld = keys.Contains(bindings.NearbyKey);
-        var placeHeld = keys.Contains(bindings.PlaceKey);
-        var guideHeld = keys.Contains(bindings.GuideKey);
-        var nextHeld = keys.Contains(bindings.NextKey);
-        var previousHeld = keys.Contains(bindings.PreviousKey);
+        if (isOn(Feature.ReachCallouts))
+        {
+            reach?.Check();
+        }
+        var bindings = liveBindings();
+        var listOn = isOn(Feature.Nearby);
+        var listHeld = listOn && keys.Contains(bindings.NearbyKey);
+        var placeHeld = isOn(Feature.WhereAmI) && keys.Contains(bindings.PlaceKey);
+        var guideHeld = isOn(Feature.Guidance) && keys.Contains(bindings.GuideKey);
+        var nextHeld = listOn && keys.Contains(bindings.NextKey);
+        var previousHeld = listOn && keys.Contains(bindings.PreviousKey);
         var roaming = (listHeld || placeHeld || guideHeld || nextHeld || previousHeld) && roam.Open();
         Press press;
         lock (gate)
@@ -169,15 +213,30 @@ public sealed class FieldControls : IInputControls
                 nextPressed ? Press.Next : previousPressed ? Press.Previous : Press.None;
         }
         Act(press);
-        beacon.Tick();
-        return roaming ? [.. keys.Where(key => !IsFieldKey(key))] : keys;
+        TickBeacon();
+        // Only a held key of a feature that is on: one turned off reaches the game.
+        return roaming
+            ? [.. keys.Where(key => !(listHeld && key == bindings.NearbyKey) &&
+                !(placeHeld && key == bindings.PlaceKey) && !(guideHeld && key == bindings.GuideKey) &&
+                !(nextHeld && key == bindings.NextKey) && !(previousHeld && key == bindings.PreviousKey))]
+            : keys;
     }
 
     /// <summary>Whether the beacon is guiding.</summary>
     public bool Guiding => beacon.Active;
 
-    private bool IsFieldKey(int key) => key != 0 && (key == bindings.NearbyKey || key == bindings.PlaceKey ||
-        key == bindings.GuideKey || key == bindings.NextKey || key == bindings.PreviousKey);
+    // The beacon moves on at every read; with its setting off it stops (#661).
+    private void TickBeacon()
+    {
+        if (isOn(Feature.Guidance))
+        {
+            beacon.Tick();
+        }
+        else if (beacon.Active)
+        {
+            beacon.Stop();
+        }
+    }
 
     private static bool Holds(int buttons, int binding) => binding != 0 && (buttons & binding) == binding;
 
