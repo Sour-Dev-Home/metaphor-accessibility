@@ -40,7 +40,7 @@ public sealed class DialogueChoicesTests
         Assert.Equal(
             [
                 new Announcement("Ada: Which way?", Interrupt: true),
-                new Announcement("Choose: North; South", Interrupt: false),
+                new Announcement("Choice, 2 options", Interrupt: false),
             ],
             announcer.Said);
     }
@@ -85,7 +85,7 @@ public sealed class DialogueChoicesTests
 
         Choices().Observe(new ChoiceRequested(0, "MES_missing", "MES_c"));
 
-        Assert.Equal([new Announcement("Choose: North; dot dot dot", Interrupt: false)], announcer.Said);
+        Assert.Equal([new Announcement("Choice, 2 options", Interrupt: false)], announcer.Said);
     }
 
     [Fact]
@@ -95,6 +95,6 @@ public sealed class DialogueChoicesTests
 
         Choices().Observe(new ChoiceRequested(0, "MES_missing", "MES_c"));
 
-        Assert.Equal([new Announcement("Choose: Well...", Interrupt: false)], announcer.Said);
+        Assert.Equal([new Announcement("Choice, 1 option", Interrupt: false)], announcer.Said);
     }
 }

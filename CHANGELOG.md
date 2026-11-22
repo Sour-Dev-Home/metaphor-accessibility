@@ -9,6 +9,9 @@ checks them in the first game session and removes the tag.
 
 ## Unreleased
 
+- **Dialogue choices say how many options, not all of them.** When a choice opens, the mod says "Choice, 3 options"
+  and then the focused option, instead of reading every option at once. Move the cursor to hear the others (#730).
+  `[NEEDS VERIFICATION by ear]`
 - **The install check says the mod's version.** `check-install.ps1`, which the installer also runs at the end, now says
   "The mod is version ..." for the copy in Reloaded-II's mods folder, so you can hear which one you have (#674).
   `[NEEDS VERIFICATION by ear]`

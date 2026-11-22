@@ -130,7 +130,7 @@ public sealed partial class YesNoDialogFocus : IScreenObserver, IChoiceRequestOb
             change, Screen, heading, ChoiceCount, index => MessageLines.Line(messages, cleaner, ChoicesLabel, index));
         if (said is not null)
         {
-            // After a scripts' choice spoke the prompt and "Choose: …" (DialogueChoices, #82), the first focus queues
+            // After a scripts' choice spoke the prompt and "Choice, N options" (DialogueChoices, #82), the first focus queues
             // behind them instead of cutting them off (the save prompt, heard 2026-11-21); later moves cut off as usual.
             announcer.Announce(waitsItsTurn ? said with { Interrupt = false } : said);
         }

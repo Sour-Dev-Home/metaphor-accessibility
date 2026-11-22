@@ -32,7 +32,7 @@ spoken details for menu entries. Until details arrive, the menu key says "No mor
   the settings message.
 - `R` or `X` with no line yet says "No dialogue to repeat". `T` or `LB` and `RB` says "Dialogue reader on" or
   "Dialogue reader off".
-- Reply choices: when they appear, "Choose:" and the options. Moving the cursor speaks the option and its position, such
+- Reply choices: when they appear, "Choice, N options" (not the options themselves). Moving the cursor speaks the option and its position, such
   as "Option, 2 of 3".
 - Lines the voice actors speak follow your voiced-lines setting: the speaker only, the full line, or nothing. The default
   says the name for English voice and the full line for Japanese voice
