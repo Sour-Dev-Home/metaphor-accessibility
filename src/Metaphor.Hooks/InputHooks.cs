@@ -38,11 +38,12 @@ internal sealed class GameInputReads(DialogueWindowPointer window, MenusOpenRead
     public static InputFrame Frame(HookServices services)
     {
         var game = new GameInputReads(services.DialogueWindow, services.MenusOpen);
-        IInputControls menus =
-            services.BattleStatus is { } status ? new ChainedControls(services.MenuControls, status) : services.MenuControls;
+        var menus =
+            services.BattleStatus is { } status ? (IInputControls)new ChainedControls(services.MenuControls, status) : services.MenuControls;
         menus = services.BattleDetails is { } details ? new ChainedControls(menus, details) : menus;
         return new(game, services.MenuScreens, menus, services.DialogueControls,
-            services.FieldControls ?? InputFrame.NoControls, services.KeyWatcher, services.PadWatcher);
+            services.FieldControls ?? InputFrame.NoControls, services.KeyWatcher, services.PadWatcher,
+            services.ReportControls, services.LastDevice);
     }
 }
 

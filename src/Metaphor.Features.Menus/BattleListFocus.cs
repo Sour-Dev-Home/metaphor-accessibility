@@ -2,6 +2,7 @@ using System.Globalization;
 using Metaphor.Core.Announcements;
 using Metaphor.Core.Menus;
 using Metaphor.Core.Messages;
+using Metaphor.Core.Settings;
 
 namespace Metaphor.Features.Menus;
 
@@ -25,6 +26,7 @@ namespace Metaphor.Features.Menus;
 /// battle lists that is <c>[NEEDS VERIFICATION]</c>. When several names were fetched (the whole view again after a wrap,
 /// #737) the row is named only if they match rows already known; else it is said by its position.</para>
 /// </remarks>
+[FeatureSetting(Feature.BattleLists)]
 public sealed class BattleListFocus : IScreenObserver, ISerialResolveObserver, IScreenDetails
 {
     /// <summary>The flags the battle lists fetch a row's name with.</summary>

@@ -2,6 +2,7 @@ using System.Globalization;
 using Metaphor.Core.Announcements;
 using Metaphor.Core.Battle;
 using Metaphor.Core.Input;
+using Metaphor.Core.Settings;
 
 namespace Metaphor.Features.Battle;
 
@@ -17,27 +18,38 @@ namespace Metaphor.Features.Battle;
 /// 548ddc95… (docs/raw-sources/pad-and-keyboard-state-2026-11-16.md). Whether the game uses either in battle is
 /// <c>[NEEDS VERIFICATION]</c> by ear: the battle inventory names the bottom bar's other buttons but not the one for
 /// its Status entry, which might be L3 (docs/raw-sources/battle-inventory-2026-11-17.md).</remarks>
+[FeatureSetting(Feature.BattleHits)]
 public sealed class BattleStatus : IInputControls
 {
-    /// <summary>L3 in the game's pad mask.</summary>
-    public const int LeftThumb = 0x0002;
+    /// <summary>L3 in the game's pad mask, the default status button.</summary>
+    public const int LeftThumb = BattleBindings.LeftThumb;
 
-    /// <summary>The H key.</summary>
-    public const int KeyH = 0x48;
+    /// <summary>The H key, the default status key.</summary>
+    public const int KeyH = BattleBindings.KeyH;
 
     private readonly IBattleParty party;
     private readonly HitLines hits;
     private readonly BattleKey press;
 
+    /// <summary>The status key on the default bindings, H and L3.</summary>
     public BattleStatus(IBattleParty party, HitLines hits, IBattleScene scene, IAnnouncer announcer)
+        : this(party, hits, scene, announcer, () => BattleBindings.Default)
     {
+    }
+
+    /// <summary>The status key on the bindings in force, read on each input read (#661): <c>keys.battle.statusKey</c>
+    /// and <c>statusButtons</c>.</summary>
+    public BattleStatus(
+        IBattleParty party, HitLines hits, IBattleScene scene, IAnnouncer announcer, Func<BattleBindings> bindings)
+    {
+        ArgumentNullException.ThrowIfNull(bindings);
         ArgumentNullException.ThrowIfNull(party);
         ArgumentNullException.ThrowIfNull(hits);
         ArgumentNullException.ThrowIfNull(scene);
         ArgumentNullException.ThrowIfNull(announcer);
         this.party = party;
         this.hits = hits;
-        press = new BattleKey(LeftThumb, KeyH, scene, () => announcer.Announce(new Announcement(Status(), Interrupt: true)));
+        press = new BattleKey(() => bindings().StatusButtons, () => bindings().StatusKey, scene, () => announcer.Announce(new Announcement(Status(), Interrupt: true)));
     }
 
     public int Pad(int pad, int buttons, bool made) => press.Pad(pad, buttons, made);

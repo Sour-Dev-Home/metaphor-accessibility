@@ -7,13 +7,30 @@ that holds the detail.
 The [ground rules in `AGENTS.md`](../../AGENTS.md#ground-rules) apply to people and agents alike. To get going:
 [set up a clone](how-to/set-up-a-clone.md) (one command, about 30 minutes, no game needed).
 
+## Find work
+
+Most issues need your own copy of the game, but many don't. Claim first, so two people don't build the same thing.
+
+- **No game needed:** every open issue without `needs-game` or `needs-game-session`
+  ([filter](https://github.com/Sour-Dev-Home/metaphor-accessibility/issues?q=is%3Aopen+-label%3Aneeds-game+-label%3Aneeds-game-session)).
+  Docs, check scripts, tests and anything the unit tests cover live here. `gh issue list --search "-label:needs-game"`
+  gives the same list.
+- **Start small:** [`good first issue`](https://github.com/Sour-Dev-Home/metaphor-accessibility/issues?q=is%3Aopen+label%3A%22good+first+issue%22)
+  marks a small issue with clear acceptance criteria.
+- **Ready to build:** `ready-for-agent` and `ready-for-human` mean fully specified; skip `needs-triage` and `needs-info`
+  until the maintainer has answered ([labels](../agents/triage-labels.md)). Read the issue's comments first: decisions
+  are recorded there.
+- **Claim:** comment that you're on it, or assign yourself, after a look for an existing branch or PR
+  ([the claim step](../agents/workflow.md#start)).
+
 ## Repository layout
 
 ```text
 src/                      the mod
   Metaphor.Core/            plain library: formats, logic, hook signatures, known game builds
-  Metaphor.Features.*/      one project per feature (Dialogue, Menus, Battle, Updates); never depend on each other
+  Metaphor.Features.*/      one project per feature (Dialogue, Field, Menus, Battle, Updates); never depend on each other
   Metaphor.Hooks/           the thin hook layer: the Reloaded-II mod, the only project touching game memory
+installer/                the installer exe (ADR 0020): a .NET Framework 4.8 launcher that runs the zip's installer
 tests/
   Metaphor.*.Tests/         xUnit tests (Unit, RoundTrip, WindowsOnly); Architecture.Tests check the architecture rules
   Metaphor.StandInGame/     stands in for Reloaded-II and the game in the script tests
@@ -24,7 +41,7 @@ scripts/
   check.sh, check/          the check command and its stages
   githooks/                 the git hooks, which call check.sh
   ci/                       CI-only steps: security stamp, vulnerability audit, test selection, alerts
-  release/                  build, package and zip the mod
+  release/                  build, package and zip the mod, and build the installer exe around the zip
   player/                   exactly what the release zip ships (installer, install check)
   dev/                      game sessions (session.ps1: deploy, run, smoke, spike, inspect, status), Ghidra
   setup/                    onboard, WSL, docs tools, Claude Code launcher
@@ -102,6 +119,9 @@ The guards, why each may block you, and what to do:
 - **No security-review stamp** (pre-commit, CI trailer): [the stamp](reference/security-review.md#the-stamp).
 - **Build, tests or formatting** (pre-push, `full`): fix and rerun; a busy build slot:
   [recorded pass](reference/checks.md#recorded-pass), `bash scripts/check/check-status.sh` shows who holds it.
+- **A feature with no setting** (architecture rule 18): mark it `[FeatureSetting(Feature.X)]` and list its key in
+  [the settings reference](../players/reference/settings.md); the rule is in
+  [coding standards](../coding-standards.md#architecture-rules).
 - **Architecture tests:** a rule in [coding standards](../coding-standards.md#architecture-rules) was broken.
 - **Broken link or anchor** (`check.sh docs`): fix the link; lint and Vale only warn.
 - **Missing `security-reviewed` label** (`review-gate`): wait for the maintainer
@@ -138,14 +158,8 @@ Both are optional; without Claude, write the same things by hand.
 
 You don't need Claude Code or any agent tooling.
 
-- **Pick an issue.** Any open issue not labelled `needs-game` works
-  ([filter](https://github.com/Sour-Dev-Home/metaphor-accessibility/issues?q=is%3Aopen+-label%3Aneeds-game)). New here?
-  Start with a
-  [`good first issue`](https://github.com/Sour-Dev-Home/metaphor-accessibility/issues?q=is%3Aopen+label%3A%22good+first+issue%22).
-  Comment on the issue before you start.
-- **Labels.** `ready-for-agent` and `ready-for-human` both mean ready to start; the names say who the maintainer
-  expected, and they don't stop you. Ask before starting a `needs-triage` issue, and skip `needs-info` unless you can
-  supply the answer.
+- **Pick an issue** from [Find work](#find-work). `ready-for-agent` and `ready-for-human` name who the maintainer
+  expected; neither stops you.
 - **The game.** Most work needs your own copy of the game, to check offsets, formats and in-game behaviour. Without
   it you can still do docs, tooling and anything the unit tests cover.
 
@@ -164,6 +178,15 @@ Then deliver, in this order:
    doesn't ([the stamp](reference/security-review.md#the-stamp)).
 
 To write a player page, follow [write a player doc](how-to/write-a-player-doc.md).
+
+### What a game session produces
+
+A play session, yours or a tester's, leaves a log and notes; issues come from those. The player presses `F8` (the
+[mark key](../players/reference/keys-and-speech.md#mark-key-note-a-moment-for-your-report)) at a wrong or silent
+moment, which writes a numbered marker with the time to `report-log.txt`
+([settings](../players/reference/settings.md#report)). To run one yourself, and where its output goes (never into
+git), follow [run a game session](how-to/run-a-game-session.md). File each finding as an issue per
+[`issue-tracker.md`](../agents/issue-tracker.md), tagged `needs-game` when it needs the game to build or check.
 
 ## Playbooks
 

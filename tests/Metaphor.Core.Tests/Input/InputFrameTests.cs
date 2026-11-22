@@ -67,6 +67,22 @@ public sealed class InputFrameTests
         public void Pad(int pad, int buttons, bool made) => Seen.Add($"pad {pad} 0x{buttons:x} {made}");
     }
 
+    // #597: the mark key works on every screen, so its controls take each read before the menus', and what they drop
+    // reaches neither the menus nor the game.
+    [Fact]
+    public void TheReportControlsTakeEachReadFirst()
+    {
+        var report = new Controls { OnKeys = keys => [.. keys.Where(key => key != 0x77)], OnPad = buttons => buttons & ~A };
+        var frame = new InputFrame(game, screens, menus, dialogue, InputFrame.NoControls, report: report);
+
+        var keys = frame.Keys([0x77, 0x0D]);
+        var pad = frame.Pad(0, A | B, made: true);
+
+        Assert.Equal([0x0D], keys.Keys);
+        Assert.Equal(["keys 13", "pad 0 0x2000 True"], menus.Seen);
+        Assert.Equal(B, pad.Buttons);
+    }
+
     // #562: the settings confirm questions see each pad read as the game read it, before the menu controls hide their
     // buttons, made or not, and change nothing.
     [Fact]
@@ -96,6 +112,22 @@ public sealed class InputFrameTests
 
         Assert.Equal(["9,13"], watcher.Seen);
         Assert.Equal([0x0D], answer.Keys);
+    }
+
+    // #623: the frame tells the last-device tracker what the game read, before the controls change it.
+    [Fact]
+    public void TheLastDeviceFollowsTheReads()
+    {
+        var device = new LastInputDevice();
+        menus.OnKeys = _ => [];
+        var frame = new InputFrame(
+            game, screens, menus, dialogue, InputFrame.NoControls, lastDevice: device);
+
+        frame.Keys([0x20]);
+        Assert.Equal(InputDevice.Keyboard, device.Current);
+
+        frame.Pad(0, A, made: true);
+        Assert.Equal(InputDevice.Controller, device.Current);
     }
 
     [Fact]

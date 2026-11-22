@@ -2,6 +2,7 @@ using System.Globalization;
 using Metaphor.Core;
 using Metaphor.Core.Announcements;
 using Metaphor.Core.Battle;
+using Metaphor.Core.Settings;
 
 namespace Metaphor.Features.Battle;
 
@@ -29,6 +30,7 @@ public sealed record KnownEnemy(string Label, int Hp, int? HpMax, long Target);
 /// <para>The game gives no "battle over" signal the mod reads, so a battle ends at a long quiet gap
 /// (<see cref="BattleGapMilliseconds"/>), which forgets its enemies; the length is a guess to check by ear.</para>
 /// </remarks>
+[FeatureSetting(Feature.BattleHits)]
 public sealed class HitLines : IBattleHitObserver
 {
     /// <summary>How long the same hit told again is taken as the same one.</summary>
