@@ -16,9 +16,10 @@ usual job in the game.
 | Repeat the last dialogue line in full | `R` | `X` | A dialogue window is open |
 | Turn the mod's speech on or off | `T` | `LB` and `RB` held together | A dialogue window or a menu is open |
 | Say what is near, nearest first | `N` | none | Walking in the field |
-| Step to the next thing on that list | none | `LB` held, then D-pad `Down` | Walking in the field |
-| Step to the previous thing | none | `LB` held, then D-pad `Up` | Walking in the field |
+| Step to the next thing on that list | `K` | `LB` held, then D-pad `Down` | Walking in the field |
+| Step to the previous thing | `J` | `LB` held, then D-pad `Up` | Walking in the field |
 | Say where you are | `L` | `LB` held, then D-pad `Left` | Walking in the field |
+| Guide you to a nearby thing with a beep | `G` | `LB` held, then D-pad `Right` | Walking in the field |
 | Read more of the focused menu entry | `F` | Right stick press (`R3`) | A menu is open |
 | Note a moment for your report ([mark key](#mark-key-note-a-moment-for-your-report)) | `F8` | none | Anywhere in the game |
 
@@ -54,11 +55,18 @@ anywhere.
 
 ### In the field
 
-- `N` says up to 8 people, doors, chests and enemies, each with its name or kind, then how far and which way from where
-  you face, such as "Chest, 4 steps ahead-left". With nothing near: "Nothing nearby".
-- The pad's `LB` and D-pad steps through the same list, such as "2 of 5. Door, 9 steps behind"; after 10 seconds without
-  a step it starts again at the nearest.
+- `N` says up to 8 people, doors, chests and enemies, each with its name or kind, then how far and which way, such as
+  "Chest, 4 steps ahead-left". Ahead means the way the camera looks, so left and right are the screen's. "In reach"
+  means you can probably use it from where you stand and face. With nothing near: "Nothing nearby".
+- `K` and `J`, or the pad's `LB` and D-pad `Down` and `Up`, step through the same list, such as "2 of 5. Door, 9 steps
+  behind"; after 10 seconds without a step it starts again at the nearest.
 - `L` says the place name the game last showed, or "Place not known yet".
+- `G`, or `LB` and D-pad `Right`, guides you to the thing you last stepped to, or to the nearest thing you aren't
+  already at if you haven't stepped in the last 10 seconds. At it already: "Already next to", then the name. Otherwise
+  "Guiding to", then the name, and a short beep repeats: from the left or right as the thing lies, higher ahead and
+  lower behind, faster as you get closer. Walk so the beep is high and in the middle. "Reached", then the name, when
+  you get there. Press again to stop: "Guidance off". A menu or a dialogue stops it too. The beep points in a straight
+  line and doesn't know about walls yet. It plays only while sound cues are on.
 - With no key: walking up to a door or chest says "Door, in reach" or "Chest, in reach" once, after anything being
   said. Move away or turn, then come back, and it says it again. People aren't said this way yet.
 - Distances are rough steps: treat them as near or far.
