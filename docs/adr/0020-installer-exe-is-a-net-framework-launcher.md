@@ -1,10 +1,11 @@
 ---
-status: proposed
+status: accepted
 ---
 
 # The installer exe is a small C# launcher for .NET Framework 4.8
 
-Proposed for the maintainer to decide (#612, under #608 and ADR 0017).
+Accepted by the maintainer on 2026-11-22 (#612, under #608 and ADR 0017): x64 only, a console window, a welcome line
+before the installer starts; a setup wizard only if players report install trouble.
 
 The exe is our own console program, compiled by the C# compiler in the pinned .NET SDK (9.0.319, `global.json`, MIT),
 targeting .NET Framework 4.8, which every supported Windows 10 and 11 includes. It embeds the release files and their
