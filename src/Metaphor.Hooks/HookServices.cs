@@ -56,6 +56,10 @@ internal sealed record HookServices
     /// (#585), or nothing.</summary>
     public IKeyWatcher? KeyWatcher { get; init; }
 
+    /// <summary>What the input hooks' frame (#301) shows each pad read to, unchanged: the settings confirm questions
+    /// (#562), or nothing.</summary>
+    public IPadWatcher? PadWatcher { get; init; }
+
     /// <summary>Whether a name entry screen is up (#585), so the keyboard hook's dev log gives a key count, not the
     /// codes of a name being typed.</summary>
     public Func<bool> NameEntryUp { get; init; } = () => false;
@@ -129,6 +133,14 @@ internal sealed record HookServices
     /// for none.</summary>
     public BattleEnemyHp? BattleDetails { get; init; }
 
+    /// <summary>The game's tutorial table (#118), which the entry point loads from the game's archive once the hooks
+    /// are in.</summary>
+    public TutorialTableSource Tutorials { get; init; } = new();
+
+    /// <summary>Speaks tutorial pop-ups as they open (#118); silent unless built by <see cref="Speaking"/>.</summary>
+    public TutorialPopups TutorialPopups { get; init; } =
+        new(new MessageLibrary(), new SilentAnnouncer(), new TextCleaner(TextCleanerRules.None), () => null);
+
     /// <summary>Where features play the mod's sound cues (#636, ADR 0019); silent unless the entry point starts one.
     /// </summary>
     public ICuePlayer Cues { get; init; } = new SilentCuePlayer();
@@ -176,15 +188,23 @@ internal sealed record HookServices
         var voiceLanguage = new VoiceLanguageRead();
         var dialogue = new DialogueAnnouncer(
             reader, cleaner, history, () => settings.Current.VoicedLines, voiceLanguage.Read);
-        var controls = new DialogueControls(DialogueBindings.Default, history, reader, announcer, dialogue.EndConversation);
+        // Tutorial pop-ups speak through the reader too, once their table has loaded (#118).
+        var tutorials = new TutorialTableSource();
+        var tutorialPopups = new TutorialPopups(library, reader, cleaner, () => tutorials.Table);
+        // While a pop-up is up, the repeat binding says its page again (by-ear finding of 2026-11-21).
+        var controls = new DialogueControls(
+            DialogueBindings.Default, history, reader, announcer, dialogue.EndConversation, () => tutorialPopups.OnScreen);
         // Menus speak through the reader too (#214), and their controls toggle it with the dialogue's binding.
         var screens = new MenuScreens(KnownScreens.All);
         screens.Observe(new TitleMenuFocus(library, reader, cleaner));
         screens.Observe(new MainMenuFocus(reader));
         // A yes/no dialog hears each scripted choice and each select window too, to say the text of one opened outside
         // the scripts (#569).
-        var yesNo = new YesNoDialogFocus(library, reader, cleaner);
+        // A settings page's dialog says its question, known from the press that opened it (#562).
+        var settingsQuestion = new SettingsConfirmQuestion();
+        var yesNo = new YesNoDialogFocus(library, reader, cleaner, settingsQuestion);
         screens.Observe(yesNo);
+        screens.Observe(settingsQuestion);
         events.ObserveChoices(yesNo);
         events.ObserveSelects(yesNo);
         screens.Observe(new DifficultyFocus(library, reader, cleaner));
@@ -290,11 +310,14 @@ internal sealed record HookServices
             MenuScreens = screens,
             NameEntry = nameEntry,
             KeyWatcher = nameEntry,
+            PadWatcher = settingsQuestion,
             NameEntryUp = nameEntry.OnScreen,
             GameData = gameData,
             CharacterTable = characterTable,
             FollowerTable = followerTable,
             Voice = voiceLanguage,
+            Tutorials = tutorials,
+            TutorialPopups = tutorialPopups,
             MenusOpen = menusOpen,
             DialogueWindow = window,
             FieldWorld = fieldWorld,
