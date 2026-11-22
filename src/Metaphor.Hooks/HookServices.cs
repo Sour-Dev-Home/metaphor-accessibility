@@ -171,9 +171,17 @@ internal sealed record HookServices
         // Tutorial pop-ups speak through the reader too, once their table has loaded (#118).
         var tutorials = new TutorialTableSource();
         var tutorialPopups = new TutorialPopups(library, reader, cleaner, () => tutorials.Table);
+        // The game-over screen's words follow its voiced line once the window closes (#623).
+        var gameOver = new GameOverScreen(new ShownSpeakers(library, names), dialogue, reader);
         // While a pop-up is up, the repeat binding says its page again (by-ear finding of 2026-11-21).
         var controls = new DialogueControls(
-            DialogueBindings.Default, history, reader, announcer, dialogue.EndConversation, () => tutorialPopups.OnScreen);
+            DialogueBindings.Default, history, reader, announcer,
+            () =>
+            {
+                dialogue.EndConversation();
+                gameOver.WindowClosed();
+            },
+            () => tutorialPopups.OnScreen);
         // Menus speak through the reader too (#214), and their controls toggle it with the dialogue's binding.
         var screens = new MenuScreens(KnownScreens.All);
         screens.Observe(new TitleMenuFocus(library, reader, cleaner));
@@ -207,6 +215,7 @@ internal sealed record HookServices
         events.ObserveLines(lines);
         events.ObserveShownLines(lines);
         events.ObserveShownLines(nameEntry);
+        events.ObserveShownLines(gameOver);
         // A choice's prompt, spoken as it opens, isn't spoken again when the window shows it (#541).
         events.ObserveChoices(lines);
         var choices = new DialogueChoices(library, dialogue);
