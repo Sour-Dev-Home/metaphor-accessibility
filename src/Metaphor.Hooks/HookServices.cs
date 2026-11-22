@@ -208,6 +208,7 @@ internal sealed record HookServices
         screens.Observe(new DifficultyFocus(library, menuSpeech, cleaner));
         screens.Observe(new SettingsFocus(library, menuSpeech, cleaner));
         screens.Observe(new QuickMenuFocus(library, menuSpeech, cleaner));
+        screens.Observe(new ItemFocus(menuSpeech));
         screens.Observe(new UnknownScreenFocus(menuSpeech));
         var menuBindings = settings.Live(now =>
         {
