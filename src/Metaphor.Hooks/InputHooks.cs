@@ -38,7 +38,8 @@ internal sealed class GameInputReads(DialogueWindowPointer window, MenusOpenRead
     {
         var game = new GameInputReads(services.DialogueWindow, services.MenusOpen);
         return new(game, services.MenuScreens, services.MenuControls, services.DialogueControls,
-            services.FieldControls ?? InputFrame.NoControls, services.KeyWatcher, services.PadWatcher);
+            services.FieldControls ?? InputFrame.NoControls, services.KeyWatcher, services.PadWatcher,
+            services.LastDevice);
     }
 }
 

@@ -1,4 +1,5 @@
 using Metaphor.Core.Announcements;
+using Metaphor.Core.Input;
 using Metaphor.Core.Messages;
 
 namespace Metaphor.Features.Dialogue;
@@ -12,23 +13,28 @@ public sealed class GameOverScreen : ILineShownObserver
     private const string LabelPrefix = "MES_GAMEOVER_";
 
     // The words are ours, English only: "Fantasy is Dead" is drawn, and no compiled message holds it (heard by the
-    // maintainer on 2026-11-22, #623). Confirm is A on a pad or Space on the keyboard.
-    private const string OwnWords = "Fantasy is Dead. Press A to continue.";
+    // maintainer on 2026-11-22, #623). Confirm is A on a pad or Space on the keyboard, and the words name the key of
+    // the device last used (maintainer's decision, 2026-11-22, Q29 on #623).
 
     private readonly IMessageLookup messages;
     private readonly DialogueAnnouncer dialogue;
     private readonly IAnnouncer announcer;
+    private readonly LastInputDevice device;
     private readonly Lock gate = new();
     private bool shown;
 
     /// <param name="messages">The compiled messages, to find the shown line.</param>
     /// <param name="dialogue">Where the voiced line is said, as other dialogue is.</param>
     /// <param name="announcer">Where the screen's words are said.</param>
-    public GameOverScreen(IMessageLookup messages, DialogueAnnouncer dialogue, IAnnouncer announcer)
+    /// <param name="device">The last-used input device, to name the confirm key.</param>
+    public GameOverScreen(
+        IMessageLookup messages, DialogueAnnouncer dialogue, IAnnouncer announcer, LastInputDevice device)
     {
         ArgumentNullException.ThrowIfNull(messages);
         ArgumentNullException.ThrowIfNull(dialogue);
         ArgumentNullException.ThrowIfNull(announcer);
+        ArgumentNullException.ThrowIfNull(device);
+        this.device = device;
         this.messages = messages;
         this.dialogue = dialogue;
         this.announcer = announcer;
@@ -62,6 +68,7 @@ public sealed class GameOverScreen : ILineShownObserver
             }
             shown = false;
         }
-        announcer.Announce(new Announcement(OwnWords, Interrupt: true));
+        var key = device.Current == InputDevice.Keyboard ? "Space" : "A";
+        announcer.Announce(new Announcement($"Fantasy is Dead. Press {key} to continue.", Interrupt: true));
     }
 }

@@ -63,6 +63,9 @@ internal sealed record HookServices
     /// (#562), or nothing.</summary>
     public IPadWatcher? PadWatcher { get; init; }
 
+    /// <summary>What the input hooks' frame (#301) tells which device each read came from (#623), or nothing.</summary>
+    public LastInputDevice? LastDevice { get; init; }
+
     /// <summary>Whether a name entry screen is up (#585), so the keyboard hook's dev log gives a key count, not the
     /// codes of a name being typed.</summary>
     public Func<bool> NameEntryUp { get; init; } = () => false;
@@ -177,7 +180,8 @@ internal sealed record HookServices
         var tutorials = new TutorialTableSource();
         var tutorialPopups = new TutorialPopups(library, reader, cleaner, () => tutorials.Table);
         // The game-over screen's words follow its voiced line once the window closes (#623).
-        var gameOver = new GameOverScreen(new ShownSpeakers(library, names), dialogue, reader);
+        var lastDevice = new LastInputDevice();
+        var gameOver = new GameOverScreen(new ShownSpeakers(library, names), dialogue, reader, lastDevice);
         // While a pop-up is up, the repeat binding says its page again (by-ear finding of 2026-11-21).
         var controls = new DialogueControls(
             DialogueBindings.Default, history, reader, announcer,
@@ -282,6 +286,7 @@ internal sealed record HookServices
             NameEntry = nameEntry,
             KeyWatcher = nameEntry,
             PadWatcher = settingsQuestion,
+            LastDevice = lastDevice,
             NameEntryUp = nameEntry.OnScreen,
             GameData = gameData,
             CharacterTable = characterTable,

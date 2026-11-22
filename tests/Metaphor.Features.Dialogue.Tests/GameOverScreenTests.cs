@@ -1,4 +1,5 @@
 using Metaphor.Core.Announcements;
+using Metaphor.Core.Input;
 using Metaphor.Core.Messages;
 
 namespace Metaphor.Features.Dialogue.Tests;
@@ -16,11 +17,12 @@ public sealed class GameOverScreenTests
 
     private readonly RecordingAnnouncer announcer = new();
     private readonly MessageLibrary messages = new();
+    private readonly LastInputDevice device = new();
 
     public GameOverScreenTests() => messages.Compiled(Lines);
 
     private GameOverScreen Screen() =>
-        new(messages, new DialogueAnnouncer(announcer, new TextCleaner(TextCleanerRules.None), new DialogueHistory()), announcer);
+        new(messages, new DialogueAnnouncer(announcer, new TextCleaner(TextCleanerRules.None), new DialogueHistory()), announcer, device);
 
     private static LineShown Shown(int kind, string label) => new(kind, MessageLibrary.LabelHash(label));
 
@@ -64,5 +66,30 @@ public sealed class GameOverScreenTests
         screen.WindowClosed();
 
         Assert.Equal(2, announcer.Said.Count);
+    }
+
+    [Fact]
+    public void TheWordsNameSpaceAfterAKeyboardRead()
+    {
+        device.Keys([0x20]);
+        var screen = Screen();
+        screen.Observe(Shown(2, "MES_GAMEOVER_000_000"));
+
+        screen.WindowClosed();
+
+        Assert.Equal(new Announcement("Fantasy is Dead. Press Space to continue.", Interrupt: true), announcer.Said[^1]);
+    }
+
+    [Fact]
+    public void TheWordsNameAAfterAPadRead()
+    {
+        device.Keys([0x20]);
+        device.Pad(0x1000);
+        var screen = Screen();
+        screen.Observe(Shown(2, "MES_GAMEOVER_000_000"));
+
+        screen.WindowClosed();
+
+        Assert.Equal(new Announcement(Words, Interrupt: true), announcer.Said[^1]);
     }
 }

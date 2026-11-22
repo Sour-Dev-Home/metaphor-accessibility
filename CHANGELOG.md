@@ -12,7 +12,7 @@ checks them in the first game session and removes the tag.
 - **Save and load slots are read.** Each slot says "Slot 3"; the load list's first row says "Autosave". The place,
   playtime and whether a slot is empty aren't read yet (#622). `[NEEDS VERIFICATION by ear]`
 - **The game-over screen is read.** Its voiced line is spoken, then "Fantasy is Dead. Press A to continue." once the
-  voice ends; Space on the keyboard also continues (#623). `[NEEDS VERIFICATION by ear]`
+  voice ends; if you last used the keyboard it says "Press Space to continue" (#623). `[NEEDS VERIFICATION by ear]`
 - **"Save complete" is read.** The small pop-up after saving is spoken (#622). `[NEEDS VERIFICATION by ear]`
 - **The install check says the mod's version.** `check-install.ps1`, which the installer also runs at the end, now says
   "The mod is version ..." for the copy in Reloaded-II's mods folder, so you can hear which one you have (#674).
