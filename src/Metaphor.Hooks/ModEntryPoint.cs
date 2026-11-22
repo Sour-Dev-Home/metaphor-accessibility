@@ -139,7 +139,8 @@ public sealed class ModEntryPoint : IMod
 #endif
             // The settings report only a file they can't use, so each of their lines is an error.
             var settings = new SettingsReloader(announcer, LogError);
-            settingsFile = SettingsFile.Open(configFolder, settings, LogError);
+            var file = SettingsFile.Open(configFolder, settings, LogError);
+            settingsFile = file;
             // Sound cues play on their own thread through waveOut channels, at the settings in force (#636, #637,
             // ADR 0019).
             cues = new CuePlayer(new WaveOutDevice(), () => settings.Current, LogError);
@@ -150,6 +151,11 @@ public sealed class ModEntryPoint : IMod
 #else
             Action<string> updateLog = _ => { };
 #endif
+            // The first-launch welcome (#617), queued after the load message and the title screen's own speech, before
+            // any update notice; the file's flag keeps later launches quiet.
+            services.MenuScreens.Observe(new WelcomeMessage(
+                config.ModVersion ?? "", TitleMenuFocus.Screen, settings.Speech(Feature.Welcome, announcer),
+                () => settings.Current, file.MarkWelcomed));
             StartUpdateCheck(config.ModVersion ?? "", announcer, settings, services.MenuScreens, updateLog);
             // The mod runs inside the game, so this process's exe is the game executable whose hash identifies the
             // build (seen in docs/raw-sources/mod-entry-point-first-run-2026-11-15.md). Hooks go in only on a known

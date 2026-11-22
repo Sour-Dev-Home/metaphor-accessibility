@@ -14,6 +14,11 @@ public enum Cue
     /// <summary>An enemy was hit: two high notes, rising.</summary>
     [SettingKey("sounds", "enemyHit", "Enemy hit sound")]
     EnemyHit,
+
+    /// <summary>The mark key wrote a marker to the report log (#597): one short high note, then the same again.
+    /// </summary>
+    [SettingKey("sounds", "mark", "Mark sound")]
+    Mark,
 }
 
 /// <summary>One note of a cue: a sine at <paramref name="Hertz"/> for <paramref name="Milliseconds"/>.</summary>
@@ -32,11 +37,16 @@ public static class CueCatalogue
     // A5 then E6, a rising fifth: 100 ms, shorter and brighter.
     private static readonly CueTone EnemyHit = new([new ToneStep(880, 50), new ToneStep(1320, 50)]);
 
+    // D6 twice with a silent gap (a 0 Hz step), like a pen's click: 110 ms, neither rising nor falling, so it isn't a
+    // hit.
+    private static readonly CueTone Mark = new([new ToneStep(1175, 40), new ToneStep(0, 30), new ToneStep(1175, 40)]);
+
     /// <summary>The notes <paramref name="cue"/> plays.</summary>
     public static CueTone For(Cue cue) => cue switch
     {
         Cue.AllyHit => AllyHit,
         Cue.EnemyHit => EnemyHit,
+        Cue.Mark => Mark,
         _ => throw new ArgumentOutOfRangeException(nameof(cue)),
     };
 }

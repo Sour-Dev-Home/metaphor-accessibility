@@ -203,6 +203,11 @@ You may hear nothing if your screen reader or Windows speech isn't reachable. Th
 `%APPDATA%\Reloaded-Mod-Loader-II\Logs\`, which lists the mod by its ID, `metaphor.accessibility`. If you hear the first
 message, the install worked.
 
+The first time the game starts with the mod, the title screen then adds, once: "Metaphor accessibility" and the
+version, "is running. In the field, N says what's near you, L says where you are, G guides you." After that the mod
+sets `"welcomed": true` in its `settings.json`, and later launches skip it. Set it to `false` to hear it again;
+`[NEEDS VERIFICATION]` by ear in the game.
+
 ## If the mod says nothing: run the install check
 
 The mod folder holds `check-install.ps1`, which says why the mod didn't load. It prints each result. With no screen
@@ -279,6 +284,18 @@ The mod adds no keys here. It speaks what the game's own cursor does, so use the
 
 `[NEEDS VERIFICATION]` All by ear in the game. They need a supported game build.
 
+### Mark key: note a moment for your report
+
+`F8` on the keyboard, anywhere in the game: when something was wrong or the mod said nothing, press it. The mod plays
+two short clicks and writes a numbered marker with the time to `report-log.txt`, such as `mark number=2
+session=0:12:03`, so whoever reads your report finds that moment. The game never sees `F8` while the mark key is on.
+There is no controller button yet. Whether the game uses `F8` for anything is `[NEEDS VERIFICATION]`; you can move the
+mark key in the settings file.
+
+The mod also lists in the same log each screen and each menu move it said nothing for, by the screen's name inside the
+game's code, the position and the list's length, at most 200 a session. Both only write to the log; nothing is sent
+anywhere.
+
 ### Voiced lines
 
 For lines the voice actors speak, the mod can say the speaker only, or the full line. The default (`auto`) says the name
@@ -341,10 +358,13 @@ Use the Alpha feedback form on the project's issues page.
 
 1. Find `report-log.txt` in the `metaphor.accessibility` folder in your mods folder. The mod writes it fresh each time
    the game starts, so copy it before you start the game again.
-2. Open the form, answer its questions, and drag the file into the "Report log" box, or choose it with the file picker.
+2. Open the form and answer its three questions: what you were doing, roughly when you pressed the
+   [mark key](#mark-key-note-a-moment-for-your-report), and the file: drag it into the "Attach report-log.txt" box, or
+   choose it with the file picker.
 3. The log holds what the mod did (whether it loaded, how many hooks went in, errors, and which lines and choices the
-   game asked for, by label such as `Title_System_08`), never the game's text, and your user name is replaced with
-   `<redacted>`. Read it in Notepad first if you want to check.
+   game asked for, by label such as `Title_System_08`), your mark key presses and the screens the mod said nothing
+   for, never the game's text, and your user name is replaced with `<redacted>`. Read it in Notepad first if you want
+   to check.
 
 ## Credits
 

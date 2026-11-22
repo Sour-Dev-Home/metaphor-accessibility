@@ -96,6 +96,10 @@ internal sealed record HookServices
     /// None unless the services speak.</summary>
     public FieldControls? FieldControls { get; init; }
 
+    /// <summary>The mark key (#597): the input hooks' frame (#301) hands it each read first. None unless the services
+    /// speak and the report log is open.</summary>
+    public IInputControls? ReportControls { get; init; }
+
     /// <summary>The place names "where am I" says (#181): the message lookup hook feeds it.</summary>
     public FieldPlace? FieldPlace { get; init; }
 
@@ -151,6 +155,10 @@ internal sealed record HookServices
     {
         ArgumentNullException.ThrowIfNull(cues);
         ArgumentNullException.ThrowIfNull(settings);
+        // The silent screen list (#597) counts everything the features below say, so it hears each screen event after
+        // them; its entries go to the report log only.
+        var silence = report is null ? null : new SilentScreens(announcer, report, () => settings.Current);
+        announcer = (IAnnouncer?)silence ?? announcer;
         var library = new MessageLibrary();
         // Serials as build 548ddc95 numbers them; the message file hook that feeds it installs on that build only.
         var serials = new MessageSerials(MessageSerials.Steam18330018);
@@ -245,6 +253,10 @@ internal sealed record HookServices
         var fieldControls = new FieldControls(
             settings.Live(FieldBindings.From), feature => settings.Current.IsOn(feature), field, place, announcer,
             () => Environment.TickCount64, log is null ? null : log.FieldRead);
+        if (silence is not null)
+        {
+            screens.Observe(silence);
+        }
         if (report is not null)
         {
             events.ObserveFiles(report);
@@ -293,6 +305,8 @@ internal sealed record HookServices
             Field = field,
             FieldPlace = place,
             FieldControls = fieldControls,
+            // The mark key (#597): its toggle and binding read live; keyboard only until the pad layer (#688).
+            ReportControls = report is null ? null : new MarkKey(() => settings.Current, cues, report),
             Cues = cues,
         };
     }

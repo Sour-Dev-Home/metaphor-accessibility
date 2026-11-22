@@ -45,6 +45,18 @@ public enum Feature
     /// <summary>"Where am I" (#181).</summary>
     [SettingKey("field", "whereAmI", "Where am I")]
     WhereAmI,
+
+    /// <summary>The first-launch welcome (#617). Whether it has been said is <c>welcomed</c>.</summary>
+    [SettingKey("speech", "welcome", "Welcome")]
+    Welcome,
+
+    /// <summary>The mark key, which writes a marker to the report log (#597).</summary>
+    [SettingKey("report", "markKey", "Mark key")]
+    MarkKey,
+
+    /// <summary>The report log's list of screens and focus moves the mod said nothing for (#597).</summary>
+    [SettingKey("report", "silentScreens", "Silent screen list")]
+    SilentScreens,
 }
 
 /// <summary>Where a <see cref="Feature"/> or a <see cref="Cue"/> sits in the settings file: the key

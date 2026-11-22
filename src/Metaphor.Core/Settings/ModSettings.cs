@@ -49,6 +49,10 @@ public sealed record ModSettings
     /// <summary>How loud the sound cues are, 0 (silent) to 100 (#636). 50 by default.</summary>
     public int SoundCueVolume { get; init; } = 50;
 
+    /// <summary>Whether the first-launch welcome has been said (#617). The mod sets it in the file after saying it;
+    /// false says it again on the next launch.</summary>
+    public bool Welcomed { get; init; }
+
     // Only what the file sets: a feature or cue it doesn't name is on at full volume, a binding it doesn't name is the
     // feature's default. Compared by value, so the same file read twice gives equal settings.
     private SettingMap<Feature, bool> Toggles { get; init; } = SettingMap<Feature, bool>.Empty;
@@ -102,6 +106,7 @@ public sealed record ModSettings
                 CheckForUpdates = ReadCheckForUpdates(document.RootElement, log),
                 SoundCues = ReadSoundCues(document.RootElement, log),
                 SoundCueVolume = ReadSoundCueVolume(document.RootElement, log),
+                Welcomed = ReadWelcomed(document.RootElement, log),
                 Toggles = ReadToggles(document.RootElement, log),
                 Sounds = ReadSounds(document.RootElement, log),
                 Bindings = ReadBindings(document.RootElement, log),
@@ -175,6 +180,21 @@ public sealed record ModSettings
         }
         log($"settings file: \"{SoundCueVolumeKey}\" is not a whole number from 0 to 100; using {Defaults.SoundCueVolume}");
         return Defaults.SoundCueVolume;
+    }
+
+    // JSON true or false; anything else counts as said, so a typo can't make the welcome repeat on every launch.
+    private static bool ReadWelcomed(JsonElement root, Action<string> log)
+    {
+        if (!root.TryGetProperty(WelcomeFlag.Key, out var value))
+        {
+            return false;
+        }
+        if (value.ValueKind is JsonValueKind.True or JsonValueKind.False)
+        {
+            return value.GetBoolean();
+        }
+        log($"settings file: \"{WelcomeFlag.Key}\" is not true or false; using true");
+        return true;
     }
 
     // Each feature's true or false in its group's object; anything else leaves it on and says why.

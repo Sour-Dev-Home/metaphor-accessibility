@@ -12,6 +12,7 @@ sound and what it means.
 |---|---|---|
 | Ally hit | Someone in your party was hit. It plays just before the damage number is read. | Two low notes going down, like "uh-oh". |
 | Enemy hit | An enemy was hit. It plays just before the damage number is read. | Two high notes going up, quicker and brighter. |
+| Mark | You pressed the mark key, F8, and the mod wrote a marker to its report log. | Two short high clicks on the same note. |
 
 A simple way to remember them: low and falling is bad news for you, high and rising is good news.
 

@@ -35,6 +35,7 @@ A file that turns off menu speech and the nearby list, and moves the repeat key 
 | `checkForUpdates` | Whether the mod asks GitHub once per launch for a newer release. See [turn off the update check](../how-to/turn-off-the-update-check.md). | `true` |
 | `soundCues` | Whether the mod plays its sound cues at all. | `true` |
 | `soundCueVolume` | How loud the sound cues are, a whole number from 0, silent, to 100. | `50` |
+| `welcomed` | Whether the welcome has been said. The mod sets it to `true` itself after the first launch; set it to `false` to hear the welcome again next time. | `false` |
 
 ## Speech
 
@@ -49,6 +50,7 @@ Each is `true` to speak or `false` to stay quiet, inside a `speech` object: `{ "
 | `placeNames` | The place name the game shows as you arrive somewhere. | `true` |
 | `updateNotice` | The title screen's notice of a newer version. The request itself is `checkForUpdates`. | `true` |
 | `tutorials` | Tutorial pop-ups: the title, the page count and each page. Off also leaves the repeat key to repeat dialogue, not the pop-up's page. | `true` |
+| `welcome` | The welcome on the title screen the first time the game starts with the mod: the mod's version and the field keys. | `true` |
 
 ## Field
 
@@ -59,6 +61,16 @@ the game.
 |---|---|---|
 | `nearby` | The nearby list: N, or LB with Down and Up on the D-pad. | `true` |
 | `whereAmI` | "Where am I": L, or LB with Left on the D-pad. | `true` |
+
+## Report
+
+Inside a `report` object, `true` or `false`: `{ "report": { "silentScreens": false } }`. Both write only to
+`report-log.txt` in the mod's folder; nothing is sent anywhere. See [report a problem](../how-to/install-the-mod.md#report-a-problem).
+
+| Setting | What it does | Default |
+|---|---|---|
+| `markKey` | The mark key, F8: writes a numbered marker with the time to the report log and plays the mark sound. Off leaves F8 to the game. | `true` |
+| `silentScreens` | Lists in the report log each screen and each move in a menu that the mod said nothing for. | `true` |
 
 ## Sounds
 
@@ -74,6 +86,7 @@ from 0 to 100 that is a share of `soundCueVolume`: 50 plays it at half the sound
 |---|---|---|
 | `allyHit` | Someone in your party was hit. | on, volume 100 |
 | `enemyHit` | An enemy was hit. | on, volume 100 |
+| `mark` | The mark key wrote a marker. | on, volume 100 |
 
 ## Keys
 
@@ -102,6 +115,7 @@ DpadUp, DpadDown, DpadLeft and DpadRight.
 | `field.nextButton` | With the held button: the next thing on the nearby list. | `"DpadDown"` |
 | `field.previousButton` | With the held button: the thing before. | `"DpadUp"` |
 | `field.placeButton` | With the held button: where you are. | `"DpadLeft"` |
+| `report.markKey` | Writes a marker to the report log. Keyboard only for now. | `"F8"` |
 
 A key the game also uses still reaches the game whenever the mod isn't using it, so choose one the game leaves free
 where you'll press it.
