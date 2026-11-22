@@ -6,7 +6,7 @@ namespace Metaphor.Features.Field;
 /// <summary>Says a door or chest as it comes into reach (#644), the moment the game's action prompt would show: "Door, in
 /// reach". It's said once, and again only after the thing has been out of reach for <see cref="LeaveMilliseconds"/>
 /// and come back; a slightly wider reach (<see cref="Nearby.NearReach"/>) holds it meanwhile, so standing at the edge
-/// doesn't flicker. Reach is the game's own test (<see cref="Nearby.InReach"/>), so people stay out until theirs is found. The game's prompt itself, and the target it
+/// doesn't flicker. Reach is the game's own test with its distance 20% longer (<see cref="Nearby.CalloutReach"/>), so people stay out until theirs is found. The game's prompt itself, and the target it
 /// picks, sit behind <c>.text1</c> and aren't read (docs/findings/field-interaction-prompt-static.md); its words from
 /// <c>AccessPointName.msg</c> are <c>[NEEDS VERIFICATION]</c>, so the kind word stands in.
 /// <para>The field controls call <see cref="Check"/> on every keyboard read, which the game makes once a frame by its
@@ -91,7 +91,7 @@ public sealed class ReachCallouts
         }
         held.RemoveAll(thing => now - thing.HeldAt >= LeaveMilliseconds);
         List<string>? entered = null;
-        foreach (var thing in Nearby.InReach(view))
+        foreach (var thing in Nearby.CalloutReach(view))
         {
             var unit = thing.Unit;
             if (Holding(unit) is null)

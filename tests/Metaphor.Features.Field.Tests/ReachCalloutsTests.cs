@@ -101,6 +101,17 @@ public sealed class ReachCalloutsTests
     }
 
     [Fact]
+    public void ADoorJustPastTheGamesReachIsCalledOutButNotOneWellPastIt()
+    {
+        // The game's door reach is 150; the callout is said from 20% further out (#644).
+        Tick(Standing(0, Door(150 * 1.3)));
+        Assert.Empty(Said());
+
+        Tick(Standing(0, Door(150 * 1.15)));
+        Assert.Equal(["Door, in reach"], Said());
+    }
+
+    [Fact]
     public void StandingAtTheEdgeOfReachDoesNotFlicker()
     {
         // The door's reach is 150 and its facing limit 90°: sway either side of both, well inside the hold's slack.

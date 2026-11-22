@@ -119,16 +119,32 @@ public static class Nearby
     {
         ArgumentNullException.ThrowIfNull(view);
         ArgumentNullException.ThrowIfNull(unit);
-        return Place(view, unit, HoldDistanceSlack, HoldFacingSlack).InReach;
+        return Place(view, unit, HoldDistanceSlack, HoldFacingSlack, CalloutRangeScale).InReach;
     }
 
-    private static NearbyThing Place(FieldView view, FieldUnit unit, double slack = 0, double facingSlack = 0)
+    /// <summary>How much further than the game's reach distance the reach callout is said, 20%, so it comes a little
+    /// earlier (#644). The mod's own choice; the game's test, the nearby list and the beacon keep the game's reach.</summary>
+    public const double CalloutRangeScale = 1.2;
+
+    /// <summary>The things of <paramref name="view"/> within the callout's range (the game's reach distance times
+    /// <see cref="CalloutRangeScale"/>, same height and facing), nearest first (#644).</summary>
+    public static IReadOnlyList<NearbyThing> CalloutReach(FieldView view)
+    {
+        ArgumentNullException.ThrowIfNull(view);
+        return [.. view.Units
+            .Select(unit => Place(view, unit, 0, 0, CalloutRangeScale))
+            .Where(thing => thing.InReach)
+            .OrderBy(thing => thing.Distance)];
+    }
+
+    private static NearbyThing Place(FieldView view, FieldUnit unit, double slack = 0, double facingSlack = 0,
+        double rangeScale = 1)
     {
         var dx = unit.X - view.X;
         var dz = unit.Z - view.Z;
         var distance = Math.Sqrt(dx * dx + dz * dz);
         var bearing = Normalised(Math.Atan2(dx, dz) - view.Heading);
-        var inReach = ReachLimit(unit.Kind, view.DoorReachValue) is { } limit && distance < limit + slack &&
+        var inReach = ReachLimit(unit.Kind, view.DoorReachValue) is { } limit && distance < limit * rangeScale + slack &&
             Math.Abs(unit.Y - view.Y) < HeightReach + slack && Math.Abs(bearing) < FacingReach + facingSlack;
         return new(unit, distance, bearing, inReach);
     }
