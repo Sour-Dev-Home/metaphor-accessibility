@@ -51,11 +51,11 @@ when no screen reader is running. That voice is an English one when Windows has 
 uses Windows' default voice. Open it with Enter, not "Run as administrator": it refuses to run as administrator. With
 User Account Control turned off every window is administrator, so it says so and asks before going on.
 
-`install.cmd` in the mod's folder does the same as `Install Metaphor accessibility.cmd`. If Windows won't open
-either, start the installer by typing instead: press `Windows+R`, type this with the full path to the mod's folder in
-place of `<folder>`, and press Enter:
-
-`powershell -ExecutionPolicy Bypass -NoExit -File "<folder>\install.ps1"`
+`install.cmd` in the mod's folder does the same as `Install Metaphor accessibility.cmd`. If Windows won't open the
+first, try the second. If neither opens, Windows is blocking the file, not failing to find it: unblock it as described
+in the next section. Typing a command to get round the block isn't something this guide asks of you, because it needs
+switches that a screen reader doesn't voice well; if the block stays, report it with the
+[alpha feedback form](#report-a-problem).
 
 The installer checks every file it downloads against a recorded hash. A download that gets no data for a minute, or
 takes more than half an hour, stops, and the installer says what to do. If you ever open Reloaded-II's own window, it may
@@ -97,7 +97,7 @@ instead (step 3 of the installer above).
    The file runs.
 3. If the window offers only "Don't run", or you are on a work or school PC, an administrator has blocked the file;
    you can't go on from here. With Smart App Control on, Windows blocks the file with no such button: unblock it as
-   above, or start the installer with the command at the end of the installer section.
+   above.
 
 ## What the mod says when it loads
 
@@ -121,16 +121,14 @@ and long codes; the printed lines keep them. It changes no file or setting and r
 Windows PowerShell 5.1 it writes temporary files in your temp folder while it looks for JAWS and ZoomText, and removes
 them.
 
-1. Press `Windows+R`, type the line below with the path to your mod folder, and press `Enter`:
-
-   `powershell -ExecutionPolicy Bypass -NoExit -File "<mods folder>\metaphor.accessibility\check-install.ps1"`
-
-   The unzipped folder you downloaded works too.
+1. Run the installer again, as in [Install with the spoken installer](#install-with-the-spoken-installer). It ends
+   with this check, and changes only what needs changing. Nothing needs typing. (The check has no launcher of its own
+   yet.)
 2. It checks, in order: Reloaded-II is set up; the mod is in its mods folder; the game is added and the mod turned on
    for it; the game's version is one the mod knows; the speech library, `prism.dll`, is in place; how the mod last
    started. Each line starts with "Pass", "Problem" or "Not checked". A last "Note" says when no screen reader the
    mod supports is running; that isn't counted as a problem, since the mod then uses Windows' own voice.
-3. The last line names the first thing to fix. Fix it, then run the check again.
+3. The last line names the first thing to fix. Fix it, then run the installer again.
 
 If the check finds nothing wrong and the mod is still silent, send its output with the
 [alpha feedback form](#report-a-problem).
@@ -214,11 +212,8 @@ install does.
 1. Close the game and Reloaded-II.
 2. Open the mod's folder in File Explorer: the unzipped folder you downloaded, or the mod's folder in Reloaded-II's
    mods folder, which the uninstall then removes. Move to `uninstall.cmd` with the arrow keys, or type `uninstall`, and
-   press Enter. Windows may ask first, as it does for `install.cmd`; choose `Run`. If Windows won't open it, press
-   `Windows+R`, type this with the folder's full path in place of `<folder>`, and press Enter:
-
-   `powershell -ExecutionPolicy Bypass -NoExit -File "<folder>\install.ps1" -Uninstall`
-
+   press Enter. Windows may ask first, as it does for `install.cmd`; choose `Run`. If Windows won't open it, it is
+   blocking the file; unblock it as for the installer.
 3. A window with a Yes and a No button asks "Uninstall the mod?" and says what it does, as the install's questions do.
    Press `Y` for Yes. The focus starts on No, so `Enter` alone, or `N`, stops without changing anything.
 4. It says five steps, each starting with "Done", "Nothing to remove" or "Failed": it turns the mod off for the game in
@@ -255,9 +250,8 @@ issue if it does.
 
 - `[NEEDS VERIFICATION]` The spoken phrases and the focus in the Windows windows above: Properties, "Windows protected
   your PC", "Open File - Security Warning", and the installer's Yes and No windows and Open window (#573). Whether
-  File Explorer opens the extracted folder after "Extract All", what NVDA reads for the installer file, whether
-  `Escape` answers No in the question windows (Windows' Yes and No windows usually ignore it), and whether the typed
-  fallback line works with Smart App Control on.
+  File Explorer opens the extracted folder after "Extract All", what NVDA reads for the installer file, and whether
+  `Escape` answers No in the question windows (Windows' Yes and No windows usually ignore it).
 - `[NEEDS VERIFICATION]` Whether unblocking lifts the block when Smart App Control is on.
 - `[NEEDS VERIFICATION]` The installer's spoken wording, and with User Account Control off (#601).
 - `[NEEDS VERIFICATION]` The install check by ear with NVDA, and whether Windows asks before running a script from a
