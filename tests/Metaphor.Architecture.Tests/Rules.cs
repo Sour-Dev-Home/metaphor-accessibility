@@ -248,6 +248,89 @@ internal static class Rules
             : [];
     }
 
+    private const string AnnouncerInterface = "Metaphor.Core.Announcements.IAnnouncer";
+    private const string CuePlayerInterface = "Metaphor.Core.Cues.ICuePlayer";
+    private const string FeatureSettingAttribute = "Metaphor.Core.Settings.FeatureSettingAttribute";
+    private static readonly string[] KeyInterfaces = ["Metaphor.Core.Input.IInputControls", "Metaphor.Core.Input.IKeyWatcher"];
+
+    /// <summary>
+    /// Rule 18 (#661): a feature class that speaks (calls <c>Announce</c> on an announcer), plays a cue (calls the cue
+    /// player) or takes keys (implements the input controls or the key watcher) is marked
+    /// <c>[FeatureSetting(...)]</c>, so every feature can be turned off. Lambdas count for the class that holds them.
+    /// An announcer itself, such as the reader switch, passes on what it's handed and isn't counted as speaking.
+    /// </summary>
+    public static IReadOnlyList<string> FeaturesHaveSettings(AssemblyDefinition assembly)
+    {
+        if (!assembly.Name.Name.StartsWith(FeaturePrefix, StringComparison.Ordinal))
+        {
+            return [];
+        }
+        List<string> violations = [];
+        foreach (var type in assembly.Modules.SelectMany(module => module.Types))
+        {
+            if (type.CustomAttributes.Any(attribute => attribute.AttributeType.FullName == FeatureSettingAttribute))
+            {
+                continue;
+            }
+            var calls = WithNested(type).SelectMany(nested => nested.Methods).Where(method => method.HasBody)
+                .SelectMany(method => method.Body.Instructions)
+                .Select(instruction => instruction.Operand as MethodReference).OfType<MethodReference>().ToList();
+            List<string> does = [];
+            if (!Implements(type, AnnouncerInterface) &&
+                calls.Any(call => call.Name == "Announce" && Implements(call.DeclaringType, AnnouncerInterface)))
+            {
+                does.Add("speaks");
+            }
+            if (calls.Any(call => Implements(call.DeclaringType, CuePlayerInterface)))
+            {
+                does.Add("plays a cue");
+            }
+            if (KeyInterfaces.Any(key => Implements(type, key)))
+            {
+                does.Add("takes keys");
+            }
+            if (does.Count > 0)
+            {
+                violations.Add(
+                    $"{type.FullName} {string.Join(" and ", does)} but has no setting. Add a member to " +
+                    "Metaphor.Core.Settings.Feature with its [SettingKey(\"group\", \"name\", \"Spoken name\")], mark " +
+                    $"{type.Name} [FeatureSetting(Feature.YourFeature)], gate it in HookServices.Speaking through " +
+                    "settings.Speech(Feature.YourFeature, ...) or settings.Input(Feature.YourFeature, ...), and list " +
+                    "the key in docs/players/reference/settings.md");
+            }
+        }
+        return violations;
+    }
+
+    private static IEnumerable<TypeDefinition> WithNested(TypeDefinition type) =>
+        [type, .. type.NestedTypes.SelectMany(WithNested)];
+
+    /// <summary>Whether <paramref name="type"/> is the interface <paramref name="fullName"/> or implements it, through
+    /// its base classes and other interfaces. A type that can't be resolved doesn't.</summary>
+    private static bool Implements(TypeReference? type, string fullName)
+    {
+        if (type is null)
+        {
+            return false;
+        }
+        if (type.FullName == fullName)
+        {
+            return true;
+        }
+        TypeDefinition? definition;
+        try
+        {
+            definition = type.Resolve();
+        }
+        catch (AssemblyResolutionException)
+        {
+            return false;
+        }
+        return definition is not null &&
+            (definition.Interfaces.Any(implemented => Implements(implemented.InterfaceType, fullName)) ||
+                Implements(definition.BaseType, fullName));
+    }
+
     /// <summary>
     /// Each hook (a type marked <c>[GameHook]</c>) names at least one game build, and only builds from the known-builds
     /// list, so it can't patch a build nobody has checked (AGENTS.md ground rule 2).

@@ -1,5 +1,6 @@
 using Metaphor.Core.Announcements;
 using Metaphor.Core.Messages;
+using Metaphor.Core.Settings;
 
 namespace Metaphor.Features.Dialogue.Tests;
 
@@ -310,6 +311,34 @@ public sealed class DialogueControlsTests
 
         Assert.Equal(0, controls.Pad(0, X));
         Assert.Equal([Said("Ada: One.")], announcer.Said);
+    }
+
+    // #661: the settings file rebinds the dialogue keys, applied at the next read.
+    [Fact]
+    public void AKeyReboundInTheFileAppliesAtTheNextRead()
+    {
+        var bindings = DialogueBindings.Default;
+        var rebound = new DialogueControls(() => bindings, history, reader, announcer);
+        history.Add("Ada: One.");
+        rebound.WindowRead(Message);
+        bindings = DialogueBindings.From(ModSettings.Parse("""{ "keys": { "dialogue": { "repeatKey": "Q" } } }""", _ => { }));
+
+        Assert.Equal([R], rebound.Keys([R]));
+        Assert.Empty(rebound.Keys([0x51]));
+        Assert.Equal([Said("Ada: One.")], announcer.Said);
+    }
+
+    [Fact]
+    public void TheFileNamesEveryDialogueBinding()
+    {
+        var settings = ModSettings.Parse(
+            """
+            { "keys": { "dialogue": { "repeatButtons": "Y", "readerButtons": "LT+RT", "repeatKey": "F3",
+              "readerKey": "none" } } }
+            """, _ => { });
+
+        Assert.Equal(new DialogueBindings(0x1000, 0x0300, 0x72, 0), DialogueBindings.From(settings));
+        Assert.Equal(DialogueBindings.Default, DialogueBindings.From(ModSettings.Defaults));
     }
 
     // The by-ear finding of 2026-11-21: on a tutorial pop-up's page 2, X and R should say that page again.

@@ -51,6 +51,37 @@ public sealed class CuePlayerTests
         Assert.Empty(device.Opened);
     }
 
+    // Each cue has its own setting (#661): one turned off is silent while the other still plays.
+    [Fact]
+    public void ACueTurnedOffAloneIsSilentAndTheOtherPlays()
+    {
+        var device = new FakeWaveDevice { Instant = true };
+        var settings = ModSettings.Parse("""{ "sounds": { "allyHit": { "on": false } } }""", logged.Add);
+        using (var player = new CuePlayer(device, () => settings, logged.Add))
+        {
+            player.Play(Cue.AllyHit);
+            player.Play(Cue.EnemyHit);
+        }
+
+        Assert.Equal(
+            Expected(Cue.EnemyHit, ModSettings.Defaults.SoundCueVolume, 0), device.Opened.Single().Frames);
+    }
+
+    // A cue's own volume is a share of the sound cue volume: 50 of 60 plays at 30.
+    [Fact]
+    public void ACuesOwnVolumeScalesTheSoundCueVolume()
+    {
+        var device = new FakeWaveDevice { Instant = true };
+        var settings = ModSettings.Parse(
+            """{ "soundCueVolume": 60, "sounds": { "enemyHit": { "volume": 50 } } }""", logged.Add);
+        using (var player = new CuePlayer(device, () => settings, logged.Add))
+        {
+            player.Play(Cue.EnemyHit);
+        }
+
+        Assert.Equal(Expected(Cue.EnemyHit, 30, 0), device.Opened.Single().Frames);
+    }
+
     [Fact]
     public void VolumeZeroPlaysNothing()
     {
