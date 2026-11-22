@@ -212,9 +212,65 @@ public sealed class BeaconTests
         field.Roaming = true;
         now += Beacon.PollMilliseconds;
         beacon.Tick();
+        now += Beacon.FreeRoamSettleMilliseconds;
+        beacon.Tick();
 
         Assert.Equal(2, cues.Held.Count);
         Assert.Equal(["Guiding to Testa"], Said());
+    }
+
+    // #709, by ear 2026-11-22 (Steam build 18330018): the beep sounded again between the lines of a story scene. The
+    // session's log shows free roam reading true for a moment right after the dialogue window closed (1048974 ms, the
+    // route's retry) and again at 1059197 ms, inside the scene. A beacon that went quiet for a conversation stays quiet
+    // through such a moment, and sounds again only once free roam has held for FreeRoamSettleMilliseconds.
+    [Fact]
+    public void ABriefFreeRoamBetweenTheSceneAndTheNextLineDoesNotSoundTheBeep()
+    {
+        beacon.Start(Person(0, 1000));
+        beacon.Tick();
+        field.Roaming = false;
+        now += Beacon.PollMilliseconds;
+        beacon.Tick();
+
+        field.Roaming = true;
+        now += Beacon.PollMilliseconds;
+        beacon.Tick();
+        field.Roaming = false;
+        for (var i = 0; i < 20; i++)
+        {
+            now += Beacon.PollMilliseconds;
+            beacon.Tick();
+        }
+
+        Assert.Single(cues.Held);
+
+        field.Roaming = true;
+        now += Beacon.PollMilliseconds;
+        beacon.Tick();
+        Assert.Single(cues.Held);
+        now += Beacon.FreeRoamSettleMilliseconds;
+        beacon.Tick();
+
+        Assert.Equal(2, cues.Held.Count);
+    }
+
+    [Fact]
+    public void ThePauseAndTheResumeAreLoggedSoASessionCanTellThem()
+    {
+        var log = new List<string>();
+        var logged = new Beacon(field, cues, announcer, () => now, log.Add);
+        logged.Start(Person(0, 1000));
+        logged.Tick();
+        field.Roaming = false;
+        now += Beacon.PollMilliseconds;
+        logged.Tick();
+        field.Roaming = true;
+        now += Beacon.PollMilliseconds;
+        logged.Tick();
+        now += Beacon.FreeRoamSettleMilliseconds;
+        logged.Tick();
+
+        Assert.Equal(["beacon pause: not free roam", "beacon resume: free roam held"], log.Skip(1));
     }
 
     // A pause that ends on another map has nothing left to guide to: it stops without a word.
@@ -230,6 +286,8 @@ public sealed class BeaconTests
         field.Map = 2;
         field.Roaming = true;
         now += Beacon.PollMilliseconds;
+        beacon.Tick();
+        now += Beacon.FreeRoamSettleMilliseconds;
         beacon.Tick();
 
         Assert.False(beacon.Active);

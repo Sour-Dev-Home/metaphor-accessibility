@@ -11,7 +11,8 @@ checks them in the first game session and removes the tag.
 
 - **Field sounds wait while the game takes over.** The guiding beep and "in reach" call-outs go quiet when a menu,
   dialogue or cutscene starts, and the beep picks up again toward the same thing when you can walk again, unless you
-  are on another map by then (#702). Whether a scripted walk quiets them too isn't known yet.
+  are on another map by then (#702). The beep waits a second after you can walk again, so a pause between the lines of
+  a scene doesn't bring it back (#709). Whether a scripted walk quiets them too isn't known yet.
   `[NEEDS VERIFICATION by ear]`
 - **A beep that guides you to something nearby.** In the field, `G`, or `LB` with the D-pad's Right, starts a
   repeating beep toward the thing you last stepped to, or the nearest you aren't already at: from its side, higher

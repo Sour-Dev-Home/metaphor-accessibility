@@ -15,15 +15,39 @@ namespace Metaphor.Features.Field;
 public sealed class FreeRoamGate
 {
     private readonly IFieldReads field;
+    private readonly long settleMilliseconds;
+    private readonly Func<long>? milliseconds;
+    private long closedAt;
+    private bool closedBefore;
 
-    /// <summary>A gate that asks <paramref name="field"/>.</summary>
-    public FreeRoamGate(IFieldReads field)
+    /// <summary>A gate that asks <paramref name="field"/>. With a <paramref name="settleMilliseconds"/> above zero and a
+    /// clock, it stays shut after it has seen free roam end until free roam has held that long (#709: the log showed
+    /// free roam reading true for a moment between the lines of one scene).</summary>
+    public FreeRoamGate(IFieldReads field, long settleMilliseconds = 0, Func<long>? milliseconds = null)
     {
         ArgumentNullException.ThrowIfNull(field);
+        if (settleMilliseconds > 0)
+        {
+            ArgumentNullException.ThrowIfNull(milliseconds);
+        }
         this.field = field;
+        this.settleMilliseconds = settleMilliseconds;
+        this.milliseconds = milliseconds;
     }
 
-    /// <summary>Whether a field sound may play now: the player roams freely. A read that throws reaches the caller.
-    /// </summary>
-    public bool Open() => field.InFreeRoam();
+    /// <summary>Whether a field sound may play now: the player roams freely, and has for the settle time since it last
+    /// ended. A read that throws reaches the caller.</summary>
+    public bool Open()
+    {
+        if (!field.InFreeRoam())
+        {
+            if (milliseconds is not null)
+            {
+                closedAt = milliseconds();
+                closedBefore = true;
+            }
+            return false;
+        }
+        return !closedBefore || milliseconds!() - closedAt >= settleMilliseconds;
+    }
 }

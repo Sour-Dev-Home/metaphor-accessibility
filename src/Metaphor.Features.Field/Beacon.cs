@@ -23,6 +23,11 @@ public sealed class Beacon
     /// <summary>How often the field is read while guiding.</summary>
     public const long PollMilliseconds = 50;
 
+    /// <summary>How long free roam must hold, once it has ended, before the beep sounds again (#709). Proposed: the log
+    /// of the 2026-11-22 session (Steam build 18330018) shows free roam reading true for single polls inside a story
+    /// scene; no source says how long a scene's gaps last, so the length is [NEEDS VERIFICATION by ear].</summary>
+    public const long FreeRoamSettleMilliseconds = 1000;
+
     /// <summary>How long each pulse sounds.</summary>
     public const long PulseMilliseconds = 80;
 
@@ -77,7 +82,7 @@ public sealed class Beacon
         ArgumentNullException.ThrowIfNull(announcer);
         ArgumentNullException.ThrowIfNull(milliseconds);
         this.field = field;
-        roam = new FreeRoamGate(field);
+        roam = new FreeRoamGate(field, FreeRoamSettleMilliseconds, milliseconds);
         this.cues = cues;
         this.announcer = announcer;
         this.milliseconds = milliseconds;
@@ -177,12 +182,14 @@ public sealed class Beacon
                             paused = true;
                             sounding = false;
                             cues.Silence(ToneChannel.Guidance);
+                            log?.Invoke("beacon pause: not free roam");
                         }
                         return;
                     }
                     if (paused)
                     {
                         paused = false;
+                        log?.Invoke("beacon resume: free roam held");
                         nextPulseAt = now;
                         if (field.MapId() != map)
                         {
