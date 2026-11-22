@@ -54,6 +54,10 @@ internal sealed record HookServices
     /// (#585), or nothing.</summary>
     public IKeyWatcher? KeyWatcher { get; init; }
 
+    /// <summary>What the input hooks' frame (#301) shows each pad read to, unchanged: the settings confirm questions
+    /// (#562), or nothing.</summary>
+    public IPadWatcher? PadWatcher { get; init; }
+
     /// <summary>Whether a name entry screen is up (#585), so the keyboard hook's dev log gives a key count, not the
     /// codes of a name being typed.</summary>
     public Func<bool> NameEntryUp { get; init; } = () => false;
@@ -176,8 +180,11 @@ internal sealed record HookServices
         screens.Observe(new MainMenuFocus(reader));
         // A yes/no dialog hears each scripted choice and each select window too, to say the text of one opened outside
         // the scripts (#569).
-        var yesNo = new YesNoDialogFocus(library, reader, cleaner);
+        // A settings page's dialog says its question, known from the press that opened it (#562).
+        var settingsQuestion = new SettingsConfirmQuestion();
+        var yesNo = new YesNoDialogFocus(library, reader, cleaner, settingsQuestion);
         screens.Observe(yesNo);
+        screens.Observe(settingsQuestion);
         events.ObserveChoices(yesNo);
         events.ObserveSelects(yesNo);
         screens.Observe(new DifficultyFocus(library, reader, cleaner));
@@ -256,6 +263,7 @@ internal sealed record HookServices
             MenuScreens = screens,
             NameEntry = nameEntry,
             KeyWatcher = nameEntry,
+            PadWatcher = settingsQuestion,
             NameEntryUp = nameEntry.OnScreen,
             GameData = gameData,
             CharacterTable = characterTable,
