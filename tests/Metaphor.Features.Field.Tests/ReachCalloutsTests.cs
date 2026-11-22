@@ -31,6 +31,8 @@ public sealed class ReachCalloutsTests
         }
 
         public int? MapId() => null;
+
+        public FieldPose? ReadPose() => View is { } view ? new FieldPose(view.X, view.Y, view.Z, view.Heading) : null;
     }
 
     // Facing +Z at heading 0; a door within 150 ahead is in reach, at 900 it isn't.

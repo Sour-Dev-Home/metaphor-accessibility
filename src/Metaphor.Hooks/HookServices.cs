@@ -300,7 +300,7 @@ internal sealed record HookServices
         // Its two settings, the nearby list and "where am I", are read by the controls on each read (#661).
         var fieldControls = new FieldControls(
             settings.Live(FieldBindings.From), feature => settings.Current.IsOn(feature), field, place, announcer,
-            () => Environment.TickCount64, log is null ? null : log.FieldRead,
+            cues, () => Environment.TickCount64, log is null ? null : log.FieldRead,
             new ReachCallouts(field, settings.Speech(Feature.Reach, announcer), () => Environment.TickCount64));
         if (silence is not null)
         {

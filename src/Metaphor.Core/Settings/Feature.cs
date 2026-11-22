@@ -54,6 +54,10 @@ public enum Feature
     [SettingKey("field", "whereAmI", "Where am I")]
     WhereAmI,
 
+    /// <summary>The guidance beep toward a nearby thing, and its keys (#183).</summary>
+    [SettingKey("field", "guidance", "Guidance beep")]
+    Guidance,
+
     /// <summary>The callout when a door or chest comes into reach (#644).</summary>
     [SettingKey("field", "reach", "Reach callouts")]
     Reach,

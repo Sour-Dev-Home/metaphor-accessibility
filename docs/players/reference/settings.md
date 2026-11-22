@@ -63,6 +63,7 @@ the game.
 |---|---|---|
 | `nearby` | The nearby list: N, or LB with Down and Up on the D-pad. | `true` |
 | `whereAmI` | "Where am I": L, or LB with Left on the D-pad. | `true` |
+| `guidance` | The guidance beep toward a nearby thing: G, or LB with Right on the D-pad. | `true` |
 | `reach` | The callout when a door or chest comes into reach: "Door, in reach". | `true` |
 
 ## Report
@@ -122,6 +123,10 @@ DpadUp, DpadDown, DpadLeft and DpadRight.
 | `field.nextButton` | With the held button: the next thing on the nearby list. | `"DpadDown"` |
 | `field.previousButton` | With the held button: the thing before. | `"DpadUp"` |
 | `field.placeButton` | With the held button: where you are. | `"DpadLeft"` |
+| `field.guideKey` | Starts or stops the guidance beep. | `"G"` |
+| `field.guideButton` | With the held button: starts or stops the guidance beep. | `"DpadRight"` |
+| `field.nextKey` | The next thing on the nearby list, from the keyboard. | `"K"` |
+| `field.previousKey` | The thing before, from the keyboard. | `"J"` |
 | `report.markKey` | Writes a marker to the report log. Keyboard only for now. | `"F8"` |
 
 A key the game also uses still reaches the game whenever the mod isn't using it, so choose one the game leaves free
