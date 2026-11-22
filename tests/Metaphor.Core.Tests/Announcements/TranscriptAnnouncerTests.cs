@@ -8,6 +8,7 @@ public sealed class TranscriptAnnouncerTests : IDisposable
 {
     private readonly string folder = Directory.CreateTempSubdirectory("metaphor-transcript-").FullName;
     private readonly RecordingAnnouncer speech = new();
+    private long now;
 
     public void Dispose() => Directory.Delete(folder, recursive: true);
 
@@ -16,35 +17,39 @@ public sealed class TranscriptAnnouncerTests : IDisposable
     [Fact]
     public void WritesEachAnnouncementInOrderAndStillSpeaksIt()
     {
-        var announcer = new TranscriptAnnouncer(speech, folder);
+        var announcer = new TranscriptAnnouncer(speech, folder, () => now);
 
+        now = 1500;
         announcer.Announce(new Announcement("Ada: The bridge is out.", Interrupt: true));
+        now = 172230;
         announcer.Announce(new Announcement("The wind picks up.", Interrupt: false));
 
-        Assert.Equal(["Ada: The bridge is out.", "The wind picks up."], File.ReadAllLines(TranscriptPath));
+        // #763: each line starts with the report log's clock, "<ms> ms ".
+        Assert.Equal(
+            ["1500 ms Ada: The bridge is out.", "172230 ms The wind picks up."], File.ReadAllLines(TranscriptPath));
         Assert.Equal(2, speech.Said.Count);
     }
 
     [Fact]
     public void KeepsEachAnnouncementOnOneLine()
     {
-        var announcer = new TranscriptAnnouncer(speech, folder);
+        var announcer = new TranscriptAnnouncer(speech, folder, () => now);
 
         announcer.Announce(new Announcement("First part\r\nsecond part", Interrupt: true));
 
-        Assert.Equal(["First part second part"], File.ReadAllLines(TranscriptPath));
+        Assert.Equal(["0 ms First part second part"], File.ReadAllLines(TranscriptPath));
     }
 
     // #585: the name the player types is spoken but never written down.
     [Fact]
     public void APrivateAnnouncementIsSpokenButOnlyItsLengthIsWritten()
     {
-        var announcer = new TranscriptAnnouncer(speech, folder);
+        var announcer = new TranscriptAnnouncer(speech, folder, () => now);
         var typed = new Announcement("Ada", Interrupt: true, Private: true);
 
         announcer.Announce(typed);
 
-        Assert.Equal([TranscriptAnnouncer.PrivateLine(3)], File.ReadAllLines(TranscriptPath));
+        Assert.Equal(["0 ms " + TranscriptAnnouncer.PrivateLine(3)], File.ReadAllLines(TranscriptPath));
         Assert.DoesNotContain("Ada", File.ReadAllText(TranscriptPath), StringComparison.Ordinal);
         Assert.DoesNotContain("Ada", typed.ToString(), StringComparison.Ordinal);
         Assert.Equal([typed], speech.Said);
@@ -55,9 +60,9 @@ public sealed class TranscriptAnnouncerTests : IDisposable
     {
         File.WriteAllText(TranscriptPath, "from an earlier run\n");
 
-        new TranscriptAnnouncer(speech, folder).Announce(new Announcement("Now.", Interrupt: true));
+        new TranscriptAnnouncer(speech, folder, () => now).Announce(new Announcement("Now.", Interrupt: true));
 
-        Assert.Equal(["Now."], File.ReadAllLines(TranscriptPath));
+        Assert.Equal(["0 ms Now."], File.ReadAllLines(TranscriptPath));
     }
 
     [Fact]
@@ -65,7 +70,7 @@ public sealed class TranscriptAnnouncerTests : IDisposable
     {
         var missing = Path.Combine(folder, "no-such-folder");
 
-        var announcer = new TranscriptAnnouncer(speech, missing);
+        var announcer = new TranscriptAnnouncer(speech, missing, () => now);
         announcer.Announce(new Announcement("Still said.", Interrupt: true));
 
         Assert.Equal([new Announcement("Still said.", Interrupt: true)], speech.Said);
