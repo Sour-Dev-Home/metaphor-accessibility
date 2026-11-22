@@ -8,6 +8,7 @@ namespace Metaphor.Features.Dialogue;
 /// conversation's first line and when the speaker changes, and as the line alone while the same speaker continues or
 /// when there's no speaker (#539), interrupting the line before. A voiced line follows the "Voiced lines" setting
 /// (#57, #104); the history (#126) keeps every line in full whatever is said.</summary>
+[FeatureSetting(Feature.Dialogue)]
 public sealed class DialogueAnnouncer
 {
     private readonly IAnnouncer announcer;

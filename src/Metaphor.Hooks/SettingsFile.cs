@@ -34,6 +34,32 @@ internal sealed class SettingsFile : IDisposable
 
     public void Dispose() => watcher?.Dispose();
 
+    /// <summary>Sets the first-launch welcome's flag in the file (#617), keeping what the player wrote, in one step so
+    /// the watcher never reads half of it. A file the mod can't change safely is left alone and said in the log; the
+    /// welcome is then said again next launch.</summary>
+    [SuppressMessage("Design", "CA1031", Justification = "A settings problem must never stop the mod.")]
+    public void MarkWelcomed()
+    {
+        try
+        {
+            if (WelcomeFlag.Mark(Read()) is { } marked)
+            {
+                // Written beside it and moved over it, which the watcher sees as one change.
+                var temporary = path + ".tmp";
+                File.WriteAllText(temporary, marked);
+                File.Move(temporary, path, overwrite: true);
+            }
+            else if (!reloader.Current.Welcomed)
+            {
+                log("settings file: not a JSON object, so the welcome's flag wasn't written");
+            }
+        }
+        catch (Exception e)
+        {
+            log($"settings file: the welcome's flag wasn't written: {e.Message}");
+        }
+    }
+
     [SuppressMessage("Design", "CA1031", Justification = "A settings problem must never stop the mod.")]
     private FileSystemWatcher? Watch(string folder)
     {

@@ -2,6 +2,7 @@ using Metaphor.Core.Announcements;
 using Metaphor.Core.Input;
 using Metaphor.Core.Menus;
 using Metaphor.Core.Messages;
+using Metaphor.Core.Settings;
 
 namespace Metaphor.Features.Menus;
 
@@ -13,6 +14,7 @@ namespace Metaphor.Features.Menus;
 /// <c>System_NameEntry_01</c> for the protagonist's, and <c>System_NameEntry_Error</c> as a kind-1 window line when a
 /// name is refused (docs/findings/name-entry-static.md). That the title is up when the first update runs, and that the
 /// error reaches the window hook, are <c>[NEEDS VERIFICATION]</c> by ear.</remarks>
+[FeatureSetting(Feature.NameEntry)]
 public sealed class NameEntrySpeech : INameEntryObserver, ILineShownObserver, IKeyWatcher
 {
     /// <summary>What is said when Enter is pressed on the screen: the name is confirmed with Tab or the pad's Menu
