@@ -43,6 +43,8 @@ checks them in the first game session and removes the tag.
   who changed: party members by slot, such as "Ally 1 89, Ally 2 120", and each enemy with its HP left, numbered when
   there are several. Misses and blocked hits aren't read yet, and names aren't known yet (#247).
   `[NEEDS VERIFICATION by ear]`
+- **Knock-outs are said.** The hit that takes a party member to 0 HP adds "knocked out" ("Strohl 40, knocked out"), one
+  that defeats an enemy adds "defeated", and a heal from 0 HP adds "revived" (#254). `[NEEDS VERIFICATION by ear]`
 - **Battle's skill and item lists are read**: "Skills" or "Items" as the list opens, then each skill or item's name
   and "n of total" as you move. F, or R3 on the pad, reads the focused one's description (#247). Past the first
   screen each row keeps its own name as the list scrolls; one whose name isn't known is said by its position.

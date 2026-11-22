@@ -93,7 +93,15 @@ public sealed class HitLines : IBattleHitObserver
             {
                 return;
             }
-            var change = Change(hit.HpChange);
+            // The outcome the HP left shows (#254): 0 after damage is a knock-out or a defeat, a gain equal to the HP
+            // left was a gain from 0, a revive. Read from the hit's own numbers; no banner is used.
+            var change = Change(hit.HpChange) + (hit.HpLeft, hit.HpChange, hit.Side) switch
+            {
+                (0, < 0, BattleSide.Ally) => ", knocked out",
+                (0, < 0, BattleSide.Enemy) => ", defeated",
+                (_, > 0, BattleSide.Ally) when hit.HpLeft == hit.HpChange => ", revived",
+                _ => "",
+            };
             line = hit.Side switch
             {
                 BattleSide.Ally => hit.Slot is { } slot ? MemberSays(slot, hit.Unit, change) : $"Ally, {change}",
