@@ -5,8 +5,8 @@ using Metaphor.Core.Settings;
 namespace Metaphor.Features.Dialogue;
 
 /// <summary>Spoken story dialogue (#52): each line shown in the dialogue box is announced as "Name: line" on a
-/// conversation's first line and when the speaker changes, and as the line alone while the same speaker continues or
-/// when there's no speaker (#539), interrupting the line before. A voiced line follows the "Voiced lines" setting
+/// conversation's first line, when the speaker changes and on the first line after a choice, and as the line alone
+/// while the same speaker continues or when there's no speaker (#539, #740), interrupting the line before. A voiced line follows the "Voiced lines" setting
 /// (#57, #104); the history (#126) keeps every line in full whatever is said.</summary>
 [FeatureSetting(Feature.Dialogue)]
 public sealed class DialogueAnnouncer
@@ -19,6 +19,8 @@ public sealed class DialogueAnnouncer
     private readonly Lock gate = new();
     private bool started;
     private string? lastSpeaker;
+    // A choice opened since the last line, so the next line says its speaker even if unchanged (#740).
+    private bool afterChoice;
 
     /// <param name="announcer">Where lines are said.</param>
     /// <param name="cleaner">Turns the game's text into what is said.</param>
@@ -63,8 +65,9 @@ public sealed class DialogueAnnouncer
         bool changed;
         lock (gate)
         {
-            changed = !started || !string.Equals(lastSpeaker, name, StringComparison.Ordinal);
+            changed = !started || afterChoice || !string.Equals(lastSpeaker, name, StringComparison.Ordinal);
             started = true;
+            afterChoice = false;
             lastSpeaker = name;
         }
         var said = changed ? full : text;
@@ -94,6 +97,7 @@ public sealed class DialogueAnnouncer
         {
             started = false;
             lastSpeaker = null;
+            afterChoice = false;
         }
     }
 
@@ -103,6 +107,10 @@ public sealed class DialogueAnnouncer
     /// nothing) is spoken as "dot dot dot".</summary>
     public void Offer(string? options)
     {
+        lock (gate)
+        {
+            afterChoice = true;
+        }
         var lines = ChoiceOptions.From(options, cleaner);
         announcer.Announce(new Announcement(lines.Count == 0 ? "Choice" : $"Choose: {string.Join("; ", lines)}", Interrupt: false));
     }

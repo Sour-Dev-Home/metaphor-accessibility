@@ -18,7 +18,7 @@ check "feature change runs its tests" has "dotnet tests/Metaphor.Features.Menus.
 check "feature change runs the architecture tests (they reference it)" has "dotnet tests/Metaphor.Architecture.Tests/"
 check "feature change skips the other feature's tests" lacks "Dialogue.Tests"
 check "feature change skips Core tests" lacks "Core.Tests"
-check "feature change skips Pester" lacks "pester"
+check "feature change skips Pester (it only reads it)" lacks "pester src/"
 check "reason is printed" has "src/Metaphor.Features.Menus/Foo.cs changed (via Metaphor.Features.Menus"
 
 out="$(sel src/Metaphor.Core/X.cs)"
@@ -36,6 +36,9 @@ check "scripts change runs Pester" has "pester scripts/check.sh changed"
 check "scripts change runs no dotnet tests" lacks "dotnet"
 out="$(sel scripts/dev/session.ps1)"
 check "session script runs Pester" has "pester"
+out="$(sel installer/Metaphor.Installer/Launcher.cs)"
+check "an installer exe change runs Pester, which builds and runs the exe" has "pester installer/Metaphor.Installer/Launcher.cs changed"
+check "an installer exe change runs its xUnit tests" has "Installer.Tests"
 
 # The check scripts' own suite, which Git Bash without WSL runs only when they change (#336)
 out="$(sel scripts/check.sh)"
@@ -157,8 +160,46 @@ check "a workflow change runs the scripts job" has "pester .github/workflows/ci.
 out="$(GITHUB_ACTIONS=true METAPHOR_FULL_TESTS=1 sel docs/README.md)"
 check "the environment never widens the selection" lacks "dotnet"
 check "the environment never adds Pester" lacks "pester"
-check "check.sh full never calls the selector" bash -c \
+check "check.sh full calls the selector only through the merge reuse" bash -c \
   "! sed -n '/^if \[ \"\$stage\" = full \]/,\$p' scripts/check.sh | grep -q what-runs"
+check "the merge reuse narrows full with the selector (#728)" grep -q 'ci/what-runs.sh' scripts/check/merge.sh
+
+# What a local merge check counts as read by the Pester and check-script suites, and Core.Tests's probe files (#728)
+out="$(sel src/Metaphor.Hooks/PrismSpeech.cs)"
+check "a Hooks change is read by the Pester tests" has "pester-reads src/Metaphor.Hooks/PrismSpeech.cs changed"
+check "a Hooks change doesn't run the Pester tests on its own" lacks "pester src/"
+out="$(sel docs/contributors/how-to/set-up-a-clone.md)"
+check "the set-up page is read by the Pester tests" has "pester-reads docs/contributors/how-to/set-up-a-clone.md"
+out="$(sel src/Metaphor.Features.Menus/Foo.cs)"
+check "a feature the hooks build from is read by the Pester tests" has "pester-reads src/Metaphor.Features.Menus/Foo.cs"
+menus="$out"
+out="$(sel src/Metaphor.Features.Dialogue/packages.lock.json)"
+check "a lock file of a project the hooks build from is read by the Pester tests" has "pester-reads src/Metaphor.Features.Dialogue/"
+out="$(sel tests/Metaphor.Core.Tests/A.cs)"
+check "a test project the Pester tests don't build isn't read by them" lacks "pester-reads"
+out="$(sel tools/ghidra/MetaphorQuery.java)"
+check "tools/ghidra is read by the Pester tests (ghidra.ps1)" has "pester-reads tools/ghidra/"
+out="$(sel LICENSE)"
+check "the licence is read by the check-script suites" has "check-tests LICENSE changed"
+out="$(sel tools/Metaphor.SignatureCheck/signature-probes.json)"
+check "the probe files run Core.Tests, which reads them" has "dotnet tests/Metaphor.Core.Tests/Metaphor.Core.Tests.csproj"
+check "the probe files are read by the Pester session tests" has "pester-reads tools/Metaphor.SignatureCheck/"
+# A merge whose one side changed the signature check and the other GameSession.psm1 (which runs it) reruns Pester.
+# shellcheck source=../../scripts/check/merge.sh
+source scripts/check/merge.sh
+probes="$out"
+out="$(sel scripts/dev/GameSession.psm1)"
+both_touch_pester() { merge_touches "$1" pester pester-reads && merge_touches "$2" pester pester-reads; }
+check "a signature check change and a GameSession change on the other side rerun Pester" \
+  both_touch_pester "$probes" "$out"
+check "a Features.Menus change and a GameSession change on the other side rerun Pester" \
+  both_touch_pester "$menus" "$out"
+out="$(sel tools/Metaphor.SessionLog/Metaphor.SessionLog.csproj)"
+check "a project file is read by the check-script suites (test-what-runs.sh)" has "check-tests tools/Metaphor.SessionLog/"
+out="$(sel tests/pester/install.Tests.ps1)"
+check "a Pester test file is read by the check-script suites (test-ci-matrix.sh)" has "check-tests tests/pester/"
+out="$(sel .github/CODEOWNERS)"
+check "CODEOWNERS is read by the check-script suites (test-repo-config.sh)" has "check-tests .github/CODEOWNERS"
 
 # --job against a throwaway repository: which changed files let a CI job skip (#100)
 jobs_repo="$(mktemp -d)"
@@ -195,6 +236,7 @@ job "varied setup: a dev script change skips it" false varied-setup merge_group 
 job "varied setup: an installer change runs it" true varied-setup merge_group scripts/player/install.ps1
 job "varied setup: a setup script change runs it" true varied-setup merge_group scripts/setup/onboard.ps1
 job "varied setup: a release script change runs it" true varied-setup merge_group scripts/release/package-mod.sh
+job "varied setup: an installer exe change runs it" true varied-setup merge_group installer/Metaphor.Installer/Launcher.cs
 job "varied setup: a Pester test change runs it" true varied-setup merge_group tests/pester/install.Tests.ps1
 job "varied setup: its runner changing runs it" true varied-setup merge_group scripts/check/run-pester.sh
 job "varied setup: its Pester install changing runs it" true varied-setup merge_group scripts/ci/install-pester.sh
