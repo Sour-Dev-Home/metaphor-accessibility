@@ -42,7 +42,8 @@ internal sealed class MenusOpenRead : IReadsGlobal
 /// docs/raw-sources/spike-session-2-2026-11-16.md. Observed after it returns, so the cursor is where the input left it.
 /// Each input carries its screen class from <see cref="ScreenClassLookup"/> (#208), its list's item count (#289) and its
 /// owner's mode for a choice that serves two lists (#210), each null when unreadable, and on the grid cursor class its
-/// cell (#563), whose index is that class's own getter's.</summary>
+/// cell (#563), whose index is that class's own getter's, and on Key Configuration whether its OK button has the focus
+/// (#589).</summary>
 [GameHook(GameBuilds.Steam18330018)]
 internal sealed class MenuCursorHook : IGameHook, IObserves4WithResult
 {
@@ -99,10 +100,12 @@ internal sealed class MenuCursorHook : IGameHook, IObserves4WithResult
             ? vtable - module
             : null;
         var screenClass = screenClasses.Of(manager);
+        var grid = classRva == GridCursor.ClassRva;
         events.Handled(new CursorInput(
             manager, classRva, commandValue, (int)result, top, row, ModuleMemoryReader.ReadInt32(manager + FlagsOffset) ?? 0,
             screenClass, ModuleMemoryReader.ReadInt32(manager + CountOffset), screenClasses.ModeOf(manager, screenClass),
-            classRva == GridCursor.ClassRva ? ReadGrid(manager) : null));
+            grid ? ReadGrid(manager) : null,
+            grid && screenClass == SettingsPages.KeyConfigClass ? KeyConfigOnButton(manager) : null));
         LogSettingsCopy(manager, screenClass);
         LogKeyConfigState(manager, screenClass);
     }
@@ -118,6 +121,14 @@ internal sealed class MenuCursorHook : IGameHook, IObserves4WithResult
             && ModuleMemoryReader.ReadInt32(manager + GridPageStrideOffset) is { } stride
             ? GridCursor.Of(columns, column, line, scroll, page, stride)
             : null;
+
+    // Whether Key Configuration's OK button has the focus (#589): its choice's mode, where the flags' item bit isn't
+    // reliable (SettingsPages.KeyConfigModeOffset). One bounded read through ModuleMemoryReader; an unknown owner or a
+    // failed read counts as a cell.
+    private bool KeyConfigOnButton(nint manager) =>
+        SettingsPages.KeyConfigOnButton(screenClasses.Owners.OwnerOf(manager) is { } owner
+            ? ModuleMemoryReader.ReadInt32((nint)(owner + SettingsPages.KeyConfigModeOffset))
+            : null);
 
     // Debug builds only (the log is null in Release): Key Configuration's choice fields when they changed since its
     // last input, so a session shows which marks "waiting for a key" (#564, #558's check 7). One bounded read through

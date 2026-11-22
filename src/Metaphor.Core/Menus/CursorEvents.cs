@@ -12,11 +12,13 @@ namespace Metaphor.Core.Menus;
 /// (docs/raw-sources/list-count-session6-2026-11-17.md). <paramref name="Mode"/> is the owner's own mode field, for a
 /// choice that serves more than one list (<see cref="ScreenModes"/>), or null when it has none or it is unreadable.
 /// <paramref name="Grid"/> is the grid cursor's own fields (<see cref="GridCursor"/>, #563) when the manager is one and
-/// they read as a grid, else null.
+/// they read as a grid, else null. <paramref name="OnButton"/> is whether the focus is on the screen's button, from a
+/// field of its owner, for a screen whose flags don't say it (Key Configuration, <see cref="SettingsPages"/>, #589),
+/// else null.
 /// </summary>
 public sealed record CursorInput(
     long Manager, long? ClassRva, int Command, int Result, int Top, int Row, int Flags, string? ScreenClass = null,
-    int? Count = null, int? Mode = null, GridCursor? Grid = null)
+    int? Count = null, int? Mode = null, GridCursor? Grid = null, bool? OnButton = null)
 {
     /// <summary>The cursor's position: what the class's index getter returns, the grid's own for a grid cursor.
     /// </summary>
@@ -34,9 +36,9 @@ public sealed record CursorInput(
     public const int OnItemFlag = 0x4;
 
     /// <summary>Whether the cursor sits off the list's items (<see cref="OnItemFlag"/> clear), as on a settings page's
-    /// OK button. The hook passes 0 when it can't read the flags, so 0 counts as on the list: a misread then says the
-    /// row's position, not the button.</summary>
-    public bool OffList => Flags != 0 && (Flags & OnItemFlag) == 0;
+    /// OK button, or <see cref="OnButton"/> when the screen's own field says it. The hook passes 0 when it can't read
+    /// the flags, so 0 counts as on the list: a misread then says the row's position, not the button.</summary>
+    public bool OffList => OnButton ?? (Flags != 0 && (Flags & OnItemFlag) == 0);
 }
 
 /// <summary>Told of each menu cursor input that changed something.</summary>

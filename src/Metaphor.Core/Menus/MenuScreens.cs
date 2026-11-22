@@ -67,7 +67,8 @@ public interface IScreenDetails
 /// they close, the current screen is left. A screen's mode (<see cref="CursorInput.Mode"/>)
 /// changing on the same item is a focus move, so a choice's other list is heard even where the index stays; so is the
 /// focus moving on or off the list's items (<see cref="CursorInput.OffList"/>), as from a settings page's OK button to
-/// its first row, both at index 0 (#560).
+/// its first row, both at index 0 (#560); and on a grid cursor, its count changing on the same cell, as when Key
+/// Configuration's sub-tab changes (#589).
 /// </summary>
 public sealed class MenuScreens : ICursorObserver
 {
@@ -117,7 +118,8 @@ public sealed class MenuScreens : ICursorObserver
             }
             if (screenClass == currentClass && (!outside || input.Manager == currentManager))
             {
-                if (input.Index == currentIndex && input.Mode == currentMode && input.OffList == currentOffList)
+                if (input.Index == currentIndex && input.Mode == currentMode && input.OffList == currentOffList
+                    && (input.Grid is null || input.Count == currentCount))
                 {
                     return;
                 }
