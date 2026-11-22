@@ -1,6 +1,6 @@
 # Check a download
 
-> **Draft.** The newest download is the pre-release `v0.0.1-unstable.3`. Zips from the project's CI runs on `main`
+> **Draft.** The newest download is the pre-release `v0.0.1-unstable.4`. Zips from the project's CI runs on `main`
 > are for testers on dev builds. Both are checked the same way; only the command's last details differ.
 
 The mod runs inside your game, so check a zip before you install it. GitHub's CI builds each zip and signs it with an

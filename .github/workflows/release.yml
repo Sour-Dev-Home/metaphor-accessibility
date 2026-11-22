@@ -1,10 +1,11 @@
 name: Release
 
 # Turns a `v*` tag on a commit on main into a draft GitHub Release (#310): built by CI from that commit with the recipe
-# every main build uses (scripts/release/build-release.sh), rebuilt and compared, attested, and published with its SHA256SUMS.
+# every main build uses (scripts/release/build-release.sh): the zip and the installer exe (#613), each rebuilt and
+# compared, attested, and published with their SHA256SUMS.
 # The maintainer publishes the draft. Only admins create `v*` tags (the tag ruleset of #309;
 # docs/contributors/reference/security-review.md#collaborators).
-# Run it by hand on main for a dry run: it builds, attests and verifies a zip, and drafts nothing.
+# Run it by hand on main for a dry run: it builds, attests and verifies the zip and the exe, and drafts nothing.
 on:
   push:
     tags: ["v*"]
@@ -79,7 +80,8 @@ jobs:
           echo "Releasing \`$name\` from commit \`$commit\` ($GITHUB_REF)" >> "$GITHUB_STEP_SUMMARY"
 
   # The same Windows build as CI's gate on main, from scratch: package, check the build names the commit as clean, zip,
-  # rebuild in a second checkout and compare. No cache: a release restores nothing another run wrote.
+  # build the installer exe around the zip, rebuild in a second checkout and compare. No cache: a release restores
+  # nothing another run wrote.
   build:
     needs: [gate]
     runs-on: windows-latest
@@ -108,8 +110,9 @@ jobs:
           path: artifacts/release
           if-no-files-found: error
 
-  # Signs the zip with a build-provenance attestation, then checks it with the command players run
-  # (docs/players/how-to/check-a-download.md). It runs none of our code, so the signing token never meets the build.
+  # Signs the zip and the installer exe (#613) with a build-provenance attestation, each file SHA256SUMS lists, then
+  # checks each with the command players run (docs/players/how-to/check-a-download.md). It runs none of our code, so
+  # the signing token never meets the build.
   attest:
     needs: [gate, build]
     runs-on: ubuntu-latest
@@ -123,19 +126,21 @@ jobs:
         with:
           name: release
           path: release
-      - name: Check the zip against SHA256SUMS
+      - name: Check the zip and the exe against SHA256SUMS
         working-directory: release
         run: sha256sum --check --strict SHA256SUMS
+      # Every file SHA256SUMS names, by the digests just checked: the zip and the exe.
       - uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4.2.2
         with:
-          subject-path: release/${{ needs.gate.outputs.name }}.zip
+          subject-checksums: release/SHA256SUMS
       # A tag build's certificate records the tag as its source ref (docs/raw-sources/github-release-provenance-2026-11-18.md).
-      - name: Verify it as a player would
+      - name: Verify them as a player would
         env:
           GH_TOKEN: ${{ github.token }}
           NAME: ${{ needs.gate.outputs.name }}
         run: |
           gh attestation verify "release/$NAME.zip" --repo "$GITHUB_REPOSITORY" --signer-workflow "$GITHUB_REPOSITORY/.github/workflows/release.yml" --source-ref "$GITHUB_REF" --deny-self-hosted-runners
+          gh attestation verify "release/$NAME-installer.exe" --repo "$GITHUB_REPOSITORY" --signer-workflow "$GITHUB_REPOSITORY/.github/workflows/release.yml" --source-ref "$GITHUB_REF" --deny-self-hosted-runners
 
   # The only job that can write: it drafts the release for a pushed tag, after the zip is signed and verified. No pull
   # request can start this workflow, and the job runs none of our code: it uploads the two files the build made.
@@ -151,7 +156,7 @@ jobs:
         with:
           name: release
           path: release
-      - name: Check the zip against SHA256SUMS
+      - name: Check the zip and the exe against SHA256SUMS
         working-directory: release
         run: sha256sum --check --strict SHA256SUMS
       - name: Draft the release
@@ -171,6 +176,6 @@ jobs:
             echo "::error::Tag $TAG now names $type $tagged, not the built commit $COMMIT"
             exit 1
           fi
-          notes="Check the zip before you install it: https://github.com/$GITHUB_REPOSITORY/blob/main/docs/players/how-to/check-a-download.md"
-          gh release create "$TAG" "release/$NAME.zip" release/SHA256SUMS --repo "$GITHUB_REPOSITORY" --draft --verify-tag --title "$TAG" --notes "$notes"
-          echo "Drafted release \`$TAG\` with \`$NAME.zip\` and \`SHA256SUMS\`; publish it from the Releases page." >> "$GITHUB_STEP_SUMMARY"
+          notes="Check the download before you install it: https://github.com/$GITHUB_REPOSITORY/blob/main/docs/players/how-to/check-a-download.md"
+          gh release create "$TAG" "release/$NAME-installer.exe" "release/$NAME.zip" release/SHA256SUMS --repo "$GITHUB_REPOSITORY" --draft --verify-tag --title "$TAG" --notes "$notes"
+          echo "Drafted release \`$TAG\` with \`$NAME-installer.exe\`, \`$NAME.zip\` and \`SHA256SUMS\`; publish it from the Releases page." >> "$GITHUB_STEP_SUMMARY"

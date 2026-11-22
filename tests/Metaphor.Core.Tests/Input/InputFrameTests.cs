@@ -114,6 +114,22 @@ public sealed class InputFrameTests
         Assert.Equal([0x0D], answer.Keys);
     }
 
+    // #623: the frame tells the last-device tracker what the game read, before the controls change it.
+    [Fact]
+    public void TheLastDeviceFollowsTheReads()
+    {
+        var device = new LastInputDevice();
+        menus.OnKeys = _ => [];
+        var frame = new InputFrame(
+            game, screens, menus, dialogue, InputFrame.NoControls, lastDevice: device);
+
+        frame.Keys([0x20]);
+        Assert.Equal(InputDevice.Keyboard, device.Current);
+
+        frame.Pad(0, A, made: true);
+        Assert.Equal(InputDevice.Controller, device.Current);
+    }
+
     [Fact]
     public void MissingPartsAreRefused()
     {
