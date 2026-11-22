@@ -101,37 +101,18 @@ instead (step 3 of the installer above).
 
 ## What the mod says when it loads
 
-When the game starts, the mod speaks one of three messages once:
-
-1. `Metaphor accessibility loaded`: the mod is running.
-2. `This game version isn't supported yet; the mod is off`: your game build is one the mod doesn't know. It hooks
-   nothing and the game runs as normal.
-3. `Metaphor accessibility couldn't start; the mod is off`: any other failure.
-
-You may hear nothing if your screen reader or Windows speech isn't reachable. Then look at the newest file in
-`%APPDATA%\Reloaded-Mod-Loader-II\Logs\`, which lists the mod by its ID, `metaphor.accessibility`. If you hear the first
-message, the install worked.
+When the game starts, the mod speaks one of three messages once: `Metaphor accessibility loaded` (the mod is running),
+`This game version isn't supported yet; the mod is off` (your game build is one the mod doesn't know; it hooks nothing
+and the game runs as normal), or `Metaphor accessibility couldn't start; the mod is off` (any other failure). If you
+hear the first, the install worked. If you hear another, or nothing, see [Troubleshoot the mod](troubleshoot.md).
 
 ## If the mod says nothing: run the install check
 
-The mod folder holds `check-install.ps1`, which says why the mod didn't load. It prints each result. With no screen
-reader running, it also speaks each one with Windows' own voice, so it works when the mod's speech doesn't. With NVDA,
-JAWS or ZoomText running it speaks each one through your screen reader. Spoken lines leave out folder paths
-and long codes; the printed lines keep them. It changes no file or setting and reads nothing over the network. In
-Windows PowerShell 5.1 it writes temporary files in your temp folder while it looks for JAWS and ZoomText, and removes
-them.
-
-1. Run the installer again, as in [Install with the spoken installer](#install-with-the-spoken-installer). It ends
-   with this check, and changes only what needs changing. Nothing needs typing. (The check has no launcher of its own
-   yet.)
-2. It checks, in order: Reloaded-II is set up; the mod is in its mods folder; the game is added and the mod turned on
-   for it; the game's version is one the mod knows; the speech library, `prism.dll`, is in place; how the mod last
-   started. Each line starts with "Pass", "Problem" or "Not checked". A last "Note" says when no screen reader the
-   mod supports is running; that isn't counted as a problem, since the mod then uses Windows' own voice.
-3. The last line names the first thing to fix. Fix it, then run the installer again.
-
-If the check finds nothing wrong and the mod is still silent, send its output with the
-[alpha feedback form](#report-a-problem).
+The installer ends with the install check, which says why the mod didn't load. To run it again, run the installer
+again; it changes only what needs changing. Nothing needs typing. What the check looks at, and what to do with its
+result, is in [Troubleshoot the mod](troubleshoot.md#no-speech). With no screen reader running, it speaks each result
+with Windows' own voice; with NVDA, JAWS or ZoomText running it speaks through your screen reader. Spoken lines leave
+out folder paths and long codes; the printed lines keep them.
 
 ## Keys and buttons
 

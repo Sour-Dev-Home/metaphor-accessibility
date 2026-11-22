@@ -6,6 +6,8 @@ pages here are drafts for testers. Start with [Install the mod](how-to/install-t
 [`../README.md`](../README.md) says which type of page goes in which folder.
 
 - [Install the mod](how-to/install-the-mod.md) (draft): Reloaded-II, the game, the mod, a desktop shortcut and the keys.
+- [Troubleshoot the mod](how-to/troubleshoot.md) (draft): no speech, the mod did not load, and the mod gone quiet after a
+  game update, with where to report each.
 - [Turn off the update check](how-to/turn-off-the-update-check.md) (draft): the one request the mod makes, and the
   setting that stops it.
 - [Check a download](how-to/check-a-download.md) (draft): that a zip of the mod, a release or a dev build, is the
