@@ -1,5 +1,6 @@
 using Metaphor.Core.Announcements;
 using Metaphor.Core.Messages;
+using Metaphor.Core.Settings;
 
 namespace Metaphor.Features.Field.Tests;
 
@@ -69,6 +70,17 @@ public sealed class FieldControlsTests
     {
         controls.Pad(0, buttons, made: true);
         controls.Pad(0, Lb, made: true);
+    }
+
+    [Fact]
+    public void EachKeyboardReadChecksReachWithNoKeyHeld()
+    {
+        var reach = new ReachCallouts(field, announcer, () => now);
+        var withReach = new FieldControls(FieldBindings.Default, field, place, announcer, cues, () => now, reach: reach);
+
+        withReach.Keys([]);
+
+        Assert.Equal(new Announcement("Chest, in reach", Interrupt: false), announcer.Said.Single());
     }
 
     [Fact]
@@ -202,6 +214,90 @@ public sealed class FieldControlsTests
         controls.Keys([KeyN]);
 
         Assert.Equal("Nothing nearby", Said().Single());
+    }
+
+    // Each half of the field controls has its own setting (#661): one off leaves its keys to the game, says nothing,
+    // and leaves the other working.
+    [Fact]
+    public void TheNearbyListTurnedOffLeavesItsKeysToTheGameAndWhereAmIWorking()
+    {
+        var settings = ModSettings.Parse("""{ "field": { "nearby": false } }""", _ => { });
+        var gated = new FieldControls(() => FieldBindings.Default, settings.IsOn, field, place, announcer, cues, () => now);
+
+        Assert.Equal([KeyN], gated.Keys([KeyN]));
+        Assert.Equal(Lb | Down, gated.Pad(0, Lb | Down, made: true));
+        Assert.Equal(Lb, gated.Pad(0, Lb | Left, made: true));
+
+        Assert.Equal(["Place not known yet"], Said());
+    }
+
+    [Fact]
+    public void TheCategoriesTurnedOffLeaveTheirKeysToTheGameAndTheListWorking()
+    {
+        var settings = ModSettings.Parse("""{ "field": { "nearbyCategories": false } }""", _ => { });
+        var gated = new FieldControls(() => FieldBindings.Default, settings.IsOn, field, place, announcer, cues, () => now);
+
+        Assert.Equal([KeyCloseBracket], gated.Keys([KeyCloseBracket]));
+        Assert.Empty(Said());
+        gated.Keys([KeyN]);
+        Assert.StartsWith("3 nearby.", Said().Single(), StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void GuidanceTurnedOffLeavesItsKeysToTheGameAndStartsNoBeacon()
+    {
+        var settings = ModSettings.Parse("""{ "field": { "guidance": false } }""", _ => { });
+        var gated = new FieldControls(() => FieldBindings.Default, settings.IsOn, field, place, announcer, cues, () => now);
+
+        Assert.Equal([KeyG], gated.Keys([KeyG]));
+        Assert.Equal(Lb | Right, gated.Pad(0, Lb | Right, made: true));
+
+        Assert.False(gated.Guiding);
+        Assert.Empty(Said());
+    }
+
+    [Fact]
+    public void WhereAmITurnedOffLeavesItsKeysToTheGameAndTheListWorking()
+    {
+        var settings = ModSettings.Parse("""{ "field": { "whereAmI": false } }""", _ => { });
+        var gated = new FieldControls(() => FieldBindings.Default, settings.IsOn, field, place, announcer, cues, () => now);
+
+        Assert.Equal([KeyL], gated.Keys([KeyN, KeyL]));
+        Assert.Equal(Lb | Left, gated.Pad(0, Lb | Left, made: true));
+
+        Assert.Single(Said());
+        Assert.StartsWith("3 nearby.", Said().Single(), StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void KeysReboundInTheFileApplyOnTheNextRead()
+    {
+        var bindings = FieldBindings.Default;
+        var rebound = new FieldControls(() => bindings, _ => true, field, place, announcer, cues, () => now);
+        bindings = FieldBindings.From(ModSettings.Parse("""{ "keys": { "field": { "nearbyKey": "M" } } }""", _ => { }));
+
+        Assert.Equal([KeyN], rebound.Keys([KeyN]));
+        Assert.Empty(rebound.Keys([0x4D]));
+        Assert.StartsWith("3 nearby.", Said().Single(), StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void TheFileNamesEveryFieldBinding()
+    {
+        var settings = ModSettings.Parse(
+            """
+            { "keys": { "field": { "nearbyKey": "F1", "placeKey": "F2", "holdButtons": "RB",
+              "nextButton": "A", "previousButton": "B", "placeButton": "Y",
+              "guideKey": "F3", "guideButton": "X", "nextKey": "F4", "previousKey": "F5",
+              "categoryNextKey": "F6", "categoryPreviousKey": "F7", "categoryHoldButtons": "LB",
+              "categoryButton": "DpadRight", "identifyKey": "F8" } } }
+            """, _ => { });
+
+        Assert.Equal(
+            new FieldBindings(
+                0x70, 0x71, 0x0800, 0x4000, 0x2000, 0x1000, 0x72, 0x8000, 0x73, 0x74, 0x75, 0x76, 0x0400, 0x0020, 0x77),
+            FieldBindings.From(settings));
+        Assert.Equal(FieldBindings.Default, FieldBindings.From(ModSettings.Defaults));
     }
 
     [Fact]

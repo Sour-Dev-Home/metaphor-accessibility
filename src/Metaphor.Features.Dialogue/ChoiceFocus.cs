@@ -1,6 +1,7 @@
 using Metaphor.Core.Announcements;
 using Metaphor.Core.Menus;
 using Metaphor.Core.Messages;
+using Metaphor.Core.Settings;
 
 namespace Metaphor.Features.Dialogue;
 
@@ -10,6 +11,7 @@ namespace Metaphor.Features.Dialogue;
 /// settles on is said as "option, n of total": the first after "Choose: …" (#82) finishes, each later one cutting off
 /// the last. Options are the choice message's lines, as #82 reads them. The choice ends at the next dialogue line.
 /// Safe to call from several threads.</summary>
+[FeatureSetting(Feature.Dialogue)]
 public sealed class ChoiceFocus : IChoiceRequestObserver, ILineRequestObserver, ICursorObserver
 {
     // The yes/no dialog's screen class on build 548ddc95, as the menus' YesNoDialogFocus names it

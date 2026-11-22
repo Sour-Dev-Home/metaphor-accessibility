@@ -2,6 +2,7 @@ using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
 using Metaphor.Core.Announcements;
 using Metaphor.Core.Cues;
+using Metaphor.Core.Settings;
 
 namespace Metaphor.Features.Field;
 
@@ -16,7 +17,9 @@ public sealed record BeaconTarget(FieldUnit Unit, int? DoorReachValue);
 /// as it nears. It stops on arrival (the game's reach test for the target's kind, or within
 /// <see cref="ArrivalDistance"/>), on <see cref="Stop"/>, and silently on leaving free roam or when the player can't be
 /// read. <see cref="Tick"/> is called on every input read; it reads the field at most once per
-/// <see cref="PollMilliseconds"/>, and allocates nothing between a pulse's start and the next.</summary>
+/// <see cref="PollMilliseconds"/>, and allocates nothing between a pulse's start and the next. Its keys are gated by
+/// <see cref="Feature.Guidance"/> in <see cref="FieldControls"/> (#661).</summary>
+[FeatureSetting(Feature.Guidance)]
 public sealed class Beacon
 {
     /// <summary>How often the field is read while guiding.</summary>

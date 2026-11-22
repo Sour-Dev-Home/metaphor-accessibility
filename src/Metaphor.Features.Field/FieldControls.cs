@@ -3,6 +3,7 @@ using System.Globalization;
 using Metaphor.Core.Announcements;
 using Metaphor.Core.Cues;
 using Metaphor.Core.Input;
+using Metaphor.Core.Settings;
 
 namespace Metaphor.Features.Field;
 
@@ -46,6 +47,29 @@ public sealed record FieldBindings(
     /// </summary>
     public static FieldBindings Default { get; } =
         new(0x4E, 0x4C, 0x0400, 0x0040, 0x0010, 0x0080, 0x47, 0x0020, 0x4B, 0x4A);
+
+    /// <summary>The bindings the settings file's <c>keys.field</c> object names (#661), each missing or unusable one
+    /// the default.</summary>
+    public static FieldBindings From(ModSettings settings)
+    {
+        ArgumentNullException.ThrowIfNull(settings);
+        return new(
+            settings.Binding("field", "nearbyKey", Default.NearbyKey),
+            settings.Binding("field", "placeKey", Default.PlaceKey),
+            settings.Binding("field", "holdButtons", Default.HoldButtons),
+            settings.Binding("field", "nextButton", Default.NextButton),
+            settings.Binding("field", "previousButton", Default.PreviousButton),
+            settings.Binding("field", "placeButton", Default.PlaceButton),
+            settings.Binding("field", "guideKey", Default.GuideKey),
+            settings.Binding("field", "guideButton", Default.GuideButton),
+            settings.Binding("field", "nextKey", Default.NextKey),
+            settings.Binding("field", "previousKey", Default.PreviousKey),
+            settings.Binding("field", "categoryNextKey", Default.CategoryNextKey),
+            settings.Binding("field", "categoryPreviousKey", Default.CategoryPreviousKey),
+            settings.Binding("field", "categoryHoldButtons", Default.CategoryHoldButtons),
+            settings.Binding("field", "categoryButton", Default.CategoryButton),
+            settings.Binding("field", "identifyKey", Default.IdentifyKey));
+    }
 }
 
 /// <summary>The field controls (#181), while the player roams the field: the nearby key speaks the list of things
@@ -57,8 +81,9 @@ public sealed record FieldBindings(
 /// keyboard, as for the menu controls. Speech goes to the announcer directly: each is an answer the player asked for.
 /// The next and previous keys step as the chords do. The guide key and chord start the <see cref="Beacon"/> toward the
 /// thing last stepped to, or the nearest not already reached once that step is forgotten, and stop it when it's on;
-/// every read of the pad or keyboard moves it on.
-/// </summary>
+/// every read of the pad or keyboard moves it on. The nearby list, "where am I" and the guidance beep each have their
+/// own setting (#661), read on each input read: one turned off leaves its keys and chords to the game.</summary>
+[FeatureSetting(Feature.Nearby, Feature.NearbyCategories, Feature.WhereAmI, Feature.Guidance)]
 public sealed class FieldControls : IInputControls
 {
     /// <summary>How long the pad's place on the list lasts after a step; the next step after that starts again at the
@@ -68,12 +93,14 @@ public sealed class FieldControls : IInputControls
     private const int KeyboardSource = -1;
 
     private readonly Lock gate = new();
-    private readonly FieldBindings bindings;
+    private readonly Func<FieldBindings> liveBindings;
+    private readonly Func<Feature, bool> isOn;
     private readonly IFieldReads field;
     private readonly FieldPlace place;
     private readonly IAnnouncer announcer;
     private readonly Func<long> milliseconds;
     private readonly Action<string>? log;
+    private readonly ReachCallouts? reach;
     private readonly Binding nearby = new();
     private readonly Binding next = new();
     private readonly Binding previous = new();
@@ -92,18 +119,32 @@ public sealed class FieldControls : IInputControls
     /// <summary>Field controls on <paramref name="bindings"/> that read <paramref name="field"/>, name the place through
     /// <paramref name="place"/>, speak through <paramref name="announcer"/>, guide on <paramref name="cues"/>, keep time
     /// by <paramref name="milliseconds"/> and write what each press read, as numbers, to <paramref name="log"/> when
-    /// there is one (Debug builds, which alone have the identify key), and name things by <paramref name="names"/>.
-    /// </summary>
+    /// there is one (Debug builds, which alone have the identify key), name things by <paramref name="names"/>, and
+    /// run <paramref name="reach"/>'s check on each keyboard read when there is one (#644).</summary>
     public FieldControls(
         FieldBindings bindings, IFieldReads field, FieldPlace place, IAnnouncer announcer, ICuePlayer cues,
-        Func<long> milliseconds, Action<string>? log = null, NamesTable? names = null)
+        Func<long> milliseconds, Action<string>? log = null, NamesTable? names = null, ReachCallouts? reach = null)
+        : this(() => bindings, _ => true, field, place, announcer, cues, milliseconds, log, names, reach)
     {
         ArgumentNullException.ThrowIfNull(bindings);
+    }
+
+    /// <summary>Field controls on the bindings and settings in force, read on each input read (#661):
+    /// <paramref name="isOn"/> says whether <see cref="Feature.Nearby"/>, <see cref="Feature.WhereAmI"/> and
+    /// <see cref="Feature.Guidance"/> are on, and <see cref="Feature.NearbyCategories"/> the category keys.</summary>
+    public FieldControls(
+        Func<FieldBindings> bindings, Func<Feature, bool> isOn, IFieldReads field, FieldPlace place,
+        IAnnouncer announcer, ICuePlayer cues, Func<long> milliseconds, Action<string>? log = null,
+        NamesTable? names = null, ReachCallouts? reach = null)
+    {
+        ArgumentNullException.ThrowIfNull(bindings);
+        ArgumentNullException.ThrowIfNull(isOn);
         ArgumentNullException.ThrowIfNull(field);
         ArgumentNullException.ThrowIfNull(place);
         ArgumentNullException.ThrowIfNull(announcer);
         ArgumentNullException.ThrowIfNull(milliseconds);
-        this.bindings = bindings;
+        liveBindings = bindings;
+        this.isOn = isOn;
         this.field = field;
         this.place = place;
         this.announcer = announcer;
@@ -111,6 +152,7 @@ public sealed class FieldControls : IInputControls
         this.log = log;
         this.names = names ?? NamesTable.Empty;
         beacon = new Beacon(field, cues, announcer, milliseconds, log);
+        this.reach = reach;
     }
 
     private enum Press
@@ -136,13 +178,15 @@ public sealed class FieldControls : IInputControls
             beacon.Tick();
             return buttons;
         }
+        var bindings = liveBindings();
+        var listOn = isOn(Feature.Nearby);
         var holding = Holds(buttons, bindings.HoldButtons);
-        var nextHeld = holding && Holds(buttons, bindings.NextButton);
-        var previousHeld = holding && Holds(buttons, bindings.PreviousButton);
-        var placeHeld = holding && Holds(buttons, bindings.PlaceButton);
-        var guideHeld = holding && Holds(buttons, bindings.GuideButton);
-        var categoryHeld = bindings.CategoryButton != 0 && Holds(buttons, bindings.CategoryHoldButtons) &&
-            Holds(buttons, bindings.CategoryButton);
+        var nextHeld = holding && listOn && Holds(buttons, bindings.NextButton);
+        var previousHeld = holding && listOn && Holds(buttons, bindings.PreviousButton);
+        var placeHeld = holding && isOn(Feature.WhereAmI) && Holds(buttons, bindings.PlaceButton);
+        var guideHeld = holding && isOn(Feature.Guidance) && Holds(buttons, bindings.GuideButton);
+        var categoryHeld = isOn(Feature.NearbyCategories) && bindings.CategoryButton != 0 &&
+            Holds(buttons, bindings.CategoryHoldButtons) && Holds(buttons, bindings.CategoryButton);
         var roaming = (nextHeld || previousHeld || placeHeld || guideHeld || categoryHeld) && field.InFreeRoam();
         Press press;
         lock (gate)
@@ -171,13 +215,17 @@ public sealed class FieldControls : IInputControls
     public IReadOnlyList<int> Keys(IReadOnlyList<int> keys)
     {
         ArgumentNullException.ThrowIfNull(keys);
-        var listHeld = keys.Contains(bindings.NearbyKey);
-        var placeHeld = keys.Contains(bindings.PlaceKey);
-        var guideHeld = keys.Contains(bindings.GuideKey);
-        var nextHeld = keys.Contains(bindings.NextKey);
-        var previousHeld = keys.Contains(bindings.PreviousKey);
-        var categoryNextHeld = keys.Contains(bindings.CategoryNextKey);
-        var categoryPreviousHeld = keys.Contains(bindings.CategoryPreviousKey);
+        reach?.Check();
+        var bindings = liveBindings();
+        var listOn = isOn(Feature.Nearby);
+        var categoriesOn = isOn(Feature.NearbyCategories);
+        var listHeld = listOn && keys.Contains(bindings.NearbyKey);
+        var placeHeld = isOn(Feature.WhereAmI) && keys.Contains(bindings.PlaceKey);
+        var guideHeld = isOn(Feature.Guidance) && keys.Contains(bindings.GuideKey);
+        var nextHeld = listOn && keys.Contains(bindings.NextKey);
+        var previousHeld = listOn && keys.Contains(bindings.PreviousKey);
+        var categoryNextHeld = categoriesOn && keys.Contains(bindings.CategoryNextKey);
+        var categoryPreviousHeld = categoriesOn && keys.Contains(bindings.CategoryPreviousKey);
         var identifyHeld = log is not null && keys.Contains(bindings.IdentifyKey);
         var roaming = (listHeld || placeHeld || guideHeld || nextHeld || previousHeld || categoryNextHeld ||
             categoryPreviousHeld || identifyHeld) && field.InFreeRoam();
@@ -199,16 +247,20 @@ public sealed class FieldControls : IInputControls
         }
         Act(press);
         beacon.Tick();
-        return roaming ? [.. keys.Where(key => !IsFieldKey(key))] : keys;
+        // Only a held key of a feature that is on: one turned off reaches the game.
+        return roaming
+            ? [.. keys.Where(key => key == 0 || !(
+                (listHeld && key == bindings.NearbyKey) || (placeHeld && key == bindings.PlaceKey) ||
+                (guideHeld && key == bindings.GuideKey) || (nextHeld && key == bindings.NextKey) ||
+                (previousHeld && key == bindings.PreviousKey) ||
+                (categoryNextHeld && key == bindings.CategoryNextKey) ||
+                (categoryPreviousHeld && key == bindings.CategoryPreviousKey) ||
+                (identifyHeld && key == bindings.IdentifyKey)))]
+            : keys;
     }
 
     /// <summary>Whether the beacon is guiding.</summary>
     public bool Guiding => beacon.Active;
-
-    private bool IsFieldKey(int key) => key != 0 && (key == bindings.NearbyKey || key == bindings.PlaceKey ||
-        key == bindings.GuideKey || key == bindings.NextKey || key == bindings.PreviousKey ||
-        key == bindings.CategoryNextKey || key == bindings.CategoryPreviousKey ||
-        (log is not null && key == bindings.IdentifyKey));
 
     /// <summary>The field as read, named by the names table.</summary>
     private FieldView? ReadNamed() => field.Read() is { } view ? names.Apply(view) : null;
