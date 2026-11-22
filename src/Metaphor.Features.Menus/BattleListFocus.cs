@@ -22,7 +22,8 @@ namespace Metaphor.Features.Menus;
 /// row the move scrolled in along with rows it redraws, some of the page and not always all of it: the row brought in is
 /// the last name fetched going down (docs/raw-sources/battle-item-list-scroll-by-ear-2026-11-22.md). Going up it is
 /// taken as the first, as on the settings pages (docs/raw-sources/settings-ok-and-rows-by-ear-2026-11-21.md); for the
-/// battle lists that is <c>[NEEDS VERIFICATION]</c>.</para>
+/// battle lists that is <c>[NEEDS VERIFICATION]</c>. When several names were fetched (the whole view again after a wrap,
+/// #737) the row is named only if they match rows already known; else it is said by its position.</para>
 /// </remarks>
 public sealed class BattleListFocus : IScreenObserver, ISerialResolveObserver, IScreenDetails
 {
@@ -331,13 +332,43 @@ public sealed class BattleListFocus : IScreenObserver, ISerialResolveObserver, I
         }
         else if (byOne && pending.Count > 0 && !rows.ContainsKey(focus.Index))
         {
-            var brought = focus.Index > lastFocus!.Index ? pending[^1] : pending[0];
-            if (!rows.ContainsValue(brought))
+            var down = focus.Index > lastFocus!.Index;
+            var brought = down ? pending[^1] : pending[0];
+            if (!rows.ContainsValue(brought) && Matches(focus.Index, down))
             {
                 rows[focus.Index] = brought;
             }
         }
         pending.Clear();
+    }
+
+    // Whether the names fetched can be matched to the focused row (#737). One name fetched is the row scrolled in. When
+    // the game fetched several, as on re-fetching the whole view after a wrap, the row brought in is the last going down
+    // and the first going up only if the other names are rows already known lying on the side they should (above the
+    // row going down, below it going up), and at least one is known; otherwise the first or last fetched may be the
+    // view's top or bottom, not the focused row, and it is left unsaid. Called under the gate.
+    private bool Matches(int focusIndex, bool down)
+    {
+        if (pending.Count == 1)
+        {
+            return true;
+        }
+        var others = down ? pending.Take(pending.Count - 1) : pending.Skip(1);
+        var known = 0;
+        foreach (var name in others)
+        {
+            var at = rows.FirstOrDefault(row => row.Value == name, new KeyValuePair<int, int>(-1, 0)).Key;
+            if (at < 0)
+            {
+                continue;
+            }
+            if (down ? at >= focusIndex : at <= focusIndex)
+            {
+                return false;
+            }
+            known++;
+        }
+        return known > 0;
     }
 
     // The line for a focus whose row's name has been fetched, or null while it hasn't. Called under the gate.

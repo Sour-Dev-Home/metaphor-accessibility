@@ -194,18 +194,52 @@ public sealed class BattleListFocusTests
     // Wrapped to the bottom, the rows there aren't known: each is said by its position until one scrolls in, the first
     // name fetched going up, as on the settings pages (docs/raw-sources/settings-ok-and-rows-by-ear-2026-11-21.md).
     [Fact]
-    public void ARowScrolledInGoingUpIsTheFirstNameFetched()
+    public void ARowScrolledInGoingUpIsTheOnlyNameFetched()
     {
         const int up = 0x15;
-        // A two-row view.
         Fetched(ItemFirst, ItemFirst + 1);
         Cursor(ItemClass, 0, count: 6);
-        Walked(up, 1, 4, 6, ItemFirst + 4, ItemFirst + 5);
+        Walked(up, 1, 4, 6);
         Walked(up, 0, 4, 6);
-        Walked(up, 0, 3, 6, ItemFirst + 3, ItemFirst + 4);
-        Walked(up, 0, 2, 6, ItemFirst + 2, ItemFirst + 3);
+        Walked(up, 0, 3, 6, ItemFirst + 3);
+        Walked(up, 0, 2, 6, ItemFirst + 2);
 
         Assert.Equal(["Items, Tonic, 1 of 6", "6 of 6", "5 of 6", "Elixir, 4 of 6", "Ether, 3 of 6"], Said());
+    }
+
+    // #737, by ear 2026-11-22 (build 548ddc95, [NEEDS VERIFICATION] beyond that run): after a wrap up the game fetched the
+    // whole view again on the next move up, the view's top row first, and its names were no scroll's: the row focused,
+    // not the view's top, was named. A name the fetched rows can't be matched to the focused index with is left unsaid.
+    [Fact]
+    public void AfterAWrapUpAWholeViewFetchedAgainNamesNoWrongRow()
+    {
+        const int up = 0x15;
+        // A three-row view of a six-row list.
+        Fetched(ItemFirst, ItemFirst + 1, ItemFirst + 2);
+        Cursor(ItemClass, 0, count: 6);
+        Walked(up, 2, 3, 6, ItemFirst + 3, ItemFirst + 4, ItemFirst + 5);
+        Walked(up, 1, 3, 6, ItemFirst + 3, ItemFirst + 4, ItemFirst + 5);
+        Walked(up, 0, 3, 6, ItemFirst + 3, ItemFirst + 4, ItemFirst + 5);
+
+        Assert.Equal(["Items, Tonic, 1 of 6", "6 of 6", "5 of 6", "4 of 6"], Said());
+    }
+
+    [Fact]
+    public void AfterAWrapUpMovingDownAndBackNeverSaysAWrongName()
+    {
+        const int up = 0x15;
+        const int down = 0x14;
+        Fetched(ItemFirst, ItemFirst + 1, ItemFirst + 2);
+        Cursor(ItemClass, 0, count: 6);
+        Walked(up, 2, 3, 6, ItemFirst + 3, ItemFirst + 4, ItemFirst + 5);
+        Walked(up, 1, 3, 6, ItemFirst + 3, ItemFirst + 4, ItemFirst + 5);
+        Walked(down, 2, 3, 6, ItemFirst + 3, ItemFirst + 4, ItemFirst + 5);
+        // Wrapping down to the top fetches the first page afresh.
+        Walked(down, 0, 0, 6, ItemFirst, ItemFirst + 1, ItemFirst + 2);
+        Walked(down, 1, 0, 6);
+
+        Assert.Equal(
+            ["Items, Tonic, 1 of 6", "6 of 6", "5 of 6", "6 of 6", "Tonic, 1 of 6", "Salve, 2 of 6"], Said());
     }
 
     // Another tab of the item list: after a gap it fetches its first page, then its cursor settles on the top row.
