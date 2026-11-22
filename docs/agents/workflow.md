@@ -43,7 +43,8 @@ describing work (rule 8 in [`AGENTS.md`](../../AGENTS.md#ground-rules)).
 on that same tree prints `reused the recorded pass for tree <hash>` and skips the 10-15 minutes
 ([details](../contributors/reference/checks.md#recorded-pass)). Don't rerun `full` on a tree it has passed.
 
-A building run prints `step times: restore=.. build=.. tests=.. ...` and keeps them as the run log line's last field.
+A building run prints `step times: restore=.. build=.. tests=.. ...` and keeps them in the run log line, followed by `failed=<steps>` when a step failed. Every worktree's runs also land in
+`check-run-history` in the common git folder.
 `tests/check/test-check.sh` runs its tests in parallel, printing a line per test as it finishes; narrow it with a name
 pattern as its argument.
 
