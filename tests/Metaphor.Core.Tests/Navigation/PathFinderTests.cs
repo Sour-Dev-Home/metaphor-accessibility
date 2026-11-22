@@ -157,7 +157,7 @@ public sealed class PathFinderTests
     public void ThePlannerEndsTheRouteAtTheTarget()
     {
         var graph = Graph(Wall(Open(), 4, gaps: 7));
-        var planner = new NavRoutePlanner(NavMapFiles.Guess, (_, _) => Task.FromResult<WalkGraph?>(graph));
+        var planner = new NavRoutePlanner(Files, (_, _) => Task.FromResult<WalkGraph?>(graph));
         var target = new Vector3(66, 0, 13);
 
         var plan = planner.Plan(12, new(15, 0, 15), target);
@@ -180,19 +180,26 @@ public sealed class PathFinderTests
         Assert.Equal(RouteOutcome.NoNavMesh, Planner(walled).Plan(null, from, to).Outcome);
         Assert.Equal(RouteOutcome.NoNavMesh, Planner(null).Plan(12, from, to).Outcome);
         Assert.Equal(RouteOutcome.NoNavMesh,
-            new NavRoutePlanner(NavMapFiles.Guess, (_, _) => null).Plan(12, from, to).Outcome);
+            new NavRoutePlanner(Files, (_, _) => null).Plan(12, from, to).Outcome);
         Assert.Equal(RouteOutcome.Loading,
-            new NavRoutePlanner(NavMapFiles.Guess, (_, _) => pending.Task).Plan(12, from, to).Outcome);
+            new NavRoutePlanner(Files, (_, _) => pending.Task).Plan(12, from, to).Outcome);
         Assert.Equal(RouteOutcome.OffMesh, Planner(walled).Plan(12, new(5000, 0, 5000), to).Outcome);
         Assert.Equal(RouteOutcome.NoPath, Planner(walled).Plan(12, from, to).Outcome);
     }
 
-    [Theory]
-    [InlineData(12, 0, 12)]
-    [InlineData(2, 0, 2)]
-    [InlineData(1063008, 1063, 8)]
-    public void TheMapFileGuessSplitsTheId(int id, int a, int b) => Assert.Equal((a, b), NavMapFiles.Guess(id));
+    [Fact]
+    public void AMapWithNoFileHasNoNavMesh()
+    {
+        var plan = new NavRoutePlanner(_ => null, (_, _) => Task.FromResult<WalkGraph?>(Graph(Open())))
+            .Plan(12, new(15, 0, 15), new(65, 0, 15));
+
+        Assert.Equal(RouteOutcome.NoNavMesh, plan.Outcome);
+        Assert.Equal("map=12 file=none", plan.Detail);
+    }
+
+    // A made-up map table: map 12's file is f_0000_012.
+    private static (int A, int B)? Files(int mapId) => (0, mapId);
 
     private static NavRoutePlanner Planner(WalkGraph? graph) =>
-        new(NavMapFiles.Guess, (_, _) => Task.FromResult(graph));
+        new(Files, (_, _) => Task.FromResult(graph));
 }

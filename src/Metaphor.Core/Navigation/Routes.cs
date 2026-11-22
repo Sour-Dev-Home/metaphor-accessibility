@@ -41,18 +41,6 @@ public interface IRoutePlanner
     RoutePlan Plan(int? mapId, Vector3 start, Vector3 target);
 }
 
-/// <summary>Which <c>f_&lt;a&gt;_&lt;b&gt;.NAV</c> file holds a map's navmesh. Unknown on game build 548ddc95… (Steam
-/// build 18330018): docs/findings/field-navmesh-files-tile-cache-static.md gives the file names' format and the map ids
-/// session 6 read (2, 12, 285, 371, 372), not how one gives the other.</summary>
-public static class NavMapFiles
-{
-    /// <summary>A guess, <c>a</c> the id's thousands and <c>b</c> the rest, so id 12 is <c>f_0000_012</c>
-    /// [NEEDS VERIFICATION]: ours, from the format alone. A wrong guess costs nothing worse than the straight line:
-    /// <see cref="NavRoutePlanner"/> plans only when the player stands on the file's cells, and logs the map id, the file
-    /// and the player's cell so a session can confirm or replace it.</summary>
-    public static (int A, int B)? Guess(int mapId) => mapId is >= 0 and <= 9_999_999 ? (mapId / 1000, mapId % 1000) : null;
-}
-
 /// <summary>Routes over the map's <c>.NAV</c> cells (#690): the player's and the target's nearest walkable cells,
 /// <see cref="PathFinder.Path"/> between them and <see cref="PathFinder.Corners"/>, as cell centres, ending at the
 /// target's own position. The world-to-cell transform is <see cref="WalkGraph.CellAt"/>'s: the game's positions taken as

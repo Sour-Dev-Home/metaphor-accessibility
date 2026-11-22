@@ -67,9 +67,19 @@ public sealed class NavMeshSourceTests
         Assert.Null(await source.Load(7, 7)!);
 
         Assert.Null(source.Get(7, 7));
-        Assert.Equal(["navmesh: no readable f_0007_007.NAV in the archive", "navmesh: no readable f_0001_001.NAV in the archive"],
-            lines);
+        Assert.Equal(["navmesh: f_0007_007.NAV: not in the archive", "navmesh: f_0001_001.NAV: doesn't parse"], lines);
         Assert.Equal(2, opens);
+    }
+
+    [Fact]
+    public async Task APackedFileIsLoggedAsPacked()
+    {
+        var packed = "CRILAYLApacked"u8.ToArray();
+        var source = new NavMeshSource(() => CpkArchiveTests.Archive(
+            ("COMMON/model/field/navi", "f_0002_002.NAV", packed, 0x200)), lines.Enqueue);
+
+        Assert.Null(await source.Load(2, 2)!);
+        Assert.Equal(["navmesh: f_0002_002.NAV: packed in the archive"], lines);
     }
 
     [Fact]

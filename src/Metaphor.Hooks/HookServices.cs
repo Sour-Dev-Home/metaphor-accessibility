@@ -232,9 +232,11 @@ internal sealed record HookServices
         var place = new FieldPlace(cleaner);
         events.ObserveFiles(place);
         // The beacon's routes (#690) run over the map's .NAV cells, read off the game's thread from the archive beside
-        // the exe, opened read-only for each file (NavMeshSource). Which file is the map's is a guess the log checks.
-        var navMeshes = new NavMeshSource(OpenArchive, log is null ? _ => { } : log.FieldRead);
-        var routes = new NavRoutePlanner(NavMapFiles.Guess, navMeshes.Load);
+        // the exe, opened read-only for each file (NavMeshSource). The map's file is named by the archive's map table
+        // (NavMapFiles, #741), read once on the first route.
+        var navLog = log is null ? (Action<string>)(_ => { }) : log.FieldRead;
+        var navMeshes = new NavMeshSource(OpenArchive, navLog);
+        var routes = new NavRoutePlanner(NavMapFiles.FromArchive(OpenArchive, navLog), navMeshes.Load);
         var fieldControls = new FieldControls(
             FieldBindings.Default, field, place, announcer, cues, () => Environment.TickCount64,
             log is null ? null : log.FieldRead, routes);
