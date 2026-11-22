@@ -1,3 +1,4 @@
+using System.Text.RegularExpressions;
 using Metaphor.Core.Announcements;
 using Metaphor.Core.Messages;
 
@@ -16,7 +17,7 @@ namespace Metaphor.Features.Battle;
 /// (<c>ChipsAhoiMcCoy/arcana</c>, Zlib licence, release v0.5.0 at <c>eae8dbd</c>, <c>main</c> at <c>ed3b005f</c>,
 /// <c>CHANGELOG.md</c> "0.5.0 / Battle", <c>src/screens/battle.cpp</c>). No code is copied.</para>
 /// </remarks>
-public sealed class BattleBanners
+public sealed partial class BattleBanners
 {
     /// <summary>The banner kind that names a situation message by its position.</summary>
     public const int SituationKind = 2;
@@ -32,6 +33,11 @@ public sealed class BattleBanners
 
     /// <summary>How long the same banner stays unsaid after it was last shown.</summary>
     public const long RepeatMilliseconds = 1000;
+
+    // What <V n> holds is [NEEDS VERIFICATION], and the shared cleaner would say "value" for it (#739), so it is dropped
+    // before cleaning.
+    [GeneratedRegex(@"<V(?: [^>]*)?>")]
+    private static partial Regex NameTag();
 
     private readonly MessageFilePositions messages;
     private readonly IAnnouncer announcer;
@@ -78,7 +84,7 @@ public sealed class BattleBanners
             }
         }
         if (messages.Find(SituationFile, id) is not { } message ||
-            cleaner.Clean(message.Text) is not { Length: > 0 } said)
+            cleaner.Clean(NameTag().Replace(message.Text, "")).Trim() is not { Length: > 0 } said)
         {
             return null;
         }

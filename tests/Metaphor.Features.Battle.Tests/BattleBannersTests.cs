@@ -62,6 +62,19 @@ public sealed class BattleBannersTests
     }
 
     [Fact]
+    public void ANameTagIsLeftOutWhenTheGameTermsCleanerWouldSayValue()
+    {
+        // The game's cleaner turns <V n> into the stand-in "value"; the banner must drop it first (#739).
+        var terms = new GameTerms(files);
+        var real = new BattleBanners(
+            files, announcer, new TextCleaner(GameTerms.Rules, terms.Placeholder), () => now);
+
+        real.Shown(Situation, 1);
+
+        Assert.Equal(["is testing up!"], Said());
+    }
+
+    [Fact]
     public void TheSameBannerShownAgainSoonIsSaidOnce()
     {
         banners.Shown(Situation, 0);
