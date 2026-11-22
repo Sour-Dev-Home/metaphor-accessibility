@@ -36,6 +36,9 @@ check "scripts change runs Pester" has "pester scripts/check.sh changed"
 check "scripts change runs no dotnet tests" lacks "dotnet"
 out="$(sel scripts/dev/session.ps1)"
 check "session script runs Pester" has "pester"
+out="$(sel installer/Metaphor.Installer/Launcher.cs)"
+check "an installer exe change runs Pester, which builds and runs the exe" has "pester installer/Metaphor.Installer/Launcher.cs changed"
+check "an installer exe change runs its xUnit tests" has "Installer.Tests"
 
 # The check scripts' own suite, which Git Bash without WSL runs only when they change (#336)
 out="$(sel scripts/check.sh)"
@@ -233,6 +236,7 @@ job "varied setup: a dev script change skips it" false varied-setup merge_group 
 job "varied setup: an installer change runs it" true varied-setup merge_group scripts/player/install.ps1
 job "varied setup: a setup script change runs it" true varied-setup merge_group scripts/setup/onboard.ps1
 job "varied setup: a release script change runs it" true varied-setup merge_group scripts/release/package-mod.sh
+job "varied setup: an installer exe change runs it" true varied-setup merge_group installer/Metaphor.Installer/Launcher.cs
 job "varied setup: a Pester test change runs it" true varied-setup merge_group tests/pester/install.Tests.ps1
 job "varied setup: its runner changing runs it" true varied-setup merge_group scripts/check/run-pester.sh
 job "varied setup: its Pester install changing runs it" true varied-setup merge_group scripts/ci/install-pester.sh
