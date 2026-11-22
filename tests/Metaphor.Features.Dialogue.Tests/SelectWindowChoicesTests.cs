@@ -82,8 +82,8 @@ public sealed class SelectWindowChoicesTests
 
         WindowOpens();
 
-        // The speaker is said on the first only (#539).
-        Assert.Equal(["Ada: Which way?", "Choice, 2 options", "Which way?", "Choice, 2 options"], Said());
+        // A choice came between, so the speaker is said again (#740).
+        Assert.Equal(["Ada: Which way?", "Choice, 2 options", "Ada: Which way?", "Choice, 2 options"], Said());
     }
 
     // Kind 1 is the name entry's confirmation (docs/raw-sources/yes-no-dialog-text-2026-11-20.md); only kind 0 has been

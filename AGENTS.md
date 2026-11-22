@@ -46,6 +46,7 @@ The [start-here map](docs/contributors/README.md) has the full layout, the
 [tool stack](docs/contributors/README.md#tool-stack), the environment variables and the workflow.
 
 - `src/`: the mod. `Metaphor.Core` and `Metaphor.Features.*` are plain libraries; `Metaphor.Hooks` is the hook layer.
+- `installer/`: the installer exe (ADR 0020), a .NET Framework 4.8 launcher that runs the zip's installer; not the mod.
 - `tests/`: xUnit projects, `pester/` for the PowerShell scripts, `bash/` and `check/` for the check scripts.
 - `scripts/`: `check.sh` and `check/`, `githooks/`, `ci/`, `release/`, `player/` (what the zip ships), `dev/`, `setup/`.
 - `tools/`: dev-only programs and the docs and slow-suite tool pins.
@@ -62,8 +63,8 @@ The [start-here map](docs/contributors/README.md) has the full layout, the
 This project runs with its own config directory, so the owner's other projects' settings, agents and plugins don't load
 here. Start it with `.\scripts\setup\claude.ps1` from the repository root, not `claude`. The only plugin is Matt
 Pocock's skills (`mattpocock-skills`). The one custom agent is `security-reviewer` (`.claude/agents/`): run it before a
-release, and on staged changes before any commit in the review scope (the hook layer, the update check, every script
-and the guards), listed in `scripts/ci/security-stamp.sh`. The stamp and the deny rules are in
+release, and on staged changes before any commit in the review scope (the hook layer, the update check, the installer exe,
+every script and the guards), listed in `scripts/ci/security-stamp.sh`. The stamp and the deny rules are in
 [security review](docs/contributors/reference/security-review.md). Never set `SECURITY_REVIEW_SKIP`, and never
 force-push.
 
