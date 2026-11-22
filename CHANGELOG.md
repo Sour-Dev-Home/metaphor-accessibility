@@ -9,12 +9,20 @@ checks them in the first game session and removes the tag.
 
 ## Unreleased
 
+- **The install check says the mod's version.** `check-install.ps1`, which the installer also runs at the end, now says
+  "The mod is version ..." for the copy in Reloaded-II's mods folder, so you can hear which one you have (#674).
+  `[NEEDS VERIFICATION by ear]`
+- **Tutorial pop-ups say what they are.** When a tutorial opens, the mod reads its title, how many pages it has, and
+  its first page. Each page you turn to is read as "Page 2 of 3" and its text (#118). `[NEEDS VERIFICATION by ear]`
 - **Yes and No buttons.** The installer asks each question in a small window with Yes and No buttons, which your
   screen reader reads, instead of asking you to type an answer. Where it can't find the game, you choose
   `METAPHOR.exe` in Windows' Open window (#607). `[NEEDS VERIFICATION by ear]`
 - **Battle hits are read.** Each hit says its damage, such as "34", or "34 healed". After the action, one line says
   who changed: party members by slot, such as "Ally 1 89, Ally 2 120", and each enemy with its HP left, numbered when
   there are several. Misses and blocked hits aren't read yet, and names aren't known yet (#247).
+  `[NEEDS VERIFICATION by ear]`
+- **Battle banners are read.** The short banner during a turn, such as a boss powering up, "Attack rose!", "Not
+  enough MP!" or "Gained one Turn Icon!", is read once, after the hits. A name in it isn't read yet (#692).
   `[NEEDS VERIFICATION by ear]`
 - **Battle's skill and item lists are read**: "Skills" or "Items" as the list opens, then each skill or item's name
   and "n of total" as you move. F, or R3 on the pad, reads the focused one's description (#247).

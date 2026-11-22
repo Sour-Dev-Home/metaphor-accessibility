@@ -70,4 +70,20 @@ public sealed class MessageReferenceTests
         Assert.Equal("Test_Other_01", files.Find(new MessageReference(124, 1))?.Label);
         Assert.Equal("Test_Spot_01", files.Find(new MessageReference(135, 1))?.Label);
     }
+
+    [Fact]
+    public void AFileNameFindsTheMessageAtAPositionInItsLatestCompile()
+    {
+        // The battle banners name their file by its table entry, not its compile id (#692).
+        var files = new MessageFilesById();
+        files.Observe(new MessageFileCompiled("EN/message/system/Test_Help.msg", 10, Source("Test_Old", 3)));
+        files.Observe(new MessageFileCompiled("EN/message/system/Test_Help.msg", 40, Source("Test_Help", 3)));
+        files.Observe(new MessageFileCompiled("EN/message/event/Test_Event.msg", -1, Source("Test_Event", 3)));
+
+        Assert.Equal("Test_Help_02", files.FindInFile("Test_Help.msg", 2)?.Label);
+        Assert.Equal("Test_Help_00", files.FindInFile("test_help.MSG", 0)?.Label);
+        Assert.Null(files.FindInFile("Test_Help.msg", 3));
+        Assert.Null(files.FindInFile("Help.msg", 0));
+        Assert.Null(files.FindInFile("Test_Event.msg", 0));
+    }
 }

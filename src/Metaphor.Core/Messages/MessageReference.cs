@@ -27,6 +27,14 @@ public sealed record MessageReference(int File, int Position)
     }
 }
 
+/// <summary>Finds a message by its file's name and its position in that file (#692).</summary>
+public interface IMessageInFile
+{
+    /// <summary>The message at <paramref name="position"/> in the file named <paramref name="fileName"/>, such as
+    /// <c>jyokyo_help_Message.msg</c>, or null when no known file holds it.</summary>
+    GameMessage? FindInFile(string fileName, int position);
+}
+
 /// <summary>Finds the message a <see cref="MessageReference"/> names.</summary>
 public interface IMessageByReference
 {
