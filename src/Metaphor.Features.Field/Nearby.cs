@@ -5,8 +5,9 @@ namespace Metaphor.Features.Field;
 /// <summary>One nearby thing as the list says it (#181).</summary>
 /// <param name="Unit">The unit.</param>
 /// <param name="Distance">Its distance across the ground, in the game's units.</param>
-/// <param name="Bearing">Its direction from the player's facing, in radians, left positive, from −π to π.</param>
-/// <param name="InReach">Whether the game's own reach test for its kind passes.</param>
+/// <param name="Bearing">Its direction from the camera's heading, or the player's facing when the camera isn't read, in
+/// radians, left positive, from −π to π.</param>
+/// <param name="InReach">Whether the game's own reach test for its kind passes, from the player's facing.</param>
 public sealed record NearbyThing(FieldUnit Unit, double Distance, double Bearing, bool InReach)
 {
     /// <summary>"Chest, 4 steps ahead-left, in reach": its name or kind, distance and direction.</summary>
@@ -20,7 +21,8 @@ public sealed record NearbyThing(FieldUnit Unit, double Distance, double Bearing
 }
 
 /// <summary>The nearby list (#181), per the maintainer's decisions of 2026-11-21 on #181: things within about 30 metres,
-/// nearest first, at most 8, each with its kind or name, distance and direction from the player's facing.</summary>
+/// nearest first, at most 8, each with its kind or name, distance and direction from the camera's heading, which #181's
+/// spec calls camera-relative (the player's facing when the camera isn't read; #686).</summary>
 public static class Nearby
 {
     /// <summary>The most things one list holds.</summary>
@@ -110,11 +112,14 @@ public static class Nearby
         return (distance, bearing, inReach);
     }
 
+    // The reach test keeps the character's facing; the spoken direction is from the camera's when it's read, as the
+    // beacon's beep (#686, maintainer by ear 2026-11-22 on PR #667).
     private static NearbyThing Place(FieldView view, FieldUnit unit)
     {
         var (distance, bearing, inReach) =
             Measure(new FieldPose(view.X, view.Y, view.Z, view.Heading), unit, view.DoorReachValue);
-        return new(unit, distance, bearing, inReach);
+        var spoken = view.CameraHeading is { } camera ? Normalised(bearing + view.Heading - camera) : bearing;
+        return new(unit, distance, spoken, inReach);
     }
 
     /// <summary><paramref name="angle"/> wrapped into (−π, π].</summary>

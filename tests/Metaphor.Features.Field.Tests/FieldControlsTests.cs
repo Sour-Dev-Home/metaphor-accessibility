@@ -213,7 +213,7 @@ public sealed class FieldControlsTests
 
         Assert.StartsWith("nearby player=(0,0,0) heading=0 camera=1.5 map=? doorValue=? units=Person:1,Door:1,Chest:1,Enemy:0", log[0], StringComparison.Ordinal);
         Assert.Equal(4, log.Count);
-        Assert.Contains("kind=Chest at=(0,0,200) distance=200 bearing=0 reach=True named=False", log[1], StringComparison.Ordinal);
+        Assert.Contains("kind=Chest at=(0,0,200) distance=200 bearing=-1.5 reach=True named=False", log[1], StringComparison.Ordinal);
         Assert.DoesNotContain(log, line => line.Contains("Testa", StringComparison.Ordinal));
     }
 

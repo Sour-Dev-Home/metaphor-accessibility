@@ -248,8 +248,9 @@ only, not the keys, the load message or the settings message.
 ### In the field: what is near and where you are
 
 1. `N` on the keyboard: says what is near you, nearest first, up to 8 things: people, doors, chests and enemies. Each
-   says its name, or its kind when it has none, then how far and which way from where you face, such as "Chest, 4
-   steps ahead-left". "In reach" means you can probably use it from where you stand. With nothing near it says
+   says its name, or its kind when it has none, then how far and which way, such as "Chest, 4 steps ahead-left".
+   Ahead means the way the camera looks, so left and right are the screen's. "In reach" means you can probably use it
+   from where you stand and face. With nothing near it says
    "Nothing nearby".
 2. `K` and `J` on the keyboard, or `LB` held, then `Down` or `Up` on the controller's D-pad: steps through the same
    list one thing at a time, `K` and `Down` to the next, `J` and `Up` to the one before, such as "2 of 5. Door, 9 steps

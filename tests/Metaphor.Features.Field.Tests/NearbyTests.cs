@@ -55,6 +55,40 @@ public sealed class NearbyTests
         Assert.EndsWith(direction, Nearby.List(view).Single().Text(), StringComparison.Ordinal);
     }
 
+    [Theory]
+    [InlineData(-1, 0, "right")]
+    [InlineData(1, 0, "left")]
+    [InlineData(0, 1, "ahead")]
+    [InlineData(0, -1, "behind")]
+    public void DirectionsAreFromTheCameraWhenItIsRead(double x, double z, string direction)
+    {
+        // #686, by ear 2026-11-22: the character faces the camera (heading π, camera 0, looking +Z), so the screen's
+        // right is -X; a door there was said as "left".
+        var view = new FieldView(0, 0, 0, Math.PI, [At(FieldKind.Door, x * 5 * Step, z * 5 * Step)], CameraHeading: 0);
+
+        Assert.Equal($"Door, 5 steps {direction}", Nearby.List(view).Single().Text());
+    }
+
+    [Fact]
+    public void DirectionsFallBackToTheFacingWhenTheCameraIsUnread()
+    {
+        var view = new FieldView(0, 0, 0, Math.PI, [At(FieldKind.Door, -5 * Step, 0)]);
+
+        Assert.Equal("Door, 5 steps left", Nearby.List(view).Single().Text());
+    }
+
+    [Fact]
+    public void TheReachTestKeepsTheCharactersFacing()
+    {
+        // Ahead on screen but behind the character, who faces the camera: not in reach.
+        var behind = new FieldView(0, 0, 0, Math.PI, [At(FieldKind.Chest, 0, 2 * Step)], CameraHeading: 0);
+        // Behind on screen but ahead of the character: in reach.
+        var ahead = new FieldView(0, 0, 0, Math.PI, [At(FieldKind.Chest, 0, -2 * Step)], CameraHeading: 0);
+
+        Assert.Equal("Chest, 2 steps ahead", Nearby.List(behind).Single().Text());
+        Assert.Equal("Chest, 2 steps behind, in reach", Nearby.List(ahead).Single().Text());
+    }
+
     [Fact]
     public void ANamedThingSaysItsNameAndOneStepIsSingular()
     {

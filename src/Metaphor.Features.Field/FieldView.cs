@@ -30,7 +30,8 @@ public sealed record FieldUnit(FieldKind Kind, float X, float Y, float Z, string
 /// <param name="DoorReachValue">The field database's value that picks the doors' reach (1 or 2: 150, else 300), or null
 /// when it wasn't read.</param>
 /// <param name="MapId">The map's id, or null when it wasn't read.</param>
-/// <param name="CameraHeading">As <see cref="FieldPose.CameraHeading"/>; logged only.</param>
+/// <param name="CameraHeading">As <see cref="FieldPose.CameraHeading"/>; the nearby list's directions are from it
+/// (#686).</param>
 public sealed record FieldView(
     float X, float Y, float Z, double Heading, IReadOnlyList<FieldUnit> Units, int? DoorReachValue = null,
     int? MapId = null, double? CameraHeading = null);
