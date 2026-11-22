@@ -19,5 +19,6 @@ public static class KnownScreens
         UnknownScreenFocus.DialogueChoice,
         .. SettingsFocus.Screens,
         QuickMenuFocus.Screen,
+        .. EquipmentFocus.Screens,
     ];
 }
