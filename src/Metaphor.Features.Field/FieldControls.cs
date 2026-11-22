@@ -3,6 +3,7 @@ using System.Globalization;
 using Metaphor.Core.Announcements;
 using Metaphor.Core.Cues;
 using Metaphor.Core.Input;
+using Metaphor.Core.Navigation;
 using Metaphor.Core.Settings;
 
 namespace Metaphor.Features.Field;
@@ -104,12 +105,14 @@ public sealed class FieldControls : IInputControls
     /// there is one (Debug builds). Each keyboard read also runs <paramref name="reach"/>'s check when there is one
     /// (#644). "Where am I" ends with <paramref name="mission"/>'s current mission when there is one (#658). With a log
     /// and <paramref name="storyFlag"/>, its record also lists the main-mission flags (<see cref="MainMissionFlags"/>).
+    /// The beacon guides along routes from <paramref name="routes"/> when given (#690).
     /// </summary>
     public FieldControls(
         FieldBindings bindings, IFieldReads field, FieldPlace place, IAnnouncer announcer, ICuePlayer cues,
         Func<long> milliseconds, Action<string>? log = null, ReachCallouts? reach = null, MissionLine? mission = null,
-        Func<int, bool?>? storyFlag = null)
-        : this(() => bindings, _ => true, field, place, announcer, cues, milliseconds, log, reach, mission, storyFlag)
+        Func<int, bool?>? storyFlag = null, IRoutePlanner? routes = null)
+        : this(() => bindings, _ => true, field, place, announcer, cues, milliseconds, log, reach, mission, storyFlag,
+            routes)
     {
         ArgumentNullException.ThrowIfNull(bindings);
     }
@@ -120,7 +123,8 @@ public sealed class FieldControls : IInputControls
     public FieldControls(
         Func<FieldBindings> bindings, Func<Feature, bool> isOn, IFieldReads field, FieldPlace place,
         IAnnouncer announcer, ICuePlayer cues, Func<long> milliseconds, Action<string>? log = null,
-        ReachCallouts? reach = null, MissionLine? mission = null, Func<int, bool?>? storyFlag = null)
+        ReachCallouts? reach = null, MissionLine? mission = null, Func<int, bool?>? storyFlag = null,
+        IRoutePlanner? routes = null)
     {
         ArgumentNullException.ThrowIfNull(bindings);
         ArgumentNullException.ThrowIfNull(isOn);
@@ -137,7 +141,7 @@ public sealed class FieldControls : IInputControls
         this.log = log;
         this.mission = mission;
         this.storyFlag = storyFlag;
-        beacon = new Beacon(field, cues, announcer, milliseconds, log);
+        beacon = new Beacon(field, cues, announcer, milliseconds, log, routes);
         this.reach = reach;
     }
 
