@@ -26,6 +26,31 @@ public static class SettingsPages
     /// (the PC settings go up to 49).</summary>
     public const int WorkingCopyLength = 0x100;
 
+    /// <summary>Key Configuration's screen class, the category list's fifth page, on the grid cursor
+    /// (docs/findings/settings-screens-inventory-static.md).</summary>
+    public const string KeyConfigClass = "ConfigMenuChoiceKeyConfig@ope@ui@app";
+
+    /// <summary>Where the Debug log dumps Key Configuration's choice from (#564): its <c>vf41</c> (<c>0x7fb690</c>)
+    /// branches on a byte at <c>+0x908</c> and a mode at <c>+0x914</c> (docs/findings/settings-screens-inventory-static.md).
+    /// Which marks "waiting for a key" is <c>[NEEDS VERIFICATION]</c>; a session's dumps settle it.</summary>
+    public const int KeyConfigStateOffset = 0x900;
+
+    /// <summary>How many bytes the Debug log dumps from <see cref="KeyConfigStateOffset"/>: both fields and their
+    /// neighbours.</summary>
+    public const int KeyConfigStateLength = 0x20;
+
+    /// <summary>Key Configuration's mode at <c>+0x914</c> in its choice (#589): <see cref="KeyConfigOnButtonMode"/> while
+    /// the OK button has the focus, 0 on every cell, where the cursor flags' item bit isn't reliable
+    /// (docs/raw-sources/key-config-actions-session-2026-11-21.md, game build 548ddc95…).</summary>
+    public const int KeyConfigModeOffset = 0x914;
+
+    /// <summary>The <see cref="KeyConfigModeOffset"/> value while the OK button has the focus.</summary>
+    public const int KeyConfigOnButtonMode = 1;
+
+    /// <summary>Whether Key Configuration's mode, as read (null when unreadable), says the OK button has the focus; an
+    /// unread mode counts as a cell, so a misread says the cell, not the button.</summary>
+    public static bool KeyConfigOnButton(int? mode) => mode == KeyConfigOnButtonMode;
+
     /// <summary>Whether <paramref name="screenClass"/> is one of the four pages.</summary>
     public static bool IsPage(string? screenClass) => screenClass is not null && Classes.Contains(screenClass);
 }

@@ -128,8 +128,11 @@ entry's position in the file. While Settings was open, session 1 logged `resolve
   list, maybe the device tabs `[NEEDS VERIFICATION]`. In the by-ear run one press of the pad button that steps the pages
   down a row (`0x0040`) moved `index` by 2 (0 to 2,
   then 2 to 4; [`settings-pages-resolves-by-ear-2026-11-20.md`](../raw-sources/settings-pages-resolves-by-ear-2026-11-20.md)),
-  which fits `index` counting cells, two to a row `[NEEDS VERIFICATION]`. Where the column is kept is
-  `[NEEDS VERIFICATION]`.
+  which fits `index` counting cells, two to a row `[NEEDS VERIFICATION]`. The class's own index getter and moves
+  keep cells to a row at `+0xe0`, the column at `+0xec`, the row in view at `+0xf0` and the rows scrolled at `+0x64`,
+  so the logged `top` (`+0x60`) is the cell within the view
+  ([`grid-cursor-fields-static-2026-11-21.md`](../raw-sources/grid-cursor-fields-static-2026-11-21.md)). The mod reads
+  them, speaks column and row, and logs a Debug `grid` record; their run-time values are `[NEEDS VERIFICATION]`.
 - **Bindings are images.** The exe names 103 key images, `keyboard/key_<n>_wh` and `_bk`. Each `<n>` is a Windows
   virtual-key code: 1, 2, 4, 5 and 6 are the mouse buttons, 8 Backspace, 9 Tab, 32–40 Space to the arrows, 48–57 the
   digits, 65–90 the letters, 96–111 the keypad, 112–123 F1–F12, 160–165 Shift, Ctrl and Alt, and 186–226 the
