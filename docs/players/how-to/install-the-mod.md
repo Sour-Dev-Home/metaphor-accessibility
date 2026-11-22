@@ -39,8 +39,8 @@ page for you and says each one as it goes. It needs no clicks in Reloaded-II's w
 6. It ends by running the install check ([below](#if-the-mod-says-nothing-run-the-install-check)) and says what it
    found. Before you start the game with the mod for the first time, the check says the mod hasn't reported a start
    yet; that is expected. Then it says where the mod is and how to remove it: "The mod is in your AppData folder,
-   Local, Programs, Reloaded-II, Mods, metaphor.accessibility. To uninstall, run uninstall.cmd from the zip, or from
-   that folder." "Your AppData folder, Local" is the folder that typing `%LOCALAPPDATA%` in `Windows+R` opens; the
+   Local, Programs, Reloaded-II, Mods, metaphor.accessibility. To uninstall, run uninstall.cmd in that
+   folder." "Your AppData folder, Local" is the folder that typing `%LOCALAPPDATA%` in `Windows+R` opens; the
    window shows the full path. See [Uninstall](#uninstall).
 7. The window stays open and its last line says "The installer has finished. Read what it said above, then press any
    key to close this window." Read back with NVDA's review cursor if you need to, then press a key.

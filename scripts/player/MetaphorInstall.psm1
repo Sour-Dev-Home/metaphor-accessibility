@@ -1051,7 +1051,7 @@ function Format-SpokenPath([string] $Path) {
 # The line at the end of an install that says where the mod is and how to remove it (#675): printed with the full PATH,
 # spoken with Format-SpokenPath's.
 function Get-ModFolderLine([string] $Path) {
-    $text = 'The mod is in {0}. To uninstall, run uninstall.cmd from the zip, or from that folder.'
+    $text = 'The mod is in {0}. To uninstall, run uninstall.cmd in that folder.'
     [pscustomobject]@{ Printed = $text -f $Path; Spoken = $text -f (Format-SpokenPath $Path) }
 }
 

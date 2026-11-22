@@ -21,7 +21,7 @@ says so, and nothing it didn't put there is removed.
 9. Makes the desktop shortcut "Metaphor ReFantazio with accessibility", which starts the game through Reloaded-II.
 10. Runs the install check (check-install.ps1's checks) and says what it found. After a finished install it says the
     mod's folder, naming your own folders ("your AppData folder, Local, ...") instead of reading out the path, and that
-    uninstall.cmd, in the zip or in that folder, removes the mod (#675).
+    uninstall.cmd in that folder removes the mod (#675).
 
 It asks before it starts, and again before each download, each time in a window with Yes and No buttons, which the
 screen reader reads (#607). A scripted run (-Answers) asks in the console instead, and so does a run without a console

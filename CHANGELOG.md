@@ -15,8 +15,8 @@ checks them in the first game session and removes the tag.
   time goes into `report-log.txt`. The log also lists each screen and menu move the mod said nothing for. Nothing is
   sent anywhere. The Alpha feedback form asks when you pressed it (#597). `[NEEDS VERIFICATION by ear]`
 - **The installer says where the mod is.** At the end of an install it says the mod's folder, naming your own folders
-  ("your AppData folder, Local, Programs, Reloaded-II, ...") instead of reading out the path, and that `uninstall.cmd`,
-  in the zip or in that folder, removes the mod (#675). `[NEEDS VERIFICATION by ear]`
+  ("your AppData folder, Local, Programs, Reloaded-II, ...") instead of reading out the path, and that `uninstall.cmd`
+  in that folder removes the mod (#675). `[NEEDS VERIFICATION by ear]`
 - **The install check says the mod's version.** `check-install.ps1`, which the installer also runs at the end, now says
   "The mod is version ..." for the copy in Reloaded-II's mods folder, so you can hear which one you have (#674).
   `[NEEDS VERIFICATION by ear]`
