@@ -186,9 +186,10 @@ internal sealed record HookServices
         var followerTable = DataTableRead.Followers();
         var names = new GameNames(new GameNameMemory(gameData, characterTable, followerTable), library);
         // Game terms and icons (#108, #109): a skill or condition named by its place in its file as build 548ddc95
-        // compiles it, anything else said as a stand-in for its kind, logged in Debug builds (#83).
-        var termFiles = new MessageFilePositions(GameTerms.Steam18330018);
-        var terms = new GameTerms(termFiles, log is null ? null : log.PlaceholderMissing);
+        // compiles it, anything else said as a stand-in for its kind, logged in Debug builds (#83). The battle banners'
+        // situation file (#692) is kept by the same store: one "file + position" key (2026-11-22 review, finding 4).
+        var filePositions = new MessageFilePositions([.. GameTerms.Steam18330018, BattleBanners.Steam18330018]);
+        var terms = new GameTerms(filePositions, log is null ? null : log.PlaceholderMissing);
         var cleaner = new TextCleaner(
             GameNames.Rules.With(GameTerms.Rules),
             (key, arguments) => names.Placeholder(key, arguments) ?? terms.Placeholder(key, arguments));
@@ -245,7 +246,7 @@ internal sealed record HookServices
         screens.Observe(menuControls);
         events.ObserveFiles(library);
         events.ObserveFiles(serials);
-        events.ObserveFiles(termFiles);
+        events.ObserveFiles(filePositions);
         events.ObserveFiles(filesById);
         var lines = new DialogueLines(new ShownSpeakers(library, names), dialogue);
         events.ObserveLines(lines);
@@ -315,7 +316,7 @@ internal sealed record HookServices
                 log is null ? null : text => log.Requested("BattleDetails", text)),
             // The in-turn situation banner, queued behind the hit lines (#692). No feature toggle yet: #668's
             // mechanism isn't on this branch, so it is always on.
-            BattleBanners = new BattleBanners(filesById, reader, cleaner, () => Environment.TickCount64),
+            BattleBanners = new BattleBanners(filePositions, reader, cleaner, () => Environment.TickCount64),
             TravelMap = new TravelMapDestination(filesById, reader, cleaner, () => Environment.TickCount64),
             FieldMapName = new FieldMapName(reader, cleaner),
             DialogueHistory = history,

@@ -12,13 +12,14 @@ public sealed class BattleBannersTests
     private const int Situation = BattleBanners.SituationKind;
 
     private readonly RecordingAnnouncer announcer = new();
-    private readonly MessageFilesById files = new();
+    // The test file holds three messages, so the shape names three in place of the build's 259.
+    private readonly MessageFilePositions files = new([new(BattleBanners.SituationFile, 3)]);
     private long now = 10_000;
     private readonly BattleBanners banners;
 
     public BattleBannersTests()
     {
-        files.Observe(new MessageFileCompiled($"EN/message/system/{BattleBanners.SituationFile}", 10, """
+        files.Observe(new MessageFileCompiled($"EN/{BattleBanners.SituationFile}", 10, """
             @jyokyo_helpText_A
             {
             Test attack rose!
@@ -81,6 +82,29 @@ public sealed class BattleBannersTests
         Assert.Null(banners.Shown(Situation, -1));
 
         Assert.Empty(Said());
+    }
+
+    [Fact]
+    public void ASituationFileOfAnotherCountOrAnotherFolderSaysNothing()
+    {
+        // Another count is another build's file, whose positions can't be trusted (finding 4 of the 2026-11-22
+        // review); a file of the same name in another folder isn't the situation file.
+        const string ThreeMessages = "@A\n{\nOne\n}\n@B\n{\nTwo\n}\n@C\n{\nThree\n}";
+        var otherCount = new MessageFilePositions([new(BattleBanners.SituationFile, 2)]);
+        otherCount.Observe(new MessageFileCompiled($"EN/{BattleBanners.SituationFile}", 10, ThreeMessages));
+        var otherFolder = new MessageFilePositions([new(BattleBanners.SituationFile, 3)]);
+        otherFolder.Observe(new MessageFileCompiled("EN/message/event/jyokyo_help_Message.msg", 10, ThreeMessages));
+        var clean = new TextCleaner(TextCleanerRules.None);
+
+        Assert.Null(new BattleBanners(otherCount, announcer, clean, () => now).Shown(Situation, 0));
+        Assert.Null(new BattleBanners(otherFolder, announcer, clean, () => now).Shown(Situation, 0));
+        Assert.Empty(Said());
+    }
+
+    [Fact]
+    public void TheSituationFileIsPinnedToItsPathAndCountOnTheBuild()
+    {
+        Assert.Equal(new MessageFileShape("message/system/jyokyo_help_Message.msg", 259), BattleBanners.Steam18330018);
     }
 
     [Fact]

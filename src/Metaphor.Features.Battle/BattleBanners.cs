@@ -21,13 +21,19 @@ public sealed class BattleBanners
     /// <summary>The banner kind that names a situation message by its position.</summary>
     public const int SituationKind = 2;
 
-    /// <summary>The file the situation messages are in.</summary>
-    public const string SituationFile = "jyokyo_help_Message.msg";
+    /// <summary>The file the situation messages are in, by its path from the <c>message</c> folder on, the key
+    /// <see cref="MessageFilePositions"/> uses.</summary>
+    public const string SituationFile = "message/system/jyokyo_help_Message.msg";
+
+    /// <summary>The situation file as game build 548ddc95… (Steam build 18330018) compiles it: 259 messages in the
+    /// mod's message log of 2026-11-21 (docs/findings/battle-situation-banner-text-static.md). Another count is another
+    /// build's file, whose positions say nothing.</summary>
+    public static MessageFileShape Steam18330018 { get; } = new(SituationFile, 259);
 
     /// <summary>How long the same banner stays unsaid after it was last shown.</summary>
     public const long RepeatMilliseconds = 1000;
 
-    private readonly IMessageInFile messages;
+    private readonly MessageFilePositions messages;
     private readonly IAnnouncer announcer;
     private readonly TextCleaner cleaner;
     private readonly Func<long> clock;
@@ -39,7 +45,7 @@ public sealed class BattleBanners
     /// <summary>Banners said through <paramref name="announcer"/> while <paramref name="enabled"/> (always, when not
     /// given) is true.</summary>
     public BattleBanners(
-        IMessageInFile messages, IAnnouncer announcer, TextCleaner cleaner, Func<long> clock, Func<bool>? enabled = null)
+        MessageFilePositions messages, IAnnouncer announcer, TextCleaner cleaner, Func<long> clock, Func<bool>? enabled = null)
     {
         ArgumentNullException.ThrowIfNull(messages);
         ArgumentNullException.ThrowIfNull(announcer);
@@ -71,7 +77,7 @@ public sealed class BattleBanners
                 return null;
             }
         }
-        if (messages.FindInFile(SituationFile, id) is not { } message ||
+        if (messages.Find(SituationFile, id) is not { } message ||
             cleaner.Clean(message.Text) is not { Length: > 0 } said)
         {
             return null;
