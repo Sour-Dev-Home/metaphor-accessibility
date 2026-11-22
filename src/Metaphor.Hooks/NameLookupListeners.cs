@@ -129,7 +129,9 @@ internal sealed class MessageSerialByHashListener : IGameHook, IObserves4WithRes
 }
 
 /// <summary>A message fetched by serial number (#247): each fetch whose serial and flags can be read goes to
-/// <see cref="HookServices.Messages"/>, for the battle lists, which say a row by the name fetched for it. In a Debug
+/// <see cref="HookServices.Messages"/>, for the battle lists, which say a row by the name fetched for it, and the save
+/// and load screens' slot names (#622), whose prompts name the list that opens next; the slot screens always listen, so
+/// in Release every call reads its two numbers. In a Debug
 /// build it also logs the number, the flags, whether a message came back, and the label and text the mod's serial table
 /// gives that number (#584). Called from about 250 places, some every frame, so in Release it reads only while an
 /// observer is listening, two numbers and nothing else, and the log drops repeats within the quiet window. Release since #247; until then a Debug-only listener.</summary>

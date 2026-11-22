@@ -44,7 +44,7 @@ public sealed class SaveSlotFocusTests
     [Fact]
     public void TheLoadListSaysItsAutosaveRowThenEachSlotByNumber()
     {
-        slots.Resolved(LoadPrompt);
+        slots.Observe(new SerialResolved(LoadPrompt, 0));
         Cursor(0, 17);
         Cursor(1, 17);
         Cursor(3, 17);
@@ -57,7 +57,7 @@ public sealed class SaveSlotFocusTests
     [Fact]
     public void TheSaveListHasNoAutosaveRowSoItsFirstRowIsSlotOne()
     {
-        slots.Resolved(SavePrompt);
+        slots.Observe(new SerialResolved(SavePrompt, 0));
         Cursor(3, 16);
         Cursor(0, 16);
         Cursor(15, 16);
@@ -68,7 +68,7 @@ public sealed class SaveSlotFocusTests
     [Fact]
     public void EachFocusLogsWhatTheSlotDoesNotSayYet()
     {
-        slots.Resolved(SavePrompt);
+        slots.Observe(new SerialResolved(SavePrompt, 0));
         Cursor(2, 16);
 
         Assert.Equal("slot screen=save index=2 said=\"Slot 3\" unread=place,playtime,empty (#622)", Assert.Single(debug));

@@ -1,3 +1,5 @@
+using Metaphor.Core.Messages;
+
 namespace Metaphor.Core.Menus;
 
 /// <summary>Names the save and load screens' slot lists (#622), which reach the menu cursor hook with no screen class:
@@ -8,7 +10,7 @@ namespace Metaphor.Core.Menus;
 /// with that count names its manager, and that manager's inputs carry <see cref="LoadClass"/> or
 /// <see cref="SaveClass"/> until another opening replaces it. Every input is handed on to <c>inner</c>, named or not.
 /// Safe to call from several threads.</summary>
-public sealed class SlotScreens : ICursorObserver
+public sealed class SlotScreens : ICursorObserver, ISerialResolveObserver
 {
     /// <summary>The load screen's slot list. The mod's own name: the list owner's class isn't read.</summary>
     public const string LoadClass = "slots:load";
@@ -34,10 +36,12 @@ public sealed class SlotScreens : ICursorObserver
         this.inner = inner;
     }
 
-    /// <summary>Takes a message the game fetched by serial: a slot screen's prompt means its list opens next.</summary>
-    public void Resolved(int serial)
+    /// <summary>Takes a message the game fetched by serial, as <see cref="MessageEvents"/> hands it on (2026-11-22
+    /// review, finding 5): a slot screen's prompt means its list opens next. Always listening, since a prompt can come
+    /// at any time.</summary>
+    public void Observe(SerialResolved resolve)
     {
-        var screen = serial switch
+        var screen = resolve.Serial switch
         {
             LoadPrompt => LoadClass,
             SavePrompt => SaveClass,
