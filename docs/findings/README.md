@@ -23,6 +23,8 @@ Copy this into `docs/findings/<topic>.md`. The method names a row of the table i
 - **Game build:** <SHA-256 of the executable> (Steam build <id>, version <shown in game>)
 - **Method:** <the ADR 0002 row it falls under>
 - **Sources:** <files in docs/raw-sources/, or "none, see Steps">
+- **Functions:** (optional, see below)
+  - <name> | <address> | <section> | <area> | <use> | <one-line summary>
 
 <The claim in one or two sentences.>
 
@@ -34,4 +36,24 @@ Copy this into `docs/findings/<topic>.md`. The method names a row of the table i
 ## Steps
 
 <How to reproduce it: the tool and its version, and what you did.>
+```
+
+## The `functions:` block
+
+Optional. A finding that pins functions or globals lists them in its header, one entry per line, so a generator can
+collect them into a local known-functions reference ([#716](https://github.com/Sour-Dev-Home/metaphor-accessibility/issues/716)).
+Each entry has six fields, separated by ` | `:
+
+- **name:** the function or global's name, ours or the game's own.
+- **address:** its address on the game build in the header.
+- **section:** the executable section it lives in, such as `.text` or `.ecode`.
+- **area:** one of Dialogue, Menus, Settings, Field, Battle, Speech, Install and Release, Messages and Text.
+- **use:** `hooked` (the mod patches it), `read` (the mod reads it) or `known only` (understood, not used).
+- **summary:** one line on what it does. No decompiled code (rule 4).
+
+Example, with a made-up function:
+
+```markdown
+- **Functions:**
+  - ExampleOpenPanel | 0x140123456 | .text | Menus | known only | Opens the example panel and returns its handle.
 ```
