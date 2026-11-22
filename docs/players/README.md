@@ -14,6 +14,8 @@ so pages here are drafts for testers. Start with [Install the mod](how-to/instal
   one CI built.
 - [Keys and what the mod speaks](reference/keys-and-speech.md) (draft): every key and button, what is spoken in
   dialogue, the field and menus, and what works yet.
+- [Settings](reference/settings.md) (draft): every setting in the settings file, to turn off any part of the mod or
+  move its keys. Everything is on by default.
 - [Sound cues](reference/sound-cues.md) (draft): the short sounds the mod plays, what each means, and how to turn them
   off or change their volume.
 

@@ -1,6 +1,7 @@
 using Metaphor.Core.Announcements;
 using Metaphor.Core.Menus;
 using Metaphor.Core.Messages;
+using Metaphor.Core.Settings;
 
 namespace Metaphor.Features.Menus;
 
@@ -12,6 +13,7 @@ namespace Metaphor.Features.Menus;
 /// call from several threads. Its System submenu, served by the same choice, is spoken as its own two items (#210). While
 /// the screen waits for a button before showing the menu, only its prompt is spoken (#555).
 /// </summary>
+[FeatureSetting(Feature.Menus)]
 public sealed class TitleMenuFocus : IScreenObserver
 {
     /// <summary>The title menu: its choice's class on build 548ddc95, from its run-time type information
