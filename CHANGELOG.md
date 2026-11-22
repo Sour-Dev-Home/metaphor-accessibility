@@ -9,6 +9,8 @@ checks them in the first game session and removes the tag.
 
 ## Unreleased
 
+- **The current mission.** When the main mission changes, the mod says `Mission:` and its title, once you're back in
+  the field, and `L` says it after the place name (#658). `[NEEDS VERIFICATION by ear]`
 - **Yes and No buttons.** The installer asks each question in a small window with Yes and No buttons, which your
   screen reader reads, instead of asking you to type an answer. Where it can't find the game, you choose
   `METAPHOR.exe` in Windows' Open window (#607). `[NEEDS VERIFICATION by ear]`

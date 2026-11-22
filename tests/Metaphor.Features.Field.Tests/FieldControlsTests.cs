@@ -179,19 +179,49 @@ public sealed class FieldControlsTests
     [Fact]
     public void WhereAmIAddsTheCurrentMission()
     {
-        var mission = new MissionLine(new RecordingAnnouncer(), new TextCleaner(TextCleanerRules.None));
-        mission.Observe(new MessageFileCompiled("EN/message/system/Mission_Message_3.msg", 27,
-            "@MissionText_Test_01\n{\nReach mock harbour\n}\n"));
-        var withMission = new FieldControls(FieldBindings.Default, field, place, announcer, () => now, mission: mission);
+        var started = false;
+        var withMission = new FieldControls(
+            FieldBindings.Default, field, place, announcer, () => now, mission: Mission(() => started));
         place.Observe(new MessageFileCompiled("EN/message/MapName.msg", 4, "@Map_00\n{\nTestshire\n}\n"));
 
         withMission.Keys([KeyL]);
         withMission.Keys([]);
         place.LookedUp(FieldPlace.MapNameEntry, 0, mapId: 3);
-        mission.Seen("Reach mock harbour");
+        started = true;
         withMission.Keys([KeyL]);
 
-        Assert.Equal(["Place not known yet", "Testshire. Mission: Reach mock harbour"], Said());
+        Assert.Equal(["Place not known yet. Mission: Rest", "Testshire. Mission: Reach mock harbour"], Said());
+    }
+
+    [Fact]
+    public void EachKeyAndPadReadLooksForANewMission()
+    {
+        var started = false;
+        var withMission = new FieldControls(
+            FieldBindings.Default, field, place, announcer, () => now, mission: Mission(() => started));
+
+        withMission.Keys([]);
+        started = true;
+        now += 1000;
+        withMission.Pad(0, 0, made: true);
+        withMission.Pad(0, 0, made: true);
+
+        Assert.Equal(["Mission: Reach mock harbour"], Said());
+    }
+
+    // A mission line whose one made-up mission starts when started says so.
+    private MissionLine Mission(Func<bool> started)
+    {
+        var library = new MessageLibrary();
+        library.Compiled("@MissionText_Test_01\n{\nReach mock harbour\n}\n@MissionText_Test_02\n{\nRest\n}\n");
+        MainMissionRow[] rows =
+        [
+            new(0x1165, MessageLibrary.LabelHash("MissionText_Test_02")),
+            new(0x1166, MessageLibrary.LabelHash("MissionText_Test_01")),
+        ];
+        return new MissionLine(
+            flag => flag == 0x1165 || (flag == 0x1166 && started()), () => rows, library,
+            new TextCleaner(TextCleanerRules.None), announcer, () => now, field.InFreeRoam);
     }
 
     [Fact]

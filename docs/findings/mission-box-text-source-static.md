@@ -54,7 +54,7 @@ Ghidra 12.2 shared project (`scripts/dev/ghidra.ps1`,
 
 ## What the next session must check
 
-The Debug build's "where am I" record now ends with `mainFlags=`, the highest set flags in `0x1165`–`0x120a`. Press L
-before and after a main mission changes and note the box's title. A change in the top flag beside the title confirms
-the scan in memory. The row for that flag (`+0x20`) in a local copy of `Mission_Main_Data.bin` is then the lead for
-the label. Never commit the copy. The sub-missions, the lines #658 quotes, still need a source outside `.text1`.
+The 2026-11-22 session (PR #665) saw the top flag move `0x1169` → `0x116a` across a story step, so the scan follows
+the story in memory. A row's title label is pinned statically in
+[`mission-title-from-the-mission-table.md`](mission-title-from-the-mission-table.md), which says what to check next.
+The sub-missions, the lines #658 quotes, still need a source outside `.text1`.

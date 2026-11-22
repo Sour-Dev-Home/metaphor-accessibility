@@ -30,6 +30,25 @@ public sealed class MainMissionFlagsTests
     }
 
     [Fact]
+    public void TheCurrentRowIsTheHighestSetFlagWithARow()
+    {
+        HashSet<int> set = [0x1166, 0x1169, 0x116a, 0x1200];
+        MainMissionRow[] rows = [new(0x1166, "AA"), new(0x1169, "BB"), new(0x116b, "CC")];
+
+        Assert.Equal(new MainMissionRow(0x1169, "BB"), MainMissionFlags.Current(flag => set.Contains(flag), rows));
+    }
+
+    [Fact]
+    public void NoCurrentRowWithoutASetFlagWithARowOrAReadableFlag()
+    {
+        MainMissionRow[] rows = [new(0x1166, "AA"), new(0x1100, "BB")];
+
+        Assert.Null(MainMissionFlags.Current(flag => flag == 0x1100, rows));
+        Assert.Null(MainMissionFlags.Current(flag => flag == 0x1166 ? null : false, rows));
+        Assert.Null(MainMissionFlags.Current(_ => true, []));
+    }
+
+    [Fact]
     public void DescribesFlagsAsHexForTheLog()
     {
         Assert.Equal("0x120a,0x1180", MainMissionFlags.Describe([0x120a, 0x1180]));

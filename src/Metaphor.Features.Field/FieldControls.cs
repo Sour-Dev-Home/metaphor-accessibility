@@ -26,7 +26,8 @@ public sealed record FieldBindings(
 /// <summary>The field controls (#181), while the player roams the field: the nearby key speaks the list of things
 /// nearby (<see cref="Nearby"/>), the pad's next and previous chords step through it one thing at a time, and the place
 /// key and chord say where the player is (<see cref="FieldPlace"/>), then the current mission (<see cref="MissionLine"/>,
-/// #658: a proposal the maintainer decides on). The game state is read on the press, on the thread
+/// #658). Each read of the keys or a pad also lets the mission line look for a new mission. The game state is read on
+/// the press, on the thread
 /// that handed it the read, and copied into plain values. Only the exact press is hidden from the game, and only in free
 /// roam: the key, or the chord's D-pad button (the held button stays, so the game never sees it let go and pressed
 /// again). Elsewhere everything reaches the game. A press is an up-to-down edge of a binding held on any pad or the
@@ -94,6 +95,7 @@ public sealed class FieldControls : IInputControls
     /// buttons to hand on: without a chord's D-pad button while it is held in free roam.</summary>
     public int Pad(int pad, int buttons, bool made)
     {
+        mission?.Poll();
         if (!made)
         {
             return buttons;
@@ -125,6 +127,7 @@ public sealed class FieldControls : IInputControls
     public IReadOnlyList<int> Keys(IReadOnlyList<int> keys)
     {
         ArgumentNullException.ThrowIfNull(keys);
+        mission?.Poll();
         var listHeld = keys.Contains(bindings.NearbyKey);
         var placeHeld = keys.Contains(bindings.PlaceKey);
         var roaming = (listHeld || placeHeld) && field.InFreeRoam();

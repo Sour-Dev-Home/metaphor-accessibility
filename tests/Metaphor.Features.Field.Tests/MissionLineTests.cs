@@ -3,8 +3,9 @@ using Metaphor.Core.Messages;
 
 namespace Metaphor.Features.Field.Tests;
 
-/// <summary>The current mission line (#658): a text the game shows is the mission when it is one of the mission files'
-/// <c>MissionText_</c> messages, spoken once when it changes and kept for "where am I". Made-up missions only.</summary>
+/// <summary>The current main mission (#658): the row of the highest set flag in the main mission table names its
+/// title by its label's MD5, and the title is that message's text. Spoken when it changes in free roam, at most once a
+/// second, and said on "where am I". Made-up missions, flags and labels only.</summary>
 [Trait("Category", "Unit")]
 public sealed class MissionLineTests
 {
@@ -20,66 +21,125 @@ public sealed class MissionLineTests
         Queue up for <COLOR 3>mock bread<COLOR -1>
         <WAIT>
         }
-
-        @Other_Label
-        {
-        Not a mission
-        }
         """;
 
     private readonly RecordingAnnouncer announcer = new();
     private readonly List<string> log = [];
+    private readonly HashSet<int> set = [0x1166];
+    private readonly List<MainMissionRow> rows =
+    [
+        new(0x1166, MessageLibrary.LabelHash("MissionText_Test_01")),
+        new(0x1167, MessageLibrary.LabelHash("MissionText_Test_02")),
+        new(0x1168, MessageLibrary.LabelHash("MissionText_Test_99")),
+    ];
+
     private readonly MissionLine mission;
+    private long now = 5000;
+    private bool roaming = true;
+    private bool tableReadable = true;
 
     public MissionLineTests()
     {
-        mission = new MissionLine(announcer, new TextCleaner(TextCleanerRules.None), log.Add);
-        mission.Observe(new MessageFileCompiled("EN/message/system/Mission_Message_2.msg", 26, Source));
+        var library = new MessageLibrary();
+        library.Compiled(Source);
+        mission = new MissionLine(
+            flag => set.Contains(flag), () => tableReadable ? rows : null, library,
+            new TextCleaner(TextCleanerRules.None), announcer, () => now, () => roaming, log.Add);
     }
 
-    [Fact]
-    public void AMissionShownIsSpokenOnceAndKept()
-    {
-        Assert.Equal("Mission: Walk to Testshire", mission.Seen("Walk to Testshire"));
-        Assert.Null(mission.Seen("Walk to Testshire"));
+    private IEnumerable<string> Said() => announcer.Said.Select(said => said.Text);
 
-        Assert.Equal(new Announcement("Mission: Walk to Testshire", Interrupt: false), announcer.Said.Single());
+    [Fact]
+    public void TheCurrentMissionIsTheTitleOfTheTopFlagsRow()
+    {
         Assert.Equal("Walk to Testshire", mission.Current);
-        Assert.Equal(["mission label=MissionText_Test_01 changed"], log);
-    }
 
-    [Fact]
-    public void ANewMissionIsSpokenWithItsTagsDropped()
-    {
-        mission.Seen("Walk to Testshire");
-        mission.Seen("Queue up for mock bread");
+        set.Add(0x1167);
 
-        Assert.Equal(["Mission: Walk to Testshire", "Mission: Queue up for mock bread"], announcer.Said.Select(said => said.Text));
         Assert.Equal("Queue up for mock bread", mission.Current);
     }
 
     [Fact]
-    public void OtherTextAndOtherFilesAreNotMissions()
+    public void AnUnreadableTableAnUnknownLabelOrNoFlagHasNoMission()
     {
-        var other = new MissionLine(announcer, new TextCleaner(TextCleanerRules.None));
-        other.Observe(new MessageFileCompiled("EN/message/system/System_Message.msg", 6, Source));
+        tableReadable = false;
+        Assert.Null(mission.Current);
 
-        Assert.Null(mission.Seen("Not a mission"));
-        Assert.Null(mission.Seen(null));
-        Assert.Null(mission.Seen(""));
-        Assert.Null(other.Seen("Walk to Testshire"));
+        tableReadable = true;
+        set.Add(0x1168);
+        Assert.Null(mission.Current);
 
-        Assert.Empty(announcer.Said);
+        set.Clear();
         Assert.Null(mission.Current);
     }
 
     [Fact]
-    public void AFileCompiledAgainReplacesItsMissions()
+    public void AChangeIsSpokenOnceButTheFirstMissionSeenIsNot()
     {
-        mission.Observe(new MessageFileCompiled("EN/message/system/Mission_Message_2.msg", 40,
-            "@MissionText_Test_09\n{\nFind the mock tunnel\n}\n"));
+        Assert.Null(mission.Poll());
+        set.Add(0x1167);
+        now += 1000;
 
-        Assert.Null(mission.Seen("Walk to Testshire"));
-        Assert.Equal("Mission: Find the mock tunnel", mission.Seen("Find the mock tunnel"));
+        Assert.Equal("Mission: Queue up for mock bread", mission.Poll());
+        now += 1000;
+        Assert.Null(mission.Poll());
+
+        Assert.Equal(new Announcement("Mission: Queue up for mock bread", Interrupt: false), announcer.Said.Single());
+    }
+
+    [Fact]
+    public void ItLooksAtMostOnceASecondAndOnlyInFreeRoam()
+    {
+        mission.Poll();
+        set.Add(0x1167);
+        now += 999;
+        Assert.Null(mission.Poll());
+
+        roaming = false;
+        now += 1;
+        Assert.Null(mission.Poll());
+
+        roaming = true;
+        now += 1000;
+        Assert.Equal("Mission: Queue up for mock bread", mission.Poll());
+    }
+
+    [Fact]
+    public void AMissionThatCantBeReadIsNotAChange()
+    {
+        mission.Poll();
+        tableReadable = false;
+        now += 1000;
+        Assert.Null(mission.Poll());
+
+        tableReadable = true;
+        now += 1000;
+        Assert.Null(mission.Poll());
+        Assert.Empty(Said());
+    }
+
+    [Fact]
+    public void TheLogNamesTheFlagAndTheLabelOfEachChange()
+    {
+        mission.Poll();
+        set.Add(0x1168);
+        now += 1000;
+        mission.Poll();
+
+        Assert.Equal(
+        [
+            "mission flag=0x1166 label=MissionText_Test_01 changed",
+            "mission flag=0x1168 label=(unknown) hash=" + MessageLibrary.LabelHash("MissionText_Test_99") + " changed",
+        ], log);
+    }
+
+    [Fact]
+    public void AReadThatThrowsSaysNothing()
+    {
+        var throwing = new MissionLine(
+            _ => throw new InvalidOperationException("stand-in"), () => rows, new MessageLibrary(),
+            new TextCleaner(TextCleanerRules.None), announcer, () => now, () => true);
+
+        Assert.Null(throwing.Poll());
     }
 }

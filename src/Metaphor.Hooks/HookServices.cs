@@ -74,7 +74,7 @@ internal sealed record HookServices
     /// </summary>
     public IReadOnlyList<IReadsGlobal> Globals =>
         [MenusOpen, DialogueWindow, GameData, CharacterTable, FollowerTable, Voice, FieldWorld, FieldScene, FieldDatabase,
-            PersonTable];
+            PersonTable, MissionTable];
 
     /// <summary>Reads <c>fldWorld</c> for the nearby list (#181); the loader locates it.</summary>
     public FieldGlobal FieldWorld { get; init; } = FieldGlobal.World();
@@ -95,9 +95,8 @@ internal sealed record HookServices
     /// <summary>The place names "where am I" says (#181): the message lookup hook feeds it.</summary>
     public FieldPlace? FieldPlace { get; init; }
 
-    /// <summary>The current mission line (#658): spoken when it changes and added to "where am I". Only the Debug
-    /// build's text-pane probe feeds it so far. None unless the services speak.</summary>
-    public MissionLine? Mission { get; init; }
+    /// <summary>Reads the main mission table (#658); the loader locates what it reads.</summary>
+    public MissionTableRead MissionTable { get; init; } = new();
 
     /// <summary>The field reads (#181), for the map id beside each place-name lookup.</summary>
     public FieldMemory? Field { get; init; }
@@ -214,9 +213,12 @@ internal sealed record HookServices
         var field = new FieldMemory(fieldWorld, fieldScene, fieldDatabase, personTable, names, menusOpen, window);
         var place = new FieldPlace(cleaner);
         events.ObserveFiles(place);
-        // The mission line (#658), spoken through the reader like the other automatic field speech.
-        var mission = new MissionLine(reader, cleaner, log is null ? null : log.FieldRead);
-        events.ObserveFiles(mission);
+        // The current main mission (#658): the top story flag's row in the mission table names its title's label, whose
+        // text the library holds. Spoken through the reader like the other automatic field speech.
+        var missionTable = new MissionTableRead(log is null ? null : log.FieldRead);
+        var mission = new MissionLine(
+            gameData.StoryFlag, missionTable.Rows, library, cleaner, reader, () => Environment.TickCount64,
+            field.InFreeRoam, log is null ? null : log.FieldRead);
         // Debug builds only: the "where am I" record lists the main-mission flags, read through the build-checked flag
         // global (#658, docs/findings/mission-box-text-source-static.md).
         var fieldControls = new FieldControls(
@@ -265,7 +267,7 @@ internal sealed record HookServices
             PersonTable = personTable,
             Field = field,
             FieldPlace = place,
-            Mission = mission,
+            MissionTable = missionTable,
             FieldControls = fieldControls,
             Cues = cues,
         };

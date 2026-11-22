@@ -254,7 +254,8 @@ only, not the keys, the load message or the settings message.
 2. `LB` held, then `Down` or `Up` on the controller's D-pad: steps through the same list one thing at a time, such as
    "2 of 5. Door, 9 steps behind". After 10 seconds without a step it starts again at the nearest.
 3. `L` on the keyboard, or `LB` held and `Left` on the D-pad: says where you are, by the place name the game last
-   showed. Before the game has shown one, it says "Place not known yet".
+   showed. Before the game has shown one, it says "Place not known yet". Then it says the current main mission, such
+   as "Mission:" and its title. The mod also says a new mission by itself once you're back in the field.
 
 They work only while you walk around freely, with no menu or dialogue open, and the game doesn't see the key, or the
 D-pad direction, then. Anywhere else they keep their normal job in the game. Distances are rough steps for now: the mod
