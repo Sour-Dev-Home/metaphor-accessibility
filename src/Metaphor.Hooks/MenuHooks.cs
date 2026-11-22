@@ -41,7 +41,9 @@ internal sealed class MenusOpenRead : IReadsGlobal
 /// exe (docs/raw-sources/ui-focus-candidates-2026-11-16.md); that the index follows the menu's focus is from
 /// docs/raw-sources/spike-session-2-2026-11-16.md. Observed after it returns, so the cursor is where the input left it.
 /// Each input carries its screen class from <see cref="ScreenClassLookup"/> (#208), its list's item count (#289) and its
-/// owner's mode for a choice that serves two lists (#210), each null when unreadable.</summary>
+/// owner's mode for a choice that serves two lists (#210), each null when unreadable, and on the grid cursor class its
+/// cell (#563), whose index is that class's own getter's, on Key Configuration whether its OK button has the focus
+/// (#589), and on a settings page its values (#96).</summary>
 [GameHook(GameBuilds.Steam18330018)]
 internal sealed class MenuCursorHook : IGameHook, IObserves4WithResult
 {
@@ -54,11 +56,22 @@ internal sealed class MenuCursorHook : IGameHook, IObserves4WithResult
     // reused by a later screen (docs/raw-sources/list-count-session6-2026-11-17.md, game build 548ddc95…).
     private const int CountOffset = 0x58;
 
+    // The grid cursor's own fields (#563), read only on a manager of its class: cells to a row, column, row in view,
+    // rows scrolled, page and page stride (docs/raw-sources/grid-cursor-fields-static-2026-11-21.md, game build
+    // 548ddc95…).
+    private const int GridColumnsOffset = 0xE0;
+    private const int GridColumnOffset = 0xEC;
+    private const int GridLineOffset = 0xF0;
+    private const int GridScrollOffset = 0x64;
+    private const int GridPageOffset = 0xF4;
+    private const int GridPageStrideOffset = 0x54;
+
     private readonly CursorEvents events;
     private readonly ScreenClassLookup screenClasses;
     private readonly nint? moduleBase;
     private readonly MessageLog? log;
     private readonly ChangedBytes settingsCopies = new();
+    private readonly ChangedBytes keyConfigStates = new();
 
     public MenuCursorHook(HookServices services)
     {
@@ -87,27 +100,78 @@ internal sealed class MenuCursorHook : IGameHook, IObserves4WithResult
             ? vtable - module
             : null;
         var screenClass = screenClasses.Of(manager);
+        var grid = classRva == GridCursor.ClassRva;
+        var copy = ReadSettingsCopy(manager, screenClass);
         events.Handled(new CursorInput(
             manager, classRva, commandValue, (int)result, top, row, ModuleMemoryReader.ReadInt32(manager + FlagsOffset) ?? 0,
-            screenClass, ModuleMemoryReader.ReadInt32(manager + CountOffset), screenClasses.ModeOf(manager, screenClass)));
-        LogSettingsCopy(manager, screenClass);
+            screenClass, ModuleMemoryReader.ReadInt32(manager + CountOffset), screenClasses.ModeOf(manager, screenClass),
+            grid ? ReadGrid(manager) : null,
+            grid && screenClass == SettingsPages.KeyConfigClass ? KeyConfigOnButton(manager) : null,
+            copy is { } read ? SettingValues.Of(read.Bytes) : null));
+        LogSettingsCopy(copy);
+        LogKeyConfigState(manager, screenClass);
     }
 
-    // Debug builds only (the log is null in Release): a settings page's working copy, when it changed since the page's
-    // last input, so a session shows which bytes a value change moves (#560, #558's check 2). One bounded read through
-    // ModuleMemoryReader, which fails instead of faulting; nothing when the owner is unknown or the read fails.
-    private void LogSettingsCopy(nint manager, string? screenClass)
+    // A settings page's working copy (#560), read so the page's rows can say their values (#96): only on one of the four
+    // pages' classes, null on any other, when the owner is unknown or the read fails. One bounded read through
+    // ModuleMemoryReader, which fails instead of faulting.
+    private (long Owner, byte[] Bytes)? ReadSettingsCopy(nint manager, string? screenClass)
     {
-        if (log is null || !SettingsPages.IsPage(screenClass) || screenClasses.Owners.OwnerOf(manager) is not { } owner)
+        if (!SettingsPages.IsPage(screenClass) || screenClasses.Owners.OwnerOf(manager) is not { } owner)
+        {
+            return null;
+        }
+        // An array, not stackalloc: a stack buffer's loads are raw-memory reads outside the reader (architecture rule 10).
+        var bytes = new byte[SettingsPages.WorkingCopyLength];
+        return ModuleMemoryReader.ReadBytes((nint)(owner + SettingsPages.WorkingCopyOffset), bytes) ? (owner, bytes) : null;
+    }
+
+    // The grid cursor's cell, or null when a field is unreadable or they don't read as a grid. Six bounded reads
+    // through ModuleMemoryReader, which fails instead of faulting.
+    private static GridCursor? ReadGrid(nint manager) =>
+        ModuleMemoryReader.ReadInt32(manager + GridColumnsOffset) is { } columns
+            && ModuleMemoryReader.ReadInt32(manager + GridColumnOffset) is { } column
+            && ModuleMemoryReader.ReadInt32(manager + GridLineOffset) is { } line
+            && ModuleMemoryReader.ReadInt32(manager + GridScrollOffset) is { } scroll
+            && ModuleMemoryReader.ReadInt32(manager + GridPageOffset) is { } page
+            && ModuleMemoryReader.ReadInt32(manager + GridPageStrideOffset) is { } stride
+            ? GridCursor.Of(columns, column, line, scroll, page, stride)
+            : null;
+
+    // Whether Key Configuration's OK button has the focus (#589): its choice's mode, where the flags' item bit isn't
+    // reliable (SettingsPages.KeyConfigModeOffset). One bounded read through ModuleMemoryReader; an unknown owner or a
+    // failed read counts as a cell.
+    private bool KeyConfigOnButton(nint manager) =>
+        SettingsPages.KeyConfigOnButton(screenClasses.Owners.OwnerOf(manager) is { } owner
+            ? ModuleMemoryReader.ReadInt32((nint)(owner + SettingsPages.KeyConfigModeOffset))
+            : null);
+
+    // Debug builds only (the log is null in Release): Key Configuration's choice fields when they changed since its
+    // last input, so a session shows which marks "waiting for a key" (#564, #558's check 7). One bounded read through
+    // ModuleMemoryReader; nothing when the owner is unknown or the read fails.
+    private void LogKeyConfigState(nint manager, string? screenClass)
+    {
+        if (log is null || screenClass != SettingsPages.KeyConfigClass
+            || screenClasses.Owners.OwnerOf(manager) is not { } owner)
         {
             return;
         }
         // An array, not stackalloc: a stack buffer's loads are raw-memory reads outside the reader (architecture rule 10).
-        var bytes = new byte[SettingsPages.WorkingCopyLength];
-        if (ModuleMemoryReader.ReadBytes((nint)(owner + SettingsPages.WorkingCopyOffset), bytes)
-            && settingsCopies.Changed(owner, bytes) is { } hex)
+        var bytes = new byte[SettingsPages.KeyConfigStateLength];
+        if (ModuleMemoryReader.ReadBytes((nint)(owner + SettingsPages.KeyConfigStateOffset), bytes)
+            && keyConfigStates.Changed(owner, bytes) is { } hex)
         {
-            log.SettingsCopy(owner, hex);
+            log.KeyConfigState(owner, SettingsPages.KeyConfigStateOffset, hex);
+        }
+    }
+
+    // Debug builds only (the log is null in Release): a settings page's working copy, when it changed since the page's
+    // last input, so a session shows which bytes a value change moves (#560, #558's check 2); nothing when it wasn't read.
+    private void LogSettingsCopy((long Owner, byte[] Bytes)? copy)
+    {
+        if (log is not null && copy is { } read && settingsCopies.Changed(read.Owner, read.Bytes) is { } hex)
+        {
+            log.SettingsCopy(read.Owner, hex);
         }
     }
 }
