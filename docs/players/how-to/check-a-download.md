@@ -1,7 +1,7 @@
 # Check a download
 
-> **Draft: there is no release yet.** Until the first one, the zips come from the project's CI runs on `main`, for
-> testers on dev builds. Both are checked the same way; only the command's last details differ.
+> **Draft.** The newest download is the pre-release `v0.0.1-unstable.4`. Zips from the project's CI runs on `main`
+> are for testers on dev builds. Both are checked the same way; only the command's last details differ.
 
 The mod runs inside your game, so check a zip before you install it. GitHub's CI builds each zip and signs it with an
 [attestation](../../../GLOSSARY.md#review-and-ci): a record, signed by GitHub, of which repository, workflow and
@@ -31,6 +31,12 @@ after 90 days at most unless the repository's settings change that, so pick a re
    Check that inner zip, then install it.
 
 ## Check it with the GitHub CLI
+
+The checks below, this one and the PowerShell one after it, need typed commands with switches (words starting with a
+dash), which a screen reader voices poorly and which can't be avoided here: each is a program's own command line.
+They are optional. They are
+for someone comfortable with a command line, or a helper, and the installer doesn't need them. Skipping them means
+trusting the download page.
 
 This is the full check: it shows who built the zip, not only that it arrived intact.
 
@@ -74,5 +80,4 @@ place. It can't show who built the zip; the GitHub CLI check above can.
 
 ## Install
 
-The zip holds one folder, `metaphor.accessibility`. Follow [Install the mod](install-the-mod.md) from "Add the mod from
-a dev build".
+Follow [Install the mod](install-the-mod.md).

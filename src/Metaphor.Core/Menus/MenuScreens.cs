@@ -20,6 +20,10 @@ public enum ScreenChange
 
     /// <summary>Its cursor settled on another item: <see cref="ScreenEvent.Index"/> is the new focus.</summary>
     FocusMoved,
+
+    /// <summary>A settings page's values changed with its focus where it was (#96): <see cref="ScreenEvent.Values"/> are
+    /// the new ones.</summary>
+    ValueChanged,
 }
 
 /// <summary>One change to a screen: which (<paramref name="Screen"/>, null for one the mod doesn't know), its screen
@@ -28,10 +32,11 @@ public enum ScreenChange
 /// (<see cref="CursorInput.Mode"/>), null when it has none or it is unreadable. <paramref name="OffList"/> is whether
 /// the focus is off the list's items (<see cref="CursorInput.OffList"/>), as on a settings page's OK button, where
 /// <paramref name="Index"/> reads 0. <paramref name="Grid"/> is the focus's cell on a grid cursor
-/// (<see cref="CursorInput.Grid"/>, #563), null on any other.</summary>
+/// (<see cref="CursorInput.Grid"/>, #563), null on any other. <paramref name="Values"/> is a settings page's values
+/// (<see cref="CursorInput.Values"/>, #96), null on any other screen.</summary>
 public sealed record ScreenEvent(
     ScreenChange Change, Screen? Screen, string ScreenClass, int Index, int? Count = null, int? Mode = null,
-    bool OffList = false, GridCursor? Grid = null)
+    bool OffList = false, GridCursor? Grid = null, SettingValues? Values = null)
 {
     /// <summary>The longest list taken as a count (#289). The longest seen in session 6 had 145 items
     /// (docs/raw-sources/list-count-session6-2026-11-17.md); a larger value is a screen whose field isn't the count, as
@@ -68,7 +73,9 @@ public interface IScreenDetails
 /// changing on the same item is a focus move, so a choice's other list is heard even where the index stays; so is the
 /// focus moving on or off the list's items (<see cref="CursorInput.OffList"/>), as from a settings page's OK button to
 /// its first row, both at index 0 (#560); and on a grid cursor, its count changing on the same cell, as when Key
-/// Configuration's sub-tab changes (#589).
+/// Configuration's sub-tab changes (#589). A settings page's values (<see cref="CursorInput.Values"/>) changing with
+/// nothing else is a value change (#96); values that stop being read keep the last ones read. A screen outside the
+/// menus told its manager's same input twice running (so shown again after going quiet) is entered afresh.
 /// </summary>
 public sealed class MenuScreens : ICursorObserver
 {
@@ -77,11 +84,13 @@ public sealed class MenuScreens : ICursorObserver
     private IScreenObserver[] observers = [];
     private string? currentClass;
     private long currentManager;
+    private CursorInput? currentManagerLast;
     private int currentIndex;
     private int? currentCount;
     private int? currentMode;
     private bool currentOffList;
     private GridCursor? currentGrid;
+    private SettingValues? currentValues;
     private bool menusOpen;
 
     /// <summary>A module that tags each screen whose class is one of <paramref name="knownScreens"/>' with it.</summary>
@@ -104,33 +113,52 @@ public sealed class MenuScreens : ICursorObserver
     public void Observe(CursorInput input)
     {
         ArgumentNullException.ThrowIfNull(input);
-        if (input.IsMove || input.ScreenClass is not { } screenClass)
-        {
-            return;
-        }
-        var outside = known.GetValueOrDefault(screenClass)?.OutsideMenus == true;
+        var outside = input.ScreenClass is { } named && known.GetValueOrDefault(named)?.OutsideMenus == true;
         ScreenEvent[] changes;
         lock (gate)
         {
-            if (!menusOpen && !outside)
+            // CursorEvents tells a manager the same input twice running only after it went quiet (#557), as the game
+            // calls a shown screen's handler every frame: the screen was closed and shown again.
+            var shownAgain = input.Manager == currentManager && input == currentManagerLast;
+            if (input.Manager == currentManager)
+            {
+                currentManagerLast = input;
+            }
+            if (input.IsMove || input.ScreenClass is not { } screenClass || (!menusOpen && !outside))
             {
                 return;
             }
+            currentManagerLast = input;
             if (screenClass == currentClass && (!outside || input.Manager == currentManager))
             {
-                if (input.Index == currentIndex && input.Mode == currentMode && input.OffList == currentOffList
-                    && (input.Grid is null || input.Count == currentCount))
+                var values = input.Values ?? currentValues;
+                var focusMoved = input.Index != currentIndex || input.Mode != currentMode
+                    || input.OffList != currentOffList || (input.Grid is not null && input.Count != currentCount);
+                if (focusMoved)
                 {
-                    return;
+                    changes = [Change(ScreenChange.FocusMoved, screenClass, input, values)];
                 }
-                changes = [Change(
-                    ScreenChange.FocusMoved, screenClass, input.Index, input.Count, input.Mode, input.OffList, input.Grid)];
+                else if (outside && shownAgain)
+                {
+                    // Nothing leaves a screen outside the menus, so one shown again on the same manager and focus is
+                    // entered afresh, as battle's item list was in the by-ear run of 2026-11-21.
+                    changes = [Change(ScreenChange.Entered, screenClass, input, values)];
+                }
+                else
+                {
+                    if (Equals(values, currentValues))
+                    {
+                        return;
+                    }
+                    changes = [Change(ScreenChange.ValueChanged, screenClass, input, values)];
+                }
+                currentValues = values;
             }
             else
             {
-                var entered = Change(
-                    ScreenChange.Entered, screenClass, input.Index, input.Count, input.Mode, input.OffList, input.Grid);
+                var entered = Change(ScreenChange.Entered, screenClass, input, input.Values);
                 changes = currentClass is { } left ? [Current(ScreenChange.Left, left), entered] : [entered];
+                currentValues = input.Values;
             }
             currentClass = screenClass;
             currentManager = input.Manager;
@@ -198,11 +226,12 @@ public sealed class MenuScreens : ICursorObserver
 
     // The current focus as a change to screenClass; called under the gate.
     private ScreenEvent Current(ScreenChange change, string screenClass) =>
-        Change(change, screenClass, currentIndex, currentCount, currentMode, currentOffList, currentGrid);
+        new(change, known.GetValueOrDefault(screenClass), screenClass, currentIndex, currentCount, currentMode,
+            currentOffList, currentGrid, currentValues);
 
-    private ScreenEvent Change(
-        ScreenChange change, string screenClass, int index, int? count, int? mode, bool offList, GridCursor? grid) =>
-        new(change, known.GetValueOrDefault(screenClass), screenClass, index, count, mode, offList, grid);
+    private ScreenEvent Change(ScreenChange change, string screenClass, CursorInput input, SettingValues? values) =>
+        new(change, known.GetValueOrDefault(screenClass), screenClass, input.Index, input.Count, input.Mode,
+            input.OffList, input.Grid, values);
 
     [SuppressMessage("Design", "CA1031", Justification = "One observer's failure must not keep the change from the others, or reach the game.")]
     private static void TellEach(IScreenObserver[] observers, ScreenEvent change)

@@ -2,8 +2,8 @@
 
 For the maintainer. A release starts with a `v*` tag on a commit on `main`. The `Release` workflow
 ([`release.yml`](../../../.github/workflows/release.yml)) builds the tagged commit from scratch, rebuilds it to compare,
-attests the zip and attaches it with its `SHA256SUMS` to a draft release. You publish the draft. Only admins create
-`v*` tags ([collaborators](../reference/security-review.md#collaborators)).
+attests the installer and the zip and attaches them with `SHA256SUMS` to a draft release. You publish the draft. Only
+admins create `v*` tags ([collaborators](../reference/security-review.md#collaborators)).
 
 You need the GitHub CLI signed in with an admin account, and a clone with `main` up to date.
 
@@ -50,14 +50,16 @@ A run by hand builds, attests and verifies a zip of `main`'s tip, and drafts not
    ([sources](../../raw-sources/github-release-provenance-2026-11-18.md)), so push one at a time.
 4. The push starts `Release`. `gate` fails a tag whose commit isn't on `main`, or that doesn't match `ModVersion`.
    Then `build` builds and rebuilds, `attest` signs and verifies the zip, and `release` drafts the release `v0.1.0`
-   with two assets: `metaphor-accessibility-v0.1.0.zip` and `SHA256SUMS`.
+   with three assets: `metaphor-accessibility-v0.1.0-installer.exe`, `metaphor-accessibility-v0.1.0.zip` and
+   `SHA256SUMS`.
 
 ## 3. Publish
 
 1. Open the Releases page, `https://github.com/Sour-Dev-Home/metaphor-accessibility/releases`, and the draft.
-2. Check its two assets. Download both and run the player's check from
+2. Check its three assets. Download them and run the player's check from
    [Check a download](../../players/how-to/check-a-download.md#check-it-with-the-github-cli), with `VERSION` as the tag.
-   The zip's SHA-256 must match `SHA256SUMS` and the run's summary.
+   The zip's SHA-256 must match `SHA256SUMS` and the run's summary. Verify the installer's attestation too, the same
+   way as the zip's.
 3. Write the release notes (the first release's draft is
    [release-notes-0.1.0.md](../reference/release-notes-0.1.0.md)), then publish the draft. The release PR updates
    [`CHANGELOG.md`](../../../CHANGELOG.md) in every release: move "Unreleased" under the new version.

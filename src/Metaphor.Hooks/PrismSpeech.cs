@@ -124,9 +124,10 @@ internal sealed unsafe class PrismSpeech
             }
 
             var prism = new PrismSpeech(context, create, initialize, free, speak, output, stop);
-            return (new SwitchingAnnouncer(
-                prism.FirstStarted(0, ScreenReaderCount),
-                prism.FirstStarted(ScreenReaderCount, Backends.Length),
+            // StartWith releases the screen reader if starting the voice throws (#681).
+            return (SwitchingAnnouncer.StartWith(
+                () => prism.FirstStarted(0, ScreenReaderCount),
+                () => prism.FirstStarted(ScreenReaderCount, Backends.Length),
                 () => prism.FirstStarted(0, ScreenReaderCount),
                 log,
                 TimeProvider.System,

@@ -74,6 +74,45 @@ public sealed class SwitchingAnnouncer : IAnnouncer
         lastProbe = clock.GetTimestamp();
     }
 
+    /// <summary>Starts the screen reader, then the fallback, and builds the announcer on them. A throw after the screen
+    /// reader started releases it before going on to the caller, so a failed start leaves nothing open (#681).</summary>
+    /// <param name="startScreenReader">Starts the screen reader running at load, or returns null.</param>
+    /// <param name="startFallback">Starts the Windows voice, or returns null.</param>
+    /// <param name="findScreenReader">As in the constructor.</param>
+    /// <param name="log">As in the constructor.</param>
+    /// <param name="clock">As in the constructor.</param>
+    /// <param name="inBackground">As in the constructor.</param>
+    public static SwitchingAnnouncer StartWith(
+        Func<ISpeechBackend?> startScreenReader,
+        Func<ISpeechBackend?> startFallback,
+        Func<ISpeechBackend?> findScreenReader,
+        Action<string> log,
+        TimeProvider clock,
+        Action<Action> inBackground)
+    {
+        ArgumentNullException.ThrowIfNull(startScreenReader);
+        ArgumentNullException.ThrowIfNull(startFallback);
+        var screenReader = startScreenReader();
+        ISpeechBackend? fallback = null;
+        try
+        {
+            fallback = startFallback();
+            return new SwitchingAnnouncer(screenReader, fallback, findScreenReader, log, clock, inBackground);
+        }
+        catch
+        {
+            if (screenReader is not null)
+            {
+                Release(screenReader);
+            }
+            if (fallback is not null)
+            {
+                Release(fallback);
+            }
+            throw;
+        }
+    }
+
     /// <summary>Which backend is speaking, or null while none is.</summary>
     public string? BackendName
     {

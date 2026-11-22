@@ -1,19 +1,23 @@
+using System.Globalization;
 using Metaphor.Core.Announcements;
 using Metaphor.Core.Menus;
 using Metaphor.Core.Messages;
+using Metaphor.Core.Settings;
 
 namespace Metaphor.Features.Menus;
 
 /// <summary>Speaks the Settings category list and names its pages (#559, parent #96): on opening the list, "Settings"
 /// and the focused category, then each category's text from the game's message file and "n of 5"; on opening the System, Sound, Graphics or Display page, that page's
 /// category text and the focused row, then on each move the row: its name when <see cref="SettingsPageRows"/> knows it,
-/// then its position (#560), or "OK, button" on the button after the last row; on Key Configuration, its category text
+/// then its value where <see cref="SettingsPageRows"/> knows its setting, then its position (#560, #96), or "OK, button"
+/// on the button after the last row, and when the focused row's value changes, only the new value; on Key Configuration, its category text
 /// on opening, then each grid cell's action where <see cref="KeyConfigTab"/> knows it, its column and row (#563), the
 /// sub-tab's name when it changes, and "OK, button" on its OK button (#589). Each
 /// announcement cuts off the last. The text is looked up at run time (<see cref="MessageLibrary"/>), so nothing here is
 /// game content. Safe to call from several threads.</summary>
 /// <remarks>Labels, classes and which row opens which page on build 548ddc95:
 /// docs/raw-sources/settings-category-labels-session1-2026-11-20.md.</remarks>
+[FeatureSetting(Feature.Menus)]
 public sealed class SettingsFocus : IScreenObserver
 {
     // The category list, opened from the title or the field's quick menu, and from the main menu in play: one list.
@@ -60,6 +64,15 @@ public sealed class SettingsFocus : IScreenObserver
     private readonly Lock gate = new();
     private int? keyConfigCount;
 
+    // The focused row's value as last said, so a change says only a new value (#96).
+    private int? lastValue;
+
+    // A changed value waits until it has been still for this long, then is said once: a held key repeats about 100 ms
+    // apart and would otherwise say every step (#735, the maintainer's decision of 2026-11-22). Any other event drops it.
+    private static readonly TimeSpan SettleWait = TimeSpan.FromMilliseconds(200);
+    private readonly ITimer settle;
+    private string? pendingValue;
+
     /// <summary>Speaks the pages' rows and Key Configuration's actions known on game build 548ddc95
     /// (<see cref="SettingsPageRows.Steam18330018"/>, <see cref="KeyConfigTab.Steam18330018"/>).</summary>
     public SettingsFocus(IMessageLookup messages, IAnnouncer announcer, TextCleaner cleaner)
@@ -79,7 +92,16 @@ public sealed class SettingsFocus : IScreenObserver
     public SettingsFocus(
         IMessageLookup messages, IAnnouncer announcer, TextCleaner cleaner, IReadOnlyList<SettingsPageRows> rows,
         IReadOnlyList<KeyConfigTab> tabs)
+        : this(messages, announcer, cleaner, rows, tabs, TimeProvider.System)
     {
+    }
+
+    /// <summary>As above, with <paramref name="clock"/> timing the wait for a changed value to be still (#735).</summary>
+    public SettingsFocus(
+        IMessageLookup messages, IAnnouncer announcer, TextCleaner cleaner, IReadOnlyList<SettingsPageRows> rows,
+        IReadOnlyList<KeyConfigTab> tabs, TimeProvider clock)
+    {
+        ArgumentNullException.ThrowIfNull(clock);
         ArgumentNullException.ThrowIfNull(messages);
         ArgumentNullException.ThrowIfNull(announcer);
         ArgumentNullException.ThrowIfNull(cleaner);
@@ -90,12 +112,20 @@ public sealed class SettingsFocus : IScreenObserver
         this.cleaner = cleaner;
         this.rows = rows;
         this.tabs = tabs;
+        settle = clock.CreateTimer(_ => SaySettled(), null, Timeout.InfiniteTimeSpan, Timeout.InfiniteTimeSpan);
     }
 
     /// <summary>Speaks the focus when the list or a page is entered or its focus moves.</summary>
     public void Observe(ScreenEvent change)
     {
         ArgumentNullException.ThrowIfNull(change);
+        if (change.Change != ScreenChange.ValueChanged)
+        {
+            lock (gate)
+            {
+                pendingValue = null;
+            }
+        }
         if (change.Change == ScreenChange.Left || change.Index < 0 || Said(change) is not { } text)
         {
             return;
@@ -124,6 +154,10 @@ public sealed class SettingsFocus : IScreenObserver
         {
             return null;
         }
+        if (change.Change == ScreenChange.ValueChanged)
+        {
+            return change.OffList ? null : ChangedValue(page, change);
+        }
         var row = change.OffList ? OkButton : Row(page, change);
         return change.Change == ScreenChange.Entered ? Join(CategoryText(page), row) : row;
     }
@@ -148,17 +182,86 @@ public sealed class SettingsFocus : IScreenObserver
         return tabChanged ? Join(Text(tab?.NameLabel), cell) : cell;
     }
 
+    // "<name>, <value>, n of total" (#96), each part left out when it isn't known.
     private string Row(int page, ScreenEvent change)
     {
         var position = change.Total is { } total ? $"{change.Index + 1} of {total}" : $"{change.Index + 1}";
-        return Join(RowText(page, change.Index, change.Total), position);
+        var pageRows = PageRows(page, change.Total);
+        lock (gate)
+        {
+            lastValue = Value(pageRows, change);
+        }
+        return Join(RowText(pageRows, change.Index), Join(ValueText(pageRows, change.Index, lastValue), position));
     }
 
-    // The row's name, cleaned, or null when the page's rows at this count aren't known, the row's label isn't, or its
-    // message is missing or empty. The value isn't read yet (#558's checks 2 and 3), so #96's "name, value" is the name.
-    private string? RowText(int page, int index, int? total) =>
-        total is { } count && rows.FirstOrDefault(known => known.Page == page && known.Total == count) is { } pageRows
-            && pageRows.NameLabel(index) is { } label && messages.Find(label) is { } message
+    // Only the focused row's new value (#96's "on change"), said once it has been still (#735), so always null here; a
+    // change to another setting's value, or none, leaves the row's.
+    private string? ChangedValue(int page, ScreenEvent change)
+    {
+        var value = Value(PageRows(page, change.Total), change);
+        lock (gate)
+        {
+            if (value is null || value == lastValue)
+            {
+                return null;
+            }
+            lastValue = value;
+            pendingValue = ValueText(PageRows(page, change.Total), change.Index, value);
+        }
+        settle.Change(SettleWait, Timeout.InfiniteTimeSpan);
+        return null;
+    }
+
+    private void SaySettled()
+    {
+        string? value;
+        lock (gate)
+        {
+            value = pendingValue;
+            pendingValue = null;
+        }
+        if (value is not null)
+        {
+            announcer.Announce(new Announcement(value, Interrupt: true));
+        }
+    }
+
+    // The page's rows at this count, or null when they aren't known.
+    private SettingsPageRows? PageRows(int page, int? total) =>
+        total is { } count ? rows.FirstOrDefault(known => known.Page == page && known.Total == count) : null;
+
+    // The value as said (#734): the row's choice name where the page names the row's choices, else the number; null when
+    // there is no value. A name is the game's message text, or the table's fixed text, and the number when neither is
+    // found (docs/findings/settings-value-names.md).
+    private string? ValueText(SettingsPageRows? pageRows, int index, int? value)
+    {
+        if (value is not { } number)
+        {
+            return null;
+        }
+        if (pageRows?.Choice(index, number) is { } choice)
+        {
+            if (choice.Label is { } label && messages.Find(label) is { } message
+                && cleaner.Clean(message.Text) is { Length: > 0 } text)
+            {
+                return text;
+            }
+            if (choice.Text is { Length: > 0 } fixedText)
+            {
+                return fixedText;
+            }
+        }
+        return number.ToString(CultureInfo.InvariantCulture);
+    }
+
+    // The focused row's value as a number, or null when its setting ID or the page's values aren't known.
+    private static int? Value(SettingsPageRows? pageRows, ScreenEvent change) =>
+        pageRows?.ValueId(change.Index) is { } id ? change.Values?.Value(id) : null;
+
+    // The row's name, cleaned, or null when the page's rows aren't known, the row's label isn't, or its message is
+    // missing or empty.
+    private string? RowText(SettingsPageRows? pageRows, int index) =>
+        pageRows?.NameLabel(index) is { } label && messages.Find(label) is { } message
             && cleaner.Clean(message.Text) is { Length: > 0 } text
             ? text
             : null;
