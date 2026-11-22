@@ -70,8 +70,6 @@ internal sealed class BattleHitResultHook : IGameHook, IObserves6WithResult
     private readonly IBattleHitObserver hits;
     private readonly BattlePartyMemory party;
     private readonly MessageLog? log;
-    // Read for the log only: the turn-icon fields after each hit, to pin which counts the icons (#695).
-    private readonly GameDataRead gameData;
 
     public BattleHitResultHook(HookServices services)
     {
@@ -79,7 +77,6 @@ internal sealed class BattleHitResultHook : IGameHook, IObserves6WithResult
         hits = services.BattleHits;
         party = services.BattleParty;
         log = services.Log;
-        gameData = services.GameData;
     }
 
     public string SignatureName => "BattleHitResult";
@@ -106,14 +103,16 @@ internal sealed class BattleHitResultHook : IGameHook, IObserves6WithResult
             party.Saw(seen, max);
         }
         log?.Requested(SignatureName, string.Create(CultureInfo.InvariantCulture,
-            $"target=0x{target:x} record=0x{record ?? 0:x} side={side} slot={member?.Slot} unit={member?.Unit} index={index & 0xFFFF} mode={(int)mode} kind=0x{kind:x} sub=0x{(kindAndSub >> 16) & 0xFFFF:x} flags=0x{ModuleMemoryReader.ReadInt32(result + FlagsAt) ?? 0:x} hp={hpChange} hpLeft={hpLeft} hpMax={hpMax} mp={ModuleMemoryReader.ReadInt32(request + MpChangeAt)} mpLeft={ModuleMemoryReader.ReadInt32(request + MpLeftAt)} {gameData.TurnIconsForLog()}"));
+            $"target=0x{target:x} record=0x{record ?? 0:x} side={side} slot={member?.Slot} unit={member?.Unit} index={index & 0xFFFF} mode={(int)mode} kind=0x{kind:x} sub=0x{(kindAndSub >> 16) & 0xFFFF:x} flags=0x{ModuleMemoryReader.ReadInt32(result + FlagsAt) ?? 0:x} hp={hpChange} hpLeft={hpLeft} hpMax={hpMax} mp={ModuleMemoryReader.ReadInt32(request + MpChangeAt)} mpLeft={ModuleMemoryReader.ReadInt32(request + MpLeftAt)}"));
         hits.Observe(new BattleHit(record is { } identity and not 0 ? identity : target, hpChange, hpLeft, kind, side,
             member?.Slot, hpMax, member?.Unit));
     }
 }
 
+
+
 /// <summary>What the two banner hooks share (#692): the banner's <c>{ u32 id, u8 kind }</c> pair, read before the
-/// original runs, handed to the banners feature, and in a Debug build logged with the turn-icon fields (#695), so a
+/// original runs, handed to the banners feature, and in a Debug build logged, so a
 /// by-ear run pins which of them counts the icons.</summary>
 internal static class BattleBannerListening
 {
@@ -131,7 +130,7 @@ internal static class BattleBannerListening
         var kind = bytes[KindAt];
         var said = services.BattleBanners?.Shown(kind, id);
         services.Log?.Requested(function, string.Create(CultureInfo.InvariantCulture,
-            $"kind={kind} id={id} said={(said is null ? "no" : "yes")} {services.GameData.TurnIconsForLog()}"));
+            $"kind={kind} id={id} said={(said is null ? "no" : "yes")}"));
     }
 }
 

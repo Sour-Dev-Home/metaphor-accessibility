@@ -61,6 +61,39 @@ public sealed class SpeakerChangeTests
     }
 
     [Fact]
+    public void TheSameSpeakerAfterAChoiceSaysTheNameAgain()
+    {
+        var dialogue = Dialogue();
+        dialogue.Show("Ada", "One.");
+        dialogue.Offer("Yes\nNo");
+        dialogue.Show("Ada", "Two.");
+        dialogue.Show("Ada", "Three.");
+
+        Assert.Equal(["Ada: One.", "Choose: Yes; No", "Ada: Two.", "Three."], Said);
+    }
+
+    [Fact]
+    public void TheSameSpeakerWithNoChoiceBetweenStaysUnnamed()
+    {
+        var dialogue = Dialogue();
+        dialogue.Show("Ada", "One.");
+        dialogue.Show("Ada", "Two.");
+
+        Assert.Equal(["Ada: One.", "Two."], Said);
+    }
+
+    [Fact]
+    public void NameOnlyVoicedLineAfterAChoiceSaysTheName()
+    {
+        var dialogue = Dialogue(VoicedLinesMode.NameOnly);
+        dialogue.Show("Ada", "<VOICE \"v_e01_001_000_00_c051\">\nOne.");
+        dialogue.Offer("Yes\nNo");
+        dialogue.Show("Ada", "<VOICE \"v_e01_002_000_00_c051\">\nTwo.");
+
+        Assert.Equal(["Ada", "Choose: Yes; No", "Ada"], Said);
+    }
+
+    [Fact]
     public void TheHistoryKeepsTheNameOnEveryLine()
     {
         var dialogue = Dialogue();

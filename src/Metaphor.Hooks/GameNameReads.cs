@@ -76,25 +76,6 @@ internal sealed class GameDataRead : IReadsGlobal
     public nint? UnitAddress(int unit) =>
         unit is > 0 and <= LastUnit && Data() is { } data ? data + Units + unit * UnitSize : null;
 
-    // The turn icons (#695), in the same block: an int the icon UI tests for 1 (the side, a lead) at G+0x25460, then
-    // the shorts it counts its icons from at +0x25464, +0x25466, +0x25468 and +0x2546a. Static leads, build 548ddc95…
-    // (docs/findings/battle-turn-icons-and-ui-components-static.md); read for the Debug log only, to pin their meaning.
-    private const int TurnIconsAt = 0x25460;
-    private const int TurnIconsLength = 12;
-
-    /// <summary>The turn-icon fields as a log fragment (<c>icons=side,a,b,c,d</c>), or <c>icons=?</c> when unread.
-    /// </summary>
-    public string TurnIconsForLog()
-    {
-        var bytes = new byte[TurnIconsLength];
-        if (Data() is not { } data || !ModuleMemoryReader.ReadBytes(data + TurnIconsAt, bytes))
-        {
-            return "icons=?";
-        }
-        return string.Create(System.Globalization.CultureInfo.InvariantCulture,
-            $"icons={BitConverter.ToInt32(bytes, 0)},{BitConverter.ToInt16(bytes, 4)},{BitConverter.ToInt16(bytes, 6)},{BitConverter.ToInt16(bytes, 8)},{BitConverter.ToInt16(bytes, 10)}");
-    }
-
     private nint? Data() =>
         global != 0 && ModuleMemoryReader.ReadPointer(global) is { } data && data != 0 ? data : null;
 }

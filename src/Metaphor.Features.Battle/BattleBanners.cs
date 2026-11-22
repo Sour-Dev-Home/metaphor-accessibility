@@ -1,6 +1,7 @@
 using System.Text.RegularExpressions;
 using Metaphor.Core.Announcements;
 using Metaphor.Core.Messages;
+using Metaphor.Core.Settings;
 
 namespace Metaphor.Features.Battle;
 
@@ -17,6 +18,7 @@ namespace Metaphor.Features.Battle;
 /// (<c>ChipsAhoiMcCoy/arcana</c>, Zlib licence, release v0.5.0 at <c>eae8dbd</c>, <c>main</c> at <c>ed3b005f</c>,
 /// <c>CHANGELOG.md</c> "0.5.0 / Battle", <c>src/screens/battle.cpp</c>). No code is copied.</para>
 /// </remarks>
+[FeatureSetting(Feature.BattleBanners)]
 public sealed partial class BattleBanners
 {
     /// <summary>The banner kind that names a situation message by its position.</summary>

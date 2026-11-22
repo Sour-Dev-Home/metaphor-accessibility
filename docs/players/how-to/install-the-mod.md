@@ -1,6 +1,6 @@
 # Install the mod
 
-> **Draft for testers.** The newest download is the pre-release `v0.0.1-unstable.3`; there is no stable release yet.
+> **Draft for testers.** The newest download is the pre-release `v0.0.1-unstable.4`; there is no stable release yet.
 > Some details have not been checked by ear with a screen reader yet; they are listed in
 > [Not checked by ear yet](#not-checked-by-ear-yet). If a step is wrong, say so in an issue.
 
@@ -38,7 +38,10 @@ page for you and says each one as it goes. It needs no clicks in Reloaded-II's w
    runtimes need admin rights: when it installs one, Windows asks for permission, and you answer yes there too.
 6. It ends by running the install check ([below](#if-the-mod-says-nothing-run-the-install-check)) and says what it
    found. Before you start the game with the mod for the first time, the check says the mod hasn't reported a start
-   yet; that is expected.
+   yet; that is expected. Then it says where the mod is and how to remove it: "The mod is in your AppData folder,
+   Local, Programs, Reloaded-II, Mods, metaphor.accessibility. To uninstall, run uninstall.cmd in that
+   folder." "Your AppData folder, Local" is the folder that typing `%LOCALAPPDATA%` in `Windows+R` opens; the
+   window shows the full path. See [Uninstall](#uninstall).
 7. The window stays open and its last line says "The installer has finished. Read what it said above, then press any
    key to close this window." Read back with NVDA's review cursor if you need to, then press a key.
 8. Start the game from the desktop shortcut. Always start it from this shortcut. The keys the mod adds are on
@@ -107,6 +110,11 @@ When the game starts, the mod speaks one of three messages once: `Metaphor acces
 `This game version isn't supported yet; the mod is off` (your game build is one the mod doesn't know; it hooks nothing
 and the game runs as normal), or `Metaphor accessibility couldn't start; the mod is off` (any other failure). If you
 hear the first, the install worked. If you hear another, or nothing, see [Troubleshoot the mod](troubleshoot.md).
+
+The first time the game starts with the mod, the title screen then adds, once: "Metaphor accessibility" and the
+version, "is running. In the field, N says what's near you, L says where you are, G guides you." After that the mod
+sets `"welcomed": true` in its `settings.json`, and later launches skip it. Set it to `false` to hear it again;
+`[NEEDS VERIFICATION]` by ear in the game.
 
 ## If the mod says nothing: run the install check
 
@@ -182,10 +190,13 @@ Use the Alpha feedback form on the project's issues page.
 
 1. Find `report-log.txt` in the `metaphor.accessibility` folder in your mods folder. The mod writes it fresh each time
    the game starts, so copy it before you start the game again.
-2. Open the form, answer its questions, and drag the file into the "Report log" box, or choose it with the file picker.
+2. Open the form and answer its three questions: what you were doing, roughly when you pressed the
+   [mark key](../reference/keys-and-speech.md#mark-key-note-a-moment-for-your-report), and the file: drag it into the
+   "Attach report-log.txt" box, or choose it with the file picker.
 3. The log holds what the mod did (whether it loaded, how many hooks went in, errors, and which lines and choices the
-   game asked for, by label such as `Title_System_08`), never the game's text, and your user name is replaced with
-   `<redacted>`. Read it in Notepad first if you want to check.
+   game asked for, by label such as `Title_System_08`), your mark key presses and the screens the mod said nothing
+   for, never the game's text, and your user name is replaced with `<redacted>`. Read it in Notepad first if you want
+   to check.
 
 ## Not checked by ear yet
 

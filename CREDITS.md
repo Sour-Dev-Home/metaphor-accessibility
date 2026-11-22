@@ -19,6 +19,8 @@ Build and test tools, not shipped: CsCheck, Mono.Cecil, Microsoft.CodeAnalysis.C
 [FsCheck](https://github.com/fscheck/FsCheck) 3.6.0 (BSD-3-Clause, with its dependency `FSharp.Core` under MIT), not
 shipped, runs the property tests of the in-game parsers (ADR 0015,
 [licence](docs/raw-sources/fscheck-licence-2026-11-19.md)).
+Microsoft's `Microsoft.NETFramework.ReferenceAssemblies.net48` 1.0.3 (MIT), not shipped, is what the installer exe
+compiles against (ADR 0020, [licence](docs/raw-sources/netframework-reference-assemblies-licence-2026-11-22.md)).
 Check tools, pinned and not shipped ([licences](docs/raw-sources/check-tool-licences-2026-11-19.md)):
 [OSV-Scanner](https://github.com/google/osv-scanner) 2.7.1 (Apache-2.0), CI's vulnerability audit
 (`scripts/ci/vuln-audit.sh`); [lychee](https://github.com/lycheeverse/lychee) 0.24.2 (Apache-2.0, with an MIT licence

@@ -1,5 +1,6 @@
 using Metaphor.Core.Announcements;
 using Metaphor.Core.Messages;
+using Metaphor.Core.Settings;
 
 namespace Metaphor.Features.Field.Tests;
 
@@ -15,9 +16,14 @@ public sealed class FieldControlsTests
     private const int Up = 0x0010;
     private const int Down = 0x0040;
     private const int Left = 0x0080;
+    private const int Right = 0x0020;
+    private const int KeyG = 0x47;
+    private const int KeyK = 0x4B;
+    private const int KeyJ = 0x4A;
     private const int A = 0x4000;
 
     private readonly RecordingAnnouncer announcer = new();
+    private readonly RecordingCues cues = new();
     private readonly StandInField field = new();
     private readonly FieldPlace place = new(new TextCleaner(TextCleanerRules.None));
     private readonly List<string> log = [];
@@ -26,7 +32,7 @@ public sealed class FieldControlsTests
 
     public FieldControlsTests()
     {
-        controls = new FieldControls(FieldBindings.Default, field, place, announcer, () => now, log.Add);
+        controls = new FieldControls(FieldBindings.Default, field, place, announcer, cues, () => now, log.Add);
         field.View = new FieldView(0, 0, 0, 0,
         [
             new(FieldKind.Door, 0, 0, 900),
@@ -54,6 +60,8 @@ public sealed class FieldControlsTests
         public FieldView? Read() => View;
 
         public int? MapId() => Map;
+
+        public FieldPose? ReadPose() => View is { } view ? new FieldPose(view.X, view.Y, view.Z, view.Heading) : null;
     }
 
     private IEnumerable<string> Said() => announcer.Said.Select(said => said.Text);
@@ -62,6 +70,17 @@ public sealed class FieldControlsTests
     {
         controls.Pad(0, buttons, made: true);
         controls.Pad(0, Lb, made: true);
+    }
+
+    [Fact]
+    public void EachKeyboardReadChecksReachWithNoKeyHeld()
+    {
+        var reach = new ReachCallouts(field, announcer, () => now);
+        var withReach = new FieldControls(FieldBindings.Default, field, place, announcer, cues, () => now, reach: reach);
+
+        withReach.Keys([]);
+
+        Assert.Equal(new Announcement("Chest, in reach", Interrupt: false), announcer.Said.Single());
     }
 
     [Fact]
@@ -197,14 +216,247 @@ public sealed class FieldControlsTests
         Assert.Equal("Nothing nearby", Said().Single());
     }
 
+    // Each half of the field controls has its own setting (#661): one off leaves its keys to the game, says nothing,
+    // and leaves the other working.
+    [Fact]
+    public void TheNearbyListTurnedOffLeavesItsKeysToTheGameAndWhereAmIWorking()
+    {
+        var settings = ModSettings.Parse("""{ "field": { "nearby": false } }""", _ => { });
+        var gated = new FieldControls(() => FieldBindings.Default, settings.IsOn, field, place, announcer, cues, () => now);
+
+        Assert.Equal([KeyN], gated.Keys([KeyN]));
+        Assert.Equal(Lb | Down, gated.Pad(0, Lb | Down, made: true));
+        Assert.Equal(Lb, gated.Pad(0, Lb | Left, made: true));
+
+        Assert.Equal(["Place not known yet"], Said());
+    }
+
+    [Fact]
+    public void GuidanceTurnedOffLeavesItsKeysToTheGameAndStartsNoBeacon()
+    {
+        var settings = ModSettings.Parse("""{ "field": { "guidance": false } }""", _ => { });
+        var gated = new FieldControls(() => FieldBindings.Default, settings.IsOn, field, place, announcer, cues, () => now);
+
+        Assert.Equal([KeyG], gated.Keys([KeyG]));
+        Assert.Equal(Lb | Right, gated.Pad(0, Lb | Right, made: true));
+
+        Assert.False(gated.Guiding);
+        Assert.Empty(Said());
+    }
+
+    [Fact]
+    public void WhereAmITurnedOffLeavesItsKeysToTheGameAndTheListWorking()
+    {
+        var settings = ModSettings.Parse("""{ "field": { "whereAmI": false } }""", _ => { });
+        var gated = new FieldControls(() => FieldBindings.Default, settings.IsOn, field, place, announcer, cues, () => now);
+
+        Assert.Equal([KeyL], gated.Keys([KeyN, KeyL]));
+        Assert.Equal(Lb | Left, gated.Pad(0, Lb | Left, made: true));
+
+        Assert.Single(Said());
+        Assert.StartsWith("3 nearby.", Said().Single(), StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void KeysReboundInTheFileApplyOnTheNextRead()
+    {
+        var bindings = FieldBindings.Default;
+        var rebound = new FieldControls(() => bindings, _ => true, field, place, announcer, cues, () => now);
+        bindings = FieldBindings.From(ModSettings.Parse("""{ "keys": { "field": { "nearbyKey": "M" } } }""", _ => { }));
+
+        Assert.Equal([KeyN], rebound.Keys([KeyN]));
+        Assert.Empty(rebound.Keys([0x4D]));
+        Assert.StartsWith("3 nearby.", Said().Single(), StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void TheFileNamesEveryFieldBinding()
+    {
+        var settings = ModSettings.Parse(
+            """
+            { "keys": { "field": { "nearbyKey": "F1", "placeKey": "F2", "holdButtons": "RB",
+              "nextButton": "A", "previousButton": "B", "placeButton": "Y",
+              "guideKey": "F3", "guideButton": "X", "nextKey": "F4", "previousKey": "F5" } } }
+            """, _ => { });
+
+        Assert.Equal(
+            new FieldBindings(0x70, 0x71, 0x0800, 0x4000, 0x2000, 0x1000, 0x72, 0x8000, 0x73, 0x74),
+            FieldBindings.From(settings));
+        Assert.Equal(FieldBindings.Default, FieldBindings.From(ModSettings.Defaults));
+    }
+
     [Fact]
     public void EachPressLogsItsNumbersWithoutNames()
     {
+        field.View = field.View! with { CameraHeading = 1.5 };
+
         controls.Keys([KeyN]);
 
-        Assert.StartsWith("nearby player=(0,0,0) heading=0 map=? doorValue=? units=Person:1,Door:1,Chest:1,Enemy:0", log[0], StringComparison.Ordinal);
+        Assert.StartsWith("nearby player=(0,0,0) heading=0 camera=1.5 map=? doorValue=? units=Person:1,Door:1,Chest:1,Enemy:0", log[0], StringComparison.Ordinal);
         Assert.Equal(4, log.Count);
-        Assert.Contains("kind=Chest at=(0,0,200) distance=200 bearing=0 reach=True named=False", log[1], StringComparison.Ordinal);
+        Assert.Contains("kind=Chest at=(0,0,200) distance=200 bearing=-1.5 reach=True named=False", log[1], StringComparison.Ordinal);
         Assert.DoesNotContain(log, line => line.Contains("Testa", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void GWithNothingSteppedGuidesToTheNearestNotInReachAndIsHidden()
+    {
+        var handed = controls.Keys([KeyW, KeyG]);
+
+        Assert.Equal([KeyW], handed);
+        // The chest is nearer but already in reach (#183, by ear 2026-11-22: "Reached" at once).
+        Assert.Equal(["Guiding to Testa"], Said());
+        Assert.True(controls.Guiding);
+    }
+
+    [Fact]
+    public void GSkipsAPersonAlreadyWithinTheArrivalDistance()
+    {
+        // People have no reach test, so the arrival distance is what makes one already reached.
+        field.View = new FieldView(0, 0, 0, 0,
+        [
+            new(FieldKind.Person, 0, 0, (float)(Beacon.ArrivalDistance - 30), "Testa"),
+            new(FieldKind.Door, 0, 0, 900),
+        ]);
+
+        controls.Keys([KeyG]);
+
+        Assert.Equal(["Guiding to Door"], Said());
+    }
+
+    [Fact]
+    public void GWithEverythingNearAlreadyInReachSaysSo()
+    {
+        field.View = new FieldView(0, 0, 0, 0,
+        [
+            new(FieldKind.Person, 0, 0, 100, "Testa"),
+            new(FieldKind.Chest, 0, 0, 200),
+        ]);
+
+        controls.Keys([KeyG]);
+
+        Assert.Equal(["Already next to Testa"], Said());
+        Assert.False(controls.Guiding);
+        Assert.Empty(cues.Held);
+    }
+
+    [Fact]
+    public void GuidingToASteppedThingAlreadyInReachSaysSo()
+    {
+        Tap(Lb | Down);
+        Tap(Lb | Right);
+
+        Assert.Equal("Already next to Chest", Said().Last());
+        Assert.False(controls.Guiding);
+    }
+
+    [Fact]
+    public void KAndJStepThroughTheListLikeTheChordsAndAreHidden()
+    {
+        Assert.Equal([KeyW], controls.Keys([KeyW, KeyK]));
+        controls.Keys([]);
+        controls.Keys([KeyK]);
+        controls.Keys([]);
+        controls.Keys([KeyJ]);
+        controls.Keys([]);
+        Tap(Lb | Down);
+
+        Assert.Equal(
+        [
+            "1 of 3. Chest, 2 steps ahead, in reach",
+            "2 of 3. Testa, 5 steps left",
+            "1 of 3. Chest, 2 steps ahead, in reach",
+            "2 of 3. Testa, 5 steps left",
+        ], Said());
+    }
+
+    [Fact]
+    public void KThenGGuidesToTheThingSteppedTo()
+    {
+        controls.Keys([KeyK]);
+        controls.Keys([]);
+        controls.Keys([KeyK]);
+        controls.Keys([]);
+        controls.Keys([KeyK]);
+        controls.Keys([]);
+        controls.Keys([KeyG]);
+
+        Assert.Equal("Guiding to Door", Said().Last());
+    }
+
+    [Fact]
+    public void OutsideFreeRoamTheStepKeysReachTheGame()
+    {
+        field.Roaming = false;
+
+        Assert.Equal([KeyK, KeyJ], controls.Keys([KeyK, KeyJ]));
+        Assert.Empty(announcer.Said);
+    }
+
+    [Fact]
+    public void LbWithRightGuidesToTheThingSteppedTo()
+    {
+        Tap(Lb | Down);
+        Tap(Lb | Down);
+        var handed = controls.Pad(0, Lb | Right, made: true);
+
+        Assert.Equal(Lb, handed);
+        Assert.Equal("Guiding to Testa", Said().Last());
+        Assert.Equal(-1, Assert.Single(cues.Held).Pan, 6);
+    }
+
+    [Fact]
+    public void AStepTooLongAgoGuidesToTheNearestInstead()
+    {
+        Tap(Lb | Down);
+        Tap(Lb | Down);
+        now += FieldControls.StepMemoryMilliseconds + 1;
+        Tap(Lb | Right);
+
+        Assert.Equal("Guiding to Testa", Said().Last());
+    }
+
+    [Fact]
+    public void ASecondGuidePressCancels()
+    {
+        Tap(Lb | Down);
+        Tap(Lb | Down);
+        Tap(Lb | Right);
+        controls.Keys([KeyG]);
+
+        Assert.Equal("Guidance off", Said().Last());
+        Assert.Equal(1, cues.Silenced);
+    }
+
+    [Fact]
+    public void GuidanceTicksOnEveryReadEvenUnmade()
+    {
+        Tap(Lb | Down);
+        Tap(Lb | Down);
+        Tap(Lb | Right);
+        now += Beacon.IntervalMilliseconds(500);
+        controls.Pad(1, 0, made: false);
+
+        Assert.Equal(2, cues.Held.Count);
+    }
+
+    [Fact]
+    public void OutsideFreeRoamTheGuideKeysReachTheGameAndGuideNothing()
+    {
+        field.Roaming = false;
+
+        Assert.Equal([KeyG], controls.Keys([KeyG]));
+        Assert.Equal(Lb | Right, controls.Pad(0, Lb | Right, made: true));
+        Assert.Empty(announcer.Said);
+    }
+
+    [Fact]
+    public void GuidingWithNothingNearbySaysSo()
+    {
+        field.View = new FieldView(0, 0, 0, 0, []);
+
+        controls.Keys([KeyG]);
+
+        Assert.Equal(["Nothing nearby"], Said());
     }
 }
