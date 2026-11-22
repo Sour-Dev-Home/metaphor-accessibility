@@ -8,7 +8,8 @@ public static class KnownScreens
 {
     /// <summary>
     /// The title menu, the main menu, a yes/no dialog, New Game's difficulty list, a dialogue's reply choice, the
-    /// Settings list and pages, the field's quick menu, and the save and load screens' slot lists.
+    /// Settings list and pages, the field's quick menu, the save and load screens' slot lists, and battle's skill and
+    /// item lists.
     /// </summary>
     public static IReadOnlyList<Screen> All { get; } =
     [
@@ -21,5 +22,7 @@ public static class KnownScreens
         QuickMenuFocus.Screen,
         SaveSlotFocus.Load,
         SaveSlotFocus.Save,
+        BattleListFocus.SkillList,
+        BattleListFocus.ItemList,
     ];
 }

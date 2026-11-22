@@ -1,10 +1,12 @@
 using Metaphor.Core;
 using Metaphor.Core.Announcements;
+using Metaphor.Core.Battle;
 using Metaphor.Core.Cues;
 using Metaphor.Core.Input;
 using Metaphor.Core.Menus;
 using Metaphor.Core.Messages;
 using Metaphor.Core.Settings;
+using Metaphor.Features.Battle;
 using Metaphor.Features.Dialogue;
 using Metaphor.Features.Field;
 using Metaphor.Features.Menus;
@@ -85,8 +87,11 @@ internal sealed record HookServices
     /// <summary>Every reader of a game global, which the loader hands each global it locates before any hook goes in.
     /// </summary>
     public IReadOnlyList<IReadsGlobal> Globals =>
-        [MenusOpen, DialogueWindow, GameData, CharacterTable, FollowerTable, Voice, FieldWorld, FieldScene, FieldDatabase,
-            PersonTable];
+        [MenusOpen, DialogueWindow, GameData, CharacterTable, FollowerTable, Voice, BattleScene, FieldWorld, FieldScene,
+            FieldDatabase, PersonTable];
+
+    /// <summary>Reads whether a battle is on, for the status key (#631); the loader locates what it reads.</summary>
+    public BattleSceneRead BattleScene { get; init; } = new();
 
     /// <summary>Reads <c>fldWorld</c> for the nearby list (#181); the loader locates it.</summary>
     public FieldGlobal FieldWorld { get; init; } = FieldGlobal.World();
@@ -121,6 +126,20 @@ internal sealed record HookServices
     /// <summary>The messages the game fetches by serial (#584), from the files it compiled; empty unless the message
     /// file hook is feeding it.</summary>
     public MessageSerials Serials { get; init; } = new([]);
+
+    /// <summary>Where the battle hit hook reports each target an action hit (#247).</summary>
+    public IBattleHitObserver BattleHits { get; init; } = new NoBattleHits();
+
+    /// <summary>The party as the game data holds it (#247), for the battle hit hook's sides and the status key.</summary>
+    public required BattlePartyMemory BattleParty { get; init; }
+
+    /// <summary>The battle status key (#631), which the input frame hands each read after the menu controls; null for
+    /// none.</summary>
+    public BattleStatus? BattleStatus { get; init; }
+
+    /// <summary>The details key in a battle (#631), which the input frame hands each read after the status key; null
+    /// for none.</summary>
+    public BattleEnemyHp? BattleDetails { get; init; }
 
     /// <summary>The game's tutorial table (#118), which the entry point loads from the game's archive once the hooks
     /// are in.</summary>
@@ -166,6 +185,7 @@ internal sealed record HookServices
         // Speakers and name tags are named as the screen shows them (#81, #107), read from the game when a line is
         // shown; a read that fails falls back to the file's speaker, and drops the tag as before.
         var gameData = new GameDataRead();
+        var party = new BattlePartyMemory(gameData);
         var characterTable = DataTableRead.Characters();
         var followerTable = DataTableRead.Followers();
         var names = new GameNames(new GameNameMemory(gameData, characterTable, followerTable), library);
@@ -210,13 +230,26 @@ internal sealed record HookServices
         // The save and load slots (#622): their lists come unnamed, so the slot screens name them before the screens.
         var slots = new SlotScreens(screens);
         screens.Observe(new SaveSlotFocus(library, reader, cleaner, log is null ? null : log.MenuNote));
+        // Battle's skill and item lists say each row by the name the game fetched for it by serial (#247).
+        BattleListFocus[] battleLists =
+        [
+            BattleListFocus.Skills(serials, reader, cleaner, () => Environment.TickCount64),
+            BattleListFocus.Items(serials, reader, cleaner, () => Environment.TickCount64),
+        ];
+        foreach (var list in battleLists)
+        {
+            screens.Observe(list);
+            events.ObserveSerials(list);
+        }
         screens.Observe(new UnknownScreenFocus(reader));
         var menuBindings = MenuBindings.Default with
         {
             ReaderButtons = DialogueBindings.Default.ReaderButtons,
             ReaderKey = DialogueBindings.Default.ReaderKey,
         };
-        var menuControls = new MenuControls(menuBindings, screens, reader, []);
+        // The details key reads a battle list's description (#247); on a screen shown outside the menus it answers only
+        // while that screen's cursor is still called.
+        var menuControls = new MenuControls(menuBindings, screens, reader, battleLists, cursors.CalledRecently);
         // Name entry (#585): the title and refusals through the reader, typed characters as private announcements.
         var nameEntry = new NameEntrySpeech(library, reader, cleaner, () => Environment.TickCount64);
         screens.Observe(menuControls);
@@ -269,6 +302,9 @@ internal sealed record HookServices
             events.ObserveSelects(log);
             cursors.Observe(log);
         }
+        var hitLines = new HitLines(reader, TimeProvider.System, _ => null);
+        // The status key acts only in a battle (#631); a Debug build logs the scene each press read.
+        var battleScene = new BattleSceneRead { Log = log };
         return new()
         {
             Messages = events,
@@ -276,6 +312,17 @@ internal sealed record HookServices
             Log = log,
             ModFolder = modFolder,
             Serials = serials,
+            // Each hit is spoken through the reader, queued, with a summary after each action (#247, #631). No safe
+            // read of a party member's name is known yet, so each is named by its slot.
+            BattleHits = hitLines,
+            BattleParty = party,
+            BattleScene = battleScene,
+            BattleStatus = new BattleStatus(party, hitLines, battleScene, reader),
+            // The details binding the menus use says the enemies' HP in a battle (#631); the menu controls take it
+            // first while a battle list is shown. A Debug build logs each press's enemy records for the target read.
+            BattleDetails = new BattleEnemyHp(
+                menuBindings.DetailsButtons, menuBindings.DetailsKey, hitLines, battleScene, reader,
+                log is null ? null : text => log.Requested("BattleDetails", text)),
             TravelMap = new TravelMapDestination(filesById, reader, cleaner, () => Environment.TickCount64),
             FieldMapName = new FieldMapName(reader, cleaner),
             DialogueHistory = history,
