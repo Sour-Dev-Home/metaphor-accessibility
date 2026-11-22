@@ -7,7 +7,7 @@ namespace Metaphor.Features.Battle.Tests;
 /// enemy this battle has hit has left, and is hidden from the game; anything else, and the key outside a battle,
 /// reaches it. The targeted enemy isn't read yet, so it says every one. Made-up numbers only.</summary>
 [Trait("Category", "Unit")]
-public sealed class BattleEnemyHpTests : IDisposable
+public sealed class BattleEnemyHpTests
 {
     private const int Number = 1;
     private const int R3 = 0x0004;
@@ -26,8 +26,6 @@ public sealed class BattleEnemyHpTests : IDisposable
         hits = new HitLines(new SilentAnnouncer(), time, _ => null);
         details = new BattleEnemyHp(R3, KeyF, hits, scene, announcer, logged.Add);
     }
-
-    public void Dispose() => hits.Dispose();
 
     private IEnumerable<string> Said() => announcer.Said.Select(said => said.Text);
 
