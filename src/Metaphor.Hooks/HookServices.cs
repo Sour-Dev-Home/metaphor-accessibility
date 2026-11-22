@@ -161,7 +161,13 @@ internal sealed record HookServices
         var characterTable = DataTableRead.Characters();
         var followerTable = DataTableRead.Followers();
         var names = new GameNames(new GameNameMemory(gameData, characterTable, followerTable), library);
-        var cleaner = new TextCleaner(GameNames.Rules, names.Placeholder);
+        // Game terms and icons (#108, #109): a skill or condition named by its place in its file as build 548ddc95
+        // compiles it, anything else said as a stand-in for its kind, logged in Debug builds (#83).
+        var termFiles = new MessageFilePositions(GameTerms.Steam18330018);
+        var terms = new GameTerms(termFiles, log is null ? null : log.PlaceholderMissing);
+        var cleaner = new TextCleaner(
+            GameNames.Rules.With(GameTerms.Rules),
+            (key, arguments) => names.Placeholder(key, arguments) ?? terms.Placeholder(key, arguments));
         // Lines go through the reader on/off switch; the repeat and the switch's own state are spoken either way.
         // Auto follows the game's voice language, read on each line (#538); unknown speaks the full line.
         var reader = new DialogueReader(announcer);
@@ -202,6 +208,7 @@ internal sealed record HookServices
         screens.Observe(menuControls);
         events.ObserveFiles(library);
         events.ObserveFiles(serials);
+        events.ObserveFiles(termFiles);
         events.ObserveFiles(filesById);
         var lines = new DialogueLines(new ShownSpeakers(library, names), dialogue);
         events.ObserveLines(lines);
