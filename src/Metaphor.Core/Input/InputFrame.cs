@@ -68,6 +68,7 @@ public sealed class InputFrame
     private readonly IInputControls field;
     private readonly IKeyWatcher? watcher;
     private readonly IPadWatcher? padWatcher;
+    private readonly LastInputDevice? lastDevice;
 
     public InputFrame(IGameInputState game, MenuScreens screens, IInputControls menus, IWindowInputControls dialogue)
         : this(game, screens, menus, dialogue, NoControls)
@@ -82,10 +83,12 @@ public sealed class InputFrame
     /// nothing; <paramref name="padWatcher"/>, when given, sees each pad read the same way.</summary>
     public InputFrame(
         IGameInputState game, MenuScreens screens, IInputControls menus, IWindowInputControls dialogue,
-        IInputControls field, IKeyWatcher? watcher = null, IPadWatcher? padWatcher = null)
+        IInputControls field, IKeyWatcher? watcher = null, IPadWatcher? padWatcher = null,
+        LastInputDevice? lastDevice = null)
     {
         this.watcher = watcher;
         this.padWatcher = padWatcher;
+        this.lastDevice = lastDevice;
         ArgumentNullException.ThrowIfNull(game);
         ArgumentNullException.ThrowIfNull(screens);
         ArgumentNullException.ThrowIfNull(menus);
@@ -104,6 +107,7 @@ public sealed class InputFrame
     {
         var window = ReadState();
         padWatcher?.Pad(pad, buttons, made);
+        lastDevice?.Pad(buttons);
         var handed = field.Pad(pad, dialogue.Pad(pad, menus.Pad(pad, buttons, made), made), made);
         return new(handed & buttons, window);
     }
@@ -115,6 +119,7 @@ public sealed class InputFrame
         ArgumentNullException.ThrowIfNull(keys);
         var window = ReadState();
         watcher?.Keys(keys);
+        lastDevice?.Keys(keys);
         var handed = field.Keys(dialogue.Keys(menus.Keys(keys)));
         return new(Kept(keys, handed), window);
     }
