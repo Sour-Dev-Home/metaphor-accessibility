@@ -64,11 +64,13 @@ public sealed class DialogueLines : ILineRequestObserver, ILineShownObserver, IC
     }
 
     /// <summary>Speaks the message whose label hashes to the shown line's, unless it is the line just requested, which
-    /// was spoken then, or the game's immediate repeat of the line just shown (#740); says nothing when there is none. Kind 0 only, as for requests.</summary>
+    /// was spoken then, or the game's immediate repeat of the line just shown (#740); says nothing when there is none.
+    /// Kind 0, as for requests, and kind 1, the system messages: the save screen's "Save complete" pop-up is one, shown
+    /// with no request (#622, docs/raw-sources/save-complete-popup-session-2026-11-22.md). Kind 2 stays silent.</summary>
     public void Observe(LineShown line)
     {
         ArgumentNullException.ThrowIfNull(line);
-        if (line.Kind != 0 || messages.FindByLabelHash(line.LabelHash) is not { } message)
+        if (line.Kind is not (0 or 1) || messages.FindByLabelHash(line.LabelHash) is not { } message)
         {
             return;
         }

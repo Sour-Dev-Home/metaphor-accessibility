@@ -9,6 +9,9 @@ checks them in the first game session and removes the tag.
 
 ## Unreleased
 
+- **The game-over screen is read.** Its voiced line is spoken, then "Fantasy is Dead. Press A to continue." once the
+  voice ends; if you last used the keyboard it says "Press Space to continue" (#623). `[NEEDS VERIFICATION by ear]`
+- **"Save complete" is read.** The small pop-up after saving is spoken (#622). `[NEEDS VERIFICATION by ear]`
 - **An installer exe beside the zip.** Each release also carries one file, `metaphor-accessibility-VERSION-installer.exe`:
   open it and it says a welcome line, checks the files it carries ("Download checked"), and runs the same spoken
   installer as the zip, in its window. A damaged download says "This download is damaged" and installs nothing. It is
