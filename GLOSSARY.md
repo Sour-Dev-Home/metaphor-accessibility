@@ -110,7 +110,7 @@ _Avoid_: approval check, label check
 
 **Recorded pass**:
 The note a passing `check.sh full` keeps, per clone, for one exact tree. A later `full` or `pre-push` on that same tree
-reuses it instead of running the checks again.
+reuses it instead of running the checks again. A merge's pass can rest on its parents' passes, naming them (ADR 0021).
 _Avoid_: cache, check result
 
 **Attestation**:

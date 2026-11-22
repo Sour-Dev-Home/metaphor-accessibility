@@ -41,7 +41,9 @@ describing work (rule 8 in [`AGENTS.md`](../../AGENTS.md#ground-rules)).
 
 `check.sh full` records a pass for the index's tree (`git write-tree`) in your clone's git dir, and `full` or `pre-push`
 on that same tree prints `reused the recorded pass for tree <hash>` and skips the 10-15 minutes
-([details](../contributors/reference/checks.md#recorded-pass)). Don't rerun `full` on a tree it has passed.
+([details](../contributors/reference/checks.md#recorded-pass)). Don't rerun `full` on a tree it has passed. On a merge
+whose parents' trees have passes, `full` runs only what both sides' changes reach, so run it after each merge from
+`main` too.
 
 A building run prints `step times: restore=.. build=.. tests=.. ...` and keeps them as the run log line's last field.
 `tests/check/test-check.sh` runs its tests in parallel, printing a line per test as it finishes; narrow it with a name
