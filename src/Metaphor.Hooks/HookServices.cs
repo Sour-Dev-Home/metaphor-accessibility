@@ -203,13 +203,13 @@ internal sealed record HookServices
         events.ObserveFiles(library);
         events.ObserveFiles(serials);
         events.ObserveFiles(filesById);
-        var lines = new DialogueLines(new ShownSpeakers(library, names), dialogue);
+        // Lines and choices name each speaker as the screen shows it (#81).
+        var (lines, choices) = DialogueSpeech.Shown(library, names, dialogue);
         events.ObserveLines(lines);
         events.ObserveShownLines(lines);
         events.ObserveShownLines(nameEntry);
         // A choice's prompt, spoken as it opens, isn't spoken again when the window shows it (#541).
         events.ObserveChoices(lines);
-        var choices = new DialogueChoices(library, dialogue);
         events.ObserveChoices(choices);
         var choiceFocus = new ChoiceFocus(library, announcer, cleaner);
         events.ObserveChoices(choiceFocus);
