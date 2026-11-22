@@ -16,6 +16,9 @@ public sealed class SettingsRowsTests
     private const string SoundPage = "?$ConfigMenuChoicePcT@$0HH@@ope@ui@app";
     private const int Settle = 0x1;
 
+    private static readonly TimeSpan Settled = TimeSpan.FromMilliseconds(200);
+
+    private readonly FakeClock clock = new();
     private readonly RecordingAnnouncer announcer = new();
     private readonly MessageEvents messages = new();
     private readonly CursorEvents cursors = new();
@@ -30,14 +33,49 @@ public sealed class SettingsRowsTests
         // Page 0 (System) with 3 rows: the first two named, the third unknown; page 1 (Sound) with 2 rows.
         SettingsPageRows[] rows =
         [
-            new(Page: 0, Total: 3, NameLabels: ["Fake_row_A", "Fake_row_B", null]) { ValueIds = [27, null, 5] },
+            new(Page: 0, Total: 3, NameLabels: ["Fake_row_A", "Fake_row_B", null]) {
+                ValueIds = [27, null, 5],
+                ValueChoices = [[new("Fake_choice_0"), new("Fake_choice_1"), new(null, "Literal"), new("Fake_choice_gone")], null, null],
+            },
             new(Page: 1, Total: 2, NameLabels: ["Fake_row_C", "Fake_row_missing"]),
         ];
-        screens.Observe(new SettingsFocus(library, announcer, new TextCleaner(TextCleanerRules.None), rows));
+        screens.Observe(new SettingsFocus(
+            library, announcer, new TextCleaner(TextCleanerRules.None), rows, KeyConfigTab.Steam18330018, clock));
         messages.Compiled(new MessageFileCompiled(SystemPcFile, 48, string.Join("\n\n",
             Message("System_category_name_PC_01", "Alpha Pane"), Message("System_category_name_PC_02", "Beta Pane"),
             Message("Fake_row_A", "Fake <COLOR 3>speed<COLOR -1>"), Message("Fake_row_B", "Fake volume"),
-            Message("Fake_row_C", "Fake output"))));
+            Message("Fake_row_C", "Fake output"), Message("Fake_choice_0", "Choice <COLOR 3>zero<COLOR -1>"),
+            Message("Fake_choice_1", "Choice one"))));
+    }
+
+    // #734: a row with named choices says the choice's name, from its message label or its fixed text; a value outside
+    // the choices, or a name that can't be found, is said as the number.
+    [Theory]
+    [InlineData(0, "Alpha Pane, Fake speed, Choice zero, 1 of 3")]
+    [InlineData(1, "Alpha Pane, Fake speed, Choice one, 1 of 3")]
+    [InlineData(2, "Alpha Pane, Fake speed, Literal, 1 of 3")]
+    [InlineData(3, "Alpha Pane, Fake speed, 3, 1 of 3")]
+    [InlineData(4, "Alpha Pane, Fake speed, 4, 1 of 3")]
+    [InlineData(-1, "Alpha Pane, Fake speed, -1, 1 of 3")]
+    public void AChoiceRowSaysTheChoicesNameOnFocus(int value, string said)
+    {
+        Cursor(0, SystemPage, count: 3, values: Values((27, value)));
+
+        Assert.Equal([said], Said());
+    }
+
+    [Theory]
+    [InlineData(1, "Choice one")]
+    [InlineData(2, "Literal")]
+    [InlineData(7, "7")]
+    public void AChoiceRowSaysTheChoicesNameOnChange(int value, string said)
+    {
+        Cursor(0, SystemPage, count: 3, values: Values((27, 0)));
+
+        Cursor(0, SystemPage, count: 3, values: Values((27, value)));
+        clock.Advance(Settled);
+
+        Assert.Equal(said, Said().Last());
     }
 
     private void Cursor(int index, string screenClass, int? count, int flags = 0x46, SettingValues? values = null) =>
@@ -158,10 +196,55 @@ public sealed class SettingsRowsTests
         Cursor(0, SystemPage, count: 3, values: Values((27, 50)));
 
         Cursor(0, SystemPage, count: 3, values: Values((27, 51)));
+        clock.Advance(Settled);
         Cursor(0, SystemPage, count: 3, values: Values((27, 52)));
+        clock.Advance(Settled);
 
         Assert.Equal(
             [new Announcement("51", Interrupt: true), new Announcement("52", Interrupt: true)], announcer.Said.Skip(1));
+    }
+
+    // #735: a held key repeats about 100 ms apart; only the value that has been still for 200 ms is said.
+    [Fact]
+    public void AHeldRunOfChangesSaysOnlyTheLastValueOnceItIsStill()
+    {
+        Cursor(0, SystemPage, count: 3, values: Values((27, 50)));
+
+        for (var value = 51; value <= 60; value++)
+        {
+            Cursor(0, SystemPage, count: 3, values: Values((27, value)));
+            clock.Advance(TimeSpan.FromMilliseconds(100));
+        }
+        Assert.Single(Said());
+        clock.Advance(TimeSpan.FromMilliseconds(100));
+
+        Assert.Equal(["Alpha Pane, Fake speed, 50, 1 of 3", "60"], Said());
+    }
+
+    [Fact]
+    public void ASingleChangeIsSaidOnlyAfterTheWait()
+    {
+        Cursor(0, SystemPage, count: 3, values: Values((27, 50)));
+
+        Cursor(0, SystemPage, count: 3, values: Values((27, 51)));
+        clock.Advance(TimeSpan.FromMilliseconds(199));
+        Assert.Single(Said());
+        clock.Advance(TimeSpan.FromMilliseconds(1));
+
+        Assert.Equal("51", Said().Last());
+        Assert.Equal(2, Said().Count());
+    }
+
+    [Fact]
+    public void MovingToAnotherRowCancelsAPendingValue()
+    {
+        Cursor(0, SystemPage, count: 3, values: Values((27, 50)));
+        Cursor(0, SystemPage, count: 3, values: Values((27, 51)));
+
+        Cursor(1, SystemPage, count: 3, values: Values((27, 51)));
+        clock.Advance(Settled);
+
+        Assert.Equal(["Alpha Pane, Fake speed, 50, 1 of 3", "Fake volume, 2 of 3"], Said());
     }
 
     [Fact]
@@ -216,13 +299,13 @@ public sealed class SettingsRowsTests
     // The pinned values on build 548ddc95 (docs/raw-sources/settings-values-sessions-2026-11-21.md): Message Speed 17,
     // Skip Selections 18, Mouse Sensitivity 27, Controller Sensitivity 28, on both System pages.
     [Theory]
-    [InlineData(20, 11, "Fake System_Option_72, 1, 12 of 20")]
-    [InlineData(20, 12, "Fake System_Option_24, 2, 13 of 20")]
+    [InlineData(20, 11, "Fake System_Option_72, Fake System_Option_83, 12 of 20")]
+    [InlineData(20, 12, "Fake System_Option_24, On, 13 of 20")]
     [InlineData(20, 16, "Fake System_subject_name_PC_04, 77, 17 of 20")]
     [InlineData(20, 17, "Fake System_subject_name_PC_05, 52, 18 of 20")]
     [InlineData(20, 9, "Fake System_Option_23, 10 of 20")]
-    [InlineData(24, 14, "Fake System_Option_72, 1, 15 of 24")]
-    [InlineData(24, 15, "Fake System_Option_24, 2, 16 of 24")]
+    [InlineData(24, 14, "Fake System_Option_72, Fake System_Option_83, 15 of 24")]
+    [InlineData(24, 15, "Fake System_Option_24, On, 16 of 24")]
     [InlineData(24, 20, "Fake System_subject_name_PC_04, 77, 21 of 24")]
     [InlineData(24, 21, "Fake System_subject_name_PC_05, 52, 22 of 24")]
     [InlineData(24, 1, "2 of 24")]
@@ -237,14 +320,14 @@ public sealed class SettingsRowsTests
         fileMessages.ObserveFiles(library);
         string[] labels =
         [
-            "System_Option_72", "System_Option_24", "System_Option_23", "System_subject_name_PC_04",
+            "System_Option_72", "System_Option_83", "System_Option_24", "System_Option_23", "System_subject_name_PC_04",
             "System_subject_name_PC_05",
         ];
         fileMessages.Compiled(new MessageFileCompiled(
             SystemPcFile, 48, string.Join("\n\n", labels.Select(label => Message(label, $"Fake {label}")))));
 
         screens.Observe(new CursorInput(0xb0, 0x100, Settle, 1, Top: index, Row: 0, Flags: 0x47, SystemPage, count,
-            Values: Values((5, 9), (17, 1), (18, 2), (22, 9), (27, 77), (28, 52))));
+            Values: Values((5, 9), (17, 1), (18, 1), (22, 9), (27, 77), (28, 52))));
 
         Assert.Equal(said, pinned.Said[^1].Text);
     }

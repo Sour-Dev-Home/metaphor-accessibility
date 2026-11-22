@@ -1,7 +1,9 @@
 using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
 using Metaphor.Core.Announcements;
+using Metaphor.Core.Cues;
 using Metaphor.Core.Input;
+using Metaphor.Core.Navigation;
 using Metaphor.Core.Settings;
 
 namespace Metaphor.Features.Field;
@@ -14,14 +16,26 @@ namespace Metaphor.Features.Field;
 /// <param name="NextButton">With <paramref name="HoldButtons"/>: the next thing on the list.</param>
 /// <param name="PreviousButton">With <paramref name="HoldButtons"/>: the thing before.</param>
 /// <param name="PlaceButton">With <paramref name="HoldButtons"/>: where the player is.</param>
+/// <param name="GuideKey">The key that starts the beacon toward the list's current thing (#183), or stops it.</param>
+/// <param name="GuideButton">With <paramref name="HoldButtons"/>: as <paramref name="GuideKey"/>.</param>
+/// <param name="NextKey">As <paramref name="NextButton"/>, on the keyboard.</param>
+/// <param name="PreviousKey">As <paramref name="PreviousButton"/>, on the keyboard.</param>
 public sealed record FieldBindings(
-    int NearbyKey, int PlaceKey, int HoldButtons, int NextButton, int PreviousButton, int PlaceButton)
+    int NearbyKey, int PlaceKey, int HoldButtons, int NextButton, int PreviousButton, int PlaceButton, int GuideKey,
+    int GuideButton, int NextKey, int PreviousKey)
 {
-    /// <summary>N and L, and LB with the D-pad's Down, Up and Left: the maintainer's choices on #181 (2026-11-21). The
-    /// game's mask puts LB at <c>0x0400</c> and the D-pad's Up, Down and Left at <c>0x0010</c>, <c>0x0040</c> and
-    /// <c>0x0080</c> on game build 548ddc95… (Steam build 18330018), and its keyboard read lists N (<c>0x4E</c>) and L
-    /// (<c>0x4C</c>) when held: docs/raw-sources/pad-and-keyboard-state-2026-11-16.md.</summary>
-    public static FieldBindings Default { get; } = new(0x4E, 0x4C, 0x0400, 0x0040, 0x0010, 0x0080);
+    /// <summary>N and L, and LB with the D-pad's Down, Up and Left: the maintainer's choices on #181 (2026-11-21). G and
+    /// LB with the D-pad's Right for the beacon (#183): the maintainer's choice on PR #667 (2026-11-21). K and J step
+    /// the list from the keyboard (by ear 2026-11-22 on PR #667: the keyboard had no step), proposed: J and K sit by L as
+    /// the cycle keys of FF6ScreenReader's <c>J</c>/<c>L</c> (docs/raw-sources/field-navigation-accessibility-mods-2026-11-16.md),
+    /// and keep off the number row. Whether the game's own keyboard map uses J or K is [NEEDS VERIFICATION]: no source
+    /// for it is saved. The game's mask puts LB at <c>0x0400</c> and the D-pad's Up, Right, Down and Left at
+    /// <c>0x0010</c>, <c>0x0020</c>, <c>0x0040</c> and <c>0x0080</c> on game build 548ddc95… (Steam build 18330018),
+    /// and its keyboard read lists any held key from 8 to <c>0xEF</c>, N (<c>0x4E</c>), L (<c>0x4C</c>), G
+    /// (<c>0x47</c>), K (<c>0x4B</c>) and J (<c>0x4A</c>) among them: docs/raw-sources/pad-and-keyboard-state-2026-11-16.md.
+    /// </summary>
+    public static FieldBindings Default { get; } =
+        new(0x4E, 0x4C, 0x0400, 0x0040, 0x0010, 0x0080, 0x47, 0x0020, 0x4B, 0x4A);
 
     /// <summary>The bindings the settings file's <c>keys.field</c> object names (#661), each missing or unusable one
     /// the default.</summary>
@@ -34,7 +48,11 @@ public sealed record FieldBindings(
             settings.Binding("field", "holdButtons", Default.HoldButtons),
             settings.Binding("field", "nextButton", Default.NextButton),
             settings.Binding("field", "previousButton", Default.PreviousButton),
-            settings.Binding("field", "placeButton", Default.PlaceButton));
+            settings.Binding("field", "placeButton", Default.PlaceButton),
+            settings.Binding("field", "guideKey", Default.GuideKey),
+            settings.Binding("field", "guideButton", Default.GuideButton),
+            settings.Binding("field", "nextKey", Default.NextKey),
+            settings.Binding("field", "previousKey", Default.PreviousKey));
     }
 }
 
@@ -45,9 +63,11 @@ public sealed record FieldBindings(
 /// roam: the key, or the chord's D-pad button (the held button stays, so the game never sees it let go and pressed
 /// again). Elsewhere everything reaches the game. A press is an up-to-down edge of a binding held on any pad or the
 /// keyboard, as for the menu controls. Speech goes to the announcer directly: each is an answer the player asked for.
-/// The nearby list and "where am I" each have their own setting (#661), read on each input read: one turned off leaves
-/// its keys and chords to the game.</summary>
-[FeatureSetting(Feature.Nearby, Feature.WhereAmI)]
+/// The next and previous keys step as the chords do. The guide key and chord start the <see cref="Beacon"/> toward the
+/// thing last stepped to, or the nearest not already reached once that step is forgotten, and stop it when it's on;
+/// every read of the pad or keyboard moves it on. The nearby list, "where am I" and the guidance beep each have their
+/// own setting (#661), read on each input read: one turned off leaves its keys and chords to the game.</summary>
+[FeatureSetting(Feature.Nearby, Feature.WhereAmI, Feature.Guidance)]
 public sealed class FieldControls : IInputControls
 {
     /// <summary>How long the pad's place on the list lasts after a step; the next step after that starts again at the
@@ -64,30 +84,38 @@ public sealed class FieldControls : IInputControls
     private readonly IAnnouncer announcer;
     private readonly Func<long> milliseconds;
     private readonly Action<string>? log;
+    private readonly ReachCallouts? reach;
     private readonly Binding nearby = new();
     private readonly Binding next = new();
     private readonly Binding previous = new();
     private readonly Binding where = new();
+    private readonly Binding guide = new();
+    private readonly Beacon beacon;
     private int position = -1;
     private long steppedAt;
+    private BeaconTarget? current;
 
     /// <summary>Field controls on <paramref name="bindings"/> that read <paramref name="field"/>, name the place through
-    /// <paramref name="place"/>, speak through <paramref name="announcer"/>, keep time by <paramref name="milliseconds"/>
-    /// and write what each press read, as numbers, to <paramref name="log"/> when there is one (Debug builds).</summary>
+    /// <paramref name="place"/>, speak through <paramref name="announcer"/>, guide on <paramref name="cues"/>, keep time
+    /// by <paramref name="milliseconds"/> and write what each press read, as numbers, to <paramref name="log"/> when
+    /// there is one (Debug builds). Each keyboard read also runs <paramref name="reach"/>'s check when there is one (#644).
+    /// The beacon guides along routes from <paramref name="routes"/> when given (#690).
+    /// </summary>
     public FieldControls(
-        FieldBindings bindings, IFieldReads field, FieldPlace place, IAnnouncer announcer, Func<long> milliseconds,
-        Action<string>? log = null)
-        : this(() => bindings, _ => true, field, place, announcer, milliseconds, log)
+        FieldBindings bindings, IFieldReads field, FieldPlace place, IAnnouncer announcer, ICuePlayer cues,
+        Func<long> milliseconds, Action<string>? log = null, ReachCallouts? reach = null, IRoutePlanner? routes = null)
+        : this(() => bindings, _ => true, field, place, announcer, cues, milliseconds, log, reach, routes)
     {
         ArgumentNullException.ThrowIfNull(bindings);
     }
 
     /// <summary>Field controls on the bindings and settings in force, read on each input read (#661):
-    /// <paramref name="isOn"/> says whether <see cref="Feature.Nearby"/> and <see cref="Feature.WhereAmI"/> are on.
-    /// </summary>
+    /// <paramref name="isOn"/> says whether <see cref="Feature.Nearby"/>, <see cref="Feature.WhereAmI"/> and
+    /// <see cref="Feature.Guidance"/> are on.</summary>
     public FieldControls(
         Func<FieldBindings> bindings, Func<Feature, bool> isOn, IFieldReads field, FieldPlace place,
-        IAnnouncer announcer, Func<long> milliseconds, Action<string>? log = null)
+        IAnnouncer announcer, ICuePlayer cues, Func<long> milliseconds, Action<string>? log = null,
+        ReachCallouts? reach = null, IRoutePlanner? routes = null)
     {
         ArgumentNullException.ThrowIfNull(bindings);
         ArgumentNullException.ThrowIfNull(isOn);
@@ -102,6 +130,8 @@ public sealed class FieldControls : IInputControls
         this.announcer = announcer;
         this.milliseconds = milliseconds;
         this.log = log;
+        beacon = new Beacon(field, cues, announcer, milliseconds, log, routes);
+        this.reach = reach;
     }
 
     private enum Press
@@ -111,14 +141,17 @@ public sealed class FieldControls : IInputControls
         Next,
         Previous,
         Place,
+        Guide,
     }
 
-    /// <summary>Takes one read of <paramref name="pad"/>'s buttons, made or not (#225), acts on a press, and returns the
-    /// buttons to hand on: without a chord's D-pad button while it is held in free roam.</summary>
+    /// <summary>Takes one read of <paramref name="pad"/>'s buttons, made or not (#225), acts on a press, moves the
+    /// beacon on, and returns the buttons to hand on: without a chord's D-pad button while it is held in free roam.
+    /// </summary>
     public int Pad(int pad, int buttons, bool made)
     {
         if (!made)
         {
+            beacon.Tick();
             return buttons;
         }
         var bindings = liveBindings();
@@ -127,46 +160,66 @@ public sealed class FieldControls : IInputControls
         var nextHeld = holding && listOn && Holds(buttons, bindings.NextButton);
         var previousHeld = holding && listOn && Holds(buttons, bindings.PreviousButton);
         var placeHeld = holding && isOn(Feature.WhereAmI) && Holds(buttons, bindings.PlaceButton);
-        var roaming = (nextHeld || previousHeld || placeHeld) && field.InFreeRoam();
+        var guideHeld = holding && isOn(Feature.Guidance) && Holds(buttons, bindings.GuideButton);
+        var roaming = (nextHeld || previousHeld || placeHeld || guideHeld) && field.InFreeRoam();
         Press press;
         lock (gate)
         {
             var nextPressed = next.Update(pad, nextHeld && roaming);
             var previousPressed = previous.Update(pad, previousHeld && roaming);
             var placePressed = where.Update(pad, placeHeld && roaming);
-            press = nextPressed ? Press.Next : previousPressed ? Press.Previous : placePressed ? Press.Place : Press.None;
+            var guidePressed = guide.Update(pad, guideHeld && roaming);
+            press = nextPressed ? Press.Next : previousPressed ? Press.Previous : placePressed ? Press.Place :
+                guidePressed ? Press.Guide : Press.None;
         }
         Act(press);
+        beacon.Tick();
         if (!roaming)
         {
             return buttons;
         }
         return buttons & ~((nextHeld ? bindings.NextButton : 0) | (previousHeld ? bindings.PreviousButton : 0) |
-            (placeHeld ? bindings.PlaceButton : 0));
+            (placeHeld ? bindings.PlaceButton : 0) | (guideHeld ? bindings.GuideButton : 0));
     }
 
-    /// <summary>Takes one read of the keys held down, acts on a press, and returns the keys to hand on: without the
-    /// field's keys while held in free roam.</summary>
+    /// <summary>Takes one read of the keys held down, acts on a press, moves the beacon on, and returns the keys to hand
+    /// on: without the field's keys while held in free roam.</summary>
     public IReadOnlyList<int> Keys(IReadOnlyList<int> keys)
     {
         ArgumentNullException.ThrowIfNull(keys);
+        reach?.Check();
         var bindings = liveBindings();
-        var listHeld = isOn(Feature.Nearby) && keys.Contains(bindings.NearbyKey);
+        var listOn = isOn(Feature.Nearby);
+        var listHeld = listOn && keys.Contains(bindings.NearbyKey);
         var placeHeld = isOn(Feature.WhereAmI) && keys.Contains(bindings.PlaceKey);
-        var roaming = (listHeld || placeHeld) && field.InFreeRoam();
+        var guideHeld = isOn(Feature.Guidance) && keys.Contains(bindings.GuideKey);
+        var nextHeld = listOn && keys.Contains(bindings.NextKey);
+        var previousHeld = listOn && keys.Contains(bindings.PreviousKey);
+        var roaming = (listHeld || placeHeld || guideHeld || nextHeld || previousHeld) && field.InFreeRoam();
         Press press;
         lock (gate)
         {
             var listPressed = nearby.Update(KeyboardSource, listHeld && roaming);
             var placePressed = where.Update(KeyboardSource, placeHeld && roaming);
-            press = listPressed ? Press.List : placePressed ? Press.Place : Press.None;
+            var guidePressed = guide.Update(KeyboardSource, guideHeld && roaming);
+            var nextPressed = next.Update(KeyboardSource, nextHeld && roaming);
+            var previousPressed = previous.Update(KeyboardSource, previousHeld && roaming);
+            press = listPressed ? Press.List : placePressed ? Press.Place : guidePressed ? Press.Guide :
+                nextPressed ? Press.Next : previousPressed ? Press.Previous : Press.None;
         }
         Act(press);
+        beacon.Tick();
         // Only a held key of a feature that is on: one turned off reaches the game.
         return roaming
-            ? [.. keys.Where(key => !(listHeld && key == bindings.NearbyKey) && !(placeHeld && key == bindings.PlaceKey))]
+            ? [.. keys.Where(key => key == 0 || !(
+                (listHeld && key == bindings.NearbyKey) || (placeHeld && key == bindings.PlaceKey) ||
+                (guideHeld && key == bindings.GuideKey) || (nextHeld && key == bindings.NextKey) ||
+                (previousHeld && key == bindings.PreviousKey)))]
             : keys;
     }
+
+    /// <summary>Whether the beacon is guiding.</summary>
+    public bool Guiding => beacon.Active;
 
     private static bool Holds(int buttons, int binding) => binding != 0 && (buttons & binding) == binding;
 
@@ -177,6 +230,11 @@ public sealed class FieldControls : IInputControls
     {
         if (press == Press.None)
         {
+            return;
+        }
+        if (press == Press.Guide)
+        {
+            Guide();
             return;
         }
         string text;
@@ -190,6 +248,80 @@ public sealed class FieldControls : IInputControls
         }
         announcer.Announce(new Announcement(text, Interrupt: true));
     }
+
+    /// <summary>Stops the beacon when it's on; otherwise starts it toward the thing last stepped to, while the step is
+    /// remembered, or else the nearest thing not already reached (<see cref="Beacon.Arrived(NearbyThing)"/>). A thing already
+    /// reached is said as "Already next to" instead (#183, by ear 2026-11-22: the nearest, a person within reach, was
+    /// "Reached" at once). A read that throws starts nothing and says nothing.</summary>
+    [SuppressMessage("Design", "CA1031", Justification = "A failed read must never reach the game; it says nothing.")]
+    private void Guide()
+    {
+        if (beacon.Active)
+        {
+            beacon.Stop();
+            return;
+        }
+        BeaconTarget? stepped;
+        lock (gate)
+        {
+            stepped = position >= 0 && milliseconds() - steppedAt <= StepMemoryMilliseconds ? current : null;
+        }
+        BeaconTarget? target;
+        try
+        {
+            target = stepped is not null ? Unreached(stepped) : NearestUnreached();
+        }
+        catch (Exception)
+        {
+            return;
+        }
+        if (target is not null)
+        {
+            beacon.Start(target);
+        }
+    }
+
+    /// <summary>The stepped thing, or null after saying it's already reached from where the player stands now. An
+    /// unreadable pose leaves the test to the beacon's first poll.</summary>
+    private BeaconTarget? Unreached(BeaconTarget stepped)
+    {
+        if (field.ReadPose() is { } pose)
+        {
+            var (distance, _, inReach) = Nearby.Measure(pose, stepped.Unit, stepped.DoorReachValue);
+            if (Beacon.Arrived(distance, inReach))
+            {
+                AlreadyNextTo(stepped.Unit);
+                return null;
+            }
+        }
+        return stepped;
+    }
+
+    /// <summary>The nearest thing on a fresh list that isn't already reached, or null after saying why there's none.
+    /// </summary>
+    private BeaconTarget? NearestUnreached()
+    {
+        if (field.Read() is not { } view)
+        {
+            announcer.Announce(new Announcement("Can't read the field", Interrupt: true));
+            return null;
+        }
+        var things = Nearby.List(view);
+        if (things.Count == 0)
+        {
+            announcer.Announce(new Announcement("Nothing nearby", Interrupt: true));
+            return null;
+        }
+        if (things.FirstOrDefault(thing => !Beacon.Arrived(thing)) is not { } unreached)
+        {
+            AlreadyNextTo(things[0].Unit);
+            return null;
+        }
+        return new BeaconTarget(unreached.Unit, view.DoorReachValue);
+    }
+
+    private void AlreadyNextTo(FieldUnit unit) => announcer.Announce(new Announcement(
+        $"Already next to {unit.Name ?? Nearby.KindWord(unit.Kind)}", Interrupt: true));
 
     private string Place()
     {
@@ -227,6 +359,7 @@ public sealed class FieldControls : IInputControls
                 ? (press == Press.Next ? 0 : things.Count - 1)
                 : ((press == Press.Next ? position + 1 : position - 1) % things.Count + things.Count) % things.Count;
             at = position;
+            current = new BeaconTarget(things[at].Unit, view.DoorReachValue);
         }
         return string.Create(CultureInfo.InvariantCulture, $"{at + 1} of {things.Count}. {things[at].Text()}");
     }
@@ -240,7 +373,7 @@ public sealed class FieldControls : IInputControls
         var counts = string.Join(',', Enum.GetValues<FieldKind>()
             .Select(kind => string.Create(CultureInfo.InvariantCulture, $"{kind}:{view.Units.Count(unit => unit.Kind == kind)}")));
         log(string.Create(CultureInfo.InvariantCulture,
-            $"nearby player=({view.X:0.#},{view.Y:0.#},{view.Z:0.#}) heading={view.Heading:0.###} map={Number(view.MapId)} doorValue={Number(view.DoorReachValue)} units={counts}"));
+            $"nearby player=({view.X:0.#},{view.Y:0.#},{view.Z:0.#}) heading={view.Heading:0.###} camera={view.CameraHeading?.ToString("0.###", CultureInfo.InvariantCulture) ?? "?"} map={Number(view.MapId)} doorValue={Number(view.DoorReachValue)} units={counts}"));
         foreach (var thing in things)
         {
             var unit = thing.Unit;

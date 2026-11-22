@@ -19,7 +19,11 @@ public static class CpkArchive
     /// <summary>The bytes of the file at <paramref name="path"/> (<c>DIR/NAME</c>, as the table of contents names it),
     /// or null when the archive has no such file, it is compressed or bigger than <paramref name="maxSize"/>, or the
     /// archive isn't one this reads. Never throws on a damaged archive; the stream's own failures propagate.</summary>
-    public static byte[]? ReadFile(Stream archive, string path, int maxSize)
+    public static byte[]? ReadFile(Stream archive, string path, int maxSize) => Lookup(archive, path, maxSize).Bytes;
+
+    /// <summary>As <see cref="ReadFile"/>, with why the file wasn't read when it wasn't (#741), so a log can tell a
+    /// missing file from a packed, oversized or damaged one.</summary>
+    public static CpkFile Lookup(Stream archive, string path, int maxSize)
     {
         ArgumentNullException.ThrowIfNull(archive);
         ArgumentNullException.ThrowIfNull(path);
@@ -29,7 +33,7 @@ public static class CpkArchive
             header.Number(0, "TocOffset") is not { } tocOffset || header.Number(0, "ContentOffset") is not { } content ||
             Table(archive, tocOffset) is not { } toc)
         {
-            return null;
+            return new(null, CpkFileStatus.Unreadable);
         }
         for (var row = 0; row < toc.RowCount; row++)
         {
@@ -37,17 +41,30 @@ public static class CpkArchive
             {
                 continue;
             }
-            // Every offset within the archive, so their sum can't overflow or point before its start.
-            if (toc.Number(row, "FileSize") is not { } size || toc.Number(row, "ExtractSize") != size ||
-                toc.Number(row, "FileOffset") is not { } offset || size < 0 || size > maxSize ||
-                !Within(archive, offset) || !Within(archive, tocOffset) || !Within(archive, content))
+            if (toc.Number(row, "FileSize") is not { } size || toc.Number(row, "ExtractSize") is not { } extract ||
+                toc.Number(row, "FileOffset") is not { } offset || size < 0)
             {
-                return null;
+                return new(null, CpkFileStatus.Unreadable);
             }
-            var bytes = Read(archive, offset + Math.Min(tocOffset, content), (int)size);
-            return bytes is null || bytes.AsSpan().StartsWith("CRILAYLA"u8) ? null : bytes;
+            if (extract != size)
+            {
+                return new(null, CpkFileStatus.Packed);
+            }
+            if (size > maxSize)
+            {
+                return new(null, CpkFileStatus.TooBig);
+            }
+            // Every offset within the archive, so their sum can't overflow or point before its start.
+            if (!Within(archive, offset) || !Within(archive, tocOffset) || !Within(archive, content) ||
+                Read(archive, offset + Math.Min(tocOffset, content), (int)size) is not { } bytes)
+            {
+                return new(null, CpkFileStatus.Unreadable);
+            }
+            return bytes.AsSpan().StartsWith("CRILAYLA"u8)
+                ? new(null, CpkFileStatus.Packed)
+                : new(bytes, CpkFileStatus.Read);
         }
-        return null;
+        return new(null, CpkFileStatus.NotFound);
     }
 
     // The @UTF table in the container at offset, or null.
@@ -77,6 +94,29 @@ public static class CpkArchive
         return bytes;
     }
 }
+
+/// <summary>What came of looking a file up in a CPK archive (<see cref="CpkArchive.Lookup"/>).</summary>
+public enum CpkFileStatus
+{
+    /// <summary>The file was read.</summary>
+    Read,
+
+    /// <summary>The table of contents has no such file.</summary>
+    NotFound,
+
+    /// <summary>The file is compressed (<c>CRILAYLA</c>), which isn't read.</summary>
+    Packed,
+
+    /// <summary>The file is bigger than the caller's limit.</summary>
+    TooBig,
+
+    /// <summary>The archive, its tables or the file's row are damaged or of a kind this doesn't read.</summary>
+    Unreadable,
+}
+
+/// <summary>A file looked up in a CPK archive: its bytes when <see cref="Status"/> is <see cref="CpkFileStatus.Read"/>,
+/// otherwise null.</summary>
+public readonly record struct CpkFile(byte[]? Bytes, CpkFileStatus Status);
 
 /// <summary>A CRI <c>@UTF</c> table (big-endian), as CriFsV2Lib reads one
 /// (docs/raw-sources/cri-cpk-table-layout-2026-11-21.md): the header, the columns from <c>+0x20</c>, then fixed-size

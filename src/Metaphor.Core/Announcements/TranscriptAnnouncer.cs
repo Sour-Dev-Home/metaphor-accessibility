@@ -13,17 +13,21 @@ public sealed class TranscriptAnnouncer : IAnnouncer
 
     private readonly IAnnouncer speech;
     private readonly string path;
+    private readonly Func<long> millisecondsSinceStart;
 
     /// <summary>The transcript's line for a private announcement of <paramref name="characters"/> characters.</summary>
     public static string PrivateLine(int characters) =>
         string.Create(CultureInfo.InvariantCulture, $"[private, {characters} characters]");
 
-    /// <summary>Starts a fresh transcript in <paramref name="folder"/>: the glossary's transcript covers one run.</summary>
+    /// <summary>Starts a fresh transcript in <paramref name="folder"/>: the glossary's transcript covers one run. Each
+    /// line starts with <c>&lt;ms&gt; ms </c> from <paramref name="millisecondsSinceStart"/>, the report log's clock (#763).</summary>
     [SuppressMessage("Design", "CA1031", Justification = "A transcript failure must never reach the game.")]
-    public TranscriptAnnouncer(IAnnouncer speech, string folder)
+    public TranscriptAnnouncer(IAnnouncer speech, string folder, Func<long> millisecondsSinceStart)
     {
         ArgumentNullException.ThrowIfNull(speech);
+        ArgumentNullException.ThrowIfNull(millisecondsSinceStart);
         this.speech = speech;
+        this.millisecondsSinceStart = millisecondsSinceStart;
         path = Path.Combine(folder, FileName);
         try
         {
@@ -46,7 +50,8 @@ public sealed class TranscriptAnnouncer : IAnnouncer
             var line = announcement.Private
                 ? PrivateLine(announcement.Text.Length)
                 : announcement.Text.ReplaceLineEndings(" ");
-            File.AppendAllText(path, line + Environment.NewLine);
+            var stamp = millisecondsSinceStart().ToString(CultureInfo.InvariantCulture);
+            File.AppendAllText(path, $"{stamp} ms {line}{Environment.NewLine}");
         }
         catch (Exception)
         {

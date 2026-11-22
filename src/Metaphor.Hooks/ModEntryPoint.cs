@@ -27,7 +27,8 @@ public sealed class ModEntryPoint : IMod
             : SwitchingAnnouncer.NoBackend);
         IAnnouncer announcer = speech is null ? new SilentAnnouncer() : speech;
 #if DEBUG
-        announcer = new TranscriptAnnouncer(announcer, folder);
+        var started = Process.GetCurrentProcess().StartTime; // the report log's clock (#763)
+        announcer = new TranscriptAnnouncer(announcer, folder, () => (long)(DateTime.Now - started).TotalMilliseconds);
 #endif
         return announcer;
     }
