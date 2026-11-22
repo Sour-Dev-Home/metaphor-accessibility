@@ -50,6 +50,10 @@ public enum Feature
     [SettingKey("field", "guidance", "Guidance beep")]
     Guidance,
 
+    /// <summary>The callout when a door or chest comes into reach (#644).</summary>
+    [SettingKey("field", "reach", "Reach callouts")]
+    Reach,
+
     /// <summary>The first-launch welcome (#617). Whether it has been said is <c>welcomed</c>.</summary>
     [SettingKey("speech", "welcome", "Welcome")]
     Welcome,
