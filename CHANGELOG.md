@@ -9,6 +9,7 @@ checks them in the first game session and removes the tag.
 
 ## Unreleased
 
+- **"Save complete" is read.** The small pop-up after saving is spoken (#622). `[NEEDS VERIFICATION by ear]`
 - **Yes and No buttons.** The installer asks each question in a small window with Yes and No buttons, which your
   screen reader reads, instead of asking you to type an answer. Where it can't find the game, you choose
   `METAPHOR.exe` in Windows' Open window (#607). `[NEEDS VERIFICATION by ear]`
