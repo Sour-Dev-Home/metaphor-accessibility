@@ -60,7 +60,9 @@ A run by hand builds, attests and verifies a zip of `main`'s tip, and drafts not
    The zip's SHA-256 must match `SHA256SUMS` and the run's summary.
 3. Write the release notes (the first release's draft is
    [release-notes-0.1.0.md](../reference/release-notes-0.1.0.md)), then publish the draft. The release PR updates
-   [`CHANGELOG.md`](../../../CHANGELOG.md) in every release: move "Unreleased" under the new version.
+   [`CHANGELOG.md`](../../../CHANGELOG.md) in every release: run `bash scripts/release/join-changelog.sh 0.1.0 YYYY-MM-DD`, which joins the
+   [fragments](../../../changelog.d/README.md) into a new version section and deletes them (lines still under
+   "Unreleased" move into it too), then read the result and commit it.
 
 ## When a step fails
 
