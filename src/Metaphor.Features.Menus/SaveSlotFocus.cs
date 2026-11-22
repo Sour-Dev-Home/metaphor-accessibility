@@ -1,6 +1,7 @@
 using Metaphor.Core.Announcements;
 using Metaphor.Core.Menus;
 using Metaphor.Core.Messages;
+using Metaphor.Core.Settings;
 
 namespace Metaphor.Features.Menus;
 
@@ -13,6 +14,7 @@ namespace Metaphor.Features.Menus;
 /// empty" (2026-11-22, #622); the place, the playtime and whether a slot is empty aren't readable from the logs yet, and
 /// the weekday and time-of-day serials the list fetches belong to the rows in view, not the focus
 /// (docs/findings/save-load-slot-screens.md).</remarks>
+[FeatureSetting(Feature.Menus)]
 public sealed class SaveSlotFocus : IScreenObserver
 {
     /// <summary>The load screen's slot list, named by <see cref="SlotScreens"/>.</summary>
