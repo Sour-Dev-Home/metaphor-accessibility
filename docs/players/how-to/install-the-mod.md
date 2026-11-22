@@ -41,7 +41,9 @@ page for you and says each one as it goes. It needs no clicks in Reloaded-II's w
    yet; that is expected.
 7. The window stays open and its last line says "The installer has finished. Read what it said above, then press any
    key to close this window." Read back with NVDA's review cursor if you need to, then press a key.
-8. Start the game from the desktop shortcut. Always start it from this shortcut.
+8. Start the game from the desktop shortcut. Always start it from this shortcut. The keys the mod adds are on
+   [Keys and what the mod speaks](../reference/keys-and-speech.md); if something goes wrong,
+   [Troubleshoot the mod](troubleshoot.md).
 
 Each step says whether it worked. A step that fails says what to do and stops there. Run the installer again after
 fixing that, or to update the mod: it changes only what needs changing and says so. With NVDA, JAWS or ZoomText
@@ -114,52 +116,13 @@ result, is in [Troubleshoot the mod](troubleshoot.md#no-speech). With no screen 
 with Windows' own voice; with NVDA, JAWS or ZoomText running it speaks through your screen reader. Spoken lines leave
 out folder paths and long codes; the printed lines keep them.
 
-## Keys and buttons
+## Keys and what the mod speaks
 
-Everything the mod reads is here. The mod reads no mouse input.
+Every key and button the mod adds, and what it speaks in dialogue, the field and menus, is on its own page:
+[Keys and what the mod speaks](../reference/keys-and-speech.md). Once the game has started from the shortcut, that is
+the page to open next.
 
-### Repeat and reader toggle
-
-1. `R` on the keyboard, or `X` on a controller: repeats the last dialogue line in full. With no line yet, it says "No
-   dialogue to repeat".
-2. `T` on the keyboard, or `LB` and `RB` held together on a controller: turns spoken dialogue off or on. It says
-   "Dialogue reader on" or "Dialogue reader off".
-
-A press counts when the key goes down, not while it is held. A key already held when a dialogue window opens does
-nothing. They can't be rebound yet.
-
-They work only while a dialogue window is open, a line or a choice, and the game doesn't see them then. Anywhere else,
-such as a menu or the field, they do nothing and keep their normal job in the game. Reader off silences dialogue lines
-only, not the keys, the load message or the settings message.
-
-### In the field: what is near and where you are
-
-1. `N` on the keyboard: says what is near you, nearest first, up to 8 things: people, doors, chests and enemies. Each
-   says its name, or its kind when it has none, then how far and which way from where you face, such as "Chest, 4
-   steps ahead-left". "In reach" means you can probably use it from where you stand. With nothing near it says
-   "Nothing nearby".
-2. `LB` held, then `Down` or `Up` on the controller's D-pad: steps through the same list one thing at a time, such as
-   "2 of 5. Door, 9 steps behind". After 10 seconds without a step it starts again at the nearest.
-3. `L` on the keyboard, or `LB` held and `Left` on the D-pad: says where you are, by the place name the game last
-   showed. Before the game has shown one, it says "Place not known yet".
-
-They work only while you walk around freely, with no menu or dialogue open, and the game doesn't see the key, or the
-D-pad direction, then. Anywhere else they keep their normal job in the game. Distances are rough steps for now: the mod
-doesn't yet know how long a step is in the game, so treat them as near or far. They need a supported game build.
-
-### Menus and choices: no keys of their own
-
-The mod adds no keys here. It speaks what the game's own cursor does, so use the game's own movement keys or buttons.
-
-1. Title menu: when the cursor settles on an item, the mod speaks it with its position. The first time it adds
-   "Main menu" in front, such as "Main menu, New Game, 1 of 4".
-2. Reply choices in dialogue: when the choices appear, the mod speaks "Choose:" and the options. Moving the cursor
-   speaks the option and its position, such as "Option, 2 of 3".
-3. The menu during play: opening it speaks "Menu" and the entry, such as "Menu, Equipment, 3 of 9"; each move speaks
-   the entry, such as "Party, 4 of 9". The entries, in order: Skill, Item, Equipment, Party, Follower, Quest, Calendar,
-   Memorandum, System. The names are the mod's own wording, as the game draws them as pictures.
-4. Any other menu screen: each move speaks the position and the list's length, such as "4 of 8", or the position
-   alone, such as "4", when the mod can't read the length.
+## Settings
 
 ### Voiced lines
 
@@ -237,8 +200,8 @@ issue if it does.
 - `[NEEDS VERIFICATION]` The installer's spoken wording, and with User Account Control off (#601).
 - `[NEEDS VERIFICATION]` The install check by ear with NVDA, and whether Windows asks before running a script from a
   downloaded zip.
-- `[NEEDS VERIFICATION]` The keys and spoken lines under Keys and buttons, in the game with a supported build, and
-  braille with a display; and where `settings.json` lands on your machine.
+- `[NEEDS VERIFICATION]` Braille with a display, and where `settings.json` lands on your machine. The keys and spoken
+  lines are marked on their own page.
 - `[NEEDS VERIFICATION]` The uninstall, by ear.
 
 ## Appendix: install by hand
