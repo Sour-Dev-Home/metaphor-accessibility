@@ -27,7 +27,8 @@ public sealed class DialogueChoices : IChoiceRequestObserver
         {
             dialogue.Show(prompt.Speaker, prompt.Text);
         }
-        dialogue.Offer(Find(choice.ChoiceLabel)?.Text);
+        // After the prompt just spoken is heard, not over it (#744).
+        dialogue.OfferAfterLine(Find(choice.ChoiceLabel)?.Text);
     }
 
     private GameMessage? Find(string? label) => label is null ? null : messages.Find(label);

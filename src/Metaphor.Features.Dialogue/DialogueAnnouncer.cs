@@ -17,8 +17,19 @@ public sealed class DialogueAnnouncer
     private readonly Func<VoicedLinesMode> voicedLines;
     private readonly Func<VoiceLanguage> voiceLanguage;
     private readonly Lock gate = new();
+    private readonly TimeProvider time;
     private bool started;
     private string? lastSpeaker;
+    // When the last line was announced, and the choice's options waiting for it to be heard (#744).
+    private long? lastLineAt;
+    private ITimer? pending;
+    private int pendingId;
+
+    /// <summary>How long a choice's options wait after a line that started within <see cref="RecentLine"/>.</summary>
+    public static readonly TimeSpan OptionsDelay = TimeSpan.FromMilliseconds(300);
+
+    /// <summary>A line that started this recently is probably still being said.</summary>
+    public static readonly TimeSpan RecentLine = TimeSpan.FromSeconds(1);
 
     /// <param name="announcer">Where lines are said.</param>
     /// <param name="cleaner">Turns the game's text into what is said.</param>
@@ -26,13 +37,17 @@ public sealed class DialogueAnnouncer
     /// <param name="voicedLines">The "Voiced lines" mode now, read on every line so a change applies at once; the full
     /// line when omitted.</param>
     /// <param name="voiceLanguage">The voice language now, for Auto; unknown when omitted.</param>
+    /// <param name="timeProvider">Times <see cref="OptionsDelay"/> and <see cref="RecentLine"/>; the system clock when
+    /// omitted.</param>
     public DialogueAnnouncer(
         IAnnouncer announcer,
         TextCleaner cleaner,
         DialogueHistory history,
         Func<VoicedLinesMode>? voicedLines = null,
-        Func<VoiceLanguage>? voiceLanguage = null)
+        Func<VoiceLanguage>? voiceLanguage = null,
+        TimeProvider? timeProvider = null)
     {
+        time = timeProvider ?? TimeProvider.System;
         ArgumentNullException.ThrowIfNull(announcer);
         ArgumentNullException.ThrowIfNull(cleaner);
         ArgumentNullException.ThrowIfNull(history);
@@ -77,23 +92,81 @@ public sealed class DialogueAnnouncer
                 // A voiced line whose speaker hasn't changed says nothing.
                 if (changed && name.Length > 0)
                 {
+                    NoteLine();
                     announcer.Announce(new Announcement(name, Interrupt: true));
                 }
                 return;
             default:
+                NoteLine();
                 announcer.Announce(new Announcement(said, Interrupt: true));
                 return;
         }
     }
 
-    /// <summary>Ends the conversation, so the next line counts as a first and says its speaker (#539). Called when the
-    /// dialogue window closes.</summary>
+    /// <summary>Ends the conversation, so the next line counts as a first and says its speaker (#539), and drops options
+    /// still waiting to be said (#744). Called when the dialogue window closes.</summary>
     public void EndConversation()
     {
         lock (gate)
         {
             started = false;
             lastSpeaker = null;
+            CancelPending();
+        }
+    }
+
+    /// <summary>Announces a choice's options as <see cref="Offer"/> does, but after <see cref="OptionsDelay"/> when a
+    /// line started within <see cref="RecentLine"/>, so they don't come over the line being said (#744); at once
+    /// otherwise. Options still waiting are replaced, and dropped if the conversation ends first.</summary>
+    public void OfferAfterLine(string? options)
+    {
+        lock (gate)
+        {
+            CancelPending();
+            if (lastLineAt is { } at && time.GetElapsedTime(at) < RecentLine)
+            {
+                var id = pendingId;
+                pending = time.CreateTimer(_ => OfferIfCurrent(id, options), null, OptionsDelay, Timeout.InfiniteTimeSpan);
+                return;
+            }
+        }
+        Offer(options);
+    }
+
+    private void OfferIfCurrent(int id, string? options)
+    {
+        lock (gate)
+        {
+            if (id != pendingId)
+            {
+                return;
+            }
+            pending?.Dispose();
+            pending = null;
+        }
+        // On a timer thread, where an exception nobody catches ends the process.
+        try
+        {
+            Offer(options);
+        }
+        catch (Exception)
+        {
+            // Nothing more to do: the options are lost, as when any announcement fails.
+        }
+    }
+
+    private void CancelPending()
+    {
+        pendingId++;
+        pending?.Dispose();
+        pending = null;
+    }
+
+    private void NoteLine()
+    {
+        lock (gate)
+        {
+            lastLineAt = time.GetTimestamp();
         }
     }
 
