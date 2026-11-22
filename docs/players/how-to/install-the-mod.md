@@ -217,8 +217,8 @@ them.
    `powershell -ExecutionPolicy Bypass -NoExit -File "<mods folder>\metaphor.accessibility\check-install.ps1"`
 
    The unzipped folder you downloaded works too.
-2. It checks, in order: Reloaded-II is set up; the mod is in its mods folder; the game is added and the mod turned on
-   for it; the game's version is one the mod knows; the speech library, `prism.dll`, is in place; how the mod last
+2. It checks, in order: Reloaded-II is set up; the mod is in its mods folder; which version of the mod is installed
+   ("The mod is version 0.0.1-unstable.3."); the game is added and the mod turned on for it; the game's version is one the mod knows; the speech library, `prism.dll`, is in place; how the mod last
    started. Each line starts with "Pass", "Problem" or "Not checked". A last "Note" says when no screen reader the
    mod supports is running; that isn't counted as a problem, since the mod then uses Windows' own voice.
 3. The last line names the first thing to fix. Fix it, then run the check again.
@@ -265,6 +265,9 @@ only, not the keys, the load message or the settings message.
    so the beep is high and in the middle. It says "Reached", then the name, when you get there.
    Press again to stop: it says "Guidance off". Opening a menu or starting a dialogue stops it too. The beep points in
    a straight line and doesn't know about walls yet. It plays only while sound cues are on.
+5. `]` and `[` on the keyboard: move the list to the next or previous category, and say it and how many are near,
+   such as "Doors and exits, 2 nearby". The categories are Everything, People, Doors and exits, Chests and items,
+   Enemies and Examine. `N`, the steps and `G` then keep to that category. The controller's `RB` with `Y` comes later.
 
 They work only while you walk around freely, with no menu or dialogue open, and the game doesn't see the key, or the
 D-pad direction, then. Anywhere else they keep their normal job in the game. Distances are rough steps for now: the mod

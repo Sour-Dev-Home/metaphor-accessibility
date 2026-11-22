@@ -9,10 +9,19 @@ checks them in the first game session and removes the tag.
 
 ## Unreleased
 
+- **Nearby categories, and names for things that aren't people.** In the field, `]` and `[` move the nearby list
+  between Everything, People, Doors and exits, Chests and items, Enemies and Examine; `N`, the steps and `G` keep to
+  the category (#697). Contributors can name a thing on a map, such as a display case that talks, so the list says
+  its name and kind instead of "Person" (#687). `[NEEDS VERIFICATION by ear]`
 - **A beep that guides you to something nearby.** In the field, `G`, or `LB` with the D-pad's Right, starts a
   repeating beep toward the thing you last stepped to, or the nearest you aren't already at: from its side, higher
   ahead, faster as you near it. It says when you reach it; press again to stop (#183). `K` and `J` step through the
   nearby list from the keyboard. `[NEEDS VERIFICATION by ear]`
+- **The install check says the mod's version.** `check-install.ps1`, which the installer also runs at the end, now says
+  "The mod is version ..." for the copy in Reloaded-II's mods folder, so you can hear which one you have (#674).
+  `[NEEDS VERIFICATION by ear]`
+- **Tutorial pop-ups say what they are.** When a tutorial opens, the mod reads its title, how many pages it has, and
+  its first page. Each page you turn to is read as "Page 2 of 3" and its text (#118). `[NEEDS VERIFICATION by ear]`
 - **Yes and No buttons.** The installer asks each question in a small window with Yes and No buttons, which your
   screen reader reads, instead of asking you to type an answer. Where it can't find the game, you choose
   `METAPHOR.exe` in Windows' Open window (#607). `[NEEDS VERIFICATION by ear]`

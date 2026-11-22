@@ -378,4 +378,190 @@ public sealed class FieldControlsTests
 
         Assert.Equal(["Nothing nearby"], Said());
     }
+
+    private const int KeyOpenBracket = 0xDB;
+    private const int KeyCloseBracket = 0xDD;
+    private const int KeyI = 0x49;
+    private const int Rb = 0x0800;
+    private const int Y = 0x1000;
+
+    private void Press(int key)
+    {
+        controls.Keys([key]);
+        controls.Keys([]);
+    }
+
+    private static FieldView Mixed() => new(0, 0, 0, 0,
+    [
+        new(FieldKind.Door, 0, 0, 900),
+        new(FieldKind.Chest, 0, 0, 200),
+        new(FieldKind.Person, 500, 0, 0, "Testa"),
+        new(FieldKind.Door, 0, 0, 300),
+        new(FieldKind.Enemy, -700, 0, 0),
+    ]);
+
+    [Fact]
+    public void CloseBracketCyclesThroughTheCategoriesAndIsHidden()
+    {
+        field.View = Mixed();
+
+        Assert.Equal([KeyW], controls.Keys([KeyW, KeyCloseBracket]));
+        controls.Keys([]);
+        for (var i = 0; i < 5; i++)
+        {
+            Press(KeyCloseBracket);
+        }
+
+        Assert.Equal(
+        [
+            "People, 1 nearby",
+            "Doors and exits, 2 nearby",
+            "Chests and items, 1 nearby",
+            "Enemies, 1 nearby",
+            "Examine, none nearby",
+            "Everything, 5 nearby",
+        ], Said());
+    }
+
+    [Fact]
+    public void OpenBracketCyclesBackAndWraps()
+    {
+        field.View = Mixed();
+
+        Press(KeyOpenBracket);
+        Press(KeyOpenBracket);
+
+        Assert.Equal(["Examine, none nearby", "Enemies, 1 nearby"], Said());
+    }
+
+    [Fact]
+    public void InDoorsNListsOnlyDoorsNearestFirst()
+    {
+        field.View = Mixed();
+        Press(KeyCloseBracket);
+        Press(KeyCloseBracket);
+
+        Press(KeyN);
+
+        Assert.Equal("Doors and exits, 2 nearby. Door, 3 steps ahead. Door, 9 steps ahead", Said().Last());
+    }
+
+    [Fact]
+    public void TheStepKeysMoveWithinTheCategory()
+    {
+        field.View = Mixed();
+        Press(KeyCloseBracket);
+        Press(KeyCloseBracket);
+
+        Press(KeyK);
+        Press(KeyK);
+        Press(KeyK);
+
+        Assert.Equal(["1 of 2. Door, 3 steps ahead", "2 of 2. Door, 9 steps ahead", "1 of 2. Door, 3 steps ahead"],
+            Said().Skip(2));
+    }
+
+    [Fact]
+    public void ACategoryChangeStartsTheStepsAgain()
+    {
+        field.View = Mixed();
+        Press(KeyK);
+        Press(KeyK);
+        Press(KeyCloseBracket);
+
+        Press(KeyK);
+
+        Assert.Equal("1 of 1. Testa, 5 steps left", Said().Last());
+    }
+
+    [Fact]
+    public void GGuidesToTheNearestInTheCategory()
+    {
+        field.View = Mixed();
+        Press(KeyOpenBracket);
+        Press(KeyOpenBracket);
+
+        Press(KeyG);
+
+        // Everything's nearest not reached is the door 3 steps ahead.
+        Assert.Equal("Guiding to Enemy", Said().Last());
+    }
+
+    [Fact]
+    public void TheCategoryKeysReachTheGameOutsideFreeRoam()
+    {
+        field.Roaming = false;
+
+        Assert.Equal([KeyOpenBracket, KeyCloseBracket], controls.Keys([KeyOpenBracket, KeyCloseBracket]));
+        Assert.Empty(announcer.Said);
+    }
+
+    [Fact]
+    public void TheControllerCategoryChordIsUnboundUntilTheRbLayer()
+    {
+        Assert.Equal(0, FieldBindings.Default.CategoryHoldButtons);
+        Assert.Equal(0, FieldBindings.Default.CategoryButton);
+        Assert.Equal(Rb | Y, controls.Pad(0, Rb | Y, made: true));
+        Assert.Empty(announcer.Said);
+    }
+
+    [Fact]
+    public void ABoundCategoryChordCyclesForwardAndHidesItsButton()
+    {
+        var bound = new FieldControls(FieldBindings.Default with { CategoryHoldButtons = Rb, CategoryButton = Y },
+            field, place, announcer, cues, () => now);
+        field.View = Mixed();
+
+        Assert.Equal(Rb, bound.Pad(0, Rb | Y, made: true));
+        bound.Pad(0, Rb, made: true);
+
+        Assert.Equal(["People, 1 nearby"], Said());
+    }
+
+    [Fact]
+    public void ANamesTableRowNamesTheThingAndMovesItToItsCategory()
+    {
+        var table = NamesTable.From([NamesTable.Parse(
+            """{ "map": 3, "objects": { "npc-2-17": { "name": "Display case", "kind": "examine" } } }""", "3.json")]);
+        var named = new FieldControls(FieldBindings.Default, field, place, announcer, cues, () => now, names: table);
+        field.View = new FieldView(0, 0, 0, 0, [new(FieldKind.Person, 0, 0, 200, Id: "npc-2-17")], MapId: 3);
+
+        named.Keys([KeyOpenBracket]);
+        named.Keys([]);
+        named.Keys([KeyN]);
+
+        Assert.Equal(["Examine, 1 nearby", "Examine, 1 nearby. Display case, 2 steps ahead"], Said());
+    }
+
+    [Fact]
+    public void IInADebugBuildLogsTheNearestThingsMapIdKindAndPosition()
+    {
+        field.View = new FieldView(0, 0, 0, 0,
+            [new(FieldKind.Person, 30, 5, 200, "Testa", "npcKind=2 model=401", "npc-2-17")], MapId: 3);
+
+        Assert.Equal([], controls.Keys([KeyI]));
+
+        var line = Assert.Single(log, line => line.StartsWith("identify ", StringComparison.Ordinal));
+        Assert.Equal("identify map=3 id=npc-2-17 list=Person kind=Person at=(30,5,200) npcKind=2 model=401", line);
+        Assert.Equal("Logged npc-2-17, Testa, 2 steps ahead", Said().Single());
+    }
+
+    [Fact]
+    public void IWithNothingNearbySaysSo()
+    {
+        field.View = new FieldView(0, 0, 0, 0, [], MapId: 3);
+
+        controls.Keys([KeyI]);
+
+        Assert.Equal(["Nothing nearby"], Said());
+    }
+
+    [Fact]
+    public void IOutsideADebugBuildReachesTheGame()
+    {
+        var release = new FieldControls(FieldBindings.Default, field, place, announcer, cues, () => now);
+
+        Assert.Equal([KeyI], release.Keys([KeyI]));
+        Assert.Empty(announcer.Said);
+    }
 }

@@ -22,7 +22,7 @@ BeforeAll {
     function New-Release([string] $Path) {
         New-Item -ItemType Directory -Force $Path | Out-Null
         foreach ($file in $shipped) { Copy-Item -LiteralPath (Join-Path $repo "scripts/player/$file") $Path }
-        Write-JsonFile (Join-Path $Path 'ModConfig.json') @{ ModId = $modId; ModDll = 'Metaphor.Hooks.dll' }
+        Write-JsonFile (Join-Path $Path 'ModConfig.json') @{ ModId = $modId; ModVersion = '0.0.1-unstable.3'; ModDll = 'Metaphor.Hooks.dll' }
         Set-Content -LiteralPath (Join-Path $Path 'prism.dll') -Value 'stand-in prism' -NoNewline
         Write-JsonFile (Join-Path $Path 'prism.json') @{ version = 'v0'; dllSha256 = (Get-Sha256 (Join-Path $Path 'prism.dll')) }
         Write-JsonFile (Join-Path $Path 'known-game-builds.json') @(
@@ -80,8 +80,10 @@ Describe 'Get-InstallCheck' {
     It 'passes every check on a working install, run from the downloaded release folder' {
         $checks = Invoke-Check
         @($checks | Where-Object State -NE 'pass' | ForEach-Object Line) | Should -BeNullOrEmpty
-        $checks.Name | Should -Be 'Reloaded-II', 'Mod installed', 'Game added', 'Mod enabled', 'Game version',
-            'Speech library', 'Last start', 'Screen reader'
+        $checks.Name | Should -Be 'Reloaded-II', 'Mod installed', 'Mod version', 'Game added', 'Mod enabled',
+            'Game version', 'Speech library', 'Last start', 'Screen reader'
+        (Get-Check 'Mod version' $checks).Line | Should -Be 'The mod is version 0.0.1-unstable.3.'
+        Format-SpokenCheck (Get-Check 'Mod version' $checks) | Should -Be 'Pass: The mod is version 0.0.1-unstable.3.'
         Get-InstallSummary $checks | Should -Match 'Everything this script checks is in order'
         (Get-Check 'Game version' $checks).Line | Should -Match 'Steam build 18330018'
         (Get-Check 'Last start' $checks).Line | Should -Match '9 of 9 hooks'
@@ -114,6 +116,27 @@ Describe 'Get-InstallCheck' {
         (Get-Check 'Mod installed' $checks).Detail | Should -Match ([regex]::Escape($mods))
         (Get-Check 'Last start' $checks).State | Should -Be 'not checked'
         Get-InstallSummary $checks | Should -Match "^First thing to fix: Copy the $([regex]::Escape($modId)) folder"
+    }
+
+    It 'says the installed copy''s version, not the downloaded release''s' {
+        Write-JsonFile (Join-Path $release 'ModConfig.json') @{ ModId = $modId; ModVersion = '9.9.9' }
+        (Get-Check 'Mod version').Line | Should -Be 'The mod is version 0.0.1-unstable.3.'
+    }
+
+    It 'says so, without failing, when the installed ModConfig.json has no version or a blank one' {
+        foreach ($modConfig in @{ ModId = $modId }, @{ ModId = $modId; ModVersion = '  ' }) {
+            Write-JsonFile (Join-Path $installed 'ModConfig.json') $modConfig
+            $check = Get-Check 'Mod version'
+            $check.State | Should -Be 'note'
+            $check.Line | Should -Match "doesn't say its version"
+        }
+    }
+
+    It 'does not check the version when the mod is not installed' {
+        Remove-Item -LiteralPath $installed -Recurse
+        $check = Get-Check 'Mod version'
+        $check.State | Should -Be 'not checked'
+        $check.Line | Should -Match 'not installed'
     }
 
     It 'finds the mod in a mods subfolder of another name by its ModConfig.json' {
@@ -270,6 +293,7 @@ Describe 'the package' {
         }
         $project | Should -Match ([regex]::Escape('<None Include="../Metaphor.Core/known-game-builds.json" Link="known-game-builds.json"'))
         $project | Should -Match ([regex]::Escape('<None Include="prism.json" CopyToPublishDirectory'))
+        $project | Should -Match ([regex]::Escape('<None Include="../../data/names/*.json" Link="data/names/%(Filename)%(Extension)"'))
         $project | Should -Not -Match 'scripts/dev/ReloadedDev\.psm1'
     }
 

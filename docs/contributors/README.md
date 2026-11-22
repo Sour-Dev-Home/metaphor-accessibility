@@ -180,7 +180,7 @@ How-tos: [set up a clone](how-to/set-up-a-clone.md), [add a hook](how-to/add-a-h
 [write a finding or save a raw source](how-to/write-a-finding.md),
 [add a feature project](how-to/add-a-feature-project.md), [handle a game update](how-to/handle-a-game-update.md),
 [write a player doc](how-to/write-a-player-doc.md), [plan a chapter](how-to/plan-a-chapter.md),
-[scrub a chapter](how-to/scrub-a-chapter.md).
+[scrub a chapter](how-to/scrub-a-chapter.md), [name a nearby thing](how-to/name-a-nearby-thing.md).
 
 Reference: [checks](reference/checks.md), every check stage and how CI runs them;
 [security review](reference/security-review.md), the stamp, the label gate and the deny rules;

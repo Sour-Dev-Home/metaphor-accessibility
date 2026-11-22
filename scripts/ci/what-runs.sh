@@ -141,6 +141,10 @@ select_runs() {
       if [[ "$f" == "${dir_of[$p]}/"* ]] && [ "${#dir_of[$p]}" -gt "${#best}" ]; then best="${dir_of[$p]}" owner="$p"; fi
     done
     [ -z "$owner" ] || mark "$owner" "$f changed"
+    # The names table (#687) sits outside every project; the field tests check its schema, and the hook layer ships it.
+    if [[ "$f" == data/names/* ]]; then
+      mark tests/Metaphor.Features.Field.Tests/Metaphor.Features.Field.Tests.csproj "$f changed (the names table, which these tests check)"
+    fi
     # A code file: projects no test project reaches (a tool) run nothing, but the local build must still compile them.
     if [ -n "$owner" ] && [[ "$f" =~ \.(cs|csproj|props|targets|json)$ ]]; then need_build "$owner" "$f"; fi
   done

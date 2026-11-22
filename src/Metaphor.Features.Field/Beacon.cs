@@ -212,7 +212,7 @@ public sealed class Beacon
         }
     }
 
-    private static string Name(BeaconTarget guided) => guided.Unit.Name ?? Nearby.KindWord(guided.Unit.Kind);
+    private static string Name(BeaconTarget guided) => guided.Unit.Name ?? Nearby.KindWord(guided.Unit.Says);
 
     private bool End()
     {
