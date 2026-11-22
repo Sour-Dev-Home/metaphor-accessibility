@@ -45,6 +45,8 @@ Each is `true` to speak or `false` to stay quiet, inside a `speech` object: `{ "
 |---|---|---|
 | `dialogue` | Dialogue lines and reply choices. Off also leaves the repeat and reader keys to the game in dialogue. | `true` |
 | `menus` | The title menu, the main menu, the quick menu, Settings, the difficulty list, yes or no questions and any other menu. Off also leaves the details key to the game. | `true` |
+| `battleHits` | Each battle hit as it lands, the battle status key and the enemy HP key. Off also leaves those keys to the game. | `true` |
+| `battleLists` | Battle's skill and item lists, row by row. Separate from `menus`. | `true` |
 | `nameEntry` | The name entry screen: its title, each letter you type, and when a name is refused. | `true` |
 | `travelMap` | Each destination on the travel map. | `true` |
 | `placeNames` | The place name the game shows as you arrive somewhere. | `true` |
@@ -62,6 +64,7 @@ the game.
 | `nearby` | The nearby list: N, or LB with Down and Up on the D-pad. | `true` |
 | `whereAmI` | "Where am I": L, or LB with Left on the D-pad. | `true` |
 | `guidance` | The guidance beep toward a nearby thing: G, or LB with Right on the D-pad. | `true` |
+| `reach` | The callout when a door or chest comes into reach: "Door, in reach". | `true` |
 
 ## Report
 
@@ -110,6 +113,10 @@ DpadUp, DpadDown, DpadLeft and DpadRight.
 | `dialogue.readerButtons` | The same on the pad. | `"LB+RB"` |
 | `menus.detailsKey` | Reads the rest of the focused menu item's details. | `"F"` |
 | `menus.detailsButtons` | The same on the pad. | `"RS"` |
+| `battle.statusKey` | In a battle, says each party member's HP and the enemies hit so far. | `"H"` |
+| `battle.statusButtons` | The same on the pad. | `"LS"` |
+| `battle.enemyHpKey` | In a battle, says the HP of the enemies hit so far. Unbound until free keys are chosen (#767): F and RS belong to the game's melee and auto-battle. | `"none"` |
+| `battle.enemyHpButtons` | The same on the pad. | `"none"` |
 | `field.nearbyKey` | Speaks the whole nearby list. | `"N"` |
 | `field.placeKey` | Says where you are. | `"L"` |
 | `field.holdButtons` | Held for the field's pad chords. | `"LB"` |

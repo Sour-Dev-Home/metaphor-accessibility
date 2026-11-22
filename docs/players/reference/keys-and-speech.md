@@ -68,6 +68,8 @@ anywhere.
   you get there. Press again to stop: "Guidance off". A menu or a dialogue stops it too. The beep points at the next
   turn of a walking route around walls, and plans again if you stray or get stuck; with no route it points straight
   and says "No path found, pointing straight" once (#690). It plays only while sound cues are on.
+- With no key: walking up to a door or chest says "Door, in reach" or "Chest, in reach" once, after anything being
+  said. Move away or turn, then come back, and it says it again. People aren't said this way yet.
 - Distances are rough steps: treat them as near or far.
 
 ### Menus

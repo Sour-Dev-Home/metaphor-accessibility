@@ -38,6 +38,14 @@ public enum Feature
     [SettingKey("speech", "tutorials", "Tutorials")]
     Tutorials,
 
+    /// <summary>Each battle hit said as it lands, the status key and the enemy HP readout (#247, #631).</summary>
+    [SettingKey("speech", "battleHits", "Battle hits")]
+    BattleHits,
+
+    /// <summary>Battle's skill and item lists, row by row (#247). Separate from the menus.</summary>
+    [SettingKey("speech", "battleLists", "Battle lists")]
+    BattleLists,
+
     /// <summary>The nearby list and its pad steps (#181).</summary>
     [SettingKey("field", "nearby", "Nearby list")]
     Nearby,
@@ -49,6 +57,10 @@ public enum Feature
     /// <summary>The guidance beep toward a nearby thing, and its keys (#183).</summary>
     [SettingKey("field", "guidance", "Guidance beep")]
     Guidance,
+
+    /// <summary>The callout when a door or chest comes into reach (#644).</summary>
+    [SettingKey("field", "reach", "Reach callouts")]
+    Reach,
 
     /// <summary>The first-launch welcome (#617). Whether it has been said is <c>welcomed</c>.</summary>
     [SettingKey("speech", "welcome", "Welcome")]
