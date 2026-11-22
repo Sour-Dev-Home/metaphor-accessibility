@@ -9,6 +9,8 @@ checks them in the first game session and removes the tag.
 
 ## Unreleased
 
+- **The Calendar says the day.** Opening the Calendar says "Calendar, day 12 of 30", and each move says the day you
+  land on. Weekday names, events and discounts aren't spoken yet (#193). `[NEEDS VERIFICATION by ear]`
 - **A welcome on first launch.** The first time the game starts with the mod, the title screen says which version is
   running and that `N`, `L` and `G` are the field keys, once (#617). `[NEEDS VERIFICATION by ear]`
 - **A mark key for reports.** Press `F8` when something goes wrong: two short clicks, and a numbered marker with the
