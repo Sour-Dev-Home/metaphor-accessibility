@@ -232,12 +232,13 @@ public sealed class FieldControlsTests
     }
 
     [Fact]
-    public void GuidanceTurnedOffLeavesTheGuideKeyToTheGameAndStartsNoBeep()
+    public void GuidanceTurnedOffLeavesItsKeysToTheGameAndStartsNoBeacon()
     {
         var settings = ModSettings.Parse("""{ "field": { "guidance": false } }""", _ => { });
         var gated = new FieldControls(() => FieldBindings.Default, settings.IsOn, field, place, announcer, cues, () => now);
 
         Assert.Equal([KeyG], gated.Keys([KeyG]));
+        Assert.Equal(Lb | Right, gated.Pad(0, Lb | Right, made: true));
 
         Assert.False(gated.Guiding);
         Assert.Empty(Said());
@@ -274,10 +275,13 @@ public sealed class FieldControlsTests
         var settings = ModSettings.Parse(
             """
             { "keys": { "field": { "nearbyKey": "F1", "placeKey": "F2", "holdButtons": "RB",
-              "nextButton": "A", "previousButton": "B", "placeButton": "Y" } } }
+              "nextButton": "A", "previousButton": "B", "placeButton": "Y",
+              "guideKey": "F3", "guideButton": "X", "nextKey": "F4", "previousKey": "F5" } } }
             """, _ => { });
 
-        Assert.Equal(new FieldBindings(0x70, 0x71, 0x0800, 0x4000, 0x2000, 0x1000, 0x47, 0x0020, 0x4B, 0x4A), FieldBindings.From(settings));
+        Assert.Equal(
+            new FieldBindings(0x70, 0x71, 0x0800, 0x4000, 0x2000, 0x1000, 0x72, 0x8000, 0x73, 0x74),
+            FieldBindings.From(settings));
         Assert.Equal(FieldBindings.Default, FieldBindings.From(ModSettings.Defaults));
     }
 

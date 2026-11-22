@@ -140,9 +140,8 @@ public static class Nearby
     }
 
     /// <summary>Where <paramref name="unit"/> lies from <paramref name="pose"/>: its ground distance, its bearing from
-    /// the facing (left positive, −π to π), and whether the game's reach test for its kind passes, its distance limit
-    /// times <paramref name="rangeScale"/> and every limit widened by <paramref name="slack"/> and
-    /// <paramref name="facingSlack"/> (#644).</summary>
+    /// the facing (left positive, −π to π), and whether the game's reach test for its kind passes, widened by the
+    /// slack and range scale the reach callout uses (#644).</summary>
     public static (double Distance, double Bearing, bool InReach) Measure(
         FieldPose pose, FieldUnit unit, int? doorReachValue, double slack = 0, double facingSlack = 0,
         double rangeScale = 1)

@@ -1,10 +1,12 @@
+using System.Numerics;
 using Metaphor.Core.Announcements;
 using Metaphor.Core.Cues;
+using Metaphor.Core.Navigation;
 
 namespace Metaphor.Features.Field.Tests;
 
 /// <summary>The beacon toward a picked target (#183): panned by bearing, paced by distance, higher ahead than behind, and
-/// stopping on arrival and on a cancel, and quiet outside free roam (#702). A stand-in field and made-up names only.</summary>
+/// stopping on arrival, on a cancel and on leaving free roam. A stand-in field and made-up names only.</summary>
 [Trait("Category", "Unit")]
 public sealed class BeaconTests
 {
@@ -219,10 +221,9 @@ public sealed class BeaconTests
         Assert.Equal(["Guiding to Testa"], Said());
     }
 
-    // #709, by ear 2026-11-22 (Steam build 18330018): the beep sounded again between the lines of a story scene. The
-    // session's log shows free roam reading true for a moment right after the dialogue window closed (1048974 ms, the
-    // route's retry) and again at 1059197 ms, inside the scene. A beacon that went quiet for a conversation stays quiet
-    // through such a moment, and sounds again only once free roam has held for FreeRoamSettleMilliseconds.
+    // #709, by ear 2026-11-22 (Steam build 18330018): the beep sounded again between the lines of a story scene. A
+    // beacon that went quiet for a conversation stays quiet through a moment of free roam, and sounds again only once
+    // free roam has held for FreeRoamSettleMilliseconds.
     [Fact]
     public void ABriefFreeRoamBetweenTheSceneAndTheNextLineDoesNotSoundTheBeep()
     {
@@ -372,6 +373,116 @@ public sealed class BeaconTests
         Assert.Equal(before, GC.GetAllocatedBytesForCurrentThread());
     }
 
+    // #690: with a planner, the beep points at the route's next corner, not through the wall at the target.
+    [Fact]
+    public void WithARouteTheBeepPointsAtTheNextCorner()
+    {
+        // The target is to the left (+x); the route first goes ahead (+z) around something.
+        var planner = new StubPlanner(RouteOutcome.Found, new(0, 0, 1000), new(1000, 0, 0));
+        var routed = Routed(planner);
+
+        routed.Start(Person(1000, 0));
+        routed.Tick();
+
+        var tone = Assert.Single(cues.Held);
+        Assert.Equal(Beacon.AheadHertz, tone.Hertz, 6);
+        Assert.Equal(0, tone.Pan, 6);
+        Assert.Equal(1, planner.Plans);
+        Assert.Equal(["Guiding to Testa"], Said());
+    }
+
+    [Fact]
+    public void ACornerNearTheTargetIsNotReached()
+    {
+        // The first corner is beside the player: the beacon moves on to the next, and says nothing reached.
+        var routed = Routed(new StubPlanner(RouteOutcome.Found, new(0, 0, 50), new(0, 0, 1000)));
+
+        routed.Start(Person(0, 1000));
+        routed.Tick();
+
+        Assert.True(routed.Active);
+        Assert.Equal(Beacon.AheadHertz, Assert.Single(cues.Held).Hertz, 6);
+        Assert.Equal(["Guiding to Testa"], Said());
+    }
+
+    [Theory]
+    [InlineData(RouteOutcome.NoPath)]
+    [InlineData(RouteOutcome.NoNavMesh)]
+    [InlineData(RouteOutcome.OffMesh)]
+    public void WithNoRouteItPointsStraightAndSaysSoOnce(RouteOutcome outcome)
+    {
+        var planner = new StubPlanner(outcome);
+        var routed = Routed(planner);
+
+        routed.Start(Person(1000, 0));
+        routed.Tick();
+        now += RouteFollower.RetryMilliseconds;
+        routed.Tick();
+
+        Assert.Equal(2, planner.Plans);
+        Assert.Equal(["Guiding to Testa", Beacon.NoPathText], Said());
+        Assert.Equal(Beacon.Hertz(Math.PI / 2), cues.Held[0].Hertz, 6);
+        Assert.False(announcer.Said[1].Interrupt);
+    }
+
+    [Fact]
+    public void WhileTheNavMeshLoadsItPointsStraightSilently()
+    {
+        var routed = Routed(new StubPlanner(RouteOutcome.Loading));
+
+        routed.Start(Person(1000, 0));
+        routed.Tick();
+
+        Assert.Equal(["Guiding to Testa"], Said());
+        Assert.Equal(Beacon.Hertz(Math.PI / 2), Assert.Single(cues.Held).Hertz, 6);
+    }
+
+    [Fact]
+    public void APlanStillRunningLeavesTheBeepStraightUntilItEnds()
+    {
+        var plan = new TaskCompletionSource<RoutePlan>();
+        var routed = new Beacon(field, cues, announcer, () => now, routes: new StubPlanner(RouteOutcome.NoPath),
+            run: _ => plan.Task);
+
+        routed.Start(Person(1000, 0));
+        routed.Tick();
+        plan.SetResult(new RoutePlan(RouteOutcome.Found, [new(0, 0, 1000), new(1000, 0, 0)], ""));
+        now += Beacon.IntervalMilliseconds(1000);
+        routed.Tick();
+
+        Assert.Equal(Beacon.Hertz(Math.PI / 2), cues.Held[0].Hertz, 6);
+        Assert.Equal(Beacon.AheadHertz, cues.Held[1].Hertz, 6);
+    }
+
+    [Fact]
+    public void StrayingFromTheRoutePlansAgain()
+    {
+        var planner = new StubPlanner(RouteOutcome.Found, new(0, 0, 1000), new(1000, 0, 1000));
+        var routed = Routed(planner);
+
+        routed.Start(Person(1000, 1000));
+        routed.Tick();
+        field.Pose = new FieldPose(-500, 0, 500, 0);
+        now += Beacon.PollMilliseconds;
+        routed.Tick();
+
+        Assert.Equal(2, planner.Plans);
+    }
+
+    private Beacon Routed(IRoutePlanner planner) =>
+        new(field, cues, announcer, () => now, routes: planner, run: plan => Task.FromResult(plan()));
+
+    private sealed class StubPlanner(RouteOutcome outcome, params Vector3[] corners) : IRoutePlanner
+    {
+        public int Plans { get; private set; }
+
+        public RoutePlan Plan(int? mapId, Vector3 start, Vector3 target)
+        {
+            Plans++;
+            return new(outcome, outcome == RouteOutcome.Found ? corners : [], "");
+        }
+    }
+
     private sealed class PoseField : IFieldReads
     {
         public bool Roaming { get; set; } = true;
@@ -390,9 +501,9 @@ public sealed class BeaconTests
             return Throws ? throw new InvalidOperationException("stand-in failure") : Roaming;
         }
 
-        public int? Map { get; set; }
-
         public FieldView? Read() => null;
+
+        public int? Map { get; set; }
 
         public int? MapId() => Map;
 
