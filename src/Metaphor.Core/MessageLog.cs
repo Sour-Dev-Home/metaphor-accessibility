@@ -117,6 +117,11 @@ public sealed class MessageLog(TextWriter writer, Func<long> millisecondsSinceSt
     public void TutorialSeen(string what, string details) =>
         Write(() => Line($"{millisecondsSinceStart()} ms tutorial {what} {details}"));
 
+    /// <summary>A tag spoken as its stand-in because its value wasn't found (#83, #108, #109): the tag's name and its
+    /// arguments, which are numbers.</summary>
+    public void PlaceholderMissing(string tag, string arguments) =>
+        Write(() => Line($"{millisecondsSinceStart()} ms placeholder missing tag={tag} args=\"{LogText.Escaped(arguments)}\""));
+
     /// <summary>A map screen's place text (#545, #586): which part (<c>panel</c>, <c>compose</c> or <c>strip</c>) and
     /// its details as the hook formatted them: numbers, raw reference bytes and the text that was said or read.</summary>
     public void MapSeen(string what, string details) =>

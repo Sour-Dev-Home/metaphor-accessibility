@@ -293,6 +293,16 @@ public sealed class MessageLogTests
     }
 
     [Fact]
+    public void RecordsATagSpokenAsItsStandIn()
+    {
+        var (log, text) = NewLog(now: 9);
+
+        log.PlaceholderMissing("ITEM", "20637 2");
+
+        Assert.Equal($"9 ms placeholder missing tag=ITEM args=\"20637 2\"{Environment.NewLine}", text.ToString());
+    }
+
+    [Fact]
     public void RecordsAUiComponentOpeningWithItsClassAndAddress()
     {
         var (log, text) = NewLog(now: 9);

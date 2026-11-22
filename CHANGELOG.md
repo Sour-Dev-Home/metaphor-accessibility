@@ -9,6 +9,10 @@ checks them in the first game session and removes the tag.
 
 ## Unreleased
 
+- **No more gaps where the screen shows a skill, an item or a button.** Text that names a skill or a status condition
+  now says its name, as after "Required Skill:". Items, Archetypes, attributes, buttons and other icons, which the mod
+  can't name yet, say what kind of thing goes there ("item", "button") instead of leaving a gap, as does the action a
+  new key binding clashes with (#108, #109, #564). `[NEEDS VERIFICATION by ear]`
 - **The install check says the mod's version.** `check-install.ps1`, which the installer also runs at the end, now says
   "The mod is version ..." for the copy in Reloaded-II's mods folder, so you can hear which one you have (#674).
   `[NEEDS VERIFICATION by ear]`
