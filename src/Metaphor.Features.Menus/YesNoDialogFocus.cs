@@ -2,6 +2,7 @@ using System.Text.RegularExpressions;
 using Metaphor.Core.Announcements;
 using Metaphor.Core.Menus;
 using Metaphor.Core.Messages;
+using Metaphor.Core.Settings;
 
 namespace Metaphor.Features.Menus;
 
@@ -26,6 +27,7 @@ public interface IYesNoQuestion
 /// message is <c>[NEEDS VERIFICATION]</c>. The name entry and
 /// the difficulty list open theirs through the select window call with their prompt's label, and the scripts' choices
 /// go through the same call (docs/raw-sources/yes-no-dialog-text-2026-11-20.md).</remarks>
+[FeatureSetting(Feature.Menus)]
 public sealed partial class YesNoDialogFocus : IScreenObserver, IChoiceRequestObserver, ISelectRequestObserver
 {
     /// <summary>A yes/no dialog: its choice's class on build 548ddc95, from its run-time type information

@@ -12,6 +12,11 @@ checks them in the first game session and removes the tag.
 - **Dialogue choices say how many options, not all of them.** When a choice opens, the mod says "Choice, 3 options"
   and then the focused option, instead of reading every option at once. Move the cursor to hear the others (#730).
   `[NEEDS VERIFICATION by ear]`
+- **A welcome on first launch.** The first time the game starts with the mod, the title screen says which version is
+  running and that `N`, `L` and `G` are the field keys, once (#617). `[NEEDS VERIFICATION by ear]`
+- **A mark key for reports.** Press `F8` when something goes wrong: two short clicks, and a numbered marker with the
+  time goes into `report-log.txt`. The log also lists each screen and menu move the mod said nothing for. Nothing is
+  sent anywhere. The Alpha feedback form asks when you pressed it (#597). `[NEEDS VERIFICATION by ear]`
 - **The install check says the mod's version.** `check-install.ps1`, which the installer also runs at the end, now says
   "The mod is version ..." for the copy in Reloaded-II's mods folder, so you can hear which one you have (#674).
   `[NEEDS VERIFICATION by ear]`

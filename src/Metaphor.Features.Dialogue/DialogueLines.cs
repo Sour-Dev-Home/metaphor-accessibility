@@ -15,12 +15,22 @@ public sealed class DialogueLines : ILineRequestObserver, ILineShownObserver, IC
     // The label just spoken as requested or as a choice's prompt, until the window shows it.
     private string? requested;
 
-    public DialogueLines(IMessageLookup messages, DialogueAnnouncer dialogue)
+    private readonly TimeProvider time;
+    // The label of the line last shown and when, to drop the game's immediate repeat of it (#740).
+    private string? lastShown;
+    private long lastShownAt;
+
+    /// <summary>A shown line identical to the previous one within this window is the game's own repeat (#740: seen
+    /// 37 to 100 ms apart), not a second reading.</summary>
+    private static readonly TimeSpan RepeatWindow = TimeSpan.FromMilliseconds(300);
+
+    public DialogueLines(IMessageLookup messages, DialogueAnnouncer dialogue, TimeProvider? time = null)
     {
         ArgumentNullException.ThrowIfNull(messages);
         ArgumentNullException.ThrowIfNull(dialogue);
         this.messages = messages;
         this.dialogue = dialogue;
+        this.time = time ?? TimeProvider.System;
     }
 
     /// <summary>Speaks the message with the line's label; says nothing when there is none.</summary>
@@ -54,7 +64,7 @@ public sealed class DialogueLines : ILineRequestObserver, ILineShownObserver, IC
     }
 
     /// <summary>Speaks the message whose label hashes to the shown line's, unless it is the line just requested, which
-    /// was spoken then; says nothing when there is none. Kind 0 only, as for requests.</summary>
+    /// was spoken then, or the game's immediate repeat of the line just shown (#740); says nothing when there is none. Kind 0 only, as for requests.</summary>
     public void Observe(LineShown line)
     {
         ArgumentNullException.ThrowIfNull(line);
@@ -66,7 +76,11 @@ public sealed class DialogueLines : ILineRequestObserver, ILineShownObserver, IC
         {
             var already = requested == message.Label;
             requested = null;
-            if (already)
+            var now = time.GetTimestamp();
+            var repeat = lastShown == message.Label && time.GetElapsedTime(lastShownAt, now) < RepeatWindow;
+            lastShown = message.Label;
+            lastShownAt = now;
+            if (already || repeat)
             {
                 return;
             }
