@@ -14,11 +14,12 @@ namespace Metaphor.Core.Menus;
 /// <paramref name="Grid"/> is the grid cursor's own fields (<see cref="GridCursor"/>, #563) when the manager is one and
 /// they read as a grid, else null. <paramref name="OnButton"/> is whether the focus is on the screen's button, from a
 /// field of its owner, for a screen whose flags don't say it (Key Configuration, <see cref="SettingsPages"/>, #589),
-/// else null.
+/// else null. <paramref name="Values"/> is a settings page's values from its working copy (<see cref="SettingValues"/>,
+/// #96), null on any other screen or when unreadable.
 /// </summary>
 public sealed record CursorInput(
     long Manager, long? ClassRva, int Command, int Result, int Top, int Row, int Flags, string? ScreenClass = null,
-    int? Count = null, int? Mode = null, GridCursor? Grid = null, bool? OnButton = null)
+    int? Count = null, int? Mode = null, GridCursor? Grid = null, bool? OnButton = null, SettingValues? Values = null)
 {
     /// <summary>The cursor's position: what the class's index getter returns, the grid's own for a grid cursor.
     /// </summary>
