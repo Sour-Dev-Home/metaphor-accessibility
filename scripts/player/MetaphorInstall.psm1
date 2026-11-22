@@ -1027,6 +1027,34 @@ function Get-InstallSummary($Checks) {
     'Everything this script checks is in order. If the mod is still silent, report it with the alpha feedback form.'
 }
 
+# PATH as a screen reader says it well (#675): the user's own folders by name, then each folder after a comma, with no
+# drive letter, user name or backslash. "your AppData folder, Local, Programs, Reloaded-II"; "drive D, Games".
+function Format-SpokenPath([string] $Path) {
+    $known = @(
+        @{ Folder = [Environment]::GetFolderPath('LocalApplicationData'); Name = 'your AppData folder, Local' }
+        @{ Folder = [Environment]::GetFolderPath('ApplicationData'); Name = 'your AppData folder, Roaming' }
+        @{ Folder = [Environment]::GetFolderPath('UserProfile'); Name = 'your user folder' }
+    ) | Where-Object { $_.Folder } | Sort-Object { $_.Folder.Length } -Descending
+    $full = ($Path -replace '/', '\').TrimEnd('\')
+    foreach ($entry in $known) {
+        $folder = $entry.Folder.TrimEnd('\')
+        if ($full -eq $folder) { return $entry.Name }
+        if ($full.StartsWith("$folder\", [StringComparison]::OrdinalIgnoreCase)) {
+            return (@($entry.Name) + @($full.Substring($folder.Length + 1).Split('\') | Where-Object { $_ })) -join ', '
+        }
+    }
+    $parts = @($full.Split('\') | Where-Object { $_ })
+    if ($parts.Count -gt 0 -and $parts[0] -match '^([A-Za-z]):$') { $parts[0] = "drive $($Matches[1].ToUpperInvariant())" }
+    $parts -join ', '
+}
+
+# The line at the end of an install that says where the mod is and how to remove it (#675): printed with the full PATH,
+# spoken with Format-SpokenPath's.
+function Get-ModFolderLine([string] $Path) {
+    $text = 'The mod is in {0}. To uninstall, run uninstall.cmd from the zip, or from that folder.'
+    [pscustomobject]@{ Printed = $text -f $Path; Spoken = $text -f (Format-SpokenPath $Path) }
+}
+
 # --- The installer's steps -------------------------------------------------------------------------------------------
 # The players' installer's steps (#303); install.ps1 runs them in order, says each one and stops at the first that
 # fails. Each step returns { State (done, unchanged or failed); Line, spoken and printed, in plain words; Detail,
@@ -1861,7 +1889,7 @@ function Get-UninstallStep($Context) {
 Export-ModuleMember -Function Test-QuestionWindow, New-InstallAsker, Confirm-Question, Confirm-RunWindow, New-InstallContext,
     Get-InstallStep, Get-UninstallStep,
     Find-ScreenReader, Select-Speech, Start-Voice, Get-InstallCheck, Get-InstallSummary, Format-Check, Format-SpokenCheck,
-    Test-Interactive, Read-Answer, Format-YesNoQuestion, Test-Yes, Confirm-Step, Select-MetaphorGame, Find-MetaphorGame, Find-ReloadedLauncher `
+    Format-SpokenPath, Get-ModFolderLine, Test-Interactive, Read-Answer, Format-YesNoQuestion, Test-Yes, Confirm-Step, Select-MetaphorGame, Find-MetaphorGame, Find-ReloadedLauncher `
     -Variable ShortcutName, StatusFileName, WslUnavailableExitCode
 # Developer-only: the Reloaded-II reading that scripts/dev/ReloadedDev.psm1 re-exports to the developer scripts. No
 # player script calls these.
