@@ -263,8 +263,11 @@ only, not the keys, the load message or the settings message.
    short beep repeats: from the left or right as the thing lies, higher when it's ahead and lower when it's behind, and
    faster as you get closer. Ahead means the way the camera looks, which is the way pushing the stick up walks you. Walk
    so the beep is high and in the middle. It says "Reached", then the name, when you get there.
-   Press again to stop: it says "Guidance off". Opening a menu or starting a dialogue stops it too. The beep points in
+   Press again to stop: it says "Guidance off". A menu, dialogue or cutscene quiets it, and it beeps again when you
+   can walk, unless you're on another map by then (#702). The beep points in
    a straight line and doesn't know about walls yet. It plays only while sound cues are on.
+5. With no key: walking up to a door or chest says "Door, in reach" or "Chest, in reach" once, after anything being
+   said. Move away or turn, then come back, and it says it again. People aren't said this way yet.
 
 They work only while you walk around freely, with no menu or dialogue open, and the game doesn't see the key, or the
 D-pad direction, then. Anywhere else they keep their normal job in the game. Distances are rough steps for now: the mod

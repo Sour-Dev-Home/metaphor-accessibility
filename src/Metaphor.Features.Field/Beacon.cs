@@ -14,8 +14,9 @@ public sealed record BeaconTarget(FieldUnit Unit, int? DoorReachValue);
 /// bearing from the camera's heading (what is ahead on screen; the player's facing when the camera isn't read), higher
 /// ahead than behind (stereo alone can't tell them apart), and pulsing faster
 /// as it nears. It stops on arrival (the game's reach test for the target's kind, or within
-/// <see cref="ArrivalDistance"/>), on <see cref="Stop"/>, and silently on leaving free roam or when the player can't be
-/// read. <see cref="Tick"/> is called on every input read; it reads the field at most once per
+/// <see cref="ArrivalDistance"/>), on <see cref="Stop"/>, and silently when the player can't be read. Outside free roam
+/// (<see cref="FreeRoamGate"/>, #702) it goes quiet at the next poll and keeps its target; when free roam comes back it
+/// pulses again at once, or stops silently if the map has changed meanwhile. <see cref="Tick"/> is called on every input read; it reads the field at most once per
 /// <see cref="PollMilliseconds"/>, and allocates nothing between a pulse's start and the next.</summary>
 public sealed class Beacon
 {
@@ -47,11 +48,14 @@ public sealed class Beacon
 
     private readonly Lock gate = new();
     private readonly IFieldReads field;
+    private readonly FreeRoamGate roam;
     private readonly ICuePlayer cues;
     private readonly IAnnouncer announcer;
     private readonly Func<long> milliseconds;
     private readonly Action<string>? log;
     private BeaconTarget? target;
+    private int? map;
+    private bool paused;
     private volatile bool active;
     private bool polled;
     private long polledAt;
@@ -73,6 +77,7 @@ public sealed class Beacon
         ArgumentNullException.ThrowIfNull(announcer);
         ArgumentNullException.ThrowIfNull(milliseconds);
         this.field = field;
+        roam = new FreeRoamGate(field);
         this.cues = cues;
         this.announcer = announcer;
         this.milliseconds = milliseconds;
@@ -115,9 +120,12 @@ public sealed class Beacon
     public void Start(BeaconTarget next)
     {
         ArgumentNullException.ThrowIfNull(next);
+        var startMap = MapOrNull();
         lock (gate)
         {
             target = next;
+            map = startMap;
+            paused = false;
             polled = false;
             sounding = false;
             nextPulseAt = milliseconds();
@@ -162,7 +170,27 @@ public sealed class Beacon
                 {
                     polled = true;
                     polledAt = now;
-                    if (!field.InFreeRoam() || field.ReadPose() is not { } pose)
+                    if (!roam.Open())
+                    {
+                        if (!paused)
+                        {
+                            paused = true;
+                            sounding = false;
+                            cues.Silence(ToneChannel.Guidance);
+                        }
+                        return;
+                    }
+                    if (paused)
+                    {
+                        paused = false;
+                        nextPulseAt = now;
+                        if (field.MapId() != map)
+                        {
+                            EndLocked();
+                            return;
+                        }
+                    }
+                    if (field.ReadPose() is not { } pose)
                     {
                         EndLocked();
                         return;
@@ -183,6 +211,10 @@ public sealed class Beacon
                     bearing = pose.CameraHeading is { } camera
                         ? Nearby.Normalised(toward + pose.Heading - camera)
                         : toward;
+                }
+                if (paused)
+                {
+                    return;
                 }
                 if (sounding && now >= pulseEndsAt)
                 {
@@ -212,6 +244,20 @@ public sealed class Beacon
         }
     }
 
+    /// <summary>The map now, or null when it can't be read: a read that throws never reaches the game.</summary>
+    [SuppressMessage("Design", "CA1031", Justification = "A failed read must never reach the game; it reads as unknown.")]
+    private int? MapOrNull()
+    {
+        try
+        {
+            return field.MapId();
+        }
+        catch (Exception)
+        {
+            return null;
+        }
+    }
+
     private static string Name(BeaconTarget guided) => guided.Unit.Name ?? Nearby.KindWord(guided.Unit.Kind);
 
     private bool End()
@@ -231,6 +277,7 @@ public sealed class Beacon
     {
         target = null;
         active = false;
+        paused = false;
         sounding = false;
         cues.Silence(ToneChannel.Guidance);
     }

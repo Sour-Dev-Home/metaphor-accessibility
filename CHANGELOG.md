@@ -9,6 +9,10 @@ checks them in the first game session and removes the tag.
 
 ## Unreleased
 
+- **Field sounds wait while the game takes over.** The guiding beep and "in reach" call-outs go quiet when a menu,
+  dialogue or cutscene starts, and the beep picks up again toward the same thing when you can walk again, unless you
+  are on another map by then (#702). Whether a scripted walk quiets them too isn't known yet.
+  `[NEEDS VERIFICATION by ear]`
 - **A beep that guides you to something nearby.** In the field, `G`, or `LB` with the D-pad's Right, starts a
   repeating beep toward the thing you last stepped to, or the nearest you aren't already at: from its side, higher
   ahead, faster as you near it. It says when you reach it; press again to stop (#183). `K` and `J` step through the
@@ -19,6 +23,9 @@ checks them in the first game session and removes the tag.
 - **What is near, and where am I.** In the field, `N` says the people, doors, chests and enemies near you, nearest
   first, with rough steps and a direction from the camera, as on screen (#686); `LB` with the D-pad's Down and Up
   steps through them. `L`, or `LB` with Left, says the place name the game last showed (#181). `[NEEDS VERIFICATION by ear]`
+- **Doors and chests in reach.** Walking up to a door or chest says "Door, in reach" on its own, once, where the
+  game's action prompt would show; it's said again after you move away or turn and come back (#644).
+  `[NEEDS VERIFICATION by ear]`
 - **Sound cues can be turned off and their volume set.** The mod can now play short sounds of its own, explained in
   [sound cues](docs/players/reference/sound-cues.md); `soundCues` and `soundCueVolume` in `settings.json` control
   them. The battle hit sounds arrive with spoken battle hits (#247, #636). `[NEEDS VERIFICATION by ear]`

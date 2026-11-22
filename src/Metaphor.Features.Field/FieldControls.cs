@@ -58,10 +58,12 @@ public sealed class FieldControls : IInputControls
     private readonly Lock gate = new();
     private readonly FieldBindings bindings;
     private readonly IFieldReads field;
+    private readonly FreeRoamGate roam;
     private readonly FieldPlace place;
     private readonly IAnnouncer announcer;
     private readonly Func<long> milliseconds;
     private readonly Action<string>? log;
+    private readonly ReachCallouts? reach;
     private readonly Binding nearby = new();
     private readonly Binding next = new();
     private readonly Binding previous = new();
@@ -75,10 +77,11 @@ public sealed class FieldControls : IInputControls
     /// <summary>Field controls on <paramref name="bindings"/> that read <paramref name="field"/>, name the place through
     /// <paramref name="place"/>, speak through <paramref name="announcer"/>, guide on <paramref name="cues"/>, keep time
     /// by <paramref name="milliseconds"/> and write what each press read, as numbers, to <paramref name="log"/> when
-    /// there is one (Debug builds).</summary>
+    /// there is one (Debug builds). Each keyboard read, held keys or not, also runs <paramref name="reach"/>'s check
+    /// when there is one (#644).</summary>
     public FieldControls(
         FieldBindings bindings, IFieldReads field, FieldPlace place, IAnnouncer announcer, ICuePlayer cues,
-        Func<long> milliseconds, Action<string>? log = null)
+        Func<long> milliseconds, Action<string>? log = null, ReachCallouts? reach = null)
     {
         ArgumentNullException.ThrowIfNull(bindings);
         ArgumentNullException.ThrowIfNull(field);
@@ -87,11 +90,13 @@ public sealed class FieldControls : IInputControls
         ArgumentNullException.ThrowIfNull(milliseconds);
         this.bindings = bindings;
         this.field = field;
+        roam = new FreeRoamGate(field);
         this.place = place;
         this.announcer = announcer;
         this.milliseconds = milliseconds;
         this.log = log;
         beacon = new Beacon(field, cues, announcer, milliseconds, log);
+        this.reach = reach;
     }
 
     private enum Press
@@ -119,7 +124,7 @@ public sealed class FieldControls : IInputControls
         var previousHeld = holding && Holds(buttons, bindings.PreviousButton);
         var placeHeld = holding && Holds(buttons, bindings.PlaceButton);
         var guideHeld = holding && Holds(buttons, bindings.GuideButton);
-        var roaming = (nextHeld || previousHeld || placeHeld || guideHeld) && field.InFreeRoam();
+        var roaming = (nextHeld || previousHeld || placeHeld || guideHeld) && roam.Open();
         Press press;
         lock (gate)
         {
@@ -141,16 +146,17 @@ public sealed class FieldControls : IInputControls
     }
 
     /// <summary>Takes one read of the keys held down, acts on a press, moves the beacon on, and returns the keys to hand
-    /// on: without the field's keys while held in free roam.</summary>
+    /// on: without the field's keys while held in free roam. It also runs the reach check, if any (#644).</summary>
     public IReadOnlyList<int> Keys(IReadOnlyList<int> keys)
     {
         ArgumentNullException.ThrowIfNull(keys);
+        reach?.Check();
         var listHeld = keys.Contains(bindings.NearbyKey);
         var placeHeld = keys.Contains(bindings.PlaceKey);
         var guideHeld = keys.Contains(bindings.GuideKey);
         var nextHeld = keys.Contains(bindings.NextKey);
         var previousHeld = keys.Contains(bindings.PreviousKey);
-        var roaming = (listHeld || placeHeld || guideHeld || nextHeld || previousHeld) && field.InFreeRoam();
+        var roaming = (listHeld || placeHeld || guideHeld || nextHeld || previousHeld) && roam.Open();
         Press press;
         lock (gate)
         {

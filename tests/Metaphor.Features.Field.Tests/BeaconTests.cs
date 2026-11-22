@@ -4,7 +4,7 @@ using Metaphor.Core.Cues;
 namespace Metaphor.Features.Field.Tests;
 
 /// <summary>The beacon toward a picked target (#183): panned by bearing, paced by distance, higher ahead than behind, and
-/// stopping on arrival, on a cancel and on leaving free roam. A stand-in field and made-up names only.</summary>
+/// stopping on arrival and on a cancel, and quiet outside free roam (#702). A stand-in field and made-up names only.</summary>
 [Trait("Category", "Unit")]
 public sealed class BeaconTests
 {
@@ -188,18 +188,53 @@ public sealed class BeaconTests
         Assert.Empty(cues.Held);
     }
 
+    // #702: the game taking control (a cutscene, dialogue, menu or scripted move) silences the beep at the next poll,
+    // mid-pulse, and nothing sounds until free roam comes back; then it goes on toward the same thing, without a word.
     [Fact]
-    public void LeavingFreeRoamStopsWithoutAWord()
+    public void LeavingFreeRoamSilencesItUntilFreeRoamComesBack()
     {
         beacon.Start(Person(0, 1000));
         beacon.Tick();
         field.Roaming = false;
         now += Beacon.PollMilliseconds;
         beacon.Tick();
+        Assert.Equal(1, cues.Silenced);
+
+        for (var i = 0; i < 100; i++)
+        {
+            now += Beacon.PollMilliseconds;
+            beacon.Tick();
+        }
+        Assert.True(beacon.Active);
+        Assert.Single(cues.Held);
+        Assert.Equal(1, cues.Silenced);
+
+        field.Roaming = true;
+        now += Beacon.PollMilliseconds;
+        beacon.Tick();
+
+        Assert.Equal(2, cues.Held.Count);
+        Assert.Equal(["Guiding to Testa"], Said());
+    }
+
+    // A pause that ends on another map has nothing left to guide to: it stops without a word.
+    [Fact]
+    public void FreeRoamComingBackOnAnotherMapStopsWithoutAWord()
+    {
+        field.Map = 1;
+        beacon.Start(Person(0, 1000));
+        beacon.Tick();
+        field.Roaming = false;
+        now += Beacon.PollMilliseconds;
+        beacon.Tick();
+        field.Map = 2;
+        field.Roaming = true;
+        now += Beacon.PollMilliseconds;
+        beacon.Tick();
 
         Assert.False(beacon.Active);
+        Assert.Single(cues.Held);
         Assert.Equal(["Guiding to Testa"], Said());
-        Assert.Equal(1, cues.Silenced);
     }
 
     [Fact]
@@ -297,9 +332,11 @@ public sealed class BeaconTests
             return Throws ? throw new InvalidOperationException("stand-in failure") : Roaming;
         }
 
+        public int? Map { get; set; }
+
         public FieldView? Read() => null;
 
-        public int? MapId() => null;
+        public int? MapId() => Map;
 
         public FieldPose? ReadPose()
         {

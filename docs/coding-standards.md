@@ -105,5 +105,8 @@ each rule on every assembly built from `src/`. Each test plants a violation to p
 17. **Pipes stay in Debug builds.** No Release assembly uses `System.IO.Pipes`, and the hook layer has `LiveInspector`
     exactly when it is a Debug build, so the read-only inspector's pipe never reaches players
     ([inspect the running game](contributors/how-to/inspect-the-running-game.md), #291).
+19. **Field sounds go through the free-roam gate.** In `Metaphor.Features.Field`, every type that plays or holds a cue
+    or speaks also calls `FreeRoamGate.Open`, so no field sound plays through a cutscene, dialogue, menu or scripted
+    move (#702).
 
 A new project under `src/` must be added to the architecture test project, and a test fails until it is.

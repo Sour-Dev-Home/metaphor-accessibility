@@ -994,6 +994,52 @@ internal static class Rules
             : null;
     }
 
+    /// <summary>The field feature, whose cues and speech rule 19 holds to the free-roam gate.</summary>
+    public const string FieldFeature = "Metaphor.Features.Field";
+
+    private const string FreeRoamGateOpen = "Metaphor.Features.Field.FreeRoamGate::Open";
+
+    /// <summary>The members that make a field sound: a cue played or held, or speech. Silencing needs no gate.</summary>
+    private static readonly HashSet<string> SoundingMembers =
+    [
+        "Metaphor.Core.Cues.ICuePlayer::Play",
+        "Metaphor.Core.Cues.ICuePlayer::Hold",
+        "Metaphor.Core.Announcements.IAnnouncer::Announce",
+    ];
+
+    /// <summary>
+    /// #702, rule 19: field sounds play only in free roam. In the field feature, every type that plays or holds a cue or
+    /// speaks, with the code nested in it (lambdas, iterators), also calls <c>FreeRoamGate.Open</c>, so a new sonar or
+    /// call-out can't sound through a cutscene, dialogue, menu or scripted move.
+    /// </summary>
+    public static IReadOnlyList<string> FieldSoundsGoThroughTheGate(AssemblyDefinition assembly)
+    {
+        if (assembly.Name.Name != FieldFeature)
+        {
+            return [];
+        }
+        var calls = Types(assembly)
+            .SelectMany(type => type.Methods.Where(method => method.HasBody).SelectMany(method => method.Body.Instructions
+                .Select(instruction => instruction.Operand).OfType<MethodReference>()
+                .Select(called => (Owner: Outermost(type), Called: $"{called.DeclaringType.FullName}::{called.Name}"))))
+            .ToList();
+        var gated = calls.Where(call => call.Called == FreeRoamGateOpen).Select(call => call.Owner).ToHashSet();
+        return [.. calls
+            .Where(call => SoundingMembers.Contains(call.Called) && !gated.Contains(call.Owner))
+            .Select(call => call.Owner).Distinct()
+            .Select(owner => $"{assembly.Name.Name} type {owner.FullName} makes a field sound without FreeRoamGate.Open " +
+                "(rule 19)")];
+    }
+
+    private static TypeDefinition Outermost(TypeDefinition type)
+    {
+        while (type.DeclaringType is not null)
+        {
+            type = type.DeclaringType;
+        }
+        return type;
+    }
+
     private static IEnumerable<TypeDefinition> Types(AssemblyDefinition assembly) =>
         assembly.Modules.SelectMany(module => module.GetTypes());
 
