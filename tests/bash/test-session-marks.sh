@@ -21,7 +21,15 @@ check() { # check NAME CONDITION...
 
 SESSION="$WORK/session"
 mkdir -p "$SESSION"
-printf 'first spoken line\nsecond spoken line\n' > "$SESSION/transcript.txt"
+{
+  echo "1000 ms spoken far-before"
+  echo "166000 ms spoken near-before"
+  echo "172500 ms spoken near-after"
+  echo "400000 ms spoken between"
+  echo "600500 ms [private, 3 characters]"
+  echo "900000 ms spoken far-after"
+  echo "not a timestamped line"
+} > "$SESSION/transcript.txt"
 LOG="$WORK/report-log.txt"
 {
   echo "1000 ms request kind=Line label=far-before"
@@ -42,8 +50,11 @@ check "mark 2 is listed with its time" grep -q 'mark 2 .*0:10:00' "$DIGEST"
 check "report-log lines before a mark are kept" grep -q 'near-before' "$DIGEST"
 check "report-log lines after a mark are kept" grep -q 'Shop' "$DIGEST"
 check "lines far from every mark are left out" bash -c '! grep -q "far-before\|far-after\|between" "$1"' _ "$DIGEST"
-check "the transcript is not in the digest" bash -c '! grep -q "spoken line" "$1"' _ "$DIGEST"
-check "the digest says the transcript has no timestamps" grep -qi 'transcript.*no timestamps' "$DIGEST"
+check "spoken lines before a mark are kept" grep -q 'spoken near-before' "$DIGEST"
+check "spoken lines after a mark are kept" grep -q 'spoken near-after' "$DIGEST"
+check "a private line in a window is kept" grep -q 'private, 3 characters' "$DIGEST"
+check "spoken lines far from every mark are left out" bash -c '! grep -q "spoken far-\|spoken between\|not a timestamped" "$1"' _ "$DIGEST"
+check "the digest no longer says the transcript lacks timestamps" bash -c '! grep -qi "no timestamps" "$1"' _ "$DIGEST"
 check "no local path in the digest" bash -c '! grep -qF "$1" "$2"' _ "$WORK" "$DIGEST"
 check "no local path in the output" bash -c '! grep -qF "$1" <<<"$2"' _ "$WORK" "$out"
 
@@ -57,6 +68,11 @@ check "no arguments prints the usage" grep -q '^usage: session-marks.sh' <<<"$ou
 check "no arguments exits 2" test "$code" -eq 2
 bash "$SCRIPT" "$SESSION" "$WORK/missing.txt" >/dev/null 2>&1; code=$?
 check "a missing report log exits 2" test "$code" -eq 2
+
+mkdir -p "$WORK/bare"
+bash "$SCRIPT" "$WORK/bare" "$LOG" >/dev/null 2>&1; code=$?
+check "a session with no transcript still gets a digest" test "$code" -eq 0
+check "the digest then holds no spoken lines" bash -c '! grep -q "spoken" "$1"' _ "$WORK/bare/session-marks.txt"
 
 : > "$WORK/empty.txt"
 out="$(bash "$SCRIPT" "$SESSION" "$WORK/empty.txt" 2>&1)"
