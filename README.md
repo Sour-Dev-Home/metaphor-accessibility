@@ -9,9 +9,10 @@ Mods, tools and reverse-engineering notes for Metaphor: ReFantazio on PC.
 > Tipping is entirely optional and gets you nothing extra: no early builds, no extra features, no priority requests.
 > The mod is and stays free for everyone.
 
-Status: early development, no release yet. Testers can try dev builds that read the game's dialogue window aloud through
-a screen reader, with a spoken installer and a setting for voiced lines; menu reading is in progress. Start
-with [the player docs](docs/players/README.md).
+Status: early development. The newest download is the pre-release `v0.0.1-unstable.3` on the
+[releases page](https://github.com/Sour-Dev-Home/metaphor-accessibility/releases); there is no stable release yet. The mod
+reads the game's dialogue window aloud through a screen reader, with a spoken installer and a setting for voiced lines;
+menu reading is in progress. Start with [the player docs](docs/players/README.md).
 
 ## What's here, and what isn't
 

@@ -13,7 +13,7 @@ The mod hashes the game's executable at start and compares it with the
   `mod-status.json` records the refusal with the reason `unknown game build`;
 - `scripts/player/check-install.ps1` reports "The game is a version this mod does not know yet, so the mod turns itself
   off", with the game's SHA-256, and tells the player to look for a newer release
-  ([player's page](../../players/how-to/install-the-mod.md#what-the-mod-says-when-it-loads)).
+  ([player's page](../../players/how-to/troubleshoot.md#what-the-mod-says-when-it-loads)).
 
 Every launching verb of `scripts/dev/session.ps1` refuses the same build.
 

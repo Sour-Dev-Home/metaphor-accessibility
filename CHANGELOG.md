@@ -9,6 +9,9 @@ checks them in the first game session and removes the tag.
 
 ## Unreleased
 
+- **The install check says the mod's version.** `check-install.ps1`, which the installer also runs at the end, now says
+  "The mod is version ..." for the copy in Reloaded-II's mods folder, so you can hear which one you have (#674).
+  `[NEEDS VERIFICATION by ear]`
 - **Tutorial pop-ups say what they are.** When a tutorial opens, the mod reads its title, how many pages it has, and
   its first page. Each page you turn to is read as "Page 2 of 3" and its text (#118). `[NEEDS VERIFICATION by ear]`
 - **Yes and No buttons.** The installer asks each question in a small window with Yes and No buttons, which your
