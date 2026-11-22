@@ -142,4 +142,76 @@ public sealed class MissionLineTests
 
         Assert.Null(throwing.Poll());
     }
+
+    private const string ChapterSource = """
+        @MissionText_Test_10
+        {
+        The Test Battle:
+        <WAIT>
+        }
+
+        @MissionText_Field_Test_01
+        {
+        Head to the mock inn
+        <WAIT>
+        }
+
+        @MissionText_Field_Test_02
+        {
+        End the test's madness
+        <WAIT>
+        }
+        """;
+
+    // A chapter whose title ends with a colon, and objectives that share their flags with the main rows.
+    private MissionLine Chapter(Func<IReadOnlyList<MainMissionRow>?>? objectives)
+    {
+        var library = new MessageLibrary();
+        library.Compiled(ChapterSource);
+        return new MissionLine(
+            flag => set.Contains(flag), () => [new(0x1166, MessageLibrary.LabelHash("MissionText_Test_10")),
+                new(0x11fd, MessageLibrary.LabelHash("MissionText_Test_10"))], library,
+            new TextCleaner(TextCleanerRules.None), announcer, () => now, () => roaming, objectives: objectives);
+    }
+
+    [Fact]
+    public void ATitleEndingInAColonLosesItWhenNoObjectiveFollows()
+    {
+        set.Add(0x11fd);
+
+        Assert.Equal("The Test Battle", Chapter(objectives: null).Current);
+        Assert.Equal("The Test Battle", Chapter(() => null).Current);
+        Assert.Equal("The Test Battle", Chapter(() => [new(0x11fd, MessageLibrary.LabelHash("MissionText_Unknown"))]).Current);
+    }
+
+    [Fact]
+    public void TheObjectiveOfTheTopSetFlagFollowsTheTitle()
+    {
+        IReadOnlyList<MainMissionRow> objectives =
+        [
+            new(0x11fb, MessageLibrary.LabelHash("MissionText_Field_Test_01")),
+            new(0x11fd, MessageLibrary.LabelHash("MissionText_Field_Test_02")),
+        ];
+        var line = Chapter(() => objectives);
+        set.Add(0x11fb);
+        set.Add(0x11fd);
+
+        Assert.Equal("The Test Battle: End the test's madness", line.Current);
+
+        set.Remove(0x11fd);
+
+        Assert.Equal("The Test Battle: Head to the mock inn", line.Current);
+    }
+
+    [Fact]
+    public void ANewMissionIsSpokenWithItsObjective()
+    {
+        var line = Chapter(() => [new(0x11fd, MessageLibrary.LabelHash("MissionText_Field_Test_02"))]);
+        Assert.Null(line.Poll());
+
+        set.Add(0x11fd);
+        now += MissionLine.PollMilliseconds;
+
+        Assert.Equal("Mission: The Test Battle: End the test's madness", line.Poll());
+    }
 }

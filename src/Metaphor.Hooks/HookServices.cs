@@ -121,6 +121,10 @@ internal sealed record HookServices
     /// are in.</summary>
     public TutorialTableSource Tutorials { get; init; } = new();
 
+    /// <summary>The field's map and objective tables (#742, #743), which the entry point loads from the game's archive
+    /// once the hooks are in.</summary>
+    public FieldTablesSource FieldTables { get; init; } = new();
+
     /// <summary>Speaks tutorial pop-ups as they open (#118); silent unless built by <see cref="Speaking"/>.</summary>
     public TutorialPopups TutorialPopups { get; init; } =
         new(new MessageLibrary(), new SilentAnnouncer(), new TextCleaner(TextCleanerRules.None), () => null);
@@ -231,14 +235,17 @@ internal sealed record HookServices
         var fieldDatabase = FieldGlobal.Database();
         var personTable = DataTableRead.People();
         var field = new FieldMemory(fieldWorld, fieldScene, fieldDatabase, personTable, names, menusOpen, window);
-        var place = new FieldPlace(cleaner);
+        // The map and objective tables load from the archive later; until then a place is its lookups alone and a
+        // mission its title (#742, #743).
+        var fieldTables = new FieldTablesSource();
+        var place = new FieldPlace(cleaner, fieldTables.MapNameHash);
         events.ObserveFiles(place);
         // The current main mission (#658): the top story flag's row in the mission table names its title's label, whose
         // text the library holds. Spoken through the reader like the other automatic field speech.
         var missionTable = new MissionTableRead(log is null ? null : log.FieldRead);
         var mission = new MissionLine(
             gameData.StoryFlag, missionTable.Rows, library, cleaner, reader, () => Environment.TickCount64,
-            field.InFreeRoam, log is null ? null : log.FieldRead);
+            field.InFreeRoam, log is null ? null : log.FieldRead, () => fieldTables.Objectives);
         // Debug builds only: the "where am I" record lists the main-mission flags, read through the build-checked flag
         // global (#658, docs/findings/mission-box-text-source-static.md).
         var fieldControls = new FieldControls(
@@ -281,6 +288,7 @@ internal sealed record HookServices
             FollowerTable = followerTable,
             Voice = voiceLanguage,
             Tutorials = tutorials,
+            FieldTables = fieldTables,
             TutorialPopups = tutorialPopups,
             MenusOpen = menusOpen,
             DialogueWindow = window,

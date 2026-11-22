@@ -44,8 +44,9 @@ spoken details for menu entries. Until details arrive, the menu key says "No mor
   you face, such as "Chest, 4 steps ahead-left". With nothing near: "Nothing nearby".
 - The pad's `LB` and D-pad steps through the same list, such as "2 of 5. Door, 9 steps behind"; after 10 seconds without
   a step it starts again at the nearest.
-- `L` says the place name the game last showed, or "Place not known yet", then the current main mission, such as
-  "Mission:" and its title. The mod also says a new mission by itself once you're back in the field.
+- `L` says the place you are in, such as "Principality of Oceana, Forsaken Tower", or "Place not known yet", then the
+  current main mission: "Mission:", its title and its current objective. The mod also says a new mission by itself
+  once you're back in the field.
 - Distances are rough steps: treat them as near or far.
 
 ### Menus

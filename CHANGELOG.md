@@ -9,8 +9,10 @@ checks them in the first game session and removes the tag.
 
 ## Unreleased
 
-- **The current mission.** When the main mission changes, the mod says `Mission:` and its title, once you're back in
-  the field, and `L` says it after the place name (#658). `[NEEDS VERIFICATION by ear]`
+- **The current mission.** When the main mission changes, the mod says `Mission:`, its title and its current
+  objective, once you're back in the field, and `L` says it after the place name. After a save load, `L` names the
+  area as well as the region, such as "Principality of Oceana, Forsaken Tower" (#658, #742, #743).
+  `[NEEDS VERIFICATION by ear]`
 - **The install check says the mod's version.** `check-install.ps1`, which the installer also runs at the end, now says
   "The mod is version ..." for the copy in Reloaded-II's mods folder, so you can hear which one you have (#674).
   `[NEEDS VERIFICATION by ear]`

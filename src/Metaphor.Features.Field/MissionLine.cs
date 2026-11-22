@@ -9,9 +9,12 @@ namespace Metaphor.Features.Field;
 /// 18330018) the box takes the row of the highest set story flag in the main mission table
 /// (<see cref="MainMissionFlags.Current"/>), and each row holds the MD5 of a message label
 /// (docs/findings/mission-title-from-the-mission-table.md). The title is that message's text, from the files the game
-/// compiled, so it is the game's own words. [NEEDS VERIFICATION] in memory: that the label is the box's title. A new
-/// title is spoken once, in free roam, looked for at most once a second; the first one seen is not, since it is the
-/// mission the game was loaded on. Safe to call from several threads.</summary>
+/// compiled, so it is the game's own words. [NEEDS VERIFICATION] in memory: that the label is the box's title. The
+/// objective under it (#743) is the row of the highest set flag in the field objective table, which starts each
+/// objective with the same flags (docs/findings/field-map-and-objective-tables-static.md); [NEEDS VERIFICATION] that the
+/// box picks it so. A title's trailing colon is dropped when no objective follows. A new mission is spoken once, in
+/// free roam, looked for at most once a second; the first one seen is not, since it is the mission the game was loaded
+/// on. Safe to call from several threads.</summary>
 public sealed class MissionLine
 {
     /// <summary>How often <see cref="Poll"/> reads the game, at most.</summary>
@@ -25,6 +28,7 @@ public sealed class MissionLine
     private readonly Func<long> milliseconds;
     private readonly Func<bool> roaming;
     private readonly Action<string>? log;
+    private readonly Func<IReadOnlyList<MainMissionRow>?> objectives;
     private readonly Lock gate = new();
     private long? lastPoll;
     private MainMissionRow? seen;
@@ -33,11 +37,12 @@ public sealed class MissionLine
     /// through <paramref name="rows"/> (null when it can't be read), finds titles in <paramref name="messages"/> and
     /// cleans them with <paramref name="cleaner"/>, speaks through <paramref name="announcer"/>, keeps time by
     /// <paramref name="milliseconds"/>, speaks only while <paramref name="roaming"/> says the player roams the field,
-    /// and writes each change's flag and label to <paramref name="log"/> when there is one (Debug builds).</summary>
+    /// writes each change's flag and label to <paramref name="log"/> when there is one (Debug builds), and reads the
+    /// field objectives through <paramref name="objectives"/> (null, or a null table, for none).</summary>
     public MissionLine(
         Func<int, bool?> storyFlag, Func<IReadOnlyList<MainMissionRow>?> rows, IMessageLookup messages,
         TextCleaner cleaner, IAnnouncer announcer, Func<long> milliseconds, Func<bool> roaming,
-        Action<string>? log = null)
+        Action<string>? log = null, Func<IReadOnlyList<MainMissionRow>?>? objectives = null)
     {
         ArgumentNullException.ThrowIfNull(storyFlag);
         ArgumentNullException.ThrowIfNull(rows);
@@ -54,6 +59,7 @@ public sealed class MissionLine
         this.milliseconds = milliseconds;
         this.roaming = roaming;
         this.log = log;
+        this.objectives = objectives ?? (() => null);
     }
 
     /// <summary>The current main mission's title, read now; null when it can't be read or has no known text.</summary>
@@ -106,7 +112,7 @@ public sealed class MissionLine
         var message = messages.FindByLabelHash(row.LabelHash);
         log?.Invoke(string.Create(CultureInfo.InvariantCulture,
             $"mission flag=0x{row.Flag:x} label={(message is null ? "(unknown) hash=" + row.LabelHash : message.Label)} changed"));
-        if (first || message is null || cleaner.Clean(message.Text) is not { Length: > 0 } title)
+        if (first || Title(row) is not { } title)
         {
             return null;
         }
@@ -117,8 +123,22 @@ public sealed class MissionLine
 
     private MainMissionRow? Read() => rows() is { } table ? MainMissionFlags.Current(storyFlag, table) : null;
 
-    private string? Title(MainMissionRow row) =>
-        messages.FindByLabelHash(row.LabelHash) is { } message && cleaner.Clean(message.Text) is { Length: > 0 } title
-            ? title
+    // The title, then the objective after a colon when one is known; the title's own trailing colon is dropped.
+    private string? Title(MainMissionRow row)
+    {
+        if (Text(row.LabelHash) is not { } title)
+        {
+            return null;
+        }
+        title = title.TrimEnd().TrimEnd(':').TrimEnd();
+        return objectives() is { } table && MainMissionFlags.Current(storyFlag, table) is { } objective &&
+            Text(objective.LabelHash) is { } then
+            ? $"{title}: {then}"
+            : title;
+    }
+
+    private string? Text(string labelHash) =>
+        messages.FindByLabelHash(labelHash) is { } message && cleaner.Clean(message.Text) is { Length: > 0 } text
+            ? text
             : null;
 }
