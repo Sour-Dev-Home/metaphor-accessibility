@@ -9,7 +9,7 @@
 #                                           build it, nothing to run (#332)
 #     solution                   <reason>   a build-wide file changed: build the whole solution
 #     pester                     <reason>   the Pester tests (CI's scripts job; locally run-pester.sh): scripts/,
-#                                           tests/pester/, the stand-in game and the workflows
+#                                           tests/pester/, the stand-in game, the installer exe and the workflows
 #     pester-reads               <reason>   a file the Pester tests also read, which doesn't run them on its own: the
 #                                           projects they build (the hooks, the stand-in game, the signature check)
 #                                           and all they reference, the build-wide files, tools/ghidra and the clone
@@ -18,7 +18,7 @@
 #     check-tests                <reason>   the check-script suites (run-check-suites.sh --select): the check scripts,
 #                                           their tests and the files those tests read
 #     varied-setup               <reason>   CI's pester-varied-setup job (#655): the player, setup and release
-#                                           scripts, the Pester tests, their runner, the Pester install
+#                                           scripts, the installer exe, the Pester tests, their runner, the Pester install
 #                                           and ci.yml
 #   what-runs.sh --job code|scripts|varied-setup [BASE HEAD]
 #                                           CI: prints "run=true" or "run=false" (and appends it to $GITHUB_OUTPUT when
@@ -134,7 +134,7 @@ select_runs() {
   for f in "${files[@]}"; do
     case "$f" in
       Directory.Build.* | Directory.Packages.props | global.json | Metaphor.sln | .editorconfig) every="$f" ;;
-      scripts/* | tests/pester/* | tests/Metaphor.StandInGame/* | .github/workflows/*) pester="${pester:-$f}" ;;
+      scripts/* | tests/pester/* | tests/Metaphor.StandInGame/* | installer/* | .github/workflows/*) pester="${pester:-$f}" ;;
     esac
     # What the Pester tests read besides: the projects they build (pester_built, below), the build-wide files,
     # onboard's tests the clone set-up page, and ghidra.ps1 tools/ghidra.
@@ -164,7 +164,7 @@ select_runs() {
     # What a player's or contributor's culture and paths can break: the installer and the setup scripts, with the
     # job's own tests and how it runs them.
     case "$f" in
-      scripts/player/* | scripts/setup/* | scripts/release/* | tests/pester/* | scripts/check/run-pester.sh | scripts/ci/install-pester.sh | \
+      scripts/player/* | scripts/setup/* | scripts/release/* | installer/* | tests/pester/* | scripts/check/run-pester.sh | scripts/ci/install-pester.sh | \
         .github/workflows/ci.yml) varied="${varied:-$f}" ;;
     esac
     best="" owner=""

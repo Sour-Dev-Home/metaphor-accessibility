@@ -60,8 +60,8 @@ public sealed class DialogueReplayTests
             "@MEScommon_AKADEMEIA_CHOICE_01 SEL 0\n{\n<SEL_ITEM>Yes\n<SEL_ITEM>......\n}");
 
         // The replay ignores the recorded times and the clock stands still, so the options, which wait for the prompt
-        // to be heard (#744), come once the clock moves.
-        clock.Advance(TimeSpan.FromSeconds(1));
+        // to be heard (#744), come when the hold ends: this session has no select window record.
+        clock.Advance(DialogueAnnouncer.HoldLimit);
 
         // The kind 1 request at the end is a system message, which dialogue doesn't speak.
         Assert.Equal(

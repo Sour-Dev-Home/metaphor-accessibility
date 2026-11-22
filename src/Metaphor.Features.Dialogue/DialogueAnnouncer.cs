@@ -5,8 +5,8 @@ using Metaphor.Core.Settings;
 namespace Metaphor.Features.Dialogue;
 
 /// <summary>Spoken story dialogue (#52): each line shown in the dialogue box is announced as "Name: line" on a
-/// conversation's first line and when the speaker changes, and as the line alone while the same speaker continues or
-/// when there's no speaker (#539), interrupting the line before. A voiced line follows the "Voiced lines" setting
+/// conversation's first line, when the speaker changes and on the first line after a choice, and as the line alone
+/// while the same speaker continues or when there's no speaker (#539, #740), interrupting the line before. A voiced line follows the "Voiced lines" setting
 /// (#57, #104); the history (#126) keeps every line in full whatever is said.</summary>
 [FeatureSetting(Feature.Dialogue)]
 public sealed class DialogueAnnouncer
@@ -20,16 +20,16 @@ public sealed class DialogueAnnouncer
     private readonly TimeProvider time;
     private bool started;
     private string? lastSpeaker;
-    // When the last line was announced, and the choice's options waiting for it to be heard (#744).
-    private long? lastLineAt;
-    private ITimer? pending;
-    private int pendingId;
+    // A choice opened since the last line, so the next line says its speaker even if unchanged (#740).
+    private bool afterChoice;
+    // A choice's options waiting for its window to open, and the timer that says them if it never does (#744).
+    private string? heldOptions;
+    private bool holding;
+    private ITimer? fallback;
+    private int holdId;
 
-    /// <summary>How long a choice's options wait after a line that started within <see cref="RecentLine"/>.</summary>
-    public static readonly TimeSpan OptionsDelay = TimeSpan.FromMilliseconds(300);
-
-    /// <summary>A line that started this recently is probably still being said.</summary>
-    public static readonly TimeSpan RecentLine = TimeSpan.FromSeconds(1);
+    /// <summary>How long held options wait for their window to open before they are said anyway.</summary>
+    public static readonly TimeSpan HoldLimit = TimeSpan.FromSeconds(8);
 
     /// <param name="announcer">Where lines are said.</param>
     /// <param name="cleaner">Turns the game's text into what is said.</param>
@@ -37,7 +37,7 @@ public sealed class DialogueAnnouncer
     /// <param name="voicedLines">The "Voiced lines" mode now, read on every line so a change applies at once; the full
     /// line when omitted.</param>
     /// <param name="voiceLanguage">The voice language now, for Auto; unknown when omitted.</param>
-    /// <param name="timeProvider">Times <see cref="OptionsDelay"/> and <see cref="RecentLine"/>; the system clock when
+    /// <param name="timeProvider">Times <see cref="HoldLimit"/>; the system clock when
     /// omitted.</param>
     public DialogueAnnouncer(
         IAnnouncer announcer,
@@ -78,8 +78,9 @@ public sealed class DialogueAnnouncer
         bool changed;
         lock (gate)
         {
-            changed = !started || !string.Equals(lastSpeaker, name, StringComparison.Ordinal);
+            changed = !started || afterChoice || !string.Equals(lastSpeaker, name, StringComparison.Ordinal);
             started = true;
+            afterChoice = false;
             lastSpeaker = name;
         }
         var said = changed ? full : text;
@@ -92,12 +93,10 @@ public sealed class DialogueAnnouncer
                 // A voiced line whose speaker hasn't changed says nothing.
                 if (changed && name.Length > 0)
                 {
-                    NoteLine();
                     announcer.Announce(new Announcement(name, Interrupt: true));
                 }
                 return;
             default:
-                NoteLine();
                 announcer.Announce(new Announcement(said, Interrupt: true));
                 return;
         }
@@ -111,63 +110,61 @@ public sealed class DialogueAnnouncer
         {
             started = false;
             lastSpeaker = null;
-            CancelPending();
+            afterChoice = false;
+            CancelHeld();
         }
     }
 
-    /// <summary>Announces a choice's options as <see cref="Offer"/> does, but after <see cref="OptionsDelay"/> when a
-    /// line started within <see cref="RecentLine"/>, so they don't come over the line being said (#744); at once
-    /// otherwise. Options still waiting are replaced, and dropped if the conversation ends first.</summary>
-    public void OfferAfterLine(string? options)
+    /// <summary>Holds a choice's options until its window opens (<see cref="Release()"/>), because the options appear
+    /// on screen some seconds after the line before them (about 4 s in session c, #744), so saying them at once, or
+    /// after a fixed delay, is over the line. If the window never opens they are said after <see cref="HoldLimit"/>.
+    /// Options already held are replaced; <see cref="EndConversation"/> drops them.</summary>
+    public void Hold(string? options)
     {
         lock (gate)
         {
-            CancelPending();
-            if (lastLineAt is { } at && time.GetElapsedTime(at) < RecentLine)
-            {
-                var id = pendingId;
-                pending = time.CreateTimer(_ => OfferIfCurrent(id, options), null, OptionsDelay, Timeout.InfiniteTimeSpan);
-                return;
-            }
+            CancelHeld();
+            heldOptions = options;
+            holding = true;
+            var id = holdId;
+            fallback = time.CreateTimer(_ => Release(id), null, HoldLimit, Timeout.InfiniteTimeSpan);
         }
-        Offer(options);
     }
 
-    private void OfferIfCurrent(int id, string? options)
+    /// <summary>Says the held options, if any: the choice's window has opened.</summary>
+    public void Release() => Release(null);
+
+    private void Release(int? id)
     {
+        string? options;
         lock (gate)
         {
-            if (id != pendingId)
+            if (!holding || (id is { } expected && expected != holdId))
             {
                 return;
             }
-            pending?.Dispose();
-            pending = null;
+            options = heldOptions;
+            CancelHeld();
         }
-        // On a timer thread, where an exception nobody catches ends the process.
+        // May run on a timer thread, where an exception nobody catches ends the process.
         try
         {
             Offer(options);
         }
-        catch (Exception)
+        catch (Exception) when (id is not null)
         {
             // Nothing more to do: the options are lost, as when any announcement fails.
         }
     }
 
-    private void CancelPending()
+    // Called with the gate held.
+    private void CancelHeld()
     {
-        pendingId++;
-        pending?.Dispose();
-        pending = null;
-    }
-
-    private void NoteLine()
-    {
-        lock (gate)
-        {
-            lastLineAt = time.GetTimestamp();
-        }
+        holdId++;
+        holding = false;
+        heldOptions = null;
+        fallback?.Dispose();
+        fallback = null;
     }
 
     /// <summary>Announces a choice's options (#82) from its message as the game stores it, one option per line, as
@@ -176,6 +173,10 @@ public sealed class DialogueAnnouncer
     /// nothing) is spoken as "dot dot dot".</summary>
     public void Offer(string? options)
     {
+        lock (gate)
+        {
+            afterChoice = true;
+        }
         var lines = ChoiceOptions.From(options, cleaner);
         announcer.Announce(new Announcement(lines.Count == 0 ? "Choice" : $"Choose: {string.Join("; ", lines)}", Interrupt: false));
     }
