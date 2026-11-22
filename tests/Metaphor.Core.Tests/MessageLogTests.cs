@@ -293,6 +293,39 @@ public sealed class MessageLogTests
     }
 
     [Fact]
+    public void RecordsAUiComponentOpeningWithItsClassAndAddress()
+    {
+        var (log, text) = NewLog(now: 9);
+
+        log.UiOpened("UUIC_Common_EventItemGet@ui@app", 0x1f00);
+
+        Assert.Equal($"9 ms ui-open class=UUIC_Common_EventItemGet@ui@app at=0x1f00{Environment.NewLine}", text.ToString());
+    }
+
+    [Fact]
+    public void RecordsALayoutAnimationWithItsNumber()
+    {
+        var (log, text) = NewLog(now: 9);
+
+        log.UiAnimated("AutoSavingLayout@ui@app", 0x2a00, 758);
+
+        Assert.Equal($"9 ms ui-anim class=AutoSavingLayout@ui@app at=0x2a00 anim=758{Environment.NewLine}", text.ToString());
+    }
+
+    [Fact]
+    public void AnUnreadableUiClassIsAQuestionMark()
+    {
+        var (log, text) = NewLog(now: 9);
+
+        log.UiOpened(null, 0x10);
+        log.UiAnimated(null, 0x20, null);
+
+        Assert.Equal(
+            $"9 ms ui-open class=? at=0x10{Environment.NewLine}9 ms ui-anim class=? at=0x20 anim=?{Environment.NewLine}",
+            text.ToString());
+    }
+
+    [Fact]
     public void ARequestedLabelStaysOnOneLine()
     {
         var (log, text) = NewLog(now: 1);
