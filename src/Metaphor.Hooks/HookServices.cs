@@ -125,6 +125,10 @@ internal sealed record HookServices
     /// none.</summary>
     public BattleStatus? BattleStatus { get; init; }
 
+    /// <summary>The details key in a battle (#631), which the input frame hands each read after the status key; null
+    /// for none.</summary>
+    public BattleEnemyHp? BattleDetails { get; init; }
+
     /// <summary>Where features play the mod's sound cues (#636, ADR 0019); silent unless the entry point starts one.
     /// </summary>
     public ICuePlayer Cues { get; init; } = new SilentCuePlayer();
@@ -273,6 +277,11 @@ internal sealed record HookServices
             BattleParty = party,
             BattleScene = battleScene,
             BattleStatus = new BattleStatus(party, hitLines, battleScene, reader),
+            // The details binding the menus use says the enemies' HP in a battle (#631); the menu controls take it
+            // first while a battle list is shown. A Debug build logs each press's enemy records for the target read.
+            BattleDetails = new BattleEnemyHp(
+                menuBindings.DetailsButtons, menuBindings.DetailsKey, hitLines, battleScene, reader,
+                log is null ? null : text => log.Requested("BattleDetails", text)),
             TravelMap = new TravelMapDestination(filesById, reader, cleaner, () => Environment.TickCount64),
             FieldMapName = new FieldMapName(reader, cleaner),
             DialogueHistory = history,

@@ -4,7 +4,8 @@ using Metaphor.Core.Battle;
 namespace Metaphor.Features.Battle.Tests;
 
 /// <summary>Each target a battle action hits is said by its number alone, or "n healed", and once the action's hits stop,
-/// one summary of who changed (#247, the maintainer's wording of 2026-11-21). Hits in, announcements out; made-up
+/// one summary of what each target that changed took (#247, the maintainer's wording of 2026-11-21 and 2026-11-22).
+/// Hits in, announcements out; made-up
 /// numbers and names only.</summary>
 [Trait("Category", "Unit")]
 public sealed class HitLinesTests : IDisposable
@@ -92,7 +93,7 @@ public sealed class HitLinesTests : IDisposable
     }
 
     [Fact]
-    public void AfterTheActionOneSummarySaysEachHurtMemberByNameOrSlot()
+    public void AfterTheActionOneSummarySaysEachHurtMembersDamageByNameOrSlot()
     {
         lines.Observe(Ally(1, 5, -30, 60));
         lines.Observe(Ally(0, 3, -20, 89));
@@ -101,7 +102,7 @@ public sealed class HitLinesTests : IDisposable
 
         time.Advance(1);
 
-        Assert.Equal(["30", "20", "Rowan 89, Second ally, 60"], Said());
+        Assert.Equal(["30", "20", "Rowan 20, Second ally, 30"], Said());
     }
 
     [Fact]
@@ -110,19 +111,19 @@ public sealed class HitLinesTests : IDisposable
         lines.Observe(Enemy(0xa0, -34, 89));
         time.Advance(Gap);
 
-        Assert.Equal("Enemy, 89", Said().Last());
+        Assert.Equal("Enemy, 34", Said().Last());
     }
 
-    // Numbered by the order the battle first hit them; each at its last HP.
+    // Numbered by the order the battle first hit them; each once, with all the damage the action did it.
     [Fact]
-    public void SeveralEnemiesAreNumberedAndEachSaidOnceAtItsLastHp()
+    public void SeveralEnemiesAreNumberedAndEachSaidOnceWithItsDamage()
     {
         lines.Observe(Enemy(0xa0, -10, 50));
         lines.Observe(Enemy(0xb0, -10, 70));
         lines.Observe(Enemy(0xa0, -10, 40));
         time.Advance(Gap);
 
-        Assert.Equal("First enemy, 40. Second enemy, 70", Said().Last());
+        Assert.Equal("First enemy, 20. Second enemy, 10", Said().Last());
     }
 
     [Fact]
@@ -132,7 +133,39 @@ public sealed class HitLinesTests : IDisposable
         lines.Observe(Enemy(0xb0, -5, 20));
         time.Advance(Gap);
 
-        Assert.Equal(["0", "5", "Second enemy, 20"], Said());
+        Assert.Equal(["0", "5", "Second enemy, 5"], Said());
+    }
+
+    // The maintainer's call of 2026-11-22 (#631): the summary says what each target took, never the HP it has left,
+    // which moves to the details key.
+    [Fact]
+    public void TheSummaryNeverSaysTheHpLeft()
+    {
+        lines.Observe(Enemy(0xa0, -52, 748));
+        time.Advance(Gap);
+
+        Assert.Equal(["52", "Enemy, 52"], Said());
+        Assert.DoesNotContain(Said(), said => said.Contains("748", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void AHealInTheSummaryIsSaidAsHealed()
+    {
+        lines.Observe(Ally(0, 3, 20, 120));
+        time.Advance(Gap);
+
+        Assert.Equal("Rowan 20 healed", Said().Last());
+    }
+
+    [Fact]
+    public void TheKnownEnemiesKeepTheirHpLeftAndMax()
+    {
+        lines.Observe(new BattleHit(0xa0, -360, 840, Number, BattleSide.Enemy, HpMax: 1200));
+        lines.Observe(Enemy(0xb0, -10, 50));
+
+        Assert.Equal(
+            [new KnownEnemy("First enemy", 840, 1200, 0xa0), new KnownEnemy("Second enemy", 50, null, 0xb0)],
+            lines.KnownEnemies());
     }
 
     [Fact]
@@ -143,7 +176,7 @@ public sealed class HitLinesTests : IDisposable
         lines.Observe(Ally(0, 3, -7, 80));
         time.Advance(Gap);
 
-        Assert.Equal(["10", "Enemy, 50", "7", "Rowan 80"], Said());
+        Assert.Equal(["10", "Enemy, 10", "7", "Rowan 7"], Said());
     }
 
     [Fact]
@@ -155,8 +188,8 @@ public sealed class HitLinesTests : IDisposable
         lines.Observe(Enemy(0xc0, -10, 30));
         time.Advance(Gap);
 
-        Assert.Equal("Enemy, 30", Said().Last());
-        Assert.Equal([("Enemy", 30)], lines.KnownEnemies());
+        Assert.Equal("Enemy, 10", Said().Last());
+        Assert.Equal([new KnownEnemy("Enemy", 30, null, 0xc0)], lines.KnownEnemies());
     }
 
     // By ear (maintainer, 2026-11-21): "Ally 1 141" sounds like 1141, so a label never puts a digit next to the number.
@@ -164,9 +197,9 @@ public sealed class HitLinesTests : IDisposable
     public void ALabelFollowedByANumberNeverPutsTwoDigitRunsTogether()
     {
         using var nameless = new HitLines(announcer, time, _ => string.Empty);
-        nameless.Observe(Ally(0, 3, -9, 141));
-        nameless.Observe(Enemy(0xa0, -9, 52));
-        nameless.Observe(Enemy(0xb0, -9, 60));
+        nameless.Observe(Ally(0, 3, -141, 9));
+        nameless.Observe(Enemy(0xa0, -52, 9));
+        nameless.Observe(Enemy(0xb0, -60, 9));
         time.Advance(Gap);
 
         var summary = Said().Last();
