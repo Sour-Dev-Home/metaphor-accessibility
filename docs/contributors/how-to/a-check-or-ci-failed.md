@@ -17,6 +17,16 @@ same `scripts/check.sh` runs locally and in CI, so a local failure is the one CI
   maintainer adds `security-reviewed`. Wait for it
   ([the label gate](../reference/security-review.md#everyone-elses-pull-requests)).
 
+## A test failed once and passed on the retry
+
+- **You see:** a `Test failed once` warning on a `pester`, `pester-varied-setup` or `repo-rules` job, then `Flaky test`,
+  and the job green. A comment on [#629](https://github.com/Sour-Dev-Home/metaphor-accessibility/issues/629) names the
+  job, the test and the run.
+- **Why:** the flake rule (#655). CI's test steps run through `scripts/ci/retry-test.sh`, which runs a failed test
+  command once more. A pass on the retry lets the change merge; a second failure fails the job (`Test failed twice`).
+  The build, security and repo-rules guards that aren't tests never retry.
+- **Do:** nothing for your change. The test is flaky: fix it under #629, or open an issue for it.
+
 ## A game-content block
 
 - **You see:** `game content: <path>: <reason>`, where the reason is `inside a game folder`, `game archive extension`,

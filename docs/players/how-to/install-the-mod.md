@@ -65,8 +65,12 @@ this section, by ear.
    has the focus, by ear. With Smart App Control on, Windows blocks the file instead; then use the command at the end of
    this section. Why Windows asks, and what was checked:
    [notes](../../raw-sources/install-launcher-motw-2026-11-20.md).
-4. A window opens and the installer starts. Answer its questions with `y` and Enter, or Enter alone where it says Enter means yes. It asks before it starts and
-   before each download.
+4. A window opens and the installer starts. It asks before it starts and before each download, each question in a
+   small window with a Yes and a No button that your screen reader reads. Press `Enter` for the button it lands on, `Y`
+   for Yes or `N` for No, or `Tab` to move between them. Where the installer can't find the game in Steam, Windows'
+   Open window appears: choose `METAPHOR.exe` in the game's install folder, or press `Escape` to stop.
+   `[NEEDS VERIFICATION]` By ear with NVDA (#573): what NVDA reads for each window, whether the focus lands on it, and
+   whether `Escape` answers No (Windows' Yes and No windows usually ignore it).
 5. It finds the game, installs Reloaded-II 1.31.0 if you don't have it (in your user folder, no admin rights needed),
    installs the .NET 9 Desktop Runtime and the Visual C++ Redistributable if they're missing, copies the mod in, turns
    it on for the game, and puts a shortcut called "Metaphor ReFantazio with accessibility" on your desktop. The two
@@ -86,8 +90,9 @@ Control on.
 
 Each step says whether it worked. A step that fails says what to do and stops there. Run it again after fixing that,
 or to update the mod: it changes only what needs changing and says so. With NVDA, JAWS or ZoomText running, it speaks
-each line and question through your screen reader, with the speech library the mod ships, so you don't need to read
-the window. Windows' own voice speaks the steps when no screen reader is running. That voice is an English one when
+each line through your screen reader, with the speech library the mod ships, so you don't need to read the window;
+your screen reader reads the question windows itself. Windows' own voice speaks the steps and questions when no
+screen reader is running. That voice is an English one when
 Windows has one; otherwise the installer says so and uses Windows' default voice. Open it with Enter, not "Run as
 administrator": it refuses to run as administrator. With User Account Control turned off every window is
 administrator, so it says so and asks before going on. `[NEEDS VERIFICATION]` By ear with NVDA (#601).
@@ -311,13 +316,13 @@ install does. `[NEEDS VERIFICATION]` All of this section, by ear.
 
    `powershell -ExecutionPolicy Bypass -NoExit -File "<folder>\install.ps1" -Uninstall`
 
-3. NVDA reads "Uninstall the mod?" and what it does. Type `yes` and press `Enter`. Enter alone stops without changing
-   anything.
+3. A window with a Yes and a No button asks "Uninstall the mod?" and says what it does, as the install's questions do.
+   Press `Y` for Yes. The focus starts on No, so `Enter` alone, or `N`, stops without changing anything.
 4. It says five steps, each starting with "Done", "Nothing to remove" or "Failed": it turns the mod off for the game in
    Reloaded-II, keeping your other mods on; removes the mod's folder and the mod's settings from Reloaded-II; deletes
    the desktop shortcut "Metaphor ReFantazio with accessibility"; and checks Reloaded-II.
-5. If the installer installed Reloaded-II, it asks "Remove Reloaded-II too?". That also removes every other mod and game
-   you added to Reloaded-II, so press `Enter` alone to keep it, or type `yes` and press `Enter` to remove it. A
+5. If the installer installed Reloaded-II, a second window asks "Remove Reloaded-II too?". That also removes every other
+   mod and game you added to Reloaded-II, so press `Enter` alone (No) to keep it, or `Y` to remove it. A
    Reloaded-II you installed yourself is kept without asking.
 6. It says it kept the .NET 9 Desktop Runtime and the Visual C++ Redistributable, which other programs may use. To
    remove them, use Installed apps in Windows Settings.
