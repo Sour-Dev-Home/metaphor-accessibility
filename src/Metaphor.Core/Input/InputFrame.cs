@@ -68,6 +68,7 @@ public sealed class InputFrame
     private readonly IInputControls field;
     private readonly IKeyWatcher? watcher;
     private readonly IPadWatcher? padWatcher;
+    private readonly LastInputDevice? lastDevice;
     private readonly IInputControls report;
 
     public InputFrame(IGameInputState game, MenuScreens screens, IInputControls menus, IWindowInputControls dialogue)
@@ -85,11 +86,12 @@ public sealed class InputFrame
     public InputFrame(
         IGameInputState game, MenuScreens screens, IInputControls menus, IWindowInputControls dialogue,
         IInputControls field, IKeyWatcher? watcher = null, IPadWatcher? padWatcher = null,
-        IInputControls? report = null)
+        IInputControls? report = null, LastInputDevice? lastDevice = null)
     {
         this.watcher = watcher;
         this.padWatcher = padWatcher;
         this.report = report ?? NoControls;
+        this.lastDevice = lastDevice;
         ArgumentNullException.ThrowIfNull(game);
         ArgumentNullException.ThrowIfNull(screens);
         ArgumentNullException.ThrowIfNull(menus);
@@ -108,6 +110,7 @@ public sealed class InputFrame
     {
         var window = ReadState();
         padWatcher?.Pad(pad, buttons, made);
+        lastDevice?.Pad(buttons);
         var handed = field.Pad(pad, dialogue.Pad(pad, menus.Pad(pad, report.Pad(pad, buttons, made), made), made), made);
         return new(handed & buttons, window);
     }
@@ -119,6 +122,7 @@ public sealed class InputFrame
         ArgumentNullException.ThrowIfNull(keys);
         var window = ReadState();
         watcher?.Keys(keys);
+        lastDevice?.Keys(keys);
         var handed = field.Keys(dialogue.Keys(menus.Keys(report.Keys(keys))));
         return new(Kept(keys, handed), window);
     }
