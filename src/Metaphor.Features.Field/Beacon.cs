@@ -1,4 +1,5 @@
 using System.Diagnostics.CodeAnalysis;
+using System.Globalization;
 using Metaphor.Core.Announcements;
 using Metaphor.Core.Cues;
 
@@ -49,6 +50,7 @@ public sealed class Beacon
     private readonly ICuePlayer cues;
     private readonly IAnnouncer announcer;
     private readonly Func<long> milliseconds;
+    private readonly Action<string>? log;
     private BeaconTarget? target;
     private volatile bool active;
     private bool polled;
@@ -60,8 +62,11 @@ public sealed class Beacon
     private long nextPulseAt;
 
     /// <summary>A beacon that reads <paramref name="field"/>, plays on <paramref name="cues"/>' guidance channel, speaks
-    /// through <paramref name="announcer"/> and keeps time by <paramref name="milliseconds"/>.</summary>
-    public Beacon(IFieldReads field, ICuePlayer cues, IAnnouncer announcer, Func<long> milliseconds)
+    /// through <paramref name="announcer"/>, keeps time by <paramref name="milliseconds"/> and writes the target's and the
+    /// player's positions, as numbers, to <paramref name="log"/> on a start and an arrival when there is one (Debug
+    /// builds).</summary>
+    public Beacon(
+        IFieldReads field, ICuePlayer cues, IAnnouncer announcer, Func<long> milliseconds, Action<string>? log = null)
     {
         ArgumentNullException.ThrowIfNull(field);
         ArgumentNullException.ThrowIfNull(cues);
@@ -71,10 +76,22 @@ public sealed class Beacon
         this.cues = cues;
         this.announcer = announcer;
         this.milliseconds = milliseconds;
+        this.log = log;
     }
 
     /// <summary>Whether the beacon is guiding.</summary>
     public bool Active => active;
+
+    /// <summary>Whether a thing already counts as reached: the game's reach test for its kind, or within
+    /// <see cref="ArrivalDistance"/>.</summary>
+    public static bool Arrived(NearbyThing thing)
+    {
+        ArgumentNullException.ThrowIfNull(thing);
+        return Arrived(thing.Distance, thing.InReach);
+    }
+
+    /// <summary>As <see cref="Arrived(NearbyThing)"/>, for a ground distance and the reach test's answer.</summary>
+    public static bool Arrived(double distance, bool inReach) => inReach || distance <= ArrivalDistance;
 
     /// <summary>From -1 (left) to +1 (right) for a bearing, left positive: full left or right at the side, centred
     /// ahead and behind.</summary>
@@ -106,6 +123,9 @@ public sealed class Beacon
             nextPulseAt = milliseconds();
             active = true;
         }
+        var unit = next.Unit;
+        log?.Invoke(string.Create(CultureInfo.InvariantCulture,
+            $"beacon start kind={unit.Kind} at=({unit.X:0.#},{unit.Y:0.#},{unit.Z:0.#}) named={unit.Name is not null}"));
         announcer.Announce(new Announcement($"Guiding to {Name(next)}", Interrupt: true));
     }
 
@@ -148,10 +168,13 @@ public sealed class Beacon
                         return;
                     }
                     var (far, toward, inReach) = Nearby.Measure(pose, guided.Unit, guided.DoorReachValue);
-                    if (inReach || far <= ArrivalDistance)
+                    if (Arrived(far, inReach))
                     {
                         EndLocked();
                         reached = Name(guided);
+                        var unit = guided.Unit;
+                        log?.Invoke(string.Create(CultureInfo.InvariantCulture,
+                            $"beacon reached kind={unit.Kind} at=({unit.X:0.#},{unit.Y:0.#},{unit.Z:0.#}) player=({pose.X:0.#},{pose.Y:0.#},{pose.Z:0.#}) distance={far:0.#} inReach={inReach}"));
                         return;
                     }
                     distance = far;

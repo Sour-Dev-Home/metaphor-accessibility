@@ -145,6 +145,38 @@ public sealed class BeaconTests
         Assert.Equal(1, cues.Silenced);
     }
 
+    [Theory]
+    [InlineData(FieldKind.Person, 0, 0, 100, true)]
+    [InlineData(FieldKind.Person, 0, 0, 151, false)]
+    [InlineData(FieldKind.Chest, 0, 0, 250, true)]
+    [InlineData(FieldKind.Chest, 0, 0, -250, false)]
+    public void ArrivedIsTheReachTestOrTheArrivalDistance(FieldKind kind, float x, float y, float z, bool arrived)
+    {
+        var thing = Nearby.List(new FieldView(0, 0, 0, 0, [new FieldUnit(kind, x, y, z)])).Single();
+
+        Assert.Equal(arrived, Beacon.Arrived(thing));
+    }
+
+    [Fact]
+    public void TheDebugLogSaysWhereTheTargetAndThePlayerStoodOnArrival()
+    {
+        // #183, by ear 2026-11-22: "Reached" a person by some crates. The log names the target's position and the
+        // player's at arrival, so a session tells a wrong unit position from a wrong arrival test.
+        var log = new List<string>();
+        var logged = new Beacon(field, cues, announcer, () => now, log.Add);
+        logged.Start(Person(0, 1000));
+        logged.Tick();
+        field.Pose = new FieldPose(0, 0, 900, 0);
+        now += Beacon.PollMilliseconds;
+        logged.Tick();
+
+        Assert.Equal(
+        [
+            "beacon start kind=Person at=(0,0,1000) named=True",
+            "beacon reached kind=Person at=(0,0,1000) player=(0,0,900) distance=100 inReach=False",
+        ], log);
+    }
+
     [Fact]
     public void TheGamesReachTestAlsoCountsAsArrival()
     {

@@ -251,15 +251,17 @@ only, not the keys, the load message or the settings message.
    says its name, or its kind when it has none, then how far and which way from where you face, such as "Chest, 4
    steps ahead-left". "In reach" means you can probably use it from where you stand. With nothing near it says
    "Nothing nearby".
-2. `LB` held, then `Down` or `Up` on the controller's D-pad: steps through the same list one thing at a time, such as
-   "2 of 5. Door, 9 steps behind". After 10 seconds without a step it starts again at the nearest.
+2. `K` and `J` on the keyboard, or `LB` held, then `Down` or `Up` on the controller's D-pad: steps through the same
+   list one thing at a time, `K` and `Down` to the next, `J` and `Up` to the one before, such as "2 of 5. Door, 9 steps
+   behind". After 10 seconds without a step it starts again at the nearest.
 3. `L` on the keyboard, or `LB` held and `Left` on the D-pad: says where you are, by the place name the game last
    showed. Before the game has shown one, it says "Place not known yet".
 4. `G` on the keyboard, or `LB` held and `Right` on the D-pad: guides you to the thing you last stepped to, or to the
-   nearest thing if you haven't stepped in the last 10 seconds. It says "Guiding to", then the name, and a short beep
-   repeats: from the left or right as the thing lies, higher when it's ahead and lower when it's behind, and faster as
-   you get closer. Ahead means the way the camera looks, which is the way pushing the stick up walks you. Walk so the
-   beep is high and in the middle. It says "Reached", then the name, when you get there.
+   nearest thing you aren't already at if you haven't stepped in the last 10 seconds. When you're already at it, or
+   at everything near, it says "Already next to", then the name. Otherwise it says "Guiding to", then the name, and a
+   short beep repeats: from the left or right as the thing lies, higher when it's ahead and lower when it's behind, and
+   faster as you get closer. Ahead means the way the camera looks, which is the way pushing the stick up walks you. Walk
+   so the beep is high and in the middle. It says "Reached", then the name, when you get there.
    Press again to stop: it says "Guidance off". Opening a menu or starting a dialogue stops it too. The beep points in
    a straight line and doesn't know about walls yet. It plays only while sound cues are on.
 

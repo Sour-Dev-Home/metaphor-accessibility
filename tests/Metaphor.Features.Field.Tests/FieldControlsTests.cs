@@ -17,6 +17,8 @@ public sealed class FieldControlsTests
     private const int Left = 0x0080;
     private const int Right = 0x0020;
     private const int KeyG = 0x47;
+    private const int KeyK = 0x4B;
+    private const int KeyJ = 0x4A;
     private const int A = 0x4000;
 
     private readonly RecordingAnnouncer announcer = new();
@@ -216,13 +218,98 @@ public sealed class FieldControlsTests
     }
 
     [Fact]
-    public void GWithNothingSteppedGuidesToTheNearestAndIsHidden()
+    public void GWithNothingSteppedGuidesToTheNearestNotInReachAndIsHidden()
     {
         var handed = controls.Keys([KeyW, KeyG]);
 
         Assert.Equal([KeyW], handed);
-        // The chest is already in reach, so the first tick arrives.
-        Assert.Equal(["Guiding to Chest", "Reached Chest"], Said());
+        // The chest is nearer but already in reach (#183, by ear 2026-11-22: "Reached" at once).
+        Assert.Equal(["Guiding to Testa"], Said());
+        Assert.True(controls.Guiding);
+    }
+
+    [Fact]
+    public void GSkipsAPersonAlreadyWithinTheArrivalDistance()
+    {
+        // People have no reach test, so the arrival distance is what makes one already reached.
+        field.View = new FieldView(0, 0, 0, 0,
+        [
+            new(FieldKind.Person, 0, 0, (float)(Beacon.ArrivalDistance - 30), "Testa"),
+            new(FieldKind.Door, 0, 0, 900),
+        ]);
+
+        controls.Keys([KeyG]);
+
+        Assert.Equal(["Guiding to Door"], Said());
+    }
+
+    [Fact]
+    public void GWithEverythingNearAlreadyInReachSaysSo()
+    {
+        field.View = new FieldView(0, 0, 0, 0,
+        [
+            new(FieldKind.Person, 0, 0, 100, "Testa"),
+            new(FieldKind.Chest, 0, 0, 200),
+        ]);
+
+        controls.Keys([KeyG]);
+
+        Assert.Equal(["Already next to Testa"], Said());
+        Assert.False(controls.Guiding);
+        Assert.Empty(cues.Held);
+    }
+
+    [Fact]
+    public void GuidingToASteppedThingAlreadyInReachSaysSo()
+    {
+        Tap(Lb | Down);
+        Tap(Lb | Right);
+
+        Assert.Equal("Already next to Chest", Said().Last());
+        Assert.False(controls.Guiding);
+    }
+
+    [Fact]
+    public void KAndJStepThroughTheListLikeTheChordsAndAreHidden()
+    {
+        Assert.Equal([KeyW], controls.Keys([KeyW, KeyK]));
+        controls.Keys([]);
+        controls.Keys([KeyK]);
+        controls.Keys([]);
+        controls.Keys([KeyJ]);
+        controls.Keys([]);
+        Tap(Lb | Down);
+
+        Assert.Equal(
+        [
+            "1 of 3. Chest, 2 steps ahead, in reach",
+            "2 of 3. Testa, 5 steps left",
+            "1 of 3. Chest, 2 steps ahead, in reach",
+            "2 of 3. Testa, 5 steps left",
+        ], Said());
+    }
+
+    [Fact]
+    public void KThenGGuidesToTheThingSteppedTo()
+    {
+        controls.Keys([KeyK]);
+        controls.Keys([]);
+        controls.Keys([KeyK]);
+        controls.Keys([]);
+        controls.Keys([KeyK]);
+        controls.Keys([]);
+        controls.Keys([KeyG]);
+
+        Assert.Equal("Guiding to Door", Said().Last());
+    }
+
+    [Fact]
+    public void OutsideFreeRoamTheStepKeysReachTheGame()
+    {
+        field.Roaming = false;
+
+        Assert.Equal([KeyK, KeyJ], controls.Keys([KeyK, KeyJ]));
+        Assert.Empty(announcer.Said);
     }
 
     [Fact]
@@ -245,7 +332,7 @@ public sealed class FieldControlsTests
         now += FieldControls.StepMemoryMilliseconds + 1;
         Tap(Lb | Right);
 
-        Assert.Equal(["Guiding to Chest", "Reached Chest"], Said().TakeLast(2));
+        Assert.Equal("Guiding to Testa", Said().Last());
     }
 
     [Fact]
