@@ -262,4 +262,20 @@ public sealed class CpkArchiveTests
         Assert.Null(table.Text(2, "Name"));
         Assert.Null(table.Text(0, "Missing"));
     }
+
+    [Fact]
+    public void ALookupSaysWhyAFileWasntRead()
+    {
+        using var archive = Archive(Stored("A", "one.bin", "first"), Stored("A", "big.bin", "too long"),
+            ("A", "packed.bin", "CRILAYLApacked"u8.ToArray(), 0x200));
+
+        Assert.Equal(CpkFileStatus.Read, CpkArchive.Lookup(archive, "A/one.bin", 6).Status);
+        Assert.Equal("first"u8.ToArray(), CpkArchive.Lookup(archive, "A/one.bin", 6).Bytes);
+        Assert.Equal(CpkFileStatus.NotFound, CpkArchive.Lookup(archive, "A/two.bin", 6).Status);
+        Assert.Equal(CpkFileStatus.TooBig, CpkArchive.Lookup(archive, "A/big.bin", 6).Status);
+        Assert.Equal(CpkFileStatus.Packed, CpkArchive.Lookup(archive, "A/packed.bin", 6).Status);
+        Assert.Null(CpkArchive.Lookup(archive, "A/big.bin", 6).Bytes);
+        using var cut = new MemoryStream(new byte[8]);
+        Assert.Equal(CpkFileStatus.Unreadable, CpkArchive.Lookup(cut, "A/one.bin", 6).Status);
+    }
 }

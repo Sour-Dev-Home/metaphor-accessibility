@@ -69,8 +69,9 @@ anywhere.
   already at if you haven't stepped in the last 10 seconds. At it already: "Already next to", then the name. Otherwise
   "Guiding to", then the name, and a short beep repeats: from the left or right as the thing lies, higher ahead and
   lower behind, faster as you get closer. Walk so the beep is high and in the middle. "Reached", then the name, when
-  you get there. Press again to stop: "Guidance off". A menu or a dialogue stops it too. The beep points in a straight
-  line and doesn't know about walls yet. It plays only while sound cues are on.
+  you get there. Press again to stop: "Guidance off". A menu or a dialogue stops it too. The beep points at the next
+  turn of a walking route around walls, and plans again if you stray or get stuck; with no route it points straight
+  and says "No path found, pointing straight" once (#690). It plays only while sound cues are on.
 - With no key: walking up to a door or chest says "Door, in reach" or "Chest, in reach" once, after anything being
   said. Move away or turn, then come back, and it says it again. People aren't said this way yet.
 - Distances are rough steps: treat them as near or far.

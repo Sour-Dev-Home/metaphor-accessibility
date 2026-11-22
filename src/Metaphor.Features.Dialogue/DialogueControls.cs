@@ -40,7 +40,7 @@ public sealed record DialogueBindings(int RepeatButtons, int ReaderButtons, int 
 /// again, and a binding already held when the window opens doesn't fire. The input frame (#301) hands it each pad and
 /// keyboard read and each read of the window, from any of the game's threads. While a pop-up is on screen (a tutorial's
 /// page, #118) the repeat binding re-speaks the pop-up instead, and acts and is hidden even with the dialogue window
-/// closed; the reader binding still acts only in dialogue. The bindings are read on each input read, so a rebinding in
+/// closed. The reader binding also acts in the field (the window reads closed) and over a pop-up, handed to the game there (#769); menus take it before it gets here (InputFrame). The bindings are read on each input read, so a rebinding in
 /// the settings file applies at once (#661).</summary>
 [FeatureSetting(Feature.Dialogue)]
 public sealed class DialogueControls : IWindowInputControls
@@ -57,6 +57,8 @@ public sealed class DialogueControls : IWindowInputControls
     private readonly Binding repeat = new();
     private readonly Binding toggle = new();
     private bool open;
+    // The last read of the window found it readable, open or closed: the field is the closed case (#769).
+    private bool readable;
     // The history's count when the window last closed: repeat speaks only lines recorded after it (#526).
     private long closedAt;
 
@@ -116,6 +118,7 @@ public sealed class DialogueControls : IWindowInputControls
                 onClose?.Invoke();
             }
             open = nowOpen;
+            readable = currentMessage is not null;
         }
     }
 
@@ -171,7 +174,7 @@ public sealed class DialogueControls : IWindowInputControls
             repeating = open || popUp is not null;
             since = closedAt;
             repeatPressed = repeat.Update(source, repeatHeld) && repeating;
-            togglePressed = toggle.Update(source, toggleHeld) && open;
+            togglePressed = toggle.Update(source, toggleHeld) && (open || readable || popUp is not null);
         }
         // Spoken outside the lock: the announcer may take its time.
         if (repeatPressed)
