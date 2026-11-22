@@ -100,6 +100,18 @@ public sealed class DialogueLinesTests
         Assert.Equal(2, announcer.Said.Count);
     }
 
+    // #622: the save screen's "Save complete" pop-up is a system message (kind 1) the window shows with no request
+    // (docs/raw-sources/save-complete-popup-session-2026-11-22.md).
+    [Fact]
+    public void ASystemMessageShownIsSpoken()
+    {
+        messages.Compiled("@SYS_a\n{\nAll done.\n<WAIT>\n}");
+
+        Lines().Observe(new LineShown(1, MessageLibrary.LabelHash("SYS_a")));
+
+        Assert.Equal([new Announcement("All done.", Interrupt: true)], announcer.Said);
+    }
+
     // The game shows some lines twice, 37 to 100 ms apart (#740); the repeat would be spoken without the speaker's
     // name and cut off the named line.
     [Fact]
@@ -129,14 +141,13 @@ public sealed class DialogueLinesTests
         Assert.Single(announcer.Said);
     }
 
-    [Theory]
-    [InlineData(1)]
-    [InlineData(2)]
-    public void OnlyKindZeroIsSpokenWhenShown(int kind)
+    // Kind 2 (subtitles and narration) stays silent: what it shows is unverified.
+    [Fact]
+    public void ASubtitleShownSaysNothing()
     {
         messages.Compiled(Scene);
 
-        Lines().Observe(new LineShown(kind, MessageLibrary.LabelHash("MES_a")));
+        Lines().Observe(new LineShown(2, MessageLibrary.LabelHash("MES_a")));
 
         Assert.Empty(announcer.Said);
     }

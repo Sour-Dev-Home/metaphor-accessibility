@@ -43,7 +43,8 @@ internal sealed class FieldGlobal : IReadsGlobal
 
 /// <summary>The field around the player (#181), read on the press from the game's unit manager and copied into plain
 /// values. On game build 548ddc95… (Steam build 18330018): the manager is <c>M = [fldWorld+0x20]</c>, the player
-/// <c>[M]</c> with its position at <c>+0x80</c> and facing quaternion at <c>+0x90</c>; each list's <c>begin</c> and
+/// <c>[M]</c> with its position at <c>+0x80</c> and facing quaternion at <c>+0x90</c>; the camera
+/// <c>[[fldWorld+0x10]]</c> with its eye at <c>+0x60</c> and look-at at <c>+0x70</c>; each list's <c>begin</c> and
 /// <c>end</c> sit at fixed offsets in <c>M</c> and every unit's position at <c>+0x80</c>; free roam is the scene
 /// <c>[[[fldScene_Root]+0x10]+0x10]</c> of class <c>fldScene_Idle</c>; the map id is <c>fldDatabase+0x48</c>
 /// (docs/findings/field-position-facing-map-static.md, field-units-names-exits-static.md,
@@ -58,6 +59,9 @@ internal sealed class FieldMemory(
     private const int Manager = 0x20;
     private const int Position = 0x80;
     private const int Facing = 0x90;
+    private const int CameraManager = 0x10;
+    private const int CameraEye = 0x60;
+    private const int CameraLookAt = 0x70;
     private const int MapIdOffset = 0x48;
     // 0x5ab030 returns this int when it isn't -1; otherwise it reads a table through .text1, which stays unread.
     private const int DoorReachOffset = 0x58;
@@ -83,6 +87,8 @@ internal sealed class FieldMemory(
     private const int DoorLink = 0x28c4;
 
     private readonly CallerAddress module = new();
+    // The idle scene's vtable once its class name has matched; a pointer-sized field is read and written whole.
+    private nint idleVtable;
 
     public bool InFreeRoam() =>
         !menus.IsOpen() && window.Read() is null or 0 && SceneIsIdle();
@@ -92,45 +98,84 @@ internal sealed class FieldMemory(
 
     public FieldView? Read()
     {
-        if (world.Object() is not { } fieldWorld || ModuleMemoryReader.ReadPointer(fieldWorld + Manager) is not { } manager ||
-            manager == 0 || ModuleMemoryReader.ReadPointer(manager) is not { } player || player == 0 ||
-            Vector(player + Position) is not { } at)
+        if (ReadPose() is not { } pose || UnitManager() is not { } manager)
         {
             return null;
         }
-        var quaternion = new byte[16];
-        if (!ModuleMemoryReader.ReadBytes(player + Facing, quaternion))
-        {
-            return null;
-        }
-        float Q(int i) => BinaryPrimitives.ReadSingleLittleEndian(quaternion.AsSpan(i * 4));
-        var (x, y, z, w) = (Q(0), Q(1), Q(2), Q(3));
-        // The session-6 reader's heading (docs/findings/field-position-facing-map-static.md).
-        var heading = Math.Atan2(2 * (x * z + w * y), 1 - 2 * (x * x + y * y));
         var units = new List<FieldUnit>();
         foreach (var (kind, begin) in Lists)
         {
-            ReadList(manager, kind, begin, at, units);
+            ReadList(manager, kind, begin, (pose.X, pose.Y, pose.Z), units);
         }
         int? doorValue = database.Object() is { } db && ModuleMemoryReader.ReadInt32(db + DoorReachOffset) is { } value &&
             value != -1 ? value : null;
-        return new FieldView(at.X, at.Y, at.Z, heading, units, doorValue, MapId());
+        return new FieldView(pose.X, pose.Y, pose.Z, pose.Heading, units, doorValue, MapId(), pose.CameraHeading);
+    }
+
+    // The beacon's poll (#183): the same reads as Read's player, and no allocation.
+    public FieldPose? ReadPose() =>
+        UnitManager() is { } manager && Pose(manager) is { } pose ? pose with { CameraHeading = CameraHeading() } : null;
+
+    // The camera object [[fldWorld+0x10]+0x0], its eye at +0x60 and look-at at +0x70: the session-6 reader's chain, its
+    // view heading that of look-at − eye (docs/raw-sources/field-position-camera-session6-2026-11-17.md; the static
+    // lead FldCameraGetRelativeToPlayerDir_Yaw 0x8d8870 in docs/raw-sources/field-position-2026-11-16.md).
+    private double? CameraHeading()
+    {
+        if (world.Object() is not { } fieldWorld ||
+            ModuleMemoryReader.ReadPointer(fieldWorld + CameraManager) is not { } cameras || cameras == 0 ||
+            ModuleMemoryReader.ReadPointer(cameras) is not { } camera || camera == 0 ||
+            Vector(camera + CameraEye) is not { } eye || Vector(camera + CameraLookAt) is not { } lookAt)
+        {
+            return null;
+        }
+        var dx = lookAt.X - eye.X;
+        var dz = lookAt.Z - eye.Z;
+        return dx == 0 && dz == 0 ? null : Math.Atan2(dx, dz);
+    }
+
+    private nint? UnitManager() =>
+        world.Object() is { } fieldWorld && ModuleMemoryReader.ReadPointer(fieldWorld + Manager) is { } manager &&
+        manager != 0 ? manager : null;
+
+    private static FieldPose? Pose(nint manager)
+    {
+        if (ModuleMemoryReader.ReadPointer(manager) is not { } player || player == 0 ||
+            Vector(player + Position) is not { } at ||
+            ModuleMemoryReader.ReadVector4(player + Facing) is not (float x, float y, float z, float w))
+        {
+            return null;
+        }
+        // The session-6 reader's heading (docs/findings/field-position-facing-map-static.md).
+        var heading = Math.Atan2(2 * (x * z + w * y), 1 - 2 * (x * x + y * y));
+        return new FieldPose(at.X, at.Y, at.Z, heading);
     }
 
     private bool SceneIsIdle()
     {
         if (sceneRoot.Object() is not { } root || ModuleMemoryReader.ReadPointer(root + 0x10) is not { } holder ||
-            holder == 0 || ModuleMemoryReader.ReadPointer(holder + 0x10) is not { } scene || scene == 0)
+            holder == 0 || ModuleMemoryReader.ReadPointer(holder + 0x10) is not { } scene || scene == 0 ||
+            ModuleMemoryReader.ReadPointer(scene) is not { } vtable)
         {
             return false;
         }
-        return RttiName.Of(
+        // A vtable names its class for as long as the module is loaded, so once the idle scene's is known the beacon's
+        // polls (#183) compare it instead of reading the class name again.
+        if (vtable != 0 && vtable == idleVtable)
+        {
+            return true;
+        }
+        var idle = RttiName.Of(
             scene,
             module.ModuleBase,
             module.ModuleSize,
             address => ModuleMemoryReader.ReadPointer((nint)address),
             address => ModuleMemoryReader.ReadInt32((nint)address),
             address => ModuleMemoryReader.ReadAnsiString((nint)address, 128)) == IdleScene;
+        if (idle)
+        {
+            idleVtable = vtable;
+        }
+        return idle;
     }
 
     private void ReadList(nint manager, FieldKind kind, int begin, (float X, float Y, float Z) player, List<FieldUnit> units)
@@ -201,14 +246,10 @@ internal sealed class FieldMemory(
 
     private static (float X, float Y, float Z)? Vector(nint address)
     {
-        var bytes = new byte[12];
-        if (!ModuleMemoryReader.ReadBytes(address, bytes))
+        if (ModuleMemoryReader.ReadVector3(address) is not (float x, float y, float z))
         {
             return null;
         }
-        var x = BinaryPrimitives.ReadSingleLittleEndian(bytes);
-        var y = BinaryPrimitives.ReadSingleLittleEndian(bytes.AsSpan(4));
-        var z = BinaryPrimitives.ReadSingleLittleEndian(bytes.AsSpan(8));
         return float.IsFinite(x) && float.IsFinite(y) && float.IsFinite(z) ? (x, y, z) : null;
     }
 }

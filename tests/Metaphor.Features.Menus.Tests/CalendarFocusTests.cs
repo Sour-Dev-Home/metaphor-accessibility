@@ -5,7 +5,7 @@ namespace Metaphor.Features.Menus.Tests;
 
 /// <summary>The Calendar's day grid (#193) is recognised by its owner's class and each cell the cursor settles on spoken
 /// as its day of the month, the grid index plus 1, with the month's length when the game gives it
-/// (docs/findings/calendar-screen-and-quest-list-rows.md). Weekday names, events and discounts are left out: their
+/// (docs/findings/calendar-screen-and-quest-list-rows.md). The weekday is the column (five, as heard). The month, events and discounts are left out: their
 /// source is not pinned. Hook events in, announcements out; made-up cursor data only.</summary>
 [Trait("Category", "Unit")]
 public sealed class CalendarFocusTests
@@ -40,7 +40,7 @@ public sealed class CalendarFocusTests
     {
         Cell(11);
 
-        Assert.Equal(["Calendar, day 12 of 30"], Said());
+        Assert.Equal(["Calendar, Waters Day, day 12 of 30"], Said());
         Assert.True(announcer.Said[0].Interrupt);
     }
 
@@ -52,7 +52,9 @@ public sealed class CalendarFocusTests
         Cell(13);
         Cell(12);
 
-        Assert.Equal(["Calendar, day 12 of 30", "Day 13 of 30", "Day 14 of 30", "Day 13 of 30"], Said());
+        Assert.Equal(
+            ["Calendar, Waters Day, day 12 of 30", "Arbors Day, day 13 of 30", "Metals Day, day 14 of 30",
+             "Arbors Day, day 13 of 30"], Said());
     }
 
     [Fact]
@@ -61,7 +63,7 @@ public sealed class CalendarFocusTests
         Cell(11);
         Cell(16);
 
-        Assert.Equal(["Calendar, day 12 of 30", "Day 17 of 30"], Said());
+        Assert.Equal(["Calendar, Waters Day, day 12 of 30", "Waters Day, day 17 of 30"], Said());
     }
 
     [Fact]
@@ -69,7 +71,7 @@ public sealed class CalendarFocusTests
     {
         Cell(30, count: 35);
 
-        Assert.Equal(["Calendar, day 31 of 35"], Said());
+        Assert.Equal(["Calendar, Flames Day, day 31 of 35"], Said());
     }
 
     [Fact]
@@ -77,7 +79,7 @@ public sealed class CalendarFocusTests
     {
         Cursor(count: null, index: 4);
 
-        Assert.Equal(["Calendar, day 5"], Said());
+        Assert.Equal(["Calendar, Idols Day, day 5"], Said());
     }
 
     [Fact]
