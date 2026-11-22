@@ -13,8 +13,22 @@ public sealed class DialogueLinesTests
     private readonly RecordingAnnouncer announcer = new();
     private readonly MessageLibrary messages = new();
 
+    private readonly FakeClock clock = new();
+
     private DialogueLines Lines() =>
-        new(messages, new DialogueAnnouncer(announcer, new TextCleaner(TextCleanerRules.None), new DialogueHistory()));
+        new(messages, new DialogueAnnouncer(announcer, new TextCleaner(TextCleanerRules.None), new DialogueHistory()),
+            clock);
+
+    private sealed class FakeClock : TimeProvider
+    {
+        private long ticks;
+
+        public override long TimestampFrequency => TimeSpan.TicksPerSecond;
+
+        public override long GetTimestamp() => ticks;
+
+        public void Advance(TimeSpan by) => ticks += by.Ticks;
+    }
 
     [Fact]
     public void ARequestedLineIsSpokenWithItsSpeaker()
@@ -80,9 +94,39 @@ public sealed class DialogueLinesTests
 
         lines.Observe(new LineRequested(0, "MES_a"));
         lines.Observe(new LineShown(0, MessageLibrary.LabelHash("MES_a")));
+        clock.Advance(TimeSpan.FromSeconds(3));
         lines.Observe(new LineShown(0, MessageLibrary.LabelHash("MES_a")));
 
         Assert.Equal(2, announcer.Said.Count);
+    }
+
+    // The game shows some lines twice, 37 to 100 ms apart (#740); the repeat would be spoken without the speaker's
+    // name and cut off the named line.
+    [Fact]
+    public void ALineShownAgainWithinAFewHundredMillisecondsIsNotSpokenAgain()
+    {
+        messages.Compiled(Scene);
+        var lines = Lines();
+
+        lines.Observe(new LineRequested(0, "MES_a"));
+        lines.Observe(new LineShown(0, MessageLibrary.LabelHash("MES_a")));
+        clock.Advance(TimeSpan.FromMilliseconds(95));
+        lines.Observe(new LineShown(0, MessageLibrary.LabelHash("MES_a")));
+
+        Assert.Equal([new Announcement("Ada: The bridge is out.", Interrupt: true)], announcer.Said);
+    }
+
+    [Fact]
+    public void AShownLineRepeatedQuicklyIsNotSpokenAgainWithoutARequest()
+    {
+        messages.Compiled(Scene);
+        var lines = Lines();
+
+        lines.Observe(new LineShown(0, MessageLibrary.LabelHash("MES_a")));
+        clock.Advance(TimeSpan.FromMilliseconds(95));
+        lines.Observe(new LineShown(0, MessageLibrary.LabelHash("MES_a")));
+
+        Assert.Single(announcer.Said);
     }
 
     [Theory]

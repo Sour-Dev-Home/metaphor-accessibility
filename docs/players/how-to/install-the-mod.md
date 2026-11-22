@@ -111,6 +111,11 @@ When the game starts, the mod speaks one of three messages once: `Metaphor acces
 and the game runs as normal), or `Metaphor accessibility couldn't start; the mod is off` (any other failure). If you
 hear the first, the install worked. If you hear another, or nothing, see [Troubleshoot the mod](troubleshoot.md).
 
+The first time the game starts with the mod, the title screen then adds, once: "Metaphor accessibility" and the
+version, "is running. In the field, N says what's near you, L says where you are, G guides you." After that the mod
+sets `"welcomed": true` in its `settings.json`, and later launches skip it. Set it to `false` to hear it again;
+`[NEEDS VERIFICATION]` by ear in the game.
+
 ## If the mod says nothing: run the install check
 
 The installer ends with the install check, which says why the mod didn't load. To run it again, run the installer
@@ -185,10 +190,13 @@ Use the Alpha feedback form on the project's issues page.
 
 1. Find `report-log.txt` in the `metaphor.accessibility` folder in your mods folder. The mod writes it fresh each time
    the game starts, so copy it before you start the game again.
-2. Open the form, answer its questions, and drag the file into the "Report log" box, or choose it with the file picker.
+2. Open the form and answer its three questions: what you were doing, roughly when you pressed the
+   [mark key](../reference/keys-and-speech.md#mark-key-note-a-moment-for-your-report), and the file: drag it into the
+   "Attach report-log.txt" box, or choose it with the file picker.
 3. The log holds what the mod did (whether it loaded, how many hooks went in, errors, and which lines and choices the
-   game asked for, by label such as `Title_System_08`), never the game's text, and your user name is replaced with
-   `<redacted>`. Read it in Notepad first if you want to check.
+   game asked for, by label such as `Title_System_08`), your mark key presses and the screens the mod said nothing
+   for, never the game's text, and your user name is replaced with `<redacted>`. Read it in Notepad first if you want
+   to check.
 
 ## Not checked by ear yet
 
