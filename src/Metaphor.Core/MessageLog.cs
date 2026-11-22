@@ -127,6 +127,17 @@ public sealed class MessageLog(TextWriter writer, Func<long> millisecondsSinceSt
     public void MapSeen(string what, string details) =>
         Write(() => Line($"{millisecondsSinceStart()} ms map {what} {details}"));
 
+    /// <summary>A UI component opened (#691): its class from the game's type information (null when unreadable) and its
+    /// address. Identifiers and numbers, no game text.</summary>
+    public void UiOpened(string? className, long at) =>
+        Write(() => Line($"{millisecondsSinceStart()} ms ui-open class={className ?? "?"} at=0x{at:x}"));
+
+    /// <summary>A UI layout started an animation (#691), which is how its open function shows it: the layout's class
+    /// (null when unreadable), its address and the animation's number (null when unreadable). Identifiers and numbers,
+    /// no game text.</summary>
+    public void UiAnimated(string? className, long at, int? animation) => Write(() => Line(
+        $"{millisecondsSinceStart()} ms ui-anim class={className ?? "?"} at=0x{at:x} anim={animation?.ToString(CultureInfo.InvariantCulture) ?? "?"}"));
+
     /// <summary>An input a menu's cursor manager handled that changed something (#93, #94). Numbers only, no game
     /// text. A grid cursor's input (#563) adds a <c>grid</c> record of its fields, so a session pins its rows and
     /// columns.</summary>
