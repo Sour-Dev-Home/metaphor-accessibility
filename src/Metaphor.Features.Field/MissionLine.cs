@@ -2,6 +2,7 @@ using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
 using Metaphor.Core.Announcements;
 using Metaphor.Core.Messages;
+using Metaphor.Core.Settings;
 
 namespace Metaphor.Features.Field;
 
@@ -14,7 +15,9 @@ namespace Metaphor.Features.Field;
 /// objective with the same flags (docs/findings/field-map-and-objective-tables-static.md); [NEEDS VERIFICATION] that the
 /// box picks it so. A title's trailing colon is dropped when no objective follows. A new mission is spoken once, in
 /// free roam, looked for at most once a second; the first one seen is not, since it is the mission the game was loaded
-/// on. Safe to call from several threads.</summary>
+/// on. It belongs to "where am I" (<see cref="Feature.WhereAmI"/>): with that setting off, it says nothing. Safe to
+/// call from several threads.</summary>
+[FeatureSetting(Feature.WhereAmI)]
 public sealed class MissionLine
 {
     /// <summary>How often <see cref="Poll"/> reads the game, at most.</summary>
@@ -27,6 +30,7 @@ public sealed class MissionLine
     private readonly IAnnouncer announcer;
     private readonly Func<long> milliseconds;
     private readonly Func<bool> roaming;
+    private readonly Func<bool> enabled;
     private readonly Action<string>? log;
     private readonly Func<IReadOnlyList<MainMissionRow>?> objectives;
     private readonly Lock gate = new();
@@ -42,7 +46,8 @@ public sealed class MissionLine
     public MissionLine(
         Func<int, bool?> storyFlag, Func<IReadOnlyList<MainMissionRow>?> rows, IMessageLookup messages,
         TextCleaner cleaner, IAnnouncer announcer, Func<long> milliseconds, Func<bool> roaming,
-        Action<string>? log = null, Func<IReadOnlyList<MainMissionRow>?>? objectives = null)
+        Action<string>? log = null, Func<IReadOnlyList<MainMissionRow>?>? objectives = null,
+        Func<bool>? enabled = null)
     {
         ArgumentNullException.ThrowIfNull(storyFlag);
         ArgumentNullException.ThrowIfNull(rows);
@@ -60,6 +65,7 @@ public sealed class MissionLine
         this.roaming = roaming;
         this.log = log;
         this.objectives = objectives ?? (() => null);
+        this.enabled = enabled ?? (() => true);
     }
 
     /// <summary>The current main mission's title, read now; null when it can't be read or has no known text.</summary>
@@ -86,6 +92,10 @@ public sealed class MissionLine
 
     private string? Look()
     {
+        if (!enabled())
+        {
+            return null;
+        }
         var now = milliseconds();
         lock (gate)
         {

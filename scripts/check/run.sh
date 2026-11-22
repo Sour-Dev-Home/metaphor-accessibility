@@ -12,19 +12,23 @@
 
 # The pass cache (issue #241): "<stage> <tree>" lines in this clone's git dir, never a shared path. A pass is reused only
 # for the identical tree, so any change, staged or committed, runs the checks again. A `full` pass also covers pre-push.
+# A merge's pass (merge.sh, #728) adds "merge <parent tree|-> <parent tree|->": the parent passes it relied on.
 pass_cache() { echo "$(git rev-parse --absolute-git-dir 2> /dev/null)/check-pass-cache"; }
 cached_pass() { # cached_pass TREE STAGE...: exit 0 when one of the stages passed on TREE
-  local tree="$1" kind file
+  local tree="$1" kind file line
   shift
   file="$(pass_cache)"
   [ -f "$file" ] || return 1
-  for kind in "$@"; do grep -qxF "$kind $tree" "$file" && return 0; done
+  # Builtins: the file holds at most 50 short lines, and a grep per kind was a process start each.
+  while IFS= read -r line; do
+    for kind in "$@"; do [[ "$line" != "$kind $tree" && "$line" != "$kind $tree "* ]] || return 0; done
+  done < "$file"
   return 1
 }
-record_pass() { # record_pass STAGE TREE: keep the last 50 passes
+record_pass() { # record_pass STAGE TREE [NOTE...]: keep the last 50 passes
   local file
   file="$(pass_cache)"
-  { echo "$1 $2"; cat "$file" 2> /dev/null || true; } | head -n 50 > "$file.new" && mv "$file.new" "$file"
+  { echo "$*"; cat "$file" 2> /dev/null || true; } | head -n 50 > "$file.new" && mv "$file.new" "$file"
 }
 # full_kinds: print the kind this full records, then the kinds it may reuse. A full with SKIP_SCRIPT_TESTS=1 (CI's,
 # whose own jobs run the script tests) records full-skipped, which serves only another skipped run, never a plain full.

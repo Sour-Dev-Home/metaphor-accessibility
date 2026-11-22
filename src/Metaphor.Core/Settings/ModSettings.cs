@@ -1,4 +1,5 @@
 using System.Text.Json;
+using Metaphor.Core.Cues;
 
 namespace Metaphor.Core.Settings;
 
@@ -29,6 +30,8 @@ public sealed record ModSettings
     private const string CheckForUpdatesKey = "checkForUpdates";
     private const string SoundCuesKey = "soundCues";
     private const string SoundCueVolumeKey = "soundCueVolume";
+    private const string SoundsKey = "sounds";
+    private const string KeysKey = "keys";
 
     /// <summary>What every setting is without a usable file.</summary>
     public static ModSettings Defaults { get; } = new();
@@ -45,6 +48,39 @@ public sealed record ModSettings
 
     /// <summary>How loud the sound cues are, 0 (silent) to 100 (#636). 50 by default.</summary>
     public int SoundCueVolume { get; init; } = 50;
+
+    /// <summary>Whether the first-launch welcome has been said (#617). The mod sets it in the file after saying it;
+    /// false says it again on the next launch.</summary>
+    public bool Welcomed { get; init; }
+
+    // Only what the file sets: a feature or cue it doesn't name is on at full volume, a binding it doesn't name is the
+    // feature's default. Compared by value, so the same file read twice gives equal settings.
+    private SettingMap<Feature, bool> Toggles { get; init; } = SettingMap<Feature, bool>.Empty;
+
+    private SettingMap<Cue, CueSetting> Sounds { get; init; } = SettingMap<Cue, CueSetting>.Empty;
+
+    private SettingMap<string, int> Bindings { get; init; } = SettingMap<string, int>.Empty;
+
+    /// <summary>Whether <paramref name="feature"/> speaks, plays and takes its keys (#661). On unless the file turns
+    /// it off.</summary>
+    public bool IsOn(Feature feature) => Toggles.Get(feature, true);
+
+    /// <summary>Whether <paramref name="cue"/> plays, and its volume as a share of <see cref="SoundCueVolume"/>
+    /// (#661).</summary>
+    public CueSetting Sound(Cue cue) => Sounds.Get(cue, CueSetting.Default);
+
+    /// <summary>The code the file binds to <paramref name="name"/> in <paramref name="group"/> of its <c>keys</c>
+    /// object: a virtual-key code for a name ending in <c>Key</c>, a pad mask for one ending in <c>Button</c> or
+    /// <c>Buttons</c>, 0 for none. <paramref name="fallback"/>, the feature's default, when the file has no usable
+    /// value (#661).</summary>
+    public int Binding(string group, string name, int fallback) => Bindings.Get($"{group}.{name}", fallback);
+
+    /// <summary>Whether <paramref name="other"/> binds the same keys, for saying when they changed.</summary>
+    public bool SameBindings(ModSettings other)
+    {
+        ArgumentNullException.ThrowIfNull(other);
+        return Bindings.Equals(other.Bindings);
+    }
 
     /// <summary>Reads the file's text; null means no file. Anything unusable, whether the whole file or one setting,
     /// gives the default and a line to <paramref name="log"/>. Keys it doesn't know are ignored, so later settings can
@@ -70,6 +106,10 @@ public sealed record ModSettings
                 CheckForUpdates = ReadCheckForUpdates(document.RootElement, log),
                 SoundCues = ReadSoundCues(document.RootElement, log),
                 SoundCueVolume = ReadSoundCueVolume(document.RootElement, log),
+                Welcomed = ReadWelcomed(document.RootElement, log),
+                Toggles = ReadToggles(document.RootElement, log),
+                Sounds = ReadSounds(document.RootElement, log),
+                Bindings = ReadBindings(document.RootElement, log),
             };
         }
         // A lone surrogate, raw or escaped, is ArgumentException or InvalidOperationException rather than JsonException
@@ -140,6 +180,153 @@ public sealed record ModSettings
         }
         log($"settings file: \"{SoundCueVolumeKey}\" is not a whole number from 0 to 100; using {Defaults.SoundCueVolume}");
         return Defaults.SoundCueVolume;
+    }
+
+    // JSON true or false; anything else counts as said, so a typo can't make the welcome repeat on every launch.
+    private static bool ReadWelcomed(JsonElement root, Action<string> log)
+    {
+        if (!root.TryGetProperty(WelcomeFlag.Key, out var value))
+        {
+            return false;
+        }
+        if (value.ValueKind is JsonValueKind.True or JsonValueKind.False)
+        {
+            return value.GetBoolean();
+        }
+        log($"settings file: \"{WelcomeFlag.Key}\" is not true or false; using true");
+        return true;
+    }
+
+    // Each feature's true or false in its group's object; anything else leaves it on and says why.
+    private static SettingMap<Feature, bool> ReadToggles(JsonElement root, Action<string> log)
+    {
+        Dictionary<Feature, bool> read = [];
+        foreach (var group in Enum.GetValues<Feature>().GroupBy(feature => SettingKey.Of(feature).Group))
+        {
+            if (Group(root, group.Key, log) is not { } values)
+            {
+                continue;
+            }
+            foreach (var feature in group)
+            {
+                var key = SettingKey.Of(feature);
+                if (!values.TryGetProperty(key.Name, out var value))
+                {
+                    continue;
+                }
+                if (value.ValueKind is JsonValueKind.True or JsonValueKind.False)
+                {
+                    read[feature] = value.GetBoolean();
+                }
+                else
+                {
+                    log($"settings file: \"{key.Path}\" is not true or false; using true");
+                }
+            }
+        }
+        return new(read);
+    }
+
+    // Each cue's { "on": true or false, "volume": 0 to 100 }; a value that can't be used keeps that value's default.
+    private static SettingMap<Cue, CueSetting> ReadSounds(JsonElement root, Action<string> log)
+    {
+        Dictionary<Cue, CueSetting> read = [];
+        if (Group(root, SoundsKey, log) is not { } values)
+        {
+            return new(read);
+        }
+        foreach (var cue in Enum.GetValues<Cue>())
+        {
+            var key = SettingKey.Of(cue);
+            if (!values.TryGetProperty(key.Name, out var value))
+            {
+                continue;
+            }
+            if (value.ValueKind != JsonValueKind.Object)
+            {
+                log($"settings file: \"{key.Path}\" is not an object like {{ \"on\": true, \"volume\": 100 }}; using the default");
+                continue;
+            }
+            var setting = CueSetting.Default;
+            if (value.TryGetProperty("on", out var on))
+            {
+                if (on.ValueKind is JsonValueKind.True or JsonValueKind.False)
+                {
+                    setting = setting with { On = on.GetBoolean() };
+                }
+                else
+                {
+                    log($"settings file: \"{key.Path}.on\" is not true or false; using true");
+                }
+            }
+            if (value.TryGetProperty("volume", out var volume))
+            {
+                if (volume.ValueKind == JsonValueKind.Number && volume.TryGetInt32(out var number) && number is >= 0 and <= 100)
+                {
+                    setting = setting with { Volume = number };
+                }
+                else
+                {
+                    log($"settings file: \"{key.Path}.volume\" is not a whole number from 0 to 100; using 100");
+                }
+            }
+            read[cue] = setting;
+        }
+        return new(read);
+    }
+
+    // Every group in "keys", whatever feature it belongs to, so a feature added later reads its own; a name the
+    // feature doesn't use is never asked for.
+    private static SettingMap<string, int> ReadBindings(JsonElement root, Action<string> log)
+    {
+        Dictionary<string, int> read = new(StringComparer.Ordinal);
+        if (Group(root, KeysKey, log) is not { } groups)
+        {
+            return new(read);
+        }
+        foreach (var group in groups.EnumerateObject())
+        {
+            if (group.Value.ValueKind != JsonValueKind.Object)
+            {
+                log($"settings file: \"{KeysKey}.{group.Name}\" is not an object; using the default keys");
+                continue;
+            }
+            foreach (var binding in group.Value.EnumerateObject())
+            {
+                var buttons = BindingNames.IsButtons(binding.Name);
+                if (!buttons && !BindingNames.IsKey(binding.Name))
+                {
+                    continue;
+                }
+                var text = binding.Value.ValueKind == JsonValueKind.String ? binding.Value.GetString() : null;
+                if ((buttons ? BindingNames.Buttons(text) : BindingNames.Key(text)) is { } code)
+                {
+                    read[$"{group.Name}.{binding.Name}"] = code;
+                }
+                else
+                {
+                    log(buttons
+                        ? $"settings file: \"{KeysKey}.{group.Name}.{binding.Name}\" is not pad buttons like \"LB+RB\"; using the default"
+                        : $"settings file: \"{KeysKey}.{group.Name}.{binding.Name}\" is not a key like \"R\" or \"F5\"; using the default");
+                }
+            }
+        }
+        return new(read);
+    }
+
+    // A group's object, or null when the file has none or it isn't an object (said in the log).
+    private static JsonElement? Group(JsonElement root, string name, Action<string> log)
+    {
+        if (!root.TryGetProperty(name, out var value))
+        {
+            return null;
+        }
+        if (value.ValueKind == JsonValueKind.Object)
+        {
+            return value;
+        }
+        log($"settings file: \"{name}\" is not an object; using its defaults");
+        return null;
     }
 
     private static VoicedLinesMode? Named(string? text)

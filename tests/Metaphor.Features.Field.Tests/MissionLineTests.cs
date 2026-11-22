@@ -36,6 +36,7 @@ public sealed class MissionLineTests
     private readonly MissionLine mission;
     private long now = 5000;
     private bool roaming = true;
+    private bool settingOn = true;
     private bool tableReadable = true;
 
     public MissionLineTests()
@@ -44,7 +45,19 @@ public sealed class MissionLineTests
         library.Compiled(Source);
         mission = new MissionLine(
             flag => set.Contains(flag), () => tableReadable ? rows : null, library,
-            new TextCleaner(TextCleanerRules.None), announcer, () => now, () => roaming, log.Add);
+            new TextCleaner(TextCleanerRules.None), announcer, () => now, () => roaming, log.Add, enabled: () => settingOn);
+    }
+
+    [Fact]
+    public void WithTheWhereAmISettingOffANewMissionSaysNothing()
+    {
+        mission.Poll();
+        settingOn = false;
+        set.Add(0x1167);
+        now += MissionLine.PollMilliseconds;
+
+        Assert.Null(mission.Poll());
+        Assert.Empty(Said());
     }
 
     private IEnumerable<string> Said() => announcer.Said.Select(said => said.Text);

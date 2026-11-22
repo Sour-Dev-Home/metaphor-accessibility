@@ -2,6 +2,7 @@ using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
 using Metaphor.Core.Announcements;
 using Metaphor.Core.Input;
+using Metaphor.Core.Settings;
 
 namespace Metaphor.Features.Field;
 
@@ -21,6 +22,20 @@ public sealed record FieldBindings(
     /// <c>0x0080</c> on game build 548ddc95… (Steam build 18330018), and its keyboard read lists N (<c>0x4E</c>) and L
     /// (<c>0x4C</c>) when held: docs/raw-sources/pad-and-keyboard-state-2026-11-16.md.</summary>
     public static FieldBindings Default { get; } = new(0x4E, 0x4C, 0x0400, 0x0040, 0x0010, 0x0080);
+
+    /// <summary>The bindings the settings file's <c>keys.field</c> object names (#661), each missing or unusable one
+    /// the default.</summary>
+    public static FieldBindings From(ModSettings settings)
+    {
+        ArgumentNullException.ThrowIfNull(settings);
+        return new(
+            settings.Binding("field", "nearbyKey", Default.NearbyKey),
+            settings.Binding("field", "placeKey", Default.PlaceKey),
+            settings.Binding("field", "holdButtons", Default.HoldButtons),
+            settings.Binding("field", "nextButton", Default.NextButton),
+            settings.Binding("field", "previousButton", Default.PreviousButton),
+            settings.Binding("field", "placeButton", Default.PlaceButton));
+    }
 }
 
 /// <summary>The field controls (#181), while the player roams the field: the nearby key speaks the list of things
@@ -32,7 +47,9 @@ public sealed record FieldBindings(
 /// roam: the key, or the chord's D-pad button (the held button stays, so the game never sees it let go and pressed
 /// again). Elsewhere everything reaches the game. A press is an up-to-down edge of a binding held on any pad or the
 /// keyboard, as for the menu controls. Speech goes to the announcer directly: each is an answer the player asked for.
-/// </summary>
+/// The nearby list and "where am I" each have their own setting (#661), read on each input read: one turned off leaves
+/// its keys and chords to the game.</summary>
+[FeatureSetting(Feature.Nearby, Feature.WhereAmI)]
 public sealed class FieldControls : IInputControls
 {
     /// <summary>How long the pad's place on the list lasts after a step; the next step after that starts again at the
@@ -42,7 +59,8 @@ public sealed class FieldControls : IInputControls
     private const int KeyboardSource = -1;
 
     private readonly Lock gate = new();
-    private readonly FieldBindings bindings;
+    private readonly Func<FieldBindings> liveBindings;
+    private readonly Func<Feature, bool> isOn;
     private readonly IFieldReads field;
     private readonly FieldPlace place;
     private readonly IAnnouncer announcer;
@@ -66,13 +84,27 @@ public sealed class FieldControls : IInputControls
     public FieldControls(
         FieldBindings bindings, IFieldReads field, FieldPlace place, IAnnouncer announcer, Func<long> milliseconds,
         Action<string>? log = null, MissionLine? mission = null, Func<int, bool?>? storyFlag = null)
+        : this(() => bindings, _ => true, field, place, announcer, milliseconds, log, mission, storyFlag)
     {
         ArgumentNullException.ThrowIfNull(bindings);
+    }
+
+    /// <summary>Field controls on the bindings and settings in force, read on each input read (#661):
+    /// <paramref name="isOn"/> says whether <see cref="Feature.Nearby"/> and <see cref="Feature.WhereAmI"/> are on.
+    /// </summary>
+    public FieldControls(
+        Func<FieldBindings> bindings, Func<Feature, bool> isOn, IFieldReads field, FieldPlace place,
+        IAnnouncer announcer, Func<long> milliseconds, Action<string>? log = null, MissionLine? mission = null,
+        Func<int, bool?>? storyFlag = null)
+    {
+        ArgumentNullException.ThrowIfNull(bindings);
+        ArgumentNullException.ThrowIfNull(isOn);
         ArgumentNullException.ThrowIfNull(field);
         ArgumentNullException.ThrowIfNull(place);
         ArgumentNullException.ThrowIfNull(announcer);
         ArgumentNullException.ThrowIfNull(milliseconds);
-        this.bindings = bindings;
+        liveBindings = bindings;
+        this.isOn = isOn;
         this.field = field;
         this.place = place;
         this.announcer = announcer;
@@ -100,10 +132,12 @@ public sealed class FieldControls : IInputControls
         {
             return buttons;
         }
+        var bindings = liveBindings();
+        var listOn = isOn(Feature.Nearby);
         var holding = Holds(buttons, bindings.HoldButtons);
-        var nextHeld = holding && Holds(buttons, bindings.NextButton);
-        var previousHeld = holding && Holds(buttons, bindings.PreviousButton);
-        var placeHeld = holding && Holds(buttons, bindings.PlaceButton);
+        var nextHeld = holding && listOn && Holds(buttons, bindings.NextButton);
+        var previousHeld = holding && listOn && Holds(buttons, bindings.PreviousButton);
+        var placeHeld = holding && isOn(Feature.WhereAmI) && Holds(buttons, bindings.PlaceButton);
         var roaming = (nextHeld || previousHeld || placeHeld) && field.InFreeRoam();
         Press press;
         lock (gate)
@@ -128,8 +162,9 @@ public sealed class FieldControls : IInputControls
     {
         ArgumentNullException.ThrowIfNull(keys);
         mission?.Poll();
-        var listHeld = keys.Contains(bindings.NearbyKey);
-        var placeHeld = keys.Contains(bindings.PlaceKey);
+        var bindings = liveBindings();
+        var listHeld = isOn(Feature.Nearby) && keys.Contains(bindings.NearbyKey);
+        var placeHeld = isOn(Feature.WhereAmI) && keys.Contains(bindings.PlaceKey);
         var roaming = (listHeld || placeHeld) && field.InFreeRoam();
         Press press;
         lock (gate)
@@ -139,7 +174,10 @@ public sealed class FieldControls : IInputControls
             press = listPressed ? Press.List : placePressed ? Press.Place : Press.None;
         }
         Act(press);
-        return roaming ? [.. keys.Where(key => key != bindings.NearbyKey && key != bindings.PlaceKey)] : keys;
+        // Only a held key of a feature that is on: one turned off reaches the game.
+        return roaming
+            ? [.. keys.Where(key => !(listHeld && key == bindings.NearbyKey) && !(placeHeld && key == bindings.PlaceKey))]
+            : keys;
     }
 
     private static bool Holds(int buttons, int binding) => binding != 0 && (buttons & binding) == binding;
