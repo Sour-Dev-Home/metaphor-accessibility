@@ -21,6 +21,11 @@
          System32, where Windows PowerShell 5.1 is started from. -->
     <PlatformTarget>x64</PlatformTarget>
     <Prefer32Bit>false</Prefer32Bit>
+    <!-- Stated, not inferred: the SDK infers win-x64 for a .NET Framework exe on Windows alone
+         (Microsoft.NET.RuntimeIdentifierInference.targets, SDK 9.0.319), so restore on Linux CI found no runtime
+         identifier and failed against the lock file (#720). Same output folder as the inferred one. -->
+    <RuntimeIdentifier>win-x64</RuntimeIdentifier>
+    <AppendRuntimeIdentifierToOutputPath>false</AppendRuntimeIdentifierToOutputPath>
     <!-- asInvoker: Windows never asks for administrator rights for it (install.ps1 asks only where a step needs them). -->
     <ApplicationManifest>app.manifest</ApplicationManifest>
     <!-- No PDB, so no build path reaches the exe: a rebuild at another path gives the same bytes (#613). -->
