@@ -1,11 +1,14 @@
 using Metaphor.Core;
 using Metaphor.Core.Announcements;
 using Metaphor.Core.Battle;
+using Metaphor.Core.Cues;
+using Metaphor.Core.Input;
 using Metaphor.Core.Menus;
 using Metaphor.Core.Messages;
 using Metaphor.Core.Settings;
 using Metaphor.Features.Battle;
 using Metaphor.Features.Dialogue;
+using Metaphor.Features.Field;
 using Metaphor.Features.Menus;
 
 namespace Metaphor.Hooks;
@@ -45,6 +48,22 @@ internal sealed record HookServices
     /// <summary>Reads whether the game has its menus open (#268); the loader locates what it reads (#300).</summary>
     public MenusOpenRead MenusOpen { get; init; } = new();
 
+    /// <summary>Where the name entry hook reports each update of the box (#585): nowhere unless the menus feature is
+    /// speaking it.</summary>
+    public INameEntryObserver NameEntry { get; init; } = new NoNameEntry();
+
+    /// <summary>What the input hooks' frame (#301) shows each keyboard read to, unchanged: the name entry's Enter hint
+    /// (#585), or nothing.</summary>
+    public IKeyWatcher? KeyWatcher { get; init; }
+
+    /// <summary>What the input hooks' frame (#301) shows each pad read to, unchanged: the settings confirm questions
+    /// (#562), or nothing.</summary>
+    public IPadWatcher? PadWatcher { get; init; }
+
+    /// <summary>Whether a name entry screen is up (#585), so the keyboard hook's dev log gives a key count, not the
+    /// codes of a name being typed.</summary>
+    public Func<bool> NameEntryUp { get; init; } = () => false;
+
     /// <summary>Reads the message the dialogue window holds (#232); the loader locates what it reads (#300).</summary>
     public DialogueWindowPointer DialogueWindow { get; init; } = new();
 
@@ -60,10 +79,33 @@ internal sealed record HookServices
     /// <summary>Every reader of a game global, which the loader hands each global it locates before any hook goes in.
     /// </summary>
     public IReadOnlyList<IReadsGlobal> Globals =>
-        [MenusOpen, DialogueWindow, GameData, CharacterTable, FollowerTable, Voice, BattleScene];
+        [MenusOpen, DialogueWindow, GameData, CharacterTable, FollowerTable, Voice, BattleScene, FieldWorld, FieldScene,
+            FieldDatabase, PersonTable];
 
     /// <summary>Reads whether a battle is on, for the status key (#631); the loader locates what it reads.</summary>
     public BattleSceneRead BattleScene { get; init; } = new();
+
+    /// <summary>Reads <c>fldWorld</c> for the nearby list (#181); the loader locates it.</summary>
+    public FieldGlobal FieldWorld { get; init; } = FieldGlobal.World();
+
+    /// <summary>Reads the field's scene root for free roam (#181); the loader locates it.</summary>
+    public FieldGlobal FieldScene { get; init; } = FieldGlobal.SceneRoot();
+
+    /// <summary>Reads the field database for the map id (#181); the loader locates it.</summary>
+    public FieldGlobal FieldDatabase { get; init; } = FieldGlobal.Database();
+
+    /// <summary>Reads the person table for people's names (#181); the loader locates it.</summary>
+    public DataTableRead PersonTable { get; init; } = DataTableRead.People();
+
+    /// <summary>The field controls (#181): the input hooks' frame (#301) hands them what the dialogue controls leave.
+    /// None unless the services speak.</summary>
+    public FieldControls? FieldControls { get; init; }
+
+    /// <summary>The place names "where am I" says (#181): the message lookup hook feeds it.</summary>
+    public FieldPlace? FieldPlace { get; init; }
+
+    /// <summary>The field reads (#181), for the map id beside each place-name lookup.</summary>
+    public FieldMemory? Field { get; init; }
 
     /// <summary>Reads the game's voice language for the auto voiced-lines mode (#538); the loader locates what it reads
     /// (#300).</summary>
@@ -87,6 +129,29 @@ internal sealed record HookServices
     /// none.</summary>
     public BattleStatus? BattleStatus { get; init; }
 
+    /// <summary>The details key in a battle (#631), which the input frame hands each read after the status key; null
+    /// for none.</summary>
+    public BattleEnemyHp? BattleDetails { get; init; }
+
+    /// <summary>The game's tutorial table (#118), which the entry point loads from the game's archive once the hooks
+    /// are in.</summary>
+    public TutorialTableSource Tutorials { get; init; } = new();
+
+    /// <summary>Speaks tutorial pop-ups as they open (#118); silent unless built by <see cref="Speaking"/>.</summary>
+    public TutorialPopups TutorialPopups { get; init; } =
+        new(new MessageLibrary(), new SilentAnnouncer(), new TextCleaner(TextCleanerRules.None), () => null);
+
+    /// <summary>Where features play the mod's sound cues (#636, ADR 0019); silent unless the entry point starts one.
+    /// </summary>
+    public ICuePlayer Cues { get; init; } = new SilentCuePlayer();
+
+    /// <summary>The travel map's destination panel (#545): the panel hook hands it each destination shown.</summary>
+    public required TravelMapDestination TravelMap { get; init; }
+
+    /// <summary>The field map's name strip (#586): its composer and set hooks hand it each place's name and showing.
+    /// </summary>
+    public required FieldMapName FieldMapName { get; init; }
+
     /// <summary>The mod's folder, outside the repository, where a development run leaves files for its hooks.</summary>
     public required string ModFolder { get; init; }
 
@@ -95,13 +160,17 @@ internal sealed record HookServices
     /// hears each compiled file first, speech each requested line and choice first, and the menu screens (#208, which
     /// tell the title menu, #94, the main menu and any other screen, #97) and a choice's focus (#95) each cursor input; the report log (#188) and the message log,
     /// when there are, hear every event last.</summary>
+    /// <remarks>Features that play sound cues (#636) are handed <paramref name="cues"/>.</remarks>
     public static HookServices Speaking(
-        IAnnouncer announcer, SettingsReloader settings, ReportLog? report, MessageLog? log, string modFolder)
+        IAnnouncer announcer, ICuePlayer cues, SettingsReloader settings, ReportLog? report, MessageLog? log,
+        string modFolder)
     {
+        ArgumentNullException.ThrowIfNull(cues);
         ArgumentNullException.ThrowIfNull(settings);
         var library = new MessageLibrary();
         // Serials as build 548ddc95 numbers them; the message file hook that feeds it installs on that build only.
         var serials = new MessageSerials(MessageSerials.Steam18330018);
+        var filesById = new MessageFilesById();
         var history = new DialogueHistory();
         var events = new MessageEvents();
         var cursors = new CursorEvents();
@@ -119,15 +188,23 @@ internal sealed record HookServices
         var voiceLanguage = new VoiceLanguageRead();
         var dialogue = new DialogueAnnouncer(
             reader, cleaner, history, () => settings.Current.VoicedLines, voiceLanguage.Read);
-        var controls = new DialogueControls(DialogueBindings.Default, history, reader, announcer, dialogue.EndConversation);
+        // Tutorial pop-ups speak through the reader too, once their table has loaded (#118).
+        var tutorials = new TutorialTableSource();
+        var tutorialPopups = new TutorialPopups(library, reader, cleaner, () => tutorials.Table);
+        // While a pop-up is up, the repeat binding says its page again (by-ear finding of 2026-11-21).
+        var controls = new DialogueControls(
+            DialogueBindings.Default, history, reader, announcer, dialogue.EndConversation, () => tutorialPopups.OnScreen);
         // Menus speak through the reader too (#214), and their controls toggle it with the dialogue's binding.
         var screens = new MenuScreens(KnownScreens.All);
         screens.Observe(new TitleMenuFocus(library, reader, cleaner));
         screens.Observe(new MainMenuFocus(reader));
         // A yes/no dialog hears each scripted choice and each select window too, to say the text of one opened outside
         // the scripts (#569).
-        var yesNo = new YesNoDialogFocus(library, reader, cleaner);
+        // A settings page's dialog says its question, known from the press that opened it (#562).
+        var settingsQuestion = new SettingsConfirmQuestion();
+        var yesNo = new YesNoDialogFocus(library, reader, cleaner, settingsQuestion);
         screens.Observe(yesNo);
+        screens.Observe(settingsQuestion);
         events.ObserveChoices(yesNo);
         events.ObserveSelects(yesNo);
         screens.Observe(new DifficultyFocus(library, reader, cleaner));
@@ -153,12 +230,16 @@ internal sealed record HookServices
         // The details key reads a battle list's description (#247); on a screen shown outside the menus it answers only
         // while that screen's cursor is still called.
         var menuControls = new MenuControls(menuBindings, screens, reader, battleLists, cursors.CalledRecently);
+        // Name entry (#585): the title and refusals through the reader, typed characters as private announcements.
+        var nameEntry = new NameEntrySpeech(library, reader, cleaner, () => Environment.TickCount64);
         screens.Observe(menuControls);
         events.ObserveFiles(library);
         events.ObserveFiles(serials);
+        events.ObserveFiles(filesById);
         var lines = new DialogueLines(new ShownSpeakers(library, names), dialogue);
         events.ObserveLines(lines);
         events.ObserveShownLines(lines);
+        events.ObserveShownLines(nameEntry);
         // A choice's prompt, spoken as it opens, isn't spoken again when the window shows it (#541).
         events.ObserveChoices(lines);
         var choices = new DialogueChoices(library, dialogue);
@@ -172,6 +253,19 @@ internal sealed record HookServices
         events.ObserveSelects(selectChoices);
         cursors.Observe(screens);
         cursors.Observe(choiceFocus);
+        // The field's nearby list and "where am I" (#181), read on the press and spoken straight to the announcer.
+        var menusOpen = new MenusOpenRead();
+        var window = new DialogueWindowPointer();
+        var fieldWorld = FieldGlobal.World();
+        var fieldScene = FieldGlobal.SceneRoot();
+        var fieldDatabase = FieldGlobal.Database();
+        var personTable = DataTableRead.People();
+        var field = new FieldMemory(fieldWorld, fieldScene, fieldDatabase, personTable, names, menusOpen, window);
+        var place = new FieldPlace(cleaner);
+        events.ObserveFiles(place);
+        var fieldControls = new FieldControls(
+            FieldBindings.Default, field, place, announcer, () => Environment.TickCount64,
+            log is null ? null : log.FieldRead);
         if (report is not null)
         {
             events.ObserveFiles(report);
@@ -203,14 +297,45 @@ internal sealed record HookServices
             BattleParty = party,
             BattleScene = battleScene,
             BattleStatus = new BattleStatus(party, hitLines, battleScene, reader),
+            // The details binding the menus use says the enemies' HP in a battle (#631); the menu controls take it
+            // first while a battle list is shown. A Debug build logs each press's enemy records for the target read.
+            BattleDetails = new BattleEnemyHp(
+                menuBindings.DetailsButtons, menuBindings.DetailsKey, hitLines, battleScene, reader,
+                log is null ? null : text => log.Requested("BattleDetails", text)),
+            TravelMap = new TravelMapDestination(filesById, reader, cleaner, () => Environment.TickCount64),
+            FieldMapName = new FieldMapName(reader, cleaner),
             DialogueHistory = history,
             DialogueControls = controls,
             MenuControls = menuControls,
             MenuScreens = screens,
+            NameEntry = nameEntry,
+            KeyWatcher = nameEntry,
+            PadWatcher = settingsQuestion,
+            NameEntryUp = nameEntry.OnScreen,
             GameData = gameData,
             CharacterTable = characterTable,
             FollowerTable = followerTable,
             Voice = voiceLanguage,
+            Tutorials = tutorials,
+            TutorialPopups = tutorialPopups,
+            MenusOpen = menusOpen,
+            DialogueWindow = window,
+            FieldWorld = fieldWorld,
+            FieldScene = fieldScene,
+            FieldDatabase = fieldDatabase,
+            PersonTable = personTable,
+            Field = field,
+            FieldPlace = place,
+            FieldControls = fieldControls,
+            Cues = cues,
         };
+    }
+}
+
+/// <summary>A name entry observer that ignores every update: what the hook reports to when no feature listens.</summary>
+internal sealed class NoNameEntry : INameEntryObserver
+{
+    public void Observe(NameEntryFrame frame)
+    {
     }
 }

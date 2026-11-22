@@ -13,15 +13,22 @@ public interface IHitCue
     void Before(BattleSide side);
 }
 
+/// <summary>An enemy this battle has hit, as <see cref="HitLines"/> labels it, with the HP it had left and its max HP
+/// (null when unread) at its last hit, and its record address, an identity only.</summary>
+public sealed record KnownEnemy(string Label, int Hp, int? HpMax, long Target);
+
 /// <summary>Says each target a battle action hits (#247, wording by the maintainer on 2026-11-21): the number alone for
 /// damage ("34"), "34 healed" for a gain, each queued after the last. Once the action's hits stop for
-/// <see cref="ActionGapMilliseconds"/>, one summary of who changed: party members as "name HP" ("Strohl 89, Hulkenberg
-/// 120"), then each enemy as "Enemy, 40", numbered by the order the battle first hit them when it has hit more than one
-/// ("Enemy 2, 40"). Only hits whose popup carries a number are said. Safe to call from several threads.</summary>
+/// <see cref="ActionGapMilliseconds"/>, one summary of what each target that changed took in the action, never the HP
+/// it has left (the maintainer's call of 2026-11-22, #631: the HP moved to the details key): party members as "name
+/// damage" ("Strohl 30, Hulkenberg 12 healed"), then each enemy as "Enemy, 52", given an ordinal by the order the
+/// battle first hit them when it has hit more than one ("Second enemy, 52"; a label never ends in a digit before the
+/// number, since "Ally 1 141" sounds like 1141). Only hits whose popup carries a number are said. Safe to call from
+/// several threads.</summary>
 /// <remarks>
 /// <para>No safe read of a unit's name is known yet: a party member is named by <c>memberName</c> when it knows its unit
-/// number, else "Ally" and its slot; an enemy is "Enemy". An enemy's number is the order it was first hit, not its place
-/// on screen, which isn't read.</para>
+/// number, else "First ally" and so on by slot; an enemy is "Enemy". An enemy's ordinal is the order it was first hit,
+/// not its place on screen, which isn't read.</para>
 /// <para>The game gives no "action over" signal the mod reads, so an action ends at a quiet gap, and a battle at a long
 /// one (<see cref="BattleGapMilliseconds"/>), which forgets its enemies; both lengths are guesses to check by ear.</para>
 /// </remarks>
@@ -43,7 +50,7 @@ public sealed class HitLines : IBattleHitObserver, IDisposable
     private readonly RepeatGate repeats;
     private readonly Lock gate = new();
     private readonly List<long> enemies = [];
-    private readonly Dictionary<long, int> enemyHp = [];
+    private readonly Dictionary<long, (int Hp, int? HpMax)> enemyHp = [];
     private readonly List<BattleHit> action = [];
     private readonly ITimer timer;
     private long lastHit = long.MinValue / 2;
@@ -86,36 +93,47 @@ public sealed class HitLines : IBattleHitObserver, IDisposable
                 {
                     enemies.Add(hit.Target);
                 }
-                enemyHp[hit.Target] = hit.HpLeft;
+                enemyHp[hit.Target] = (hit.HpLeft, hit.HpMax);
             }
             action.Add(hit);
             timer.Change(TimeSpan.FromMilliseconds(ActionGapMilliseconds), Timeout.InfiniteTimeSpan);
         }
         cue?.Before(hit.Side);
-        var number = hit.HpChange switch
-        {
-            < 0 => string.Create(CultureInfo.InvariantCulture, $"{-(long)hit.HpChange}"),
-            > 0 => string.Create(CultureInfo.InvariantCulture, $"{hit.HpChange} healed"),
-            _ => "0",
-        };
-        announcer.Announce(new Announcement(number, Interrupt: false));
+        announcer.Announce(new Announcement(Change(hit.HpChange), Interrupt: false));
     }
 
-    /// <summary>The enemies this battle has hit, by label, with the HP each had left at its last hit, in the order first
-    /// hit: for the status key.</summary>
-    public IReadOnlyList<(string Label, int Hp)> KnownEnemies()
+    /// <summary>The enemies this battle has hit, in the order first hit: for the status and details keys.</summary>
+    public IReadOnlyList<KnownEnemy> KnownEnemies()
     {
         lock (gate)
         {
-            return [.. enemies.Select(enemy => (EnemyLabel(enemy), enemyHp[enemy]))];
+            return [.. enemies.Select(enemy => new KnownEnemy(EnemyLabel(enemy), enemyHp[enemy].Hp, enemyHp[enemy].HpMax, enemy))];
         }
     }
 
-    /// <summary>A party member's name: <c>memberName</c>'s, or "Ally" and its slot from 1.</summary>
-    public string MemberLabel(int slot, int? unit) =>
+    /// <summary>An HP change as said: damage as its number ("34"), a gain as "34 healed".</summary>
+    private static string Change(long change) => change switch
+    {
+        < 0 => string.Create(CultureInfo.InvariantCulture, $"{-change}"),
+        > 0 => string.Create(CultureInfo.InvariantCulture, $"{change} healed"),
+        _ => "0",
+    };
+
+    /// <summary>A party member's name followed by <paramref name="rest"/> (a number): <c>memberName</c>'s, or "First
+    /// ally," and so on by slot. The comma and the ordinal word keep the reader from running the slot into the number
+    /// ("Ally 1 141" sounds like 1141).</summary>
+    public string MemberSays(int slot, int? unit, string rest) =>
         unit is { } known && memberName(known) is { Length: > 0 } name
-            ? name
-            : string.Create(CultureInfo.InvariantCulture, $"Ally {slot + 1}");
+            ? $"{name} {rest}"
+            : $"{Ordinal(slot + 1, "ally")}, {rest}";
+
+    /// <summary>"First ally", "Second enemy", ... ; past the tenth, "11th ally".</summary>
+    private static string Ordinal(int n, string noun) => n >= 1 && n <= Ordinals.Length
+        ? $"{Ordinals[n - 1]} {noun}"
+        : string.Create(CultureInfo.InvariantCulture, $"{n}th {noun}");
+
+    private static readonly string[] Ordinals =
+        ["First", "Second", "Third", "Fourth", "Fifth", "Sixth", "Seventh", "Eighth", "Ninth", "Tenth"];
 
     public void Dispose() => timer.Dispose();
 
@@ -137,8 +155,9 @@ public sealed class HitLines : IBattleHitObserver, IDisposable
         string? said;
         lock (gate)
         {
-            // Each target once, at its last hit, in the order first hit; only who changed.
+            // Each target once, with the action's total change to it, in the order first hit; only who changed.
             var last = new Dictionary<long, BattleHit>();
+            var total = new Dictionary<long, long>();
             var order = new List<long>();
             var changed = new HashSet<long>();
             foreach (var hit in action)
@@ -148,6 +167,7 @@ public sealed class HitLines : IBattleHitObserver, IDisposable
                     order.Add(hit.Target);
                 }
                 last[hit.Target] = hit;
+                total[hit.Target] = total.GetValueOrDefault(hit.Target) + hit.HpChange;
                 if (hit.HpChange != 0)
                 {
                     changed.Add(hit.Target);
@@ -157,12 +177,13 @@ public sealed class HitLines : IBattleHitObserver, IDisposable
             var targets = order.Where(changed.Contains).Select(target => last[target]).ToList();
             var allies = targets.Where(hit => hit.Side == BattleSide.Ally)
                 .OrderBy(hit => hit.Slot ?? int.MaxValue)
-                .Select(hit => string.Create(CultureInfo.InvariantCulture,
-                    $"{(hit.Slot is { } slot ? MemberLabel(slot, hit.Unit) : "Ally")} {hit.HpLeft}"))
+                .Select(hit => hit.Slot is { } slot
+                    ? MemberSays(slot, hit.Unit, Change(total[hit.Target]))
+                    : $"Ally, {Change(total[hit.Target])}")
                 .ToList();
             var others = targets.Where(hit => hit.Side != BattleSide.Ally)
-                .Select(hit => string.Create(CultureInfo.InvariantCulture,
-                    $"{(hit.Side == BattleSide.Enemy ? EnemyLabel(hit.Target) : "Target")}, {hit.HpLeft}"));
+                .Select(hit =>
+                    $"{(hit.Side == BattleSide.Enemy ? EnemyLabel(hit.Target) : "Target")}, {Change(total[hit.Target])}");
             var parts = (allies.Count > 0 ? [string.Join(", ", allies)] : Array.Empty<string>()).Concat(others).ToList();
             said = parts.Count > 0 ? string.Join(". ", parts) : null;
         }
@@ -175,7 +196,7 @@ public sealed class HitLines : IBattleHitObserver, IDisposable
     // Called under the gate.
     private string EnemyLabel(long enemy) =>
         enemies.Count > 1
-            ? string.Create(CultureInfo.InvariantCulture, $"Enemy {enemies.IndexOf(enemy) + 1}")
+            ? Ordinal(enemies.IndexOf(enemy) + 1, "enemy")
             : "Enemy";
 
     private long Now() => time.GetUtcNow().ToUnixTimeMilliseconds();

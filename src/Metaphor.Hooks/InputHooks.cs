@@ -33,11 +33,17 @@ internal sealed class GameInputReads(DialogueWindowPointer window, MenusOpenRead
     public bool MenusOpen() => menus.IsOpen();
 
     /// <summary>The input frame over <paramref name="services"/>' readers, menu screens and controls; the menu controls
-    /// take each read first, then the battle status key (#631), then the dialogue controls.</summary>
-    public static InputFrame Frame(HookServices services) =>
-        new(new GameInputReads(services.DialogueWindow, services.MenusOpen), services.MenuScreens,
-            services.BattleStatus is { } status ? new ChainedControls(services.MenuControls, status) : services.MenuControls,
-            services.DialogueControls);
+    /// take each read first, then the battle status key and the battle details key (#631), then the dialogue controls,
+    /// the field's (#181) last when there are, and its key and pad watchers.</summary>
+    public static InputFrame Frame(HookServices services)
+    {
+        var game = new GameInputReads(services.DialogueWindow, services.MenusOpen);
+        IInputControls menus =
+            services.BattleStatus is { } status ? new ChainedControls(services.MenuControls, status) : services.MenuControls;
+        menus = services.BattleDetails is { } details ? new ChainedControls(menus, details) : menus;
+        return new(game, services.MenuScreens, menus, services.DialogueControls,
+            services.FieldControls ?? InputFrame.NoControls, services.KeyWatcher, services.PadWatcher);
+    }
 }
 
 /// <summary>The pad read: <c>(32-bit pad number, pointer to the game's pad state) → al</c>; it writes the game's own
@@ -142,6 +148,7 @@ internal sealed class KeyboardReadHook : IGameHook, IChangesBehaviour
 
     private readonly InputFrame frame;
     private readonly MessageLog? log;
+    private readonly Func<bool> nameEntryUp;
     private readonly InputStateChanges changes = new();
     private readonly Function callback;
     private IHook<Function>? hook;
@@ -151,6 +158,7 @@ internal sealed class KeyboardReadHook : IGameHook, IChangesBehaviour
         ArgumentNullException.ThrowIfNull(services);
         frame = GameInputReads.Frame(services);
         log = services.Log;
+        nameEntryUp = services.NameEntryUp;
         callback = OnCall;
     }
 
@@ -192,8 +200,10 @@ internal sealed class KeyboardReadHook : IGameHook, IChangesBehaviour
                 }
                 if (log is not null)
                 {
+                    // On a name entry screen the held keys may spell the player's name (#585): counts only then.
+                    var hide = nameEntryUp();
                     var text = string.Create(CultureInfo.InvariantCulture,
-                        $"keys=0x{ModuleMemoryReader.ReadInt32(state) ?? 0:x8} held={Codes(keys)} handed={Codes(handed)} returned={result & 0xFF}");
+                        $"keys=0x{ModuleMemoryReader.ReadInt32(state) ?? 0:x8} held={Codes(keys, hide)} handed={Codes(handed, hide)} returned={result & 0xFF}");
                     if (changes.Changed("keyboard", text))
                     {
                         log.InputChanged("keyboard", text);
@@ -207,6 +217,8 @@ internal sealed class KeyboardReadHook : IGameHook, IChangesBehaviour
         return result;
     }
 
-    private static string Codes(IReadOnlyList<int> keys) =>
-        keys.Count == 0 ? "-" : string.Join(',', keys.Select(key => key.ToString("x2", CultureInfo.InvariantCulture)));
+    private static string Codes(IReadOnlyList<int> keys, bool countOnly) =>
+        keys.Count == 0 ? "-"
+        : countOnly ? string.Create(CultureInfo.InvariantCulture, $"{keys.Count}keys")
+        : string.Join(',', keys.Select(key => key.ToString("x2", CultureInfo.InvariantCulture)));
 }

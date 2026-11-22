@@ -34,10 +34,10 @@ public sealed class QuickMenuFocusTests
         cursors.Handled(new CursorInput(0xa0, ClassRva: 0x100, Settle, Result: 1, Top: index, Row: 0, Flags: 0x46,
             MenuClass, count));
 
-    // The names, numbered as the file numbers their labels: 01 to 07, then 15, each with a help line after it.
+    // The names, numbered as the file numbers their labels: 01 to 07, then 15 and 17, each with a help line after it.
     private void SystemFileCompiled() => messages.Compiled(new MessageFileCompiled(SystemFile, 6, string.Join("\n\n",
         Entry(1, "Bag"), Entry(2, "Tale"), Entry(3, "Lessons"), Entry(4, "Options"), Entry(5, "Open"),
-        Entry(6, "Keep"), Entry(7, "Leave"), Entry(8, "Help for the bag"), Entry(15, "Notes <COLOR 3>"))));
+        Entry(6, "Keep"), Entry(7, "Leave"), Entry(8, "Help for the bag"), Entry(15, "Notes <COLOR 3>"), Entry(17, "Skill"))));
 
     private static string Entry(int number, string text) =>
         $"//--------\n@System_EasyMenu_{number:00}\n{{\n{text}\n<WAIT>\n}}";
@@ -81,15 +81,41 @@ public sealed class QuickMenuFocusTests
         Assert.Equal(["1 of 8"], Said());
     }
 
-    // Later in the game the menu has a ninth item, whose place in the order isn't known: positions only.
+    // From the 2026-11-21 session (#677) the menu has nine items: a new first row (help "Use a skill"; its name is
+    // probably System_EasyMenu_17 [NEEDS VERIFICATION]), then the eight above moved down one.
+    [Fact]
+    public void ANineItemMenuNamesTheNewRowFirstAndTheOldRowsShiftedDownOne()
+    {
+        SystemFileCompiled();
+
+        for (var index = 0; index < 9; index++)
+        {
+            Cursor(index, count: 9);
+        }
+
+        Assert.Equal(
+            ["Skill, 1 of 9", "Bag, 2 of 9", "Open, 3 of 9", "Keep, 4 of 9", "Tutorials, 5 of 9", "Tale, 6 of 9",
+                "Memorandum, 7 of 9", "Settings, 8 of 9", "Leave, 9 of 9"],
+            Said());
+    }
+
+    [Fact]
+    public void ANineItemMenuWithoutTheNewRowsNameSaysItsPositionAlone()
+    {
+        Cursor(0, count: 9);
+
+        Assert.Equal(["1 of 9"], Said());
+    }
+
+    // Any other length is a layout nobody mapped: positions only.
     [Fact]
     public void AMenuOfAnotherLengthIsSaidByPositionAlone()
     {
         SystemFileCompiled();
 
-        Cursor(0, count: 9);
-        Cursor(8, count: 9);
+        Cursor(0, count: 10);
+        Cursor(9, count: 10);
 
-        Assert.Equal(["1 of 9", "9 of 9"], Said());
+        Assert.Equal(["1 of 10", "10 of 10"], Said());
     }
 }

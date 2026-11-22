@@ -37,6 +37,11 @@ public sealed class MessageLog(TextWriter writer, Func<long> millisecondsSinceSt
     public void LookedUp(long messageId, int labelIndex) =>
         Write(() => Line($"{millisecondsSinceStart()} ms lookup id={messageId} label={labelIndex}"));
 
+    /// <summary>What a field key read (#181), as the field controls describe it: positions, kinds, ids and reach, numbers
+    /// only, so a session can measure the game's units and check its reach test.</summary>
+    public void FieldRead(string text) =>
+        Write(() => Line($"{millisecondsSinceStart()} ms field {text}"));
+
     /// <summary>A function the game registered for its scripts: its script name, and where the native function is in
     /// the game module. <paramref name="viaUserdata"/> says the address came from the userdata the game pushed (a game
     /// function behind a shared trampoline) and not from the registered function itself.</summary>
@@ -84,6 +89,14 @@ public sealed class MessageLog(TextWriter writer, Func<long> millisecondsSinceSt
     public void PlayerNameSeen(string function, PlayerNameSighting sighting) =>
         Write(() => Line($"{millisecondsSinceStart()} ms player-name via={function} {sighting}"));
 
+    /// <summary>A name entry screen's box, when its length changed (#585): which screen and the length, never the typed
+    /// text (<see cref="Menus.NameEntryFrame.ToString"/>).</summary>
+    public void NameEntryChanged(Menus.NameEntryFrame frame)
+    {
+        ArgumentNullException.ThrowIfNull(frame);
+        Write(() => Line($"{millisecondsSinceStart()} ms name-entry {frame}"));
+    }
+
     /// <summary>A pad's or the keyboard's state as the game read it, when it changed (#58): the source and the state as
     /// the listening hook formatted it. Bit masks only, no game text.</summary>
     public void InputChanged(string source, string state) =>
@@ -104,10 +117,45 @@ public sealed class MessageLog(TextWriter writer, Func<long> millisecondsSinceSt
     public void TutorialSeen(string what, string details) =>
         Write(() => Line($"{millisecondsSinceStart()} ms tutorial {what} {details}"));
 
+    /// <summary>A map screen's place text (#545, #586): which part (<c>panel</c>, <c>compose</c> or <c>strip</c>) and
+    /// its details as the hook formatted them: numbers, raw reference bytes and the text that was said or read.</summary>
+    public void MapSeen(string what, string details) =>
+        Write(() => Line($"{millisecondsSinceStart()} ms map {what} {details}"));
+
+    /// <summary>A UI component opened (#691): its class from the game's type information (null when unreadable) and its
+    /// address. Identifiers and numbers, no game text.</summary>
+    public void UiOpened(string? className, long at) =>
+        Write(() => Line($"{millisecondsSinceStart()} ms ui-open class={className ?? "?"} at=0x{at:x}"));
+
+    /// <summary>A UI layout started an animation (#691), which is how its open function shows it: the layout's class
+    /// (null when unreadable), its address and the animation's number (null when unreadable). Identifiers and numbers,
+    /// no game text.</summary>
+    public void UiAnimated(string? className, long at, int? animation) => Write(() => Line(
+        $"{millisecondsSinceStart()} ms ui-anim class={className ?? "?"} at=0x{at:x} anim={animation?.ToString(CultureInfo.InvariantCulture) ?? "?"}"));
+
     /// <summary>An input a menu's cursor manager handled that changed something (#93, #94). Numbers only, no game
-    /// text.</summary>
-    public void Observe(CursorInput input) => Write(() => Line(
-        $"{millisecondsSinceStart()} ms cursor mgr=0x{input.Manager:x} class={(input.ClassRva is { } rva ? $"0x{rva:x}" : "?")} cmd=0x{input.Command:x} result={input.Result} index={input.Index} top={input.Top} row={input.Row} flags=0x{input.Flags:x} screen={input.ScreenClass ?? "?"} count={input.Count?.ToString(CultureInfo.InvariantCulture) ?? "?"} mode={input.Mode?.ToString(CultureInfo.InvariantCulture) ?? "?"}"));
+    /// text. A grid cursor's input (#563) adds a <c>grid</c> record of its fields, so a session pins its rows and
+    /// columns.</summary>
+    public void Observe(CursorInput input)
+    {
+        Write(() => Line(
+            $"{millisecondsSinceStart()} ms cursor mgr=0x{input.Manager:x} class={(input.ClassRva is { } rva ? $"0x{rva:x}" : "?")} cmd=0x{input.Command:x} result={input.Result} index={input.Index} top={input.Top} row={input.Row} flags=0x{input.Flags:x} screen={input.ScreenClass ?? "?"} count={input.Count?.ToString(CultureInfo.InvariantCulture) ?? "?"} mode={input.Mode?.ToString(CultureInfo.InvariantCulture) ?? "?"}"));
+        if (input.Grid is { } grid)
+        {
+            Write(() => Line(
+                $"{millisecondsSinceStart()} ms grid mgr=0x{input.Manager:x} index={grid.Index} columns={grid.Columns} column={grid.Column} line={grid.Line} scroll={grid.Scroll} page={grid.Page} stride={grid.PageStride}"));
+        }
+    }
+
+    /// <summary>Key Configuration's choice fields from <paramref name="at"/> on, when they changed (#564): the bytes
+    /// as hex, so a session shows which marks "waiting for a key". Numbers only, no game text.</summary>
+    public void KeyConfigState(long choice, int at, string bytes) => Write(() => Line(
+        $"{millisecondsSinceStart()} ms keyconfig-state choice=0x{choice:x} at=+0x{at:x} bytes={bytes}"));
+
+    /// <summary>A settings page's working copy of its values, when it changed (#560): the page's choice and the bytes
+    /// from <see cref="Menus.SettingsPages.WorkingCopyOffset"/> on, as hex. Numbers only, no game text.</summary>
+    public void SettingsCopy(long choice, string bytes) => Write(() => Line(
+        $"{millisecondsSinceStart()} ms settings-copy choice=0x{choice:x} at=+0x{Menus.SettingsPages.WorkingCopyOffset:x} bytes={bytes}"));
 
     /// <summary>A line the game asked for by label, with its kind.</summary>
     public void Observe(LineRequested line) => Write(() =>

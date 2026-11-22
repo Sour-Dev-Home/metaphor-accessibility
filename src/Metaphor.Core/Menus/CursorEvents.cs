@@ -11,18 +11,35 @@ namespace Metaphor.Core.Menus;
 /// manager keeps, read with this input since a manager can be reused by another screen, or null when unreadable
 /// (docs/raw-sources/list-count-session6-2026-11-17.md). <paramref name="Mode"/> is the owner's own mode field, for a
 /// choice that serves more than one list (<see cref="ScreenModes"/>), or null when it has none or it is unreadable.
+/// <paramref name="Grid"/> is the grid cursor's own fields (<see cref="GridCursor"/>, #563) when the manager is one and
+/// they read as a grid, else null. <paramref name="OnButton"/> is whether the focus is on the screen's button, from a
+/// field of its owner, for a screen whose flags don't say it (Key Configuration, <see cref="SettingsPages"/>, #589),
+/// else null. <paramref name="Values"/> is a settings page's values from its working copy (<see cref="SettingValues"/>,
+/// #96), null on any other screen or when unreadable.
 /// </summary>
 public sealed record CursorInput(
     long Manager, long? ClassRva, int Command, int Result, int Top, int Row, int Flags, string? ScreenClass = null,
-    int? Count = null, int? Mode = null)
+    int? Count = null, int? Mode = null, GridCursor? Grid = null, bool? OnButton = null, SettingValues? Values = null)
 {
-    /// <summary>The cursor's position: what the class's index getter returns.</summary>
-    public int Index => Top + Row;
+    /// <summary>The cursor's position: what the class's index getter returns, the grid's own for a grid cursor.
+    /// </summary>
+    public int Index => Grid?.Index ?? Top + Row;
 
     /// <summary>Whether this is one of the four commands the handler moves the cursor for (<c>0x14</c>–<c>0x17</c>). A
     /// move can be refused and put back on the next call (docs/raw-sources/title-menu-labels-2026-11-16.md), so where
     /// the cursor settled is the next input that isn't a move.</summary>
     public bool IsMove => Command is >= 0x14 and <= 0x17;
+
+    /// <summary>The <see cref="Flags"/> bit set while the cursor is on one of the list's items. A settings page's OK
+    /// button, after its last row, settles at index 0 with it clear (flags <c>0x43</c>, its rows <c>0x47</c>), and no
+    /// settled cursor elsewhere had it clear (docs/raw-sources/settings-ok-and-rows-by-ear-2026-11-21.md, game build
+    /// 548ddc95…). That it means the same on every screen is <c>[NEEDS VERIFICATION]</c>.</summary>
+    public const int OnItemFlag = 0x4;
+
+    /// <summary>Whether the cursor sits off the list's items (<see cref="OnItemFlag"/> clear), as on a settings page's
+    /// OK button, or <see cref="OnButton"/> when the screen's own field says it. The hook passes 0 when it can't read
+    /// the flags, so 0 counts as on the list: a misread then says the row's position, not the button.</summary>
+    public bool OffList => OnButton ?? (Flags != 0 && (Flags & OnItemFlag) == 0);
 }
 
 /// <summary>Told of each menu cursor input that changed something.</summary>

@@ -112,6 +112,13 @@
     "evidence": "Our reading of the exe through its type information (docs/raw-sources/screen-class-link-2026-11-17.md); one match on disk, installed in memory at module offset 0xd4ab90 (docs/raw-sources/screen-class-session-2026-11-17.md)"
   },
   {
+    "name": "NameEntryInputUpdate",
+    "section": ".ecode",
+    "pattern": "48 89 5C 24 10 55 56 57 41 54 41 55 41 56 41 57 48 8D AC 24 80 FB FF FF 48 81 EC 80 05 00 00 4C 8B F1 48 8B 49 20 48 8B 01 FF 50 68 49 8B 4E 20 48 8B 01 FF 90 A0 00 00 00 85 C0 0F 84 ?? ?? ?? ?? 49 8B 4E 20 48 8B 01 FF 90 A0 00 00 00 A8 01",
+    "gameBuilds": ["548ddc955c176867f062c44f94c03dd9ac33caefb278a5ac388e792aedf09504"],
+    "evidence": "What fclNameEntry's update calls while the player types, our reading of the exe through its type information (docs/findings/name-entry-static.md); one match on disk at rva 0x4fef10 (tools/Metaphor.SignatureCheck/name-entry-probes.json); not yet checked in memory"
+  },
+  {
     "name": "DifficultySelectUpdate",
     "section": ".ecode",
     "pattern": "48 89 5C 24 18 48 89 74 24 20 55 57 41 54 41 56 41 57 48 8D AC 24 00 FE FF FF 48 81 EC 00 03 00 00 48 8B F1 48 63 41 70 83 F8 07 0F 87 ?? ?? ?? ?? 48 8D 0D ?? ?? ?? ?? 8B 94 81 ?? ?? ?? ?? 48 03 D1 FF E2",
@@ -235,14 +242,14 @@
     "section": ".ecode",
     "pattern": "48 89 5C 24 18 44 88 4C 24 20 48 89 54 24 10 48 89 4C 24 08 55 56 57 41 54 41 55 41 56 41 57 48 8D 6C 24 E1 48 81 EC E0 00 00 00 41 0F B6 D8 4C 8B FA 48 8B F1 33 FF 48 8B 41 20 48 85 C0 0F 84",
     "gameBuilds": ["548ddc955c176867f062c44f94c03dd9ac33caefb278a5ac388e792aedf09504"],
-    "evidence": "Our reading of the exe in Ghidra 12.2: UUIC_Common_TutorialWindow's open, called only by its controller's update, reads the tutorial number through its second argument (docs/findings/tutorial-popup-window-static.md); one match on disk; not yet checked in memory"
+    "evidence": "Our reading of the exe in Ghidra 12.2: UUIC_Common_TutorialWindow's open, called only by its controller's update, reads the tutorial number through its second argument (docs/findings/tutorial-popup-window-static.md); one match on disk; hooked in the by-ear run of 2026-11-21, which logged the pop-up's number (docs/raw-sources/tutorial-popup-by-ear-2026-11-21.md)"
   },
   {
     "name": "TutorialWindowShowOther",
     "section": ".ecode",
     "pattern": "48 8B C4 48 89 58 10 48 89 70 18 55 57 41 56 48 8D 68 A1 48 81 EC D0 00 00 00 C5 F8 29 70 D8 41 0F B6 F8 48 8B F2 48 8B D9 48 8B 41 20 48 85 C0 0F 84",
     "gameBuilds": ["548ddc955c176867f062c44f94c03dd9ac33caefb278a5ac388e792aedf09504"],
-    "evidence": "Our reading of the exe in Ghidra 12.2: the controller's other open, on a second tutorial window, reads the tutorial number through its second argument (docs/findings/tutorial-popup-window-static.md); one match on disk; not yet checked in memory"
+    "evidence": "Our reading of the exe in Ghidra 12.2: the controller's other open, on a second tutorial window, reads the tutorial number through its second argument (docs/findings/tutorial-popup-window-static.md); one match on disk; hooked in the by-ear run of 2026-11-21, which logged the party-join pop-up's open (docs/raw-sources/tutorial-party-join-window-by-ear-2026-11-21.md)"
   },
   {
     "name": "BattleHitResult",
@@ -256,13 +263,62 @@
     "section": ".ecode",
     "pattern": "41 56 48 83 EC 30 83 79 18 03 4C 8B F1 0F 84 ?? ?? ?? ?? 48 8B 01 FF 50 08 84 C0 0F 84 ?? ?? ?? ?? 41 8B 4E 18 48 89 5C 24 50",
     "gameBuilds": ["548ddc955c176867f062c44f94c03dd9ac33caefb278a5ac388e792aedf09504"],
-    "evidence": "Our reading of the exe in Ghidra 12.2: UUIC_Common_TutorialWindow's vtable slot 13 (vtable 0x22576a0), its per-frame update (docs/findings/tutorial-popup-window-static.md); one match on disk; not yet checked in memory"
+    "evidence": "Our reading of the exe in Ghidra 12.2: UUIC_Common_TutorialWindow's vtable slot 13 (vtable 0x22576a0), its per-frame update (docs/findings/tutorial-popup-window-static.md), which returns at once when +0x18 is 3 (the pattern's cmp and je); one match on disk; hooked in the by-ear run of 2026-11-21, one record per page turn (docs/raw-sources/tutorial-popup-by-ear-2026-11-21.md)"
+  },
+  {
+    "name": "FieldNavmeshSnap",
+    "section": ".ecode",
+    "pattern": "48 8B C4 48 89 58 10 57 48 81 EC B0 00 00 00 48 8B D9 C5 F8 29 70 E8 48 8B 0D ?? ?? ?? ?? C5 78 29 40 C8 C5 78 28 C1 48 8B 49 38 E8 ?? ?? ?? ?? 48 8B C8 48 8B F8 48 8B 10 FF 52 38",
+    "gameBuilds": ["548ddc955c176867f062c44f94c03dd9ac33caefb278a5ac388e792aedf09504"],
+    "evidence": "Our reading of the exe in Ghidra 12.2: the free-roam navmesh snap 0x576410, whose mov rcx at +0x17 loads fldWorld 0x2ee7510 (docs/findings/field-player-frame-hook-static.md, docs/findings/field-nearby-reads-static.md); one match on disk; read only, never hooked or called"
   },
   {
     "name": "FieldSceneRootRead",
     "section": ".ecode",
     "pattern": "48 83 EC 28 80 3D ?? ?? ?? ?? 00 75 1E 48 8B 0D ?? ?? ?? ?? 48 8B 01 FF 50 18 33 C9 83 F8 01 0F 95 C1 48 8D 41 FF 48 83 C4 28 C3",
     "gameBuilds": ["548ddc955c176867f062c44f94c03dd9ac33caefb278a5ac388e792aedf09504"],
-    "evidence": "Our reading of the exe: 0x522db0, whose mov rcx at +0xd loads fldScene_Root 0x2ee7348 (docs/findings/battle-scene-signal-static.md); one match on disk; read only, never hooked or called"
+    "evidence": "Our reading of the exe in Ghidra 12.2: 0x522db0, the one reader of fldScene_Root 0x2ee7348, whose mov rcx at +0xd loads it (docs/findings/field-nearby-reads-static.md); one match on disk; read only, never hooked or called"
+  },
+  {
+    "name": "FieldDatabaseRead",
+    "section": ".ecode",
+    "pattern": "40 53 48 83 EC 20 48 8B D9 48 8B 0D ?? ?? ?? ?? E8 ?? ?? ?? ?? 83 E8 05 74 09 83 F8 01 74 04 33 D2 EB 05 BA 01 00 00 00 48 8B CB E8",
+    "gameBuilds": ["548ddc955c176867f062c44f94c03dd9ac33caefb278a5ac388e792aedf09504"],
+    "evidence": "Our reading of the exe in Ghidra 12.2: 0x5767f0, whose mov rcx at +0x9 loads fldDatabase 0x2ee7368 for 0x5ab030 (docs/findings/field-nearby-reads-static.md); one match on disk; read only, never hooked or called"
+  },
+  {
+    "name": "TravelMapPanelShow",
+    "section": ".ecode",
+    "pattern": "44 88 44 24 18 89 54 24 10 48 89 4C 24 08 55 53 56 57 41 54 41 55 41 56 41 57 48 8B EC 48 83 EC 78 C5 F8 29 74 24 60 C5 F8 29 7C 24 50 49 8B F1",
+    "gameBuilds": ["548ddc955c176867f062c44f94c03dd9ac33caefb278a5ac388e792aedf09504"],
+    "evidence": "Our reading of the exe in Ghidra 12.2: sortie::map::Detail's show-a-destination, 0xcccf50 (docs/findings/world-map-destination-panel-static.md, docs/findings/travel-map-destination-text-static.md); one match on disk; not yet checked in memory"
+  },
+  {
+    "name": "FieldMapNameCompose",
+    "section": ".ecode",
+    "pattern": "48 89 5C 24 08 48 89 7C 24 10 55 48 8B EC 48 83 EC 40 48 8B FA 48 8B D9 C5 F9 EF C0 C5 FA 7F 45 E0 48 C7 45 F0 00 00 00 00 E8",
+    "gameBuilds": ["548ddc955c176867f062c44f94c03dd9ac33caefb278a5ac388e792aedf09504"],
+    "evidence": "Our reading of the exe in Ghidra 12.2: the field map name strip's name composer, 0xefe180 (docs/findings/field-map-region-area-name-static.md); one match on disk; not yet checked in memory"
+  },
+  {
+    "name": "FieldMapNameSetId",
+    "section": ".ecode",
+    "pattern": "48 89 5C 24 18 55 56 57 41 56 41 57 48 83 EC 20 8B 02 48 8B F1 89 81 E8 07 00 00 48 8B FA",
+    "gameBuilds": ["548ddc955c176867f062c44f94c03dd9ac33caefb278a5ac388e792aedf09504"],
+    "evidence": "Our reading of the exe in Ghidra 12.2: the field map name strip's set-the-place, 0xc93070 (docs/findings/field-map-region-area-name-static.md); one match on disk; not yet checked in memory"
+  },
+  {
+    "name": "LayoutAnimationPlay",
+    "section": ".ecode",
+    "pattern": "40 53 48 81 EC 80 00 00 00 4D 8B D0 48 8B DA 48 89 4C 24 30 48 89 54 24 38 0F B6 84 24 B0 00 00 00 88 44 24 20 45 33 C0 49 8B D2 48 8B CB E8",
+    "gameBuilds": ["548ddc955c176867f062c44f94c03dd9ac33caefb278a5ac388e792aedf09504"],
+    "evidence": "Our reading of the exe in Ghidra 12.2: the UI layouts' shared start-an-animation, 0xa70010, which 92 layouts' open functions reach (docs/findings/ui-component-open-points-static.md); one match on disk; not yet checked in memory"
+  },
+  {
+    "name": "EventItemGetOpen",
+    "section": ".ecode",
+    "pattern": "48 89 5C 24 08 48 89 74 24 10 48 89 7C 24 18 55 41 54 41 55 41 56 41 57 48 8D AC 24 D0 FD FF FF 48 81 EC 30 03 00 00 4C 8B FA 4C 8B E9 C7 44 24 28 05 00 00 00 48 8D 05",
+    "gameBuilds": ["548ddc955c176867f062c44f94c03dd9ac33caefb278a5ac388e792aedf09504"],
+    "evidence": "Our reading of the exe in Ghidra 12.2: UUIC_Common_EventItemGet's open with an item list, 0xf560d0, called by the ItemGetTreasure and ItemGetWindowEventOpen script functions (docs/findings/ui-component-open-points-static.md); one match on disk; not yet checked in memory"
   }
 ]

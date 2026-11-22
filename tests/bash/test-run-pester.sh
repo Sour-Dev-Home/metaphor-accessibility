@@ -64,7 +64,7 @@ cat > "$WORK/bin/pwsh" <<'STUB'
 #!/usr/bin/env bash
 # The precheck asks for the Pester versions installed: PESTER_VERSIONS (default 6.2.0, the pin; empty for none), CRLF-ended.
 case "$*" in *ListAvailable*) for v in ${PESTER_VERSIONS-6.2.0}; do printf '%s\r\n' "$v"; done; exit 0 ;; esac
-printf '%s\n' "$*" > "$SEEN/command"
+printf '%s\n%s\n' "$*" "${METAPHOR_PESTER_RUN:-}" > "$SEEN/command" # the Pester run, which a console-giving pwsh starts
 temp_ok=no
 [ -d "$TEMP" ] && [ "$TEMP" = "$TMP" ] && temp_ok=yes
 echo "${FILE}|${LINES:-}|${METAPHOR_STANDIN_BUILT:-}|$TEMP|$temp_ok" >> "$SEEN/pwsh.$BASHPID"

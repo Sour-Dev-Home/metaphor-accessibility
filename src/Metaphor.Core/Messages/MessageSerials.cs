@@ -125,9 +125,11 @@ public sealed class MessageSerials : IMessageBySerial, IMessageFileObserver
             ? $"label={message.Label} text=\"{LogText.Escaped(Plain.Clean(message.Text))}\""
             : "label=(unknown)";
 
-    // "EN/message/system/X.msg" from "message/" on: the language folder before it differs by the game's language.
-    private static string FromMessageFolder(string path)
+    /// <summary>A compiled file's path from <c>message/</c> on, such as <c>message/system/X.msg</c> from
+    /// <c>EN/message/system/X.msg</c>: the language folder before it differs by the game's language.</summary>
+    public static string FromMessageFolder(string path)
     {
+        ArgumentNullException.ThrowIfNull(path);
         var slashed = path.Replace('\\', '/');
         if (slashed.StartsWith(MessageFolder, StringComparison.OrdinalIgnoreCase))
         {

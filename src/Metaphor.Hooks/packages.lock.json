@@ -38,6 +38,12 @@
           "Metaphor.Core": "[1.0.0, )"
         }
       },
+      "metaphor.features.field": {
+        "type": "Project",
+        "dependencies": {
+          "Metaphor.Core": "[1.0.0, )"
+        }
+      },
       "metaphor.features.menus": {
         "type": "Project",
         "dependencies": {

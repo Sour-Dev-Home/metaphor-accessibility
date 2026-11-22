@@ -58,6 +58,46 @@ public sealed class InputFrameTests
         public void WindowRead(long? currentMessage) => WindowReads.Add(currentMessage);
     }
 
+    private sealed class Watcher : IKeyWatcher, IPadWatcher
+    {
+        public List<string> Seen { get; } = [];
+
+        public void Keys(IReadOnlyList<int> keys) => Seen.Add(string.Join(",", keys));
+
+        public void Pad(int pad, int buttons, bool made) => Seen.Add($"pad {pad} 0x{buttons:x} {made}");
+    }
+
+    // #562: the settings confirm questions see each pad read as the game read it, before the menu controls hide their
+    // buttons, made or not, and change nothing.
+    [Fact]
+    public void APadWatcherSeesTheGamesReadAndChangesNothing()
+    {
+        var watcher = new Watcher();
+        menus.OnPad = buttons => buttons & ~A;
+        var frame = new InputFrame(game, screens, menus, dialogue, InputFrame.NoControls, padWatcher: watcher);
+
+        var answer = frame.Pad(1, A | B, made: true);
+        frame.Pad(0, B, made: false);
+
+        Assert.Equal(["pad 1 0x3000 True", "pad 0 0x2000 False"], watcher.Seen);
+        Assert.Equal(B, answer.Buttons);
+    }
+
+    // #585: the name entry's Enter hint sees each keyboard read as the game read it, before the menu controls drop
+    // their keys, and changes nothing.
+    [Fact]
+    public void AKeyWatcherSeesTheGamesReadAndChangesNothing()
+    {
+        var watcher = new Watcher();
+        menus.OnKeys = keys => [.. keys.Where(key => key != 0x09)];
+        var frame = new InputFrame(game, screens, menus, dialogue, InputFrame.NoControls, watcher);
+
+        var answer = frame.Keys([0x09, 0x0D]);
+
+        Assert.Equal(["9,13"], watcher.Seen);
+        Assert.Equal([0x0D], answer.Keys);
+    }
+
     [Fact]
     public void MissingPartsAreRefused()
     {
@@ -105,6 +145,37 @@ public sealed class InputFrameTests
         Assert.Equal([2], keys.Keys);
         Assert.Equal(["pad 2 0x3000 False", "keys 1,2"], menus.Seen);
         Assert.Equal(["pad 2 0x2000 False", "keys 2"], dialogue.Seen);
+    }
+
+    // #181 with #585: a frame with field controls still lets its key watcher see the game's read.
+    [Fact]
+    public void AKeyWatcherSeesTheReadBeforeTheFieldControlsDropKeys()
+    {
+        var watcher = new Watcher();
+        var field = new Controls { OnKeys = keys => [.. keys.Where(key => key != 2)] };
+        var frame = new InputFrame(game, screens, menus, dialogue, field, watcher);
+
+        var answer = frame.Keys([1, 2]);
+
+        Assert.Equal(["1,2"], watcher.Seen);
+        Assert.Equal([1], answer.Keys);
+    }
+
+    [Fact]
+    public void TheFieldControlsGetWhatTheDialogueControlsLeave()
+    {
+        var field = new Controls { OnPad = buttons => buttons & ~B, OnKeys = keys => [.. keys.Where(key => key != 2)] };
+        dialogue.OnPad = buttons => buttons & ~A;
+        dialogue.OnKeys = keys => [.. keys.Where(key => key != 1)];
+
+        var frame = new InputFrame(game, screens, menus, dialogue, field);
+        var pad = frame.Pad(1, A | B | 0x4, made: true);
+        var keys = frame.Keys([1, 2, 3]);
+
+        Assert.Equal(0x4, pad.Buttons);
+        Assert.Equal([3], keys.Keys);
+        Assert.Equal(["pad 1 0x2004 True", "keys 2,3"], field.Seen);
+        Assert.Throws<ArgumentNullException>("field", () => new InputFrame(game, screens, menus, dialogue, null!));
     }
 
     [Fact]

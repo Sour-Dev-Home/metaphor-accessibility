@@ -197,6 +197,41 @@ public sealed class SwitchingAnnouncerTests : IDisposable
     }
 
     [Fact]
+    public void ANewReaderThrowingMidSwitchReleasesBothReadersAndSettlesOnTheFallback()
+    {
+        var nvda = new FakeBackend("NVDA");
+        var jaws = new FakeBackend("JAWS") { Throws = true }; // Throws saying the failed line during the switch.
+        var speech = new SwitchingAnnouncer(nvda, oneCore, () => jaws, log.Add, clock, queued.Add);
+        nvda.Status = Internal;
+        clock.Advance(SwitchingAnnouncer.ProbeInterval);
+
+        speech.Announce(Line("one"));
+        RunQueued();
+
+        Assert.True(nvda.Disposed);
+        Assert.True(jaws.Disposed);
+        Assert.False(oneCore.Disposed);
+        Assert.Equal("OneCore", speech.BackendName);
+    }
+
+    [Fact]
+    public void AnOldReaderThrowingOnReleaseStillSwitchesToTheNewOne()
+    {
+        var nvda = new FakeBackend("NVDA") { DisposeThrows = true };
+        var jaws = new FakeBackend("JAWS");
+        var speech = new SwitchingAnnouncer(nvda, oneCore, () => jaws, log.Add, clock, queued.Add);
+        nvda.Status = Internal;
+        clock.Advance(SwitchingAnnouncer.ProbeInterval);
+
+        speech.Announce(Line("one"));
+        RunQueued();
+
+        Assert.False(jaws.Disposed);
+        Assert.Equal("JAWS", speech.BackendName);
+        Assert.Equal(["one"], jaws.Said);
+    }
+
+    [Fact]
     public void AQueueThatThrowsDoesNotStopLaterProbes()
     {
         var throwing = true;
@@ -230,6 +265,47 @@ public sealed class SwitchingAnnouncerTests : IDisposable
 
         Assert.Equal(["one", "two"], sapi.Said);
         Assert.Equal(1, sapi.OutputCalls);
+    }
+
+    [Fact]
+    public void StartingTheFallbackThrowingReleasesTheScreenReaderAlreadyStarted()
+    {
+        var nvda = new FakeBackend("NVDA");
+
+        Assert.Throws<InvalidOperationException>(() => SwitchingAnnouncer.StartWith(
+            () => nvda, () => throw new InvalidOperationException(), Find, log.Add, clock, queued.Add));
+
+        Assert.True(nvda.Disposed);
+    }
+
+    [Fact]
+    public void ReleasingAfterAFailedStartKeepsTheStartsOwnException()
+    {
+        var nvda = new FakeBackend("NVDA") { DisposeThrows = true };
+
+        var thrown = Assert.Throws<InvalidOperationException>(() => SwitchingAnnouncer.StartWith(
+            () => nvda, () => throw new InvalidOperationException("fallback"), Find, log.Add, clock, queued.Add));
+
+        Assert.Equal("fallback", thrown.Message);
+        Assert.True(nvda.Disposed);
+    }
+
+    [Fact]
+    public void StartWithStartsTheScreenReaderFirstAndSpeaksOnIt()
+    {
+        var nvda = new FakeBackend("NVDA");
+        var started = new List<string>();
+
+        var speech = SwitchingAnnouncer.StartWith(
+            () => { started.Add("NVDA"); return nvda; },
+            () => { started.Add("OneCore"); return oneCore; },
+            Find, log.Add, clock, queued.Add);
+        speech.Announce(Line("one"));
+
+        Assert.Equal(["NVDA", "OneCore"], started);
+        Assert.Equal(["one"], nvda.Said);
+        Assert.False(nvda.Disposed);
+        Assert.False(oneCore.Disposed);
     }
 
     private sealed class FakeClock : TimeProvider
@@ -277,6 +353,15 @@ public sealed class SwitchingAnnouncerTests : IDisposable
             return Status;
         }
 
-        public void Dispose() => Disposed = true;
+        public bool DisposeThrows { get; set; }
+
+        public void Dispose()
+        {
+            Disposed = true;
+            if (DisposeThrows)
+            {
+                throw new InvalidOperationException();
+            }
+        }
     }
 }

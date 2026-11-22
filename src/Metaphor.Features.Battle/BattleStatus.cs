@@ -25,15 +25,9 @@ public sealed class BattleStatus : IInputControls
     /// <summary>The H key.</summary>
     public const int KeyH = 0x48;
 
-    private const int KeyboardSource = -1;
-
     private readonly IBattleParty party;
     private readonly HitLines hits;
-    private readonly IBattleScene scene;
-    private readonly IAnnouncer announcer;
-    private readonly Lock gate = new();
-    private readonly HashSet<int> holding = [];
-    private bool inBattle;
+    private readonly BattleKey press;
 
     public BattleStatus(IBattleParty party, HitLines hits, IBattleScene scene, IAnnouncer announcer)
     {
@@ -43,69 +37,22 @@ public sealed class BattleStatus : IInputControls
         ArgumentNullException.ThrowIfNull(announcer);
         this.party = party;
         this.hits = hits;
-        this.scene = scene;
-        this.announcer = announcer;
+        press = new BattleKey(LeftThumb, KeyH, scene, () => announcer.Announce(new Announcement(Status(), Interrupt: true)));
     }
 
-    public int Pad(int pad, int buttons, bool made)
-    {
-        if (!made)
-        {
-            return buttons;
-        }
-        return Read(pad, buttons == LeftThumb) ? 0 : buttons;
-    }
+    public int Pad(int pad, int buttons, bool made) => press.Pad(pad, buttons, made);
 
-    public IReadOnlyList<int> Keys(IReadOnlyList<int> keys)
-    {
-        ArgumentNullException.ThrowIfNull(keys);
-        return Read(KeyboardSource, keys.Count == 1 && keys[0] == KeyH) ? [] : keys;
-    }
+    public IReadOnlyList<int> Keys(IReadOnlyList<int> keys) => press.Keys(keys);
 
     /// <summary>What the key says now.</summary>
     public string Status()
     {
         var members = party.Members().OrderBy(member => member.Slot).Select(member => member.HpMax is { } max
-            ? string.Create(CultureInfo.InvariantCulture, $"{hits.MemberLabel(member.Slot, member.Unit)} {member.Hp} of {max}")
-            : string.Create(CultureInfo.InvariantCulture, $"{hits.MemberLabel(member.Slot, member.Unit)} {member.Hp} HP"));
+            ? hits.MemberSays(member.Slot, member.Unit, string.Create(CultureInfo.InvariantCulture, $"{member.Hp} of {max}"))
+            : hits.MemberSays(member.Slot, member.Unit, string.Create(CultureInfo.InvariantCulture, $"{member.Hp} HP")));
         var enemies = hits.KnownEnemies()
             .Select(enemy => string.Create(CultureInfo.InvariantCulture, $"{enemy.Label}, {enemy.Hp}"));
         var parts = new[] { string.Join(", ", members) }.Where(part => part.Length > 0).Concat(enemies).ToList();
         return parts.Count > 0 ? string.Join(". ", parts) : "No party status";
-    }
-
-    // Whether this read is the key held in a battle, so hidden from the game.
-    private bool Read(int source, bool held)
-    {
-        bool pressed;
-        bool hidden;
-        lock (gate)
-        {
-            var before = holding.Count > 0;
-            if (held)
-            {
-                holding.Add(source);
-            }
-            else
-            {
-                holding.Remove(source);
-            }
-            pressed = !before && holding.Count > 0;
-            if (pressed)
-            {
-                inBattle = scene.InBattle();
-            }
-            else if (holding.Count == 0)
-            {
-                inBattle = false;
-            }
-            pressed &= inBattle;
-            hidden = held && inBattle;
-        }
-        if (pressed)
-        {
-            announcer.Announce(new Announcement(Status(), Interrupt: true));
-        }
-        return hidden;
     }
 }
