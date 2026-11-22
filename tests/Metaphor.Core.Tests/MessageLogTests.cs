@@ -123,6 +123,33 @@ public sealed class MessageLogTests
             text.ToString());
     }
 
+    // #563: a grid cursor's input logs its fields after its cursor record, so a session pins its rows and columns.
+    [Fact]
+    public void RecordsAGridCursorsFieldsAfterItsCursorRecord()
+    {
+        var (log, text) = NewLog(now: 68383);
+
+        log.Observe(new Metaphor.Core.Menus.CursorInput(
+            Manager: 0xa0, ClassRva: 0x22046a8, Command: 0x1, Result: 1, Top: 3, Row: 1, Flags: 0x46,
+            ScreenClass: "ConfigMenuChoiceKeyConfig@ope@ui@app", Count: 23,
+            Grid: new Metaphor.Core.Menus.GridCursor(Columns: 2, Column: 1, Line: 1, Scroll: 1, Page: 0, PageStride: 12)));
+
+        Assert.Equal(
+            $"68383 ms cursor mgr=0xa0 class=0x22046a8 cmd=0x1 result=1 index=5 top=3 row=1 flags=0x46 screen=ConfigMenuChoiceKeyConfig@ope@ui@app count=23 mode=?{Environment.NewLine}" +
+            $"68383 ms grid mgr=0xa0 index=5 columns=2 column=1 line=1 scroll=1 page=0 stride=12{Environment.NewLine}",
+            text.ToString());
+    }
+
+    [Fact]
+    public void RecordsKeyConfigurationsStateAsHex()
+    {
+        var (log, text) = NewLog();
+
+        log.KeyConfigState(choice: 0x3ca2b040, at: 0x900, bytes: "00ff01");
+
+        Assert.Equal("1500 ms keyconfig-state choice=0x3ca2b040 at=+0x900 bytes=00ff01" + Environment.NewLine, text.ToString());
+    }
+
     [Fact]
     public void RecordsASettingsPagesWorkingCopyAsHex()
     {
@@ -263,6 +290,39 @@ public sealed class MessageLogTests
         log.TutorialSeen("open", "via=X id=12");
 
         Assert.Equal($"9 ms tutorial open via=X id=12{Environment.NewLine}", text.ToString());
+    }
+
+    [Fact]
+    public void RecordsAUiComponentOpeningWithItsClassAndAddress()
+    {
+        var (log, text) = NewLog(now: 9);
+
+        log.UiOpened("UUIC_Common_EventItemGet@ui@app", 0x1f00);
+
+        Assert.Equal($"9 ms ui-open class=UUIC_Common_EventItemGet@ui@app at=0x1f00{Environment.NewLine}", text.ToString());
+    }
+
+    [Fact]
+    public void RecordsALayoutAnimationWithItsNumber()
+    {
+        var (log, text) = NewLog(now: 9);
+
+        log.UiAnimated("AutoSavingLayout@ui@app", 0x2a00, 758);
+
+        Assert.Equal($"9 ms ui-anim class=AutoSavingLayout@ui@app at=0x2a00 anim=758{Environment.NewLine}", text.ToString());
+    }
+
+    [Fact]
+    public void AnUnreadableUiClassIsAQuestionMark()
+    {
+        var (log, text) = NewLog(now: 9);
+
+        log.UiOpened(null, 0x10);
+        log.UiAnimated(null, 0x20, null);
+
+        Assert.Equal(
+            $"9 ms ui-open class=? at=0x10{Environment.NewLine}9 ms ui-anim class=? at=0x20 anim=?{Environment.NewLine}",
+            text.ToString());
     }
 
     [Fact]

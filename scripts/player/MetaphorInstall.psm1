@@ -901,6 +901,14 @@ function Get-InstallCheck([string] $ReleaseFolder, [string] $ConfigPath = (Get-R
         }
     }
 
+    # The installed copy's version, so a player can hear which one they have (#674). Never a problem: a note if unsaid.
+    if (-not $installed) { Skip 'Mod version' 'The mod''s version, because the mod is not installed.' }
+    else {
+        $version = ([string] (Get-Property (Read-JsonOrNull (Join-Path $installed.FullName 'ModConfig.json')) 'ModVersion')).Trim()
+        if ($version) { Pass 'Mod version' "The mod is version $version." }
+        else { New-Check 'Mod version' 'note' 'The installed mod doesn''t say its version.' "Folder: $($installed.FullName)" $null }
+    }
+
     # The game in Reloaded-II, and the mod turned on for it.
     $application = $null
     $apps = [string] (Get-Property $loader 'ApplicationConfigDirectory')
