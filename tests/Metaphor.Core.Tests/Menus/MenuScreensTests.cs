@@ -107,6 +107,77 @@ public sealed class MenuScreensTests
             seen.Select(change => (change.Change, change.OffList)));
     }
 
+    // #589: Key Configuration's OK button is its owner's +0x914, not the flags' item bit, which stays clear on its cells.
+    [Theory]
+    [InlineData(true, 0x46, true)]
+    [InlineData(false, 0x42, false)]
+    public void AScreenThatSaysWhetherItsButtonIsFocusedOverridesTheItemBit(bool onButton, int flags, bool offList)
+    {
+        var input = new CursorInput(0xa0, GridCursor.ClassRva, Command: 0x1, Result: 1, Top: 0, Row: 0, flags, ItemClass,
+            OnButton: onButton);
+
+        Assert.Equal(offList, input.OffList);
+    }
+
+    [Theory]
+    [InlineData(1, true)]
+    [InlineData(0, false)]
+    [InlineData(null, false)]
+    public void KeyConfigurationsModeOneIsItsOkButtonAndAnUnreadModeACell(int? mode, bool onButton)
+    {
+        Assert.Equal(onButton, SettingsPages.KeyConfigOnButton(mode));
+    }
+
+    // #589: a Key Configuration sub-tab switch can keep the grid's index (Event's first cell to Field's), so only the
+    // count changes; on a grid that is a focus move.
+    [Fact]
+    public void AGridWhoseCountChangesOnTheSameCellIsAFocusMove()
+    {
+        var (screens, seen) = Watched();
+        var cell = GridCursor.Of(columns: 2, column: 0, line: 0, scroll: 0, page: 0, pageStride: 0);
+
+        screens.Observe(new CursorInput(0xa0, GridCursor.ClassRva, Command: 0x1, Result: 1, Top: 0, Row: 0, Flags: 0x46,
+            ItemClass, Count: 3, Grid: cell));
+        screens.Observe(new CursorInput(0xa0, GridCursor.ClassRva, Command: 0x1, Result: 1, Top: 0, Row: 0, Flags: 0x46,
+            ItemClass, Count: 14, Grid: cell));
+
+        Assert.Equal(
+            [(ScreenChange.Entered, 3), (ScreenChange.FocusMoved, 14)],
+            seen.Select(change => (change.Change, change.Count ?? -1)));
+    }
+
+    [Fact]
+    public void AListWhoseCountChangesOnTheSameItemIsNotAFocusMove()
+    {
+        var (screens, seen) = Watched();
+
+        screens.Observe(new CursorInput(0xa0, 0x100, Command: 0x1, Result: 1, Top: 0, Row: 0, Flags: 0x46, ItemClass,
+            Count: 3));
+        screens.Observe(new CursorInput(0xa0, 0x100, Command: 0x1, Result: 1, Top: 0, Row: 0, Flags: 0x46, ItemClass,
+            Count: 14));
+
+        Assert.Equal([ScreenChange.Entered], seen.Select(change => change.Change));
+    }
+
+    // #563: a grid cursor's events carry its cells, so a feature can say the column; repeating keeps it.
+    [Fact]
+    public void EachEventCarriesTheGridOfTheInputBehindIt()
+    {
+        var (screens, seen) = Watched();
+        var first = GridCursor.Of(columns: 2, column: 0, line: 1, scroll: 0, page: 0, pageStride: 0);
+        var second = GridCursor.Of(columns: 2, column: 1, line: 1, scroll: 0, page: 0, pageStride: 0);
+
+        screens.Observe(new CursorInput(0xa0, GridCursor.ClassRva, Command: 0x1, Result: 1, Top: 2, Row: 0, Flags: 0x46,
+            ItemClass, Count: 23, Grid: first));
+        screens.Observe(new CursorInput(0xa0, GridCursor.ClassRva, Command: 0x1, Result: 1, Top: 3, Row: 0, Flags: 0x46,
+            ItemClass, Count: 23, Grid: second));
+        screens.RepeatCurrent();
+
+        Assert.Equal(
+            [(ScreenChange.Entered, 2, first), (ScreenChange.FocusMoved, 3, second), (ScreenChange.Entered, 3, second)],
+            seen.Select(change => (change.Change, change.Index, change.Grid)));
+    }
+
     [Theory]
     [InlineData("TitleChoice@ope@ui@app", 0x4a8)]
     [InlineData("RootMenuChoice@ope@ui@app", null)]

@@ -232,8 +232,11 @@ internal sealed class FieldMemory(
                     $"npcKind={npcKind} npcIndex={index} chara={chara?.ToString(CultureInfo.InvariantCulture) ?? "?"}");
                 return (chara is { } character ? names.Character(character) : null, raw);
             case FieldKind.Enemy:
+                // The AI state and HP are logged only, to settle #649's and #696's leads in a session.
+                var state = FieldEnemyState.Describe(unit, address => ModuleMemoryReader.ReadPointer((nint)address),
+                    address => ModuleMemoryReader.ReadInt32((nint)address));
                 return (null, string.Create(CultureInfo.InvariantCulture,
-                    $"enemyRow={Number(ModuleMemoryReader.ReadInt32(unit + EnemyRow) & 0xffff)}"));
+                    $"enemyRow={Number(ModuleMemoryReader.ReadInt32(unit + EnemyRow) & 0xffff)} {state}"));
             case FieldKind.Door:
                 return (null, string.Create(CultureInfo.InvariantCulture,
                     $"link={Number(ModuleMemoryReader.ReadInt32(unit + DoorLink))}"));
