@@ -268,6 +268,43 @@ public sealed class SettingsRowsTests
         Assert.Equal(["Alpha Pane, Fake speed, 50, 1 of 3", "Fake volume, 2 of 3"], Said());
     }
 
+    // #770: a row with no pinned ID says the number of the one unpinned setting that moved as it changed, and then says
+    // that number on focus too.
+    [Fact]
+    public void AnUnpinnedRowSaysTheOneSettingThatMovedOnChange()
+    {
+        Cursor(1, SystemPage, count: 3, values: Values((27, 50), (9, 3)));
+
+        Cursor(1, SystemPage, count: 3, values: Values((27, 50), (9, 4)));
+        clock.Advance(Settled);
+
+        Assert.Equal(["Alpha Pane, Fake volume, 2 of 3", "4"], Said());
+    }
+
+    [Fact]
+    public void AnUnpinnedRowSaysItsLearnedValueOnFocus()
+    {
+        Cursor(1, SystemPage, count: 3, values: Values((9, 3)));
+        Cursor(1, SystemPage, count: 3, values: Values((9, 4)));
+        clock.Advance(Settled);
+
+        Cursor(0, SystemPage, count: 3, values: Values((9, 4)));
+        Cursor(1, SystemPage, count: 3, values: Values((9, 4)));
+
+        Assert.Equal("Fake volume, 4, 2 of 3", Said().Last());
+    }
+
+    [Fact]
+    public void TwoUnpinnedSettingsMovingTogetherSayNothing()
+    {
+        Cursor(1, SystemPage, count: 3, values: Values((9, 3), (10, 3)));
+
+        Cursor(1, SystemPage, count: 3, values: Values((9, 4), (10, 4)));
+        clock.Advance(Settled);
+
+        Assert.Single(Said());
+    }
+
     [Fact]
     public void ARowsValueIsSaidWithoutItsName()
     {
