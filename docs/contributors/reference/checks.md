@@ -37,6 +37,16 @@ hash; `full` or `pre-push` on an identical tree says it reused the pass and skip
 machine-wide build slot only when it builds, so a docs-only push never waits on it. Run `full`, then push: with no
 recorded pass and every slot busy, `pre-push` stops at once instead of waiting, since a waiting push is cut (exit 141).
 
+On a merge, committed or staged with `MERGE_HEAD` present, a local `full` reuses the parents' recorded passes
+([ADR 0021](../../adr/0021-merge-checks-reuse-parent-passes.md)). It runs the repo rules, then only what both sides'
+changes reach by [`what-runs.sh`](../../../scripts/ci/what-runs.sh)'s map: a project changed on both sides builds and
+runs its tests, and the Pester tests or the check-script suites run when both sides touch what they read. A merge
+that brings in only docs or a changelog line, conflict or not, checks in seconds, holding a build slot only to record
+its pass. It prints which parent passes it relied on and records them with the pass:
+`full <tree> merge <parent tree> <parent tree>`, with
+`-` for a parent without one, whose side then counts as reaching everything. Without a pass for either parent, or in
+CI or with `METAPHOR_FULL_TESTS=1`, `full` runs everything.
+
 ## RoundTrip tests
 
 `RoundTrip` tests check our format code against real game files, so they need game data and are skipped without it (CI

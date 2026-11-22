@@ -1,5 +1,6 @@
 using Metaphor.Core.Announcements;
 using Metaphor.Core.Menus;
+using Metaphor.Core.Settings;
 
 namespace Metaphor.Features.Menus.Tests;
 
@@ -86,6 +87,32 @@ public sealed class MenuControlsTests
         controls.Pad(0, R3);
 
         Assert.Equal(new Announcement("No more details", Interrupt: true), announcer.Said[^1]);
+    }
+
+    // #661: the settings file rebinds the details key, applied at the next read.
+    [Fact]
+    public void TheDetailsKeyReboundInTheFileAppliesAtTheNextRead()
+    {
+        var bindings = MenuBindings.Default;
+        var rebound = new MenuControls(() => bindings, screens, reader, [new ItemDetails()]);
+        screens.Observe(rebound);
+        Cursor(ItemClass, row: 0);
+        bindings = MenuBindings.From(
+            ModSettings.Parse("""{ "keys": { "menus": { "detailsKey": "G", "detailsButtons": "none" } } }""", _ => { }),
+            LbRb, KeyT);
+
+        Assert.Equal([KeyF], rebound.Keys([KeyF]));
+        Assert.Equal(R3, rebound.Pad(0, R3));
+        Assert.Empty(rebound.Keys([0x47]));
+        Assert.Equal("Details of item 1", Said().Last());
+    }
+
+    [Fact]
+    public void TheFileNamesEveryMenuBindingAndTheReaderComesFromTheWiring()
+    {
+        var settings = ModSettings.Parse("""{ "keys": { "menus": { "detailsButtons": "LS" } } }""", _ => { });
+
+        Assert.Equal(new MenuBindings(0x0002, 0x46) { ReaderButtons = LbRb, ReaderKey = KeyT }, MenuBindings.From(settings, LbRb, KeyT));
     }
 
     [Fact]

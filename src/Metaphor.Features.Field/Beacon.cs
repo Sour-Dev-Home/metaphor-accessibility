@@ -4,6 +4,7 @@ using System.Numerics;
 using Metaphor.Core.Announcements;
 using Metaphor.Core.Cues;
 using Metaphor.Core.Navigation;
+using Metaphor.Core.Settings;
 
 namespace Metaphor.Features.Field;
 
@@ -20,7 +21,9 @@ public sealed record BeaconTarget(FieldUnit Unit, int? DoorReachValue);
 /// target itself (the game's reach test for the target's kind, or within <see cref="ArrivalDistance"/>), on
 /// <see cref="Stop"/>, and silently on leaving free roam or when the player can't be read. <see cref="Tick"/> is called
 /// on every input read; it reads the field at most once per <see cref="PollMilliseconds"/>, and allocates nothing
-/// between a pulse's start and the next except when a route is asked for.</summary>
+/// between a pulse's start and the next except when a route is asked for. Its keys are gated by
+/// <see cref="Feature.Guidance"/> in <see cref="FieldControls"/> (#661).</summary>
+[FeatureSetting(Feature.Guidance)]
 public sealed class Beacon
 {
     /// <summary>How often the field is read while guiding.</summary>

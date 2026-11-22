@@ -218,6 +218,7 @@ Describe 'install.ps1' {
         $result = Invoke-Install $freshAnswers
         $result.Output | Should -Match 'The install is done'
         $result.ExitCode | Should -Be 0
+        $result.Output | Should -Match ([regex]::Escape("The mod is in $(Join-Path $reloadedFolder "Mods\$modId"). To uninstall, run uninstall.cmd in that folder."))
 
         $launcher = Join-Path $reloadedFolder 'Reloaded-II.exe'
         $launcher | Should -Exist
@@ -1169,6 +1170,39 @@ Describe 'Format-YesNoQuestion' {
     It 'takes y and yes as yes, and Enter alone, no, or no answer as no' {
         foreach ($yes in 'y', 'yes', ' YES ') { Test-Yes $yes | Should -BeTrue -Because "'$yes'" }
         foreach ($no in '', 'n', 'no', 'yep', $null) { Test-Yes $no | Should -BeFalse -Because "'$no'" }
+    }
+}
+
+Describe 'Format-SpokenPath' {
+    BeforeAll {
+        $script:local = [Environment]::GetFolderPath('LocalApplicationData')
+        $script:userFolder = [Environment]::GetFolderPath('UserProfile')
+    }
+
+    It 'names the user''s AppData folder and says each folder after it, with no drive or backslash' {
+        Format-SpokenPath (Join-Path $local 'Programs\Reloaded-II\Mods\metaphor.accessibility') |
+            Should -BeExactly 'your AppData folder, Local, Programs, Reloaded-II, Mods, metaphor.accessibility'
+        Format-SpokenPath (Join-Path ([Environment]::GetFolderPath('ApplicationData')) 'Reloaded-Mod-Loader-II') |
+            Should -BeExactly 'your AppData folder, Roaming, Reloaded-Mod-Loader-II'
+    }
+
+    It 'names the user folder for a path in it outside AppData, and only whole folder names count' {
+        Format-SpokenPath (Join-Path $userFolder 'Games/Reloaded-II/') | Should -BeExactly 'your user folder, Games, Reloaded-II'
+        Format-SpokenPath "$local`Low\Mods" | Should -BeExactly 'your user folder, AppData, LocalLow, Mods'
+    }
+
+    It 'says the drive for a path outside the user folder' {
+        Format-SpokenPath 'D:\Games\Reloaded-II\Mods' | Should -BeExactly 'drive D, Games, Reloaded-II, Mods'
+    }
+}
+
+Describe 'Get-ModFolderLine' {
+    It 'prints the full path and speaks the short one, with how to uninstall' {
+        $path = Join-Path ([Environment]::GetFolderPath('LocalApplicationData')) 'Programs\Reloaded-II\Mods\metaphor.accessibility'
+        $line = Get-ModFolderLine $path
+        $line.Printed | Should -BeExactly "The mod is in $path. To uninstall, run uninstall.cmd in that folder."
+        $line.Spoken | Should -BeExactly ('The mod is in your AppData folder, Local, Programs, Reloaded-II, Mods, ' +
+            'metaphor.accessibility. To uninstall, run uninstall.cmd in that folder.')
     }
 }
 

@@ -16,6 +16,18 @@ checks them in the first game session and removes the tag.
 - **The guidance beep leads around walls.** It now points at the next turn of a walking route over the map's walkable
   area, not straight through buildings, and plans again if you stray or get stuck. Where it can't find a route it
   points straight and says "No path found, pointing straight" once (#690). `[NEEDS VERIFICATION by ear]`
+- **An installer exe beside the zip.** Each release also carries one file, `metaphor-accessibility-VERSION-installer.exe`:
+  open it and it says a welcome line, checks the files it carries ("Download checked"), and runs the same spoken
+  installer as the zip, in its window. A damaged download says "This download is damaged" and installs nothing. It is
+  not signed yet, so Windows warns before it runs (#608). `[NEEDS VERIFICATION by ear]`
+- **A welcome on first launch.** The first time the game starts with the mod, the title screen says which version is
+  running and that `N`, `L` and `G` are the field keys, once (#617). `[NEEDS VERIFICATION by ear]`
+- **A mark key for reports.** Press `F8` when something goes wrong: two short clicks, and a numbered marker with the
+  time goes into `report-log.txt`. The log also lists each screen and menu move the mod said nothing for. Nothing is
+  sent anywhere. The Alpha feedback form asks when you pressed it (#597). `[NEEDS VERIFICATION by ear]`
+- **The installer says where the mod is.** At the end of an install it says the mod's folder, naming your own folders
+  ("your AppData folder, Local, Programs, Reloaded-II, ...") instead of reading out the path, and that `uninstall.cmd`
+  in that folder removes the mod (#675). `[NEEDS VERIFICATION by ear]`
 - **The install check says the mod's version.** `check-install.ps1`, which the installer also runs at the end, now says
   "The mod is version ..." for the copy in Reloaded-II's mods folder, so you can hear which one you have (#674).
   `[NEEDS VERIFICATION by ear]`

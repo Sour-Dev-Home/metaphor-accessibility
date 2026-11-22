@@ -5,10 +5,15 @@ body:
   - type: textarea
     id: did
     attributes:
-      label: What you did
+      label: What were you doing?
       description: The steps, in order. For example, opened the shop and moved down the list.
     validations:
       required: true
+  - type: textarea
+    id: mark
+    attributes:
+      label: Roughly when did you press the mark key?
+      description: F8 is the mark key. Say roughly how far into the session you pressed it, for example about ten minutes in, just after the title screen. Leave it empty if you didn't press it.
   - type: textarea
     id: heard
     attributes:
@@ -36,5 +41,5 @@ body:
   - type: textarea
     id: log
     attributes:
-      label: Report log
-      description: Drag your report-log.txt file into this box. The mod's report feature makes it. Check it holds nothing you want kept private first.
+      label: Attach report-log.txt
+      description: Drag the report-log.txt file from the mod's folder into this box. The mod writes a new one each time the game starts, so attach it before you start the game again. It holds your mark key presses and the screens the mod said nothing for, but no game text. Check it holds nothing you want kept private first.
