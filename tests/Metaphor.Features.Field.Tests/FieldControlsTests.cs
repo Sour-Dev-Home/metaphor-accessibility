@@ -195,6 +195,21 @@ public sealed class FieldControlsTests
     }
 
     [Fact]
+    public void WhereAmILogsTheMainMissionFlagsWhenItCanReadThem()
+    {
+        HashSet<int> set = [0x1170, 0x1190];
+        var withFlags = new FieldControls(FieldBindings.Default, field, place, announcer, () => now, log.Add,
+            storyFlag: flag => set.Contains(flag));
+
+        withFlags.Keys([KeyL]);
+        controls.Keys([]);
+        controls.Keys([KeyL]);
+
+        Assert.EndsWith(" mainFlags=0x1190,0x1170", log[0], StringComparison.Ordinal);
+        Assert.DoesNotContain("mainFlags", log[1], StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void AnUnknownPlaceOrUnreadableFieldSaysSo()
     {
         field.View = null;

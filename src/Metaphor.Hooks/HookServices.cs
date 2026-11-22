@@ -217,9 +217,11 @@ internal sealed record HookServices
         // The mission line (#658), spoken through the reader like the other automatic field speech.
         var mission = new MissionLine(reader, cleaner, log is null ? null : log.FieldRead);
         events.ObserveFiles(mission);
+        // Debug builds only: the "where am I" record lists the main-mission flags, read through the build-checked flag
+        // global (#658, docs/findings/mission-box-text-source-static.md).
         var fieldControls = new FieldControls(
             FieldBindings.Default, field, place, announcer, () => Environment.TickCount64,
-            log is null ? null : log.FieldRead, mission);
+            log is null ? null : log.FieldRead, mission, log is null ? null : gameData.StoryFlag);
         if (report is not null)
         {
             events.ObserveFiles(report);

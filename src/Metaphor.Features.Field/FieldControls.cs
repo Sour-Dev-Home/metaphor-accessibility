@@ -48,6 +48,7 @@ public sealed class FieldControls : IInputControls
     private readonly Func<long> milliseconds;
     private readonly Action<string>? log;
     private readonly MissionLine? mission;
+    private readonly Func<int, bool?>? storyFlag;
     private readonly Binding nearby = new();
     private readonly Binding next = new();
     private readonly Binding previous = new();
@@ -58,10 +59,12 @@ public sealed class FieldControls : IInputControls
     /// <summary>Field controls on <paramref name="bindings"/> that read <paramref name="field"/>, name the place through
     /// <paramref name="place"/>, speak through <paramref name="announcer"/>, keep time by <paramref name="milliseconds"/>
     /// and write what each press read, as numbers, to <paramref name="log"/> when there is one (Debug builds). "Where am
-    /// I" ends with <paramref name="mission"/>'s current mission when there is one (#658).</summary>
+    /// I" ends with <paramref name="mission"/>'s current mission when there is one (#658). With a log and
+    /// <paramref name="storyFlag"/>, its record also lists the main-mission flags (<see cref="MainMissionFlags"/>).
+    /// </summary>
     public FieldControls(
         FieldBindings bindings, IFieldReads field, FieldPlace place, IAnnouncer announcer, Func<long> milliseconds,
-        Action<string>? log = null, MissionLine? mission = null)
+        Action<string>? log = null, MissionLine? mission = null, Func<int, bool?>? storyFlag = null)
     {
         ArgumentNullException.ThrowIfNull(bindings);
         ArgumentNullException.ThrowIfNull(field);
@@ -75,6 +78,7 @@ public sealed class FieldControls : IInputControls
         this.milliseconds = milliseconds;
         this.log = log;
         this.mission = mission;
+        this.storyFlag = storyFlag;
     }
 
     private enum Press
@@ -163,8 +167,15 @@ public sealed class FieldControls : IInputControls
         var map = field.MapId();
         var name = place.Name(map);
         var current = mission?.Current;
-        log?.Invoke(string.Create(CultureInfo.InvariantCulture,
-            $"place map={Number(map)} known={name is not null} mission={current is not null}"));
+        if (log is not null)
+        {
+            // #658: the flags the game's main-mission read scans, to pair with the box on screen next session.
+            var flags = storyFlag is null
+                ? ""
+                : " mainFlags=" + MainMissionFlags.Describe(MainMissionFlags.Highest(storyFlag, 4));
+            log(string.Create(CultureInfo.InvariantCulture,
+                $"place map={Number(map)} known={name is not null} mission={current is not null}{flags}"));
+        }
         var said = name ?? "Place not known yet";
         return current is null ? said : $"{said}. {MissionLine.Spoken(current)}";
     }
