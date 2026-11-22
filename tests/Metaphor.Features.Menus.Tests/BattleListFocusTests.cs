@@ -34,7 +34,7 @@ public sealed class BattleListFocusTests
         cursors = new CursorEvents(() => now);
         var serials = new MessageSerials([
             new SerialRange(MessageSerials.SkillNames, SkillFirst, 3),
-            new SerialRange(MessageSerials.ItemNames, ItemFirst, 2),
+            new SerialRange(MessageSerials.ItemNames, ItemFirst, 6),
             new SerialRange(MessageSerials.SkillDescriptions, SkillDescriptionFirst, 2),
             new SerialRange(MessageSerials.ItemDescriptions, ItemDescriptionFirst, 2),
         ]);
@@ -53,7 +53,7 @@ public sealed class BattleListFocusTests
         messages.Compiled(new MessageFileCompiled("EN/message/system/Skill_Message_1.msg", 20,
             Source("Skill", "Spark", "Gust", "Frost <COLOR 3>")));
         messages.Compiled(new MessageFileCompiled("EN/message/system/Item_Message_1.msg", 21,
-            Source("Item", "Tonic", "Salve")));
+            Source("Item", "Tonic", "Salve", "Ether", "Elixir", "Remedy", "Antidote")));
         messages.Compiled(new MessageFileCompiled("EN/message/system/Skill_Message_2.msg", 22,
             Source("SkillHelp", "Burns one foe", "Cuts all foes")));
         messages.Compiled(new MessageFileCompiled("EN/message/system/Item_Message_2.msg", 23,
@@ -140,9 +140,10 @@ public sealed class BattleListFocusTests
         Assert.Equal(["Skills, Spark, 1 of 2"], Said());
     }
 
-    // A row a focus move brings in, fetched soon after it, adds to the rows.
+    // Past the first page a row whose name wasn't fetched before its cursor settled is said by its position, never
+    // left silent: a name fetched after it can't be told from the next move's.
     [Fact]
-    public void ANameFetchedSoonAfterAFocusMoveAddsARow()
+    public void ARowPastTheFirstPageWithNoNameFetchedIsSaidByItsPosition()
     {
         Fetched(SkillFirst);
         Cursor(SkillClass, 0, count: 2);
@@ -150,7 +151,73 @@ public sealed class BattleListFocusTests
         Cursor(SkillClass, 1, count: 2);
         Fetched(SkillFirst + 2);
 
-        Assert.Equal(["Skills, Spark, 1 of 2", "Frost, 2 of 2"], Said());
+        Assert.Equal(["Skills, Spark, 1 of 2", "2 of 2"], Said());
+    }
+
+    // A move, then the names it fetched, then where the cursor settled, as the game hands them: top is the row within
+    // the view and row the rows scrolled (docs/raw-sources/battle-item-list-scroll-by-ear-2026-11-22.md).
+    private void Walked(int command, int inView, int scrolled, int count, params int[] fetched)
+    {
+        now += Later;
+        cursors.Handled(new CursorInput(0xa0, ClassRva: 0x100, command, Result: command, Top: inView, Row: scrolled,
+            Flags: 0x46, ItemClass, count));
+        Fetched(fetched);
+        cursors.Handled(new CursorInput(0xa0, ClassRva: 0x100, Settle, Result: 1, Top: inView, Row: scrolled,
+            Flags: 0x46, ItemClass, count));
+    }
+
+    // The by-ear run of 2026-11-22 (PR #646): past the first page some rows were silent, moving back up brought speech
+    // back, then a row was said by another's name. Each scroll fetches the row it brings in, last going down, with
+    // some of the rows it redraws, each move well apart; a three-row view stands in for the game's eight.
+    [Fact]
+    public void RowsKeepTheirOwnNamesAsTheListScrolls()
+    {
+        const int down = 0x14;
+        const int up = 0x15;
+        Fetched(ItemFirst, ItemFirst + 1, ItemFirst + 2);
+        Cursor(ItemClass, 0, count: 6);
+        Walked(down, 1, 0, 6);
+        Walked(down, 2, 0, 6, ItemFirst, ItemFirst + 1, ItemFirst + 2);
+        Walked(down, 2, 1, 6, ItemFirst + 3);
+        Walked(down, 2, 2, 6, ItemFirst + 2, ItemFirst + 4);
+        Walked(down, 2, 3, 6, ItemFirst + 5);
+        Walked(up, 1, 3, 6, ItemFirst + 3);
+        Walked(up, 0, 3, 6, ItemFirst + 4, ItemFirst + 5);
+        Walked(up, 0, 2, 6, ItemFirst + 2, ItemFirst + 3, ItemFirst + 4);
+
+        Assert.Equal([
+            "Items, Tonic, 1 of 6", "Salve, 2 of 6", "Ether, 3 of 6", "Elixir, 4 of 6", "Remedy, 5 of 6",
+            "Antidote, 6 of 6", "Remedy, 5 of 6", "Elixir, 4 of 6", "Ether, 3 of 6",
+        ], Said());
+    }
+
+    // Wrapped to the bottom, the rows there aren't known: each is said by its position until one scrolls in, the first
+    // name fetched going up, as on the settings pages (docs/raw-sources/settings-ok-and-rows-by-ear-2026-11-21.md).
+    [Fact]
+    public void ARowScrolledInGoingUpIsTheFirstNameFetched()
+    {
+        const int up = 0x15;
+        // A two-row view.
+        Fetched(ItemFirst, ItemFirst + 1);
+        Cursor(ItemClass, 0, count: 6);
+        Walked(up, 1, 4, 6, ItemFirst + 4, ItemFirst + 5);
+        Walked(up, 0, 4, 6);
+        Walked(up, 0, 3, 6, ItemFirst + 3, ItemFirst + 4);
+        Walked(up, 0, 2, 6, ItemFirst + 2, ItemFirst + 3);
+
+        Assert.Equal(["Items, Tonic, 1 of 6", "6 of 6", "5 of 6", "Elixir, 4 of 6", "Ether, 3 of 6"], Said());
+    }
+
+    // Another tab of the item list: after a gap it fetches its first page, then its cursor settles on the top row.
+    [Fact]
+    public void AnotherTabStartsTheRowsAfresh()
+    {
+        Fetched(ItemFirst, ItemFirst + 1, ItemFirst + 2);
+        Cursor(ItemClass, 0, count: 6);
+        Walked(0x14, 1, 0, 6);
+        Walked(0x16, 0, 0, 3, ItemFirst + 3, ItemFirst + 4, ItemFirst + 5);
+
+        Assert.Equal(["Items, Tonic, 1 of 6", "Salve, 2 of 6", "Elixir, 1 of 3"], Said());
     }
 
     // A description, another file's name, or a name fetched with other flags is no row.

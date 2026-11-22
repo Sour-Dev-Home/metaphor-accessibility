@@ -7,19 +7,22 @@ namespace Metaphor.Features.Menus;
 
 /// <summary>Speaks battle's skill list or item list (#247): on entering it "Skills, name, n of total", then on each focus
 /// move "name, n of total", each cutting off the last. A row's name is the message the list fetched by serial for it,
-/// from the names file (<see cref="MessageSerials"/>). The names fetched in one run, in the order fetched, are taken as
-/// the rows in cursor order, as the quick menu's are (docs/findings/message-serials-from-file-positions.md). A row whose
-/// name hasn't been fetched yet is said once it is; one fetched with no known text is said by its position. Safe to call
-/// from several threads.</summary>
+/// from the names file (<see cref="MessageSerials"/>). The names fetched for the list's first page, in the order fetched,
+/// are taken as its rows from the top, as the quick menu's are (docs/findings/message-serials-from-file-positions.md).
+/// Past the first page each row keeps its own name by its place in the whole list, so a scroll never shifts them. A row
+/// whose name hasn't been fetched yet is said once it is; one whose name can't be told, or has no known text, is said by
+/// its position, never by another row's name. Safe to call from several threads.</summary>
 /// <remarks>
 /// <para>On build 548ddc95 the lists are <c>BTL_SkillSelect</c> and <c>BTL_ItemSelect</c>, shown while the menus read
 /// closed; they fetch a row's name with flags 9 and its description with flags 7 (#247's by-ear run of 2026-11-20).
 /// That the fetch order is the cursor order on these lists is <c>[NEEDS VERIFICATION]</c> by ear.</para>
-/// <para>A run starts with a name fetched more than <see cref="RunGapMilliseconds"/> after the list's last focus or
-/// fetch, so a list opened again, for another member, starts afresh, even though the game fetches its names before its
-/// cursor settles. A fetch soon after a focus move adds to the run, as for rows a scroll brings in; whether the game
-/// fetches those, and in what order, is unknown, so a long list may be said by position, or wrongly, past its first
-/// rows.</para>
+/// <para>A page fetched more than <see cref="RunGapMilliseconds"/> after the list's last focus or fetch, then entered or
+/// focused at its top, starts the rows afresh, so a list opened again, for another member or on another tab, starts
+/// afresh even though the game fetches its names before its cursor settles. On a move by one row the game fetches the
+/// row the move scrolled in along with rows it redraws, some of the page and not always all of it: the row brought in is
+/// the last name fetched going down (docs/raw-sources/battle-item-list-scroll-by-ear-2026-11-22.md). Going up it is
+/// taken as the first, as on the settings pages (docs/raw-sources/settings-ok-and-rows-by-ear-2026-11-21.md); for the
+/// battle lists that is <c>[NEEDS VERIFICATION]</c>.</para>
 /// </remarks>
 public sealed class BattleListFocus : IScreenObserver, ISerialResolveObserver, IScreenDetails
 {
@@ -43,14 +46,22 @@ public sealed class BattleListFocus : IScreenObserver, ISerialResolveObserver, I
     private readonly string descriptionsFile;
     private readonly Func<long> millisecondsNow;
     private readonly Lock gate = new();
-    private readonly List<int> rows = [];
+    // Each row's name serial by the row's place in the whole list, from 0.
+    private readonly Dictionary<int, int> rows = [];
+    // Names fetched since the last focus once the first page's run is over, for the next focus to place.
+    private readonly List<int> pending = [];
     // Each row's description by its name's serial, and the name fetched last, for the next description to pair with.
     private readonly Dictionary<int, int> descriptions = [];
     private int? lastName;
     private ScreenEvent? waiting;
+    private ScreenEvent? lastFocus;
     private long lastActivity = long.MinValue / 2;
     private bool onList;
     private bool otherScreen;
+    // While the first page's run is open, each name fetched is the next row; a focus move ends it.
+    private bool runOpen;
+    // Whether the pending names began after a gap: a fresh page, or a scroll's fetch.
+    private bool pendingAfterGap;
 
     // Steps, so a Left can tell whether the rows were fetched for the visit it ends or after it.
     private long step;
@@ -110,8 +121,8 @@ public sealed class BattleListFocus : IScreenObserver, ISerialResolveObserver, I
         int? serial = null;
         lock (gate)
         {
-            if (focus.Screen == Screen && onList && focus.Index >= 0 && focus.Index < rows.Count
-                && descriptions.TryGetValue(rows[focus.Index], out var found))
+            if (focus.Screen == Screen && onList && rows.TryGetValue(focus.Index, out var name)
+                && descriptions.TryGetValue(name, out var found))
             {
                 serial = found;
             }
@@ -151,8 +162,13 @@ public sealed class BattleListFocus : IScreenObserver, ISerialResolveObserver, I
             if (change.Change == ScreenChange.Left)
             {
                 onList = false;
-                // Rows fetched after this visit's last focus belong to the next visit, which fetched them already.
-                if (runStep < focusStep)
+                lastFocus = null;
+                // Names fetched after this visit's last focus belong to the next visit, which fetched them already.
+                if (pending.Count > 0)
+                {
+                    StartRun(pending);
+                }
+                else if (runStep < focusStep)
                 {
                     Forget();
                 }
@@ -165,13 +181,25 @@ public sealed class BattleListFocus : IScreenObserver, ISerialResolveObserver, I
             {
                 Forget();
             }
+            Place(change);
             onList = true;
             lastActivity = now;
+            lastFocus = change;
             focusStep = ++step;
             said = LineFor(change);
             if (said is null && change.Index >= 0)
             {
-                waiting = change;
+                // Before any row is known the list's first names are still to come. Past them a row whose name can't
+                // be told is said by its position, never left silent: a name fetched after its focus can't be told
+                // from the next move's.
+                if (rows.Count > 0)
+                {
+                    said = PositionLine(change);
+                }
+                else
+                {
+                    waiting = change;
+                }
             }
         }
         if (said is not null)
@@ -214,20 +242,32 @@ public sealed class BattleListFocus : IScreenObserver, ISerialResolveObserver, I
         lock (gate)
         {
             var now = millisecondsNow();
-            if (rows.Count == 0 || now - lastActivity > RunGapMilliseconds)
-            {
-                rows.Clear();
-                descriptions.Clear();
-                runStep = ++step;
-            }
+            var gap = now - lastActivity > RunGapMilliseconds;
             lastActivity = now;
-            if (rows.Count >= MaxRows || rows.Contains(resolve.Serial))
-            {
-                lastName = rows.Contains(resolve.Serial) ? resolve.Serial : null;
-                return;
-            }
-            rows.Add(resolve.Serial);
             lastName = resolve.Serial;
+            if (rows.Count == 0 && pending.Count == 0)
+            {
+                descriptions.Clear();
+                StartRun([resolve.Serial]);
+            }
+            else if (runOpen && !gap && pending.Count == 0)
+            {
+                if (rows.Count < MaxRows && !rows.ContainsValue(resolve.Serial))
+                {
+                    rows[rows.Count] = resolve.Serial;
+                }
+            }
+            else
+            {
+                if (pending.Count == 0)
+                {
+                    pendingAfterGap = gap;
+                }
+                if (pending.Count < MaxRows)
+                {
+                    pending.Add(resolve.Serial);
+                }
+            }
             if (waiting is { } focus && (said = LineFor(focus)) is not null)
             {
                 waiting = null;
@@ -244,22 +284,75 @@ public sealed class BattleListFocus : IScreenObserver, ISerialResolveObserver, I
     private void Forget()
     {
         rows.Clear();
+        pending.Clear();
         descriptions.Clear();
         lastName = null;
         waiting = null;
+        runOpen = false;
+    }
+
+    // Takes names, in the order fetched, as the rows from the top, and keeps the run open for more. Called under the
+    // gate.
+    private void StartRun(IEnumerable<int> names)
+    {
+        var fresh = names.Distinct().Take(MaxRows).ToList();
+        rows.Clear();
+        pending.Clear();
+        foreach (var name in fresh)
+        {
+            rows[rows.Count] = name;
+        }
+        runOpen = true;
+        runStep = ++step;
+    }
+
+    // Places the names fetched since the last focus, for this focus. A move by one row takes the row it scrolled in from
+    // them, unless another row has that name; a page fetched afresh (on entering, or after a gap or on a list of another
+    // length with the focus on the top row, as on another tab or a wrap to the top) starts the rows over; any other
+    // jump to a list of another length forgets them. Called under the gate.
+    private void Place(ScreenEvent focus)
+    {
+        var moved = focus.Change == ScreenChange.FocusMoved;
+        var otherLength = moved && lastFocus is { } before && focus.Count != before.Count;
+        var byOne = moved && !otherLength && lastFocus is { } last && Math.Abs(focus.Index - last.Index) == 1;
+        if (moved)
+        {
+            runOpen = false;
+        }
+        if (pending.Count > 0
+            && (focus.Change == ScreenChange.Entered || (!byOne && focus.Index == 0 && (pendingAfterGap || otherLength))))
+        {
+            StartRun(pending);
+            return;
+        }
+        if (otherLength)
+        {
+            Forget();
+        }
+        else if (byOne && pending.Count > 0 && !rows.ContainsKey(focus.Index))
+        {
+            var brought = focus.Index > lastFocus!.Index ? pending[^1] : pending[0];
+            if (!rows.ContainsValue(brought))
+            {
+                rows[focus.Index] = brought;
+            }
+        }
+        pending.Clear();
     }
 
     // The line for a focus whose row's name has been fetched, or null while it hasn't. Called under the gate.
-    private Announcement? LineFor(ScreenEvent focus)
+    private Announcement? LineFor(ScreenEvent focus) =>
+        rows.TryGetValue(focus.Index, out var row) ? Line(focus, serials.TextOf(row, cleaner)) : null;
+
+    // The line for a focus whose row's name can't be told: its position alone.
+    private Announcement PositionLine(ScreenEvent focus) => Line(focus, null);
+
+    private Announcement Line(ScreenEvent focus, string? name)
     {
-        if (focus.Index < 0 || focus.Index >= rows.Count)
-        {
-            return null;
-        }
         var position = focus.Total is { } total
             ? string.Create(CultureInfo.InvariantCulture, $"{focus.Index + 1} of {total}")
             : string.Create(CultureInfo.InvariantCulture, $"{focus.Index + 1}");
-        var item = serials.TextOf(rows[focus.Index], cleaner) is { } name ? $"{name}, {position}" : position;
+        var item = name is not null ? $"{name}, {position}" : position;
         return new Announcement(focus.Change == ScreenChange.Entered ? $"{Screen.Name}, {item}" : item, Interrupt: true);
     }
 }
