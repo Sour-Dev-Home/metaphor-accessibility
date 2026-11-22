@@ -6,8 +6,8 @@ namespace Metaphor.Core.Menus;
 /// no choice hands out their manager. Each opening fetches its prompt by serial just before its new manager's first
 /// cursor, the load screen's "Read the records so far?" (serial 1634) and the save screen's "Record your actions thus
 /// far?" (1299), and nowhere else in two sessions on game build 548ddc95… (Steam build 18330018); the load list holds
-/// 17 items and the save list 16 (docs/findings/save-load-slot-screens.md). So after a prompt, the next unnamed input
-/// with that count names its manager, and that manager's inputs carry <see cref="LoadClass"/> or
+/// 17 items and the save list 16 (docs/findings/save-load-slot-screens.md). So after a prompt, the next input with
+/// that count, classed or not, names its manager, and that manager's inputs carry <see cref="LoadClass"/> or
 /// <see cref="SaveClass"/> until another opening replaces it. Every input is handed on to <c>inner</c>, named or not.
 /// Safe to call from several threads.</summary>
 public sealed class SlotScreens : ICursorObserver, ISerialResolveObserver
@@ -61,20 +61,19 @@ public sealed class SlotScreens : ICursorObserver, ISerialResolveObserver
     public void Observe(CursorInput input)
     {
         ArgumentNullException.ThrowIfNull(input);
-        if (input.ScreenClass is null)
+        lock (gate)
         {
-            lock (gate)
+            // The count after a prompt decides, whatever class the input arrives with: late in the game the load
+            // list's manager came already classed (SingleChoiceBase@ope@ui@app, count=17; #732).
+            if (armed is { } screen && input.Count == (screen == LoadClass ? LoadCount : SaveCount))
             {
-                if (armed is { } screen && input.Count == (screen == LoadClass ? LoadCount : SaveCount))
-                {
-                    named = screen;
-                    manager = input.Manager;
-                    armed = null;
-                }
-                if (named is { } slots && input.Manager == manager)
-                {
-                    input = input with { ScreenClass = slots };
-                }
+                named = screen;
+                manager = input.Manager;
+                armed = null;
+            }
+            if (named is { } slots && input.Manager == manager)
+            {
+                input = input with { ScreenClass = slots };
             }
         }
         inner.Observe(input);

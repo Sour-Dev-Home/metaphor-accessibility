@@ -79,10 +79,30 @@ public sealed class SlotScreensTests
     public void ANamedInputPassesUnchanged()
     {
         Fetched(LoadPrompt);
-        var titleMenu = Unnamed(0xc0, 1, 17) with { ScreenClass = "TitleChoice@ope@ui@app" };
+        var titleMenu = Unnamed(0xc0, 1, 5) with { ScreenClass = "TitleChoice@ope@ui@app" };
         slots.Observe(titleMenu);
 
         Assert.Same(titleMenu, Assert.Single(passed));
+    }
+
+    private const string Classed = "SingleChoiceBase@ope@ui@app";
+
+    [Fact]
+    public void AClassedListOfSeventeenAfterTheLoadPromptIsNamedAndItsManagerKeepsTheName()
+    {
+        Fetched(LoadPrompt);
+        slots.Observe(Unnamed(0xa0, 9, 17) with { ScreenClass = Classed });
+        slots.Observe(Unnamed(0xa0, 8, 17) with { ScreenClass = Classed });
+
+        Assert.Equal([SlotScreens.LoadClass, SlotScreens.LoadClass], passed.Select(input => input.ScreenClass));
+    }
+
+    [Fact]
+    public void AClassedListOfSeventeenWithNoPromptStaysUnnamed()
+    {
+        slots.Observe(Unnamed(0xa0, 9, 17) with { ScreenClass = Classed });
+
+        Assert.Equal(Classed, Assert.Single(passed).ScreenClass);
     }
 
     [Fact]
