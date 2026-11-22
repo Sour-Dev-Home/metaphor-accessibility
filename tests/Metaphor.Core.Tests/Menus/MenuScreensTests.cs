@@ -178,6 +178,49 @@ public sealed class MenuScreensTests
             seen.Select(change => (change.Change, change.Index, change.Grid)));
     }
 
+    // #96: a settings page's value changing on the same row is its own change, carrying the new values.
+    [Fact]
+    public void AValueChangingOnTheSameItemIsAValueChange()
+    {
+        var (screens, seen) = Watched();
+        var before = Values(17, 0);
+        var after = Values(17, 1);
+
+        SettleWith(screens, row: 1, before);
+        SettleWith(screens, row: 1, Values(17, 0));
+        SettleWith(screens, row: 1, after);
+        SettleWith(screens, row: 2, after);
+        screens.RepeatCurrent();
+
+        Assert.Equal(
+            [(ScreenChange.Entered, 1, before), (ScreenChange.ValueChanged, 1, after), (ScreenChange.FocusMoved, 2, after),
+                (ScreenChange.Entered, 2, after)],
+            seen.Select(change => (change.Change, change.Index, change.Values)));
+    }
+
+    [Fact]
+    public void ValuesThatStopBeingReadAreNoValueChange()
+    {
+        var (screens, seen) = Watched();
+
+        SettleWith(screens, row: 1, Values(17, 0));
+        SettleWith(screens, row: 1, null);
+
+        Assert.Equal([ScreenChange.Entered], seen.Select(change => change.Change));
+    }
+
+    private static SettingValues Values(int id, int value)
+    {
+        var bytes = new byte[SettingsPages.WorkingCopyLength];
+        BitConverter.GetBytes(SettingValues.Count).CopyTo(bytes, 0x8);
+        BitConverter.GetBytes(value).CopyTo(bytes, 0x10 + (4 * id));
+        return SettingValues.Of(bytes)!;
+    }
+
+    private static void SettleWith(MenuScreens screens, int row, SettingValues? values) =>
+        screens.Observe(new CursorInput(0xa0, 0x100, Command: 0x1, Result: 1, Top: 0, Row: row, Flags: 0x47, ItemClass,
+            Count: 3, Values: values));
+
     [Theory]
     [InlineData("TitleChoice@ope@ui@app", 0x4a8)]
     [InlineData("RootMenuChoice@ope@ui@app", null)]
