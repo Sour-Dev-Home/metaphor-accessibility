@@ -1,4 +1,5 @@
 using Metaphor.Core.Announcements;
+using Metaphor.Core.Settings;
 
 namespace Metaphor.Features.Menus;
 
@@ -9,6 +10,7 @@ namespace Metaphor.Features.Menus;
 /// <remarks>On build 548ddc95 the strip (<c>field::map::Name</c>) stores the place's id, then composes its name from
 /// three messages in code the mod can't read; the text comes from the composed result as far as a probe finds it, which
 /// is not yet seen in play (docs/findings/travel-map-destination-text-static.md).</remarks>
+[FeatureSetting(Feature.PlaceNames)]
 public sealed class FieldMapName
 {
     /// <summary>The most places remembered; past it the names are forgotten and read again.</summary>

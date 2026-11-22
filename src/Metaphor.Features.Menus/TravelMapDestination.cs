@@ -1,5 +1,6 @@
 using Metaphor.Core.Announcements;
 using Metaphor.Core.Messages;
+using Metaphor.Core.Settings;
 
 namespace Metaphor.Features.Menus;
 
@@ -9,6 +10,7 @@ namespace Metaphor.Features.Menus;
 /// again, so a panel redrawn in place stays quiet. Safe to call from several threads.</summary>
 /// <remarks>On build 548ddc95 the panel (<c>sortie::map::Detail</c>) is handed each destination's name and detail as
 /// message references (docs/findings/travel-map-destination-text-static.md).</remarks>
+[FeatureSetting(Feature.TravelMap)]
 public sealed class TravelMapDestination
 {
     /// <summary>How long the same destination stays unsaid after it was last shown.</summary>

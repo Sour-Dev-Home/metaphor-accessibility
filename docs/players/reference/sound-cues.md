@@ -13,6 +13,7 @@ sound and what it means.
 | Ally hit | Someone in your party was hit. It plays just before the damage number is read. | Two low notes going down, like "uh-oh". |
 | Enemy hit | An enemy was hit. It plays just before the damage number is read. | Two high notes going up, quicker and brighter. |
 | Guidance beep | The way to what you asked the mod to guide you to in the field ([keys](keys-and-speech.md#in-the-field)). | A short beep that repeats: from the side the thing is on, high ahead and low behind, about once a second far away and five times a second close. |
+| Mark | You pressed the mark key, F8, and the mod wrote a marker to its report log. | Two short high clicks on the same note. |
 
 A simple way to remember them: low and falling is bad news for you, high and rising is good news.
 
@@ -35,3 +36,6 @@ number. You don't need to restart the game.
 
 If a value can't be used, such as a volume of 120 or the word "off" instead of `false`, the mod uses the default:
 sounds on, at volume 50.
+
+Each sound can also be turned off or made quieter on its own: see the sounds in
+[the settings reference](settings.md#sounds).

@@ -1,0 +1,32 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- The installer exe's logic (#608): unpacking, checking, the PowerShell command, clean-up and exit codes, on the
+       launcher's net9.0 build. The shipped net48 exe is copied beside the tests and read as a file (ShippedExeTests). -->
+  <PropertyGroup>
+    <TargetFramework>net9.0</TargetFramework>
+    <IsPackable>false</IsPackable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.NET.Test.Sdk" />
+    <PackageReference Include="xunit" />
+    <PackageReference Include="xunit.runner.visualstudio" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Using Include="Xunit" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\installer\Metaphor.Installer\Metaphor.Installer.csproj" />
+    <ProjectReference Include="..\..\installer\Metaphor.Installer\Metaphor.Installer.csproj" SetTargetFramework="TargetFramework=net48"
+                      ReferenceOutputAssembly="false" OutputItemType="ShippedExe" />
+  </ItemGroup>
+
+  <Target Name="CopyShippedExe" AfterTargets="ResolveProjectReferences">
+    <ItemGroup>
+      <None Include="@(ShippedExe)" Link="shipped/%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" />
+    </ItemGroup>
+  </Target>
+
+</Project>
