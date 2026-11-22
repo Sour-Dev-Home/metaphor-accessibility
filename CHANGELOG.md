@@ -9,6 +9,10 @@ checks them in the first game session and removes the tag.
 
 ## Unreleased
 
+- **An installer exe beside the zip.** Each release also carries one file, `metaphor-accessibility-VERSION-installer.exe`:
+  open it and it says a welcome line, checks the files it carries ("Download checked"), and runs the same spoken
+  installer as the zip, in its window. A damaged download says "This download is damaged" and installs nothing. It is
+  not signed yet, so Windows warns before it runs (#608). `[NEEDS VERIFICATION by ear]`
 - **A welcome on first launch.** The first time the game starts with the mod, the title screen says which version is
   running and that `N`, `L` and `G` are the field keys, once (#617). `[NEEDS VERIFICATION by ear]`
 - **A mark key for reports.** Press `F8` when something goes wrong: two short clicks, and a numbered marker with the
