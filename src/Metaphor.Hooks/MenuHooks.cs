@@ -42,8 +42,8 @@ internal sealed class MenusOpenRead : IReadsGlobal
 /// docs/raw-sources/spike-session-2-2026-11-16.md. Observed after it returns, so the cursor is where the input left it.
 /// Each input carries its screen class from <see cref="ScreenClassLookup"/> (#208), its list's item count (#289) and its
 /// owner's mode for a choice that serves two lists (#210), each null when unreadable, and on the grid cursor class its
-/// cell (#563), whose index is that class's own getter's, and on Key Configuration whether its OK button has the focus
-/// (#589).</summary>
+/// cell (#563), whose index is that class's own getter's, on Key Configuration whether its OK button has the focus
+/// (#589), and on a settings page its values (#96).</summary>
 [GameHook(GameBuilds.Steam18330018)]
 internal sealed class MenuCursorHook : IGameHook, IObserves4WithResult
 {
@@ -101,13 +101,29 @@ internal sealed class MenuCursorHook : IGameHook, IObserves4WithResult
             : null;
         var screenClass = screenClasses.Of(manager);
         var grid = classRva == GridCursor.ClassRva;
+        var copy = ReadSettingsCopy(manager, screenClass);
         events.Handled(new CursorInput(
             manager, classRva, commandValue, (int)result, top, row, ModuleMemoryReader.ReadInt32(manager + FlagsOffset) ?? 0,
             screenClass, ModuleMemoryReader.ReadInt32(manager + CountOffset), screenClasses.ModeOf(manager, screenClass),
             grid ? ReadGrid(manager) : null,
-            grid && screenClass == SettingsPages.KeyConfigClass ? KeyConfigOnButton(manager) : null));
-        LogSettingsCopy(manager, screenClass);
+            grid && screenClass == SettingsPages.KeyConfigClass ? KeyConfigOnButton(manager) : null,
+            copy is { } read ? SettingValues.Of(read.Bytes) : null));
+        LogSettingsCopy(copy);
         LogKeyConfigState(manager, screenClass);
+    }
+
+    // A settings page's working copy (#560), read so the page's rows can say their values (#96): only on one of the four
+    // pages' classes, null on any other, when the owner is unknown or the read fails. One bounded read through
+    // ModuleMemoryReader, which fails instead of faulting.
+    private (long Owner, byte[] Bytes)? ReadSettingsCopy(nint manager, string? screenClass)
+    {
+        if (!SettingsPages.IsPage(screenClass) || screenClasses.Owners.OwnerOf(manager) is not { } owner)
+        {
+            return null;
+        }
+        // An array, not stackalloc: a stack buffer's loads are raw-memory reads outside the reader (architecture rule 10).
+        var bytes = new byte[SettingsPages.WorkingCopyLength];
+        return ModuleMemoryReader.ReadBytes((nint)(owner + SettingsPages.WorkingCopyOffset), bytes) ? (owner, bytes) : null;
     }
 
     // The grid cursor's cell, or null when a field is unreadable or they don't read as a grid. Six bounded reads
@@ -150,20 +166,12 @@ internal sealed class MenuCursorHook : IGameHook, IObserves4WithResult
     }
 
     // Debug builds only (the log is null in Release): a settings page's working copy, when it changed since the page's
-    // last input, so a session shows which bytes a value change moves (#560, #558's check 2). One bounded read through
-    // ModuleMemoryReader, which fails instead of faulting; nothing when the owner is unknown or the read fails.
-    private void LogSettingsCopy(nint manager, string? screenClass)
+    // last input, so a session shows which bytes a value change moves (#560, #558's check 2); nothing when it wasn't read.
+    private void LogSettingsCopy((long Owner, byte[] Bytes)? copy)
     {
-        if (log is null || !SettingsPages.IsPage(screenClass) || screenClasses.Owners.OwnerOf(manager) is not { } owner)
+        if (log is not null && copy is { } read && settingsCopies.Changed(read.Owner, read.Bytes) is { } hex)
         {
-            return;
-        }
-        // An array, not stackalloc: a stack buffer's loads are raw-memory reads outside the reader (architecture rule 10).
-        var bytes = new byte[SettingsPages.WorkingCopyLength];
-        if (ModuleMemoryReader.ReadBytes((nint)(owner + SettingsPages.WorkingCopyOffset), bytes)
-            && settingsCopies.Changed(owner, bytes) is { } hex)
-        {
-            log.SettingsCopy(owner, hex);
+            log.SettingsCopy(read.Owner, hex);
         }
     }
 }

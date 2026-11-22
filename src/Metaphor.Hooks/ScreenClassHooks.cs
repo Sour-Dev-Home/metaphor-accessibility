@@ -76,20 +76,39 @@ internal sealed class DifficultySelectOwnerHook : IGameHook, IObserves3
 /// so each class's type information is read once. Safe from any game thread.</summary>
 internal sealed class ScreenClassLookup
 {
-    // Far more than the 279 choice classes that share the getter; past it the names are read again.
-    private const int MaxClasses = 1024;
-
-    private readonly CallerAddress module = new();
-    private readonly ConcurrentDictionary<nint, string> classByVtable = new();
+    private readonly ClassNames names = new();
 
     /// <summary>Which choice last handed out each manager.</summary>
     public CursorOwners Owners { get; } = new();
 
     /// <summary>The screen class of <paramref name="manager"/>'s owner, or null when no owner was seen or its class is
     /// unreadable.</summary>
-    public string? Of(long manager)
+    public string? Of(long manager) => Owners.OwnerOf(manager) is { } owner ? names.Of((nint)owner) : null;
+
+    /// <summary>The mode field of <paramref name="manager"/>'s owner, whose class is <paramref name="screenClass"/>
+    /// (<see cref="ScreenModes"/>, #210), or null when the class has none, no owner was seen, or it is unreadable.
+    /// </summary>
+    public int? ModeOf(long manager, string? screenClass) =>
+        ScreenModes.FieldOffset(screenClass) is { } offset && Owners.OwnerOf(manager) is { } owner
+            ? ModuleMemoryReader.ReadInt32((nint)(owner + offset))
+            : null;
+}
+
+/// <summary>Names a game object's class from its run-time type information (<see cref="RttiName"/>), such as
+/// <c>TitleChoice@ope@ui@app</c>. Names are kept by vtable, so each class's type information is read once and a known
+/// class costs one pointer read and one lock-free lookup. Safe from any game thread.</summary>
+internal sealed class ClassNames
+{
+    // Far more than the 279 choice classes or the few hundred UI layouts; past it the names are read again.
+    private const int MaxClasses = 1024;
+
+    private readonly CallerAddress module = new();
+    private readonly ConcurrentDictionary<nint, string> classByVtable = new();
+
+    /// <summary>The class of the object at <paramref name="instance"/>, or null when it is unreadable.</summary>
+    public string? Of(nint instance)
     {
-        if (Owners.OwnerOf(manager) is not { } owner || ModuleMemoryReader.ReadPointer((nint)owner) is not { } vtable)
+        if (ModuleMemoryReader.ReadPointer(instance) is not { } vtable)
         {
             return null;
         }
@@ -98,7 +117,7 @@ internal sealed class ScreenClassLookup
             return known;
         }
         var name = RttiName.Of(
-            owner,
+            instance,
             module.ModuleBase,
             module.ModuleSize,
             address => ModuleMemoryReader.ReadPointer((nint)address),
@@ -114,12 +133,4 @@ internal sealed class ScreenClassLookup
         }
         return name;
     }
-
-    /// <summary>The mode field of <paramref name="manager"/>'s owner, whose class is <paramref name="screenClass"/>
-    /// (<see cref="ScreenModes"/>, #210), or null when the class has none, no owner was seen, or it is unreadable.
-    /// </summary>
-    public int? ModeOf(long manager, string? screenClass) =>
-        ScreenModes.FieldOffset(screenClass) is { } offset && Owners.OwnerOf(manager) is { } owner
-            ? ModuleMemoryReader.ReadInt32((nint)(owner + offset))
-            : null;
 }
