@@ -27,10 +27,11 @@ public enum ScreenChange
 /// when unreadable. <paramref name="Mode"/> is which list a choice that serves more than one shows
 /// (<see cref="CursorInput.Mode"/>), null when it has none or it is unreadable. <paramref name="OffList"/> is whether
 /// the focus is off the list's items (<see cref="CursorInput.OffList"/>), as on a settings page's OK button, where
-/// <paramref name="Index"/> reads 0.</summary>
+/// <paramref name="Index"/> reads 0. <paramref name="Grid"/> is the focus's cell on a grid cursor
+/// (<see cref="CursorInput.Grid"/>, #563), null on any other.</summary>
 public sealed record ScreenEvent(
     ScreenChange Change, Screen? Screen, string ScreenClass, int Index, int? Count = null, int? Mode = null,
-    bool OffList = false)
+    bool OffList = false, GridCursor? Grid = null)
 {
     /// <summary>The longest list taken as a count (#289). The longest seen in session 6 had 145 items
     /// (docs/raw-sources/list-count-session6-2026-11-17.md); a larger value is a screen whose field isn't the count, as
@@ -66,7 +67,8 @@ public interface IScreenDetails
 /// they close, the current screen is left. A screen's mode (<see cref="CursorInput.Mode"/>)
 /// changing on the same item is a focus move, so a choice's other list is heard even where the index stays; so is the
 /// focus moving on or off the list's items (<see cref="CursorInput.OffList"/>), as from a settings page's OK button to
-/// its first row, both at index 0 (#560).
+/// its first row, both at index 0 (#560); and on a grid cursor, its count changing on the same cell, as when Key
+/// Configuration's sub-tab changes (#589).
 /// </summary>
 public sealed class MenuScreens : ICursorObserver
 {
@@ -79,6 +81,7 @@ public sealed class MenuScreens : ICursorObserver
     private int? currentCount;
     private int? currentMode;
     private bool currentOffList;
+    private GridCursor? currentGrid;
     private bool menusOpen;
 
     /// <summary>A module that tags each screen whose class is one of <paramref name="knownScreens"/>' with it.</summary>
@@ -115,16 +118,18 @@ public sealed class MenuScreens : ICursorObserver
             }
             if (screenClass == currentClass && (!outside || input.Manager == currentManager))
             {
-                if (input.Index == currentIndex && input.Mode == currentMode && input.OffList == currentOffList)
+                if (input.Index == currentIndex && input.Mode == currentMode && input.OffList == currentOffList
+                    && (input.Grid is null || input.Count == currentCount))
                 {
                     return;
                 }
-                changes = [Change(ScreenChange.FocusMoved, screenClass, input.Index, input.Count, input.Mode, input.OffList)];
+                changes = [Change(
+                    ScreenChange.FocusMoved, screenClass, input.Index, input.Count, input.Mode, input.OffList, input.Grid)];
             }
             else
             {
                 var entered = Change(
-                    ScreenChange.Entered, screenClass, input.Index, input.Count, input.Mode, input.OffList);
+                    ScreenChange.Entered, screenClass, input.Index, input.Count, input.Mode, input.OffList, input.Grid);
                 changes = currentClass is { } left ? [Current(ScreenChange.Left, left), entered] : [entered];
             }
             currentClass = screenClass;
@@ -133,6 +138,7 @@ public sealed class MenuScreens : ICursorObserver
             currentCount = input.Count;
             currentMode = input.Mode;
             currentOffList = input.OffList;
+            currentGrid = input.Grid;
         }
         var each = Volatile.Read(ref observers);
         foreach (var change in changes)
@@ -192,11 +198,11 @@ public sealed class MenuScreens : ICursorObserver
 
     // The current focus as a change to screenClass; called under the gate.
     private ScreenEvent Current(ScreenChange change, string screenClass) =>
-        Change(change, screenClass, currentIndex, currentCount, currentMode, currentOffList);
+        Change(change, screenClass, currentIndex, currentCount, currentMode, currentOffList, currentGrid);
 
     private ScreenEvent Change(
-        ScreenChange change, string screenClass, int index, int? count, int? mode, bool offList) =>
-        new(change, known.GetValueOrDefault(screenClass), screenClass, index, count, mode, offList);
+        ScreenChange change, string screenClass, int index, int? count, int? mode, bool offList, GridCursor? grid) =>
+        new(change, known.GetValueOrDefault(screenClass), screenClass, index, count, mode, offList, grid);
 
     [SuppressMessage("Design", "CA1031", Justification = "One observer's failure must not keep the change from the others, or reach the game.")]
     private static void TellEach(IScreenObserver[] observers, ScreenEvent change)
