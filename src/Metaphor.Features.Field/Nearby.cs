@@ -53,6 +53,17 @@ public static class Nearby
             .Take(MaxThings)];
     }
 
+    /// <summary>The things of <paramref name="view"/> the game's reach test passes for, nearest first, however many and
+    /// whatever else is nearer (#644).</summary>
+    public static IReadOnlyList<NearbyThing> InReach(FieldView view)
+    {
+        ArgumentNullException.ThrowIfNull(view);
+        return [.. view.Units
+            .Select(unit => Place(view, unit))
+            .Where(thing => thing.InReach)
+            .OrderBy(thing => thing.Distance)];
+    }
+
     /// <summary>Spoken steps for a distance, at least one.</summary>
     public static int Steps(double distance) => Math.Max(1, (int)Math.Round(distance / UnitsPerStep));
 
@@ -95,14 +106,46 @@ public static class Nearby
         _ => null,
     };
 
-    private static NearbyThing Place(FieldView view, FieldUnit unit)
+    /// <summary>Ground distance the reach callout's hold adds to the reach and height limits, half a step, so standing
+    /// at the edge doesn't flicker in and out (#644). The mod's own choice, not the game's.</summary>
+    public const double HoldDistanceSlack = 50;
+
+    /// <summary>Angle the reach callout's hold adds to the facing limit, 20°, for the same reason (#644).</summary>
+    public const double HoldFacingSlack = Math.PI / 9;
+
+    /// <summary>Whether <paramref name="unit"/> passes the game's reach test widened by <see cref="HoldDistanceSlack"/>
+    /// and <see cref="HoldFacingSlack"/>: what keeps a thing already in reach held there (#644).</summary>
+    public static bool NearReach(FieldView view, FieldUnit unit)
+    {
+        ArgumentNullException.ThrowIfNull(view);
+        ArgumentNullException.ThrowIfNull(unit);
+        return Place(view, unit, HoldDistanceSlack, HoldFacingSlack, CalloutRangeScale).InReach;
+    }
+
+    /// <summary>How much further than the game's reach distance the reach callout is said, 20%, so it comes a little
+    /// earlier (#644). The mod's own choice; the game's test, the nearby list and the beacon keep the game's reach.</summary>
+    public const double CalloutRangeScale = 1.2;
+
+    /// <summary>The things of <paramref name="view"/> within the callout's range (the game's reach distance times
+    /// <see cref="CalloutRangeScale"/>, same height and facing), nearest first (#644).</summary>
+    public static IReadOnlyList<NearbyThing> CalloutReach(FieldView view)
+    {
+        ArgumentNullException.ThrowIfNull(view);
+        return [.. view.Units
+            .Select(unit => Place(view, unit, 0, 0, CalloutRangeScale))
+            .Where(thing => thing.InReach)
+            .OrderBy(thing => thing.Distance)];
+    }
+
+    private static NearbyThing Place(FieldView view, FieldUnit unit, double slack = 0, double facingSlack = 0,
+        double rangeScale = 1)
     {
         var dx = unit.X - view.X;
         var dz = unit.Z - view.Z;
         var distance = Math.Sqrt(dx * dx + dz * dz);
         var bearing = Normalised(Math.Atan2(dx, dz) - view.Heading);
-        var inReach = ReachLimit(unit.Kind, view.DoorReachValue) is { } limit && distance < limit &&
-            Math.Abs(unit.Y - view.Y) < HeightReach && Math.Abs(bearing) < FacingReach;
+        var inReach = ReachLimit(unit.Kind, view.DoorReachValue) is { } limit && distance < limit * rangeScale + slack &&
+            Math.Abs(unit.Y - view.Y) < HeightReach + slack && Math.Abs(bearing) < FacingReach + facingSlack;
         return new(unit, distance, bearing, inReach);
     }
 

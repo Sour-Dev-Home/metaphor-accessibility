@@ -61,6 +61,7 @@ the game.
 |---|---|---|
 | `nearby` | The nearby list: N, or LB with Down and Up on the D-pad. | `true` |
 | `whereAmI` | "Where am I": L, or LB with Left on the D-pad. | `true` |
+| `reach` | The callout when a door or chest comes into reach: "Door, in reach". | `true` |
 
 ## Report
 

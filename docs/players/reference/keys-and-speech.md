@@ -59,6 +59,8 @@ anywhere.
 - The pad's `LB` and D-pad steps through the same list, such as "2 of 5. Door, 9 steps behind"; after 10 seconds without
   a step it starts again at the nearest.
 - `L` says the place name the game last showed, or "Place not known yet".
+- With no key: walking up to a door or chest says "Door, in reach" or "Chest, in reach" once, after anything being
+  said. Move away or turn, then come back, and it says it again. People aren't said this way yet.
 - Distances are rough steps: treat them as near or far.
 
 ### Menus
