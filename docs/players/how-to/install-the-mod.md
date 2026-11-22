@@ -1,21 +1,73 @@
 # Install the mod
 
-> **Draft for testers on dev builds.** There is no release yet. This page is finished with the first alpha
-> ([#131](https://github.com/Sour-Dev-Home/metaphor-accessibility/issues/131)). Steps marked `[NEEDS VERIFICATION]` have
-> not been checked by ear with a screen reader yet. If one is wrong, say so in an issue.
+> **Draft for testers.** The newest download is the pre-release `v0.0.1-unstable.3`; there is no stable release yet.
+> Some details have not been checked by ear with a screen reader yet; they are listed in
+> [Not checked by ear yet](#not-checked-by-ear-yet). If a step is wrong, say so in an issue.
 
-This guide installs Reloaded-II, the program that loads the mod into the game, adds the game and the mod to it, and
-makes a desktop shortcut that starts the game with the mod. It is written for NVDA. Each step says what you should
-hear.
+This guide installs the mod with its spoken installer: one file to open after extracting the zip. The installer sets up
+Reloaded-II, the program that loads the mod into the game, adds the game and the mod to it, and makes a desktop shortcut
+that starts the game with the mod. It is written for NVDA. Each step says what you should hear.
 
-You need the game installed on PC (single-player only) and NVDA running.
+You need the game installed on PC (single-player only) and NVDA running. Download the zip from the
+[releases page](https://github.com/Sour-Dev-Home/metaphor-accessibility/releases) and check it first
+([Check a download](check-a-download.md)).
+
+## Install with the spoken installer
+
+The zip holds two things: the mod's folder, `metaphor.accessibility`, and one file beside it,
+`Install Metaphor accessibility.cmd`, which starts the installer in that folder. The installer does every step on this
+page for you and says each one as it goes. It needs no clicks in Reloaded-II's window.
+
+1. Extract the whole zip (unblock it first if Windows marked it, see
+   [If Windows says the file is from the internet](#if-windows-says-the-file-is-from-the-internet)). File Explorer opens
+   the extracted folder. Opening the file inside the zip without extracting doesn't work: it says to extract the zip
+   first.
+2. Press `End` to reach the last item, "Install Metaphor accessibility", the one file there (File Explorer lists the
+   mod's folder before it), and press Enter.
+3. Windows probably asks first, because the file came from the internet and isn't signed: an "Open File - Security
+   Warning" window asking whether to run it. Choose `Run`. With Smart App Control on, Windows blocks the file instead;
+   see the next section. Why Windows asks, and what was checked:
+   [notes](../../raw-sources/install-launcher-motw-2026-11-20.md).
+4. A window opens and the installer starts. It asks before it starts and before each download, each question in a
+   small window with a Yes and a No button that your screen reader reads. Press `Enter` for the button it lands on, `Y`
+   for Yes or `N` for No, or `Tab` to move between them. Where the installer can't find the game in Steam, Windows'
+   Open window appears: choose `METAPHOR.exe` in the game's install folder, or press `Escape` to stop.
+5. It finds the game, installs Reloaded-II 1.31.0 if you don't have it (in your user folder, no admin rights needed),
+   installs the .NET 9 Desktop Runtime and the Visual C++ Redistributable if they're missing, copies the mod in, turns
+   it on for the game, and puts a shortcut called "Metaphor ReFantazio with accessibility" on your desktop. The two
+   runtimes need admin rights: when it installs one, Windows asks for permission, and you answer yes there too.
+6. It ends by running the install check ([below](#if-the-mod-says-nothing-run-the-install-check)) and says what it
+   found. Before you start the game with the mod for the first time, the check says the mod hasn't reported a start
+   yet; that is expected.
+7. The window stays open and its last line says "The installer has finished. Read what it said above, then press any
+   key to close this window." Read back with NVDA's review cursor if you need to, then press a key.
+8. Start the game from the desktop shortcut. Always start it from this shortcut.
+
+Each step says whether it worked. A step that fails says what to do and stops there. Run the installer again after
+fixing that, or to update the mod: it changes only what needs changing and says so. With NVDA, JAWS or ZoomText
+running, it speaks each line through your screen reader, with the speech library the mod ships, so you don't need to
+read the window; your screen reader reads the question windows itself. Windows' own voice speaks the steps and questions
+when no screen reader is running. That voice is an English one when Windows has one; otherwise the installer says so and
+uses Windows' default voice. Open it with Enter, not "Run as administrator": it refuses to run as administrator. With
+User Account Control turned off every window is administrator, so it says so and asks before going on.
+
+`install.cmd` in the mod's folder does the same as `Install Metaphor accessibility.cmd`. If Windows won't open
+either, start the installer by typing instead: press `Windows+R`, type this with the full path to the mod's folder in
+place of `<folder>`, and press Enter:
+
+`powershell -ExecutionPolicy Bypass -NoExit -File "<folder>\install.ps1"`
+
+The installer checks every file it downloads against a recorded hash. A download that gets no data for a minute, or
+takes more than half an hour, stops, and the installer says what to do. If you ever open Reloaded-II's own window, it may
+offer to update itself; that update comes from Reloaded-II's newest release, which nobody has checked with this mod.
+
+If you would rather set Reloaded-II up yourself, see [Appendix: install by hand](#appendix-install-by-hand).
 
 ## If Windows says the file is from the internet
 
 Windows marks a downloaded file as from the internet, and the mod's scripts aren't code-signed, so it may warn or ask
 before running them. Check the download first ([Check a download](check-a-download.md)); only then follow these.
-Every step is by keyboard. `[NEEDS VERIFICATION]` All the spoken phrases below, by ear with NVDA and Narrator
-([#573](https://github.com/Sour-Dev-Home/metaphor-accessibility/issues/573)); Microsoft doesn't document them
+Every step is by keyboard. Microsoft doesn't document the spoken phrases below
 ([notes](../../raw-sources/smartscreen-and-unblock-microsoft-docs-2026-11-20.md)).
 
 ### Unblock the zip before you unzip it
@@ -37,7 +89,7 @@ If you unzipped first, repeat steps 1 to 4 on `Install Metaphor accessibility.cm
 
 SmartScreen shows this blue window when a downloaded program has no reputation yet. It is not a verdict that the file
 is harmful. `Install Metaphor accessibility.cmd` usually gets the older "Open File - Security Warning" window
-instead (step 3 of the installer section below).
+instead (step 3 of the installer above).
 
 1. The window opens and the screen reader reads "Windows protected your PC", then its text, which names the file.
    Press `Tab`: focus lands on the link "More info". Press `Enter`.
@@ -45,150 +97,7 @@ instead (step 3 of the installer section below).
    The file runs.
 3. If the window offers only "Don't run", or you are on a work or school PC, an administrator has blocked the file;
    you can't go on from here. With Smart App Control on, Windows blocks the file with no such button: unblock it as
-   above (`[NEEDS VERIFICATION]` whether that lifts the block), or start the installer with the command at the end of
-   the next section.
-
-## Install with the spoken installer
-
-The zip holds two things: the mod's folder, `metaphor.accessibility`, and one file beside it,
-`Install Metaphor accessibility.cmd`, which starts the installer in that folder. The installer does every step on this
-page for you and says each one as it goes. It needs no clicks in Reloaded-II's window. `[NEEDS VERIFICATION]` All of
-this section, by ear.
-
-1. Extract the whole zip (unblock it first if Windows marked it, above). File Explorer opens the extracted folder.
-   Opening the file inside the zip without extracting doesn't work: it says to extract the zip first.
-2. Press `End` to reach the last item, "Install Metaphor accessibility", the one file there (File Explorer lists the
-   mod's folder before it), and press Enter. `[NEEDS VERIFICATION]` What NVDA reads for it, and whether File Explorer
-   opens the extracted folder after "Extract All".
-3. Windows probably asks first, because the file came from the internet and isn't signed: an "Open File - Security
-   Warning" window asking whether to run it. Choose `Run`. `[NEEDS VERIFICATION]` Its wording, its buttons and which one
-   has the focus, by ear. With Smart App Control on, Windows blocks the file instead; then use the command at the end of
-   this section. Why Windows asks, and what was checked:
-   [notes](../../raw-sources/install-launcher-motw-2026-11-20.md).
-4. A window opens and the installer starts. It asks before it starts and before each download, each question in a
-   small window with a Yes and a No button that your screen reader reads. Press `Enter` for the button it lands on, `Y`
-   for Yes or `N` for No, or `Tab` to move between them. Where the installer can't find the game in Steam, Windows'
-   Open window appears: choose `METAPHOR.exe` in the game's install folder, or press `Escape` to stop.
-   `[NEEDS VERIFICATION]` By ear with NVDA (#573): what NVDA reads for each window, whether the focus lands on it, and
-   whether `Escape` answers No (Windows' Yes and No windows usually ignore it).
-5. It finds the game, installs Reloaded-II 1.31.0 if you don't have it (in your user folder, no admin rights needed),
-   installs the .NET 9 Desktop Runtime and the Visual C++ Redistributable if they're missing, copies the mod in, turns
-   it on for the game, and puts a shortcut called "Metaphor ReFantazio with accessibility" on your desktop. The two
-   runtimes need admin rights: when it installs one, Windows asks for permission, and you answer yes there too.
-6. It ends by running the install check (below) and says what it found. Before you start the game with the mod for the
-   first time, the check says the mod hasn't reported a start yet; that is expected.
-7. The window stays open and its last line says "The installer has finished. Read what it said above, then press any
-   key to close this window." Read back with NVDA's review cursor if you need to, then press a key.
-8. Start the game from the desktop shortcut.
-
-`install.cmd` in the mod's folder does the same as `Install Metaphor accessibility.cmd`. If Windows won't open either,
-start the installer by typing instead: press `Windows+R`, type this with the mod's folder's full path in place of
-`<folder>`, and press Enter. `[NEEDS VERIFICATION]` Whether this works with Smart App
-Control on.
-
-`powershell -ExecutionPolicy Bypass -NoExit -File "<folder>\install.ps1"`
-
-Each step says whether it worked. A step that fails says what to do and stops there. Run it again after fixing that,
-or to update the mod: it changes only what needs changing and says so. With NVDA, JAWS or ZoomText running, it speaks
-each line through your screen reader, with the speech library the mod ships, so you don't need to read the window;
-your screen reader reads the question windows itself. Windows' own voice speaks the steps and questions when no
-screen reader is running. That voice is an English one when
-Windows has one; otherwise the installer says so and uses Windows' default voice. Open it with Enter, not "Run as
-administrator": it refuses to run as administrator. With User Account Control turned off every window is
-administrator, so it says so and asks before going on. `[NEEDS VERIFICATION]` By ear with NVDA (#601).
-
-The installer checks every file it downloads against a recorded hash. A download that gets no data for a minute, or
-takes more than half an hour, stops, and the installer says what to do. If you ever open Reloaded-II's own window, it may
-offer to update itself; that update comes from Reloaded-II's newest release, which nobody has checked with this mod.
-
-The sections below do the same by hand.
-
-## Install Reloaded-II
-
-The mod is checked against Reloaded-II **1.31.0**
-([run notes](../../raw-sources/mod-entry-point-first-run-2026-11-15.md)). Use that version. A newer one may work, but
-nobody has checked.
-
-1. Open the Reloaded-II releases page on GitHub: `https://github.com/Reloaded-Project/Reloaded-II/releases`. NVDA
-   reads a page title naming the project.
-2. Press `H` to move between headings until NVDA reads `1.31.0`. Newer releases come first, so go on past them.
-3. Press `K` or `Tab` through the links under that release's "Assets" heading and open the Windows setup file.
-   `[NEEDS VERIFICATION]` The exact asset name for 1.31.0, and whether the release offers a setup program or only a
-   zip.
-4. Run the setup. `[NEEDS VERIFICATION]` What the setup's dialogs say and which buttons NVDA finds. Accept the default
-   folder unless you have a reason not to.
-
-## Add the game to Reloaded-II
-
-`[NEEDS VERIFICATION]` All of this section. Reloaded-II's window is reachable with NVDA mainly through the review
-cursor and a simulated mouse click
-([P4G Access notes](../../raw-sources/persona-4-golden-access-2026-11-16.md)).
-
-1. Start Reloaded-II. NVDA should read its window title.
-2. Find the button that adds an application, using NVDA's review cursor: `NVDA+numpad 7` moves to the top of the
-   window, and `NVDA+numpad 9` or `NVDA+numpad 3` moves by line. `Shift+NVDA+arrows` is the laptop layout.
-3. Choose the game's program file, `metaphor.exe`, in the game's install folder. Reloaded-II names the new entry after
-   the program (its ID is `metaphor.exe`).
-
-## Add the mod from a dev build
-
-`[NEEDS VERIFICATION]` Where testers get a dev build, and what it is called. The project's CI builds a package of the
-mod on every merge and keeps it as a workflow artifact with a SHA-256 hash
-([Checks](../../contributors/reference/checks.md)). The package holds our mod only; Reloaded-II is installed separately.
-
-1. Download the zip from a CI run on `main` and check it, as [Check a download](check-a-download.md) says.
-2. Unzip it. You get a folder named for the mod ID, `metaphor.accessibility`.
-3. Open Reloaded-II's settings file, `%APPDATA%\Reloaded-Mod-Loader-II\ReloadedII.json`, in Notepad. Find the value of
-   `ModConfigDirectory`. This is the mods folder
-   ([P4G Access notes](../../raw-sources/persona-4-golden-access-2026-11-16.md)).
-4. Copy the `metaphor.accessibility` folder into that mods folder.
-5. Enable the mod for the game. Doing this in Reloaded-II's window is hard with a screen reader, so the P4G Access mod
-   ships a ready-made `AppConfig.json` for the game's folder under Reloaded-II's applications folder. We don't ship one
-   yet. `[NEEDS VERIFICATION]` Enabling the mod by ear in the window: find the game's mod list with the review cursor,
-   move to `metaphor.accessibility`, and click it.
-
-Developers can skip all of this with `scripts/dev/session.ps1 deploy`
-([deploy a dev build](../../contributors/how-to/deploy-a-dev-build.md)).
-
-## Make a desktop shortcut that starts the game with the mod
-
-Always start the game from this shortcut. These steps are P4G Access's method, which we expect to work the same here
-`[NEEDS VERIFICATION]`.
-
-1. Open Reloaded-II.
-2. Press `Tab` to reach the application list and open the game's entry.
-3. Use NVDA's review cursor (`NVDA+numpad` keys, or `Shift+NVDA+arrows` on a laptop) to reach `Create Shortcut` on the
-   game's page.
-4. Move the mouse to the review cursor with `NVDA+Shift+M`, then click with `NVDA+numpad slash`, or `NVDA+[` on a
-   laptop.
-5. A shortcut appears on the desktop, named after the game with `(Reloaded)` in it. `[NEEDS VERIFICATION]` the exact
-   name and whether NVDA announces the click.
-
-P4G Access's own guide says not to start the game from Steam, because it often fails to load some mods. Another
-instruction from its author says Steam works while Reloaded-II is running, but the shortcut is more reliable. Which
-holds for Metaphor is `[NEEDS VERIFICATION]`; use the shortcut.
-
-## Launch
-
-1. Close the game and Reloaded-II if they are running.
-2. Open the `(Reloaded)` shortcut on the desktop. The game starts. You can close Reloaded-II's window if it shows up.
-   `[NEEDS VERIFICATION]` whether Reloaded-II stays open.
-
-## Copy in a Reloaded-II app config
-
-Enabling a mod in Reloaded-II's window is hard with a screen reader. Persona-4-Golden-Access gets round it by shipping a
-ready-made `AppConfig.json`. We don't ship one yet, so edit the one Reloaded-II made
-([P4G Access notes](../../raw-sources/persona-4-golden-access-2026-11-16.md)). `[NEEDS VERIFICATION]` All of this
-section, by ear.
-
-1. In Notepad, open `%APPDATA%\Reloaded-Mod-Loader-II\ReloadedII.json`. Find `ApplicationConfigDirectory`. This is where
-   Reloaded-II keeps one folder per game.
-2. Open the folder for the game, the one holding an `AppConfig.json` whose `AppId` is `metaphor.exe`. If you added the
-   game as above, it is there.
-3. Open that `AppConfig.json` in Notepad. Find `EnabledMods`. Make it list the mod's ID, so the line reads
-   `"EnabledMods": ["metaphor.accessibility"]`. Save the file.
-4. If `AppLocation` doesn't point at your `metaphor.exe`, correct it. A relative path is read from the folder holding
-   the file ([Reloaded-II config notes](../../raw-sources/reloaded-ii-app-and-mod-config-2026-11-15.md)).
+   above, or start the installer with the command at the end of the installer section.
 
 ## What the mod says when it loads
 
@@ -217,14 +126,13 @@ them.
    `powershell -ExecutionPolicy Bypass -NoExit -File "<mods folder>\metaphor.accessibility\check-install.ps1"`
 
    The unzipped folder you downloaded works too.
-2. It checks, in order: Reloaded-II is set up; the mod is in its mods folder; which version of the mod is installed
-   ("The mod is version 0.0.1-unstable.3."); the game is added and the mod turned on for it; the game's version is one the mod knows; the speech library, `prism.dll`, is in place; how the mod last
+2. It checks, in order: Reloaded-II is set up; the mod is in its mods folder; the game is added and the mod turned on
+   for it; the game's version is one the mod knows; the speech library, `prism.dll`, is in place; how the mod last
    started. Each line starts with "Pass", "Problem" or "Not checked". A last "Note" says when no screen reader the
    mod supports is running; that isn't counted as a problem, since the mod then uses Windows' own voice.
 3. The last line names the first thing to fix. Fix it, then run the check again.
 
-`[NEEDS VERIFICATION]` By ear with NVDA, and whether Windows asks before running a script from a downloaded zip. If the
-check finds nothing wrong and the mod is still silent, send its output with the
+If the check finds nothing wrong and the mod is still silent, send its output with the
 [alpha feedback form](#report-a-problem).
 
 ## Keys and buttons
@@ -258,9 +166,7 @@ only, not the keys, the load message or the settings message.
 
 They work only while you walk around freely, with no menu or dialogue open, and the game doesn't see the key, or the
 D-pad direction, then. Anywhere else they keep their normal job in the game. Distances are rough steps for now: the mod
-doesn't yet know how long a step is in the game, so treat them as near or far.
-
-`[NEEDS VERIFICATION]` All by ear in the game. They need a supported game build.
+doesn't yet know how long a step is in the game, so treat them as near or far. They need a supported game build.
 
 ### Menus and choices: no keys of their own
 
@@ -276,14 +182,11 @@ The mod adds no keys here. It speaks what the game's own cursor does, so use the
 4. Any other menu screen: each move speaks the position and the list's length, such as "4 of 8", or the position
    alone, such as "4", when the mod can't read the length.
 
-`[NEEDS VERIFICATION]` All by ear in the game. They need a supported game build.
-
 ### Voiced lines
 
 For lines the voice actors speak, the mod can say the speaker only, or the full line. The default (`auto`) says the name
 when the voice is English and the full line when it is Japanese. To change it, make a file named `settings.json` in the
-mod's user-config folder, by default `User\Mods\metaphor.accessibility` next to Reloaded-II (`[NEEDS VERIFICATION]` where
-it lands on your machine), holding:
+mod's user-config folder, by default `User\Mods\metaphor.accessibility` next to Reloaded-II, holding:
 
 `{ "voicedLines": "nameOnly" }`
 
@@ -301,12 +204,12 @@ of the mod is available:" and the version when there is one. It sends nothing ab
 ### Braille
 
 There is no braille setting. Each announcement goes to your screen reader's speech and braille together, where it
-supports that, and to speech alone where it doesn't. `[NEEDS VERIFICATION]` By ear and with a display.
+supports that, and to speech alone where it doesn't.
 
 ## Uninstall
 
 The mod's folder holds `uninstall.cmd`, which starts the same installer to remove the mod. It says each step as the
-install does. `[NEEDS VERIFICATION]` All of this section, by ear.
+install does.
 
 1. Close the game and Reloaded-II.
 2. Open the mod's folder in File Explorer: the unzipped folder you downloaded, or the mod's folder in Reloaded-II's
@@ -344,6 +247,109 @@ Use the Alpha feedback form on the project's issues page.
 3. The log holds what the mod did (whether it loaded, how many hooks went in, errors, and which lines and choices the
    game asked for, by label such as `Title_System_08`), never the game's text, and your user name is replaced with
    `<redacted>`. Read it in Notepad first if you want to check.
+
+## Not checked by ear yet
+
+Nobody has heard these with a screen reader yet, so what NVDA reads may differ from what this page says. Tell us in an
+issue if it does.
+
+- `[NEEDS VERIFICATION]` The spoken phrases and the focus in the Windows windows above: Properties, "Windows protected
+  your PC", "Open File - Security Warning", and the installer's Yes and No windows and Open window (#573). Whether
+  File Explorer opens the extracted folder after "Extract All", what NVDA reads for the installer file, whether
+  `Escape` answers No in the question windows (Windows' Yes and No windows usually ignore it), and whether the typed
+  fallback line works with Smart App Control on.
+- `[NEEDS VERIFICATION]` Whether unblocking lifts the block when Smart App Control is on.
+- `[NEEDS VERIFICATION]` The installer's spoken wording, and with User Account Control off (#601).
+- `[NEEDS VERIFICATION]` The install check by ear with NVDA, and whether Windows asks before running a script from a
+  downloaded zip.
+- `[NEEDS VERIFICATION]` The keys and spoken lines under Keys and buttons, in the game with a supported build, and
+  braille with a display; and where `settings.json` lands on your machine.
+- `[NEEDS VERIFICATION]` The uninstall, by ear.
+
+## Appendix: install by hand
+
+The installer above does all of this. Use this appendix only if you want to set Reloaded-II up yourself. It is written
+for NVDA and was never checked by ear, so expect to explore.
+
+### Install Reloaded-II
+
+The mod is checked against Reloaded-II **1.31.0**
+([run notes](../../raw-sources/mod-entry-point-first-run-2026-11-15.md)). Use that version. A newer one may work, but
+nobody has checked.
+
+1. Open the Reloaded-II releases page on GitHub: `https://github.com/Reloaded-Project/Reloaded-II/releases`. NVDA
+   reads a page title naming the project.
+2. Press `H` to move between headings until NVDA reads `1.31.0`. Newer releases come first, so go on past them.
+3. Press `K` or `Tab` through the links under that release's "Assets" heading and open the Windows setup file.
+   `[NEEDS VERIFICATION]` The exact asset name for 1.31.0, and whether the release offers a setup program or only a
+   zip.
+4. Run the setup. `[NEEDS VERIFICATION]` What the setup's dialogs say and which buttons NVDA finds. Accept the default
+   folder unless you have a reason not to.
+
+### Add the game to Reloaded-II
+
+`[NEEDS VERIFICATION]` All of this section. Reloaded-II's window is reachable with NVDA mainly through the review
+cursor and a simulated mouse click
+([P4G Access notes](../../raw-sources/persona-4-golden-access-2026-11-16.md)).
+
+1. Start Reloaded-II. NVDA should read its window title.
+2. Find the button that adds an application, using NVDA's review cursor: `NVDA+numpad 7` moves to the top of the
+   window, and `NVDA+numpad 9` or `NVDA+numpad 3` moves by line. `Shift+NVDA+arrows` is the laptop layout.
+3. Choose the game's program file, `metaphor.exe`, in the game's install folder. Reloaded-II names the new entry after
+   the program (its ID is `metaphor.exe`).
+
+### Add the mod
+
+1. Extract the release zip and check it, as [Check a download](check-a-download.md) says. You get a folder named for the
+   mod ID, `metaphor.accessibility`.
+2. Open Reloaded-II's settings file, `%APPDATA%\Reloaded-Mod-Loader-II\ReloadedII.json`, in Notepad. Find the value of
+   `ModConfigDirectory`. This is the mods folder
+   ([P4G Access notes](../../raw-sources/persona-4-golden-access-2026-11-16.md)).
+3. Copy the `metaphor.accessibility` folder into that mods folder.
+4. Enable the mod for the game with the app config below.
+
+Developers can skip all of this with `scripts/dev/session.ps1 deploy`
+([deploy a dev build](../../contributors/how-to/deploy-a-dev-build.md)).
+
+### Copy in a Reloaded-II app config
+
+Enabling a mod in Reloaded-II's window is hard with a screen reader. Persona-4-Golden-Access gets round it by shipping a
+ready-made `AppConfig.json`. We don't ship one, so edit the one Reloaded-II made
+([P4G Access notes](../../raw-sources/persona-4-golden-access-2026-11-16.md)). `[NEEDS VERIFICATION]` All of this
+section, by ear.
+
+1. In Notepad, open `%APPDATA%\Reloaded-Mod-Loader-II\ReloadedII.json`. Find `ApplicationConfigDirectory`. This is where
+   Reloaded-II keeps one folder per game.
+2. Open the folder for the game, the one holding an `AppConfig.json` whose `AppId` is `metaphor.exe`. If you added the
+   game as above, it is there.
+3. Open that `AppConfig.json` in Notepad. Find `EnabledMods`. Make it list the mod's ID, so the line reads
+   `"EnabledMods": ["metaphor.accessibility"]`. Save the file.
+4. If `AppLocation` doesn't point at your `metaphor.exe`, correct it. A relative path is read from the folder holding
+   the file ([Reloaded-II config notes](../../raw-sources/reloaded-ii-app-and-mod-config-2026-11-15.md)).
+
+### Make a desktop shortcut that starts the game with the mod
+
+Always start the game from this shortcut. These steps are P4G Access's method, which we expect to work the same here.
+`[NEEDS VERIFICATION]` All of this section.
+
+1. Open Reloaded-II.
+2. Press `Tab` to reach the application list and open the game's entry.
+3. Use NVDA's review cursor (`NVDA+numpad` keys, or `Shift+NVDA+arrows` on a laptop) to reach `Create Shortcut` on the
+   game's page.
+4. Move the mouse to the review cursor with `NVDA+Shift+M`, then click with `NVDA+numpad slash`, or `NVDA+[` on a
+   laptop.
+5. A shortcut appears on the desktop, named after the game with `(Reloaded)` in it. The exact name, and whether NVDA
+   announces the click, are not checked.
+
+P4G Access's own guide says not to start the game from Steam, because it often fails to load some mods. Another
+instruction from its author says Steam works while Reloaded-II is running, but the shortcut is more reliable. Which
+holds for Metaphor is `[NEEDS VERIFICATION]`; use the shortcut.
+
+### Launch
+
+1. Close the game and Reloaded-II if they are running.
+2. Open the `(Reloaded)` shortcut on the desktop. The game starts. You can close Reloaded-II's window if it shows up.
+   `[NEEDS VERIFICATION]` Whether Reloaded-II stays open.
 
 ## Credits
 
