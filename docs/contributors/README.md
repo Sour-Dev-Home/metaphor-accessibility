@@ -28,7 +28,7 @@ Most issues need your own copy of the game, but many don't. Claim first, so two 
 ```text
 src/                      the mod
   Metaphor.Core/            plain library: formats, logic, hook signatures, known game builds
-  Metaphor.Features.*/      one project per feature (Dialogue, Field, Menus, Updates); never depend on each other
+  Metaphor.Features.*/      one project per feature (Dialogue, Field, Menus, Battle, Updates); never depend on each other
   Metaphor.Hooks/           the thin hook layer: the Reloaded-II mod, the only project touching game memory
 installer/                the installer exe (ADR 0020): a .NET Framework 4.8 launcher that runs the zip's installer
 tests/
