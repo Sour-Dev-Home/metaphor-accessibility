@@ -2,6 +2,7 @@ using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
 using Metaphor.Core;
+using Metaphor.Core.Menus;
 using Metaphor.Core.Messages;
 
 namespace Metaphor.Hooks;
@@ -129,13 +130,16 @@ internal sealed class MessageSerialByHashListener : IGameHook, IObserves4WithRes
 }
 
 /// <summary>A message fetched by serial number: the number, the flags it was asked with, whether a message came back,
-/// and the label and text the mod's serial table gives that number (#584), from files the game compiled. Called from
-/// about 250 places, so repeats within the quiet window are dropped.</summary>
-[GameHook(GameBuilds.Steam18330018, DevOnly = true)]
+/// and the label and text the mod's serial table gives that number (#584), from files the game compiled. Installed in
+/// every build since #622: each serial goes to <see cref="HookServices.SlotScreens"/>, whose prompts name the save and
+/// load screens' lists (docs/findings/save-load-slot-screens.md). Called from about 250 places, so outside the Debug
+/// log a call costs one 32-bit read and a compare, and the Debug log drops repeats within the quiet window.</summary>
+[GameHook(GameBuilds.Steam18330018)]
 internal sealed class GetMessageBySerialListener : IGameHook, IObserves4WithResult
 {
     private readonly MessageLog? log;
     private readonly MessageSerials serials;
+    private readonly SlotScreens? slots;
     private readonly RepeatGate repeats = NameListening.NewGate();
 
     public GetMessageBySerialListener(HookServices services)
@@ -143,6 +147,7 @@ internal sealed class GetMessageBySerialListener : IGameHook, IObserves4WithResu
         ArgumentNullException.ThrowIfNull(services);
         log = services.Log;
         serials = services.Serials;
+        slots = services.SlotScreens;
     }
 
     public string SignatureName => "GetMessageBySerial";
@@ -152,8 +157,16 @@ internal sealed class GetMessageBySerialListener : IGameHook, IObserves4WithResu
     public void Observe(nint serial, nint flags, nint configs, nint unused4, nint result)
     {
         var number = NameListening.Int32At(serial);
+        if (number is { } fetched)
+        {
+            slots?.Resolved(fetched);
+        }
+        if (log is null)
+        {
+            return;
+        }
         var flagBits = NameListening.Int32At(flags);
-        if (log is null || !repeats.LetThrough(number ?? long.MinValue, flagBits ?? long.MinValue))
+        if (!repeats.LetThrough(number ?? long.MinValue, flagBits ?? long.MinValue))
         {
             return;
         }

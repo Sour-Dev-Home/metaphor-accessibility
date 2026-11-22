@@ -43,6 +43,11 @@ internal sealed record HookServices
     /// (#268) before the menu controls take the read.</summary>
     public required MenuScreens MenuScreens { get; init; }
 
+    /// <summary>Names the save and load screens' slot lists (#622): the message-by-serial hook hands it each serial the
+    /// game fetches, since a slot screen's prompt names the list that opens next. None unless the services speak.
+    /// </summary>
+    public SlotScreens? SlotScreens { get; init; }
+
     /// <summary>Reads whether the game has its menus open (#268); the loader locates what it reads (#300).</summary>
     public MenusOpenRead MenusOpen { get; init; } = new();
 
@@ -198,6 +203,9 @@ internal sealed record HookServices
         screens.Observe(new DifficultyFocus(library, reader, cleaner));
         screens.Observe(new SettingsFocus(library, reader, cleaner));
         screens.Observe(new QuickMenuFocus(library, reader, cleaner));
+        // The save and load slots (#622): their lists come unnamed, so the slot screens name them before the screens.
+        var slots = new SlotScreens(screens);
+        screens.Observe(new SaveSlotFocus(library, reader, cleaner, log is null ? null : log.MenuNote));
         screens.Observe(new UnknownScreenFocus(reader));
         var menuBindings = MenuBindings.Default with
         {
@@ -227,7 +235,7 @@ internal sealed record HookServices
         var selectChoices = new SelectWindowChoices(lines, choices, choiceFocus);
         events.ObserveChoices(selectChoices);
         events.ObserveSelects(selectChoices);
-        cursors.Observe(screens);
+        cursors.Observe(slots);
         cursors.Observe(choiceFocus);
         // The field's nearby list and "where am I" (#181), read on the press and spoken straight to the announcer.
         var menusOpen = new MenusOpenRead();
@@ -270,6 +278,7 @@ internal sealed record HookServices
             DialogueControls = controls,
             MenuControls = menuControls,
             MenuScreens = screens,
+            SlotScreens = slots,
             NameEntry = nameEntry,
             KeyWatcher = nameEntry,
             PadWatcher = settingsQuestion,
