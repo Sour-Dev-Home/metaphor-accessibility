@@ -9,6 +9,9 @@ checks them in the first game session and removes the tag.
 
 ## Unreleased
 
+- **Dialogue choices say how many options, not all of them.** When a choice opens, the mod says "Choice, 3 options"
+  and then the focused option, instead of reading every option at once. Move the cursor to hear the others (#730).
+  `[NEEDS VERIFICATION by ear]`
 - **A beep that guides you to something nearby.** In the field, `G`, or `LB` with the D-pad's Right, starts a
   repeating beep toward the thing you last stepped to, or the nearest you aren't already at: from its side, higher
   ahead, faster as you near it. It says when you reach it; press again to stop (#183). `K` and `J` step through the

@@ -168,7 +168,8 @@ public sealed class DialogueAnnouncer
     }
 
     /// <summary>Announces a choice's options (#82) from its message as the game stores it, one option per line, as
-    /// "Choose: option; option", without cutting off the line before. A missing message (null), or one whose lines all
+    /// "Choice, N options" (the options themselves are spoken as focus moves, ChoiceFocus), without cutting off the line
+    /// before. A missing message (null), or one whose lines all
     /// clean to nothing, is announced as "Choice". An option of only dots or ellipses (which a screen reader reads as
     /// nothing) is spoken as "dot dot dot".</summary>
     public void Offer(string? options)
@@ -178,7 +179,7 @@ public sealed class DialogueAnnouncer
             afterChoice = true;
         }
         var lines = ChoiceOptions.From(options, cleaner);
-        announcer.Announce(new Announcement(lines.Count == 0 ? "Choice" : $"Choose: {string.Join("; ", lines)}", Interrupt: false));
+        announcer.Announce(new Announcement(lines.Count switch { 0 => "Choice", 1 => "Choice, 1 option", _ => $"Choice, {lines.Count} options" }, Interrupt: false));
     }
 
     // Auto: the name for English voice; the full line for Japanese voice and while the language is unknown.

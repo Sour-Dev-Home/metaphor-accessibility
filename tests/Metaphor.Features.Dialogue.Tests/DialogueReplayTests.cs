@@ -68,7 +68,7 @@ public sealed class DialogueReplayTests
             [
                 "Line 19", "Line 02", "The prompt",
                 "Line 00", "Line 01", "Line 02", "Line 03", "Line 05", "Line 08", "Line 09",
-                "Choose: Yes; dot dot dot",
+                "Choice, 2 options",
             ],
             Said());
         Assert.False(announcer.Said[^1].Interrupt);

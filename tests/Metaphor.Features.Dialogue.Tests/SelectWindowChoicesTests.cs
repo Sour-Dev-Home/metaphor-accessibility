@@ -64,7 +64,7 @@ public sealed class SelectWindowChoicesTests
         focus.Observe(Settle(0));
         focus.Observe(Settle(1));
 
-        Assert.Equal(["Ada: Which way?", "Choose: North; South", "North, 1 of 2", "South, 2 of 2"], Said());
+        Assert.Equal(["Ada: Which way?", "Choice, 2 options", "North, 1 of 2", "South, 2 of 2"], Said());
         Assert.Equal([true, false, false, true], announcer.Said.Select(said => said.Interrupt));
     }
 
@@ -75,7 +75,7 @@ public sealed class SelectWindowChoicesTests
         WindowOpens();
         focus.Observe(Settle(0));
 
-        Assert.Equal(["Ada: Which way?", "Choose: North; South", "North, 1 of 2"], Said());
+        Assert.Equal(["Ada: Which way?", "Choice, 2 options", "North, 1 of 2"], Said());
     }
 
     [Fact]
@@ -87,7 +87,7 @@ public sealed class SelectWindowChoicesTests
         WindowOpens();
 
         // A choice came between, so the speaker is said again (#740).
-        Assert.Equal(["Ada: Which way?", "Choose: North; South", "Ada: Which way?", "Choose: North; South"], Said());
+        Assert.Equal(["Ada: Which way?", "Choice, 2 options", "Ada: Which way?", "Choice, 2 options"], Said());
     }
 
     // Kind 1 is the name entry's confirmation (docs/raw-sources/yes-no-dialog-text-2026-11-20.md); only kind 0 has been
