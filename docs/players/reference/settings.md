@@ -37,6 +37,16 @@ A file that turns off menu speech and the nearby list, and moves the repeat key 
 | `soundCueVolume` | How loud the sound cues are, a whole number from 0, silent, to 100. | `50` |
 | `welcomed` | Whether the welcome has been said. The mod sets it to `true` itself after the first launch; set it to `false` to hear the welcome again next time. | `false` |
 
+## Features still being tested
+
+A feature that needs a by-ear check can ship while it is still being tested. Its default is shown as `testing, off`
+below: in a normal install it stays off until you set it to `true`, and it turns on by default in the release after
+the check passes. Release builds never turn it on for you. For a contributor, a by-ear session
+(`scripts/dev/session.ps1 deploy` or `run`) turns every testing feature on for that session only and never edits your
+`settings.json`; a value you set in the file still wins. Passing the check is a one-line pull request that removes
+`Testing = true` from the feature's `[SettingKey]` in `Feature.cs` and the `testing, off` from its row here. No
+feature is in testing now.
+
 ## Speech
 
 Each is `true` to speak or `false` to stay quiet, inside a `speech` object: `{ "speech": { "menus": false } }`.
