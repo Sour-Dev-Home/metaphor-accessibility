@@ -240,6 +240,11 @@ internal sealed record HookServices
         screens.Observe(new DifficultyFocus(library, menuSpeech, cleaner));
         screens.Observe(new SettingsFocus(library, menuSpeech, cleaner));
         screens.Observe(new QuickMenuFocus(library, menuSpeech, cleaner));
+        screens.Observe(new SystemMenuFocus(serials, menuSpeech, cleaner));
+        // The shop's top menu and its Buy and Sell lists, each row by the name the game fetched for it (#736, #197).
+        var shopFocus = new ShopFocus(serials, menuSpeech, cleaner, () => Environment.TickCount64);
+        screens.Observe(shopFocus);
+        events.ObserveSerials(shopFocus);
         // Battle's skill and item lists say each row by the name the game fetched for it by serial (#247), through
         // their own setting, not the menus' (#661).
         var battleListSpeech = settings.Speech(Feature.BattleLists, reader);

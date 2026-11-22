@@ -9,6 +9,10 @@ checks them in the first game session and removes the tag.
 
 ## Unreleased
 
+- **The System menu and the shop are named.** The in-game System menu says each row (Load, Save, Tutorial, Story, Config,
+  Return to Title) and the shop's top menu says Buy, Sell, Appraise or Listen. Buy and Sell rows say their item's
+  name where it is known (not weapons or armour yet); prices and counts are not read. Opening a quest no longer says
+  "1 of 9" (#733, #736, #197, #194). `[NEEDS VERIFICATION by ear]`
 - **A beep that guides you to something nearby.** In the field, `G`, or `LB` with the D-pad's Right, starts a
   repeating beep toward the thing you last stepped to, or the nearest you aren't already at: from its side, higher
   ahead, faster as you near it. It says when you reach it; press again to stop (#183). `K` and `J` step through the
