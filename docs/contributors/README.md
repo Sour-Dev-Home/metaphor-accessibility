@@ -14,6 +14,7 @@ src/                      the mod
   Metaphor.Core/            plain library: formats, logic, hook signatures, known game builds
   Metaphor.Features.*/      one project per feature (Dialogue, Menus, Updates); never depend on each other
   Metaphor.Hooks/           the thin hook layer: the Reloaded-II mod, the only project touching game memory
+installer/                the installer exe (ADR 0020): a .NET Framework 4.8 launcher that runs the zip's installer
 tests/
   Metaphor.*.Tests/         xUnit tests (Unit, RoundTrip, WindowsOnly); Architecture.Tests check the architecture rules
   Metaphor.StandInGame/     stands in for Reloaded-II and the game in the script tests
@@ -24,7 +25,7 @@ scripts/
   check.sh, check/          the check command and its stages
   githooks/                 the git hooks, which call check.sh
   ci/                       CI-only steps: security stamp, vulnerability audit, test selection, alerts
-  release/                  build, package and zip the mod
+  release/                  build, package and zip the mod, and build the installer exe around the zip
   player/                   exactly what the release zip ships (installer, install check)
   dev/                      game sessions (session.ps1: deploy, run, smoke, spike, inspect, status), Ghidra
   setup/                    onboard, WSL, docs tools, Claude Code launcher

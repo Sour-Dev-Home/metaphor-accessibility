@@ -9,6 +9,11 @@ checks them in the first game session and removes the tag.
 
 ## Unreleased
 
+- **An installer exe beside the zip.** Each release also carries one file, `metaphor-accessibility-VERSION-installer.exe`:
+  open it and it says a welcome line, checks the files it carries ("Download checked"), and runs the same spoken
+  installer as the zip, in its window. A damaged download says "This download is damaged" and installs nothing. It is
+  not signed yet, so Windows warns before it runs (#608). `[NEEDS VERIFICATION by ear]`
+
 - **The install check says the mod's version.** `check-install.ps1`, which the installer also runs at the end, now says
   "The mod is version ..." for the copy in Reloaded-II's mods folder, so you can hear which one you have (#674).
   `[NEEDS VERIFICATION by ear]`

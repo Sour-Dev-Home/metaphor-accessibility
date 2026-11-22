@@ -1,0 +1,59 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- The installer exe (#608, ADR 0020): a console launcher for .NET Framework 4.8, part of every supported Windows,
+       that unpacks the release zip it carries and runs the spoken installer in it. The net48 build is the exe players
+       get (scripts/release/installer-exe.ps1). The net9.0 build is a library of the same logic for the xUnit tests
+       (tests/Metaphor.Installer.Tests); the Windows-only parts (Windows/) are in the exe alone. Not part of the mod:
+       nothing under src/ references it. -->
+  <PropertyGroup>
+    <TargetFrameworks>net48;net9.0</TargetFrameworks>
+    <!-- No implicit usings: the .NET Framework set names System.Net.Http, and the launcher uses no network. -->
+    <ImplicitUsings>disable</ImplicitUsings>
+    <RootNamespace>Metaphor.Installer</RootNamespace>
+    <!-- The release build uses intermediate folders of its own (scripts/release/installer-exe.ps1); the usual ones'
+         generated files stay out of it. -->
+    <DefaultItemExcludes>$(DefaultItemExcludes);bin/**;obj/**</DefaultItemExcludes>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(TargetFramework)' == 'net48'">
+    <OutputType>Exe</OutputType>
+    <!-- x64 only (the maintainer's decision on #704): the game and Reloaded-II are x64, and an x64 process sees the real
+         System32, where Windows PowerShell 5.1 is started from. -->
+    <PlatformTarget>x64</PlatformTarget>
+    <Prefer32Bit>false</Prefer32Bit>
+    <!-- asInvoker: Windows never asks for administrator rights for it (install.ps1 asks only where a step needs them). -->
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+    <!-- No PDB, so no build path reaches the exe: a rebuild at another path gives the same bytes (#613). -->
+    <DebugType>none</DebugType>
+    <!-- The reference assemblies come from the one pinned package below, never from whatever the machine has. -->
+    <AutomaticallyUseReferenceAssemblyPackages>false</AutomaticallyUseReferenceAssemblyPackages>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(TargetFramework)' == 'net9.0'">
+    <OutputType>Library</OutputType>
+  </PropertyGroup>
+
+  <ItemGroup Condition="'$(TargetFramework)' == 'net48'">
+    <!-- Build-time only: MIT, nothing of it ships (docs/raw-sources/netframework-reference-assemblies-licence-2026-11-22.md). -->
+    <PackageReference Include="Microsoft.NETFramework.ReferenceAssemblies.net48" PrivateAssets="all" />
+    <Reference Include="System.IO.Compression" />
+    <Reference Include="System.Speech" />
+  </ItemGroup>
+
+  <ItemGroup Condition="'$(TargetFramework)' != 'net48'">
+    <Compile Remove="Windows/**" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="Metaphor.Installer.Tests" />
+  </ItemGroup>
+
+  <!-- The payload: the release zip and its sha256sum-style list of every file in it, which the release build passes
+       (scripts/release/installer-exe.ps1). A build without them, such as the checks', makes an exe that says the
+       download is damaged and changes nothing. -->
+  <ItemGroup Condition="'$(TargetFramework)' == 'net48' And '$(InstallerPayload)' != ''">
+    <EmbeddedResource Include="$(InstallerPayload)" LogicalName="Metaphor.Installer.payload.zip" />
+    <EmbeddedResource Include="$(InstallerManifest)" LogicalName="Metaphor.Installer.payload.sha256" />
+  </ItemGroup>
+
+</Project>
