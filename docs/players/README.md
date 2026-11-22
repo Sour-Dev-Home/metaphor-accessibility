@@ -1,6 +1,6 @@
 # Player docs
 
-For people installing and using the mods. The newest download is the pre-release `v0.0.1-unstable.3` on the
+For people installing and using the mods. The newest download is the pre-release `v0.0.1-unstable.4` on the
 [releases page](https://github.com/Sour-Dev-Home/metaphor-accessibility/releases); there is no stable release yet,
 so pages here are drafts for testers. Start with [Install the mod](how-to/install-the-mod.md).
 [`../README.md`](../README.md) says which type of page goes in which folder.
