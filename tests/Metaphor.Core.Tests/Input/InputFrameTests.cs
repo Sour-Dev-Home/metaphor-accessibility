@@ -58,11 +58,29 @@ public sealed class InputFrameTests
         public void WindowRead(long? currentMessage) => WindowReads.Add(currentMessage);
     }
 
-    private sealed class Watcher : IKeyWatcher
+    private sealed class Watcher : IKeyWatcher, IPadWatcher
     {
         public List<string> Seen { get; } = [];
 
         public void Keys(IReadOnlyList<int> keys) => Seen.Add(string.Join(",", keys));
+
+        public void Pad(int pad, int buttons, bool made) => Seen.Add($"pad {pad} 0x{buttons:x} {made}");
+    }
+
+    // #562: the settings confirm questions see each pad read as the game read it, before the menu controls hide their
+    // buttons, made or not, and change nothing.
+    [Fact]
+    public void APadWatcherSeesTheGamesReadAndChangesNothing()
+    {
+        var watcher = new Watcher();
+        menus.OnPad = buttons => buttons & ~A;
+        var frame = new InputFrame(game, screens, menus, dialogue, InputFrame.NoControls, padWatcher: watcher);
+
+        var answer = frame.Pad(1, A | B, made: true);
+        frame.Pad(0, B, made: false);
+
+        Assert.Equal(["pad 1 0x3000 True", "pad 0 0x2000 False"], watcher.Seen);
+        Assert.Equal(B, answer.Buttons);
     }
 
     // #585: the name entry's Enter hint sees each keyboard read as the game read it, before the menu controls drop
