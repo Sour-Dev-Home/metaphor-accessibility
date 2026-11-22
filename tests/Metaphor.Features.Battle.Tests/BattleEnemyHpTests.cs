@@ -7,7 +7,7 @@ namespace Metaphor.Features.Battle.Tests;
 /// enemy this battle has hit has left, and is hidden from the game; anything else, and the key outside a battle,
 /// reaches it. The targeted enemy isn't read yet, so it says every one. Made-up numbers only.</summary>
 [Trait("Category", "Unit")]
-public sealed class BattleEnemyHpTests : IDisposable
+public sealed class BattleEnemyHpTests
 {
     private const int Number = 1;
     private const int R3 = 0x0004;
@@ -26,8 +26,6 @@ public sealed class BattleEnemyHpTests : IDisposable
         hits = new HitLines(new SilentAnnouncer(), time, _ => null);
         details = new BattleEnemyHp(R3, KeyF, hits, scene, announcer, logged.Add);
     }
-
-    public void Dispose() => hits.Dispose();
 
     private IEnumerable<string> Said() => announcer.Said.Select(said => said.Text);
 
@@ -51,6 +49,33 @@ public sealed class BattleEnemyHpTests : IDisposable
         Assert.Equal(0, details.Pad(0, R3, made: true));
 
         Assert.Equal(["Enemy, 55 left"], Said());
+    }
+
+    [Fact]
+    public void ByDefaultTheReadoutIsUnboundSoFAndRsReachTheGameInABattle()
+    {
+        var unbound = new BattleEnemyHp(() => BattleBindings.Default, hits, scene, announcer);
+        hits.Observe(new BattleHit(0xa0, -5, 55, Number, BattleSide.Enemy));
+
+        Assert.Equal([KeyF], unbound.Keys([KeyF]));
+        Assert.Equal(R3, unbound.Pad(0, R3, made: true));
+        Assert.Equal(0, unbound.Pad(0, 0, made: true));
+        Assert.Empty(Said());
+    }
+
+    [Fact]
+    public void ABoundReadoutKeySaysItAndIsHiddenWhileFStaysWithTheGame()
+    {
+        var bound = new BattleEnemyHp(
+            () => BattleBindings.Default with { EnemyHpKey = 0x45, EnemyHpButtons = 0x0010 },
+            hits, scene, announcer);
+        hits.Observe(new BattleHit(0xa0, -5, 55, Number, BattleSide.Enemy));
+
+        Assert.Equal([KeyF], bound.Keys([KeyF]));
+        Assert.Empty(bound.Keys([0x45]));
+        bound.Keys([]);
+        Assert.Equal(0, bound.Pad(0, 0x0010, made: true));
+        Assert.Equal(["Enemy, 55 left", "Enemy, 55 left"], Said());
     }
 
     [Fact]

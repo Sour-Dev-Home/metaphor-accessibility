@@ -1339,6 +1339,162 @@ test_pre_push_reuses_a_recorded_pass_without_taking_the_lock() {
   expect 0 "reused the recorded pass"
 }
 
+# Merge checks (#728, ADR 0021): `full` on a merge whose parents' trees have recorded passes runs only what both sides'
+# changes reach. MERGE_GATE is check.sh's folder for these runs: the real what-runs.sh, live log and merge module, and
+# stand-ins for dotnet, the Pester runner, the check-script suites and the docs-tools installer, which log each call.
+MERGE_GATE="$WORK/merge-gate"
+mkdir -p "$MERGE_GATE/bin" "$MERGE_GATE/ci" "$MERGE_GATE/check" "$MERGE_GATE/setup"
+cp "$ROOT/scripts/ci/what-runs.sh" "$MERGE_GATE/ci/"
+cp "$ROOT/scripts/check/live-log.sh" "$ROOT/scripts/check/merge.sh" "$MERGE_GATE/check/"
+printf '#!/usr/bin/env bash\necho "dotnet $*" >> "$MERGE_LOG"\n[ -z "${DOTNET_FAIL:-}" ]\n' > "$MERGE_GATE/bin/dotnet"
+for stand_in in check/run-pester.sh check/run-check-suites.sh setup/install-docs-tools.sh; do
+  printf '#!/usr/bin/env bash\necho "%s" >> "$MERGE_LOG"\n' "$stand_in" > "$MERGE_GATE/$stand_in"
+done
+chmod +x "$MERGE_GATE/bin/dotnet"
+
+# pass_merge_repo "MAIN FILES" "BRANCH FILES" [PASSES]: a base with two projects and their tests, main changing MAIN FILES,
+# the branch changing BRANCH FILES (a main file written -PATH is deleted), then main merged into the branch. PASSES (default "branch main") names the parents
+# whose trees have a recorded full pass. Sets BRANCH_TREE and MAIN_TREE.
+pass_merge_repo() {
+  local f
+  new_repo
+  for f in A B; do
+    mkdir -p "src/$f" "tests/$f.Tests"
+    printf '<Project Sdk="Microsoft.NET.Sdk" />\n' > "src/$f/$f.csproj"
+    printf 'class %s {}\n' "$f" > "src/$f/$f.cs"
+    printf '<Project Sdk="Microsoft.NET.Sdk">\n  <ItemGroup>\n    <ProjectReference Include="..\\..\\src\\%s\\%s.csproj" />\n  </ItemGroup>\n</Project>\n' \
+      "$f" "$f" > "tests/$f.Tests/$f.Tests.csproj"
+  done
+  : > Metaphor.sln
+  mkdir scripts && printf 'echo one\n' > scripts/one.sh
+  printf '# Changelog\n' > CHANGELOG.md
+  git add -A && git commit -q --no-verify -m "chore: base"
+  git checkout -q -b mainline
+  for f in $1; do
+    if [[ "$f" == -* ]]; then git rm -q "${f#-}"; else parent_dir "$f" && printf 'main\n' >> "$f"; fi
+  done
+  git add -A && git commit -q --no-verify -m "feat: main"
+  git update-ref refs/remotes/origin/main HEAD
+  MAIN_TREE="$(git rev-parse "HEAD^{tree}")"
+  git checkout -q -b topic HEAD~1
+  for f in $2; do parent_dir "$f" && printf 'branch\n' >> "$f"; done
+  git add -A && git commit -q --no-verify -m "feat: branch"
+  BRANCH_TREE="$(git rev-parse "HEAD^{tree}")"
+  local cache
+  cache="$(git rev-parse --absolute-git-dir)/check-pass-cache"
+  : > "$cache"
+  [[ " ${3:-branch main} " != *" branch "* ]] || echo "full $BRANCH_TREE" >> "$cache"
+  [[ " ${3:-branch main} " != *" main "* ]] || echo "full $MAIN_TREE" >> "$cache"
+  git merge -q --no-edit --no-verify origin/main > /dev/null 2>&1
+}
+
+# run_merge_full: full as a contributor runs it locally, with MERGE_GATE's stand-ins; the calls land in merge.log.
+run_merge_full() {
+  out="$(unset GITHUB_ACTIONS METAPHOR_FULL_TESTS SKIP_SCRIPT_TESTS
+    check_dir="$MERGE_GATE" PATH="$MERGE_GATE/bin:$PATH" MERGE_LOG="$PWD/merge.log" \
+      METAPHOR_CHECK_LOCK="$PWD/test-build.lock" check_stage full 2>&1)"
+  code=$?
+  calls="$(cat merge.log 2> /dev/null)"
+}
+
+# expect_calls TEXT... / expect_no_calls TEXT...: the stand-ins were (or weren't) called with each TEXT.
+expect_calls() { local out="$calls" code=0; expect 0 "$@"; }
+expect_no_calls() { local out="$calls"; expect_absent "$@"; }
+
+test_full_on_a_changelog_only_merge_reuses_both_parents_passes() {
+  pass_merge_repo CHANGELOG.md src/A/A.cs
+  run_merge_full
+  expect 0 "relying on the recorded passes of tree $BRANCH_TREE and $MAIN_TREE" ".NET build and tests reused" \
+    "Pester tests reused" "check-script suites reused"
+  expect_no_calls dotnet pester check-suites install-docs-tools
+  local tree
+  tree="$(git rev-parse "HEAD^{tree}")"
+  out="$(cat "$(git rev-parse --absolute-git-dir)/check-pass-cache")"
+  expect 0 "full $tree merge $BRANCH_TREE $MAIN_TREE"
+  run_merge_full
+  expect 0 "reused the recorded pass for tree $tree"
+}
+
+test_full_on_a_merge_changing_one_project_on_both_sides_builds_and_tests_it() {
+  pass_merge_repo src/A/More.cs src/A/A.cs
+  run_merge_full
+  expect 0 "tests: tests/A.Tests/A.Tests.csproj because"
+  expect_calls "tests/A.Tests/A.Tests.csproj -c Release -v q --nologo" "test tests/A.Tests/A.Tests.csproj" \
+    "format whitespace"
+  expect_no_calls "B.Tests" pester check-suites
+}
+
+test_full_on_a_merge_changing_different_projects_reuses_each_sides_pass() {
+  pass_merge_repo src/B/B.cs src/A/A.cs
+  run_merge_full
+  expect 0 ".NET build and tests reused"
+  expect_no_calls dotnet
+}
+
+test_full_on_a_merge_with_only_the_branchs_pass_tests_mains_changes() {
+  pass_merge_repo src/B/B.cs src/A/A.cs branch
+  run_merge_full
+  expect 0 "relying on the recorded passes of tree $BRANCH_TREE and -"
+  expect_calls "test tests/B.Tests/B.Tests.csproj"
+  expect_no_calls "A.Tests"
+}
+
+test_full_on_a_merge_changing_scripts_on_both_sides_runs_the_script_suites() {
+  pass_merge_repo scripts/two.sh scripts/one.sh
+  run_merge_full
+  expect 0
+  expect_calls check/run-pester.sh "check/run-check-suites.sh" setup/install-docs-tools.sh
+  expect_no_calls dotnet
+}
+
+test_full_on_a_merge_records_nothing_when_a_check_fails() {
+  pass_merge_repo src/A/More.cs src/A/A.cs
+  DOTNET_FAIL=1 run_merge_full
+  expect 1 "build: failed"
+  out="$(cat "$(git rev-parse --absolute-git-dir)/check-pass-cache")"
+  expect_absent "merge"
+}
+
+# A conflict resolved by hand matches neither parent, so what reads it runs; a changelog line reaches nothing in full.
+test_full_on_a_merge_in_progress_with_a_resolved_changelog_reuses_the_passes() {
+  pass_merge_repo "CHANGELOG.md src/B/B.cs" "CHANGELOG.md src/A/A.cs"
+  [ -f "$(git rev-parse --absolute-git-dir)/MERGE_HEAD" ] || { failed=$((failed + 1)); echo "FAIL $current: no conflict"; return; }
+  printf '# Changelog\nmain\nbranch\n' > CHANGELOG.md && git add CHANGELOG.md
+  run_merge_full
+  expect 0 "relying on the recorded passes of tree $BRANCH_TREE and $MAIN_TREE" ".NET build and tests reused"
+  expect_no_calls dotnet
+}
+
+# A deleted file can break a CODEOWNERS path (test-repo-config.sh), so it reaches the check-script suites.
+test_full_on_a_merge_deleting_a_file_against_a_script_change_runs_the_check_suites() {
+  pass_merge_repo -src/B/B.cs scripts/one.sh
+  run_merge_full
+  expect 0
+  expect_calls check/run-check-suites.sh
+}
+
+# A merge that runs nothing still records its pass under a build slot, like every full: with the only slot held, it
+# waits and records nothing.
+test_full_on_a_merge_running_nothing_records_its_pass_under_a_slot() {
+  pass_merge_repo CHANGELOG.md src/A/A.cs
+  mkdir "$PWD/test-build.lock" && echo "$$" > "$PWD/test-build.lock/pid"
+  out="$(unset GITHUB_ACTIONS METAPHOR_FULL_TESTS SKIP_SCRIPT_TESTS
+    check_dir="$MERGE_GATE" PATH="$MERGE_GATE/bin:$PATH" MERGE_LOG="$PWD/merge.log" METAPHOR_CHECK_SLOTS=1 \
+      METAPHOR_CHECK_POLL=1 METAPHOR_CHECK_LOCK="$PWD/test-build.lock" timeout 5 bash "$SOURCED_CHECK" full 2>&1)"
+  code=0
+  expect 0 "waiting for another build check"
+  out="$(cat "$(git rev-parse --absolute-git-dir)/check-pass-cache")"
+  expect_absent "merge"
+}
+
+test_full_in_ci_never_narrows_a_merge() {
+  pass_merge_repo CHANGELOG.md src/A/A.cs
+  out="$(GITHUB_ACTIONS=true SKIP_SCRIPT_TESTS=1 check_dir="$MERGE_GATE" PATH="$MERGE_GATE/bin:$PATH" \
+    MERGE_LOG="$PWD/merge.log" METAPHOR_CHECK_LOCK="$PWD/test-build.lock" check_stage full 2>&1)"
+  calls="$(cat merge.log 2> /dev/null)"
+  expect_calls "dotnet restore" "dotnet test"
+}
+
 # The must-run security review: real commits through hooks that run the check, as scripts/githooks does.
 
 STAMP="$ROOT/scripts/ci/security-stamp.sh"

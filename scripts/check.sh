@@ -17,6 +17,8 @@
 #   scripts/check.sh rules   repo rules on every tracked file in CI; locally on the files changed since origin/main
 #                            (METAPHOR_SCAN_ALL=1 scans every file; so does `full`'s rules part in CI)
 #   scripts/check.sh full    repo rules, build, Unit and RoundTrip tests, formatting, smoke and deploy script tests, check-script suites (CI: Windows in the merge queue, Linux on PRs)
+#                            Locally, on a merge whose parents' trees have recorded passes, only the rules and what
+#                            both sides' changes reach (scripts/check/merge.sh, ADR 0021)
 #   scripts/check.sh docs    broken links fail; Markdown lint, Vale and ADR length warn (CI on Ubuntu)
 #   scripts/check.sh slow    mutation and property tests and a duplication report, report only (weekly CI on Windows)
 #   scripts/check.sh signatures [EXE]    each hook signature matches exactly once in the game exe (local, before a hook PR)
@@ -78,7 +80,7 @@ main() {
   # live_log is set only once full sources scripts/check/live-log.sh; empty, it tells timed_step and finish (which every stage
   # reaches, under set -u) that there is no live log to write.
   failures=0 warnings=0 reused=built step_times=() tmp="" locked="" waited="" live_log="" full_tree_id=""
-  scan_scope="" maintainer_pr_result=""
+  scan_scope="" maintainer_pr_result="" merge_note=""
   started=$EPOCHSECONDS
   case "$stage" in
     fast | pre-commit) timed=("stage 1 ($stage)" 10) ;;
@@ -99,12 +101,21 @@ main() {
         echo "full: reused the recorded pass for tree $full_tree_id; no checks ran (change the tree to run them again)"
         exit 0
       fi
-      take_lock
-      # Only full reads the live log's helpers, so CI's copy of this script for the commits stage needs no more files.
+      # Only full reads the live log's and the merge reuse's helpers, so CI's copy of this script for the commits stage
+      # needs no more files.
       source "$check_dir/check/live-log.sh" || die "could not load $check_dir/check/live-log.sh"
+      source "$check_dir/check/merge.sh" || die "could not load $check_dir/check/merge.sh"
       local steps=6
       [ -z "${SKIP_SCRIPT_TESTS:-}" ] || steps=4
-      live_start full "$steps" ;;
+      # A merge with a parent's recorded pass runs only what both sides reach (#728); a rules-only one takes a slot only to record its pass.
+      if [ -n "$full_tree_id" ] && merge_plan "$full_tree_id"; then
+        reused=merge
+        steps="$(merge_steps)"
+      fi
+      if [ "$steps" -gt 0 ]; then
+        take_lock
+        live_start full "$steps"
+      fi ;;
     slow | signatures) take_lock ;;
   esac
 
@@ -172,10 +183,11 @@ main() {
   solution="$root/Metaphor.sln"
   if [ "$stage" = full ]; then
     [ -f "$solution" ] || die "full stage needs $(basename "$solution") at the repository root"
-    command -v dotnet > /dev/null || die "full stage needs the .NET SDK (dotnet) on PATH"
+    [ -n "$merge_note" ] && [ -z "$merge_dotnet" ] || command -v dotnet > /dev/null ||
+      die "full stage needs the .NET SDK (dotnet) on PATH"
     # The docs tools, which the check-script suites and a pre-commit's docs checks run. The clone shares one install
     # per pin (#353), so this fetches only on a clone's first full, or after a pin changes. CI installs its own.
-    if [ "${GITHUB_ACTIONS:-}" != true ]; then
+    if [ "${GITHUB_ACTIONS:-}" != true ] && { [ -z "$merge_note" ] || [ -n "$merge_check" ]; }; then
       bash "$check_dir/setup/install-docs-tools.sh" ||
         die "could not install the docs tools (run: bash scripts/setup/install-docs-tools.sh)"
     fi
@@ -183,7 +195,9 @@ main() {
   scan_files
   case "$stage" in rules | full) hooks_path_check ;; esac
   [ "$stage" != pre-commit ] || pre_commit_checks "$merge_hook"
-  [ "$stage" != full ] || full_dotnet_checks
+  if [ "$stage" = full ]; then
+    if [ -n "$merge_note" ]; then merge_checks; else full_dotnet_checks; fi
+  fi
   [ "$failures" -eq 0 ]
 }
 

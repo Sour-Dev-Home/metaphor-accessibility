@@ -19,7 +19,9 @@ says so, and nothing it didn't put there is removed.
 7. Copies the mod into Reloaded-II's mods folder: the files package-files.txt lists, only those missing or differing.
 8. Adds the game to Reloaded-II with the mod turned on, keeping the other mods you have turned on.
 9. Makes the desktop shortcut "Metaphor ReFantazio with accessibility", which starts the game through Reloaded-II.
-10. Runs the install check (check-install.ps1's checks) and says what it found.
+10. Runs the install check (check-install.ps1's checks) and says what it found. After a finished install it says the
+    mod's folder, naming your own folders ("your AppData folder, Local, ...") instead of reading out the path, and that
+    uninstall.cmd in that folder removes the mod (#675).
 
 It asks before it starts, and again before each download, each time in a window with Yes and No buttons, which the
 screen reader reads (#607). A scripted run (-Answers) asks in the console instead, and so does a run without a console
@@ -189,6 +191,8 @@ try {
     $start = if ($noShortcut) { 'The install is done, but the desktop shortcut was not made. The mod still works. Start the game from Reloaded-II.' }
     else { "The install is done. Start the game from the desktop shortcut, $shortcut." }
     Out-Line "$start Run check-install.ps1 in the mod's folder if the mod stays silent."
+    $folderLine = Get-ModFolderLine $context.InstalledMod
+    Out-Line $folderLine.Printed $folderLine.Spoken
     $exitCode = 0
 }
 finally {

@@ -77,6 +77,7 @@ public sealed class InputFrame
     private readonly IKeyWatcher? watcher;
     private readonly IPadWatcher? padWatcher;
     private readonly LastInputDevice? lastDevice;
+    private readonly IInputControls report;
 
     public InputFrame(IGameInputState game, MenuScreens screens, IInputControls menus, IWindowInputControls dialogue)
         : this(game, screens, menus, dialogue, NoControls)
@@ -88,14 +89,16 @@ public sealed class InputFrame
 
     /// <summary>A frame whose <paramref name="field"/> controls (#181) get what the dialogue controls leave;
     /// <paramref name="watcher"/>, when given, sees each keyboard read first, as the game read it, and changes
-    /// nothing; <paramref name="padWatcher"/>, when given, sees each pad read the same way.</summary>
+    /// nothing; <paramref name="padWatcher"/>, when given, sees each pad read the same way. <paramref name="report"/>,
+    /// when given, takes each read before the menu controls: the mark key (#597), which works on every screen.</summary>
     public InputFrame(
         IGameInputState game, MenuScreens screens, IInputControls menus, IWindowInputControls dialogue,
         IInputControls field, IKeyWatcher? watcher = null, IPadWatcher? padWatcher = null,
-        LastInputDevice? lastDevice = null)
+        IInputControls? report = null, LastInputDevice? lastDevice = null)
     {
         this.watcher = watcher;
         this.padWatcher = padWatcher;
+        this.report = report ?? NoControls;
         this.lastDevice = lastDevice;
         ArgumentNullException.ThrowIfNull(game);
         ArgumentNullException.ThrowIfNull(screens);
@@ -116,7 +119,7 @@ public sealed class InputFrame
         var window = ReadState();
         padWatcher?.Pad(pad, buttons, made);
         lastDevice?.Pad(buttons);
-        var handed = field.Pad(pad, dialogue.Pad(pad, menus.Pad(pad, buttons, made), made), made);
+        var handed = field.Pad(pad, dialogue.Pad(pad, menus.Pad(pad, report.Pad(pad, buttons, made), made), made), made);
         return new(handed & buttons, window);
     }
 
@@ -128,7 +131,7 @@ public sealed class InputFrame
         var window = ReadState();
         watcher?.Keys(keys);
         lastDevice?.Keys(keys);
-        var handed = field.Keys(dialogue.Keys(menus.Keys(keys)));
+        var handed = field.Keys(dialogue.Keys(menus.Keys(report.Keys(keys))));
         return new(Kept(keys, handed), window);
     }
 

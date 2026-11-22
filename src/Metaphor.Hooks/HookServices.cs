@@ -33,13 +33,13 @@ internal sealed record HookServices
     /// the dialogue feature is feeding it.</summary>
     public DialogueHistory DialogueHistory { get; init; } = new();
 
-    /// <summary>The dialogue controls (#58): the input hooks' frame (#301) hands them each read and, with it, the
-    /// dialogue window's message pointer (#232).</summary>
-    public required DialogueControls DialogueControls { get; init; }
+    /// <summary>The dialogue controls (#58), behind their setting's gate (#661): the input hooks' frame (#301) hands
+    /// them each read and, with it, the dialogue window's message pointer (#232).</summary>
+    public required IWindowInputControls DialogueControls { get; init; }
 
-    /// <summary>The menu controls (#214): the input hooks' frame (#301) hands them each read before the dialogue
-    /// controls.</summary>
-    public required MenuControls MenuControls { get; init; }
+    /// <summary>The menu controls (#214), behind their setting's gate (#661): the input hooks' frame (#301) hands them
+    /// each read before the dialogue controls.</summary>
+    public required IInputControls MenuControls { get; init; }
 
     /// <summary>The menu screens (#211): the input hooks' frame (#301) hands them each read of <see cref="MenusOpen"/>
     /// (#268) before the menu controls take the read.</summary>
@@ -104,6 +104,10 @@ internal sealed record HookServices
     /// None unless the services speak.</summary>
     public FieldControls? FieldControls { get; init; }
 
+    /// <summary>The mark key (#597): the input hooks' frame (#301) hands it each read first. None unless the services
+    /// speak and the report log is open.</summary>
+    public IInputControls? ReportControls { get; init; }
+
     /// <summary>The place names "where am I" says (#181): the message lookup hook feeds it.</summary>
     public FieldPlace? FieldPlace { get; init; }
 
@@ -130,11 +134,11 @@ internal sealed record HookServices
 
     /// <summary>The battle status key (#631), which the input frame hands each read after the menu controls; null for
     /// none.</summary>
-    public BattleStatus? BattleStatus { get; init; }
+    public IInputControls? BattleStatus { get; init; }
 
     /// <summary>The details key in a battle (#631), which the input frame hands each read after the status key; null
     /// for none.</summary>
-    public BattleEnemyHp? BattleDetails { get; init; }
+    public IInputControls? BattleDetails { get; init; }
 
     /// <summary>The game's tutorial table (#118), which the entry point loads from the game's archive once the hooks
     /// are in.</summary>
@@ -163,13 +167,20 @@ internal sealed record HookServices
     /// hears each compiled file first, speech each requested line and choice first, and the menu screens (#208, which
     /// tell the title menu, #94, the main menu and any other screen, #97) and a choice's focus (#95) each cursor input; the report log (#188) and the message log,
     /// when there are, hear every event last.</summary>
-    /// <remarks>Features that play sound cues (#636) are handed <paramref name="cues"/>.</remarks>
+    /// <remarks>Features that play sound cues (#636) are handed <paramref name="cues"/>. Each feature speaks and takes
+    /// keys through its own setting's gate (#661): <c>settings.Speech</c> in front of its announcer,
+    /// <c>settings.Input</c> in front of its controls, read live, so a changed file applies without a restart. A new
+    /// feature is gated here with the <see cref="Feature"/> its class is marked with.</remarks>
     public static HookServices Speaking(
         IAnnouncer announcer, ICuePlayer cues, SettingsReloader settings, ReportLog? report, MessageLog? log,
         string modFolder)
     {
         ArgumentNullException.ThrowIfNull(cues);
         ArgumentNullException.ThrowIfNull(settings);
+        // The silent screen list (#597) counts everything the features below say, so it hears each screen event after
+        // them; its entries go to the report log only.
+        var silence = report is null ? null : new SilentScreens(announcer, report, () => settings.Current);
+        announcer = (IAnnouncer?)silence ?? announcer;
         var library = new MessageLibrary();
         // Serials as build 548ddc95 numbers them; the message file hook that feeds it installs on that build only.
         var serials = new MessageSerials(MessageSerials.Steam18330018);
@@ -189,80 +200,90 @@ internal sealed record HookServices
         // Auto follows the game's voice language, read on each line (#538); unknown speaks the full line.
         var reader = new DialogueReader(announcer);
         var voiceLanguage = new VoiceLanguageRead();
+        var dialogueSpeech = settings.Speech(Feature.Dialogue, reader);
         var dialogue = new DialogueAnnouncer(
-            reader, cleaner, history, () => settings.Current.VoicedLines, voiceLanguage.Read);
+            dialogueSpeech, cleaner, history, () => settings.Current.VoicedLines, voiceLanguage.Read);
         // Tutorial pop-ups speak through the reader too, once their table has loaded (#118).
         var tutorials = new TutorialTableSource();
-        var tutorialPopups = new TutorialPopups(library, reader, cleaner, () => tutorials.Table);
-        // The game-over screen's words follow its voiced line once the window closes (#623).
+        var tutorialPopups = new TutorialPopups(
+            library, settings.Speech(Feature.Tutorials, reader), cleaner, () => tutorials.Table);
+        // The game-over screen's words follow its voiced line once the window closes (#623); they go through the
+        // dialogue's setting like the line before them.
         var lastDevice = new LastInputDevice();
-        var gameOver = new GameOverScreen(new ShownSpeakers(library, names), dialogue, reader, lastDevice);
-        // While a pop-up is up, the repeat binding says its page again (by-ear finding of 2026-11-21).
+        var gameOver = new GameOverScreen(new ShownSpeakers(library, names), dialogue, dialogueSpeech, lastDevice);
+        // The bindings are the settings file's (#661), worked out again only when it changes.
+        var dialogueBindings = settings.Live(DialogueBindings.From);
+        // While a pop-up is up, the repeat binding says its page again (by-ear finding of 2026-11-21), unless the
+        // tutorials' setting is off.
         var controls = new DialogueControls(
-            DialogueBindings.Default, history, reader, announcer,
+            dialogueBindings, history, reader, announcer,
             () =>
             {
                 dialogue.EndConversation();
                 gameOver.WindowClosed();
             },
-            () => tutorialPopups.OnScreen);
+            () => settings.Current.IsOn(Feature.Tutorials) ? tutorialPopups.OnScreen : null);
         // Menus speak through the reader too (#214), and their controls toggle it with the dialogue's binding.
+        var menuSpeech = settings.Speech(Feature.Menus, reader);
         var screens = new MenuScreens(KnownScreens.All);
-        screens.Observe(new TitleMenuFocus(library, reader, cleaner));
-        screens.Observe(new MainMenuFocus(reader));
+        screens.Observe(new TitleMenuFocus(library, menuSpeech, cleaner));
+        screens.Observe(new MainMenuFocus(menuSpeech));
         // A yes/no dialog hears each scripted choice and each select window too, to say the text of one opened outside
         // the scripts (#569).
         // A settings page's dialog says its question, known from the press that opened it (#562).
         var settingsQuestion = new SettingsConfirmQuestion();
-        var yesNo = new YesNoDialogFocus(library, reader, cleaner, settingsQuestion);
+        var yesNo = new YesNoDialogFocus(library, menuSpeech, cleaner, settingsQuestion);
         screens.Observe(yesNo);
         screens.Observe(settingsQuestion);
         events.ObserveChoices(yesNo);
         events.ObserveSelects(yesNo);
-        screens.Observe(new DifficultyFocus(library, reader, cleaner));
-        screens.Observe(new SettingsFocus(library, reader, cleaner));
-        screens.Observe(new QuickMenuFocus(library, reader, cleaner));
+        screens.Observe(new DifficultyFocus(library, menuSpeech, cleaner));
+        screens.Observe(new SettingsFocus(library, menuSpeech, cleaner));
+        screens.Observe(new QuickMenuFocus(library, menuSpeech, cleaner));
         // The save and load slots (#622): their lists come unnamed, so the slot screens name them before the screens,
         // from the prompts the serial hook hands MessageEvents (2026-11-22 review, finding 5).
         var slots = new SlotScreens(screens);
         events.ObserveSerials(slots);
-        screens.Observe(new SaveSlotFocus(library, reader, cleaner, log is null ? null : log.MenuNote));
-        // Battle's skill and item lists say each row by the name the game fetched for it by serial (#247).
+        screens.Observe(new SaveSlotFocus(library, menuSpeech, cleaner, log is null ? null : log.MenuNote));
+        // Battle's skill and item lists say each row by the name the game fetched for it by serial (#247), through
+        // their own setting, not the menus' (#661).
+        var battleListSpeech = settings.Speech(Feature.BattleLists, reader);
         BattleListFocus[] battleLists =
         [
-            BattleListFocus.Skills(serials, reader, cleaner, () => Environment.TickCount64),
-            BattleListFocus.Items(serials, reader, cleaner, () => Environment.TickCount64),
+            BattleListFocus.Skills(serials, battleListSpeech, cleaner, () => Environment.TickCount64),
+            BattleListFocus.Items(serials, battleListSpeech, cleaner, () => Environment.TickCount64),
         ];
         foreach (var list in battleLists)
         {
             screens.Observe(list);
             events.ObserveSerials(list);
         }
-        screens.Observe(new UnknownScreenFocus(reader));
-        var menuBindings = MenuBindings.Default with
+        screens.Observe(new UnknownScreenFocus(menuSpeech));
+        var menuBindings = settings.Live(now =>
         {
-            ReaderButtons = DialogueBindings.Default.ReaderButtons,
-            ReaderKey = DialogueBindings.Default.ReaderKey,
-        };
+            var reading = dialogueBindings();
+            return MenuBindings.From(now, reading.ReaderButtons, reading.ReaderKey);
+        });
         // The details key reads a battle list's description (#247); on a screen shown outside the menus it answers only
         // while that screen's cursor is still called.
         var menuControls = new MenuControls(menuBindings, screens, reader, battleLists, cursors.CalledRecently);
         // Name entry (#585): the title and refusals through the reader, typed characters as private announcements.
-        var nameEntry = new NameEntrySpeech(library, reader, cleaner, () => Environment.TickCount64);
+        var nameEntry = new NameEntrySpeech(
+            library, settings.Speech(Feature.NameEntry, reader), cleaner, () => Environment.TickCount64);
         screens.Observe(menuControls);
         events.ObserveFiles(library);
         events.ObserveFiles(serials);
         events.ObserveFiles(filesById);
-        var lines = new DialogueLines(new ShownSpeakers(library, names), dialogue);
+        // Lines and choices name each speaker as the screen shows it (#81).
+        var (lines, choices) = DialogueSpeech.Shown(library, names, dialogue);
         events.ObserveLines(lines);
         events.ObserveShownLines(lines);
         events.ObserveShownLines(nameEntry);
         events.ObserveShownLines(gameOver);
         // A choice's prompt, spoken as it opens, isn't spoken again when the window shows it (#541).
         events.ObserveChoices(lines);
-        var choices = new DialogueChoices(library, dialogue);
         events.ObserveChoices(choices);
-        var choiceFocus = new ChoiceFocus(library, announcer, cleaner);
+        var choiceFocus = new ChoiceFocus(library, settings.Speech(Feature.Dialogue, announcer), cleaner);
         events.ObserveChoices(choiceFocus);
         events.ObserveLines(choiceFocus);
         // A reply choice opened outside the scripts reaches only the select window call (#541).
@@ -281,9 +302,15 @@ internal sealed record HookServices
         var field = new FieldMemory(fieldWorld, fieldScene, fieldDatabase, personTable, names, menusOpen, window);
         var place = new FieldPlace(cleaner);
         events.ObserveFiles(place);
+        // Its two settings, the nearby list and "where am I", are read by the controls on each read (#661).
         var fieldControls = new FieldControls(
-            FieldBindings.Default, field, place, announcer, () => Environment.TickCount64,
-            log is null ? null : log.FieldRead);
+            settings.Live(FieldBindings.From), feature => settings.Current.IsOn(feature), field, place, announcer,
+            cues, () => Environment.TickCount64, log is null ? null : log.FieldRead,
+            new ReachCallouts(field, settings.Speech(Feature.Reach, announcer), () => Environment.TickCount64));
+        if (silence is not null)
+        {
+            screens.Observe(silence);
+        }
         if (report is not null)
         {
             events.ObserveFiles(report);
@@ -299,7 +326,9 @@ internal sealed record HookServices
             events.ObserveSelects(log);
             cursors.Observe(log);
         }
-        var hitLines = new HitLines(reader, TimeProvider.System, _ => null);
+        var battleSpeech = settings.Speech(Feature.BattleHits, reader);
+        var hitLines = new HitLines(battleSpeech, TimeProvider.System, _ => null);
+        var battleBindings = settings.Live(BattleBindings.From);
         // The status key acts only in a battle (#631); a Debug build logs the scene each press read.
         var battleScene = new BattleSceneRead { Log = log };
         return new()
@@ -314,17 +343,22 @@ internal sealed record HookServices
             BattleHits = hitLines,
             BattleParty = party,
             BattleScene = battleScene,
-            BattleStatus = new BattleStatus(party, hitLines, battleScene, reader),
-            // The details binding the menus use says the enemies' HP in a battle (#631); the menu controls take it
-            // first while a battle list is shown. A Debug build logs each press's enemy records for the target read.
-            BattleDetails = new BattleEnemyHp(
-                menuBindings.DetailsButtons, menuBindings.DetailsKey, hitLines, battleScene, reader,
-                log is null ? null : text => log.Requested("BattleDetails", text)),
-            TravelMap = new TravelMapDestination(filesById, reader, cleaner, () => Environment.TickCount64),
-            FieldMapName = new FieldMapName(reader, cleaner),
+            BattleStatus = settings.Input(
+                Feature.BattleHits, new BattleStatus(party, hitLines, battleScene, battleSpeech, battleBindings)),
+            // The enemy HP readout has its own binding, unbound by default (#767), so the game keeps F and R3; the menu
+            // controls take a key first while a battle list is shown. A Debug build logs each press's enemy records for
+            // the target read.
+            BattleDetails = settings.Input(
+                Feature.BattleHits,
+                new BattleEnemyHp(
+                    battleBindings, hitLines, battleScene, battleSpeech,
+                    log is null ? null : text => log.Requested("BattleDetails", text))),
+            TravelMap = new TravelMapDestination(
+                filesById, settings.Speech(Feature.TravelMap, reader), cleaner, () => Environment.TickCount64),
+            FieldMapName = new FieldMapName(settings.Speech(Feature.PlaceNames, reader), cleaner),
             DialogueHistory = history,
-            DialogueControls = controls,
-            MenuControls = menuControls,
+            DialogueControls = settings.Input(Feature.Dialogue, controls),
+            MenuControls = settings.Input(Feature.Menus, menuControls),
             MenuScreens = screens,
             NameEntry = nameEntry,
             KeyWatcher = nameEntry,
@@ -346,6 +380,8 @@ internal sealed record HookServices
             Field = field,
             FieldPlace = place,
             FieldControls = fieldControls,
+            // The mark key (#597): its toggle and binding read live; keyboard only until the pad layer (#688).
+            ReportControls = report is null ? null : new MarkKey(() => settings.Current, cues, report),
             Cues = cues,
         };
     }

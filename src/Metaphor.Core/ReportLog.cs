@@ -13,8 +13,11 @@ namespace Metaphor.Core;
 /// throws. Only <see cref="Error"/> waits for the file, and only briefly (#204): every other caller just queues its
 /// line, and a background thread writes the queue.</summary>
 public sealed class ReportLog(TextWriter writer, Func<long> millisecondsSinceStart, IEnumerable<string> redact)
-    : IMessageFileObserver, ILineRequestObserver, IChoiceRequestObserver, ICursorObserver
+    : IMessageFileObserver, ILineRequestObserver, IChoiceRequestObserver, ICursorObserver, ISessionReport
 {
+    /// <summary>The longest screen class name written; anything longer is counted instead.</summary>
+    private const int MaxClassNameLength = 96;
+
     /// <summary>The log's file name in the mod's folder.</summary>
     public const string FileName = "report-log.txt";
 
@@ -51,6 +54,27 @@ public sealed class ReportLog(TextWriter writer, Func<long> millisecondsSinceSta
     /// no game text.</summary>
     public void Observe(CursorInput input) => Write(() => Line(
         $"cursor mgr=0x{input.Manager:x} class={(input.ClassRva is { } rva ? $"0x{rva:x}" : "?")} cmd=0x{input.Command:x} result={input.Result} index={input.Index} top={input.Top} row={input.Row} flags=0x{input.Flags:x} screen={input.ScreenClass ?? "?"} count={input.Count?.ToString(CultureInfo.InvariantCulture) ?? "?"} mode={input.Mode?.ToString(CultureInfo.InvariantCulture) ?? "?"}"));
+
+    /// <summary>The player pressed the mark key (#597): the marker's number and how far into the session it came, as
+    /// hours, minutes and seconds, so a player's "about ten minutes in" finds it.</summary>
+    public void Mark(int number) => Write(() =>
+    {
+        var session = TimeSpan.FromMilliseconds(millisecondsSinceStart());
+        return Line($"mark number={number} session={(int)session.TotalHours}:{session.Minutes:00}:{session.Seconds:00}");
+    });
+
+    /// <summary>A screen entered or a focus moved and the mod said nothing (#597): the screen's class name, the index
+    /// and the list's count, never text.</summary>
+    public void Silent(ScreenEvent change)
+    {
+        ArgumentNullException.ThrowIfNull(change);
+        Write(() => Line(
+            $"silent change={change.Change} screen={ClassName(change.ScreenClass)} index={change.Index} count={change.Count?.ToString(CultureInfo.InvariantCulture) ?? "?"}"));
+    }
+
+    /// <summary>The silent list reached its <paramref name="limit"/>; nothing more is listed this session.</summary>
+    public void SilentListFull(int limit) =>
+        Write(() => Line($"silent list full at {limit} entries; later silent screens aren't listed"));
 
     /// <summary>One line from the mod itself, such as the startup status with its hook counts, or an error. Each
     /// string the log was made to redact (the mod's folder, the player's user name) is replaced first.</summary>
@@ -140,6 +164,14 @@ public sealed class ReportLog(TextWriter writer, Func<long> millisecondsSinceSta
         { Length: <= MaxLabelLength } when IsLabelShaped(label) => label,
         _ => string.Create(CultureInfo.InvariantCulture, $"(not a label, {label.Length} chars)"),
     };
+
+    /// <summary>A class name as the game's RTTI gives it (<c>RootMenuChoice@ope@ui@app</c>): ASCII letters, digits,
+    /// <c>@</c>, <c>_</c>, <c>:</c>, <c>&lt;</c>, <c>&gt;</c> and <c>,</c>. Anything else, a space or a slash
+    /// included, could be text or a path, so only its length is written.</summary>
+    private static string ClassName(string? name) =>
+        name is { Length: > 0 and <= MaxClassNameLength } && name.All(c => char.IsAsciiLetterOrDigit(c) || c is '@' or '_' or ':' or '<' or '>' or ',')
+            ? name
+            : string.Create(CultureInfo.InvariantCulture, $"(not a class name, {name?.Length ?? 0} chars)");
 
     private static bool IsLabelShaped(string text)
     {

@@ -2,6 +2,7 @@ using System.Globalization;
 using Metaphor.Core.Announcements;
 using Metaphor.Core.Menus;
 using Metaphor.Core.Messages;
+using Metaphor.Core.Settings;
 
 namespace Metaphor.Features.Menus;
 
@@ -21,6 +22,7 @@ namespace Metaphor.Features.Menus;
 /// fetches those, and in what order, is unknown, so a long list may be said by position, or wrongly, past its first
 /// rows.</para>
 /// </remarks>
+[FeatureSetting(Feature.BattleLists)]
 public sealed class BattleListFocus : IScreenObserver, ISerialResolveObserver, IScreenDetails
 {
     /// <summary>The flags the battle lists fetch a row's name with.</summary>

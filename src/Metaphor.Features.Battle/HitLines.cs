@@ -1,8 +1,8 @@
-using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
 using Metaphor.Core;
 using Metaphor.Core.Announcements;
 using Metaphor.Core.Battle;
+using Metaphor.Core.Settings;
 
 namespace Metaphor.Features.Battle;
 
@@ -17,28 +17,24 @@ public interface IHitCue
 /// (null when unread) at its last hit, and its record address, an identity only.</summary>
 public sealed record KnownEnemy(string Label, int Hp, int? HpMax, long Target);
 
-/// <summary>Says each target a battle action hits (#247, wording by the maintainer on 2026-11-21): the number alone for
-/// damage ("34"), "34 healed" for a gain, each queued after the last. Once the action's hits stop for
-/// <see cref="ActionGapMilliseconds"/>, one summary of what each target that changed took in the action, never the HP
-/// it has left (the maintainer's call of 2026-11-22, #631: the HP moved to the details key): party members as "name
-/// damage" ("Strohl 30, Hulkenberg 12 healed"), then each enemy as "Enemy, 52", given an ordinal by the order the
-/// battle first hit them when it has hit more than one ("Second enemy, 52"; a label never ends in a digit before the
-/// number, since "Ally 1 141" sounds like 1141). Only hits whose popup carries a number are said. Safe to call from
-/// several threads.</summary>
+/// <summary>Says each target a battle action hits as the hit lands (#247, #738; the maintainer's call of 2026-11-22): a
+/// party member as "name damage" ("Strohl 30", "Hulkenberg 12 healed"), an enemy as "Enemy, 52", given an ordinal by
+/// the order the battle first hit them when it has hit more than one ("Second enemy, 52"; a label never ends in a digit
+/// before the number, since "Ally 1 141" sounds like 1141). Never the HP left (the details key says it), no summary
+/// afterwards, and no line for a hit with no HP change. Only hits whose popup carries a number are said. Safe to call
+/// from several threads.</summary>
 /// <remarks>
 /// <para>No safe read of a unit's name is known yet: a party member is named by <c>memberName</c> when it knows its unit
 /// number, else "First ally" and so on by slot; an enemy is "Enemy". An enemy's ordinal is the order it was first hit,
-/// not its place on screen, which isn't read.</para>
-/// <para>The game gives no "action over" signal the mod reads, so an action ends at a quiet gap, and a battle at a long
-/// one (<see cref="BattleGapMilliseconds"/>), which forgets its enemies; both lengths are guesses to check by ear.</para>
+/// not its place on screen, which isn't read, and is the one it has when the hit lands.</para>
+/// <para>The game gives no "battle over" signal the mod reads, so a battle ends at a long quiet gap
+/// (<see cref="BattleGapMilliseconds"/>), which forgets its enemies; the length is a guess to check by ear.</para>
 /// </remarks>
-public sealed class HitLines : IBattleHitObserver, IDisposable
+[FeatureSetting(Feature.BattleHits)]
+public sealed class HitLines : IBattleHitObserver
 {
     /// <summary>How long the same hit told again is taken as the same one.</summary>
     public const long RepeatMilliseconds = 500;
-
-    /// <summary>How long after an action's last hit its summary is said.</summary>
-    public const long ActionGapMilliseconds = 1500;
 
     /// <summary>How long without a hit before the next hit starts a new battle.</summary>
     public const long BattleGapMilliseconds = 180_000;
@@ -51,8 +47,6 @@ public sealed class HitLines : IBattleHitObserver, IDisposable
     private readonly Lock gate = new();
     private readonly List<long> enemies = [];
     private readonly Dictionary<long, (int Hp, int? HpMax)> enemyHp = [];
-    private readonly List<BattleHit> action = [];
-    private readonly ITimer timer;
     private long lastHit = long.MinValue / 2;
 
     /// <summary>Hits said through <paramref name="announcer"/>, timed by <paramref name="time"/>; party members named
@@ -68,7 +62,6 @@ public sealed class HitLines : IBattleHitObserver, IDisposable
         this.memberName = memberName;
         this.cue = cue;
         repeats = new RepeatGate(RepeatMilliseconds, Now);
-        timer = time.CreateTimer(_ => Summarize(), null, Timeout.InfiniteTimeSpan, Timeout.InfiniteTimeSpan);
     }
 
     public void Observe(BattleHit hit)
@@ -78,6 +71,7 @@ public sealed class HitLines : IBattleHitObserver, IDisposable
         {
             return;
         }
+        string line;
         lock (gate)
         {
             var now = Now();
@@ -95,11 +89,20 @@ public sealed class HitLines : IBattleHitObserver, IDisposable
                 }
                 enemyHp[hit.Target] = (hit.HpLeft, hit.HpMax);
             }
-            action.Add(hit);
-            timer.Change(TimeSpan.FromMilliseconds(ActionGapMilliseconds), Timeout.InfiniteTimeSpan);
+            if (hit.HpChange == 0)
+            {
+                return;
+            }
+            var change = Change(hit.HpChange);
+            line = hit.Side switch
+            {
+                BattleSide.Ally => hit.Slot is { } slot ? MemberSays(slot, hit.Unit, change) : $"Ally, {change}",
+                BattleSide.Enemy => $"{EnemyLabel(hit.Target)}, {change}",
+                _ => $"Target, {change}",
+            };
         }
         cue?.Before(hit.Side);
-        announcer.Announce(new Announcement(Change(hit.HpChange), Interrupt: false));
+        announcer.Announce(new Announcement(line, Interrupt: false));
     }
 
     /// <summary>The enemies this battle has hit, in the order first hit: for the status and details keys.</summary>
@@ -112,12 +115,9 @@ public sealed class HitLines : IBattleHitObserver, IDisposable
     }
 
     /// <summary>An HP change as said: damage as its number ("34"), a gain as "34 healed".</summary>
-    private static string Change(long change) => change switch
-    {
-        < 0 => string.Create(CultureInfo.InvariantCulture, $"{-change}"),
-        > 0 => string.Create(CultureInfo.InvariantCulture, $"{change} healed"),
-        _ => "0",
-    };
+    private static string Change(long change) => change < 0
+        ? string.Create(CultureInfo.InvariantCulture, $"{-change}")
+        : string.Create(CultureInfo.InvariantCulture, $"{change} healed");
 
     /// <summary>A party member's name followed by <paramref name="rest"/> (a number): <c>memberName</c>'s, or "First
     /// ally," and so on by slot. The comma and the ordinal word keep the reader from running the slot into the number
@@ -134,64 +134,6 @@ public sealed class HitLines : IBattleHitObserver, IDisposable
 
     private static readonly string[] Ordinals =
         ["First", "Second", "Third", "Fourth", "Fifth", "Sixth", "Seventh", "Eighth", "Ninth", "Tenth"];
-
-    public void Dispose() => timer.Dispose();
-
-    // The timer's callback runs on a thread-pool thread, where an exception would end the game.
-    [SuppressMessage("Design", "CA1031", Justification = "An exception on the timer's thread would end the game.")]
-    private void Summarize()
-    {
-        try
-        {
-            SummarizeAction();
-        }
-        catch (Exception)
-        {
-        }
-    }
-
-    private void SummarizeAction()
-    {
-        string? said;
-        lock (gate)
-        {
-            // Each target once, with the action's total change to it, in the order first hit; only who changed.
-            var last = new Dictionary<long, BattleHit>();
-            var total = new Dictionary<long, long>();
-            var order = new List<long>();
-            var changed = new HashSet<long>();
-            foreach (var hit in action)
-            {
-                if (!last.ContainsKey(hit.Target))
-                {
-                    order.Add(hit.Target);
-                }
-                last[hit.Target] = hit;
-                total[hit.Target] = total.GetValueOrDefault(hit.Target) + hit.HpChange;
-                if (hit.HpChange != 0)
-                {
-                    changed.Add(hit.Target);
-                }
-            }
-            action.Clear();
-            var targets = order.Where(changed.Contains).Select(target => last[target]).ToList();
-            var allies = targets.Where(hit => hit.Side == BattleSide.Ally)
-                .OrderBy(hit => hit.Slot ?? int.MaxValue)
-                .Select(hit => hit.Slot is { } slot
-                    ? MemberSays(slot, hit.Unit, Change(total[hit.Target]))
-                    : $"Ally, {Change(total[hit.Target])}")
-                .ToList();
-            var others = targets.Where(hit => hit.Side != BattleSide.Ally)
-                .Select(hit =>
-                    $"{(hit.Side == BattleSide.Enemy ? EnemyLabel(hit.Target) : "Target")}, {Change(total[hit.Target])}");
-            var parts = (allies.Count > 0 ? [string.Join(", ", allies)] : Array.Empty<string>()).Concat(others).ToList();
-            said = parts.Count > 0 ? string.Join(". ", parts) : null;
-        }
-        if (said is not null)
-        {
-            announcer.Announce(new Announcement(said, Interrupt: false));
-        }
-    }
 
     // Called under the gate.
     private string EnemyLabel(long enemy) =>

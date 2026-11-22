@@ -9,11 +9,27 @@ checks them in the first game session and removes the tag.
 
 ## Unreleased
 
+- **A beep that guides you to something nearby.** In the field, `G`, or `LB` with the D-pad's Right, starts a
+  repeating beep toward the thing you last stepped to, or the nearest you aren't already at: from its side, higher
+  ahead, faster as you near it. It says when you reach it; press again to stop (#183). `K` and `J` step through the
+  nearby list from the keyboard. `[NEEDS VERIFICATION by ear]`
 - **Save and load slots are read.** Each slot says "Slot 3"; the load list's first row says "Autosave". The place,
   playtime and whether a slot is empty aren't read yet (#622). `[NEEDS VERIFICATION by ear]`
 - **The game-over screen is read.** Its voiced line is spoken, then "Fantasy is Dead. Press A to continue." once the
   voice ends; if you last used the keyboard it says "Press Space to continue" (#623). `[NEEDS VERIFICATION by ear]`
 - **"Save complete" is read.** The small pop-up after saving is spoken (#622). `[NEEDS VERIFICATION by ear]`
+- **An installer exe beside the zip.** Each release also carries one file, `metaphor-accessibility-VERSION-installer.exe`:
+  open it and it says a welcome line, checks the files it carries ("Download checked"), and runs the same spoken
+  installer as the zip, in its window. A damaged download says "This download is damaged" and installs nothing. It is
+  not signed yet, so Windows warns before it runs (#608). `[NEEDS VERIFICATION by ear]`
+- **A welcome on first launch.** The first time the game starts with the mod, the title screen says which version is
+  running and that `N`, `L` and `G` are the field keys, once (#617). `[NEEDS VERIFICATION by ear]`
+- **A mark key for reports.** Press `F8` when something goes wrong: two short clicks, and a numbered marker with the
+  time goes into `report-log.txt`. The log also lists each screen and menu move the mod said nothing for. Nothing is
+  sent anywhere. The Alpha feedback form asks when you pressed it (#597). `[NEEDS VERIFICATION by ear]`
+- **The installer says where the mod is.** At the end of an install it says the mod's folder, naming your own folders
+  ("your AppData folder, Local, Programs, Reloaded-II, ...") instead of reading out the path, and that `uninstall.cmd`
+  in that folder removes the mod (#675). `[NEEDS VERIFICATION by ear]`
 - **The install check says the mod's version.** `check-install.ps1`, which the installer also runs at the end, now says
   "The mod is version ..." for the copy in Reloaded-II's mods folder, so you can hear which one you have (#674).
   `[NEEDS VERIFICATION by ear]`
@@ -33,8 +49,11 @@ checks them in the first game session and removes the tag.
   enemies' (#631). Outside a battle both keys reach the game as before, so L3 still recentres the world map.
   `[NEEDS VERIFICATION by ear]`
 - **What is near, and where am I.** In the field, `N` says the people, doors, chests and enemies near you, nearest
-  first, with rough steps and a direction from your facing; `LB` with the D-pad's Down and Up steps through them. `L`,
-  or `LB` with Left, says the place name the game last showed (#181). `[NEEDS VERIFICATION by ear]`
+  first, with rough steps and a direction from the camera, as on screen (#686); `LB` with the D-pad's Down and Up
+  steps through them. `L`, or `LB` with Left, says the place name the game last showed (#181). `[NEEDS VERIFICATION by ear]`
+- **Doors and chests in reach.** Walking up to a door or chest says "Door, in reach" on its own, once, where the
+  game's action prompt would show; it's said again after you move away or turn and come back (#644).
+  `[NEEDS VERIFICATION by ear]`
 - **Sound cues can be turned off and their volume set.** The mod can now play short sounds of its own, explained in
   [sound cues](docs/players/reference/sound-cues.md); `soundCues` and `soundCueVolume` in `settings.json` control
   them. The battle hit sounds arrive with spoken battle hits (#247, #636). `[NEEDS VERIFICATION by ear]`

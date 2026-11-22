@@ -16,6 +16,9 @@ public sealed class SettingsRowsTests
     private const string SoundPage = "?$ConfigMenuChoicePcT@$0HH@@ope@ui@app";
     private const int Settle = 0x1;
 
+    private static readonly TimeSpan Settled = TimeSpan.FromMilliseconds(200);
+
+    private readonly FakeClock clock = new();
     private readonly RecordingAnnouncer announcer = new();
     private readonly MessageEvents messages = new();
     private readonly CursorEvents cursors = new();
@@ -33,7 +36,8 @@ public sealed class SettingsRowsTests
             new(Page: 0, Total: 3, NameLabels: ["Fake_row_A", "Fake_row_B", null]) { ValueIds = [27, null, 5] },
             new(Page: 1, Total: 2, NameLabels: ["Fake_row_C", "Fake_row_missing"]),
         ];
-        screens.Observe(new SettingsFocus(library, announcer, new TextCleaner(TextCleanerRules.None), rows));
+        screens.Observe(new SettingsFocus(
+            library, announcer, new TextCleaner(TextCleanerRules.None), rows, KeyConfigTab.Steam18330018, clock));
         messages.Compiled(new MessageFileCompiled(SystemPcFile, 48, string.Join("\n\n",
             Message("System_category_name_PC_01", "Alpha Pane"), Message("System_category_name_PC_02", "Beta Pane"),
             Message("Fake_row_A", "Fake <COLOR 3>speed<COLOR -1>"), Message("Fake_row_B", "Fake volume"),
@@ -158,10 +162,55 @@ public sealed class SettingsRowsTests
         Cursor(0, SystemPage, count: 3, values: Values((27, 50)));
 
         Cursor(0, SystemPage, count: 3, values: Values((27, 51)));
+        clock.Advance(Settled);
         Cursor(0, SystemPage, count: 3, values: Values((27, 52)));
+        clock.Advance(Settled);
 
         Assert.Equal(
             [new Announcement("51", Interrupt: true), new Announcement("52", Interrupt: true)], announcer.Said.Skip(1));
+    }
+
+    // #735: a held key repeats about 100 ms apart; only the value that has been still for 200 ms is said.
+    [Fact]
+    public void AHeldRunOfChangesSaysOnlyTheLastValueOnceItIsStill()
+    {
+        Cursor(0, SystemPage, count: 3, values: Values((27, 50)));
+
+        for (var value = 51; value <= 60; value++)
+        {
+            Cursor(0, SystemPage, count: 3, values: Values((27, value)));
+            clock.Advance(TimeSpan.FromMilliseconds(100));
+        }
+        Assert.Single(Said());
+        clock.Advance(TimeSpan.FromMilliseconds(100));
+
+        Assert.Equal(["Alpha Pane, Fake speed, 50, 1 of 3", "60"], Said());
+    }
+
+    [Fact]
+    public void ASingleChangeIsSaidOnlyAfterTheWait()
+    {
+        Cursor(0, SystemPage, count: 3, values: Values((27, 50)));
+
+        Cursor(0, SystemPage, count: 3, values: Values((27, 51)));
+        clock.Advance(TimeSpan.FromMilliseconds(199));
+        Assert.Single(Said());
+        clock.Advance(TimeSpan.FromMilliseconds(1));
+
+        Assert.Equal("51", Said().Last());
+        Assert.Equal(2, Said().Count());
+    }
+
+    [Fact]
+    public void MovingToAnotherRowCancelsAPendingValue()
+    {
+        Cursor(0, SystemPage, count: 3, values: Values((27, 50)));
+        Cursor(0, SystemPage, count: 3, values: Values((27, 51)));
+
+        Cursor(1, SystemPage, count: 3, values: Values((27, 51)));
+        clock.Advance(Settled);
+
+        Assert.Equal(["Alpha Pane, Fake speed, 50, 1 of 3", "Fake volume, 2 of 3"], Said());
     }
 
     [Fact]

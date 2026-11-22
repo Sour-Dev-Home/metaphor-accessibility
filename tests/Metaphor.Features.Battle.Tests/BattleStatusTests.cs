@@ -7,7 +7,7 @@ namespace Metaphor.Features.Battle.Tests;
 /// has hit, and is hidden from the game; anything else, and the key outside a battle, reaches it. Made-up party and
 /// numbers only.</summary>
 [Trait("Category", "Unit")]
-public sealed class BattleStatusTests : IDisposable
+public sealed class BattleStatusTests
 {
     private const int A = 0x4000;
 
@@ -69,8 +69,6 @@ public sealed class BattleStatusTests : IDisposable
 
         Assert.Equal(1, scene.Asked);
     }
-
-    public void Dispose() => hits.Dispose();
 
     [Fact]
     public void L3AloneSaysEachMemberThenTheEnemiesAndIsHidden()
