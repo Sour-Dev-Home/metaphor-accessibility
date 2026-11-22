@@ -40,6 +40,13 @@ public interface IKeyWatcher
     void Keys(IReadOnlyList<int> keys);
 }
 
+/// <summary>Watches each pad read without changing it, such as the settings confirm questions (#562).</summary>
+public interface IPadWatcher
+{
+    /// <summary>Takes one read of <paramref name="pad"/>'s buttons as the game read them, made or not (#225).</summary>
+    void Pad(int pad, int buttons, bool made);
+}
+
 /// <summary>What the frame hands the game for one pad read, and the window read it was decided on.</summary>
 public readonly record struct PadAnswer(int Buttons, long? Window);
 
@@ -60,6 +67,7 @@ public sealed class InputFrame
     private readonly IWindowInputControls dialogue;
     private readonly IInputControls field;
     private readonly IKeyWatcher? watcher;
+    private readonly IPadWatcher? padWatcher;
 
     public InputFrame(IGameInputState game, MenuScreens screens, IInputControls menus, IWindowInputControls dialogue)
         : this(game, screens, menus, dialogue, NoControls)
@@ -71,12 +79,13 @@ public sealed class InputFrame
 
     /// <summary>A frame whose <paramref name="field"/> controls (#181) get what the dialogue controls leave;
     /// <paramref name="watcher"/>, when given, sees each keyboard read first, as the game read it, and changes
-    /// nothing.</summary>
+    /// nothing; <paramref name="padWatcher"/>, when given, sees each pad read the same way.</summary>
     public InputFrame(
         IGameInputState game, MenuScreens screens, IInputControls menus, IWindowInputControls dialogue,
-        IInputControls field, IKeyWatcher? watcher = null)
+        IInputControls field, IKeyWatcher? watcher = null, IPadWatcher? padWatcher = null)
     {
         this.watcher = watcher;
+        this.padWatcher = padWatcher;
         ArgumentNullException.ThrowIfNull(game);
         ArgumentNullException.ThrowIfNull(screens);
         ArgumentNullException.ThrowIfNull(menus);
@@ -94,6 +103,7 @@ public sealed class InputFrame
     public PadAnswer Pad(int pad, int buttons, bool made)
     {
         var window = ReadState();
+        padWatcher?.Pad(pad, buttons, made);
         var handed = field.Pad(pad, dialogue.Pad(pad, menus.Pad(pad, buttons, made), made), made);
         return new(handed & buttons, window);
     }

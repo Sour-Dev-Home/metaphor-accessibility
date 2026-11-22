@@ -33,12 +33,12 @@ internal sealed class GameInputReads(DialogueWindowPointer window, MenusOpenRead
     public bool MenusOpen() => menus.IsOpen();
 
     /// <summary>The input frame over <paramref name="services"/>' readers, menu screens and controls, the field's
-    /// (#181) last when there are, and its key watcher.</summary>
+    /// (#181) last when there are, and its key and pad watchers.</summary>
     public static InputFrame Frame(HookServices services)
     {
         var game = new GameInputReads(services.DialogueWindow, services.MenusOpen);
         return new(game, services.MenuScreens, services.MenuControls, services.DialogueControls,
-            services.FieldControls ?? InputFrame.NoControls, services.KeyWatcher);
+            services.FieldControls ?? InputFrame.NoControls, services.KeyWatcher, services.PadWatcher);
     }
 }
 

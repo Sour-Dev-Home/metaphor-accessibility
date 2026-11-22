@@ -5,8 +5,9 @@ using Metaphor.Core.Messages;
 namespace Metaphor.Features.Menus.Tests;
 
 /// <summary>A settings page's rows by name (#560): a row whose label is known for the page and its row count is said by
-/// its message text, as "name, n of total" (#96's order, the value left out until it is read); any other row by its
-/// position alone. Hook events in, announcements out; made-up labels and text only.</summary>
+/// its message text, as "name, n of total", with its value between them where its setting is known (#96), and a change
+/// to it by the new value alone; any other row by its position alone. Hook events in, announcements out; made-up labels,
+/// text and values only.</summary>
 [Trait("Category", "Unit")]
 public sealed class SettingsRowsTests
 {
@@ -29,7 +30,7 @@ public sealed class SettingsRowsTests
         // Page 0 (System) with 3 rows: the first two named, the third unknown; page 1 (Sound) with 2 rows.
         SettingsPageRows[] rows =
         [
-            new(Page: 0, Total: 3, NameLabels: ["Fake_row_A", "Fake_row_B", null]),
+            new(Page: 0, Total: 3, NameLabels: ["Fake_row_A", "Fake_row_B", null]) { ValueIds = [27, null, 5] },
             new(Page: 1, Total: 2, NameLabels: ["Fake_row_C", "Fake_row_missing"]),
         ];
         screens.Observe(new SettingsFocus(library, announcer, new TextCleaner(TextCleanerRules.None), rows));
@@ -39,9 +40,21 @@ public sealed class SettingsRowsTests
             Message("Fake_row_C", "Fake output"))));
     }
 
-    private void Cursor(int index, string screenClass, int? count, int flags = 0x46) =>
+    private void Cursor(int index, string screenClass, int? count, int flags = 0x46, SettingValues? values = null) =>
         cursors.Handled(new CursorInput(0xb0, ClassRva: 0x100, Settle, Result: 1, Top: index, Row: 0, Flags: flags,
-            screenClass, count));
+            screenClass, count, Values: values));
+
+    // A page's values with the given settings set and every other one 0 (SettingValues' layout).
+    private static SettingValues Values(params (int Id, int Value)[] values)
+    {
+        var bytes = new byte[SettingsPages.WorkingCopyLength];
+        BitConverter.GetBytes(SettingValues.Count).CopyTo(bytes, 0x8);
+        foreach (var (id, value) in values)
+        {
+            BitConverter.GetBytes(value).CopyTo(bytes, 0x10 + (4 * id));
+        }
+        return SettingValues.Of(bytes)!;
+    }
 
     private static string Message(string label, string text) => $"//--------\n@{label}\n{{\n{text}\n<WAIT>\n}}";
 
@@ -118,6 +131,122 @@ public sealed class SettingsRowsTests
         Cursor(0, SystemPage, count: 3, flags: 0x47);
 
         Assert.Equal("Fake speed, 1 of 3", Said().Last());
+    }
+
+    // #96: "<setting>, <value>, <n> of <total>" on focus, and only the new value on a change.
+    [Fact]
+    public void ARowWithAKnownValueSaysItBetweenItsNameAndPosition()
+    {
+        Cursor(1, SystemPage, count: 3, values: Values((27, 77)));
+
+        Cursor(0, SystemPage, count: 3, values: Values((27, 77)));
+
+        Assert.Equal("Fake speed, 77, 1 of 3", Said().Last());
+    }
+
+    [Fact]
+    public void OpeningAPageOnARowWithAKnownValueSaysIt()
+    {
+        Cursor(0, SystemPage, count: 3, values: Values((27, 50)));
+
+        Assert.Equal(["Alpha Pane, Fake speed, 50, 1 of 3"], Said());
+    }
+
+    [Fact]
+    public void ChangingTheFocusedRowsValueSaysOnlyTheNewValue()
+    {
+        Cursor(0, SystemPage, count: 3, values: Values((27, 50)));
+
+        Cursor(0, SystemPage, count: 3, values: Values((27, 51)));
+        Cursor(0, SystemPage, count: 3, values: Values((27, 52)));
+
+        Assert.Equal(
+            [new Announcement("51", Interrupt: true), new Announcement("52", Interrupt: true)], announcer.Said.Skip(1));
+    }
+
+    [Fact]
+    public void AChangeToAnotherSettingsValueSaysNothing()
+    {
+        Cursor(0, SystemPage, count: 3, values: Values((27, 50)));
+
+        Cursor(0, SystemPage, count: 3, values: Values((27, 50), (36, -1)));
+
+        Assert.Single(Said());
+    }
+
+    [Fact]
+    public void ARowWithoutAKnownValueSaysNoValue()
+    {
+        Cursor(0, SystemPage, count: 3, values: Values((27, 50)));
+
+        Cursor(1, SystemPage, count: 3, values: Values((27, 50)));
+        Cursor(1, SystemPage, count: 3, values: Values((27, 51)));
+
+        Assert.Equal(["Alpha Pane, Fake speed, 50, 1 of 3", "Fake volume, 2 of 3"], Said());
+    }
+
+    [Fact]
+    public void ARowsValueIsSaidWithoutItsName()
+    {
+        Cursor(0, SystemPage, count: 3, values: Values());
+
+        Cursor(2, SystemPage, count: 3, values: Values((5, 1)));
+
+        Assert.Equal("1, 3 of 3", Said().Last());
+    }
+
+    [Fact]
+    public void AValueChangeOnTheOkButtonSaysNothing()
+    {
+        Cursor(0, SystemPage, count: 3, flags: 0x47, values: Values((27, 50)));
+        Cursor(0, SystemPage, count: 3, flags: 0x43, values: Values((27, 50)));
+
+        Cursor(0, SystemPage, count: 3, flags: 0x43, values: Values((27, 51)));
+
+        Assert.Equal("OK, button", Said().Last());
+        Assert.Equal(2, Said().Count());
+    }
+
+    [Fact]
+    public void EachPinnedPageHasAValueSlotPerRow()
+    {
+        Assert.All(SettingsPageRows.Steam18330018, page => Assert.Equal(page.Total, page.ValueIds.Count));
+    }
+
+    // The pinned values on build 548ddc95 (docs/raw-sources/settings-values-sessions-2026-11-21.md): Message Speed 17,
+    // Skip Selections 18, Mouse Sensitivity 27, Controller Sensitivity 28, on both System pages.
+    [Theory]
+    [InlineData(20, 11, "Fake System_Option_72, 1, 12 of 20")]
+    [InlineData(20, 12, "Fake System_Option_24, 2, 13 of 20")]
+    [InlineData(20, 16, "Fake System_subject_name_PC_04, 77, 17 of 20")]
+    [InlineData(20, 17, "Fake System_subject_name_PC_05, 52, 18 of 20")]
+    [InlineData(20, 9, "Fake System_Option_23, 10 of 20")]
+    [InlineData(24, 14, "Fake System_Option_72, 1, 15 of 24")]
+    [InlineData(24, 15, "Fake System_Option_24, 2, 16 of 24")]
+    [InlineData(24, 20, "Fake System_subject_name_PC_04, 77, 21 of 24")]
+    [InlineData(24, 21, "Fake System_subject_name_PC_05, 52, 22 of 24")]
+    [InlineData(24, 1, "2 of 24")]
+    public void TheSystemPageSaysItsPinnedValuesOnThisBuild(int count, int index, string said)
+    {
+        var pinned = new RecordingAnnouncer();
+        var library = new MessageLibrary();
+        var screens = new MenuScreens(SettingsFocus.Screens);
+        screens.MenusRead(open: true);
+        screens.Observe(new SettingsFocus(library, pinned, new TextCleaner(TextCleanerRules.None)));
+        var fileMessages = new MessageEvents();
+        fileMessages.ObserveFiles(library);
+        string[] labels =
+        [
+            "System_Option_72", "System_Option_24", "System_Option_23", "System_subject_name_PC_04",
+            "System_subject_name_PC_05",
+        ];
+        fileMessages.Compiled(new MessageFileCompiled(
+            SystemPcFile, 48, string.Join("\n\n", labels.Select(label => Message(label, $"Fake {label}")))));
+
+        screens.Observe(new CursorInput(0xb0, 0x100, Settle, 1, Top: index, Row: 0, Flags: 0x47, SystemPage, count,
+            Values: Values((5, 9), (17, 1), (18, 2), (22, 9), (27, 77), (28, 52))));
+
+        Assert.Equal(said, pinned.Said[^1].Text);
     }
 
     [Fact]
