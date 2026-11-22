@@ -41,7 +41,8 @@ checks them in the first game session and removes the tag.
   there are several. Misses and blocked hits aren't read yet, and names aren't known yet (#247).
   `[NEEDS VERIFICATION by ear]`
 - **Battle's skill and item lists are read**: "Skills" or "Items" as the list opens, then each skill or item's name
-  and "n of total" as you move. F, or R3 on the pad, reads the focused one's description (#247).
+  and "n of total" as you move. F, or R3 on the pad, reads the focused one's description (#247). Past the first
+  screen each row keeps its own name as the list scrolls; one whose name isn't known is said by its position.
   `[NEEDS VERIFICATION by ear]`
 - **A status key.** In a battle, H, or L3 on the pad, pressed on its own, says each party member's HP, then the
   enemies' (#631). Outside a battle both keys reach the game as before, so L3 still recentres the world map.
