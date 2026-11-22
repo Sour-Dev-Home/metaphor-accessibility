@@ -253,7 +253,7 @@ internal sealed record HookServices
         var fieldControls = new FieldControls(
             settings.Live(FieldBindings.From), feature => settings.Current.IsOn(feature), field, place, announcer,
             () => Environment.TickCount64, log is null ? null : log.FieldRead,
-            new ReachCallouts(field, announcer, () => Environment.TickCount64));
+            new ReachCallouts(field, settings.Speech(Feature.Reach, announcer), () => Environment.TickCount64));
         if (silence is not null)
         {
             screens.Observe(silence);
