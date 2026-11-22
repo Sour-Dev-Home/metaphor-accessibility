@@ -79,6 +79,15 @@ back for review, never auto-merged on CI alone. Three steps are yours:
 
 Commit with the stamp.
 
+## A feature that needs a by-ear check
+
+Don't hold the PR open for the check: it conflicts for days while `main` moves (#783). Merge the feature as **testing**:
+`Testing = true` on its `[SettingKey]` in `Feature.cs` and `testing, off` as its default in
+[`settings.md`](../players/reference/settings.md#features-still-being-tested), with auto-merge on as for any PR. It is
+off in a normal install and on in a by-ear session, because `scripts/dev/session.ps1` (`deploy` or `run`) adds the
+session-only `opt-in-testing.txt`; release builds never read it and `package-mod.sh` refuses a package that holds
+one. Passing by ear means a flip PR that removes `Testing = true` and the `testing, off`; a failure is a fix PR.
+
 ## Deliver
 
 - **On an integration branch** (the brief names one): merge its tip into your branch and push your branch. The
