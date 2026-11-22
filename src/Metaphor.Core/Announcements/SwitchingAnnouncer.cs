@@ -189,35 +189,75 @@ public sealed class SwitchingAnnouncer : IAnnouncer
             lock (gate)
             {
                 probing = false;
-                var onScreenReader = current is not null && current != fallback;
+                var previous = current;
+                var onScreenReader = previous is not null && previous != fallback;
                 if (found is null && !onScreenReader)
                 {
                     return; // Still on the fallback, or still silent.
                 }
-                var next = found ?? fallback;
-                var renamed = next?.Name != current?.Name;
-                if (onScreenReader)
+                try
                 {
-                    // A reader that failed a line is replaced even by a fresh copy of itself, whose connection is new.
-                    current!.Dispose();
+                    SwitchTo(found ?? fallback, previous, onScreenReader);
                 }
-                current = next;
-                route = new OutputRoute();
-                if (!renamed)
+                catch (Exception)
                 {
-                    unsaid = null; // It may have been spoken already; saying it again could double it.
-                    return;
-                }
-                if (unsaid is not null && Say(unsaid))
-                {
+                    // A backend threw mid-switch: release both readers and settle on the fallback, so no handle is
+                    // left behind (#532). Dispose is idempotent, so releasing one already released is harmless.
+                    if (onScreenReader)
+                    {
+                        Release(previous!);
+                    }
+                    if (found is not null)
+                    {
+                        Release(found);
+                    }
+                    current = fallback;
+                    route = new OutputRoute();
                     unsaid = null;
                 }
-                log(next is null ? NoBackend : $"speech: {next.Name}");
             }
         }
         catch (Exception)
         {
             // Nothing to tell; the next line tries again.
+        }
+    }
+
+    /// <summary>Moves from <paramref name="previous"/> to <paramref name="next"/>, under the lock. Throws only if
+    /// <paramref name="next"/> or the log does.</summary>
+    private void SwitchTo(ISpeechBackend? next, ISpeechBackend? previous, bool releasePrevious)
+    {
+        var renamed = next?.Name != previous?.Name;
+        current = next;
+        route = new OutputRoute();
+        if (releasePrevious)
+        {
+            // A reader that failed a line is replaced even by a fresh copy of itself, whose connection is new.
+            Release(previous!);
+        }
+        if (!renamed)
+        {
+            unsaid = null; // It may have been spoken already; saying it again could double it.
+            return;
+        }
+        if (unsaid is not null && Say(unsaid))
+        {
+            unsaid = null;
+        }
+        log(next is null ? NoBackend : $"speech: {next.Name}");
+    }
+
+    /// <summary>Disposes a backend that is no longer current; a throw changes nothing, as it is dropped either way.</summary>
+    [SuppressMessage("Design", "CA1031", Justification = "A backend failing to free must not undo the switch.")]
+    private static void Release(ISpeechBackend backend)
+    {
+        try
+        {
+            backend.Dispose();
+        }
+        catch (Exception)
+        {
+            // Dropped either way.
         }
     }
 }
