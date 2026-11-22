@@ -23,6 +23,17 @@ public sealed record CursorInput(
     /// move can be refused and put back on the next call (docs/raw-sources/title-menu-labels-2026-11-16.md), so where
     /// the cursor settled is the next input that isn't a move.</summary>
     public bool IsMove => Command is >= 0x14 and <= 0x17;
+
+    /// <summary>The <see cref="Flags"/> bit set while the cursor is on one of the list's items. A settings page's OK
+    /// button, after its last row, settles at index 0 with it clear (flags <c>0x43</c>, its rows <c>0x47</c>), and no
+    /// settled cursor elsewhere had it clear (docs/raw-sources/settings-ok-and-rows-by-ear-2026-11-21.md, game build
+    /// 548ddc95…). That it means the same on every screen is <c>[NEEDS VERIFICATION]</c>.</summary>
+    public const int OnItemFlag = 0x4;
+
+    /// <summary>Whether the cursor sits off the list's items (<see cref="OnItemFlag"/> clear), as on a settings page's
+    /// OK button. The hook passes 0 when it can't read the flags, so 0 counts as on the list: a misread then says the
+    /// row's position, not the button.</summary>
+    public bool OffList => Flags != 0 && (Flags & OnItemFlag) == 0;
 }
 
 /// <summary>Told of each menu cursor input that changed something.</summary>
