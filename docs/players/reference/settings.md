@@ -48,6 +48,7 @@ Each is `true` to speak or `false` to stay quiet, inside a `speech` object: `{ "
 | `travelMap` | Each destination on the travel map. | `true` |
 | `placeNames` | The place name the game shows as you arrive somewhere. | `true` |
 | `updateNotice` | The title screen's notice of a newer version. The request itself is `checkForUpdates`. | `true` |
+| `tutorials` | Tutorial pop-ups: the title, the page count and each page. Off also leaves the repeat key to repeat dialogue, not the pop-up's page. | `true` |
 
 ## Field
 

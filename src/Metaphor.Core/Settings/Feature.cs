@@ -34,6 +34,10 @@ public enum Feature
     [SettingKey("speech", "updateNotice", "Update notice")]
     UpdateNotice,
 
+    /// <summary>Tutorial pop-ups and the repeat of their page (#118).</summary>
+    [SettingKey("speech", "tutorials", "Tutorials")]
+    Tutorials,
+
     /// <summary>The nearby list and its pad steps (#181).</summary>
     [SettingKey("field", "nearby", "Nearby list")]
     Nearby,

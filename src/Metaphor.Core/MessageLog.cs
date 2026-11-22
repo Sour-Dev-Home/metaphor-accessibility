@@ -123,9 +123,28 @@ public sealed class MessageLog(TextWriter writer, Func<long> millisecondsSinceSt
         Write(() => Line($"{millisecondsSinceStart()} ms map {what} {details}"));
 
     /// <summary>An input a menu's cursor manager handled that changed something (#93, #94). Numbers only, no game
-    /// text.</summary>
-    public void Observe(CursorInput input) => Write(() => Line(
-        $"{millisecondsSinceStart()} ms cursor mgr=0x{input.Manager:x} class={(input.ClassRva is { } rva ? $"0x{rva:x}" : "?")} cmd=0x{input.Command:x} result={input.Result} index={input.Index} top={input.Top} row={input.Row} flags=0x{input.Flags:x} screen={input.ScreenClass ?? "?"} count={input.Count?.ToString(CultureInfo.InvariantCulture) ?? "?"} mode={input.Mode?.ToString(CultureInfo.InvariantCulture) ?? "?"}"));
+    /// text. A grid cursor's input (#563) adds a <c>grid</c> record of its fields, so a session pins its rows and
+    /// columns.</summary>
+    public void Observe(CursorInput input)
+    {
+        Write(() => Line(
+            $"{millisecondsSinceStart()} ms cursor mgr=0x{input.Manager:x} class={(input.ClassRva is { } rva ? $"0x{rva:x}" : "?")} cmd=0x{input.Command:x} result={input.Result} index={input.Index} top={input.Top} row={input.Row} flags=0x{input.Flags:x} screen={input.ScreenClass ?? "?"} count={input.Count?.ToString(CultureInfo.InvariantCulture) ?? "?"} mode={input.Mode?.ToString(CultureInfo.InvariantCulture) ?? "?"}"));
+        if (input.Grid is { } grid)
+        {
+            Write(() => Line(
+                $"{millisecondsSinceStart()} ms grid mgr=0x{input.Manager:x} index={grid.Index} columns={grid.Columns} column={grid.Column} line={grid.Line} scroll={grid.Scroll} page={grid.Page} stride={grid.PageStride}"));
+        }
+    }
+
+    /// <summary>Key Configuration's choice fields from <paramref name="at"/> on, when they changed (#564): the bytes
+    /// as hex, so a session shows which marks "waiting for a key". Numbers only, no game text.</summary>
+    public void KeyConfigState(long choice, int at, string bytes) => Write(() => Line(
+        $"{millisecondsSinceStart()} ms keyconfig-state choice=0x{choice:x} at=+0x{at:x} bytes={bytes}"));
+
+    /// <summary>A settings page's working copy of its values, when it changed (#560): the page's choice and the bytes
+    /// from <see cref="Menus.SettingsPages.WorkingCopyOffset"/> on, as hex. Numbers only, no game text.</summary>
+    public void SettingsCopy(long choice, string bytes) => Write(() => Line(
+        $"{millisecondsSinceStart()} ms settings-copy choice=0x{choice:x} at=+0x{Menus.SettingsPages.WorkingCopyOffset:x} bytes={bytes}"));
 
     /// <summary>A line the game asked for by label, with its kind.</summary>
     public void Observe(LineRequested line) => Write(() =>

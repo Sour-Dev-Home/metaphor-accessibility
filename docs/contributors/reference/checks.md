@@ -58,7 +58,9 @@ it in their names.
 - **The merge queue and pushes to `main`** run everything on Windows, then package, zip and rebuild the mod
   reproducibly. Beside the build, `pester-varied-setup` runs every Pester file once under a German culture, from a
   checkout and temporary folder whose paths hold a space and non-ASCII characters (#459), and `scripts` waits for it
-  too. On `main`, `attest` signs the zip ([Check a download](../../players/how-to/check-a-download.md)). The
+  too. It runs only when `scripts/player/`, `scripts/setup/`, `scripts/release/` (the script that builds what players install), `tests/pester/` or its runners change, and nightly on
+  `main` whatever changed (#655); `scripts` fails if it was skipped anywhere but a pull request. On `main`, `attest`
+  signs the zip ([Check a download](../../players/how-to/check-a-download.md)). The
   path-by-path detail is in [how a change reaches main](../explanation/how-a-change-reaches-main.md) and
   [ADR 0008](../../adr/0008-ci-fast-path-and-windows-gate.md).
 - **A `v*` tag on a commit on `main`** runs the `Release` workflow (#310), which drafts an attested release:
@@ -95,3 +97,10 @@ gh secret set PII_PATTERNS --env main-push < .claude/pii-patterns.txt
 
 Pushes to `main` fail until the secret is set. The check never prints a matching line or pattern, because CI logs are
 public.
+
+The general patterns are local user folders (`C:\Users\<name>` and its Git Bash, WSL, Linux and macOS forms) and email
+addresses, apart from reserved example domains, GitHub no-reply addresses, SSH remotes and `@2x` image names. A
+third-party licence notice, a file named `LICENSE`, `COPYING` or `NOTICE` (with at most one extension, such as `.MIT`)
+directly inside `src/<project>/licenses/<library>/`, skips the email rule only, because it ships verbatim with its
+author's address
+([ADR 0005](../../adr/0005-prism-speech-backend.md)). The user-folder and private patterns still apply to it.

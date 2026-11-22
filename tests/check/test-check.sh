@@ -428,6 +428,49 @@ test_blocks_email_address() {
   expect 1 "personal information" "notes.md:1" "email address"
 }
 
+test_passes_email_in_third_party_licence_notice() {
+  new_repo
+  mkdir -p src/P/licenses/x
+  printf 'Copyright (C) 2020 Alice Smith <alice.smith%sgmail.com>\n' "$at" > src/P/licenses/x/LICENSE.MIT
+  git add src/P/licenses/x/LICENSE.MIT
+  run_check fast
+  expect 0
+}
+
+# Outside src/<project>/licenses/<library>/, or a name that only starts like a notice, the email rule still applies.
+test_blocks_email_beside_a_licence_notice_or_elsewhere() {
+  new_repo
+  mkdir -p src/P/licenses/x docs/x licenses/x src/P/q/licenses/x
+  for file in src/P/licenses/x/README.md src/P/licenses/x/NOTICEBOARD.md src/P/licenses/x/LICENSE.a.b \
+    docs/x/LICENSE licenses/x/LICENSE src/P/q/licenses/x/LICENSE; do
+    printf 'mail alice.smith%sgmail.com\n' "$at" > "$file"
+    git add "$file"
+  done
+  run_check fast
+  expect 1 "src/P/licenses/x/README.md:1: email address" "src/P/licenses/x/NOTICEBOARD.md:1: email address" \
+    "src/P/licenses/x/LICENSE.a.b:1: email address" "docs/x/LICENSE:1: email address" \
+    "licenses/x/LICENSE:1: email address" "src/P/q/licenses/x/LICENSE:1: email address"
+}
+
+test_blocks_private_pattern_in_licence_notice() {
+  new_repo
+  mkdir -p .claude src/P/licenses/x
+  printf 'jane-q-public\n' > .claude/pii-patterns.txt
+  printf 'Copyright (C) 2020 jane-q-public\n' > src/P/licenses/x/LICENSE.MIT
+  git add src/P/licenses/x/LICENSE.MIT
+  run_check fast
+  expect 1 "src/P/licenses/x/LICENSE.MIT:1: matches a private pattern"
+}
+
+test_blocks_user_path_in_licence_notice() {
+  new_repo
+  mkdir -p src/P/licenses/x
+  printf 'built in C:\\%s\\jane\n' "$users" > src/P/licenses/x/NOTICE
+  git add src/P/licenses/x/NOTICE
+  run_check fast
+  expect 1 "src/P/licenses/x/NOTICE:1: local user path"
+}
+
 test_passes_placeholders_and_example_addresses() {
   new_repo
   printf 'no paths like C:\\%s\\... or C:/%s/ here\n' "$users" "$users" > a.md
@@ -2474,7 +2517,7 @@ test_rules_process_starts_do_not_grow_with_the_file_count() {
 # scripts/check/check-status.sh reads. Their output is shown whole, in test order, after all have finished.
 # METAPHOR_TEST_JOBS=1 runs one at a time and must give the same pass and fail counts. An optional argument runs only
 # the tests whose names match it (an extended regular expression).
-JOBS="$(pool_default_jobs)"
+JOBS="$(suite_jobs)" # the outside's slots, from before suite-env.sh made them the suite's own (#655)
 RESULTS="$WORK/results"
 
 # run_test NAME: the pool's job (scripts/check/pool.sh), in its own subshell: run one test with its own folder and

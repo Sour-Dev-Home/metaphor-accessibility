@@ -7,7 +7,10 @@ namespace Metaphor.Features.Menus;
 
 /// <summary>Speaks the Settings category list and names its pages (#559, parent #96): on opening the list, "Settings"
 /// and the focused category, then each category's text from the game's message file and "n of 5"; on opening the System, Sound, Graphics or Display page, that page's
-/// category text and the focus's position, then on each move the position alone until the rows are read (#560). Each
+/// category text and the focused row, then on each move the row: its name when <see cref="SettingsPageRows"/> knows it,
+/// then its position (#560), or "OK, button" on the button after the last row; on Key Configuration, its category text
+/// on opening, then each grid cell's action where <see cref="KeyConfigTab"/> knows it, its column and row (#563), the
+/// sub-tab's name when it changes, and "OK, button" on its OK button (#589). Each
 /// announcement cuts off the last. The text is looked up at run time (<see cref="MessageLibrary"/>), so nothing here is
 /// game content. Safe to call from several threads.</summary>
 /// <remarks>Labels, classes and which row opens which page on build 548ddc95:
@@ -22,10 +25,10 @@ public sealed class SettingsFocus : IScreenObserver
     // The pages the list's first four rows open, in row order.
     private static readonly Screen[] Pages =
     [
-        new("System settings", "?$ConfigMenuChoicePcT@$0HG@@ope@ui@app"),
-        new("Sound settings", "?$ConfigMenuChoicePcT@$0HH@@ope@ui@app"),
-        new("Graphics settings", "?$ConfigMenuChoicePcT@$0HI@@ope@ui@app"),
-        new("Display settings", "?$ConfigMenuChoicePcT@$0HJ@@ope@ui@app"),
+        new("System settings", SettingsPages.Classes[0]),
+        new("Sound settings", SettingsPages.Classes[1]),
+        new("Graphics settings", SettingsPages.Classes[2]),
+        new("Display settings", SettingsPages.Classes[3]),
     ];
 
     // The list's rows in cursor order, and the message labels that name them; a page is named by its row's label.
@@ -36,21 +39,59 @@ public sealed class SettingsFocus : IScreenObserver
     // English only: the game's own word for the item that opens the list. Approved by the maintainer on 2026-11-20 (#559).
     private const string ListName = "Settings";
 
-    /// <summary>The category list (both its classes) and the four pages, for the menu-screens module.</summary>
-    public static IReadOnlyList<Screen> Screens { get; } = [List, ListInPlay, .. Pages];
+    // The button after a page's last row, which closes the page; the cursor is off the list there (ScreenEvent.OffList,
+    // docs/raw-sources/settings-ok-and-rows-by-ear-2026-11-21.md). The word is ours, English only, as for ListName:
+    // which message names it (System_Option_88 is a candidate) is [NEEDS VERIFICATION].
+    private const string OkButton = "OK, button";
+
+    // Key Configuration, the list's fifth row, on the grid cursor (#563): docs/findings/settings-screens-inventory-static.md.
+    private static readonly Screen KeyConfig = new("Key Configuration", SettingsPages.KeyConfigClass);
+    private const int KeyConfigCategory = 4;
+
+    /// <summary>The category list (both its classes), the four pages and Key Configuration, for the menu-screens
+    /// module.</summary>
+    public static IReadOnlyList<Screen> Screens { get; } = [List, ListInPlay, .. Pages, KeyConfig];
 
     private readonly IMessageLookup messages;
     private readonly IAnnouncer announcer;
     private readonly TextCleaner cleaner;
+    private readonly IReadOnlyList<SettingsPageRows> rows;
+    private readonly IReadOnlyList<KeyConfigTab> tabs;
 
+    // Key Configuration's count at its last change, so a sub-tab is said when it changes (#589).
+    private readonly Lock gate = new();
+    private int? keyConfigCount;
+
+    /// <summary>Speaks the pages' rows and Key Configuration's actions known on game build 548ddc95
+    /// (<see cref="SettingsPageRows.Steam18330018"/>, <see cref="KeyConfigTab.Steam18330018"/>).</summary>
     public SettingsFocus(IMessageLookup messages, IAnnouncer announcer, TextCleaner cleaner)
+        : this(messages, announcer, cleaner, SettingsPageRows.Steam18330018)
+    {
+    }
+
+    /// <summary>Speaks the pages' rows as <paramref name="rows"/> names them; any other row by its position.</summary>
+    public SettingsFocus(
+        IMessageLookup messages, IAnnouncer announcer, TextCleaner cleaner, IReadOnlyList<SettingsPageRows> rows)
+        : this(messages, announcer, cleaner, rows, KeyConfigTab.Steam18330018)
+    {
+    }
+
+    /// <summary>Speaks the pages' rows as <paramref name="rows"/> names them and Key Configuration's cells as
+    /// <paramref name="tabs"/> names them; any other row or cell by its position.</summary>
+    public SettingsFocus(
+        IMessageLookup messages, IAnnouncer announcer, TextCleaner cleaner, IReadOnlyList<SettingsPageRows> rows,
+        IReadOnlyList<KeyConfigTab> tabs)
     {
         ArgumentNullException.ThrowIfNull(messages);
         ArgumentNullException.ThrowIfNull(announcer);
         ArgumentNullException.ThrowIfNull(cleaner);
+        ArgumentNullException.ThrowIfNull(rows);
+        ArgumentNullException.ThrowIfNull(tabs);
         this.messages = messages;
         this.announcer = announcer;
         this.cleaner = cleaner;
+        this.rows = rows;
+        this.tabs = tabs;
     }
 
     /// <summary>Speaks the focus when the list or a page is entered or its focus moves.</summary>
@@ -75,16 +116,82 @@ public sealed class SettingsFocus : IScreenObserver
             var item = Join(CategoryText(change.Index), $"{change.Index + 1} of {CategoryCount}");
             return change.Change == ScreenChange.Entered ? $"{ListName}, {item}" : item;
         }
+        if (change.Screen == KeyConfig)
+        {
+            var said = KeyConfigFocus(change);
+            return change.Change == ScreenChange.Entered ? Join(CategoryText(KeyConfigCategory), said) : said;
+        }
         var page = Array.IndexOf(Pages, change.Screen);
         if (page < 0)
         {
             return null;
         }
+        var row = change.OffList ? OkButton : Row(page, change);
+        return change.Change == ScreenChange.Entered ? Join(CategoryText(page), row) : row;
+    }
+
+    // Key Configuration's focus (#589): "OK, button" on its OK button, else the cell's action when its sub-tab is known
+    // and the cell's position; the sub-tab's name first on opening and when the grid's count changes, as it does with
+    // the sub-tab. The sub-tab is told by the count (KeyConfigTab), so only on the grid.
+    private string KeyConfigFocus(ScreenEvent change)
+    {
+        bool tabChanged;
+        lock (gate)
+        {
+            tabChanged = change.Change == ScreenChange.Entered || change.Count != keyConfigCount;
+            keyConfigCount = change.Count;
+        }
+        if (change.OffList)
+        {
+            return OkButton;
+        }
+        var tab = change.Grid is null ? null : KeyConfigTab.Of(tabs, change.Count);
+        var cell = Join(Text(tab?.ActionLabel(change.Index)), Cell(change));
+        return tabChanged ? Join(Text(tab?.NameLabel), cell) : cell;
+    }
+
+    private string Row(int page, ScreenEvent change)
+    {
         var position = change.Total is { } total ? $"{change.Index + 1} of {total}" : $"{change.Index + 1}";
-        return change.Change == ScreenChange.Entered ? Join(CategoryText(page), position) : position;
+        return Join(RowText(page, change.Index, change.Total), position);
+    }
+
+    // The row's name, cleaned, or null when the page's rows at this count aren't known, the row's label isn't, or its
+    // message is missing or empty. The value isn't read yet (#558's checks 2 and 3), so #96's "name, value" is the name.
+    private string? RowText(int page, int index, int? total) =>
+        total is { } count && rows.FirstOrDefault(known => known.Page == page && known.Total == count) is { } pageRows
+            && pageRows.NameLabel(index) is { } label && messages.Find(label) is { } message
+            && cleaner.Clean(message.Text) is { Length: > 0 } text
+            ? text
+            : null;
+
+    // A Key Configuration cell by its column and its row from the top of the list, with the rows' total when the
+    // grid's count is known and it is on the first page (how a later page's cells number against the count isn't
+    // known). The words are ours, English only, approved by the maintainer on 2026-11-21 until the game's own column
+    // headings are pinned; each cell is one action, two to a row
+    // (docs/raw-sources/key-config-actions-session-2026-11-21.md). Without the grid's fields, its position as any
+    // page's row.
+    private static string Cell(ScreenEvent change)
+    {
+        if (change.Grid is not { } grid)
+        {
+            return change.Total is { } total ? $"{change.Index + 1} of {total}" : $"{change.Index + 1}";
+        }
+        var row = $"row {grid.Row + 1}";
+        if (grid.Page == 0 && change.Total is { } cells)
+        {
+            row += $" of {(cells + grid.Columns - 1) / grid.Columns}";
+        }
+        return $"column {grid.Column + 1}, {row}";
     }
 
     private static string Join(string? name, string position) => name is null ? position : $"{name}, {position}";
+
+    // The message's text, cleaned, or null when the label is null or its message is missing or empty.
+    private string? Text(string? label) =>
+        label is not null && messages.Find(label) is { } message && cleaner.Clean(message.Text) is { Length: > 0 } text
+            ? text
+            : null;
 
     // The category's text, cleaned, or null when the message is missing or empty.
     private string? CategoryText(int index) =>
