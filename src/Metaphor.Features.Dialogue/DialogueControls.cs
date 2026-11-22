@@ -1,6 +1,7 @@
 using Metaphor.Core.Announcements;
 using Metaphor.Core.Input;
 using Metaphor.Core.Messages;
+using Metaphor.Core.Settings;
 
 namespace Metaphor.Features.Dialogue;
 
@@ -15,8 +16,20 @@ public sealed record DialogueBindings(int RepeatButtons, int ReaderButtons, int 
     /// <summary>X and LB + RB, R and T (#58's design comment). The game's mask puts XInput's X at <c>0x8000</c>, LB at
     /// <c>0x400</c> and RB at <c>0x800</c> on game build 548ddc95… (Steam build 18330018):
     /// docs/raw-sources/pad-and-keyboard-state-2026-11-16.md. R and T are <c>VK_R</c> (0x52) and <c>VK_T</c> (0x54).
-    /// Constants until #104's settings file can hold them.</summary>
+    /// The settings file can rebind each (#661, <see cref="From"/>).</summary>
     public static DialogueBindings Default { get; } = new(0x8000, 0x400 | 0x800, 0x52, 0x54);
+
+    /// <summary>The bindings the settings file's <c>keys.dialogue</c> object names (#661), each missing or unusable
+    /// one the default.</summary>
+    public static DialogueBindings From(ModSettings settings)
+    {
+        ArgumentNullException.ThrowIfNull(settings);
+        return new(
+            settings.Binding("dialogue", "repeatButtons", Default.RepeatButtons),
+            settings.Binding("dialogue", "readerButtons", Default.ReaderButtons),
+            settings.Binding("dialogue", "repeatKey", Default.RepeatKey),
+            settings.Binding("dialogue", "readerKey", Default.ReaderKey));
+    }
 }
 
 /// <summary>The dialogue controls (#58): the repeat binding re-speaks the last line in full and the reader binding turns
@@ -27,13 +40,15 @@ public sealed record DialogueBindings(int RepeatButtons, int ReaderButtons, int 
 /// again, and a binding already held when the window opens doesn't fire. The input frame (#301) hands it each pad and
 /// keyboard read and each read of the window, from any of the game's threads. While a pop-up is on screen (a tutorial's
 /// page, #118) the repeat binding re-speaks the pop-up instead, and acts and is hidden even with the dialogue window
-/// closed; the reader binding still acts only in dialogue.</summary>
+/// closed; the reader binding still acts only in dialogue. The bindings are read on each input read, so a rebinding in
+/// the settings file applies at once (#661).</summary>
+[FeatureSetting(Feature.Dialogue)]
 public sealed class DialogueControls : IWindowInputControls
 {
     private const int KeyboardSource = -1;
 
     private readonly Lock gate = new();
-    private readonly DialogueBindings bindings;
+    private readonly Func<DialogueBindings> liveBindings;
     private readonly DialogueHistory history;
     private readonly DialogueReader reader;
     private readonly IAnnouncer announcer;
@@ -59,6 +74,19 @@ public sealed class DialogueControls : IWindowInputControls
         IAnnouncer announcer,
         Action? onClose = null,
         Func<string?>? onScreen = null)
+        : this(() => bindings, history, reader, announcer, onClose, onScreen)
+    {
+        ArgumentNullException.ThrowIfNull(bindings);
+    }
+
+    /// <summary>Dialogue controls on the bindings in force, read on each input read (#661).</summary>
+    public DialogueControls(
+        Func<DialogueBindings> bindings,
+        DialogueHistory history,
+        DialogueReader reader,
+        IAnnouncer announcer,
+        Action? onClose = null,
+        Func<string?>? onScreen = null)
     {
         this.onClose = onClose;
         this.onScreen = onScreen;
@@ -66,7 +94,7 @@ public sealed class DialogueControls : IWindowInputControls
         ArgumentNullException.ThrowIfNull(history);
         ArgumentNullException.ThrowIfNull(reader);
         ArgumentNullException.ThrowIfNull(announcer);
-        this.bindings = bindings;
+        liveBindings = bindings;
         this.history = history;
         this.reader = reader;
         this.announcer = announcer;
@@ -104,6 +132,7 @@ public sealed class DialogueControls : IWindowInputControls
         {
             return buttons;
         }
+        var bindings = liveBindings();
         var repeatHeld = Holds(buttons, bindings.RepeatButtons);
         var toggleHeld = Holds(buttons, bindings.ReaderButtons);
         var (repeatHidden, toggleHidden) = Read(pad, repeatHeld, toggleHeld);
@@ -115,6 +144,7 @@ public sealed class DialogueControls : IWindowInputControls
     public IReadOnlyList<int> Keys(IReadOnlyList<int> keys)
     {
         ArgumentNullException.ThrowIfNull(keys);
+        var bindings = liveBindings();
         var (repeatHidden, toggleHidden) =
             Read(KeyboardSource, keys.Contains(bindings.RepeatKey), keys.Contains(bindings.ReaderKey));
         return repeatHidden || toggleHidden
