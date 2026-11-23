@@ -52,6 +52,13 @@ read base+0x27a8bc0 8
 If the keyboard read gives 1 while the mod still said "Press A", the mod's `LastInputDevice` is the fault and the fix
 is to read `0x27a8bc0` (build-pinned) for the game-over words, nonzero naming the key.
 
+**Result** (by-ear session 2026-11-23, Steam build 18330018, mod `0c122d3` Debug, inspector reads of
+`base+0x27a8bc0`, reported on #778): with Button Display set to a fixed type it read 1 and stayed 1 after a pad press;
+with Button Display Auto it read 0 after pad input and 2 after an arrow key. The next dword stayed 1 throughout. So
+under Auto the global follows the device (0 pad, 2 keyboard), and 1 doesn't name one. The mod reads it through
+`InputDeviceGet`'s load (`0x7adec0`, `mov eax,[rip+disp32]`), whose signature matches once on disk
+(`tools/Metaphor.SignatureCheck --probes`, 2026-11-23).
+
 ## Steps
 
 Ghidra 12.2 shared project (`scripts/dev/ghidra.ps1 batch`), build above, 2026-11-23.

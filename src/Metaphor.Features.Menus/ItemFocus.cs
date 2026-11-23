@@ -11,8 +11,9 @@ namespace Metaphor.Features.Menus;
 /// party-member target list, without the heading. A row's name is the name the game fetched by serial for its place in
 /// the view (<see cref="FetchedRows"/>), equipment from <see cref="MessageSerials.EquipmentNames"/>; a row whose name has
 /// no known text is said by its position. The tab is told by its rows' item or equipment names, or, when they say none,
-/// by its place next to the last tab (<see cref="ListTabs"/>). A target row after the first (the protagonist) is named
-/// from the party members the list fetches after its rows, in that order <c>[NEEDS VERIFICATION]</c> by ear. Not
+/// by its place next to the last tab (<see cref="ListTabs"/>). The first target row is the protagonist, by his typed name
+/// (<see cref="ProtagonistName"/>); a row after it is named from the party members the list fetches after its rows, in
+/// that order <c>[NEEDS VERIFICATION]</c> by ear. Not
 /// spoken, <c>[NEEDS VERIFICATION]</c>: quantities (no record carries one). Safe to call from several threads.</summary>
 /// <remarks>Classes on build 548ddc95: <c>ItemMenuChoice</c> and <c>ItemCharaSelChoice</c>, the list and the target
 /// (docs/raw-sources/screen-class-session-2026-11-17.md). Each opening, tab switch and move fetches the rows on view
@@ -162,11 +163,19 @@ public sealed class ItemFocus : IScreenObserver, ISerialResolveObserver, ICursor
         }
     }
 
-    // "<member>, n of total": row 0 is the protagonist, whose name isn't a message, and row n the n-th party member the
-    // list last fetched.
+    /// <summary>The protagonist's name as the player typed it, or null when it can't be read; the target list's row 0
+    /// says it, since his name isn't a message.</summary>
+    public Func<string?>? ProtagonistName { get; init; }
+
+    // "<member>, n of total": row 0 is the protagonist, by his typed name, and row n the n-th party member the list last
+    // fetched.
     private string TargetLine(ScreenEvent change)
     {
         var line = ListFocus.Position(change);
+        if (change.Index == 0)
+        {
+            return ProtagonistName?.Invoke() is { } protagonist ? $"{protagonist}, {line}" : line;
+        }
         int? member;
         lock (gate)
         {

@@ -1,6 +1,7 @@
 using Metaphor.Core.Features;
 using Metaphor.Core.Input;
 using Metaphor.Core.Menus;
+using Metaphor.Core.Messages;
 using Metaphor.Core.Settings;
 
 namespace Metaphor.Features.Menus;
@@ -38,9 +39,13 @@ public sealed class MenusModule : IFeatureModule
         // the scripts (#569).
         // A settings page's dialog says its question, known from the press that opened it (#562).
         var settingsQuestion = new SettingsConfirmQuestion();
-        var yesNo = new YesNoDialogFocus(library, menuSpeech, cleaner, settingsQuestion);
+        // The quick menu's Return to title dialog says its question too, while tested (#810).
+        var titleQuestion = new ReturnToTitleQuestion(() => settings.Current.IsOn(MenusFeature.ReturnToTitleQuestion));
+        var yesNo = new YesNoDialogFocus(
+            library, menuSpeech, cleaner, new YesNoQuestions([settingsQuestion, titleQuestion]));
         screens.Observe(yesNo);
         screens.Observe(settingsQuestion);
+        screens.Observe(titleQuestion);
         events.ObserveChoices(yesNo);
         events.ObserveSelects(yesNo);
         screens.Observe(new DifficultyFocus(library, menuSpeech, cleaner));
@@ -54,7 +59,13 @@ public sealed class MenusModule : IFeatureModule
         var shopFocus = new ShopFocus(serials, settings.Speech(MenusFeature.ShopMenu, reader), cleaner);
         screens.Observe(shopFocus);
         events.ObserveSerials(shopFocus);
-        var itemFocus = new ItemFocus(serials, settings.Speech(MenusFeature.ItemMenu, reader), cleaner);
+        // The protagonist's name is typed, not a message: the <HERO_NAME> field, read when said (#216).
+        var names = context.Names;
+        string? Protagonist() => names.Typed(TypedName.Hero);
+        var itemFocus = new ItemFocus(serials, settings.Speech(MenusFeature.ItemMenu, reader), cleaner)
+        {
+            ProtagonistName = Protagonist,
+        };
         screens.Observe(itemFocus);
         events.ObserveSerials(itemFocus);
         // The shop and the Item list hear each cursor input before the slot screens hand it to the menu screens, so a
@@ -63,9 +74,14 @@ public sealed class MenusModule : IFeatureModule
         context.Cursors.Observe(itemFocus);
         screens.Observe(new CalendarFocus(settings.Speech(MenusFeature.Calendar, reader)));
         // The Equipment screens name their rows from the block of names the game fetches for the focused character (#217).
-        var equipmentFocus = new EquipmentFocus(serials, settings.Speech(MenusFeature.EquipmentMenu, reader), cleaner);
+        // Each cursor record ends the block (#216).
+        var equipmentFocus = new EquipmentFocus(serials, settings.Speech(MenusFeature.EquipmentMenu, reader), cleaner)
+        {
+            ProtagonistName = Protagonist,
+        };
         screens.Observe(equipmentFocus);
         events.ObserveSerials(equipmentFocus);
+        context.Cursors.Observe(equipmentFocus);
         // The save and load slots (#622): their lists come unnamed, so the slot screens name them before the screens,
         // from the prompts the serial hook hands MessageEvents (2026-11-22 review, finding 5).
         var slots = new SlotScreens(screens);
