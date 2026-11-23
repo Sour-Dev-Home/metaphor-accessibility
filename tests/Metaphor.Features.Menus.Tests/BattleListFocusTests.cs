@@ -162,9 +162,12 @@ public sealed class BattleListFocusTests
 
     // A move, then the names it fetched, then where the cursor settled, as the game hands them: top is the row within
     // the view and row the rows scrolled (docs/raw-sources/battle-item-list-scroll-by-ear-2026-11-22.md).
-    private void Walked(int command, int inView, int scrolled, int count, params int[] fetched)
+    private void Walked(int command, int inView, int scrolled, int count, params int[] fetched) =>
+        WalkedAfter(Later, command, inView, scrolled, count, fetched);
+
+    private void WalkedAfter(long milliseconds, int command, int inView, int scrolled, int count, params int[] fetched)
     {
-        now += Later;
+        now += milliseconds;
         cursors.Handled(new CursorInput(0xa0, ClassRva: 0x100, command, Result: command, Top: inView, Row: scrolled,
             Flags: 0x46, ItemClass, count));
         Fetched(fetched);
@@ -267,6 +270,50 @@ public sealed class BattleListFocusTests
         Walked(up, 5, 32, 40, bottom);
 
         Assert.Equal(["Items, Tonic, 1 of 40", "Herb 40, 40 of 40", "Herb 39, 39 of 40", "Herb 38, 38 of 40"], Said());
+    }
+
+    // #737, the Magic items tab of 2026-11-23 (build 0c122d3, docs/raw-sources/battle-item-tabs-wrap-log-2026-11-23.md):
+    // switched to, then wrapped up within the run gap of its first page. The wrap's view is a fetch of its own, not
+    // more of the first page.
+    [Fact]
+    public void AWrapRightAfterATabSwitchNamesTheBottomRows()
+    {
+        const int up = 0x15;
+        int[] bottom = [.. Enumerable.Range(ItemFirst + 32, 8)];
+        Fetched(ItemFirst + 20, ItemFirst + 21, ItemFirst + 22);
+        Cursor(ItemClass, 0, count: 3);
+        Walked(0x14, 1, 0, 3);
+        Walked(0x16, 0, 0, 40, [.. Enumerable.Range(ItemFirst, 8)]);
+        WalkedAfter(BattleListFocus.RunGapMilliseconds, up, 7, 32, 40, bottom);
+        Walked(up, 6, 32, 40, bottom);
+
+        Assert.Equal(
+            ["Items, Herb 21, 1 of 3", "Herb 22, 2 of 3", "Tonic, 1 of 40", "Herb 40, 40 of 40", "Herb 39, 39 of 40"],
+            Said());
+    }
+
+    // #737, the HP recovery tab of 2026-11-23: switched to from the top row of another tab, so only the count changed
+    // and no focus was reported; its first move, a wrap up, fetched only the three rows it brought into view.
+    [Fact]
+    public void AWrapOnATabSwitchedToWithNoFocusNamesItsRows()
+    {
+        const int up = 0x15;
+        const int down = 0x14;
+        int[] bottom = [ItemFirst + 28, ItemFirst + 29, ItemFirst + 30];
+        Fetched([.. Enumerable.Range(ItemFirst + 10, 8)]);
+        Cursor(ItemClass, 0, count: 9);
+        Walked(0x16, 0, 0, 11, [.. Enumerable.Range(ItemFirst + 20, 8)]);
+        Walked(up, 7, 3, 11, bottom);
+        Walked(up, 6, 3, 11);
+        Walked(down, 7, 3, 11, [.. Enumerable.Range(ItemFirst + 23, 5)]);
+        Walked(up, 6, 3, 11, bottom);
+        Walked(up, 5, 3, 11);
+        Walked(up, 4, 3, 11);
+
+        Assert.Equal([
+            "Items, Herb 11, 1 of 9", "Herb 31, 11 of 11", "Herb 30, 10 of 11", "Herb 31, 11 of 11",
+            "Herb 30, 10 of 11", "Herb 29, 9 of 11", "Herb 28, 8 of 11",
+        ], Said());
     }
 
     // A view whose names don't line up with the rows known (one known row out of place) names nothing.

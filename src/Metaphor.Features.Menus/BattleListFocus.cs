@@ -42,6 +42,11 @@ public sealed class BattleListFocus : IScreenObserver, ISerialResolveObserver, I
     /// less than a turn (<see cref="CursorEvents.QuietMilliseconds"/>).</summary>
     public const long RunGapMilliseconds = CursorEvents.QuietMilliseconds;
 
+    /// <summary>The longest pause between two names of one fetch burst. In the by-ear session of 2026-11-23 (build
+    /// 548ddc95, Steam 18330018) the names of one burst came at most 34 ms apart and separate bursts at least 100 ms apart
+    /// (docs/raw-sources/battle-item-tabs-wrap-log-2026-11-23.md).</summary>
+    public const long BurstMilliseconds = 50;
+
     // The most rows kept: the longest list taken as a count (ScreenEvent.LongestList).
     private const int MaxRows = ScreenEvent.LongestList;
 
@@ -59,6 +64,9 @@ public sealed class BattleListFocus : IScreenObserver, ISerialResolveObserver, I
     private readonly Dictionary<int, int> rows = [];
     // Names fetched since the last focus once the first page's run is over, for the next focus to place.
     private readonly List<int> pending = [];
+    // Where each fetch burst begins in pending, and when the last name was fetched (#737).
+    private readonly List<int> bursts = [];
+    private long lastNameAt = long.MinValue / 2;
     // Each row's description by its name's serial, and the name fetched last, for the next description to pair with.
     private readonly Dictionary<int, int> descriptions = [];
     private int? lastName;
@@ -256,14 +264,18 @@ public sealed class BattleListFocus : IScreenObserver, ISerialResolveObserver, I
         {
             var now = millisecondsNow();
             var gap = now - lastActivity > RunGapMilliseconds;
+            var newBurst = now - lastNameAt > BurstMilliseconds;
             lastActivity = now;
+            lastNameAt = now;
             lastName = resolve.Serial;
             if (rows.Count == 0 && pending.Count == 0)
             {
                 descriptions.Clear();
                 StartRun([resolve.Serial]);
             }
-            else if (runOpen && !gap && pending.Count == 0)
+            // A run a focus has already spoken takes no later burst: that is a move's fetch, such as a wrap's view
+            // fetched within the run gap of a tab's first page (#737).
+            else if (runOpen && !gap && pending.Count == 0 && !(newBurst && focusStep > runStep && viewsOn()))
             {
                 if (rows.Count < MaxRows && !rows.ContainsValue(resolve.Serial))
                 {
@@ -278,6 +290,10 @@ public sealed class BattleListFocus : IScreenObserver, ISerialResolveObserver, I
                 }
                 if (pending.Count < MaxRows)
                 {
+                    if (pending.Count == 0 || newBurst)
+                    {
+                        bursts.Add(pending.Count);
+                    }
                     pending.Add(resolve.Serial);
                 }
             }
@@ -297,7 +313,7 @@ public sealed class BattleListFocus : IScreenObserver, ISerialResolveObserver, I
     private void Forget()
     {
         rows.Clear();
-        pending.Clear();
+        ClearPending();
         descriptions.Clear();
         lastName = null;
         waiting = null;
@@ -310,7 +326,7 @@ public sealed class BattleListFocus : IScreenObserver, ISerialResolveObserver, I
     {
         var fresh = names.Distinct().Take(MaxRows).ToList();
         rows.Clear();
-        pending.Clear();
+        ClearPending();
         foreach (var name in fresh)
         {
             rows[rows.Count] = name;
@@ -339,13 +355,18 @@ public sealed class BattleListFocus : IScreenObserver, ISerialResolveObserver, I
             StartRun(pending);
             return;
         }
+        if (otherLength && pending.Count > 0 && pendingAfterGap && viewsOn())
+        {
+            AnotherTab(focus);
+            return;
+        }
         if (otherLength)
         {
             Forget();
         }
         else if (moved && viewsOn())
         {
-            PlaceView(focus, byOne);
+            PlaceView(focus, byOne, fromTop: lastFocus is { Index: 0 });
         }
         if (!otherLength && byOne && pending.Count > 0 && !rows.ContainsKey(focus.Index))
         {
@@ -356,18 +377,52 @@ public sealed class BattleListFocus : IScreenObserver, ISerialResolveObserver, I
                 rows[focus.Index] = brought;
             }
         }
-        pending.Clear();
+        ClearPending();
     }
 
-    // Names a whole view fetched again (#737): as many names as the first page, taken as that many rows in a row, in list
+    // Called under the gate.
+    private void ClearPending()
+    {
+        pending.Clear();
+        bursts.Clear();
+    }
+
+    // A move on another tab whose own switch the game reported no focus for, as its cursor stayed on the top row with
+    // only the count changed (#737: the HP recovery tab of 2026-11-23). The first burst fetched after the gap is the
+    // tab's first page, its rows from the top; the last burst, if another, is this move's fetch, placed as a view
+    // fetched from the top row. Called under the gate.
+    private void AnotherTab(ScreenEvent focus)
+    {
+        var pageEnd = bursts.Count > 1 ? bursts[1] : pending.Count;
+        var moveFetch = bursts.Count > 1 ? pending.Skip(bursts[^1]).ToList() : [];
+        StartRun(pending.Take(pageEnd));
+        runOpen = false;
+        pageSize = rows.Count;
+        pending.AddRange(moveFetch);
+        PlaceView(focus, byOne: false, fromTop: true);
+        ClearPending();
+    }
+
+    // Names a view fetched again (#737): as many names as the first page, taken as that many rows in a row, in list
     // order (by ear on 2026-11-22, the 14- and 40-item tabs; a partial fetch can skip rows, so only a whole view is
     // placed). It lines up by the rows it holds that are already known, all at one offset; holding none, after a jump to
-    // the last row (a wrap up), it ends there. A view that would put a name on another known row, or out of the list,
-    // names nothing. Called under the gate.
-    private void PlaceView(ScreenEvent focus, bool byOne)
+    // the last row (a wrap up), it ends there. A wrap up from the top row of a list shorter than two views fetches only
+    // the rows it brings into view, none known (the 11-item tab of 2026-11-23,
+    // docs/raw-sources/battle-item-tabs-wrap-log-2026-11-23.md): exactly that many names end at the last row. A view
+    // that would put a name on another known row, or out of the list, names nothing. Called under the gate.
+    private void PlaceView(ScreenEvent focus, bool byOne, bool fromTop)
     {
-        if (pageSize < 2 || pending.Count != pageSize || pending.Distinct().Count() != pending.Count ||
-            focus.Total is not { } total)
+        if (pageSize < 2 || pending.Distinct().Count() != pending.Count || focus.Total is not { } total)
+        {
+            return;
+        }
+        var brought = fromTop && !byOne && focus.Index == total - 1 && total > pageSize
+            && pending.Count == Math.Min(pageSize, total - pageSize);
+        if (pending.Count != pageSize && !brought)
+        {
+            return;
+        }
+        if (pending.Count != pageSize && pending.Any(rows.ContainsValue))
         {
             return;
         }
