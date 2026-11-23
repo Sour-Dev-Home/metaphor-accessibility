@@ -18,7 +18,7 @@ namespace Metaphor.Features.Menus;
 /// (docs/raw-sources/screen-class-session-2026-11-17.md; <c>ItemMenuChoice</c> also in the 2026-11-22 report log). Each
 /// list opening fetches its names, then the tab names (serials 1369 to 1379, <c>flags=2</c>); the first name fetched
 /// after the tab names starts the next opening's rows.</remarks>
-[FeatureSetting(Feature.Menus)]
+[FeatureSetting(Feature.ItemMenu)]
 public sealed class ItemFocus : IScreenObserver, ISerialResolveObserver
 {
     /// <summary>The flags the list fetches a row's name with.</summary>
