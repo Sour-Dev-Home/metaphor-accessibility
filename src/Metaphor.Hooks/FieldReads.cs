@@ -90,6 +90,10 @@ internal sealed class FieldMemory(
     private const int NpcLast = 0x99d;
     // fldEnemy's u16 at +0x3634 indexes the enemy row (FldEnemyGetEnemyID's 0x65f8c0); logged only.
     private const int EnemyRow = 0x3634;
+    // fldEnemy's break byte, 1 while stunned: what FldEnemyIsBreak (0x8dc160) returns (#772;
+    // docs/findings/enemy-stun-break-and-battle-condition-static.md). That it is the stun the player sees is [NEEDS
+    // VERIFICATION]; it is said only behind the testing setting field.stunCallouts.
+    private const int EnemyBreak = 0x36d0;
     // fldGmcDoor's link row index (FldDoorGetLinkFlag_ED's 0x699c00), -1 for none; logged only.
     private const int DoorLink = 0x28c4;
 
@@ -213,7 +217,8 @@ internal sealed class FieldMemory(
                 continue;
             }
             var (name, raw, id) = Identify(kind, unit);
-            units.Add(new FieldUnit(kind, at.X, at.Y, at.Z, name, raw, id));
+            var stunned = kind == FieldKind.Enemy && EnemyStunned(unit);
+            units.Add(new FieldUnit(kind, at.X, at.Y, at.Z, name, raw, id, Stunned: stunned));
         }
     }
 
@@ -244,7 +249,7 @@ internal sealed class FieldMemory(
                 return (chara is { } character ? names.Character(character) : null, raw, id);
             case FieldKind.Enemy:
                 var enemyRow = string.Create(CultureInfo.InvariantCulture,
-                    $"enemyRow={Number(ModuleMemoryReader.ReadInt32(unit + EnemyRow) & 0xffff)}");
+                    $"enemyRow={Number(ModuleMemoryReader.ReadInt32(unit + EnemyRow) & 0xffff)} break={(EnemyStunned(unit) ? 1 : 0)}");
 #if DEBUG
                 // Debug builds only (#649): the AI state and HP are logged to settle #649's and #696's leads in a
                 // session, and never reach a Release package (DebugOnlyFieldEnemyStateTests).
@@ -264,6 +269,13 @@ internal sealed class FieldMemory(
             default:
                 return (null, "", null);
         }
+    }
+
+    // The break byte read whole; any value but 1 (or an unreadable one) is not stunned.
+    private static bool EnemyStunned(nint unit)
+    {
+        var value = new byte[1];
+        return ModuleMemoryReader.ReadBytes(unit + EnemyBreak, value) && value[0] == 1;
     }
 
     // Where each NpcID kind keeps the index it was made from, from npc+0x3630, as fldNpc::vf5 (0x67b9e0) writes it.

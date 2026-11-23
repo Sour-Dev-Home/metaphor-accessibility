@@ -93,6 +93,7 @@ the game.
 | `guidance` | The guidance beep toward a nearby thing: G, or LB with Right on the D-pad. | `true` |
 | `guidancePause` | The beep pausing, not ending, while the game has control (a cutscene or a line), and coming back once free roam has held. Needs `guidance`. Still being tested. | testing, off |
 | `reach` | The callout when a door or chest comes into reach: "Door, in reach". | `true` |
+| `stunCallouts` | The callout when a field enemy near you is stunned: "Enemy stunned". Still being tested. | testing, off |
 
 ## Report
 

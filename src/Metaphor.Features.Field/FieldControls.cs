@@ -108,6 +108,7 @@ public sealed class FieldControls : IInputControls
     private readonly MissionLine? mission;
     private readonly Func<int, bool?>? storyFlag;
     private readonly ReachCallouts? reach;
+    private readonly StunCallouts? stuns;
     private readonly Binding nearby = new();
     private readonly Binding next = new();
     private readonly Binding previous = new();
@@ -131,13 +132,15 @@ public sealed class FieldControls : IInputControls
     /// run <paramref name="reach"/>'s check on each keyboard read when there is one (#644). "Where am I" ends with
     /// <paramref name="mission"/>'s current mission when there is one (#658). With a log and
     /// <paramref name="storyFlag"/>, its record also lists the main-mission flags (<see cref="MainMissionFlags"/>).
-    /// The beacon guides along routes from <paramref name="routes"/> when given (#690).</summary>
+    /// The beacon guides along routes from <paramref name="routes"/> when given (#690). <paramref name="stuns"/>' check
+    /// runs on each keyboard read when there is one (#772).</summary>
     public FieldControls(
         FieldBindings bindings, IFieldReads field, FieldPlace place, IAnnouncer announcer, ICuePlayer cues,
         Func<long> milliseconds, Action<string>? log = null, NamesTable? names = null, ReachCallouts? reach = null,
-        MissionLine? mission = null, Func<int, bool?>? storyFlag = null, IRoutePlanner? routes = null)
+        MissionLine? mission = null, Func<int, bool?>? storyFlag = null, IRoutePlanner? routes = null,
+        StunCallouts? stuns = null)
         : this(() => bindings, _ => true, field, place, announcer, cues, milliseconds, log, names, reach, mission,
-            storyFlag, routes)
+            storyFlag, routes, stuns)
     {
         ArgumentNullException.ThrowIfNull(bindings);
     }
@@ -150,7 +153,7 @@ public sealed class FieldControls : IInputControls
         Func<FieldBindings> bindings, Func<FieldFeature, bool> isOn, IFieldReads field, FieldPlace place,
         IAnnouncer announcer, ICuePlayer cues, Func<long> milliseconds, Action<string>? log = null,
         NamesTable? names = null, ReachCallouts? reach = null, MissionLine? mission = null,
-        Func<int, bool?>? storyFlag = null, IRoutePlanner? routes = null)
+        Func<int, bool?>? storyFlag = null, IRoutePlanner? routes = null, StunCallouts? stuns = null)
     {
         ArgumentNullException.ThrowIfNull(bindings);
         ArgumentNullException.ThrowIfNull(isOn);
@@ -171,6 +174,7 @@ public sealed class FieldControls : IInputControls
         beacon = new Beacon(
             field, cues, announcer, milliseconds, log, routes, pauseOn: () => this.isOn(FieldFeature.GuidancePause));
         this.reach = reach;
+        this.stuns = stuns;
         roam = new FreeRoamGate(field);
     }
 
@@ -237,6 +241,7 @@ public sealed class FieldControls : IInputControls
         ArgumentNullException.ThrowIfNull(keys);
         mission?.Poll();
         reach?.Check();
+        stuns?.Check();
         var bindings = liveBindings();
         var listOn = isOn(FieldFeature.Nearby);
         var categoriesOn = isOn(FieldFeature.NearbyCategories);
