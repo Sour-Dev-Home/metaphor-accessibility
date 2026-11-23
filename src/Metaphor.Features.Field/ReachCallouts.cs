@@ -30,6 +30,7 @@ public sealed class ReachCallouts
 
     private readonly Lock gate = new();
     private readonly IFieldReads field;
+    private readonly FreeRoamGate roam;
     private readonly IAnnouncer announcer;
     private readonly Func<long> milliseconds;
     private readonly List<Held> held = [];
@@ -44,6 +45,7 @@ public sealed class ReachCallouts
         ArgumentNullException.ThrowIfNull(announcer);
         ArgumentNullException.ThrowIfNull(milliseconds);
         this.field = field;
+        roam = new FreeRoamGate(field);
         this.announcer = announcer;
         this.milliseconds = milliseconds;
     }
@@ -66,7 +68,7 @@ public sealed class ReachCallouts
             checkedAt = now;
             try
             {
-                text = field.InFreeRoam() && field.Read() is { } view ? Entered(view, now) : null;
+                text = roam.Open() && field.Read() is { } view ? Entered(view, now) : null;
             }
             catch (Exception)
             {

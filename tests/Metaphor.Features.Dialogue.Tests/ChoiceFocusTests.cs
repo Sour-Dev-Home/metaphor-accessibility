@@ -5,7 +5,7 @@ using Metaphor.Core.Messages;
 namespace Metaphor.Features.Dialogue.Tests;
 
 /// <summary>The player moves through a reply choice (#95): each option the cursor settles on is spoken as "option, n of
-/// total", the first after "Choose: …" and each later one cutting off the last. Checked through the recording
+/// total", the first after "Choice, N options" and each later one cutting off the last. Checked through the recording
 /// announcer; made-up messages only.</summary>
 [Trait("Category", "Unit")]
 public sealed class ChoiceFocusTests

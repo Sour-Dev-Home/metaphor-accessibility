@@ -165,7 +165,7 @@ public sealed class YesNoDialogFocusTests
         Assert.Equal(["Nay, 2 of 2"], Said());
     }
 
-    // The save prompt by ear (maintainer, 2026-11-21): the scripts' choice spoke "<prompt>" and "Choose: Yes; No", then
+    // The save prompt by ear (maintainer, 2026-11-21): the scripts' choice spoke "<prompt>" and the choice count, then
     // the dialog's first focus cut both off. After a scripts' choice the first focus waits its turn; moves still cut off.
     [Fact]
     public void AScriptsChoiceDialogsFirstFocusWaitsForThePrompt()
