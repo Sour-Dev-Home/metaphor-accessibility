@@ -23,12 +23,12 @@ public enum Feature
     [SettingKey("speech", "itemMenu", "Item menu", Testing = true)]
     ItemMenu,
 
-    /// <summary>The Calendar's day grid (#193). Separate from the menus while it is tested.</summary>
-    [SettingKey("speech", "calendar", "Calendar", Testing = true)]
+    /// <summary>The Calendar's day grid (#193). Separate from the menus.</summary>
+    [SettingKey("speech", "calendar", "Calendar")]
     Calendar,
 
-    /// <summary>The save and load screens' slots (#622). Separate from the menus while it is tested.</summary>
-    [SettingKey("speech", "saveSlots", "Save slots", Testing = true)]
+    /// <summary>The save and load screens' slots (#622). Separate from the menus.</summary>
+    [SettingKey("speech", "saveSlots", "Save slots")]
     SaveSlots,
 
     /// <summary>The System rows with no pinned setting ID saying their value, by the ID learned at run time (#770).
@@ -48,8 +48,8 @@ public enum Feature
     [SettingKey("speech", "travelMap", "Travel map")]
     TravelMap,
 
-    /// <summary>The System menu's rows (#733). Separate from the menus while it is tested.</summary>
-    [SettingKey("speech", "systemMenu", "System menu", Testing = true)]
+    /// <summary>The System menu's rows (#733). Separate from the menus.</summary>
+    [SettingKey("speech", "systemMenu", "System menu")]
     SystemMenu,
 
     /// <summary>The shop's top menu and its Buy and Sell lists (#736, #197). Separate from the menus while it is
@@ -74,9 +74,8 @@ public enum Feature
     [SettingKey("speech", "battleHits", "Battle hits")]
     BattleHits,
 
-    /// <summary>", knocked out", ", defeated" and ", revived" after a hit's number (#254). Separate from the hits
-    /// while it is tested.</summary>
-    [SettingKey("speech", "battleOutcomes", "Battle outcomes", Testing = true)]
+    /// <summary>", knocked out", ", defeated" and ", revived" after a hit's number (#254). Separate from the hits.</summary>
+    [SettingKey("speech", "battleOutcomes", "Battle outcomes")]
     BattleOutcomes,
 
     /// <summary>Battle's skill and item lists, row by row (#247). Separate from the menus.</summary>
@@ -118,8 +117,8 @@ public enum Feature
     TermNames,
 
     /// <summary>A choice saying "Choice, N options", the options spoken as focus moves, not every option up front
-    /// (#730). Separate from the dialogue while it is tested.</summary>
-    [SettingKey("speech", "choiceCount", "Choice count", Testing = true)]
+    /// (#730). Separate from the dialogue.</summary>
+    [SettingKey("speech", "choiceCount", "Choice count")]
     ChoiceCount,
 
     /// <summary>A choice's options held until the select window opens, not said at once after the prompt (#744).
