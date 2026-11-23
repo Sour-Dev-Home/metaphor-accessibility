@@ -66,6 +66,11 @@ public enum MenusFeature
         "each letter you type, and when a name is refused.")]
     NameEntry,
 
+    /// <summary>The name entry's read-back key (#585). Separate from the name entry while it is tested.</summary>
+    [SettingKey("speech", "nameReadBack", "Name read-back", Testing = true, Order = 1105, Description = "On the " +
+        "name entry screen, the details button (R3) saying the name typed so far. Needs `nameEntry`.")]
+    NameReadBack,
+
     /// <summary>The Equipment screen's focus (#217). Separate from the menus while it is tested.</summary>
     [SettingKey("speech", "equipmentMenu", "Equipment menu", Testing = true, Order = 1110, Description = "The " +
         "Equipment screen's slots and gear.")]

@@ -210,19 +210,25 @@ internal sealed record HookServices
         // compiles it, anything else said as a stand-in for its kind, logged in Debug builds (#83). The battle banners'
         // situation file (#692) is kept by the same store: one "file + position" key.
         var filePositions = new MessageFilePositions([.. GameTerms.Steam18330018, BattleBanners.Steam18330018]);
-        var terms = new GameTerms(filePositions, log is null ? null : log.PlaceholderMissing, unknowns);
+        // The game's own glyph device names the device when it can (#778); the mod's reads are the fallback. Button
+        // icons follow it (#109).
+        var inputDevice = new InputDeviceRead();
+        var lastDevice = new LastInputDevice(inputDevice.Value);
+        var terms = new GameTerms(
+            filePositions, log is null ? null : log.PlaceholderMissing, unknowns,
+            () => settings.Current.IsOn(DialogueFeature.ButtonNames) ? lastDevice.Current : null);
+        Action<string, string>? nameMissing = log is null ? null : log.PlaceholderMissing;
         var cleaner = new TextCleaner(
             GameNames.Rules.With(GameTerms.Rules),
-            (key, arguments) => names.Placeholder(key, arguments)
+            (key, arguments) => (settings.Current.IsOn(DialogueFeature.NameStandIn)
+                    ? names.PlaceholderOrStandIn(key, arguments, nameMissing)
+                    : names.Placeholder(key, arguments))
                 ?? (settings.Current.IsOn(DialogueFeature.TermNames) ? terms.Placeholder(key, arguments) : null));
         // The reader switch (#58): automatic speech goes through it, and the dialogue's and the menus' reader binding
         // toggles it (#214).
         var reader = new DialogueReader(announcer);
         var voiceLanguage = new VoiceLanguageRead();
         var tutorials = new TutorialTableSource();
-        // The game's own glyph device names the device when it can (#778); the mod's reads are the fallback.
-        var inputDevice = new InputDeviceRead();
-        var lastDevice = new LastInputDevice(inputDevice.Value);
         var screens = new MenuScreens(KnownScreens.All);
         events.ObserveFiles(library);
         events.ObserveFiles(serials);
