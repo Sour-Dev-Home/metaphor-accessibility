@@ -4,7 +4,8 @@
 > `[NEEDS VERIFICATION]` have not been heard in the game with a screen reader yet.
 
 Every key and button the mod adds, and what it speaks where. The mod reads no mouse input. A press counts when the key
-goes down, not while it is held, and a key already held when a window opens does nothing. None can be rebound yet.
+goes down, not while it is held, and a key already held when a window opens does nothing. Every key and button can be
+moved, and every part of the mod turned off, in the settings file: see [the settings reference](settings.md).
 Where the mod uses a key it hides that press from the game, only in the situation named; elsewhere the key does its
 usual job in the game.
 
@@ -18,12 +19,26 @@ usual job in the game.
 | Step to the next thing on that list | `K` | `LB` held, then D-pad `Down` | Walking in the field |
 | Step to the previous thing | `J` | `LB` held, then D-pad `Up` | Walking in the field |
 | Say where you are | `L` | `LB` held, then D-pad `Left` | Walking in the field |
-| Guide you to a nearby thing with a beep, or stop | `G` | `LB` held, then D-pad `Right` | Walking in the field |
+| Guide you to a nearby thing with a beep | `G` | `LB` held, then D-pad `Right` | Walking in the field |
+| Next or previous nearby category | `]` and `[` | none yet | Walking in the field |
 | Read more of the focused menu entry | `F` | Right stick press (`R3`) | A menu is open |
+| Note a moment for your report ([mark key](#mark-key-note-a-moment-for-your-report)) | `F8` | none | Anywhere in the game |
 
 The first rows are in the code on `main` and in `v0.0.1-unstable.3`. Coming: a key that reads back a name you typed, and
 spoken details for menu entries. Until details arrive, the menu key says "No more details".
 `[NEEDS VERIFICATION]` All of the table by ear in the game, with a supported game build.
+
+### Mark key: note a moment for your report
+
+`F8` on the keyboard, anywhere in the game: when something was wrong or the mod said nothing, press it. The mod plays
+two short clicks and writes a numbered marker with the time to `report-log.txt`, such as `mark number=2
+session=0:12:03`, so whoever reads your report finds that moment. The game never sees `F8` while the mark key is on.
+There is no controller button yet. Whether the game uses `F8` for anything is `[NEEDS VERIFICATION]`; you can move the
+mark key in the settings file.
+
+The mod also lists in the same log each screen and each menu move it said nothing for, by the screen's name inside the
+game's code, the position and the list's length, at most 200 a session. Both only write to the log; nothing is sent
+anywhere.
 
 ## What is spoken where
 
@@ -33,7 +48,7 @@ spoken details for menu entries. Until details arrive, the menu key says "No mor
   the settings message.
 - `R` or `X` with no line yet says "No dialogue to repeat". `T` or `LB` and `RB` says "Dialogue reader on" or
   "Dialogue reader off".
-- Reply choices: when they appear, "Choose:" and the options. Moving the cursor speaks the option and its position, such
+- Reply choices: when they appear, "Choose:" and the options, or with the `choiceCount` setting on (still being tested), "Choice, N options" and not the options themselves. Moving the cursor speaks the option and its position, such
   as "Option, 2 of 3".
 - Lines the voice actors speak follow your voiced-lines setting: the speaker only, the full line, or nothing. The default
   says the name for English voice and the full line for Japanese voice
@@ -46,13 +61,19 @@ spoken details for menu entries. Until details arrive, the menu key says "No mor
   means you can probably use it from where you stand and face. With nothing near: "Nothing nearby".
 - `K` and `J`, or the pad's `LB` and D-pad `Down` and `Up`, step through the same list, such as "2 of 5. Door, 9 steps
   behind"; after 10 seconds without a step it starts again at the nearest.
+- `]` and `[` move the list to the next or previous category, and say it and how many are near, such as "Doors and
+  exits, 2 nearby". The categories are Everything, People, Doors and exits, Chests and items, Enemies and Examine.
+  `N`, the steps and `G` then keep to that category. The controller's `RB` with `Y` comes later.
 - `L` says the place name the game last showed, or "Place not known yet".
 - `G`, or `LB` and D-pad `Right`, guides you to the thing you last stepped to, or to the nearest thing you aren't
   already at if you haven't stepped in the last 10 seconds. At it already: "Already next to", then the name. Otherwise
   "Guiding to", then the name, and a short beep repeats: from the left or right as the thing lies, higher ahead and
-  lower behind, faster as you get closer. Walk so the beep is high and in the middle. "Reached", then the name, when you
-  get there. Press again for "Guidance off"; a menu or dialogue stops it too. The beep points in a straight line and
-  doesn't know about walls yet. It plays only while sound cues are on.
+  lower behind, faster as you get closer. Walk so the beep is high and in the middle. "Reached", then the name, when
+  you get there. Press again to stop: "Guidance off". A menu or a dialogue stops it too. The beep points at the next
+  turn of a walking route around walls, and plans again if you stray or get stuck; with no route it points straight
+  and says "No path found, pointing straight" once (#690). It plays only while sound cues are on.
+- With no key: walking up to a door or chest says "Door, in reach" or "Chest, in reach" once, after anything being
+  said. Move away or turn, then come back, and it says it again. People aren't said this way yet.
 - Distances are rough steps: treat them as near or far.
 
 ### Menus

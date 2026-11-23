@@ -15,9 +15,24 @@ public sealed record NearbyThing(FieldUnit Unit, double Distance, double Bearing
     {
         var steps = Nearby.Steps(Distance);
         var text = string.Create(CultureInfo.InvariantCulture,
-            $"{Unit.Name ?? Nearby.KindWord(Unit.Kind)}, {steps} {(steps == 1 ? "step" : "steps")} {Nearby.Direction(Bearing)}");
+            $"{Unit.Name ?? Nearby.KindWord(Unit.Says)}, {steps} {(steps == 1 ? "step" : "steps")} {Nearby.Direction(Bearing)}");
         return InReach ? text + ", in reach" : text;
     }
+}
+
+/// <summary>Which things the nearby list holds (#697): everything, or one category, per the maintainer's decision of
+/// 2026-11-22 on #697. The category design comes from Arcana, the Persona 3 Reload accessibility mod
+/// (<c>ChipsAhoiMcCoy/arcana</c>, Zlib, <c>main</c> at <c>ed3b005f86b1cde27e30ab299ae91af3d974c988</c>,
+/// <c>CHANGELOG.md</c> "0.5.0 / Field" and <c>src/nav.cpp</c>; docs/raw-sources/arcana-combat-navigation-2026-11-22.md).
+/// No code is copied.</summary>
+public enum NearbyCategory
+{
+    Everything,
+    People,
+    DoorsAndExits,
+    ChestsAndItems,
+    Enemies,
+    Examine,
 }
 
 /// <summary>The nearby list (#181), per the maintainer's decisions of 2026-11-21 on #181: things within about 30 metres,
@@ -45,14 +60,26 @@ public static class Nearby
 
     /// <summary>The things of <paramref name="view"/> within <see cref="Radius"/>, nearest first, at most
     /// <see cref="MaxThings"/>.</summary>
-    public static IReadOnlyList<NearbyThing> List(FieldView view)
+    public static IReadOnlyList<NearbyThing> List(FieldView view, NearbyCategory category = NearbyCategory.Everything)
     {
         ArgumentNullException.ThrowIfNull(view);
         return [.. view.Units
+            .Where(unit => category == NearbyCategory.Everything || CategoryOf(unit.Says) == category)
             .Select(unit => Place(view, unit))
             .Where(thing => thing.Distance <= Radius)
             .OrderBy(thing => thing.Distance)
             .Take(MaxThings)];
+    }
+
+    /// <summary>The things of <paramref name="view"/> the game's reach test passes for, nearest first, however many and
+    /// whatever else is nearer (#644).</summary>
+    public static IReadOnlyList<NearbyThing> InReach(FieldView view)
+    {
+        ArgumentNullException.ThrowIfNull(view);
+        return [.. view.Units
+            .Select(unit => Place(view, unit))
+            .Where(thing => thing.InReach)
+            .OrderBy(thing => thing.Distance)];
     }
 
     /// <summary>Spoken steps for a distance, at least one.</summary>
@@ -60,13 +87,50 @@ public static class Nearby
 
     /// <summary>What a nameless thing is called. Doors are "Door", never "Exit", until a session proves which leave the
     /// map (maintainer, 2026-11-21).</summary>
-    public static string KindWord(FieldKind kind) => kind switch
+    public static string KindWord(FieldKind kind) => KindWord(KindOf(kind));
+
+    /// <summary>What a nameless thing of <paramref name="kind"/> is called. "Exit", "Item" and "Something to examine"
+    /// come only from a names-table row (#687).</summary>
+    public static string KindWord(NearbyKind kind) => kind switch
     {
-        FieldKind.Person => "Person",
-        FieldKind.Door => "Door",
-        FieldKind.Chest => "Chest",
-        FieldKind.Enemy => "Enemy",
+        NearbyKind.Person => "Person",
+        NearbyKind.Door => "Door",
+        NearbyKind.Exit => "Exit",
+        NearbyKind.Chest => "Chest",
+        NearbyKind.Item => "Item",
+        NearbyKind.Enemy => "Enemy",
+        NearbyKind.Examine => "Something to examine",
         _ => "Thing",
+    };
+
+    /// <summary>The kind a unit of <paramref name="kind"/>'s list is spoken as before any names-table row.</summary>
+    public static NearbyKind KindOf(FieldKind kind) => kind switch
+    {
+        FieldKind.Door => NearbyKind.Door,
+        FieldKind.Chest => NearbyKind.Chest,
+        FieldKind.Enemy => NearbyKind.Enemy,
+        _ => NearbyKind.Person,
+    };
+
+    /// <summary>The category a thing of <paramref name="kind"/> is listed under.</summary>
+    public static NearbyCategory CategoryOf(NearbyKind kind) => kind switch
+    {
+        NearbyKind.Person => NearbyCategory.People,
+        NearbyKind.Door or NearbyKind.Exit => NearbyCategory.DoorsAndExits,
+        NearbyKind.Chest or NearbyKind.Item => NearbyCategory.ChestsAndItems,
+        NearbyKind.Enemy => NearbyCategory.Enemies,
+        _ => NearbyCategory.Examine,
+    };
+
+    /// <summary>A category's spoken name.</summary>
+    public static string CategoryWord(NearbyCategory category) => category switch
+    {
+        NearbyCategory.People => "People",
+        NearbyCategory.DoorsAndExits => "Doors and exits",
+        NearbyCategory.ChestsAndItems => "Chests and items",
+        NearbyCategory.Enemies => "Enemies",
+        NearbyCategory.Examine => "Examine",
+        _ => "Everything",
     };
 
     /// <summary>One of eight directions for a bearing, left positive: ahead, ahead-left, left, behind-left, behind,
@@ -97,27 +161,62 @@ public static class Nearby
         _ => null,
     };
 
+    /// <summary>Ground distance the reach callout's hold adds to the reach and height limits, half a step, so standing
+    /// at the edge doesn't flicker in and out (#644). The mod's own choice, not the game's.</summary>
+    public const double HoldDistanceSlack = 50;
+
+    /// <summary>Angle the reach callout's hold adds to the facing limit, 20°, for the same reason (#644).</summary>
+    public const double HoldFacingSlack = Math.PI / 9;
+
+    /// <summary>Whether <paramref name="unit"/> passes the game's reach test widened by <see cref="HoldDistanceSlack"/>
+    /// and <see cref="HoldFacingSlack"/>: what keeps a thing already in reach held there (#644).</summary>
+    public static bool NearReach(FieldView view, FieldUnit unit)
+    {
+        ArgumentNullException.ThrowIfNull(view);
+        ArgumentNullException.ThrowIfNull(unit);
+        return Place(view, unit, HoldDistanceSlack, HoldFacingSlack, CalloutRangeScale).InReach;
+    }
+
+    /// <summary>How much further than the game's reach distance the reach callout is said, 20%, so it comes a little
+    /// earlier (#644). The mod's own choice; the game's test, the nearby list and the beacon keep the game's reach.</summary>
+    public const double CalloutRangeScale = 1.2;
+
+    /// <summary>The things of <paramref name="view"/> within the callout's range (the game's reach distance times
+    /// <see cref="CalloutRangeScale"/>, same height and facing), nearest first (#644).</summary>
+    public static IReadOnlyList<NearbyThing> CalloutReach(FieldView view)
+    {
+        ArgumentNullException.ThrowIfNull(view);
+        return [.. view.Units
+            .Select(unit => Place(view, unit, 0, 0, CalloutRangeScale))
+            .Where(thing => thing.InReach)
+            .OrderBy(thing => thing.Distance)];
+    }
+
     /// <summary>Where <paramref name="unit"/> lies from <paramref name="pose"/>: its ground distance, its bearing from
-    /// the facing (left positive, −π to π), and whether the game's reach test for its kind passes.</summary>
+    /// the facing (left positive, −π to π), and whether the game's reach test for its kind passes, widened by the
+    /// slack and range scale the reach callout uses (#644).</summary>
     public static (double Distance, double Bearing, bool InReach) Measure(
-        FieldPose pose, FieldUnit unit, int? doorReachValue)
+        FieldPose pose, FieldUnit unit, int? doorReachValue, double slack = 0, double facingSlack = 0,
+        double rangeScale = 1)
     {
         ArgumentNullException.ThrowIfNull(unit);
         var dx = unit.X - pose.X;
         var dz = unit.Z - pose.Z;
         var distance = Math.Sqrt(dx * dx + dz * dz);
         var bearing = Normalised(Math.Atan2(dx, dz) - pose.Heading);
-        var inReach = ReachLimit(unit.Kind, doorReachValue) is { } limit && distance < limit &&
-            Math.Abs(unit.Y - pose.Y) < HeightReach && Math.Abs(bearing) < FacingReach;
+        var inReach = ReachLimit(unit.Kind, doorReachValue) is { } limit && distance < limit * rangeScale + slack &&
+            Math.Abs(unit.Y - pose.Y) < HeightReach + slack && Math.Abs(bearing) < FacingReach + facingSlack;
         return (distance, bearing, inReach);
     }
 
     // The reach test keeps the character's facing; the spoken direction is from the camera's when it's read, as the
     // beacon's beep (#686, maintainer by ear 2026-11-22 on PR #667).
-    private static NearbyThing Place(FieldView view, FieldUnit unit)
+    private static NearbyThing Place(FieldView view, FieldUnit unit, double slack = 0, double facingSlack = 0,
+        double rangeScale = 1)
     {
-        var (distance, bearing, inReach) =
-            Measure(new FieldPose(view.X, view.Y, view.Z, view.Heading), unit, view.DoorReachValue);
+        var (distance, bearing, inReach) = Measure(
+            new FieldPose(view.X, view.Y, view.Z, view.Heading), unit, view.DoorReachValue, slack, facingSlack,
+            rangeScale);
         var spoken = view.CameraHeading is { } camera ? Normalised(bearing + view.Heading - camera) : bearing;
         return new(unit, distance, spoken, inReach);
     }

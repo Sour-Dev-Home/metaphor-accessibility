@@ -11,6 +11,13 @@ public sealed class ModSettingsTests
     private ModSettings Parse(string? json) => ModSettings.Parse(json, logged.Add);
 
     [Fact]
+    public void TheBracketKeysAreNamedByThemselves()
+    {
+        Assert.Equal(0xDB, BindingNames.Key("["));
+        Assert.Equal(0xDD, BindingNames.Key("]"));
+    }
+
+    [Fact]
     public void NoFileMeansDefaults()
     {
         Assert.Equal(VoicedLinesMode.Auto, Parse(null).VoicedLines);

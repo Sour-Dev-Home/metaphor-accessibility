@@ -27,6 +27,14 @@ internal static class ListFocus
             Interrupt: true);
     }
 
+    /// <summary>The focus's position alone: "n of total", or "n" when the game's count can't be read or can't hold the
+    /// focus.</summary>
+    public static string Position(ScreenEvent change)
+    {
+        ArgumentNullException.ThrowIfNull(change);
+        return change.Total is { } total ? $"{change.Index + 1} of {total}" : $"{change.Index + 1}";
+    }
+
     // A heading that ends a sentence, such as a dialog's question (#569), is followed by a space, not a comma.
     private static string Joiner(string heading) => heading[^1] is '.' or '?' or '!' ? " " : ", ";
 }

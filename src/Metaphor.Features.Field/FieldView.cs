@@ -18,7 +18,28 @@ public enum FieldKind
 /// <param name="Z">Its other ground axis.</param>
 /// <param name="Name">The name the game gives it, or null when none was read.</param>
 /// <param name="Raw">The ids read for it, for the development log only (numbers, no game text).</param>
-public sealed record FieldUnit(FieldKind Kind, float X, float Y, float Z, string? Name = null, string Raw = "");
+/// <param name="Id">Its object id on the map for the names table (#687), such as <c>npc-2-17</c>, or null when it has
+/// none the mod reads.</param>
+/// <param name="Called">The kind a names-table row gives it, or null to go by its list.</param>
+public sealed record FieldUnit(
+    FieldKind Kind, float X, float Y, float Z, string? Name = null, string Raw = "", string? Id = null,
+    NearbyKind? Called = null)
+{
+    /// <summary>The kind it is spoken and sorted as: the names table's, or its list's.</summary>
+    public NearbyKind Says => Called ?? Nearby.KindOf(Kind);
+}
+
+/// <summary>What the nearby list calls a thing (#687): its list's kind, or a finer one a names-table row gives.</summary>
+public enum NearbyKind
+{
+    Person,
+    Door,
+    Exit,
+    Chest,
+    Item,
+    Enemy,
+    Examine,
+}
 
 /// <summary>The field around the player on one press (#181), as plain values.</summary>
 /// <param name="X">The player's position, as <see cref="FieldUnit"/>'s.</param>

@@ -1,5 +1,6 @@
 using Metaphor.Core.Announcements;
 using Metaphor.Core.Messages;
+using Metaphor.Core.Settings;
 
 namespace Metaphor.Features.Dialogue.Tests;
 
@@ -312,6 +313,34 @@ public sealed class DialogueControlsTests
         Assert.Equal([Said("Ada: One.")], announcer.Said);
     }
 
+    // #661: the settings file rebinds the dialogue keys, applied at the next read.
+    [Fact]
+    public void AKeyReboundInTheFileAppliesAtTheNextRead()
+    {
+        var bindings = DialogueBindings.Default;
+        var rebound = new DialogueControls(() => bindings, history, reader, announcer);
+        history.Add("Ada: One.");
+        rebound.WindowRead(Message);
+        bindings = DialogueBindings.From(ModSettings.Parse("""{ "keys": { "dialogue": { "repeatKey": "Q" } } }""", _ => { }));
+
+        Assert.Equal([R], rebound.Keys([R]));
+        Assert.Empty(rebound.Keys([0x51]));
+        Assert.Equal([Said("Ada: One.")], announcer.Said);
+    }
+
+    [Fact]
+    public void TheFileNamesEveryDialogueBinding()
+    {
+        var settings = ModSettings.Parse(
+            """
+            { "keys": { "dialogue": { "repeatButtons": "Y", "readerButtons": "LT+RT", "repeatKey": "F3",
+              "readerKey": "none" } } }
+            """, _ => { });
+
+        Assert.Equal(new DialogueBindings(0x1000, 0x0300, 0x72, 0), DialogueBindings.From(settings));
+        Assert.Equal(DialogueBindings.Default, DialogueBindings.From(ModSettings.Defaults));
+    }
+
     // The by-ear finding of 2026-11-21: on a tutorial pop-up's page 2, X and R should say that page again.
     [Fact]
     public void WhileAPopUpIsOnScreenXRepeatsItsPageAndIsHidden()
@@ -354,13 +383,40 @@ public sealed class DialogueControlsTests
         Assert.Equal([Said("Page 2 of 3. Second."), Said("Ada: One.")], announcer.Said);
     }
 
+    // #769: with the reader off while a tutorial pop-up is open, the reader binding must turn it back on. Outside
+    // dialogue the game keeps the binding.
     [Fact]
-    public void APopUpOutsideDialogueLeavesTheReaderBindingToTheGame()
+    public void APopUpOutsideDialogueLetsTheReaderBindingToggleAndStillHandsItToTheGame()
     {
         var withPopUp = new DialogueControls(DialogueBindings.Default, history, reader, announcer, onScreen: () => "Page 1 of 1.");
 
         Assert.Equal(LeftBumper | RightBumper, withPopUp.Pad(0, LeftBumper | RightBumper));
+        withPopUp.Pad(0, 0);
+        Assert.False(reader.On);
         Assert.Equal([T], withPopUp.Keys([T]));
+        Assert.True(reader.On);
+        Assert.Equal([Said("Dialogue reader off"), Said("Dialogue reader on")], announcer.Said);
+    }
+
+    // #769: the field, where the window reads closed, toggles too.
+    [Fact]
+    public void InTheFieldTheReaderBindingTogglesAndIsHandedToTheGame()
+    {
+        controls.WindowRead(0);
+
+        Assert.Equal([T], controls.Keys([T]));
+
+        Assert.False(reader.On);
+        Assert.Equal([Said("Dialogue reader off")], announcer.Said);
+    }
+
+    [Fact]
+    public void InTheFieldTheRepeatBindingStillDoesNothing()
+    {
+        controls.WindowRead(0);
+        history.Add("Ada: One.");
+
+        Assert.Equal(X, controls.Pad(0, X));
         Assert.Empty(announcer.Said);
     }
 }

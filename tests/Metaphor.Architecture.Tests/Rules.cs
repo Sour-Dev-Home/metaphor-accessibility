@@ -144,6 +144,24 @@ internal static class Rules
                 .Where(type => IsInNamespace(type, "System.IO.Pipes"))
                 .Select(type => $"{assembly.Name.Name} uses pipe type {type.FullName} in a Release build")];
 
+    /// <summary>The debug-only types: diagnostics that read more of the game than a feature needs, logged to settle a
+    /// finding in a session, never shipped to players.</summary>
+    public static readonly IReadOnlyList<string> DebugOnlyTypes = ["Metaphor.Core.FieldEnemyState"]; // #649
+
+    /// <summary>No Release assembly calls a <see cref="DebugOnlyTypes"/> member from outside that type, so that logging
+    /// is compiled into Debug builds only.</summary>
+    public static IReadOnlyList<string> NoDebugOnlyCallsInRelease(AssemblyDefinition assembly) =>
+        IsDebugBuild(assembly)
+            ? []
+            : [.. assembly.MainModule.Types.Where(type => !DebugOnlyTypes.Contains(type.FullName)).SelectMany(WithNested)
+                .SelectMany(type => type.Methods)
+                .Where(method => method.HasBody)
+                .SelectMany(method => method.Body.Instructions
+                    .Select(instruction => instruction.Operand)
+                    .OfType<MethodReference>()
+                    .Where(called => DebugOnlyTypes.Contains(called.DeclaringType.FullName))
+                    .Select(called => $"{method.FullName} calls debug-only {called.FullName} in a Release build"))];
+
     /// <summary>Whether <paramref name="assembly"/> was compiled without optimizations, as a Debug build is: its
     /// <c>DebuggableAttribute</c> has <c>DisableOptimizations</c>.</summary>
     public static bool IsDebugBuild(AssemblyDefinition assembly)
@@ -246,6 +264,89 @@ internal static class Rules
                 .Where(reference => reference.Name.StartsWith(FeaturePrefix, StringComparison.Ordinal))
                 .Select(reference => $"{name} depends on another feature, {reference.Name}")]
             : [];
+    }
+
+    private const string AnnouncerInterface = "Metaphor.Core.Announcements.IAnnouncer";
+    private const string CuePlayerInterface = "Metaphor.Core.Cues.ICuePlayer";
+    private const string FeatureSettingAttribute = "Metaphor.Core.Settings.FeatureSettingAttribute";
+    private static readonly string[] KeyInterfaces = ["Metaphor.Core.Input.IInputControls", "Metaphor.Core.Input.IKeyWatcher"];
+
+    /// <summary>
+    /// Rule 18 (#661): a feature class that speaks (calls <c>Announce</c> on an announcer), plays a cue (calls the cue
+    /// player) or takes keys (implements the input controls or the key watcher) is marked
+    /// <c>[FeatureSetting(...)]</c>, so every feature can be turned off. Lambdas count for the class that holds them.
+    /// An announcer itself, such as the reader switch, passes on what it's handed and isn't counted as speaking.
+    /// </summary>
+    public static IReadOnlyList<string> FeaturesHaveSettings(AssemblyDefinition assembly)
+    {
+        if (!assembly.Name.Name.StartsWith(FeaturePrefix, StringComparison.Ordinal))
+        {
+            return [];
+        }
+        List<string> violations = [];
+        foreach (var type in assembly.Modules.SelectMany(module => module.Types))
+        {
+            if (type.CustomAttributes.Any(attribute => attribute.AttributeType.FullName == FeatureSettingAttribute))
+            {
+                continue;
+            }
+            var calls = WithNested(type).SelectMany(nested => nested.Methods).Where(method => method.HasBody)
+                .SelectMany(method => method.Body.Instructions)
+                .Select(instruction => instruction.Operand as MethodReference).OfType<MethodReference>().ToList();
+            List<string> does = [];
+            if (!Implements(type, AnnouncerInterface) &&
+                calls.Any(call => call.Name == "Announce" && Implements(call.DeclaringType, AnnouncerInterface)))
+            {
+                does.Add("speaks");
+            }
+            if (calls.Any(call => Implements(call.DeclaringType, CuePlayerInterface)))
+            {
+                does.Add("plays a cue");
+            }
+            if (KeyInterfaces.Any(key => Implements(type, key)))
+            {
+                does.Add("takes keys");
+            }
+            if (does.Count > 0)
+            {
+                violations.Add(
+                    $"{type.FullName} {string.Join(" and ", does)} but has no setting. Add a member to " +
+                    "Metaphor.Core.Settings.Feature with its [SettingKey(\"group\", \"name\", \"Spoken name\")], mark " +
+                    $"{type.Name} [FeatureSetting(Feature.YourFeature)], gate it in HookServices.Speaking through " +
+                    "settings.Speech(Feature.YourFeature, ...) or settings.Input(Feature.YourFeature, ...), and list " +
+                    "the key in docs/players/reference/settings.md");
+            }
+        }
+        return violations;
+    }
+
+    private static IEnumerable<TypeDefinition> WithNested(TypeDefinition type) =>
+        [type, .. type.NestedTypes.SelectMany(WithNested)];
+
+    /// <summary>Whether <paramref name="type"/> is the interface <paramref name="fullName"/> or implements it, through
+    /// its base classes and other interfaces. A type that can't be resolved doesn't.</summary>
+    private static bool Implements(TypeReference? type, string fullName)
+    {
+        if (type is null)
+        {
+            return false;
+        }
+        if (type.FullName == fullName)
+        {
+            return true;
+        }
+        TypeDefinition? definition;
+        try
+        {
+            definition = type.Resolve();
+        }
+        catch (AssemblyResolutionException)
+        {
+            return false;
+        }
+        return definition is not null &&
+            (definition.Interfaces.Any(implemented => Implements(implemented.InterfaceType, fullName)) ||
+                Implements(definition.BaseType, fullName));
     }
 
     /// <summary>
@@ -992,6 +1093,52 @@ internal static class Rules
         return code is [{ OpCode.Code: Mono.Cecil.Cil.Code.Ldstr, Operand: string value }, { OpCode.Code: Mono.Cecil.Cil.Code.Ret }]
             ? value
             : null;
+    }
+
+    /// <summary>The field feature, whose cues and speech rule 19 holds to the free-roam gate.</summary>
+    public const string FieldFeature = "Metaphor.Features.Field";
+
+    private const string FreeRoamGateOpen = "Metaphor.Features.Field.FreeRoamGate::Open";
+
+    /// <summary>The members that make a field sound: a cue played or held, or speech. Silencing needs no gate.</summary>
+    private static readonly HashSet<string> SoundingMembers =
+    [
+        "Metaphor.Core.Cues.ICuePlayer::Play",
+        "Metaphor.Core.Cues.ICuePlayer::Hold",
+        "Metaphor.Core.Announcements.IAnnouncer::Announce",
+    ];
+
+    /// <summary>
+    /// #702, rule 19: field sounds play only in free roam. In the field feature, every type that plays or holds a cue or
+    /// speaks, with the code nested in it (lambdas, iterators), also calls <c>FreeRoamGate.Open</c>, so a new sonar or
+    /// call-out can't sound through a cutscene, dialogue, menu or scripted move.
+    /// </summary>
+    public static IReadOnlyList<string> FieldSoundsGoThroughTheGate(AssemblyDefinition assembly)
+    {
+        if (assembly.Name.Name != FieldFeature)
+        {
+            return [];
+        }
+        var calls = Types(assembly)
+            .SelectMany(type => type.Methods.Where(method => method.HasBody).SelectMany(method => method.Body.Instructions
+                .Select(instruction => instruction.Operand).OfType<MethodReference>()
+                .Select(called => (Owner: Outermost(type), Called: $"{called.DeclaringType.FullName}::{called.Name}"))))
+            .ToList();
+        var gated = calls.Where(call => call.Called == FreeRoamGateOpen).Select(call => call.Owner).ToHashSet();
+        return [.. calls
+            .Where(call => SoundingMembers.Contains(call.Called) && !gated.Contains(call.Owner))
+            .Select(call => call.Owner).Distinct()
+            .Select(owner => $"{assembly.Name.Name} type {owner.FullName} makes a field sound without FreeRoamGate.Open " +
+                "(rule 19)")];
+    }
+
+    private static TypeDefinition Outermost(TypeDefinition type)
+    {
+        while (type.DeclaringType is not null)
+        {
+            type = type.DeclaringType;
+        }
+        return type;
     }
 
     private static IEnumerable<TypeDefinition> Types(AssemblyDefinition assembly) =>

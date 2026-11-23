@@ -4,7 +4,7 @@
 # it uses die from report.sh, and live_line and live_end from scripts/check/live-log.sh once full has loaded it.
 #
 # Run globals, all set by check.sh's main each run: reads `stage`, `tmp`, `started`, `reused` (main also sets it to
-# reused), `run_logged`, `timed` and `live_log`; appends to `step_times`; sets `locked` and `waited`, which main resets,
+# reused), `run_logged`, `timed` and `live_log`; appends to `step_times` and `failed_steps`; sets `locked` and `waited`, which main resets,
 # and exports METAPHOR_CHECK_HELD, the slot it holds.
 # `check_dir` is check.sh's constant: `timing_script` is computed from it when this file is sourced, so check.sh sets
 # check_dir before loading it. Reads SKIP_SCRIPT_TESTS, METAPHOR_CHECK_LOCK, METAPHOR_CHECK_SLOTS, METAPHOR_CHECK_POLL
@@ -12,19 +12,23 @@
 
 # The pass cache (issue #241): "<stage> <tree>" lines in this clone's git dir, never a shared path. A pass is reused only
 # for the identical tree, so any change, staged or committed, runs the checks again. A `full` pass also covers pre-push.
+# A merge's pass (merge.sh, #728) adds "merge <parent tree|-> <parent tree|->": the parent passes it relied on.
 pass_cache() { echo "$(git rev-parse --absolute-git-dir 2> /dev/null)/check-pass-cache"; }
 cached_pass() { # cached_pass TREE STAGE...: exit 0 when one of the stages passed on TREE
-  local tree="$1" kind file
+  local tree="$1" kind file line
   shift
   file="$(pass_cache)"
   [ -f "$file" ] || return 1
-  for kind in "$@"; do grep -qxF "$kind $tree" "$file" && return 0; done
+  # Builtins: the file holds at most 50 short lines, and a grep per kind was a process start each.
+  while IFS= read -r line; do
+    for kind in "$@"; do [[ "$line" != "$kind $tree" && "$line" != "$kind $tree "* ]] || return 0; done
+  done < "$file"
   return 1
 }
-record_pass() { # record_pass STAGE TREE: keep the last 50 passes
+record_pass() { # record_pass STAGE TREE [NOTE...]: keep the last 50 passes
   local file
   file="$(pass_cache)"
-  { echo "$1 $2"; cat "$file" 2> /dev/null || true; } | head -n 50 > "$file.new" && mv "$file.new" "$file"
+  { echo "$*"; cat "$file" 2> /dev/null || true; } | head -n 50 > "$file.new" && mv "$file.new" "$file"
 }
 # full_kinds: print the kind this full records, then the kinds it may reuse. A full with SKIP_SCRIPT_TESTS=1 (CI's,
 # whose own jobs run the script tests) records full-skipped, which serves only another skipped run, never a plain full.
@@ -43,8 +47,9 @@ current_branch() {
   branch="$(git branch --show-current 2> /dev/null)"
   echo "${branch:-detached}"
 }
-# The run log (issue #269): one line per building run in this clone's git dir, newest first, the last 50.
-# "<stage> <branch> <start> <end> <pass|fail> <built|reused>"; read by scripts/check/check-status.sh.
+# The run log (issue #269): one line per building run in this worktree's git dir, newest first, the last 50; each line also
+# goes to the common git dir's check-run-history, the last 500 (#747).
+# "<stage> <branch> <start> <end> <pass|fail> <built|reused> [steps] [failed=a,b]"; read by scripts/check/check-status.sh.
 # Per-step times of a building stage (#314): "restore=12s build=80s ...", printed when the run ends and kept as the run
 # log line's last field, so a slow step is named by data.
 # timed_step NAME COMMAND...: run COMMAND and note how long it took; its exit code is returned. COMMAND runs without
@@ -62,22 +67,45 @@ timed_step() {
   (unset $git_local_env && exec "$@")
   code=$?
   step_times+=("$name=$((SECONDS - began))s")
+  [ "$code" -eq 0 ] || failed_steps+=("$name")
   # full's steps go to the live log (scripts/check/live-log.sh) as they finish.
   [ -z "$live_log" ] || live_line "$name" "$code" "$((SECONDS - began))"
   return "$code"
 }
+# prepend_bounded FILE LINE MAX: put LINE first in FILE and keep MAX lines. Runs from worktrees at once, so the
+# read-modify-write holds a mkdir lock (FILE.lock, with the holder's pid; a holder that exited is taken over, the same
+# as take_lock) and writes through a per-process temp file. Gives up after about 10 s: a log line is never worth a hang.
+prepend_bounded() {
+  local file="$1" line="$2" max="$3" lock="$1.lock" tmpfile="$1.new.$BASHPID" tries=0 holder
+  until mkdir "$lock" 2> /dev/null; do
+    holder="$(cat "$lock/pid" 2> /dev/null || true)"
+    if [ -n "$holder" ] && ! kill -0 "$holder" 2> /dev/null; then rm -rf "$lock"; continue; fi
+    tries=$((tries + 1))
+    [ "$tries" -lt 100 ] || return 0
+    sleep 0.1
+  done
+  echo "$BASHPID" > "$lock/pid"
+  {
+    echo "$line"
+    cat "$file" 2> /dev/null || true
+  } | head -n "$max" > "$tmpfile" && mv "$tmpfile" "$file"
+  rm -rf "$lock" "$tmpfile"
+}
 log_run() { # log_run EXIT_CODE
-  local file result=pass times="" from to
+  local gitdir common result=pass times="" failed="" from to line
   [ "$1" -eq 0 ] || result=fail
   [ "${#step_times[@]}" -eq 0 ] || times=" ${step_times[*]}"
-  file="$(git rev-parse --absolute-git-dir 2> /dev/null)/check-run-log" || return 0
-  [ "$file" != "/check-run-log" ] || return 0
+  # A failed run names its failing steps (#747); a passing one has no failed= field.
+  [ "${#failed_steps[@]}" -eq 0 ] || failed=" failed=$(IFS=,; echo "${failed_steps[*]}")"
+  gitdir="$(git rev-parse --absolute-git-dir 2> /dev/null)" || return 0
+  [ -n "$gitdir" ] || return 0
   TZ=UTC0 printf -v from '%(%Y-%m-%dT%H:%M:%SZ)T' "$started"
   TZ=UTC0 printf -v to '%(%Y-%m-%dT%H:%M:%SZ)T' -1
-  {
-    echo "$stage $(current_branch) $from $to $result $reused$times"
-    cat "$file" 2> /dev/null || true
-  } | head -n 50 > "$file.new" && mv "$file.new" "$file"
+  line="$stage $(current_branch) $from $to $result $reused$times$failed"
+  prepend_bounded "$gitdir/check-run-log" "$line" 50
+  # The history in the common git dir (shared by every worktree, kept after one is removed, #747): the last 500 runs.
+  common="$(git rev-parse --path-format=absolute --git-common-dir 2> /dev/null)" || return 0
+  [ -z "$common" ] || prepend_bounded "$common/check-run-history" "$line" 500
 }
 finish() {
   local code=$?

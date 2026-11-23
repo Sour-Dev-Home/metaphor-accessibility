@@ -268,6 +268,48 @@ public sealed class SwitchingAnnouncerTests : IDisposable
     }
 
     [Fact]
+    public void StopStopsTheBackendSpeaking()
+    {
+        var nvda = new FakeBackend("NVDA");
+        var speech = Start(nvda, oneCore);
+        speech.Announce(Line("one"));
+
+        speech.StopSpeaking();
+
+        Assert.Equal(1, nvda.Stops);
+        Assert.Equal(0, oneCore.Stops);
+    }
+
+    [Fact]
+    public void AStoppedLineThatFailedIsNotSaidOnTheNextBackend()
+    {
+        var nvda = new FakeBackend("NVDA") { Status = Internal };
+        var speech = Start(nvda, oneCore);
+        clock.Advance(SwitchingAnnouncer.ProbeInterval);
+        speech.Announce(Line("one")); // Fails on a reader that has quit, and queues a probe.
+
+        speech.StopSpeaking();
+        RunQueued(); // Finds no reader, so moves to OneCore.
+
+        Assert.Equal("OneCore", speech.BackendName);
+        Assert.Empty(oneCore.Said);
+    }
+
+    [Fact]
+    public void StopWithNothingToSpeakOnOrABackendThatThrowsDoesNothing()
+    {
+        Start(null, null).StopSpeaking();
+        var broken = new FakeBackend("NVDA") { Throws = true };
+        var speech = Start(broken, oneCore);
+
+        speech.StopSpeaking();
+        broken.Throws = false;
+        speech.Announce(Line("one"));
+
+        Assert.Equal(["one"], broken.Said);
+    }
+
+    [Fact]
     public void StartingTheFallbackThrowingReleasesTheScreenReaderAlreadyStarted()
     {
         var nvda = new FakeBackend("NVDA");
@@ -327,6 +369,7 @@ public sealed class SwitchingAnnouncerTests : IDisposable
         public bool Throws { get; set; }
         public bool Disposed { get; private set; }
         public int OutputCalls { get; private set; }
+        public int Stops { get; private set; }
         public List<string> Said { get; } = [];
         public List<FakeBackend> Copies { get; } = [];
 
@@ -350,6 +393,16 @@ public sealed class SwitchingAnnouncerTests : IDisposable
                 throw new InvalidOperationException();
             }
             Said.Add(text);
+            return Status;
+        }
+
+        public int StopSpeaking()
+        {
+            if (Throws)
+            {
+                throw new InvalidOperationException();
+            }
+            Stops++;
             return Status;
         }
 

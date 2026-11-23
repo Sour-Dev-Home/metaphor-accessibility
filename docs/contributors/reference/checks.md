@@ -17,7 +17,10 @@ One command runs every check, locally (Git Bash on Windows) and in CI:
 | `scripts/check.sh commits BASE..HEAD` | each commit's shape in a pull request, and a matching `Security-Review` or `Security-Review-Skipped` trailer on each one touching the scope | CI on Ubuntu |
 
 `full` prints each step's time (`restore`, `build`, `tests`, `format`, `pester`, `check-scripts`) and keeps them in the
-run log. Locally the pre-push build covers only the test projects the change selects (and any changed project or
+run log, followed by `failed=<steps>` (for example `failed=pester,check-scripts`) when a step failed. The log has one
+line per run in the worktree's git folder (the last 50). Each line is also copied to `check-run-history` in the common
+git folder (the last 500, kept after a worktree is removed). Both hold step names, branch and times only. Locally the
+pre-push build covers only the test projects the change selects (and any changed project or
 dependent of one that no test reaches); a build-wide file or an unplaceable change builds the solution.
 `tests/check/test-check.sh` runs its tests in parallel (`METAPHOR_TEST_JOBS=1` runs them one at a time), as does
 `scripts/check/run-pester.sh`, and `scripts/check/run-check-suites.sh` runs the suites in the same bounded pool
@@ -36,6 +39,16 @@ A passing `full` leaves a [recorded pass](../../../GLOSSARY.md#review-and-ci) in
 hash; `full` or `pre-push` on an identical tree says it reused the pass and skips the work. `pre-push` takes a
 machine-wide build slot only when it builds, so a docs-only push never waits on it. Run `full`, then push: with no
 recorded pass and every slot busy, `pre-push` stops at once instead of waiting, since a waiting push is cut (exit 141).
+
+On a merge, committed or staged with `MERGE_HEAD` present, a local `full` reuses the parents' recorded passes
+([ADR 0021](../../adr/0021-merge-checks-reuse-parent-passes.md)). It runs the repo rules, then only what both sides'
+changes reach by [`what-runs.sh`](../../../scripts/ci/what-runs.sh)'s map: a project changed on both sides builds and
+runs its tests, and the Pester tests or the check-script suites run when both sides touch what they read. A merge
+that brings in only docs or a changelog line, conflict or not, checks in seconds, holding a build slot only to record
+its pass. It prints which parent passes it relied on and records them with the pass:
+`full <tree> merge <parent tree> <parent tree>`, with
+`-` for a parent without one, whose side then counts as reaching everything. Without a pass for either parent, or in
+CI or with `METAPHOR_FULL_TESTS=1`, `full` runs everything.
 
 ## RoundTrip tests
 

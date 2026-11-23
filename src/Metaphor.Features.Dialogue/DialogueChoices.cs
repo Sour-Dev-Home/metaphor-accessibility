@@ -5,7 +5,7 @@ namespace Metaphor.Features.Dialogue;
 /// <summary>Speaks a choice the game opens (#82): its prompt as a dialogue line, then its options, both looked up by
 /// label in the messages the game has compiled (<see cref="MessageLibrary"/>). The prompt never goes through the line
 /// request (docs/raw-sources/spike-session-1-2026-11-16.md), so it is spoken here.</summary>
-public sealed class DialogueChoices : IChoiceRequestObserver
+public sealed class DialogueChoices : IChoiceRequestObserver, ISelectRequestObserver
 {
     private readonly IMessageLookup messages;
     private readonly DialogueAnnouncer dialogue;
@@ -27,7 +27,16 @@ public sealed class DialogueChoices : IChoiceRequestObserver
         {
             dialogue.Show(prompt.Speaker, prompt.Text);
         }
-        dialogue.Offer(Find(choice.ChoiceLabel)?.Text);
+        // Held until the options are on screen, which is some seconds after the prompt, not over it (#744).
+        dialogue.Hold(Find(choice.ChoiceLabel)?.Text);
+    }
+
+    /// <summary>The select window opened, so the held options are on screen: says them. Register after
+    /// <see cref="SelectWindowChoices"/>, which holds the options of a choice only this window reports.</summary>
+    public void Observe(SelectRequested window)
+    {
+        ArgumentNullException.ThrowIfNull(window);
+        dialogue.Release();
     }
 
     private GameMessage? Find(string? label) => label is null ? null : messages.Find(label);

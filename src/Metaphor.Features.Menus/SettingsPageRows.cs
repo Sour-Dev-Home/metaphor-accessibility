@@ -11,6 +11,10 @@ public sealed record SettingsPageRows(int Page, int Total, IReadOnlyList<string?
     /// row whose value isn't known; empty when none was given.</summary>
     public IReadOnlyList<int?> ValueIds { get; init; } = [];
 
+    /// <summary>Each row's choices in value order (value 0 first), or null for a row whose values are said as numbers
+    /// (#734); empty when none was given. A value outside its row's choices is said as its number.</summary>
+    public IReadOnlyList<IReadOnlyList<ValueName>?> ValueChoices { get; init; } = [];
+
     /// <summary>The rows known on game build 548ddc95… (Steam build 18330018): only those pinned by a row-by-row walk,
     /// where each move resolves the focused row's name and then its help line
     /// (docs/raw-sources/settings-ok-and-rows-by-ear-2026-11-21.md). The order a page fetches its labels in as it is
@@ -29,6 +33,7 @@ public sealed record SettingsPageRows(int Page, int Total, IReadOnlyList<string?
             ["System_Option_14", "System_Option_16", "System_Option_17", "System_Option_103", .. SharedSystemRows])
         {
             ValueIds = [null, null, null, null, .. SharedSystemValues],
+            ValueChoices = [null, null, null, null, .. SharedSystemChoices],
         },
 
         // System in play: rows 7–23 by the down walk, the title's rows 4–19 with System_Option_28 at row 18.
@@ -41,6 +46,10 @@ public sealed record SettingsPageRows(int Page, int Total, IReadOnlyList<string?
             ValueIds =
             [
                 null, null, null, null, null, null, null, .. SharedSystemValues[..11], null, .. SharedSystemValues[11..],
+            ],
+            ValueChoices =
+            [
+                null, null, null, null, null, null, null, .. SharedSystemChoices[..11], null, .. SharedSystemChoices[11..],
             ],
         },
     ];
@@ -59,9 +68,33 @@ public sealed record SettingsPageRows(int Page, int Total, IReadOnlyList<string?
     private static int?[] SharedSystemValues =>
         [null, null, null, null, null, null, null, 17, 18, null, null, null, 27, 28, null, null];
 
+    // Those rows' choices, in the same order as SharedSystemValues. Message Speed 0, 1, 2 are Normal, Fast, Display All,
+    // the messages System_Option_82, _83, _84 that resolve together with the page (the log of the 2026-11-22 session,
+    // build 548ddc95); Skip Selections 0 is Off and 1 is On, with no message found for them. Both orders were confirmed
+    // by the maintainer on 2026-11-22 (issue #734, comment 7083706421; docs/findings/settings-value-names.md).
+    private static IReadOnlyList<ValueName>?[] SharedSystemChoices =>
+    [
+        null, null, null, null, null, null, null,
+        [new("System_Option_82"), new("System_Option_83"), new("System_Option_84")],
+        [new(null, "Off"), new(null, "On")],
+        null, null, null, null, null, null, null,
+    ];
+
     /// <summary>The name label of the row at <paramref name="index"/>, or null when it isn't known.</summary>
     public string? NameLabel(int index) => index >= 0 && index < NameLabels.Count ? NameLabels[index] : null;
 
     /// <summary>The setting ID of the row at <paramref name="index"/>, or null when it isn't known.</summary>
     public int? ValueId(int index) => index >= 0 && index < ValueIds.Count ? ValueIds[index] : null;
+
+    /// <summary>The choice the row at <paramref name="index"/> names for <paramref name="value"/>, or null when the row
+    /// has no named choices or the value is outside them.</summary>
+    public ValueName? Choice(int index, int value) =>
+        index >= 0 && index < ValueChoices.Count && ValueChoices[index] is { } choices && value >= 0
+            && value < choices.Count
+            ? choices[value]
+            : null;
 }
+
+/// <summary>One choice's name (#734): a message <paramref name="Label"/> the game's own text is read from, or fixed
+/// <paramref name="Text"/> where no message is known. The label wins; the text is the fallback.</summary>
+public sealed record ValueName(string? Label, string? Text = null);

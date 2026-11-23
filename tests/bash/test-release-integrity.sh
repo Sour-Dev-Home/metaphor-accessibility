@@ -113,6 +113,14 @@ check "attest needs the gate and the build" has "$rattest" '^    needs: \[gate, 
 check "attest signs with actions/attest" has "$rattest" 'uses: actions/attest@'
 check "attest verifies the zip as the how-to does, pinned to the tag" has "$rattest" \
   "gh attestation verify \"release/\\\$NAME\\.zip\" --repo \"\\\$GITHUB_REPOSITORY\" --signer-workflow \"\\\$GITHUB_REPOSITORY/\\.github/workflows/release\\.yml\" --source-ref \"\\\$GITHUB_REF\" --deny-self-hosted-runners$"
+# The installer exe (#613): the build recipe makes it and lists it in SHA256SUMS (tests/bash/test-build-release.sh);
+# attest signs every file SHA256SUMS lists, by the digests it has just checked, and verifies the exe as the zip.
+check "attest signs every file SHA256SUMS lists" has "$rattest" '^ +subject-checksums: release/SHA256SUMS$'
+check "attest names its subjects one way only" lacks "$rattest" 'subject-(path|digest):'
+check "attest verifies the installer exe, pinned to the tag" has "$rattest" \
+  "gh attestation verify \"release/\\\$NAME-installer\\.exe\" --repo \"\\\$GITHUB_REPOSITORY\" --signer-workflow \"\\\$GITHUB_REPOSITORY/\\.github/workflows/release\\.yml\" --source-ref \"\\\$GITHUB_REF\" --deny-self-hosted-runners$"
+check "release drafts the exe, the zip and SHA256SUMS" \
+  has "$rrelease" 'gh release create "\$TAG" "release/\$NAME-installer\.exe" "release/\$NAME\.zip" release/SHA256SUMS '
 check "release waits for the signed, verified zip" has "$rrelease" '^    needs: \[gate, attest\]$'
 check "release runs on a pushed v* tag only" \
   has "$rrelease" "^    if: github\\.event_name == 'push' && startsWith\\(github\\.ref, 'refs/tags/v'\\)$"

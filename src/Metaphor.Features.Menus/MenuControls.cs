@@ -2,6 +2,7 @@ using System.Diagnostics.CodeAnalysis;
 using Metaphor.Core.Announcements;
 using Metaphor.Core.Input;
 using Metaphor.Core.Menus;
+using Metaphor.Core.Settings;
 
 namespace Metaphor.Features.Menus;
 
@@ -23,26 +24,43 @@ public sealed record MenuBindings(int DetailsButtons, int DetailsKey)
     /// exit-game key on PC (maintainer, by ear). The game's mask puts XInput's right thumb at <c>0x0004</c> on game build
     /// 548ddc95… (Steam build 18330018), and its keyboard read skips codes only by two bit tables, below 32 and from
     /// <c>0xA6</c>, so it lists F (<c>0x46</c>) when held: docs/raw-sources/pad-and-keyboard-state-2026-11-16.md.
-    /// Constants until #104's settings file can hold them.
+    /// The settings file can rebind each (#661, <see cref="From"/>).
     /// </summary>
     public static MenuBindings Default { get; } = new(0x0004, 0x46);
+
+    /// <summary>The bindings the settings file's <c>keys.menus</c> object names (#661), each missing or unusable one
+    /// the default, with the reader binding the wiring hands in from the dialogue's.</summary>
+    public static MenuBindings From(ModSettings settings, int readerButtons, int readerKey)
+    {
+        ArgumentNullException.ThrowIfNull(settings);
+        return new MenuBindings(
+            settings.Binding("menus", "detailsButtons", Default.DetailsButtons),
+            settings.Binding("menus", "detailsKey", Default.DetailsKey))
+        {
+            ReaderButtons = readerButtons,
+            ReaderKey = readerKey,
+        };
+    }
 }
 
 /// <summary>The menu controls (#214), while a menu is open: the details key asks the current screen's feature
 /// (<see cref="IScreenDetails"/>) for the rest of the focus's panel, or says there are no more details, and the reader
 /// binding turns the reader on or off, speaking the current screen and focus again when it comes on. Both are hidden from
 /// the game then, and the game sees them as usual otherwise. A menu is open while the menu-screens module reads the
-/// game's menus as open (#268) and has a screen entered and not left, by its own events (judgement rule 5); so in the
-/// field, a battle or dialogue, R3, F and the reader binding reach the game. A press is an up-to-down edge of a binding held on any pad or the keyboard, as for the
+/// game's menus as open (#268) and has a screen entered and not left, by its own events (judgement rule 5), or while a
+/// screen shown outside the menus, such as battle's skill list (#247), is entered and its cursor still called; so
+/// elsewhere in the field, a battle or dialogue, R3, F and the reader binding reach the game. A press is an up-to-down edge of a binding held on any pad or the keyboard, as for the
 /// dialogue controls, so a mirroring second pad can't fire it again. Menu speech goes through the reader, so it's
 /// silent while the reader is off. The input frame (#301) hands it each pad and keyboard read from any of the game's
-/// threads.</summary>
+/// threads. The bindings are read on each input read, so a rebinding in the settings file applies at once (#661).
+/// </summary>
+[FeatureSetting(Feature.Menus)]
 public sealed class MenuControls : IScreenObserver, IInputControls
 {
     private const int KeyboardSource = -1;
 
     private readonly Lock gate = new();
-    private readonly MenuBindings bindings;
+    private readonly Func<MenuBindings> liveBindings;
     private readonly MenuScreens screens;
     private readonly IReaderSwitch reader;
     private readonly IScreenDetails[] details;
@@ -50,17 +68,50 @@ public sealed class MenuControls : IScreenObserver, IInputControls
     private readonly Binding toggleBinding = new();
     private ScreenEvent? focus;
 
+    private readonly Func<string, bool> shown;
+
     public MenuControls(
         MenuBindings bindings, MenuScreens screens, IReaderSwitch reader, IEnumerable<IScreenDetails> details)
+        : this(() => bindings, screens, reader, details, _ => true)
+    {
+        ArgumentNullException.ThrowIfNull(bindings);
+    }
+
+    /// <summary>Menu controls on fixed bindings that also answer on a screen shown outside the menus, as the live
+    /// overload does.</summary>
+    public MenuControls(
+        MenuBindings bindings, MenuScreens screens, IReaderSwitch reader, IEnumerable<IScreenDetails> details,
+        Func<string, bool> shown)
+        : this(() => bindings, screens, reader, details, shown)
+    {
+        ArgumentNullException.ThrowIfNull(bindings);
+    }
+
+    /// <summary>Menu controls on the bindings in force, read on each input read (#661).</summary>
+    public MenuControls(
+        Func<MenuBindings> bindings, MenuScreens screens, IReaderSwitch reader, IEnumerable<IScreenDetails> details)
+        : this(bindings, screens, reader, details, _ => true)
+    {
+    }
+
+    /// <summary>Controls on the bindings in force that also answer on a screen shown outside the menus
+    /// (<see cref="Screen.OutsideMenus"/>, #247), such as battle's skill list, but only while
+    /// <paramref name="shown"/> says its screen class is on screen: its cursor still being called
+    /// (<see cref="CursorEvents.CalledRecently"/>).</summary>
+    public MenuControls(
+        Func<MenuBindings> bindings, MenuScreens screens, IReaderSwitch reader, IEnumerable<IScreenDetails> details,
+        Func<string, bool> shown)
     {
         ArgumentNullException.ThrowIfNull(bindings);
         ArgumentNullException.ThrowIfNull(screens);
         ArgumentNullException.ThrowIfNull(reader);
         ArgumentNullException.ThrowIfNull(details);
-        this.bindings = bindings;
+        ArgumentNullException.ThrowIfNull(shown);
+        liveBindings = bindings;
         this.screens = screens;
         this.reader = reader;
         this.details = [.. details];
+        this.shown = shown;
     }
 
     /// <summary>Keeps the open screen and its focus: set when a screen is entered or its focus moves while the menus are
@@ -70,7 +121,7 @@ public sealed class MenuControls : IScreenObserver, IInputControls
         ArgumentNullException.ThrowIfNull(change);
         lock (gate)
         {
-            if (!screens.MenusOpen)
+            if (!screens.MenusOpen && change.Screen?.OutsideMenus != true)
             {
                 focus = null;
             }
@@ -98,6 +149,7 @@ public sealed class MenuControls : IScreenObserver, IInputControls
         {
             return buttons;
         }
+        var bindings = liveBindings();
         var detailsHeld = Holds(buttons, bindings.DetailsButtons);
         var toggleHeld = Holds(buttons, bindings.ReaderButtons);
         var hidden = Read(pad, detailsHeld, toggleHeld);
@@ -112,6 +164,7 @@ public sealed class MenuControls : IScreenObserver, IInputControls
     public IReadOnlyList<int> Keys(IReadOnlyList<int> keys)
     {
         ArgumentNullException.ThrowIfNull(keys);
+        var bindings = liveBindings();
         var hidden = Read(KeyboardSource, keys.Contains(bindings.DetailsKey), bindings.ReaderKey != 0 && keys.Contains(bindings.ReaderKey));
         return hidden ? [.. keys.Where(key => key != bindings.DetailsKey && key != bindings.ReaderKey)] : keys;
     }
@@ -127,7 +180,11 @@ public sealed class MenuControls : IScreenObserver, IInputControls
         ScreenEvent? current;
         lock (gate)
         {
-            current = screens.MenusOpen ? focus : null;
+            // A screen shown outside the menus counts while its cursor is still called, so the keys reach the game once
+            // it closes, though nothing leaves it (a battle list closes into the command panel, which has no cursor).
+            current = focus is { } held && (held.Screen?.OutsideMenus == true ? shown(held.ScreenClass) : screens.MenusOpen)
+                ? held
+                : null;
             detailsPressed = detailsBinding.Update(source, detailsHeld) && current is not null;
             togglePressed = toggleBinding.Update(source, toggleHeld) && current is not null;
         }

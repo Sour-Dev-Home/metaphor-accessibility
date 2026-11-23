@@ -82,6 +82,18 @@ public sealed class WalkGraph
     /// <summary>The file this graph reads.</summary>
     public NavMeshFile File => file;
 
+    /// <summary>The highest step between linked cells, in world units: the file's agent climb, or one cell height when
+    /// the file gives none smaller than that.</summary>
+    public float Climb => climb;
+
+    /// <summary><paramref name="cell"/>'s global column and row in the file's cell grid, counted from
+    /// <see cref="NavMeshFile.Origin"/>.</summary>
+    public (int Column, int Row) GridCell(NavCell cell)
+    {
+        var (column, row) = tileOrigins[cell.Tile];
+        return (column + cell.X, row + cell.Y);
+    }
+
     /// <summary>The walkable cell under <paramref name="position"/> whose floor is nearest its height and within
     /// <paramref name="maxVertical"/> of it, or null when there is none (off the mesh, or inside the eroded border
     /// along a wall).</summary>

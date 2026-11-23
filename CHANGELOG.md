@@ -7,35 +7,9 @@ is built is in [the contributor docs](docs/contributors/README.md). The format f
 Lines tagged `[NEEDS VERIFICATION by ear]` have not been heard in the game with a screen reader yet. The maintainer
 checks them in the first game session and removes the tag.
 
-## Unreleased
+New entries wait as files in [changelog.d](changelog.d/README.md) until a release joins them under a version below.
 
-- **A beep that guides you to something nearby.** In the field, `G`, or `LB` with the D-pad's Right, starts a
-  repeating beep toward the thing you last stepped to, or the nearest you aren't already at: from its side, higher
-  ahead, faster as you near it. It says when you reach it; press again to stop (#183). `K` and `J` step through the
-  nearby list from the keyboard. `[NEEDS VERIFICATION by ear]`
-- **The install check says the mod's version.** `check-install.ps1`, which the installer also runs at the end, now says
-  "The mod is version ..." for the copy in Reloaded-II's mods folder, so you can hear which one you have (#674).
-  `[NEEDS VERIFICATION by ear]`
-- **Tutorial pop-ups say what they are.** When a tutorial opens, the mod reads its title, how many pages it has, and
-  its first page. Each page you turn to is read as "Page 2 of 3" and its text (#118). `[NEEDS VERIFICATION by ear]`
-- **Yes and No buttons.** The installer asks each question in a small window with Yes and No buttons, which your
-  screen reader reads, instead of asking you to type an answer. Where it can't find the game, you choose
-  `METAPHOR.exe` in Windows' Open window (#607). `[NEEDS VERIFICATION by ear]`
-- **What is near, and where am I.** In the field, `N` says the people, doors, chests and enemies near you, nearest
-  first, with rough steps and a direction from the camera, as on screen (#686); `LB` with the D-pad's Down and Up
-  steps through them. `L`, or `LB` with Left, says the place name the game last showed (#181). `[NEEDS VERIFICATION by ear]`
-- **Sound cues can be turned off and their volume set.** The mod can now play short sounds of its own, explained in
-  [sound cues](docs/players/reference/sound-cues.md); `soundCues` and `soundCueVolume` in `settings.json` control
-  them. The battle hit sounds arrive with spoken battle hits (#247, #636). `[NEEDS VERIFICATION by ear]`
-- **Sound cues can overlap and come from the left or right.** Two cues at once both play, and the mod can now hold a
-  steady tone that moves and changes pitch, ready for guidance and wall sounds (#637). `[NEEDS VERIFICATION by ear]`
-- **One file to open after extracting.** The zip's top level holds `Install Metaphor accessibility.cmd` beside the
-  mod's folder: extract the zip and press Enter on it, with no search through the mod's files (#604).
-  `[NEEDS VERIFICATION by ear]`
-- **Update notice.** Once per game start the mod asks GitHub for its newest release, and the title screen says "A
-  newer version of the mod is available:" and the version when there is one. It sends nothing about you;
-  `"checkForUpdates": false` in `settings.json` turns it off. See
-  [Turn off the update check](docs/players/how-to/turn-off-the-update-check.md) (#576). `[NEEDS VERIFICATION by ear]`
+## Unreleased
 
 ## 0.1.0 - not released yet
 

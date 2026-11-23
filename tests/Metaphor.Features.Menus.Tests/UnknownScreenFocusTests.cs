@@ -9,7 +9,7 @@ namespace Metaphor.Features.Menus.Tests;
 [Trait("Category", "Unit")]
 public sealed class UnknownScreenFocusTests
 {
-    private const string CalendarClass = "CalendarChoice@ope@ui@app";
+    private const string CalendarClass = "ShopChoice@ope@ui@app";
     private const long Calendar = 0xc0;
     private const int Settle = 0x1;
     private const int Down = 0x16;
@@ -105,6 +105,16 @@ public sealed class UnknownScreenFocusTests
     {
         Cursor(Settle, row: 0, "CommonTalkChoice@ope@ui@app", manager: 0xd0);
         Cursor(Settle, row: 1, "CommonTalkChoice@ope@ui@app", manager: 0xd0);
+
+        Assert.Empty(announcer.Said);
+    }
+
+    [Fact]
+    public void AnOpenedQuestsCursorIsNotReadAsAPosition()
+    {
+        // Its count (9 in session c) is not the quest's: "1 of 9" was said (#194).
+        Cursor(Settle, row: 0, UnknownScreenFocus.QuestDetail.ScreenClass, manager: 0xe0);
+        Cursor(Settle, row: 1, UnknownScreenFocus.QuestDetail.ScreenClass, manager: 0xe0);
 
         Assert.Empty(announcer.Said);
     }
