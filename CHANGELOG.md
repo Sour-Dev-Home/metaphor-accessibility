@@ -9,6 +9,10 @@ checks them in the first game session and removes the tag.
 
 ## Unreleased
 
+- **The System menu and the shop are named.** The in-game System menu says each row (Load, Save, Tutorial, Story, Config,
+  Return to Title) and the shop's top menu says Buy, Sell, Appraise or Listen. Buy and Sell rows say their item's
+  name where it is known (not weapons or armour yet); prices and counts are not read. Opening a quest no longer says
+  "1 of 9" (#733, #736, #197, #194). `[NEEDS VERIFICATION by ear]`
 - **The Item screen says each item.** Opening the list says "Item", then each row says its item name and its place
   ("Tonic, 2 of 12"). The equipment tabs, the tab names, quantities and party members' names are still said by
   place or not at all (#216). `[NEEDS VERIFICATION by ear]`

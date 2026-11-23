@@ -23,7 +23,6 @@ public enum Feature
     [SettingKey("speech", "itemMenu", "Item menu", Testing = true)]
     ItemMenu,
 
-    ///<summary>The save and load screens' slots (#622). Separate from the menus while it is tested.</summary>
     /// <summary>The Calendar's day grid (#193). Separate from the menus while it is tested.</summary>
     [SettingKey("speech", "calendar", "Calendar", Testing = true)]
     Calendar,
@@ -48,6 +47,15 @@ public enum Feature
     /// <summary>The travel map's destinations (#545).</summary>
     [SettingKey("speech", "travelMap", "Travel map")]
     TravelMap,
+
+    /// <summary>The System menu's rows (#733). Separate from the menus while it is tested.</summary>
+    [SettingKey("speech", "systemMenu", "System menu", Testing = true)]
+    SystemMenu,
+
+    /// <summary>The shop's top menu and its Buy and Sell lists (#736, #197). Separate from the menus while it is
+    /// tested.</summary>
+    [SettingKey("speech", "shopMenu", "Shop menu", Testing = true)]
+    ShopMenu,
 
     /// <summary>The place name the field shows on arriving (#586).</summary>
     [SettingKey("speech", "placeNames", "Place names")]
@@ -105,7 +113,7 @@ public enum Feature
     [SettingKey("speech", "termNames", "Term names", Testing = true)]
     TermNames,
 
-    ///<summary>A choice saying "Choice, N options", the options spoken as focus moves, not every option up front
+    /// <summary>A choice saying "Choice, N options", the options spoken as focus moves, not every option up front
     /// (#730). Separate from the dialogue while it is tested.</summary>
     [SettingKey("speech", "choiceCount", "Choice count", Testing = true)]
     ChoiceCount,
