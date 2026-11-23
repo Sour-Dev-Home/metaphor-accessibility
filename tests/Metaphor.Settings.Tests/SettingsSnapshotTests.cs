@@ -17,6 +17,7 @@ public sealed class SettingsSnapshotTests
         "field.nearby | Nearby list | on | done",
         "field.nearbyCategories | Nearby categories | on | done",
         "field.reach | Reach callouts | on | done",
+        "field.stunCallouts | Stun callouts | off | testing",
         "field.whereAmI | Where am I | on | done",
         "report.markKey | Mark key | on | done",
         "report.silentScreens | Silent screen list | on | done",
