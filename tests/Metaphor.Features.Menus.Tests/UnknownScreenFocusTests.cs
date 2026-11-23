@@ -9,7 +9,7 @@ namespace Metaphor.Features.Menus.Tests;
 [Trait("Category", "Unit")]
 public sealed class UnknownScreenFocusTests
 {
-    private const string CalendarClass = "CalendarChoice@ope@ui@app";
+    private const string CalendarClass = "ShopChoice@ope@ui@app";
     private const long Calendar = 0xc0;
     private const int Settle = 0x1;
     private const int Down = 0x16;

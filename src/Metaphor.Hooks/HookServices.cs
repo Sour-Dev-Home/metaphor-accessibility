@@ -215,7 +215,8 @@ internal sealed record HookServices
         var voiceLanguage = new VoiceLanguageRead();
         var dialogueSpeech = settings.Speech(Feature.Dialogue, reader);
         var dialogue = new DialogueAnnouncer(
-            dialogueSpeech, cleaner, history, () => settings.Current.VoicedLines, voiceLanguage.Read);
+            dialogueSpeech, cleaner, history, () => settings.Current.VoicedLines, voiceLanguage.Read,
+            () => settings.Current.IsOn(Feature.ChoiceCount), choiceDelayOn: () => settings.Current.IsOn(Feature.ChoiceDelay));
         // Tutorial pop-ups speak through the reader too, once their table has loaded (#118).
         var tutorials = new TutorialTableSource();
         var tutorialPopups = new TutorialPopups(
@@ -251,8 +252,12 @@ internal sealed record HookServices
         events.ObserveChoices(yesNo);
         events.ObserveSelects(yesNo);
         screens.Observe(new DifficultyFocus(library, menuSpeech, cleaner));
-        screens.Observe(new SettingsFocus(library, menuSpeech, cleaner));
+        screens.Observe(new SettingsFocus(library, menuSpeech, cleaner)
+        {
+            LearnRowIds = () => settings.Current.IsOn(Feature.LearnedSettingValues),
+        });
         screens.Observe(new QuickMenuFocus(library, menuSpeech, cleaner));
+        screens.Observe(new CalendarFocus(settings.Speech(Feature.Calendar, reader)));
         screens.Observe(new EquipmentFocus(serials, settings.Speech(Feature.EquipmentMenu, reader), cleaner));
         // The save and load slots (#622): their lists come unnamed, so the slot screens name them before the screens,
         // from the prompts the serial hook hands MessageEvents (2026-11-22 review, finding 5).
@@ -305,6 +310,8 @@ internal sealed record HookServices
         var selectChoices = new SelectWindowChoices(lines, choices, choiceFocus);
         events.ObserveChoices(selectChoices);
         events.ObserveSelects(selectChoices);
+        // After the above, which holds the options of a choice only the window reports, so the window opening says them (#744).
+        events.ObserveSelects(choices);
         cursors.Observe(slots);
         cursors.Observe(choiceFocus);
         // The field's nearby list and "where am I" (#181), read on the press and spoken straight to the announcer.
