@@ -315,6 +315,20 @@
     "evidence": "Our reading of the exe in Ghidra 12.2: the field map name strip's set-the-place, 0xc93070 (docs/findings/field-map-region-area-name-static.md); one match on disk; not yet checked in memory"
   },
   {
+    "name": "BattleMessageShow",
+    "section": ".ecode",
+    "pattern": "40 55 53 56 57 41 56 48 8B EC 48 83 EC 60 48 8B F9 C5 F9 EF C0 C5 F8 11 45 C4 48 8B 02 48 89 45 C4 C5 FA 11 55 D4 E8",
+    "gameBuilds": ["548ddc955c176867f062c44f94c03dd9ac33caefb278a5ac388e792aedf09504"],
+    "evidence": "Our reading of the exe in Ghidra 12.2: the battle banner's show, 0xf187d0 (docs/findings/battle-move-banner-text-reference-static.md); one match on disk (tools/Metaphor.SignatureCheck/battle-turn-probes.json); not yet checked in memory"
+  },
+  {
+    "name": "BattleMessageRequestShow",
+    "section": ".ecode",
+    "pattern": "40 55 53 56 57 41 56 48 8B EC 48 83 EC 50 48 8B DA 48 8B F9 E8 ?? ?? ?? ?? 85 C0 75 18 8D 48 01 E8 ?? ?? ?? ?? E8 ?? ?? ?? ?? 83 F8 01 0F 94 C1 E8 ?? ?? ?? ?? C5 FA 10 4B 10",
+    "gameBuilds": ["548ddc955c176867f062c44f94c03dd9ac33caefb278a5ac388e792aedf09504"],
+    "evidence": "Our reading of the exe in Ghidra 12.2: the battle banner's other show, 0xf185d0 (docs/findings/battle-situation-banner-text-static.md); one match on disk (tools/Metaphor.SignatureCheck/battle-turn-probes.json); not yet checked in memory"
+  },
+  {
     "name": "LayoutAnimationPlay",
     "section": ".ecode",
     "pattern": "40 53 48 81 EC 80 00 00 00 4D 8B D0 48 8B DA 48 89 4C 24 30 48 89 54 24 38 0F B6 84 24 B0 00 00 00 88 44 24 20 45 33 C0 49 8B D2 48 8B CB E8",

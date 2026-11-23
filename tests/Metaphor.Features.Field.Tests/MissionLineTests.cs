@@ -35,7 +35,7 @@ public sealed class MissionLineTests
 
     private readonly MissionLine mission;
     private long now = 5000;
-    private bool roaming = true;
+    private readonly RoamField roamField = new();
     private bool settingOn = true;
     private bool tableReadable = true;
 
@@ -45,7 +45,7 @@ public sealed class MissionLineTests
         library.Compiled(Source);
         mission = new MissionLine(
             flag => set.Contains(flag), () => tableReadable ? rows : null, library,
-            new TextCleaner(TextCleanerRules.None), announcer, () => now, () => roaming, log.Add, enabled: () => settingOn);
+            new TextCleaner(TextCleanerRules.None), announcer, () => now, new FreeRoamGate(roamField), log.Add, enabled: () => settingOn);
     }
 
     [Fact]
@@ -108,11 +108,11 @@ public sealed class MissionLineTests
         now += 999;
         Assert.Null(mission.Poll());
 
-        roaming = false;
+        roamField.Roaming = false;
         now += 1;
         Assert.Null(mission.Poll());
 
-        roaming = true;
+        roamField.Roaming = true;
         now += 1000;
         Assert.Equal("Mission: Queue up for mock bread", mission.Poll());
     }
@@ -151,7 +151,7 @@ public sealed class MissionLineTests
     {
         var throwing = new MissionLine(
             _ => throw new InvalidOperationException("stand-in"), () => rows, new MessageLibrary(),
-            new TextCleaner(TextCleanerRules.None), announcer, () => now, () => true);
+            new TextCleaner(TextCleanerRules.None), announcer, () => now, new FreeRoamGate(roamField));
 
         Assert.Null(throwing.Poll());
     }
@@ -184,7 +184,7 @@ public sealed class MissionLineTests
         return new MissionLine(
             flag => set.Contains(flag), () => [new(0x1166, MessageLibrary.LabelHash("MissionText_Test_10")),
                 new(0x11fd, MessageLibrary.LabelHash("MissionText_Test_10"))], library,
-            new TextCleaner(TextCleanerRules.None), announcer, () => now, () => roaming, objectives: objectives);
+            new TextCleaner(TextCleanerRules.None), announcer, () => now, new FreeRoamGate(roamField), objectives: objectives);
     }
 
     [Fact]
@@ -226,5 +226,18 @@ public sealed class MissionLineTests
         now += MissionLine.PollMilliseconds;
 
         Assert.Equal("Mission: The Test Battle: End the test's madness", line.Poll());
+    }
+
+    private sealed class RoamField : IFieldReads
+    {
+        public bool Roaming { get; set; } = true;
+
+        public bool InFreeRoam() => Roaming;
+
+        public FieldView? Read() => null;
+
+        public int? MapId() => null;
+
+        public FieldPose? ReadPose() => null;
     }
 }

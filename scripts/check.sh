@@ -79,7 +79,7 @@ main() {
   [ "$stage" != pre-merge-commit ] || stage=pre-commit merge_hook=merge
   # live_log is set only once full sources scripts/check/live-log.sh; empty, it tells timed_step and finish (which every stage
   # reaches, under set -u) that there is no live log to write.
-  failures=0 warnings=0 reused=built step_times=() tmp="" locked="" waited="" live_log="" full_tree_id=""
+  failures=0 warnings=0 reused=built step_times=() failed_steps=() tmp="" locked="" waited="" live_log="" full_tree_id=""
   scan_scope="" maintainer_pr_result="" merge_note=""
   started=$EPOCHSECONDS
   case "$stage" in

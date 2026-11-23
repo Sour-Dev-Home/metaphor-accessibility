@@ -240,7 +240,7 @@ public sealed class FieldControlsTests
         ];
         return new MissionLine(
             flag => flag == 0x1165 || (flag == 0x1166 && started()), () => rows, library,
-            new TextCleaner(TextCleanerRules.None), announcer, () => now, field.InFreeRoam);
+            new TextCleaner(TextCleanerRules.None), announcer, () => now, new FreeRoamGate(field));
     }
 
     [Fact]

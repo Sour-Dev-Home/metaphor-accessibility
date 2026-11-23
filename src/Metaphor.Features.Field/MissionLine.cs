@@ -29,7 +29,7 @@ public sealed class MissionLine
     private readonly TextCleaner cleaner;
     private readonly IAnnouncer announcer;
     private readonly Func<long> milliseconds;
-    private readonly Func<bool> roaming;
+    private readonly FreeRoamGate roaming;
     private readonly Func<bool> enabled;
     private readonly Action<string>? log;
     private readonly Func<IReadOnlyList<MainMissionRow>?> objectives;
@@ -45,7 +45,7 @@ public sealed class MissionLine
     /// field objectives through <paramref name="objectives"/> (null, or a null table, for none).</summary>
     public MissionLine(
         Func<int, bool?> storyFlag, Func<IReadOnlyList<MainMissionRow>?> rows, IMessageLookup messages,
-        TextCleaner cleaner, IAnnouncer announcer, Func<long> milliseconds, Func<bool> roaming,
+        TextCleaner cleaner, IAnnouncer announcer, Func<long> milliseconds, FreeRoamGate roaming,
         Action<string>? log = null, Func<IReadOnlyList<MainMissionRow>?>? objectives = null,
         Func<bool>? enabled = null)
     {
@@ -105,7 +105,7 @@ public sealed class MissionLine
             }
             lastPoll = now;
         }
-        if (!roaming() || Read() is not { } row)
+        if (!roaming.Open() || Read() is not { } row)
         {
             return null;
         }

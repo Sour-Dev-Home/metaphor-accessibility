@@ -19,6 +19,7 @@ public sealed class ListCountReplayTests
         var screens = new MenuScreens(KnownScreens.All);
         var cursors = new CursorEvents();
         screens.Observe(new MainMenuFocus(announcer));
+        screens.Observe(new SystemMenuFocus(new MessageSerials([]), announcer, new TextCleaner(TextCleanerRules.None)));
         screens.Observe(new UnknownScreenFocus(announcer));
         cursors.Observe(screens);
         SessionFixture.Parse(File.ReadAllText(Path.Combine(AppContext.BaseDirectory, "sessions", "list-count-session6.txt")))
@@ -27,7 +28,7 @@ public sealed class ListCountReplayTests
         // Session 6's counts (build 548ddc95): the main menu (9), Skill's character list (8) and skill list (9), the main
         // menu's System entry, the System menu (6), then a System input whose count wasn't read.
         Assert.Equal(
-            ["Menu, Skill, 1 of 9", "1 of 8", "2 of 8", "1 of 9", "Menu, System, 9 of 9", "1 of 6", "3"],
+            ["Menu, Skill, 1 of 9", "1 of 8", "2 of 8", "1 of 9", "Menu, System, 9 of 9", "System, 1 of 6", "3"],
             announcer.Said.Select(said => said.Text));
     }
 }
