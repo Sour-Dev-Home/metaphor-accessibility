@@ -20,6 +20,7 @@ public static class KnownScreens
         UnknownScreenFocus.DialogueChoice,
         .. SettingsFocus.Screens,
         QuickMenuFocus.Screen,
+        .. ItemFocus.Screens,
         CalendarFocus.Screen,
         .. EquipmentFocus.Screens,
         BattleListFocus.SkillList,

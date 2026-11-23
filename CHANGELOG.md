@@ -9,6 +9,9 @@ checks them in the first game session and removes the tag.
 
 ## Unreleased
 
+- **The Item screen says each item.** Opening the list says "Item", then each row says its item name and its place
+  ("Tonic, 2 of 12"). The equipment tabs, the tab names, quantities and party members' names are still said by
+  place or not at all (#216). `[NEEDS VERIFICATION by ear]`
 - **No more gaps where the screen shows a skill, an item or a button.** Text that names a skill or a status condition
   now says its name, as after "Required Skill:". Items, Archetypes, attributes, buttons and other icons, which the mod
   can't name yet, say what kind of thing goes there ("item", "button") instead of leaving a gap, as does the action a

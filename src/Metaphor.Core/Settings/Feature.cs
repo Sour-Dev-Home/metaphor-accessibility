@@ -19,6 +19,11 @@ public enum Feature
     [SettingKey("speech", "menus", "Menus")]
     Menus,
 
+    /// <summary>The Item screen's focus (#216). Separate from the menus while it is tested.</summary>
+    [SettingKey("speech", "itemMenu", "Item menu", Testing = true)]
+    ItemMenu,
+
+    ///<summary>The save and load screens' slots (#622). Separate from the menus while it is tested.</summary>
     /// <summary>The Calendar's day grid (#193). Separate from the menus while it is tested.</summary>
     [SettingKey("speech", "calendar", "Calendar", Testing = true)]
     Calendar,
