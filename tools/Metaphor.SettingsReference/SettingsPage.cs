@@ -169,7 +169,7 @@ public static class SettingsPage
     private const string LimitsSection = """
         ## Limits
 
-        Some features warn at a limit you can move, inside a `limits` object, then the feature's object, as a whole number.
+        Some features have a limit you can move, inside a `limits` object, then the feature's object, as a whole number.
 
         ```json
         { "limits": { "field": { "cameraDownDegrees": 50 } } }
@@ -180,6 +180,9 @@ public static class SettingsPage
         | `field.cameraDownDegrees` | How far down the camera tilts, from level, before "Camera looking down" (`cameraTilt`). 1 to 89. | `40` |
         | `field.cameraUpDegrees` | How far up before "Camera looking up". 1 to 89. | `20` |
         | `field.cameraMarginDegrees` | How far back inside a limit the camera comes before "Camera level". 0 to 30. | `5` |
+        | `field.wallRange` | How near a wall comes before its tone starts (`wallTones`), in the game's units, about 100 a step. 50 to 2000. | `300` |
+        | `field.wallVolume` | How loud a wall tone is right at the wall. 0 to 100. | `50` |
+        | `field.routePingVolume` | How loud a route ping is from a place in reach (`routePings`); farther places are quieter. 0 to 100. | `90` |
         """;
 
     /// <summary>The page for <paramref name="features"/>, with Unix line ends and a final one. A feature in a group

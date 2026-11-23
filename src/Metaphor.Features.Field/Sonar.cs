@@ -18,9 +18,11 @@ public enum SonarKind
 /// <see cref="MaxPings"/>, each with its kind's pitch. Each ping is placed in the camera-relative frame
 /// (<see cref="CameraFrame"/>, #823: the listener at the player, turned by the camera's horizontal angle, pitch ignored)
 /// from where the player stands when it sounds: plain stereo pan, and louder nearer. It plays on its own tone channel
-/// through the mod's cue output, as the guidance beep does; no new native library. The pitches are generated tones,
-/// placeholders until the sound provenance check (#833) picks sounds. Debug builds log the first time each thing sounds
-/// and how far off it was, for tuning the radius.
+/// through the mod's cue output, as the guidance beep does; no new native library. The pitches are sine tones made at
+/// run time: the cue player holds only sines, so the generated sound files (#839, <c>tools/Metaphor.NavSounds</c>)
+/// render these same pitches and lengths for listening outside the game, and aren't loaded. It yields to the guidance
+/// beep and to a route ping (<see cref="NavFloor"/>). Debug builds log the first time each thing sounds and how far off
+/// it was, for tuning the radius.
 /// <para>The idea of a field sonar comes from Arcana, the Persona 3 Reload accessibility mod
 /// (https://github.com/ChipsAhoiMcCoy/arcana, ChipsAhoiMcCoy, Zlib), seen in a player-shared log; idea only, no code
 /// copied (CREDITS.md).</para>
@@ -58,6 +60,7 @@ public sealed class Sonar
     private readonly Action<string>? log;
     private readonly NamesTable names;
     private readonly FreeRoamGate roam;
+    private readonly NavFloor? floor;
     private readonly Queue<FieldUnit> queue = new();
     private readonly HashSet<string> heard = new(StringComparer.Ordinal);
     private int? heardMap;
@@ -70,11 +73,12 @@ public sealed class Sonar
     /// <summary>A sonar that reads <paramref name="field"/>, names things by <paramref name="names"/>, plays on
     /// <paramref name="cues"/>' sonar channel, keeps time by <paramref name="milliseconds"/>, plays only while
     /// <paramref name="on"/> says so, and writes each thing's first ping to <paramref name="log"/> when there is one
-    /// (Debug builds).</summary>
+    /// (Debug builds). It holds its sweeps while <paramref name="floor"/> says another sound has the floor.</summary>
     public Sonar(
         IFieldReads field, ICuePlayer cues, Func<long> milliseconds, Func<bool> on, Action<string>? log = null,
-        NamesTable? names = null)
+        NamesTable? names = null, NavFloor? floor = null)
     {
+        this.floor = floor;
         ArgumentNullException.ThrowIfNull(field);
         ArgumentNullException.ThrowIfNull(cues);
         ArgumentNullException.ThrowIfNull(milliseconds);
@@ -124,7 +128,7 @@ public sealed class Sonar
         {
             try
             {
-                if (!on() || !roam.Open())
+                if (!on() || !roam.Open() || floor?.SonarMayPing() == false)
                 {
                     Quiet();
                     return;

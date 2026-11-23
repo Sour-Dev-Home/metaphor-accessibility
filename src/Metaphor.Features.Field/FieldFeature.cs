@@ -59,6 +59,18 @@ public enum FieldFeature
     /// <summary>The sonar's pings for nearby people, objects and exits (#827).</summary>
     [SettingKey("field", "sonar", "Sonar", Testing = true, Order = 2090, Description = "A short sound for each " +
         "person, object and exit nearby, every two seconds: a sound of its own for each kind, on the side it is on " +
-        "screen, louder when nearer.")]
+        "screen, louder when nearer. It waits while the guidance beep guides or a route ping sounds.")]
     Sonar,
+
+    /// <summary>The wall tones ahead, behind, left and right of the camera (#830).</summary>
+    [SettingKey("field", "wallTones", "Wall tones", Testing = true, Order = 2100, Description = "A low steady tone " +
+        "for each wall near you, ahead, behind, left and right of the screen, louder as the wall nears. Silent on maps " +
+        "the mod has no walking map for, which it says once. The range and volume are in `limits`.")]
+    WallTones,
+
+    /// <summary>The route ping toward the place the nearby list steps to (#831).</summary>
+    [SettingKey("field", "routePings", "Route pings", Testing = true, Order = 2110, Description = "A ping from the " +
+        "direction of each place the nearby list steps to: two high notes when the way is straight, two rising notes " +
+        "from the next corner when the way bends, one low note when there is no path. Its volume is in `limits`.")]
+    RoutePings,
 }
