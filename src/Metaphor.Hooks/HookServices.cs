@@ -277,6 +277,7 @@ internal sealed record HookServices
             OpenArchive = OpenArchive,
         };
         context.Provide<IFieldReads>(field);
+        context.Provide<IBattleTurnIcons>(new BattleTurnIconsMemory(gameData));
         context.Provide(new MissionRows(missionTable.Rows));
         // Each module builds its features, in the list's order: their observers hear each event, and their controls
         // take each input read, in that order (#784, ADR 0022).

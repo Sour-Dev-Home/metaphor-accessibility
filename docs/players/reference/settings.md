@@ -71,6 +71,9 @@ Each is `true` to speak or `false` to stay quiet, inside a `speech` object: `{ "
 | `questList` | Each quest's name on the quest list, and an opened quest's name and description. Needs `menus`. Still being tested. | testing, off |
 | `followerList` | Each follower's name and archetype on the Followers list. Needs `menus`. Still being tested. | testing, off |
 | `battleBanners` | The short banner during a battle turn: a boss warning, a stat change, "Not enough MP!". Still being tested. | testing, off |
+| `battleTurnLine` | Says "Your turn" with the actions left, or "Enemy turn", as each side's turn starts in a battle. Still being tested. | testing, off |
+| `battleStart` | Says "Ambushed" when a battle starts with the enemy striking first. Still being tested. | testing, off |
+| `battleEnd` | Says "Victory", "Escaped" or "Defeated" as a battle ends. Still being tested. | testing, off |
 | `saveSlots` | The save and load screens' slots. | `true` |
 | `learnedSettingValues` | The System rows whose setting the mod has not pinned saying their value on change, learned as you change them. Needs `menus`. | `true` |
 | `nameEntry` | The name entry screen: its title, each letter you type, and when a name is refused. | `true` |

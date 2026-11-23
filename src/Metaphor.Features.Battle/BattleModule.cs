@@ -27,6 +27,17 @@ public sealed class BattleModule : IFeatureModule
         context.Provide(new BattleBanners(
             context.FilePositions, settings.Speech(BattleFeature.BattleBanners, reader), context.Cleaner,
             () => Environment.TickCount64));
+        // The turn line (#252), polled on each input read from the game data's turn icons, and the ambushed start
+        // (#626) and the battle's end (#166) from the layouts' animations, each its own testing setting.
+        if (context.Find<IBattleTurnIcons>() is { } turnIcons)
+        {
+            context.AddControls(settings.Input(
+                BattleFeature.BattleTurnLine,
+                new TurnLine(turnIcons, context.BattleScene, settings.Speech(BattleFeature.BattleTurnLine, reader),
+                    TimeProvider.System)));
+        }
+        context.Layouts.Observe(new BattleStartLine(settings.Speech(BattleFeature.BattleStart, reader)));
+        context.Layouts.Observe(new BattleEndLine(settings.Speech(BattleFeature.BattleEnd, reader)));
         // Leaving the battle scene ends the battle, so the next one numbers its enemies afresh (#750).
         context.AddControls(settings.Input(
             BattleFeature.BattleNumberReset, new BattleEnds(hitLines, context.BattleScene, TimeProvider.System)));
