@@ -47,6 +47,22 @@ public sealed class DialogueChoicesTests
     }
 
     [Fact]
+    public void WithTheCountOffEveryOptionIsReadInTheOneLine()
+    {
+        messages.Compiled(Prompt);
+        messages.Compiled(Options);
+        var plain = new DialogueChoices(
+            messages,
+            new DialogueAnnouncer(
+                announcer, new TextCleaner(TextCleanerRules.None), history, choiceCountOn: () => false));
+
+        plain.Observe(new ChoiceRequested(0, "MES_q", "MES_c"));
+        plain.Observe(Window);
+
+        Assert.Equal(new Announcement("Choose: North; South", Interrupt: false), announcer.Said[^1]);
+    }
+
+    [Fact]
     public void ThePromptIsSpokenAsALineThenTheOptionsWithoutCuttingItOff()
     {
         messages.Compiled(Prompt);
@@ -82,6 +98,21 @@ public sealed class DialogueChoicesTests
 
         Assert.Equal(2, announcer.Said.Count);
         Assert.Equal("Choice, 2 options", announcer.Said[1].Text);
+    }
+
+    [Fact]
+    public void WithTheDelayOffTheOptionsAreSaidAtOnce()
+    {
+        messages.Compiled(Prompt);
+        messages.Compiled(Options);
+        var immediate = new DialogueChoices(
+            messages,
+            new DialogueAnnouncer(
+                announcer, new TextCleaner(TextCleanerRules.None), history, choiceDelayOn: () => false));
+
+        immediate.Observe(new ChoiceRequested(0, "MES_q", "MES_c"));
+
+        Assert.Equal("Choice, 2 options", announcer.Said[^1].Text);
     }
 
     [Fact]

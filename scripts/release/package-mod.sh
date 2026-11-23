@@ -19,8 +19,20 @@ write_list() { # write_list FOLDER
   (cd "$1" && find . -type f ! -name package-files.txt | sed 's#^\./##' | LC_ALL=C sort) > "$1/package-files.txt"
 }
 
+# A package never carries a session switch (#783): opt-in-*.txt files turn on testing features and development hooks, so a
+# release that held one would hand players what a by-ear session is for.
+refuse_session_switches() { # refuse_session_switches FOLDER
+  local found
+  found="$(cd "$1" && find . -type f -name 'opt-in-*.txt')"
+  if [ -n "$found" ]; then
+    echo "package-mod: the package holds a session switch, which a release never ships: $found" >&2
+    exit 1
+  fi
+}
+
 if [ "${1:-}" = --list ]; then
   [ -n "${2:-}" ] && [ -d "$2" ] || { echo "$usage" >&2; exit 2; }
+  refuse_session_switches "$2"
   write_list "$2"
   exit 0
 fi
@@ -44,5 +56,6 @@ rm -rf "$out_abs"
 
 export DOTNET_CLI_TELEMETRY_OPTOUT=1 DOTNET_NOLOGO=1
 dotnet publish "$root/src/Metaphor.Hooks/Metaphor.Hooks.csproj" -c Release -o "$out_abs" -v q $build_flag >&2
+refuse_session_switches "$out_abs"
 write_list "$out_abs"
 bash "$root/scripts/check/tree-hash.sh" "$out_abs"

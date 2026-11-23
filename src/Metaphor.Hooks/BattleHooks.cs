@@ -108,3 +108,56 @@ internal sealed class BattleHitResultHook : IGameHook, IObserves6WithResult
             member?.Slot, hpMax, member?.Unit));
     }
 }
+
+
+
+/// <summary>What the two banner hooks share (#692): the banner's <c>{ u32 id, u8 kind }</c> pair, read before the
+/// original runs, handed to the banners feature, and in a Debug build logged, so a
+/// by-ear run pins which of them counts the icons.</summary>
+internal static class BattleBannerListening
+{
+    private const int KindAt = 0x4;
+    private const int PairLength = 0x8;
+
+    public static void Shown(HookServices services, string function, nint pair)
+    {
+        var bytes = new byte[PairLength];
+        if (pair == 0 || !ModuleMemoryReader.ReadBytes(pair, bytes))
+        {
+            return;
+        }
+        var id = BitConverter.ToInt32(bytes, 0);
+        var kind = bytes[KindAt];
+        var said = services.BattleBanners?.Shown(kind, id);
+        services.Log?.Requested(function, string.Create(CultureInfo.InvariantCulture,
+            $"kind={kind} id={id} said={(said is null ? "no" : "yes")}"));
+    }
+}
+
+/// <summary>The battle banner's show, <c>UUIC_Battle_Message</c>'s <c>0xf187d0</c>: <c>void (component*, const
+/// pair*, float seconds)</c> in <c>.ecode</c>, where the battle GUI, the command panel and battle code send each banner
+/// (19 call sites). The pair is <c>{ u32 id, u8 kind }</c>; kind 2 is message-file table entry 9,
+/// <c>jyokyo_help_Message.msg</c>, at position id. The float travels in <c>xmm2</c>, so the shape passes it on as a
+/// double untouched. Our reading of the exe on build 548ddc95… (docs/findings/battle-move-banner-text-reference-static.md,
+/// docs/findings/battle-situation-banner-text-static.md); not yet heard in play.</summary>
+[GameHook(GameBuilds.Steam18330018)]
+internal sealed class BattleMessageShowHook(HookServices services) : IGameHook, IObserves4WithDouble
+{
+    public string SignatureName => "BattleMessageShow";
+
+    public void Observe(nint component, nint pair, double seconds, nint unused) =>
+        BattleBannerListening.Shown(services, SignatureName, pair);
+}
+
+/// <summary>The banner's other show, <c>0xf185d0</c>: <c>void (component*, const request*)</c> in <c>.ecode</c>, which
+/// only the battle-side request <c>0x324c50</c> calls. The request starts with the same <c>{ u32 id, u8 kind }</c> pair
+/// and holds the seconds at <c>+0x10</c>. Our reading of the exe on build 548ddc95…
+/// (docs/findings/battle-situation-banner-text-static.md); not yet heard in play.</summary>
+[GameHook(GameBuilds.Steam18330018)]
+internal sealed class BattleMessageRequestShowHook(HookServices services) : IGameHook, IObserves3
+{
+    public string SignatureName => "BattleMessageRequestShow";
+
+    public void Observe(nint component, nint request, nint unused) =>
+        BattleBannerListening.Shown(services, SignatureName, request);
+}

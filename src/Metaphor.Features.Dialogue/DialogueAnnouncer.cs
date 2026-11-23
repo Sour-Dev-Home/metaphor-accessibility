@@ -8,11 +8,13 @@ namespace Metaphor.Features.Dialogue;
 /// conversation's first line, when the speaker changes and on the first line after a choice, and as the line alone
 /// while the same speaker continues or when there's no speaker (#539, #740), interrupting the line before. A voiced line follows the "Voiced lines" setting
 /// (#57, #104); the history (#126) keeps every line in full whatever is said.</summary>
-[FeatureSetting(Feature.Dialogue)]
+[FeatureSetting(Feature.Dialogue, Feature.ChoiceCount, Feature.ChoiceDelay)]
 public sealed class DialogueAnnouncer
 {
     private readonly IAnnouncer announcer;
     private readonly TextCleaner cleaner;
+    private readonly Func<bool> choiceCountOn;
+    private readonly Func<bool> choiceDelayOn;
     private readonly DialogueHistory history;
     private readonly Func<VoicedLinesMode> voicedLines;
     private readonly Func<VoiceLanguage> voiceLanguage;
@@ -37,17 +39,25 @@ public sealed class DialogueAnnouncer
     /// <param name="voicedLines">The "Voiced lines" mode now, read on every line so a change applies at once; the full
     /// line when omitted.</param>
     /// <param name="voiceLanguage">The voice language now, for Auto; unknown when omitted.</param>
+    /// <param name="choiceCountOn">Whether a choice says its count (<see cref="Feature.ChoiceCount"/>) rather than
+    /// every option; on when omitted.</param>
     /// <param name="timeProvider">Times <see cref="HoldLimit"/>; the system clock when
     /// omitted.</param>
+    /// <param name="choiceDelayOn">Whether a choice's options wait for the select window
+    /// (<see cref="Feature.ChoiceDelay"/>) rather than follow the prompt at once; on when omitted.</param>
     public DialogueAnnouncer(
         IAnnouncer announcer,
         TextCleaner cleaner,
         DialogueHistory history,
         Func<VoicedLinesMode>? voicedLines = null,
         Func<VoiceLanguage>? voiceLanguage = null,
-        TimeProvider? timeProvider = null)
+        Func<bool>? choiceCountOn = null,
+        TimeProvider? timeProvider = null,
+        Func<bool>? choiceDelayOn = null)
     {
+        this.choiceDelayOn = choiceDelayOn ?? (() => true);
         time = timeProvider ?? TimeProvider.System;
+        this.choiceCountOn = choiceCountOn ?? (() => true);
         ArgumentNullException.ThrowIfNull(announcer);
         ArgumentNullException.ThrowIfNull(cleaner);
         ArgumentNullException.ThrowIfNull(history);
@@ -121,6 +131,12 @@ public sealed class DialogueAnnouncer
     /// Options already held are replaced; <see cref="EndConversation"/> drops them.</summary>
     public void Hold(string? options)
     {
+        // The hold is its own setting while it is tested (#783); off, the options are said at once as before.
+        if (!choiceDelayOn())
+        {
+            Offer(options);
+            return;
+        }
         lock (gate)
         {
             CancelHeld();
@@ -179,7 +195,15 @@ public sealed class DialogueAnnouncer
             afterChoice = true;
         }
         var lines = ChoiceOptions.From(options, cleaner);
-        announcer.Announce(new Announcement(lines.Count switch { 0 => "Choice", 1 => "Choice, 1 option", _ => $"Choice, {lines.Count} options" }, Interrupt: false));
+        // The count is its own setting while it is tested (#783); off, every option is read in the one line as before.
+        var said = lines.Count switch
+        {
+            0 => "Choice",
+            _ when !choiceCountOn() => $"Choose: {string.Join("; ", lines)}",
+            1 => "Choice, 1 option",
+            _ => $"Choice, {lines.Count} options",
+        };
+        announcer.Announce(new Announcement(said, Interrupt: false));
     }
 
     // Auto: the name for English voice; the full line for Japanese voice and while the language is unknown.

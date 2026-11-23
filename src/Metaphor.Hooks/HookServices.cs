@@ -5,6 +5,7 @@ using Metaphor.Core.Cues;
 using Metaphor.Core.Input;
 using Metaphor.Core.Menus;
 using Metaphor.Core.Messages;
+using Metaphor.Core.Navigation;
 using Metaphor.Core.Settings;
 using Metaphor.Features.Battle;
 using Metaphor.Features.Dialogue;
@@ -129,6 +130,10 @@ internal sealed record HookServices
     /// <summary>Where the battle hit hook reports each target an action hit (#247).</summary>
     public IBattleHitObserver BattleHits { get; init; } = new NoBattleHits();
 
+    /// <summary>Says the battle's situation banners (#692): the banner hooks hand it each one shown; null for none.
+    /// </summary>
+    public BattleBanners? BattleBanners { get; init; }
+
     /// <summary>The party as the game data holds it (#247), for the battle hit hook's sides and the status key.</summary>
     public required BattlePartyMemory BattleParty { get; init; }
 
@@ -195,14 +200,22 @@ internal sealed record HookServices
         var characterTable = DataTableRead.Characters();
         var followerTable = DataTableRead.Followers();
         var names = new GameNames(new GameNameMemory(gameData, characterTable, followerTable), library);
-        var cleaner = new TextCleaner(GameNames.Rules, names.Placeholder);
+        // Game terms and icons (#108, #109): a skill or condition named by its place in its file as build 548ddc95
+        // compiles it, anything else said as a stand-in for its kind, logged in Debug builds (#83). The battle banners'
+        // situation file (#692) is kept by the same store: one "file + position" key.
+        var filePositions = new MessageFilePositions([.. GameTerms.Steam18330018, BattleBanners.Steam18330018]);
+        var terms = new GameTerms(filePositions, log is null ? null : log.PlaceholderMissing);
+        var cleaner = new TextCleaner(
+            GameNames.Rules.With(GameTerms.Rules),
+            (key, arguments) => names.Placeholder(key, arguments) ?? terms.Placeholder(key, arguments));
         // Lines go through the reader on/off switch; the repeat and the switch's own state are spoken either way.
         // Auto follows the game's voice language, read on each line (#538); unknown speaks the full line.
         var reader = new DialogueReader(announcer);
         var voiceLanguage = new VoiceLanguageRead();
         var dialogueSpeech = settings.Speech(Feature.Dialogue, reader);
         var dialogue = new DialogueAnnouncer(
-            dialogueSpeech, cleaner, history, () => settings.Current.VoicedLines, voiceLanguage.Read);
+            dialogueSpeech, cleaner, history, () => settings.Current.VoicedLines, voiceLanguage.Read,
+            () => settings.Current.IsOn(Feature.ChoiceCount), choiceDelayOn: () => settings.Current.IsOn(Feature.ChoiceDelay));
         // Tutorial pop-ups speak through the reader too, once their table has loaded (#118).
         var tutorials = new TutorialTableSource();
         var tutorialPopups = new TutorialPopups(
@@ -240,6 +253,12 @@ internal sealed record HookServices
         screens.Observe(new DifficultyFocus(library, menuSpeech, cleaner));
         screens.Observe(new SettingsFocus(library, menuSpeech, cleaner));
         screens.Observe(new QuickMenuFocus(library, menuSpeech, cleaner));
+        screens.Observe(new EquipmentFocus(serials, settings.Speech(Feature.EquipmentMenu, reader), cleaner));
+        // The save and load slots (#622): their lists come unnamed, so the slot screens name them before the screens,
+        // from the prompts the serial hook hands MessageEvents (2026-11-22 review, finding 5).
+        var slots = new SlotScreens(screens);
+        events.ObserveSerials(slots);
+        screens.Observe(new SaveSlotFocus(library, settings.Speech(Feature.SaveSlots, reader), cleaner, log is null ? null : log.MenuNote));
         // Battle's skill and item lists say each row by the name the game fetched for it by serial (#247), through
         // their own setting, not the menus' (#661).
         var battleListSpeech = settings.Speech(Feature.BattleLists, reader);
@@ -269,6 +288,7 @@ internal sealed record HookServices
         events.ObserveFiles(library);
         events.ObserveFiles(serials);
         events.ObserveFiles(filesById);
+        events.ObserveFiles(filePositions);
         // Lines and choices name each speaker as the screen shows it (#81).
         var (lines, choices) = DialogueSpeech.Shown(library, names, dialogue);
         events.ObserveLines(lines);
@@ -287,7 +307,7 @@ internal sealed record HookServices
         events.ObserveSelects(selectChoices);
         // After the above, which holds the options of a choice only the window reports, so the window opening says them (#744).
         events.ObserveSelects(choices);
-        cursors.Observe(screens);
+        cursors.Observe(slots);
         cursors.Observe(choiceFocus);
         // The field's nearby list and "where am I" (#181), read on the press and spoken straight to the announcer.
         var menusOpen = new MenusOpenRead();
@@ -299,11 +319,17 @@ internal sealed record HookServices
         var field = new FieldMemory(fieldWorld, fieldScene, fieldDatabase, personTable, names, menusOpen, window);
         var place = new FieldPlace(cleaner);
         events.ObserveFiles(place);
-        // Its two settings, the nearby list and "where am I", are read by the controls on each read (#661).
+        // The beacon's routes (#690) run over the map's .NAV cells, read off the game's thread from the archive beside
+        // the exe, opened read-only for each file (NavMeshSource). The map's file is named by the archive's map table
+        // (NavMapFiles, #741), read once on the first route.
+        var navLog = log is null ? (Action<string>)(_ => { }) : log.FieldRead;
+        var navMeshes = new NavMeshSource(OpenArchive, navLog);
+        var routes = new NavRoutePlanner(NavMapFiles.FromArchive(OpenArchive, navLog), navMeshes.Load);
+        // Its settings, the nearby list, "where am I" and the guidance beep, are read by the controls on each read (#661).
         var fieldControls = new FieldControls(
             settings.Live(FieldBindings.From), feature => settings.Current.IsOn(feature), field, place, announcer,
             cues, () => Environment.TickCount64, log is null ? null : log.FieldRead,
-            new ReachCallouts(field, settings.Speech(Feature.Reach, announcer), () => Environment.TickCount64));
+            new ReachCallouts(field, settings.Speech(Feature.Reach, announcer), () => Environment.TickCount64), routes);
         if (silence is not null)
         {
             screens.Observe(silence);
@@ -339,6 +365,9 @@ internal sealed record HookServices
             // read of a party member's name is known yet, so each is named by its slot.
             BattleHits = hitLines,
             BattleParty = party,
+            // The in-turn situation banner, queued behind the hit lines (#692), behind `speech.battleBanners` (#661).
+            BattleBanners = new BattleBanners(
+                filePositions, settings.Speech(Feature.BattleBanners, reader), cleaner, () => Environment.TickCount64),
             BattleScene = battleScene,
             BattleStatus = settings.Input(
                 Feature.BattleHits, new BattleStatus(party, hitLines, battleScene, battleSpeech, battleBindings)),
@@ -382,6 +411,11 @@ internal sealed record HookServices
             Cues = cues,
         };
     }
+
+    // The game's archive, base.cpk beside the exe, opened read-only; a throw is logged by the navmesh source.
+    private static FileStream OpenArchive() => File.OpenRead(Path.Combine(
+        Path.GetDirectoryName(Environment.ProcessPath) ?? throw new FileNotFoundException("no game folder"),
+        "base.cpk"));
 }
 
 /// <summary>A name entry observer that ignores every update: what the hook reports to when no feature listens.</summary>

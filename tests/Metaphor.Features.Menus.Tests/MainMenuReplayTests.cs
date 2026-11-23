@@ -21,6 +21,7 @@ public sealed class MainMenuReplayTests
         var cursors = new CursorEvents();
         screens.Observe(new MainMenuFocus(announcer));
         screens.Observe(new YesNoDialogFocus(new MessageLibrary(), announcer, new TextCleaner(TextCleanerRules.None)));
+        screens.Observe(new EquipmentFocus(announcer));
         screens.Observe(new UnknownScreenFocus(announcer));
         cursors.Observe(screens);
         var fixture = SessionFixture.Parse(File.ReadAllText(Path.Combine(AppContext.BaseDirectory, "sessions", scenario)));
@@ -35,13 +36,13 @@ public sealed class MainMenuReplayTests
         // The run of 2026-11-17 (build 548ddc95): the main menu from its third entry to System, which opens; inputs
         // without a class (skipped) and a Yes/No dialog, spoken by its position as the fixture compiles no choice text
         // (#549); back on the main menu, Equipment, Party and Item opened from their entries (3, 4 and 2) and spoken as
-        // unknown screens; then System again.
+        // unknown screens, except Equipment, which says its name and position (#217); then System again.
         Assert.Equal(
             [
                 "Menu, Equipment, 3 of 9", "Party, 4 of 9", "Follower, 5 of 9", "Quest, 6 of 9", "Calendar, 7 of 9",
                 "Memorandum, 8 of 9", "System, 9 of 9", "1",
                 "1 of 2",
-                "Menu, Equipment, 3 of 9", "Party, 4 of 9", "Follower, 5 of 9", "Party, 4 of 9", "Equipment, 3 of 9", "1",
+                "Menu, Equipment, 3 of 9", "Party, 4 of 9", "Follower, 5 of 9", "Party, 4 of 9", "Equipment, 3 of 9", "Equipment, 1",
                 "Menu, Party, 4 of 9", "1",
                 "Menu, Equipment, 3 of 9", "Item, 2 of 9", "1",
                 "Menu, Equipment, 3 of 9", "Party, 4 of 9", "Follower, 5 of 9", "Quest, 6 of 9", "Calendar, 7 of 9",
