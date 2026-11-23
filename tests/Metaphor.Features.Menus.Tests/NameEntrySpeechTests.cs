@@ -211,6 +211,59 @@ public sealed class NameEntrySpeechTests
         Assert.DoesNotContain(announcer.Said, said => said.Text == NameEntrySpeech.ConfirmHint);
     }
 
+    // #585: the read-back key says the name typed so far (maintainer's decision, 2026-11-21: the details binding, R3).
+    [Fact]
+    public void TheReadBackIsTheNameSoFarOnlyWhileTheScreenIsUp()
+    {
+        Assert.Null(speech.ReadBack());
+        Frame("");
+        Assert.Equal(NameEntrySpeech.EmptyName, speech.ReadBack());
+        Frame("Al/");
+        Assert.Equal("Al slash", speech.ReadBack());
+        now += NameEntrySpeech.OnScreenMilliseconds + 1;
+        Assert.Null(speech.ReadBack());
+    }
+
+    [Fact]
+    public void R3OnTheScreenReadsTheNameBackPrivatelyOncePerPressAndIsHiddenFromTheGame()
+    {
+        var said = new RecordingAnnouncer();
+        var readBack = new NameReadBack(speech.ReadBack, said, () => MenuBindings.Default);
+        Frame("Ada");
+        const int r3 = 0x0004;
+
+        Assert.Equal(0x4000, readBack.Pad(0, r3 | 0x4000, made: true));
+        Assert.Equal(0, readBack.Pad(0, r3, made: true));
+        Assert.Equal(0, readBack.Pad(0, 0, made: true));
+        Assert.Equal(0, readBack.Pad(0, r3, made: true));
+
+        Assert.Equal(
+            [new Announcement("Ada", Interrupt: true, Private: true), new Announcement("Ada", Interrupt: true, Private: true)],
+            said.Said);
+    }
+
+    [Fact]
+    public void AwayFromTheScreenTheBindingReachesTheGameAndSaysNothing()
+    {
+        var said = new RecordingAnnouncer();
+        var readBack = new NameReadBack(speech.ReadBack, said, () => MenuBindings.Default);
+
+        Assert.Equal(0x0004, readBack.Pad(0, 0x0004, made: true));
+        Assert.Equal([0x46], readBack.Keys([0x46]));
+        Assert.Empty(said.Said);
+    }
+
+    [Fact]
+    public void ANonLetterDetailsKeyReadsTheNameBackOnTheKeyboard()
+    {
+        var said = new RecordingAnnouncer();
+        var readBack = new NameReadBack(speech.ReadBack, said, () => MenuBindings.Default with { DetailsKey = 0x72 });
+        Frame("Ada");
+
+        Assert.Equal([0x41], readBack.Keys([0x41, 0x72]));
+        Assert.Equal([new Announcement("Ada", Interrupt: true, Private: true)], said.Said);
+    }
+
     [Fact]
     public void AFramesTextNeverShowsInItsDescription() =>
         Assert.Equal("player=1 chars=3", new NameEntryFrame(Entry, playerName: true, "Ada").ToString());

@@ -117,6 +117,23 @@ public sealed class NameEntrySpeech : INameEntryObserver, ILineShownObserver, IK
         }
     }
 
+    /// <summary>What is said for the name read back while the box is empty.</summary>
+    public const string EmptyName = "Empty";
+
+    /// <summary>The name typed so far as it is read back on request (#585), symbols by name, or
+    /// <see cref="EmptyName"/>; null when the screen isn't up (<see cref="OnScreen"/>).</summary>
+    public string? ReadBack()
+    {
+        lock (gate)
+        {
+            if (entry is null || milliseconds() - lastSeen > OnScreenMilliseconds)
+            {
+                return null;
+            }
+            return text.Length == 0 ? EmptyName : Spoken(text);
+        }
+    }
+
     /// <summary>Says how to confirm the name when Enter goes down while the screen is up: once a press, nothing for a
     /// held key or away from the screen. The keys reach the game unchanged.</summary>
     public void Keys(IReadOnlyList<int> keys)

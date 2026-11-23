@@ -1,4 +1,5 @@
 using Metaphor.Core.Announcements;
+using Metaphor.Core.Input;
 using Metaphor.Core.Logging;
 using Metaphor.Core.Messages;
 
@@ -150,6 +151,51 @@ public sealed class GameTermsTests
         var terms = new GameTerms(new MessageFilePositions(Shapes));
 
         Assert.Equal("item", new TextCleaner(GameTerms.Rules, terms.Placeholder).Clean("<ITEM 1 2>"));
+    }
+
+    // docs/raw-sources/pad-icon-buttons-by-ear-2026-11-22.md: 6 LT, 7 RT, 12 B on an Xbox-glyph controller.
+    [Theory]
+    [InlineData("Hold <PAD_ICON 7> to dash", "Hold RT to dash")]
+    [InlineData("Press <PAD_ICON 12> to dodge", "Press B to dodge")]
+    [InlineData("<PAD_ICON 6>Fae Sight", "LT Fae Sight")]
+    public void OnAControllerAPinnedButtonIconSaysTheButtonTheScreenDraws(string text, string spoken)
+    {
+        var missing = new List<string>();
+        var terms = new GameTerms(
+            new MessageFilePositions(Shapes), (tag, args) => missing.Add($"{tag} {args}"), buttons: () => InputDevice.Controller);
+
+        Assert.Equal(spoken, new TextCleaner(GameTerms.Rules, terms.Placeholder).Clean(text));
+        Assert.Empty(missing);
+    }
+
+    [Fact]
+    public void OnAControllerAnUnpinnedButtonIconStillSaysButtonAndIsReported()
+    {
+        var missing = new List<string>();
+        var terms = new GameTerms(
+            new MessageFilePositions(Shapes), (tag, args) => missing.Add($"{tag} {args}"), buttons: () => InputDevice.Controller);
+
+        Assert.Equal("Press button to attack", new TextCleaner(GameTerms.Rules, terms.Placeholder).Clean("Press <PAD_ICON 13> to attack"));
+        Assert.Equal(["PAD_ICON 13"], missing);
+    }
+
+    [Fact]
+    public void OnTheKeyboardAButtonIconSaysKeySinceTheKeyIsThePlayersBinding()
+    {
+        var missing = new List<string>();
+        var terms = new GameTerms(
+            new MessageFilePositions(Shapes), (tag, args) => missing.Add($"{tag} {args}"), buttons: () => InputDevice.Keyboard);
+
+        Assert.Equal("Press key to dodge", new TextCleaner(GameTerms.Rules, terms.Placeholder).Clean("Press <PAD_ICON 12> to dodge"));
+        Assert.Equal(["PAD_ICON 12"], missing);
+    }
+
+    [Fact]
+    public void WithButtonNamesOffAButtonIconSaysButtonAsBefore()
+    {
+        var terms = new GameTerms(new MessageFilePositions(Shapes), buttons: () => null);
+
+        Assert.Equal("Hold button to dash", new TextCleaner(GameTerms.Rules, terms.Placeholder).Clean("Hold <PAD_ICON 7> to dash"));
     }
 
     [Fact]

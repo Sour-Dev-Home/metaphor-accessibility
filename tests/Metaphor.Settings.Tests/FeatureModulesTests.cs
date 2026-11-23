@@ -53,11 +53,12 @@ public sealed class FeatureModulesTests
         var controls = Register(withReport: true).Controls;
 
         // Seven since the battle's end check (#750), gated, before the battle keys; it only watches the reads. Eight
-        // since the enemy HP keys split into the keyboard's and the pad's, each its own testing feature (#767).
-        Assert.Equal(8, controls.Count);
+        // since the enemy HP keys split into the keyboard's and the pad's, each its own testing feature (#767). Nine
+        // since the name entry's read-back (#585), gated, before the field.
+        Assert.Equal(9, controls.Count);
         Assert.IsType<MarkKey>(controls[0]);
         Assert.IsType<FieldControls>(controls[^1]);
-        Assert.Equal(7, Register(withReport: false).Controls.Count);
+        Assert.Equal(8, Register(withReport: false).Controls.Count);
     }
 
     [Fact]

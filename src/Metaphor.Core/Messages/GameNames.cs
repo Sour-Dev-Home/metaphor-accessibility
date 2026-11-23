@@ -194,6 +194,30 @@ public sealed class GameNames
         _ => null,
     };
 
+    /// <summary>What a name tag says when its name can't be read, under #83's rule (#107).</summary>
+    public const string StandIn = "name";
+
+    /// <summary>As <see cref="Placeholder"/>, but a name tag whose read fails says <see cref="StandIn"/> and its tag
+    /// and arguments go to <paramref name="missing"/> (Debug builds' log), rather than being dropped. Null for a key
+    /// that isn't a name tag's.</summary>
+    public string? PlaceholderOrStandIn(string key, string arguments, Action<string, string>? missing)
+    {
+        ArgumentNullException.ThrowIfNull(key);
+        if (Placeholder(key, arguments) is { } value)
+        {
+            return value;
+        }
+        if (!TagsByKey.TryGetValue(key, out var tag))
+        {
+            return null;
+        }
+        missing?.Invoke(tag, arguments);
+        return StandIn;
+    }
+
+    private static readonly Dictionary<string, string> TagsByKey =
+        Rules.Placeholders.ToDictionary(pair => pair.Value, pair => pair.Key, StringComparer.Ordinal);
+
     /// <summary>The speaker's name as the screen shows it: from the character table when the message names a speaker,
     /// its <c>#SPEAKER_ID</c> is a character number and the read works, else the name the file stores. A message with
     /// no <c>&lt;NS&gt;</c> name keeps none, since its box may show none.</summary>

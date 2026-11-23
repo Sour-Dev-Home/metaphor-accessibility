@@ -74,8 +74,20 @@ public sealed class MenusModule : IFeatureModule
         events.ObserveSerials(itemFocus);
         // The shop and the Item list hear each cursor input before the slot screens hand it to the menu screens, so a
         // list's view is taken before its screen event is told.
+        // The quest list's rows and an opened quest, by the names and text fetched from the quest files, while tested
+        // (#194); off, the list says positions through the menus' speech as before.
+        var questFocus = new QuestFocus(serials, menuSpeech, cleaner, () => settings.Current.IsOn(MenusFeature.QuestList));
+        screens.Observe(questFocus);
+        events.ObserveSerials(questFocus);
+        // The Followers list's rows by the follower and archetype names it fetched, while tested (#199).
+        var followerFocus = new FollowerFocus(
+            serials, menuSpeech, cleaner, () => settings.Current.IsOn(MenusFeature.FollowerList));
+        screens.Observe(followerFocus);
+        events.ObserveSerials(followerFocus);
         context.Cursors.Observe(shopFocus);
         context.Cursors.Observe(itemFocus);
+        context.Cursors.Observe(questFocus);
+        context.Cursors.Observe(followerFocus);
         screens.Observe(new CalendarFocus(settings.Speech(MenusFeature.Calendar, reader)));
         // The Equipment screens name their rows from the block of names the game fetches for the focused character (#217).
         // Each cursor record ends the block (#216).
@@ -146,10 +158,13 @@ public sealed class NameEntryModule : IFeatureModule
     public void Register(FeatureContext context)
     {
         ArgumentNullException.ThrowIfNull(context);
-        var nameEntry = new NameEntrySpeech(
-            context.Library, context.Settings.Speech(MenusFeature.NameEntry, context.Reader), context.Cleaner,
-            () => Environment.TickCount64);
+        var speech = context.Settings.Speech(MenusFeature.NameEntry, context.Reader);
+        var nameEntry = new NameEntrySpeech(context.Library, speech, context.Cleaner, () => Environment.TickCount64);
         context.Events.ObserveShownLines(nameEntry);
         context.Provide(nameEntry);
+        // The read-back (#585) shares the menus' details binding and speaks as the name entry does.
+        var readBack = new NameReadBack(
+            nameEntry.ReadBack, speech, context.Settings.Live(now => MenuBindings.From(now, 0, 0)));
+        context.AddControls(context.Settings.Input(MenusFeature.NameReadBack, readBack));
     }
 }
