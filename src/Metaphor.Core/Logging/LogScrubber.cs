@@ -5,6 +5,8 @@ namespace Metaphor.Core.Logging;
 /// <summary>Cleans a line before it reaches a log a player may share (#204, #824): the folders and user name it was made
 /// with, each name the player typed that the mod has read since, and any raw memory dump. Safe to use from several
 /// threads; never throws for a line it's given.</summary>
+// Idea credit: op1-access (Timtam, MIT, https://github.com/Timtam/op1-access at cb5d1ff, README.md) scrubs the Windows
+// user name from logs before they're sent. Idea only, no code copied; see CREDITS.md.
 public sealed class LogScrubber
 {
     /// <summary>What a redacted folder or user name becomes.</summary>
