@@ -80,6 +80,9 @@ each hook runs. The first push after a pull builds from cold and takes longer.
 Keep `core.hooksPath` relative, as above: git reads it from each worktree's root, so each worktree runs its own branch's
 hooks. `check.sh rules` and `full` warn about an absolute one.
 
+Agent worktrees pile up in `.claude/worktrees/`: `bash scripts/dev/prune-worktrees.sh [--dry-run]` removes the clean,
+unlocked ones whose work is on `origin` or in a merged PR, and keeps the rest with the reason.
+
 CI runs everything again, so it stays the authority. In `.claude/pii-patterns.txt`, replace the two example lines with
 your own private strings, such as your name and email, one per line. It's git-ignored, and the checks block any commit
 that contains one. Don't leave the example lines in: they match the example file itself, so the checks would fail.

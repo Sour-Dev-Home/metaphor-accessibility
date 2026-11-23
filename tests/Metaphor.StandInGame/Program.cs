@@ -11,7 +11,8 @@
 // partial (ready with 0 of 1 hooks), otherbuild (ready on another build), silent (writes nothing), crash (exits at
 // once) or exitlater (ready, then exits a second later). With METAPHOR_STANDIN_MESSAGE_LOG set to a file, each enabled
 // mod also gets a copy as its message-log.txt, held open for writing as the Debug mod holds its own (for session.ps1 run),
-// and with METAPHOR_STANDIN_TRANSCRIPT a copy as its transcript.txt (for run -SaveLog).
+// and with METAPHOR_STANDIN_TRANSCRIPT a copy as its transcript.txt (for run -SaveLog), and likewise
+// METAPHOR_STANDIN_REPORT_LOG as its report-log.txt.
 // Loader facts: docs/raw-sources/reloaded-ii-app-and-mod-config-2026-11-15.md.
 
 using System.Diagnostics;
@@ -100,6 +101,10 @@ foreach (var modConfig in Directory.EnumerateFiles(Folder(root, "ModConfigDirect
     if (Environment.GetEnvironmentVariable("METAPHOR_STANDIN_TRANSCRIPT") is { Length: > 0 } transcript)
     {
         File.Copy(transcript, Path.Combine(folder, TranscriptAnnouncer.FileName), overwrite: true);
+    }
+    if (Environment.GetEnvironmentVariable("METAPHOR_STANDIN_REPORT_LOG") is { Length: > 0 } reportLog)
+    {
+        File.Copy(reportLog, Path.Combine(folder, ReportLog.FileName), overwrite: true);
     }
 }
 

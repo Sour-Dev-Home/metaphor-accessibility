@@ -8,7 +8,7 @@ One command for every game session (#437): deploy, run, smoke, spike, inspect, s
 - run: deploy in Debug, with the -OptIn files in the mod's folder, then watches the game for -Seconds, prints the mod's
   skipped, failed and ready lines from Reloaded-II's log, says whether the game survived and counts the records in
   message-log.txt without printing game text. With -SaveLog, the game exiting ends the run (quit it when you are done)
-  and message-log.txt and transcript.txt are copied into a new timestamped folder there, which must be outside any git
+  and message-log.txt, transcript.txt and report-log.txt are copied into a new timestamped folder there, which must be outside any git
   repository.
 - smoke: launches with exactly the -ModFolders mods enabled, in a throwaway Reloaded-II profile, and waits for each one's
   status file.

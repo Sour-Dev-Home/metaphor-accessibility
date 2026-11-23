@@ -13,7 +13,8 @@ Import-Module (Join-Path $PSScriptRoot 'ReloadedDev.psm1')
 $Repo = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '../..'))
 $MessageLogFileName = 'message-log.txt' # Metaphor.Core.MessageLog.FileName
 $TranscriptFileName = 'transcript.txt' # Metaphor.Core.Announcements.TranscriptAnnouncer.FileName
-$ScanFileName = 'signature-scan.json' # Metaphor.Core.SignatureScan
+$ReportLogFileName = 'report-log.txt' # Metaphor.Core.ReportLog.FileName
+$ScanFileName ='signature-scan.json' # Metaphor.Core.SignatureScan
 $ProbesFileName = 'signature-probes.json' # Metaphor.Core.SignatureScan.ProbesFileName
 $BackupSuffix = '.session-backup'
 $SharedHooksId = 'reloaded.sharedlib.hooks'
@@ -636,7 +637,7 @@ function Invoke-Run($S) {
         if ($save) {
             $target = Join-Path $save (Get-Date -Format 'yyyy-MM-dd HH.mm.ss')
             New-Item -ItemType Directory -Force $target | Out-Null
-            $saved = @(foreach ($file in $MessageLogFileName, $TranscriptFileName) {
+            $saved = @(foreach ($file in $MessageLogFileName, $TranscriptFileName, $ReportLogFileName) {
                     $source = Join-Path $mod.Folder $file
                     if (Test-Path -LiteralPath $source) { Copy-SharedFile $source (Join-Path $target $file); $file }
                     else { Write-Line "no $file in $($mod.Folder)" }
