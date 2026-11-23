@@ -32,9 +32,10 @@ sees every banner. Static only; nothing here has been heard in play.
   see [`battle-banner-name-variable-static.md`](battle-banner-name-variable-static.md). "Not enough MP!" doesn't come
   through either show: [`battle-not-enough-mp-path-static.md`](battle-not-enough-mp-path-static.md).
 - The advantage banners at battle start (#626) are not among the situation messages; whether they are kind 0, 1 or 3,
-  or art with no text, is `[NEEDS VERIFICATION]`. A Debug build logs each banner's kind and id to settle it.
+  or art with no text, is `[NEEDS VERIFICATION]`. A Debug build logs each banner's kind and id to settle it. Leads
+  since: two layouts, [battle-start-and-turn-notice-layouts-static.md](battle-start-and-turn-notice-layouts-static.md).
 - The turn-icon count (#695): the fields at `G+0x25460` are still leads. A Debug build logs them with each banner and
-  each hit.
+  each hit. Where they change: [turn-icon-count-changes-static.md](turn-icon-count-changes-static.md).
 
 ## Steps
 
