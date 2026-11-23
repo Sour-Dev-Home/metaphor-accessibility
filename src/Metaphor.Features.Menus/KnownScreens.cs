@@ -21,6 +21,7 @@ public static class KnownScreens
         .. SettingsFocus.Screens,
         QuickMenuFocus.Screen,
         .. ItemFocus.Screens,
+        CalendarFocus.Screen,
         .. EquipmentFocus.Screens,
         BattleListFocus.SkillList,
         BattleListFocus.ItemList,

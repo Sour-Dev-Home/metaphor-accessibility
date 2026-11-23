@@ -12,6 +12,9 @@ checks them in the first game session and removes the tag.
 - **The Item screen says each item.** Opening the list says "Item", then each row says its item name and its place
   ("Tonic, 2 of 12"). The equipment tabs, the tab names, quantities and party members' names are still said by
   place or not at all (#216). `[NEEDS VERIFICATION by ear]`
+- **The Calendar says the day.** Opening the Calendar says "Calendar, Waters Day, day 12 of 30", and each move says the
+  weekday and the day you land on (the five weekdays are as heard in a test session). The month, events and discounts
+  aren't spoken yet (#193). `[NEEDS VERIFICATION by ear]`
 - **Dialogue choices say how many options, not all of them.** When a choice opens, the mod says "Choice, 3 options"
   and then the focused option, instead of reading every option at once. Move the cursor to hear the others (#730).
 - **Field sounds wait while the game takes over.** The guiding beep and "in reach" call-outs go quiet when a menu,
