@@ -22,6 +22,19 @@ public sealed class FeatureSettingsTests
         Assert.Equal(keys.Count, keys.Select(key => key.Path).Distinct(StringComparer.Ordinal).Count());
     }
 
+    // Passed by ear in the 2026-11-22 session, so they ship on (#622, #193, #733, #254, #730).
+    [Theory]
+    [InlineData(Feature.SaveSlots)]
+    [InlineData(Feature.Calendar)]
+    [InlineData(Feature.SystemMenu)]
+    [InlineData(Feature.BattleOutcomes)]
+    [InlineData(Feature.ChoiceCount)]
+    public void AFeatureThatPassedItsByEarCheckIsOnByDefault(Feature feature)
+    {
+        Assert.False(SettingKey.Of(feature).Testing);
+        Assert.True(ModSettings.Defaults.IsOn(feature));
+    }
+
     [Fact]
     public void EveryFeatureAndCueIsOnByDefault()
     {
