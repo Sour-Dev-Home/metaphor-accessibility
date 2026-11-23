@@ -126,8 +126,8 @@ public sealed class UnknownScreenFocusTests
     public void AnOpenedQuestsCursorIsNotReadAsAPosition()
     {
         // Its count (9 in session c) is not the quest's: "1 of 9" was said (#194).
-        Cursor(Settle, row: 0, UnknownScreenFocus.QuestDetail.ScreenClass, manager: 0xe0);
-        Cursor(Settle, row: 1, UnknownScreenFocus.QuestDetail.ScreenClass, manager: 0xe0);
+        Cursor(Settle, row: 0, QuestFocus.Detail.ScreenClass, manager: 0xe0);
+        Cursor(Settle, row: 1, QuestFocus.Detail.ScreenClass, manager: 0xe0);
 
         Assert.Empty(announcer.Said);
     }

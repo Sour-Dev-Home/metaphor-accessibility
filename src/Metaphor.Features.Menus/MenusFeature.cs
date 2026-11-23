@@ -50,6 +50,18 @@ public enum MenusFeature
     [SettingKey("speech", "calendar", "Calendar", Order = 1060, Description = "The Calendar's day grid.")]
     Calendar,
 
+    /// <summary>The quest list's names and an opened quest's description (#194). Separate from the menus while it is
+    /// tested; off, the list says positions only.</summary>
+    [SettingKey("speech", "questList", "Quest list", Testing = true, Order = 1065, Description = "Each quest's name " +
+        "on the quest list, and an opened quest's name and description. Needs `menus`.")]
+    QuestList,
+
+    /// <summary>The Followers list's names (#199). Separate from the menus while it is tested; off, the list says
+    /// positions only.</summary>
+    [SettingKey("speech", "followerList", "Follower list", Testing = true, Order = 1067, Description = "Each " +
+        "follower's name and archetype on the Followers list. Needs `menus`.")]
+    FollowerList,
+
     /// <summary>The save and load screens' slots (#622). Separate from the menus.</summary>
     [SettingKey("speech", "saveSlots", "Save slots", Order = 1080, Description = "The save and load screens' slots.")]
     SaveSlots,
