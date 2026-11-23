@@ -125,7 +125,7 @@ public sealed class Beacon
 
     /// <summary>From -1 (left) to +1 (right) for a bearing, left positive: full left or right at the side, centred
     /// ahead and behind.</summary>
-    public static double Pan(double bearing) => -Math.Sin(bearing);
+    public static double Pan(double bearing) => CameraFrame.Pan(bearing);
 
     /// <summary>The pitch for a bearing: <see cref="AheadHertz"/> ahead, <see cref="BehindHertz"/> behind, halfway at
     /// the side.</summary>
@@ -239,7 +239,7 @@ public sealed class Beacon
                         EndLocked();
                         return;
                     }
-                    var (far, toward, inReach) = Nearby.Measure(pose, guided.Unit, guided.DoorReachValue);
+                    var (far, _, inReach) = Nearby.Measure(pose, guided.Unit, guided.DoorReachValue);
                     if (Arrived(far, inReach))
                     {
                         EndLocked();
@@ -250,12 +250,11 @@ public sealed class Beacon
                         return;
                     }
                     distance = far;
-                    // The beep's direction is from what is ahead on screen, the camera's heading (maintainer, by ear
-                    // 2026-11-21 on PR #667); the facing, which the reach test needs, stands in when it isn't read.
-                    var ahead = pose.CameraHeading ?? pose.Heading;
+                    // The beep's direction is from what is ahead on screen, the camera-relative frame (maintainer, by
+                    // ear 2026-11-21 on PR #667); the facing, which the reach test needs, stands in when it isn't read.
                     bearing = Aim(guided.Unit, pose, now, ref straight) is { } corner
-                        ? Nearby.Normalised(Math.Atan2(corner.X - pose.X, corner.Z - pose.Z) - ahead)
-                        : Nearby.Normalised(toward + pose.Heading - ahead);
+                        ? CameraFrame.Bearing(pose, corner.X, corner.Z)
+                        : CameraFrame.Bearing(pose, guided.Unit.X, guided.Unit.Z);
                 }
                 if (paused)
                 {

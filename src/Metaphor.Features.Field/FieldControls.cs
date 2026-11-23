@@ -88,7 +88,7 @@ public sealed record FieldBindings(
 /// own setting (#661), read on each input read: one turned off leaves its keys and chords to the game.</summary>
 [FeatureSetting<FieldFeature>(
     FieldFeature.Nearby, FieldFeature.NearbyCategories, FieldFeature.WhereAmI, FieldFeature.Guidance,
-    FieldFeature.GuidancePause)]
+    FieldFeature.GuidancePause, FieldFeature.CameraTilt)]
 public sealed class FieldControls : IInputControls
 {
     /// <summary>How long the pad's place on the list lasts after a step; the next step after that starts again at the
@@ -109,6 +109,8 @@ public sealed class FieldControls : IInputControls
     private readonly Func<int, bool?>? storyFlag;
     private readonly ReachCallouts? reach;
     private readonly StunCallouts? stuns;
+    private readonly TiltWarning? tilt;
+    private readonly Sonar? sonar;
     private readonly Binding nearby = new();
     private readonly Binding next = new();
     private readonly Binding previous = new();
@@ -138,9 +140,9 @@ public sealed class FieldControls : IInputControls
         FieldBindings bindings, IFieldReads field, FieldPlace place, IAnnouncer announcer, ICuePlayer cues,
         Func<long> milliseconds, Action<string>? log = null, NamesTable? names = null, ReachCallouts? reach = null,
         MissionLine? mission = null, Func<int, bool?>? storyFlag = null, IRoutePlanner? routes = null,
-        StunCallouts? stuns = null)
+        StunCallouts? stuns = null, TiltWarning? tilt = null, Sonar? sonar = null)
         : this(() => bindings, _ => true, field, place, announcer, cues, milliseconds, log, names, reach, mission,
-            storyFlag, routes, stuns)
+            storyFlag, routes, stuns, tilt, sonar)
     {
         ArgumentNullException.ThrowIfNull(bindings);
     }
@@ -148,13 +150,18 @@ public sealed class FieldControls : IInputControls
     /// <summary>Field controls on the bindings and settings in force, read on each input read (#661):
     /// <paramref name="isOn"/> says whether <see cref="FieldFeature.Nearby"/>, <see cref="FieldFeature.WhereAmI"/> and
     /// <see cref="FieldFeature.Guidance"/> are on, and <see cref="FieldFeature.NearbyCategories"/> the category keys.
+    /// <paramref name="tilt"/>'s check and <paramref name="sonar"/>'s tick run on each keyboard read when there are ones
+    /// (#828, #827), and "where am I" ends with the tilt's line while <see cref="FieldFeature.CameraTilt"/> is on.
     /// </summary>
     public FieldControls(
         Func<FieldBindings> bindings, Func<FieldFeature, bool> isOn, IFieldReads field, FieldPlace place,
         IAnnouncer announcer, ICuePlayer cues, Func<long> milliseconds, Action<string>? log = null,
         NamesTable? names = null, ReachCallouts? reach = null, MissionLine? mission = null,
-        Func<int, bool?>? storyFlag = null, IRoutePlanner? routes = null, StunCallouts? stuns = null)
+        Func<int, bool?>? storyFlag = null, IRoutePlanner? routes = null, StunCallouts? stuns = null,
+        TiltWarning? tilt = null, Sonar? sonar = null)
     {
+        this.tilt = tilt;
+        this.sonar = sonar;
         ArgumentNullException.ThrowIfNull(bindings);
         ArgumentNullException.ThrowIfNull(isOn);
         ArgumentNullException.ThrowIfNull(field);
@@ -242,6 +249,8 @@ public sealed class FieldControls : IInputControls
         mission?.Poll();
         reach?.Check();
         stuns?.Check();
+        tilt?.Check();
+        sonar?.Tick();
         var bindings = liveBindings();
         var listOn = isOn(FieldFeature.Nearby);
         var categoriesOn = isOn(FieldFeature.NearbyCategories);
@@ -465,7 +474,8 @@ public sealed class FieldControls : IInputControls
                 $"place map={Number(map)} known={name is not null} mission={current is not null}{flags}"));
         }
         var said = name ?? "Place not known yet";
-        return current is null ? said : $"{said}. {MissionLine.Spoken(current)}";
+        var line = current is null ? said : $"{said}. {MissionLine.Spoken(current)}";
+        return tilt is not null && isOn(FieldFeature.CameraTilt) ? $"{line}. {tilt.Line()}" : line;
     }
 
     private string List(Press press)
@@ -512,7 +522,7 @@ public sealed class FieldControls : IInputControls
         var counts = string.Join(',', Enum.GetValues<FieldKind>()
             .Select(kind => string.Create(CultureInfo.InvariantCulture, $"{kind}:{view.Units.Count(unit => unit.Kind == kind)}")));
         log(string.Create(CultureInfo.InvariantCulture,
-            $"nearby player=({view.X:0.#},{view.Y:0.#},{view.Z:0.#}) heading={view.Heading:0.###} camera={view.CameraHeading?.ToString("0.###", CultureInfo.InvariantCulture) ?? "?"} map={Number(view.MapId)} doorValue={Number(view.DoorReachValue)} units={counts}"));
+            $"nearby player=({view.X:0.#},{view.Y:0.#},{view.Z:0.#}) heading={view.Heading:0.###} camera={view.CameraHeading?.ToString("0.###", CultureInfo.InvariantCulture) ?? "?"} pitch={view.CameraPitch?.ToString("0.###", CultureInfo.InvariantCulture) ?? "?"} map={Number(view.MapId)} doorValue={Number(view.DoorReachValue)} units={counts}"));
         foreach (var thing in things)
         {
             var unit = thing.Unit;

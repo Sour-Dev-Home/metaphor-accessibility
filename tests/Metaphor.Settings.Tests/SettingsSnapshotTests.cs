@@ -12,12 +12,14 @@ public sealed class SettingsSnapshotTests
 {
     private static readonly string[] Expected =
     [
+        "field.cameraTilt | Camera tilt | off | testing",
         "field.guidance | Guidance beep | on | done",
         "field.guidancePause | Guidance pause | off | testing",
         "field.nearby | Nearby list | on | done",
         "field.nearbyCategories | Nearby categories | on | done",
         "field.reach | Reach callouts | on | done",
         "field.shoulderHold | Shoulder hold or tap | off | testing",
+        "field.sonar | Sonar | off | testing",
         "field.stunCallouts | Stun callouts | on | done",
         "field.whereAmI | Where am I | on | done",
         "report.markKey | Mark key | on | done",

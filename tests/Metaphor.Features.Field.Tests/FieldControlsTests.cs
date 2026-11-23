@@ -1,4 +1,5 @@
 using Metaphor.Core.Announcements;
+using Metaphor.Core.Cues;
 using Metaphor.Core.Messages;
 using Metaphor.Core.Settings;
 
@@ -61,7 +62,9 @@ public sealed class FieldControlsTests
 
         public int? MapId() => Map;
 
-        public FieldPose? ReadPose() => View is { } view ? new FieldPose(view.X, view.Y, view.Z, view.Heading) : null;
+        public double? Pitch { get; set; }
+
+        public FieldPose? ReadPose() => View is { } view ? new FieldPose(view.X, view.Y, view.Z, view.Heading, CameraPitch: Pitch) : null;
     }
 
     private IEnumerable<string> Said() => announcer.Said.Select(said => said.Text);
@@ -304,6 +307,73 @@ public sealed class FieldControlsTests
             () => FieldBindings.Default, feature => settings.IsOn(feature), field, place, announcer, cues, () => now);
     }
 
+    // The camera-tilt line (#828) ends "where am I" only while its testing setting is on. Its warnings speak through
+    // their own announcer here (the module gates them by the setting).
+    private FieldControls Tilted(string json, IAnnouncer? warnings = null)
+    {
+        var settings = Parse(json);
+        field.Pitch = -Math.PI / 4;
+        var tilt = new TiltWarning(field, warnings ?? new RecordingAnnouncer(), () => now, () => TiltLimits.Default);
+        return new FieldControls(
+            () => FieldBindings.Default, feature => settings.IsOn(feature), field, place, announcer, cues, () => now,
+            tilt: tilt);
+    }
+
+    [Fact]
+    public void WhereAmIEndsWithTheCameraTiltWhenItIsOn()
+    {
+        Tilted("""{ "field": { "cameraTilt": true } }""").Keys([KeyL]);
+
+        Assert.Equal(["Place not known yet. Camera looking down, 45 degrees"], Said());
+    }
+
+    [Fact]
+    public void WhereAmILeavesOutTheCameraTiltWhileItIsOff()
+    {
+        Tilted("{}").Keys([KeyL]);
+
+        Assert.Equal(["Place not known yet"], Said());
+    }
+
+    [Fact]
+    public void EachKeyboardReadChecksTheCameraTilt()
+    {
+        Tilted("""{ "field": { "cameraTilt": true } }""", announcer).Keys([]);
+
+        Assert.Equal(new Announcement("Camera looking down", Interrupt: false), announcer.Said.Single());
+    }
+
+    [Fact]
+    public void EachKeyboardReadMovesTheSonarOn()
+    {
+        var pings = new List<HeldTone>();
+        var sonarCues = new PingCues(pings);
+        var sonar = new Sonar(field, sonarCues, () => now, () => true);
+        var withSonar = new FieldControls(
+            FieldBindings.Default, field, place, announcer, cues, () => now, sonar: sonar);
+
+        withSonar.Keys([]);
+
+        Assert.Single(pings);
+    }
+
+    private sealed class PingCues(List<HeldTone> pings) : ICuePlayer
+    {
+        public void Play(Cue cue)
+        {
+        }
+
+        public void Play(Cue cue, double pan)
+        {
+        }
+
+        public void Hold(ToneChannel channel, HeldTone tone) => pings.Add(tone);
+
+        public void Silence(ToneChannel channel)
+        {
+        }
+    }
+
     [Fact]
     public void TheNearbyListTurnedOffLeavesItsKeysToTheGameAndWhereAmIWorking()
     {
@@ -389,7 +459,7 @@ public sealed class FieldControlsTests
 
         controls.Keys([KeyN]);
 
-        Assert.StartsWith("nearby player=(0,0,0) heading=0 camera=1.5 map=? doorValue=? units=Person:1,Door:1,Chest:1,Enemy:0", log[0], StringComparison.Ordinal);
+        Assert.StartsWith("nearby player=(0,0,0) heading=0 camera=1.5 pitch=? map=? doorValue=? units=Person:1,Door:1,Chest:1,Enemy:0", log[0], StringComparison.Ordinal);
         Assert.Equal(4, log.Count);
         Assert.Contains("kind=Chest at=(0,0,200) distance=200 bearing=-1.5 reach=True named=False", log[1], StringComparison.Ordinal);
         Assert.DoesNotContain(log, line => line.Contains("Testa", StringComparison.Ordinal));

@@ -166,6 +166,22 @@ public static class SettingsPage
         where you'll press it.
         """;
 
+    private const string LimitsSection = """
+        ## Limits
+
+        Some features warn at a limit you can move, inside a `limits` object, then the feature's object, as a whole number.
+
+        ```json
+        { "limits": { "field": { "cameraDownDegrees": 50 } } }
+        ```
+
+        | Setting | What it does | Default |
+        |---|---|---|
+        | `field.cameraDownDegrees` | How far down the camera tilts, from level, before "Camera looking down" (`cameraTilt`). 1 to 89. | `40` |
+        | `field.cameraUpDegrees` | How far up before "Camera looking up". 1 to 89. | `20` |
+        | `field.cameraMarginDegrees` | How far back inside a limit the camera comes before "Camera level". 0 to 30. | `5` |
+        """;
+
     /// <summary>The page for <paramref name="features"/>, with Unix line ends and a final one. A feature in a group
     /// with no section here throws: a new group needs its section written first.</summary>
     public static string Render(SettingCatalogue features)
@@ -183,6 +199,7 @@ public static class SettingsPage
             Block(page, section, keys.Where(key => key.Group == group).Select(Row));
         }
         Block(page, SoundsSection, Enum.GetValues<Cue>().Select(cue => Sound(SettingKey.Of(cue))));
+        Block(page, LimitsSection);
         Block(page, Tail);
         return page.ToString().TrimEnd('\n') + "\n";
     }

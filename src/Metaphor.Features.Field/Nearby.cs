@@ -209,22 +209,16 @@ public static class Nearby
         return (distance, bearing, inReach);
     }
 
-    // The reach test keeps the character's facing; the spoken direction is from the camera's when it's read, as the
+    // The reach test keeps the character's facing; the spoken direction is from the camera-relative frame, as the
     // beacon's beep (#686, maintainer by ear 2026-11-22 on PR #667).
     private static NearbyThing Place(FieldView view, FieldUnit unit, double slack = 0, double facingSlack = 0,
         double rangeScale = 1)
     {
-        var (distance, bearing, inReach) = Measure(
-            new FieldPose(view.X, view.Y, view.Z, view.Heading), unit, view.DoorReachValue, slack, facingSlack,
-            rangeScale);
-        var spoken = view.CameraHeading is { } camera ? Normalised(bearing + view.Heading - camera) : bearing;
-        return new(unit, distance, spoken, inReach);
+        var pose = view.Pose;
+        var (distance, _, inReach) = Measure(pose, unit, view.DoorReachValue, slack, facingSlack, rangeScale);
+        return new(unit, distance, CameraFrame.Bearing(pose, unit.X, unit.Z), inReach);
     }
 
-    /// <summary><paramref name="angle"/> wrapped into (−π, π].</summary>
-    internal static double Normalised(double angle)
-    {
-        var turned = Math.IEEERemainder(angle, 2 * Math.PI);
-        return turned <= -Math.PI ? turned + 2 * Math.PI : turned;
-    }
+    /// <summary><paramref name="angle"/> wrapped into (−π, π], as <see cref="CameraFrame.Normalised"/>.</summary>
+    internal static double Normalised(double angle) => CameraFrame.Normalised(angle);
 }
