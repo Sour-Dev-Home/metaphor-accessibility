@@ -9,9 +9,12 @@ namespace Metaphor.Features.Battle;
 /// the game. Any other read, a chord with it included, reaches it unchanged. A press is an up-to-down edge on any pad or
 /// the keyboard, so a mirroring second pad can't fire it again; whether a battle is on is asked once, at that edge, and
 /// holds until every source lets go. Safe to call from any of the game's threads; <paramref name="pressed"/> runs
-/// outside its lock.</summary>
-[FeatureSetting<BattleFeature>(BattleFeature.BattleHits)]
-internal sealed class BattleKey(Func<int> binding, Func<int> key, IBattleScene scene, Action pressed) : IInputControls
+/// outside its lock. On a pad, <paramref name="hide"/> names the buttons hidden while it's held, every one when null: a
+/// chord hides only its last button, so the game never sees the held one let go (#767).</summary>
+[FeatureSetting<BattleFeature>(
+    BattleFeature.BattleHits, BattleFeature.BattleEnemyKeys, BattleFeature.BattleEnemyPad)]
+internal sealed class BattleKey(
+    Func<int> binding, Func<int> key, IBattleScene scene, Action pressed, Func<int>? hide = null) : IInputControls
 {
     private const int KeyboardSource = -1;
 
@@ -26,7 +29,7 @@ internal sealed class BattleKey(Func<int> binding, Func<int> key, IBattleScene s
             return buttons;
         }
         var bound = binding();
-        return Read(pad, bound != 0 && buttons == bound) ? 0 : buttons;
+        return Read(pad, bound != 0 && buttons == bound) ? buttons & ~(hide?.Invoke() ?? ~0) : buttons;
     }
 
     public IReadOnlyList<int> Keys(IReadOnlyList<int> keys)

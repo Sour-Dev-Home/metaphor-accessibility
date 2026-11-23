@@ -25,6 +25,8 @@ public sealed class SettingsSnapshotTests
         "sounds.enemyHit | Enemy hit sound | on | done",
         "sounds.mark | Mark sound | on | done",
         "speech.battleBanners | Battle banners | off | testing",
+        "speech.battleEnemyKeys | Battle enemy keys | off | testing",
+        "speech.battleEnemyPad | Battle enemy pad chords | off | testing",
         "speech.battleHits | Battle hits | on | done",
         "speech.battleListViews | Battle list views | off | testing",
         "speech.battleLists | Battle lists | on | done",

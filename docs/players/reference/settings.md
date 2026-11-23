@@ -56,9 +56,11 @@ Each is `true` to speak or `false` to stay quiet, inside a `speech` object: `{ "
 |---|---|---|
 | `dialogue` | Dialogue lines and reply choices. Off also leaves the repeat and reader keys to the game in dialogue. | `true` |
 | `menus` | The title menu, the main menu, the quick menu, Settings, the difficulty list, yes or no questions and any other menu. Off also leaves the details key to the game. | `true` |
-| `battleHits` | Each battle hit as it lands, the battle status key and the enemy HP key. Off also leaves those keys to the game. | `true` |
+| `battleHits` | Each battle hit as it lands, the battle status key and the enemy HP keys. Off also leaves those keys to the game. | `true` |
 | `battleOutcomes` | "Knocked out", "defeated" or "revived" after a battle hit's number. Needs `battleHits`. | `true` |
 | `battleNumberReset` | Numbers each battle's enemies from "First enemy", not on from the battle before. Needs `battleHits`. Still being tested. | testing, off |
+| `battleEnemyKeys` | In a battle, `K` and `J` step to the next or previous enemy hit and say its HP; `L` says every one's. Needs `battleHits`. Still being tested. | testing, off |
+| `battleEnemyPad` | In a battle, `LB` held with D-pad `Down`, `Up` or `Left` does what `K`, `J` and `L` do. Needs `battleHits`. Still being tested. | testing, off |
 | `battleLists` | Battle's skill and item lists, row by row. Separate from `menus`. | `true` |
 | `battleListViews` | Names the rows of battle's skill and item lists after a wrap to the bottom, not only their positions. Needs `battleLists`. Still being tested. | testing, off |
 | `itemMenu` | The Item screen's rows and its party-member list. Still being tested. | testing, off |
@@ -144,8 +146,13 @@ DpadUp, DpadDown, DpadLeft and DpadRight.
 | `menus.detailsButtons` | The same on the pad. | `"RS"` |
 | `battle.statusKey` | In a battle, says each party member's HP and the enemies hit so far. | `"H"` |
 | `battle.statusButtons` | The same on the pad. | `"LS"` |
-| `battle.enemyHpKey` | In a battle, says the HP of the enemies hit so far. Unbound until free keys are chosen (#767): F and RS belong to the game's melee and auto-battle. | `"none"` |
-| `battle.enemyHpButtons` | The same on the pad. | `"none"` |
+| `battle.enemyNextKey` | In a battle, steps to the next enemy hit so far and says its HP (testing: `battleEnemyKeys`). | `"K"` |
+| `battle.enemyPreviousKey` | The enemy before. | `"J"` |
+| `battle.enemyHpKey` | In a battle, says the HP of every enemy hit so far, in one line. | `"L"` |
+| `battle.enemyHoldButtons` | Held for the battle's enemy chords (testing: `battleEnemyPad`). | `"LB"` |
+| `battle.enemyNextButton` | With the held button: the next enemy. | `"DpadDown"` |
+| `battle.enemyPreviousButton` | With the held button: the enemy before. | `"DpadUp"` |
+| `battle.enemyHpButton` | With the held button: every enemy's HP. | `"DpadLeft"` |
 | `field.nearbyKey` | Speaks the whole nearby list. | `"N"` |
 | `field.placeKey` | Says where you are. | `"L"` |
 | `field.holdButtons` | Held for the field's pad chords. | `"LB"` |

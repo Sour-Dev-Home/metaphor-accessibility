@@ -35,13 +35,15 @@ public sealed class BattleModule : IFeatureModule
         context.AddControls(settings.Input(
             BattleFeature.BattleHits,
             new BattleStatus(context.BattleParty, hitLines, context.BattleScene, battleSpeech, battleBindings)));
-        // The enemy HP readout has its own binding, unbound by default (#767), so the game keeps F and R3; the menu
-        // controls take a key first while a battle list is shown. A Debug build logs each press's enemy records for the
-        // target read.
+        // The enemy HP keys (#767): K, J and L, and LB with the D-pad, each its own testing feature on top of the hits,
+        // so the game keeps F and R3; the menu controls take a key first while a battle list is shown. A Debug build
+        // logs each all-enemies press's enemy records for the target read.
+        var enemyHp = new BattleEnemyHp(
+            battleBindings, hitLines, context.BattleScene, battleSpeech,
+            log is null ? null : text => log.Requested("BattleDetails", text));
         context.AddControls(settings.Input(
-            BattleFeature.BattleHits,
-            new BattleEnemyHp(
-                battleBindings, hitLines, context.BattleScene, battleSpeech,
-                log is null ? null : text => log.Requested("BattleDetails", text))));
+            BattleFeature.BattleHits, settings.Input(BattleFeature.BattleEnemyKeys, enemyHp.Keyboard)));
+        context.AddControls(settings.Input(
+            BattleFeature.BattleHits, settings.Input(BattleFeature.BattleEnemyPad, enemyHp.Pad)));
     }
 }

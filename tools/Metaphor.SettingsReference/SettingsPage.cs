@@ -138,8 +138,13 @@ public static class SettingsPage
         | `menus.detailsButtons` | The same on the pad. | `"RS"` |
         | `battle.statusKey` | In a battle, says each party member's HP and the enemies hit so far. | `"H"` |
         | `battle.statusButtons` | The same on the pad. | `"LS"` |
-        | `battle.enemyHpKey` | In a battle, says the HP of the enemies hit so far. Unbound until free keys are chosen (#767): F and RS belong to the game's melee and auto-battle. | `"none"` |
-        | `battle.enemyHpButtons` | The same on the pad. | `"none"` |
+        | `battle.enemyNextKey` | In a battle, steps to the next enemy hit so far and says its HP (testing: `battleEnemyKeys`). | `"K"` |
+        | `battle.enemyPreviousKey` | The enemy before. | `"J"` |
+        | `battle.enemyHpKey` | In a battle, says the HP of every enemy hit so far, in one line. | `"L"` |
+        | `battle.enemyHoldButtons` | Held for the battle's enemy chords (testing: `battleEnemyPad`). | `"LB"` |
+        | `battle.enemyNextButton` | With the held button: the next enemy. | `"DpadDown"` |
+        | `battle.enemyPreviousButton` | With the held button: the enemy before. | `"DpadUp"` |
+        | `battle.enemyHpButton` | With the held button: every enemy's HP. | `"DpadLeft"` |
         | `field.nearbyKey` | Speaks the whole nearby list. | `"N"` |
         | `field.placeKey` | Says where you are. | `"L"` |
         | `field.holdButtons` | Held for the field's pad chords. | `"LB"` |
