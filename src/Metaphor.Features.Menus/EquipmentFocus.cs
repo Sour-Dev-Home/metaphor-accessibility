@@ -8,18 +8,23 @@ namespace Metaphor.Features.Menus;
 /// <summary>Speaks the camp Equipment screen's focus (#217): on entering the character list, "Equipment" and the
 /// position, then each move's position ("n of total", or "n" when the game's count can't be read), each cutting off the
 /// last, on the characters, the slots, a slot's items and the swap's characters. A character row adds the member's name
-/// (none for row 0, the protagonist, whose name isn't a message) and archetype; slot row 0 says the archetype, rows 1 to
-/// 4 their label and the item worn in it; entering the swap says its question first. Names come from the block the game
-/// fetches for the focused character just before its cursor record. The item list's names, the "equipped" mark and the
-/// sort key are not spoken: where the worn row sits in the list isn't in the fetches <c>[NEEDS VERIFICATION]</c>. Safe to
-/// call from several threads.</summary>
+/// and archetype, row 0 the protagonist's typed name (<see cref="ProtagonistName"/>), since his isn't a message; slot row
+/// 0 says the archetype, rows 1 to 4 their label and the item worn in it; entering the swap says its question first.
+/// Names come from the block the game fetches for the focused character between the move's cursor records. The item
+/// list's names, the "equipped" mark, the sort key and the swap's character are not spoken: where the worn row sits in
+/// the list isn't in the fetches, and the swap fetches no name <c>[NEEDS VERIFICATION]</c>. Safe to call from several
+/// threads.</summary>
 /// <remarks>Classes on build 548ddc95 (docs/raw-sources/screen-class-session-2026-11-17.md): the characters, slots,
 /// items and swap, in that order. The block (docs/raw-sources/item-equipment-menus-message-log-2026-11-22.md): the
 /// member's <c>CharaName.msg</c> serial (flags 9), the archetype's <c>ATCategoryName.msg</c> serial (flags 8), then each
 /// slot's label followed by its worn item's <c>Equip_Message_1.msg</c> name (flags 8)
-/// (docs/findings/equipment-character-archetype-serials-static.md).</remarks>
+/// (docs/findings/equipment-character-archetype-serials-static.md). The protagonist's block has no member, and
+/// Gallica's no archetype and no slot labels: only her name and worn items (2026-11-23 session, build 0c122d3, Steam
+/// 18330018: <c>CharaName_PC11_Gallica</c> then four equipment names, where the archetype-led block kept Basilio's, #216).
+/// So any member or archetype fetched after a cursor record starts the next block, and a worn item fills the slot of its
+/// kind (<see cref="EquipmentKinds"/>), the slots' order.</remarks>
 [FeatureSetting<MenusFeature>(MenusFeature.EquipmentMenu)]
-public sealed class EquipmentFocus : IScreenObserver, ISerialResolveObserver
+public sealed class EquipmentFocus : IScreenObserver, ISerialResolveObserver, ICursorObserver
 {
     /// <summary>The character list, by its owner's class on build 548ddc95.</summary>
     public static Screen Characters { get; } = new("Equipment", "EquipCharaSelChoice@ope@ui@app");
@@ -55,9 +60,10 @@ public sealed class EquipmentFocus : IScreenObserver, ISerialResolveObserver
     private readonly Lock gate = new();
     private readonly int?[] worn = new int?[SlotRows];
     private int? member;
-    private int? fetchedMember;
     private int? archetype;
-    private int? slotFetching;
+
+    // Whether a block is being fetched: from its first member or archetype until the next cursor record.
+    private bool blockOpen;
 
     public EquipmentFocus(IAnnouncer announcer)
     {
@@ -74,6 +80,10 @@ public sealed class EquipmentFocus : IScreenObserver, ISerialResolveObserver
         this.serials = serials;
         this.cleaner = cleaner;
     }
+
+    /// <summary>The protagonist's name as the player typed it, or null when it can't be read; row 0 of the character
+    /// list says it before his archetype.</summary>
+    public Func<string?>? ProtagonistName { get; init; }
 
     /// <summary>Speaks the focus when an Equipment screen is entered or its focus moves.</summary>
     public void Observe(ScreenEvent change)
@@ -100,33 +110,45 @@ public sealed class EquipmentFocus : IScreenObserver, ISerialResolveObserver
             return;
         }
         var serial = resolve.Serial;
+        var kind = resolve.Flags == NameFlags ? EquipmentKinds.Of(serials, serial) : null;
         lock (gate)
         {
             if (resolve.Flags == MemberFlags && serials.InFile(serial, MessageSerials.CharacterNames))
             {
-                fetchedMember = serial;
+                StartBlock(serial);
             }
             else if (resolve.Flags == NameFlags && serials.InFile(serial, MessageSerials.ArchetypeNames))
             {
-                // A new block: its member is the one fetched just before, and its slots are fetched after.
+                // The member's block goes on with their archetype; one that has its archetype, or none open, is the
+                // protagonist's, which fetches no member.
+                if (!blockOpen || archetype is not null)
+                {
+                    StartBlock(null);
+                }
                 archetype = serial;
-                member = fetchedMember;
-                fetchedMember = null;
-                slotFetching = null;
-                Array.Clear(worn);
             }
-            else if (serial is >= FirstSlotSerial and < FirstSlotSerial + SlotRows)
-            {
-                slotFetching = serial - FirstSlotSerial;
-                worn[serial - FirstSlotSerial] = null;
-            }
-            else if (resolve.Flags == NameFlags && slotFetching is { } slot
-                && serials.InFile(serial, MessageSerials.EquipmentNames))
+            else if (blockOpen && kind is { } slot && worn[slot] is null)
             {
                 worn[slot] = serial;
-                slotFetching = null;
             }
         }
+    }
+
+    /// <summary>Ends the block being fetched: the item list fetches equipment names too, which aren't worn.</summary>
+    public void Observe(CursorInput input)
+    {
+        lock (gate)
+        {
+            blockOpen = false;
+        }
+    }
+
+    private void StartBlock(int? memberSerial)
+    {
+        member = memberSerial;
+        archetype = null;
+        Array.Clear(worn);
+        blockOpen = true;
     }
 
     // "<names>, n of total", each name left out when it isn't known.
@@ -146,7 +168,9 @@ public sealed class EquipmentFocus : IScreenObserver, ISerialResolveObserver
                 : change.Index <= SlotRows ? [FirstSlotSerial + change.Index - 1, worn[change.Index - 1]]
                 : [];
         }
+        var protagonist = change.Screen == Characters && change.Index == 0 ? ProtagonistName?.Invoke() : null;
         var said = names.Select(serial => serial is { } known ? serials.TextOf(known, cleaner!) : null)
+            .Prepend(protagonist)
             .OfType<string>()
             .Append(position);
         return string.Join(", ", said);

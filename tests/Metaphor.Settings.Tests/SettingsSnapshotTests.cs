@@ -42,6 +42,7 @@ public sealed class SettingsSnapshotTests
         "speech.menus | Menus | on | done",
         "speech.nameEntry | Name entry | on | done",
         "speech.placeNames | Place names | on | done",
+        "speech.returnToTitleQuestion | Return to title question | off | testing",
         "speech.saveSlots | Save slots | on | done",
         "speech.shopMenu | Shop menu | on | done",
         "speech.systemMenu | System menu | on | done",

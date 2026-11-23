@@ -12,6 +12,12 @@ public enum MenusFeature
         "to the game.")]
     Menus,
 
+    /// <summary>The Return to title dialog's question, before its Yes and No (#810). Separate from the menus while it
+    /// is tested.</summary>
+    [SettingKey("speech", "returnToTitleQuestion", "Return to title question", Testing = true, Order = 1013,
+        Description = "The question the quick menu's Return to title asks before Yes and No. Needs `menus`.")]
+    ReturnToTitleQuestion,
+
     /// <summary>Battle's skill and item lists, row by row (#247). Separate from the menus.</summary>
     [SettingKey("speech", "battleLists", "Battle lists", Order = 1040, Description = "Battle's skill and item lists, " +
         "row by row. Separate from `menus`.")]

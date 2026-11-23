@@ -20,6 +20,7 @@ public sealed class EquipmentSlotNamesTests
     private const int Count = 50;
 
     private const int Strohl = 2;
+    private const int Gallica = 3;
     private const int Seeker = 9441;
     private const int Gunner = 9447;
     private const int Sword = 2500;
@@ -29,12 +30,13 @@ public sealed class EquipmentSlotNamesTests
     private readonly RecordingAnnouncer announcer = new();
     private readonly CursorEvents cursors = new();
     private readonly MessageEvents messages = new();
+    private string? protagonist;
 
     public EquipmentSlotNamesTests()
     {
         var serials = new MessageSerials([
             new SerialRange("message/system/System_Message.msg", First, Count),
-            new SerialRange(MessageSerials.CharacterNames, 0, 3),
+            new SerialRange(MessageSerials.CharacterNames, 0, 4),
             new SerialRange(MessageSerials.EquipmentNames, Sword, 2),
             new SerialRange(MessageSerials.ArchetypeNames, Seeker, 7),
         ]);
@@ -43,15 +45,20 @@ public sealed class EquipmentSlotNamesTests
         messages.Compiled(new MessageFileCompiled("EN/message/system/System_Message.msg", 21, source));
         messages.Compiled(new MessageFileCompiled("EN/message/CharaName.msg", 1,
             string.Join("\n\n", Entry("CharaName_PC01_Hero", "Protagonist"), Entry("CharaName_PC01_Hero_01", "Hero"),
-                Entry("CharaName_PC02_Stroll", "Strohl"))));
+                Entry("CharaName_PC02_Stroll", "Strohl"), Entry("CharaName_PC11_Gallica", "Gallica"))));
         messages.Compiled(new MessageFileCompiled("EN/message/system/Equip_Message_1.msg", 12,
             string.Join("\n\n", Entry("WeaponName_SSWORD_01", "Sword"), Entry("ArmorName_Heavy_01", "Mail"))));
         messages.Compiled(new MessageFileCompiled("EN/message/ATCategoryName.msg", 30, string.Join("\n\n",
             Enumerable.Range(0, 7).Select(at => Entry($"ATCategoryName_{at + 1:00}", at == 0 ? "Seeker" : at == 6 ? "Gunner" : $"Lineage {at}")))));
         var screens = new MenuScreens(KnownScreens.All);
         screens.MenusRead(open: true);
+        var focus = new EquipmentFocus(serials, announcer, new TextCleaner(TextCleanerRules.None))
+        {
+            ProtagonistName = () => protagonist,
+        };
+        // As MenusModule wires it: the focus hears each cursor record before the menu screens do.
+        cursors.Observe(focus);
         cursors.Observe(screens);
-        var focus = new EquipmentFocus(serials, announcer, new TextCleaner(TextCleanerRules.None));
         screens.Observe(focus);
         messages.ObserveSerials(focus);
         screens.Observe(new UnknownScreenFocus(announcer));
@@ -159,5 +166,78 @@ public sealed class EquipmentSlotNamesTests
         Cursor(CharactersClass, 1, count: 8);
 
         Assert.Equal(["Equipment, Seeker, 1 of 8", "Strohl, Gunner, 2 of 8"], Said());
+    }
+
+    // #216 (heard on the Equipment list, 2026-11-23): the protagonist's row said only his archetype.
+    [Fact]
+    public void TheProtagonistsRowSaysHisTypedNameBeforeHisArchetype()
+    {
+        protagonist = "Will";
+        Block(null, Seeker);
+        Cursor(CharactersClass, 0, count: 8);
+
+        Assert.Equal(["Equipment, Will, Seeker, 1 of 8"], Said());
+    }
+
+    [Fact]
+    public void AnUnreadableTypedNameLeavesTheProtagonistsRowAsBefore()
+    {
+        Block(null, Seeker);
+        Cursor(CharactersClass, 0, count: 8);
+
+        Assert.Equal(["Equipment, Seeker, 1 of 8"], Said());
+    }
+
+    // #216 (2026-11-23): Gallica's block fetches her name and worn items but no archetype and no slot labels, so the last
+    // row kept the member before her: "Basilio, Brawler, 8 of 8".
+    [Fact]
+    public void AMemberWithNoArchetypeIsNamedAloneNotAsTheMemberBefore()
+    {
+        Block(Strohl, Gunner, (SlotLabel, Sword));
+        Cursor(CharactersClass, 6, count: 8);
+        messages.Resolved(new SerialResolved(Gallica, 9));
+        messages.Resolved(new SerialResolved(Sword, 8));
+        Cursor(CharactersClass, 7, count: 8);
+
+        Assert.Equal(["Equipment, Strohl, Gunner, 7 of 8", "Gallica, 8 of 8"], Said());
+    }
+
+    [Fact]
+    public void AMemberWithNoSlotLabelsStillSaysTheirWornItems()
+    {
+        messages.Resolved(new SerialResolved(Gallica, 9));
+        messages.Resolved(new SerialResolved(Sword, 8));
+        messages.Resolved(new SerialResolved(Mail, 8));
+        Cursor(CharactersClass, 7, count: 8);
+        Cursor(SlotsClass, 1, count: 5);
+        Cursor(SlotsClass, 2, count: 5);
+
+        Assert.Equal(["Text 1511, Sword, 2 of 5", "Text 1512, Mail, 3 of 5"], Said().Skip(1));
+    }
+
+    // The member block left by a row with no archetype isn't the protagonist's, whose block starts with his archetype.
+    [Fact]
+    public void TheProtagonistsArchetypeAfterAMemberWithNoneStartsHisOwnBlock()
+    {
+        messages.Resolved(new SerialResolved(Gallica, 9));
+        messages.Resolved(new SerialResolved(Sword, 8));
+        Cursor(CharactersClass, 7, count: 8);
+        Block(null, Seeker, (SlotLabel + 1, Mail));
+        Cursor(CharactersClass, 0, count: 8);
+        Cursor(SlotsClass, 1, count: 5);
+
+        Assert.Equal(["Seeker, 1 of 8", "Text 1511, 2 of 5"], Said().Skip(1));
+    }
+
+    // A slot's item list fetches equipment names too; they aren't what the character wears.
+    [Fact]
+    public void TheItemListsNamesDontChangeTheWornItems()
+    {
+        Block(Strohl, Gunner, (SlotLabel, Sword));
+        Cursor(CharactersClass, 1, count: 8);
+        messages.Resolved(new SerialResolved(Mail, 8));
+        Cursor(SlotsClass, 2, count: 5);
+
+        Assert.Equal("Text 1512, 3 of 5", Said().Last());
     }
 }

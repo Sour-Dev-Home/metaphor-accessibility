@@ -81,7 +81,7 @@ internal sealed record HookServices
     /// </summary>
     public IReadOnlyList<IReadsGlobal> Globals =>
         [MenusOpen, DialogueWindow, GameData, CharacterTable, FollowerTable, Voice, BattleScene, FieldWorld, FieldScene,
-            FieldDatabase, PersonTable, MissionTable];
+            FieldDatabase, PersonTable, MissionTable, InputDevice];
 
     /// <summary>Reads whether a battle is on, for the status key (#631); the loader locates what it reads.</summary>
     public BattleSceneRead BattleScene { get; init; } = new();
@@ -103,6 +103,9 @@ internal sealed record HookServices
 
     /// <summary>Reads the main mission table (#658); the loader locates what it reads.</summary>
     public MissionTableRead MissionTable { get; init; } = new();
+
+    /// <summary>Reads the game's glyph device for the button names (#778); the loader locates what it reads.</summary>
+    public InputDeviceRead InputDevice { get; init; } = new();
 
     /// <summary>The field reads (#181), for the map id beside each place-name lookup.</summary>
     public FieldMemory? Field { get; init; }
@@ -203,7 +206,9 @@ internal sealed record HookServices
         var reader = new DialogueReader(announcer);
         var voiceLanguage = new VoiceLanguageRead();
         var tutorials = new TutorialTableSource();
-        var lastDevice = new LastInputDevice();
+        // The game's own glyph device names the device when it can (#778); the mod's reads are the fallback.
+        var inputDevice = new InputDeviceRead();
+        var lastDevice = new LastInputDevice(inputDevice.Value);
         var screens = new MenuScreens(KnownScreens.All);
         events.ObserveFiles(library);
         events.ObserveFiles(serials);
@@ -316,6 +321,7 @@ internal sealed record HookServices
             Field = field,
             FieldPlace = context.Find<FieldPlace>(),
             MissionTable = missionTable,
+            InputDevice = inputDevice,
             Cues = cues,
         };
     }

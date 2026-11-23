@@ -16,13 +16,14 @@ public sealed class ItemFocusTests
 
     private readonly RecordingAnnouncer announcer = new();
     private readonly CursorEvents cursors = new();
+    private string? protagonist;
 
     public ItemFocusTests()
     {
         var screens = new MenuScreens(KnownScreens.All);
         screens.MenusRead(open: true);
         cursors.Observe(screens);
-        screens.Observe(new ItemFocus(announcer));
+        screens.Observe(new ItemFocus(announcer) { ProtagonistName = () => protagonist });
         screens.Observe(new UnknownScreenFocus(announcer));
     }
 
@@ -67,6 +68,17 @@ public sealed class ItemFocusTests
         Cursor(TargetClass, 3, count: 4);
 
         Assert.Equal(["1 of 4", "4 of 4"], Said());
+    }
+
+    // #216: the first target is the protagonist, whose name the player typed.
+    [Fact]
+    public void TheFirstTargetIsTheProtagonistByHisTypedName()
+    {
+        protagonist = "Will";
+        Cursor(TargetClass, 0, count: 4);
+        Cursor(TargetClass, 1, count: 4);
+
+        Assert.Equal(["Will, 1 of 4", "2 of 4"], Said());
     }
 
     [Fact]
