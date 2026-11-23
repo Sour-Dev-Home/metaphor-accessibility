@@ -46,6 +46,7 @@ public sealed class SettingsSnapshotTests
         "speech.returnToTitleQuestion | Return to title question | off | testing",
         "speech.saveSlots | Save slots | on | done",
         "speech.shopMenu | Shop menu | on | done",
+        "speech.skipSceneQuestion | Skip scene question | off | testing",
         "speech.systemMenu | System menu | on | done",
         "speech.termNames | Term names | on | done",
         "speech.travelMap | Travel map | on | done",

@@ -18,6 +18,12 @@ public enum MenusFeature
         Description = "The question the quick menu's Return to title asks before Yes and No. Needs `menus`.")]
     ReturnToTitleQuestion,
 
+    /// <summary>The question and buttons of the "Skip?" menu in a 2D cutscene (#809). Separate from the menus while it
+    /// is tested.</summary>
+    [SettingKey("speech", "skipSceneQuestion", "Skip scene question", Testing = true, Order = 1015,
+        Description = "The question and its two buttons when the Menu button opens the skip menu in a cutscene.")]
+    SkipSceneQuestion,
+
     /// <summary>Battle's skill and item lists, row by row (#247). Separate from the menus.</summary>
     [SettingKey("speech", "battleLists", "Battle lists", Order = 1040, Description = "Battle's skill and item lists, " +
         "row by row. Separate from `menus`.")]

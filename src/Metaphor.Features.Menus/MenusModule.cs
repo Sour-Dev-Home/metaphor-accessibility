@@ -48,6 +48,9 @@ public sealed class MenusModule : IFeatureModule
         screens.Observe(titleQuestion);
         events.ObserveChoices(yesNo);
         events.ObserveSelects(yesNo);
+        // The cutscene's skip menu has no cursor: its layout's open animation says its question, while tested (#809).
+        context.Layouts.Observe(new SkipSceneQuestion(
+            settings.Speech(MenusFeature.SkipSceneQuestion, reader), context.LastDevice));
         screens.Observe(new DifficultyFocus(library, menuSpeech, cleaner));
         screens.Observe(new SettingsFocus(library, menuSpeech, cleaner)
         {

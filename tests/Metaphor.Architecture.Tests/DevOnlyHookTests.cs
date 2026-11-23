@@ -47,6 +47,17 @@ public sealed class DevOnlyHookTests
         });
     }
 
+    /// <summary>The layout animation hook ships to players, so the cutscene skip menu can be spoken (maintainer's
+    /// decision, 2026-11-23, #809); it is in <c>.ecode</c>, not <c>.text1</c>, so rule 15 doesn't hold it back.</summary>
+    [Fact]
+    public void TheLayoutAnimationHookShipsInRelease()
+    {
+        var attribute = Scanned.Load(Rules.HookLayer).MainModule.GetType("Metaphor.Hooks.LayoutAnimationListener")
+            .CustomAttributes.Single(a => a.AttributeType.FullName == "Metaphor.Hooks.GameHookAttribute");
+
+        Assert.DoesNotContain(attribute.Properties, p => p.Name is "DevOnly" or "OptInFile");
+    }
+
     /// <summary>The dialogue window hooks sit in .text1, so even a Debug build leaves them out unless given
     /// <c>opt-in-dialogue-window.txt</c> (maintainer, 2026-11-16).</summary>
     [Theory]
