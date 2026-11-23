@@ -27,6 +27,9 @@ public sealed class BattleModule : IFeatureModule
         context.Provide(new BattleBanners(
             context.FilePositions, settings.Speech(BattleFeature.BattleBanners, reader), context.Cleaner,
             () => Environment.TickCount64));
+        // Leaving the battle scene ends the battle, so the next one numbers its enemies afresh (#750).
+        context.AddControls(settings.Input(
+            BattleFeature.BattleNumberReset, new BattleEnds(hitLines, context.BattleScene, TimeProvider.System)));
         var battleBindings = settings.Live(BattleBindings.From);
         // The status key acts only in a battle (#631); a Debug build logs the scene each press read.
         context.AddControls(settings.Input(

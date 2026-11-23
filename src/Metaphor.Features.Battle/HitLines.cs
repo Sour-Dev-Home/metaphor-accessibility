@@ -28,7 +28,8 @@ public sealed record KnownEnemy(string Label, int Hp, int? HpMax, long Target);
 /// number, else "First ally" and so on by slot; an enemy is "Enemy". An enemy's ordinal is the order it was first hit,
 /// not its place on screen, which isn't read, and is the one it has when the hit lands.</para>
 /// <para>The game gives no "battle over" signal the mod reads, so a battle ends at a long quiet gap
-/// (<see cref="BattleGapMilliseconds"/>), which forgets its enemies; the length is a guess to check by ear.</para>
+/// (<see cref="BattleGapMilliseconds"/>), which forgets its enemies; the length is a guess to check by ear. Leaving the battle scene ends one sooner
+/// (<see cref="BattleEnds"/>, #750).</para>
 /// </remarks>
 [FeatureSetting<BattleFeature>(BattleFeature.BattleHits, BattleFeature.BattleOutcomes)]
 public sealed class HitLines : IBattleHitObserver
@@ -129,6 +130,29 @@ public sealed class HitLines : IBattleHitObserver
         lock (gate)
         {
             return [.. enemies.Select(enemy => new KnownEnemy(EnemyLabel(enemy), enemyHp[enemy].Hp, enemyHp[enemy].HpMax, enemy))];
+        }
+    }
+
+    /// <summary>Whether this battle has hit an enemy it still remembers.</summary>
+    public bool RemembersEnemies
+    {
+        get
+        {
+            lock (gate)
+            {
+                return enemies.Count > 0;
+            }
+        }
+    }
+
+    /// <summary>The battle is over (#750): its enemies are forgotten, so the next battle numbers its own from the
+    /// first.</summary>
+    public void BattleOver()
+    {
+        lock (gate)
+        {
+            enemies.Clear();
+            enemyHp.Clear();
         }
     }
 

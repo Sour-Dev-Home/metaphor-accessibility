@@ -24,7 +24,10 @@ namespace Metaphor.Features.Menus;
 /// the last name fetched going down (docs/raw-sources/battle-item-list-scroll-by-ear-2026-11-22.md). Going up it is
 /// taken as the first, as on the settings pages (docs/raw-sources/settings-ok-and-rows-by-ear-2026-11-21.md); for the
 /// battle lists that is <c>[NEEDS VERIFICATION]</c>. When several names were fetched (the whole view again after a wrap,
-/// #737) the row is named only if they match rows already known; else it is said by its position.</para>
+/// #737) the row is named only if they match rows already known; else it is said by its position. A whole view
+/// fetched again, as many names as the first page, names every row it holds, lined up by its known rows or, after a
+/// wrap up, ending at the last row (<see cref="MenusFeature.BattleListViews"/>; F8 marks 18 to 20 of the by-ear session
+/// of 2026-11-22, Steam build 18330018; <c>[NEEDS VERIFICATION]</c> on other lists).</para>
 /// </remarks>
 [FeatureSetting<MenusFeature>(MenusFeature.BattleLists)]
 public sealed class BattleListFocus : IScreenObserver, ISerialResolveObserver, IScreenDetails
@@ -48,7 +51,10 @@ public sealed class BattleListFocus : IScreenObserver, ISerialResolveObserver, I
     private readonly string namesFile;
     private readonly string descriptionsFile;
     private readonly Func<long> millisecondsNow;
+    private readonly Func<bool> viewsOn;
     private readonly Lock gate = new();
+    // How many names the first page's run fetched: the view's rows, once the list is longer (#737).
+    private int pageSize;
     // Each row's name serial by the row's place in the whole list, from 0.
     private readonly Dictionary<int, int> rows = [];
     // Names fetched since the last focus once the first page's run is over, for the next focus to place.
@@ -73,8 +79,9 @@ public sealed class BattleListFocus : IScreenObserver, ISerialResolveObserver, I
 
     private BattleListFocus(
         Screen screen, string namesFile, string descriptionsFile, MessageSerials serials, IAnnouncer announcer,
-        TextCleaner cleaner, Func<long> millisecondsNow)
+        TextCleaner cleaner, Func<long> millisecondsNow, Func<bool>? viewsOn)
     {
+        this.viewsOn = viewsOn ?? (() => true);
         this.descriptionsFile = descriptionsFile;
         ArgumentNullException.ThrowIfNull(serials);
         ArgumentNullException.ThrowIfNull(announcer);
@@ -97,19 +104,22 @@ public sealed class BattleListFocus : IScreenObserver, ISerialResolveObserver, I
     /// <summary>The screen this one speaks.</summary>
     public Screen Screen { get; }
 
-    /// <summary>The skill list, its names from the skill names file, timed by <paramref name="millisecondsNow"/>.
-    /// </summary>
+    /// <summary>The skill list, its names from the skill names file, timed by <paramref name="millisecondsNow"/>;
+    /// <paramref name="viewsOn"/> says whether a whole view fetched again names its rows (#737,
+    /// <see cref="MenusFeature.BattleListViews"/>), on when null.</summary>
     public static BattleListFocus Skills(
-        MessageSerials serials, IAnnouncer announcer, TextCleaner cleaner, Func<long> millisecondsNow) =>
+        MessageSerials serials, IAnnouncer announcer, TextCleaner cleaner, Func<long> millisecondsNow,
+        Func<bool>? viewsOn = null) =>
         new(SkillList, MessageSerials.SkillNames, MessageSerials.SkillDescriptions, serials, announcer, cleaner,
-            millisecondsNow);
+            millisecondsNow, viewsOn);
 
-    /// <summary>The item list, its names from the item names file, timed by <paramref name="millisecondsNow"/>.
-    /// </summary>
+    /// <summary>The item list, its names from the item names file, timed by <paramref name="millisecondsNow"/>;
+    /// <paramref name="viewsOn"/> as for <see cref="Skills"/>.</summary>
     public static BattleListFocus Items(
-        MessageSerials serials, IAnnouncer announcer, TextCleaner cleaner, Func<long> millisecondsNow) =>
+        MessageSerials serials, IAnnouncer announcer, TextCleaner cleaner, Func<long> millisecondsNow,
+        Func<bool>? viewsOn = null) =>
         new(ItemList, MessageSerials.ItemNames, MessageSerials.ItemDescriptions, serials, announcer, cleaner,
-            millisecondsNow);
+            millisecondsNow, viewsOn);
 
     /// <summary>The focused row's description for the details key (#247): the description fetched from the list's
     /// descriptions file right after the row's name. Null on another screen or for a row with none.</summary>
@@ -318,9 +328,10 @@ public sealed class BattleListFocus : IScreenObserver, ISerialResolveObserver, I
         var moved = focus.Change == ScreenChange.FocusMoved;
         var otherLength = moved && lastFocus is { } before && focus.Count != before.Count;
         var byOne = moved && !otherLength && lastFocus is { } last && Math.Abs(focus.Index - last.Index) == 1;
-        if (moved)
+        if (moved && runOpen)
         {
             runOpen = false;
+            pageSize = rows.Count;
         }
         if (pending.Count > 0
             && (focus.Change == ScreenChange.Entered || (!byOne && focus.Index == 0 && (pendingAfterGap || otherLength))))
@@ -332,7 +343,11 @@ public sealed class BattleListFocus : IScreenObserver, ISerialResolveObserver, I
         {
             Forget();
         }
-        else if (byOne && pending.Count > 0 && !rows.ContainsKey(focus.Index))
+        else if (moved && viewsOn())
+        {
+            PlaceView(focus, byOne);
+        }
+        if (!otherLength && byOne && pending.Count > 0 && !rows.ContainsKey(focus.Index))
         {
             var down = focus.Index > lastFocus!.Index;
             var brought = down ? pending[^1] : pending[0];
@@ -342,6 +357,52 @@ public sealed class BattleListFocus : IScreenObserver, ISerialResolveObserver, I
             }
         }
         pending.Clear();
+    }
+
+    // Names a whole view fetched again (#737): as many names as the first page, taken as that many rows in a row, in list
+    // order (by ear on 2026-11-22, the 14- and 40-item tabs; a partial fetch can skip rows, so only a whole view is
+    // placed). It lines up by the rows it holds that are already known, all at one offset; holding none, after a jump to
+    // the last row (a wrap up), it ends there. A view that would put a name on another known row, or out of the list,
+    // names nothing. Called under the gate.
+    private void PlaceView(ScreenEvent focus, bool byOne)
+    {
+        if (pageSize < 2 || pending.Count != pageSize || pending.Distinct().Count() != pending.Count ||
+            focus.Total is not { } total)
+        {
+            return;
+        }
+        int? offset = null;
+        for (var at = 0; at < pending.Count; at++)
+        {
+            if (rows.FirstOrDefault(row => row.Value == pending[at], new KeyValuePair<int, int>(-1, 0)).Key is var known
+                && known >= 0)
+            {
+                if (offset is { } other && other != known - at)
+                {
+                    return;
+                }
+                offset = known - at;
+            }
+        }
+        if (offset is null && !byOne && focus.Index == total - 1)
+        {
+            offset = total - pending.Count;
+        }
+        if (offset is not { } first || first < 0 || first + pending.Count > total)
+        {
+            return;
+        }
+        for (var at = 0; at < pending.Count; at++)
+        {
+            if (rows.TryGetValue(first + at, out var held) && held != pending[at])
+            {
+                return;
+            }
+        }
+        for (var at = 0; at < pending.Count; at++)
+        {
+            rows[first + at] = pending[at];
+        }
     }
 
     // Whether the names fetched can be matched to the focused row (#737). One name fetched is the row scrolled in. When
