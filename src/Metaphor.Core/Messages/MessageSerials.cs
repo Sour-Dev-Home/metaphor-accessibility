@@ -28,16 +28,36 @@ public sealed class MessageSerials : IMessageBySerial, IMessageFileObserver
     /// count is the range test the game's message-file table holds for it, read from the exe, and matches the file as
     /// the game compiled it in play (docs/findings/message-serials-from-file-positions.md). The item and skill files'
     /// ranges are read from the same table (docs/findings/item-skill-message-serials-static.md); that the game compiles
-    /// them with those counts is <c>[NEEDS VERIFICATION]</c>, and a file that doesn't is dropped.</summary>
+    /// them with those counts is <c>[NEEDS VERIFICATION]</c>, and a file that doesn't is dropped. The equipment,
+    /// character and archetype name files' ranges are read from the same table and match their compiled counts in a
+    /// Debug log (docs/findings/equipment-character-archetype-serials-static.md).</summary>
     public static IReadOnlyList<SerialRange> Steam18330018 { get; } =
     [
+        new(CharacterNames, 0, 122),
         new("message/system/System_Message.msg", 1142, 790),
-        new("message/system/System_Message_PC.msg", 11453, 354),
+        new(EquipmentNames, 2442, 1205),
+        new(EquipmentDescriptions, 3647, 1206),
         new(ItemNames, 5143, 773),
         new(ItemDescriptions, 5916, 833),
         new(SkillNames, 6749, 1086),
         new(SkillDescriptions, 7835, 1052),
+        new(ArchetypeNames, 9441, 18),
+        new("message/system/System_Message_PC.msg", 11453, 354),
     ];
+
+    /// <summary>The character names file: the Item and Equipment screens fetch party members' names from it (#216,
+    /// #217).</summary>
+    public const string CharacterNames = "message/CharaName.msg";
+
+    /// <summary>The weapon, armour, gear and accessory names file (#216, #217, #736).</summary>
+    public const string EquipmentNames = "message/system/Equip_Message_1.msg";
+
+    /// <summary>The equipment descriptions file.</summary>
+    public const string EquipmentDescriptions = "message/system/Equip_Message_2.msg";
+
+    /// <summary>The archetype names file, one name per archetype line (Seeker, Mage, ...): the Equipment screen fetches
+    /// each character's from it (#217).</summary>
+    public const string ArchetypeNames = "message/ATCategoryName.msg";
 
     /// <summary>The item names file: battle's item list resolves its rows' names from it (#247).</summary>
     public const string ItemNames = "message/system/Item_Message_1.msg";

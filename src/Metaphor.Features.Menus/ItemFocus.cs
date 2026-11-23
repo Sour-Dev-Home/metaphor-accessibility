@@ -9,10 +9,11 @@ namespace Metaphor.Features.Menus;
 /// focused row's name when known and its position; then each move's name and position ("n of total", or "n" when the
 /// game's count can't be read), and on a tab switch the tab's name first, each cutting off the last; the same on the
 /// party-member target list, without the heading. A row's name is the name the game fetched by serial for its place in
-/// the view (<see cref="FetchedRows"/>). A row whose name has no known text (the equipment tabs', whose file isn't known)
-/// is said by its position. The tab is told by its rows' item names, or, for the four equipment tabs, by its place next to
-/// the last tab (<see cref="ListTabs"/>). Not spoken, <c>[NEEDS VERIFICATION]</c>: quantities (no record carries one) and
-/// target names (no fetch names a member). Safe to call from several threads.</summary>
+/// the view (<see cref="FetchedRows"/>), equipment from <see cref="MessageSerials.EquipmentNames"/>; a row whose name has
+/// no known text is said by its position. The tab is told by its rows' item or equipment names, or, when they say none,
+/// by its place next to the last tab (<see cref="ListTabs"/>). A target row after the first (the protagonist) is named
+/// from the party members the list fetches after its rows, in that order <c>[NEEDS VERIFICATION]</c> by ear. Not
+/// spoken, <c>[NEEDS VERIFICATION]</c>: quantities (no record carries one). Safe to call from several threads.</summary>
 /// <remarks>Classes on build 548ddc95: <c>ItemMenuChoice</c> and <c>ItemCharaSelChoice</c>, the list and the target
 /// (docs/raw-sources/screen-class-session-2026-11-17.md). Each opening, tab switch and move fetches the rows on view
 /// (flags 9), a run of small serials (2 to 21), then the eight tab names (serials 1369 to 1379, flags 2) in tab order;
@@ -29,6 +30,7 @@ public sealed class ItemFocus : IScreenObserver, ISerialResolveObserver, ICursor
     private const int LastTabSerial = 1379;
     private static readonly int[] TabSerials = [1369, 1371, 1372, 1379, 1374, 1375, 1376, 1377];
     private static readonly HashSet<int> NamedTabs = [0, 1, 2, 3];
+    private const int FirstEquipmentTab = 4;
 
     // Serials below System_Message.msg's first are the small run fetched after the rows, not rows.
     private const int FirstRowSerial = 1142;
@@ -49,6 +51,8 @@ public sealed class ItemFocus : IScreenObserver, ISerialResolveObserver, ICursor
     private readonly ListTabs tabs;
     private readonly Lock gate = new();
     private string? tabToSay;
+    private readonly List<int> party = [];
+    private bool partyOpen;
 
     /// <summary>The Item screens spoken by position alone.</summary>
     public ItemFocus(IAnnouncer announcer)
@@ -80,7 +84,7 @@ public sealed class ItemFocus : IScreenObserver, ISerialResolveObserver, ICursor
         var heading = change.Change == ScreenChange.Entered && change.Screen == List ? $"{List.Name}, " : "";
         if (change.Screen != List)
         {
-            announcer.Announce(new Announcement(heading + ListFocus.Position(change), Interrupt: true));
+            announcer.Announce(new Announcement(heading + TargetLine(change), Interrupt: true));
             return;
         }
         string? tab;
@@ -98,6 +102,24 @@ public sealed class ItemFocus : IScreenObserver, ISerialResolveObserver, ICursor
         if (serials is null)
         {
             return;
+        }
+        var member = resolve.Flags == NameFlags && serials.InFile(resolve.Serial, MessageSerials.CharacterNames);
+        lock (gate)
+        {
+            if (member)
+            {
+                if (!partyOpen)
+                {
+                    party.Clear();
+                    partyOpen = true;
+                }
+                if (!party.Contains(resolve.Serial))
+                {
+                    party.Add(resolve.Serial);
+                }
+                return;
+            }
+            partyOpen = false;
         }
         if (resolve.Serial is >= FirstTabSerial and <= LastTabSerial)
         {
@@ -140,6 +162,19 @@ public sealed class ItemFocus : IScreenObserver, ISerialResolveObserver, ICursor
         }
     }
 
+    // "<member>, n of total": row 0 is the protagonist, whose name isn't a message, and row n the n-th party member the
+    // list last fetched.
+    private string TargetLine(ScreenEvent change)
+    {
+        var line = ListFocus.Position(change);
+        int? member;
+        lock (gate)
+        {
+            member = change.Index >= 1 && change.Index <= party.Count ? party[change.Index - 1] : null;
+        }
+        return member is { } serial && serials?.TextOf(serial, cleaner!) is { } name ? $"{name}, {line}" : line;
+    }
+
     // "<tab>, <row>, n of total", each name left out when it isn't known.
     private string RowLine(string? tab, ScreenEvent change)
     {
@@ -151,11 +186,19 @@ public sealed class ItemFocus : IScreenObserver, ISerialResolveObserver, ICursor
         return tab is null ? line : $"{tab}, {line}";
     }
 
-    // The tab an item name's group says: Exchange for CASH, Key Items for Scenario, Insects and Follower, Information for
-    // Info, Use for any other item group; null for a name outside the item names file, such as an equipment row's.
+    // The tab a row name says: Exchange for CASH, Key Items for Scenario, Insects and Follower, Information for Info, Use
+    // for any other item group, an equipment tab for an equipment name's kind; null for any other name.
     private int? TabOfRow(int serial)
     {
-        if (serials is null || !serials.InFile(serial, MessageSerials.ItemNames)
+        if (serials is null)
+        {
+            return null;
+        }
+        if (EquipmentKinds.Of(serials, serial) is { } kind)
+        {
+            return FirstEquipmentTab + kind;
+        }
+        if (!serials.InFile(serial, MessageSerials.ItemNames)
             || serials.FindBySerial(serial)?.Label.Split('_') is not [_, var group, ..])
         {
             return null;

@@ -62,7 +62,10 @@ public sealed class MenusModule : IFeatureModule
         context.Cursors.Observe(shopFocus);
         context.Cursors.Observe(itemFocus);
         screens.Observe(new CalendarFocus(settings.Speech(MenusFeature.Calendar, reader)));
-        screens.Observe(new EquipmentFocus(serials, settings.Speech(MenusFeature.EquipmentMenu, reader), cleaner));
+        // The Equipment screens name their rows from the block of names the game fetches for the focused character (#217).
+        var equipmentFocus = new EquipmentFocus(serials, settings.Speech(MenusFeature.EquipmentMenu, reader), cleaner);
+        screens.Observe(equipmentFocus);
+        events.ObserveSerials(equipmentFocus);
         // The save and load slots (#622): their lists come unnamed, so the slot screens name them before the screens,
         // from the prompts the serial hook hands MessageEvents (2026-11-22 review, finding 5).
         var slots = new SlotScreens(screens);

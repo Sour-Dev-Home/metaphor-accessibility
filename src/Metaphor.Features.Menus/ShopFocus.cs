@@ -10,9 +10,10 @@ namespace Metaphor.Features.Menus;
 /// name on opening and on each tab switch; and the purchase's confirm each row's name ("Buy, 1 of 2"), each cutting off
 /// the last. The top menu's rows are Buy, Sell, Appraise and Listen, by the labels the game fetches for them,
 /// <c>System_General_12</c> to <c>_14</c> and <c>Shop_Menu_03</c> (serials 1491 to 1493 and 1362). A list row's name is
-/// the name the view fetched by serial (flags 8) for its place in the view (<see cref="FetchedRows"/>); a row whose name
-/// has no known text (the weapon and armour names' file isn't known) is said by its position. A Sell tab is told by its
-/// rows' item names, or, for the four equipment tabs, by its place next to the last tab (<see cref="ListTabs"/>). Not
+/// the name the view fetched by serial (flags 8) for its place in the view (<see cref="FetchedRows"/>), weapons and
+/// armour from <see cref="MessageSerials.EquipmentNames"/>; a row whose name has no known text is said by its position.
+/// A Sell tab is told by its rows' item or equipment names, or, when they say none, by its place next to the last tab
+/// (<see cref="ListTabs"/>). Not
 /// spoken, <c>[NEEDS VERIFICATION]</c>: price, owned count, quantity, ATK and HIT. Safe to call from several
 /// threads.</summary>
 /// <remarks>On build 548ddc95 (Steam build 18330018): <c>ItemShopMenuChoice</c> (4 rows), <c>ItemShopChoice</c> (the Buy
@@ -37,6 +38,7 @@ public sealed class ShopFocus : IScreenObserver, ISerialResolveObserver, ICursor
     // The Sell tabs' names in tab order (Item_Tab_03, _01, _06 to _09), and the tab names' serials.
     private static readonly int[] SellTabSerials = [1371, 1369, 1374, 1375, 1376, 1377];
     private static readonly HashSet<int> NamedTabs = [0, 1];
+    private const int FirstEquipmentTab = 2;
     private const int FirstTabSerial = 1369;
     private const int LastTabSerial = 1379;
     private const string ConfirmRowLabel = "System_Window_";
@@ -184,13 +186,17 @@ public sealed class ShopFocus : IScreenObserver, ISerialResolveObserver, ICursor
         return tab is null ? line : $"{tab}, {line}";
     }
 
-    // The Sell tab an item name says: Exchange for "Sell All" and the CASH group, Use for any other item group; null for
-    // a name outside the item names file, such as an equipment row's.
+    // The Sell tab a row name says: Exchange for "Sell All" and the CASH group, Use for any other item group, an
+    // equipment tab for an equipment name's kind; null for any other name.
     private int? TabOfRow(int serial)
     {
         if (serial == SellAllSerial)
         {
             return 0;
+        }
+        if (EquipmentKinds.Of(serials, serial) is { } kind)
+        {
+            return FirstEquipmentTab + kind;
         }
         if (!serials.InFile(serial, MessageSerials.ItemNames)
             || serials.FindBySerial(serial)?.Label.Split('_') is not [_, var group, ..])

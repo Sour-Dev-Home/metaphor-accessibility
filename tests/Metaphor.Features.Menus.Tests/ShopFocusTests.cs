@@ -17,6 +17,7 @@ public sealed class ShopFocusTests
     private const int Flags = ShopFocus.NameFlags;
     private const int ItemFirst = 300;
     private const int EquipmentSerial = 2453;
+    private const int EquipmentFirst = 2500;
     private const long Later = CursorEvents.QuietMilliseconds + 1;
 
     private const string ConfirmClass = "ItemShopConfirmChoice@ope@ui@app";
@@ -38,6 +39,7 @@ public sealed class ShopFocusTests
         var serials = new MessageSerials([
             new SerialRange("message/system/System_Message.msg", 1300, 300),
             new SerialRange(MessageSerials.ItemNames, ItemFirst, 5),
+            new SerialRange(MessageSerials.EquipmentNames, EquipmentFirst, 4),
         ]);
         var screens = new MenuScreens(KnownScreens.All);
         screens.MenusRead(open: true);
@@ -59,6 +61,9 @@ public sealed class ShopFocusTests
         messages.Compiled(new MessageFileCompiled("EN/message/system/Item_Message_1.msg", 21,
             string.Join("\n\n", ItemTexts.Select((text, at) => Entry($"ItemName_Consumable_{at:000}", text))
                 .Append(Entry("ItemName_CASH_001", "Nugget")))));
+        messages.Compiled(new MessageFileCompiled("EN/message/system/Equip_Message_1.msg", 12, string.Join("\n\n",
+            Entry("WeaponName_SSWORD_01", "Sword"), Entry("ArmorName_Heavy_01", "Mail"),
+            Entry("SubarmorName_GLOVE_01", "Gloves"), Entry("AccessoryName_Ring_01", "Ring"))));
     }
 
     private static string Entry(string label, string text) => $"//--------\n@{label}\n{{\n{text}\n<WAIT>\n}}";
@@ -127,6 +132,32 @@ public sealed class ShopFocusTests
         Cursor(ListClass, 1, count: 37);
 
         Assert.Equal(["1 of 37", "Salve, 2 of 37"], Said());
+    }
+
+    // #736: Buy opened on weapons said positions only, as their names' file wasn't known.
+    [Fact]
+    public void ABuyListWeaponOrArmourRowIsNamedFromTheEquipmentNames()
+    {
+        Fetched(EquipmentFirst, EquipmentFirst + 1);
+        Cursor(ListClass, 0, count: 37);
+        now += 10;
+        Cursor(ListClass, 1, count: 37);
+
+        Assert.Equal(["Sword, 1 of 37", "Mail, 2 of 37"], Said());
+    }
+
+    // The equipment tabs are told by their rows' label groups, not only by their place next to the last tab.
+    [Fact]
+    public void ASellEquipmentTabIsNamedByItsRowsLabelGroup()
+    {
+        Cursor(TopClass, 1, count: 4);
+        SellBatch(1412, Nugget);
+        Cursor(ListClass, 0, count: 2);
+        now += 10;
+        SellBatch(EquipmentFirst + 2);
+        Cursor(ListClass, 0, count: 3);
+
+        Assert.Equal("Text 1376, Gloves, 1 of 3", Said().Last());
     }
 
     [Fact]

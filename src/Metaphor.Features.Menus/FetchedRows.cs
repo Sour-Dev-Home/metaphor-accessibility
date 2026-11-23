@@ -1,4 +1,5 @@
 using Metaphor.Core.Menus;
+using Metaphor.Core.Messages;
 
 namespace Metaphor.Features.Menus;
 
@@ -123,6 +124,26 @@ internal sealed class FetchedRows(string screenClass)
             return [.. visible.Skip(1), batch[0]];
         }
         return newScroll == scroll - 1 ? [batch[0], .. visible.SkipLast(1)] : null;
+    }
+}
+
+/// <summary>The equipment kind an equipment name's label says, in the order of the Item and Sell lists' equipment tabs
+/// (Weapons, Armour, Gear, Accessories): <c>WeaponName_</c>, <c>ArmorName_</c>, <c>SubarmorName_</c> and
+/// <c>AccessoryName_</c> in <c>Equip_Message_1.msg</c>, whose rows the 2026-11-22 session's equipment tabs fetched in
+/// that order (docs/findings/equipment-character-archetype-serials-static.md).</summary>
+internal static class EquipmentKinds
+{
+    private static readonly string[] Prefixes = ["WeaponName_", "ArmorName_", "SubarmorName_", "AccessoryName_"];
+
+    /// <summary>The kind's place (0 to 3) for an equipment name's serial, or null for any other.</summary>
+    public static int? Of(MessageSerials serials, int serial)
+    {
+        if (!serials.InFile(serial, MessageSerials.EquipmentNames) || serials.FindBySerial(serial)?.Label is not { } label)
+        {
+            return null;
+        }
+        var kind = Array.FindIndex(Prefixes, prefix => label.StartsWith(prefix, StringComparison.Ordinal));
+        return kind < 0 ? null : kind;
     }
 }
 
