@@ -64,7 +64,9 @@ anywhere.
 - `]` and `[` move the list to the next or previous category, and say it and how many are near, such as "Doors and
   exits, 2 nearby". The categories are Everything, People, Doors and exits, Chests and items, Enemies and Examine.
   `N`, the steps and `G` then keep to that category. The controller's `RB` with `Y` comes later.
-- `L` says the place name the game last showed, or "Place not known yet".
+- `L` says the place you are in, such as "Principality of Oceana, Forsaken Tower", or "Place not known yet", then the
+  current main mission: "Mission:", its title and its current objective. The mod also says a new mission by itself
+  once you're back in the field.
 - `G`, or `LB` and D-pad `Right`, guides you to the thing you last stepped to, or to the nearest thing you aren't
   already at if you haven't stepped in the last 10 seconds. At it already: "Already next to", then the name. Otherwise
   "Guiding to", then the name, and a short beep repeats: from the left or right as the thing lies, higher ahead and

@@ -84,7 +84,7 @@ internal sealed record HookServices
     /// </summary>
     public IReadOnlyList<IReadsGlobal> Globals =>
         [MenusOpen, DialogueWindow, GameData, CharacterTable, FollowerTable, Voice, BattleScene, FieldWorld, FieldScene,
-            FieldDatabase, PersonTable];
+            FieldDatabase, PersonTable, MissionTable];
 
     /// <summary>Reads whether a battle is on, for the status key (#631); the loader locates what it reads.</summary>
     public BattleSceneRead BattleScene { get; init; } = new();
@@ -111,6 +111,9 @@ internal sealed record HookServices
 
     /// <summary>The place names "where am I" says (#181): the message lookup hook feeds it.</summary>
     public FieldPlace? FieldPlace { get; init; }
+
+    /// <summary>Reads the main mission table (#658); the loader locates what it reads.</summary>
+    public MissionTableRead MissionTable { get; init; } = new();
 
     /// <summary>The field reads (#181), for the map id beside each place-name lookup.</summary>
     public FieldMemory? Field { get; init; }
@@ -148,6 +151,10 @@ internal sealed record HookServices
     /// <summary>The game's tutorial table (#118), which the entry point loads from the game's archive once the hooks
     /// are in.</summary>
     public TutorialTableSource Tutorials { get; init; } = new();
+
+    /// <summary>The field's map and objective tables (#742, #743), which the entry point loads from the game's archive
+    /// once the hooks are in.</summary>
+    public FieldTablesSource FieldTables { get; init; } = new();
 
     /// <summary>Speaks tutorial pop-ups as they open (#118); silent unless built by <see cref="Speaking"/>.</summary>
     public TutorialPopups TutorialPopups { get; init; } =
@@ -339,8 +346,20 @@ internal sealed record HookServices
         var fieldDatabase = FieldGlobal.Database();
         var personTable = DataTableRead.People();
         var field = new FieldMemory(fieldWorld, fieldScene, fieldDatabase, personTable, names, menusOpen, window);
-        var place = new FieldPlace(cleaner);
+        // The map and objective tables load from the archive later; until then a place is its lookups alone and a
+        // mission its title (#742, #743).
+        var fieldTables = new FieldTablesSource();
+        var place = new FieldPlace(cleaner, fieldTables.MapNameHash);
         events.ObserveFiles(place);
+        // The current main mission (#658): the top story flag's row in the mission table names its title's label, whose
+        // text the library holds. Spoken through the reader like the other automatic field speech.
+        var missionTable = new MissionTableRead(log is null ? null : log.FieldRead);
+        var mission = new MissionLine(
+            gameData.StoryFlag, missionTable.Rows, library, cleaner, reader, () => Environment.TickCount64,
+            new FreeRoamGate(field), log is null ? null : log.FieldRead, () => fieldTables.Objectives,
+            () => settings.Current.IsOn(Feature.WhereAmI));
+        // Debug builds only: the "where am I" record lists the main-mission flags, read through the build-checked flag
+        // global (#658, docs/findings/mission-box-text-source-static.md).
         // The names table (#687) ships as data/names/<map>.json in the mod folder; the checks keep each file to the
         // schema, and a bad one is skipped (said in the dev log) so the rest still name things.
         var nearbyNames = NamesTable.Load(
@@ -355,7 +374,8 @@ internal sealed record HookServices
         var fieldControls = new FieldControls(
             settings.Live(FieldBindings.From), feature => settings.Current.IsOn(feature), field, place, announcer,
             cues, () => Environment.TickCount64, log is null ? null : log.FieldRead, nearbyNames,
-            new ReachCallouts(field, settings.Speech(Feature.Reach, announcer), () => Environment.TickCount64), routes);
+            new ReachCallouts(field, settings.Speech(Feature.Reach, announcer), () => Environment.TickCount64), mission,
+            log is null ? null : gameData.StoryFlag, routes);
         if (silence is not null)
         {
             screens.Observe(silence);
@@ -423,6 +443,7 @@ internal sealed record HookServices
             FollowerTable = followerTable,
             Voice = voiceLanguage,
             Tutorials = tutorials,
+            FieldTables = fieldTables,
             TutorialPopups = tutorialPopups,
             MenusOpen = menusOpen,
             DialogueWindow = window,
@@ -432,6 +453,7 @@ internal sealed record HookServices
             PersonTable = personTable,
             Field = field,
             FieldPlace = place,
+            MissionTable = missionTable,
             FieldControls = fieldControls,
             // The mark key (#597): its toggle and binding read live; keyboard only until the pad layer (#688).
             ReportControls = report is null ? null : new MarkKey(() => settings.Current, cues, report),

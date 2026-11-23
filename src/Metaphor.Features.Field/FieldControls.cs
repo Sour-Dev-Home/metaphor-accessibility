@@ -75,7 +75,9 @@ public sealed record FieldBindings(
 
 /// <summary>The field controls (#181), while the player roams the field: the nearby key speaks the list of things
 /// nearby (<see cref="Nearby"/>), the pad's next and previous chords step through it one thing at a time, and the place
-/// key and chord say where the player is (<see cref="FieldPlace"/>). The game state is read on the press, on the thread
+/// key and chord say where the player is (<see cref="FieldPlace"/>), then the current mission (<see cref="MissionLine"/>,
+/// #658). Each read of the keys or a pad also lets the mission line look for a new mission. The game state is read on
+/// the press, on the thread
 /// that handed it the read, and copied into plain values. Only the exact press is hidden from the game, and only in free
 /// roam: the key, or the chord's D-pad button (the held button stays, so the game never sees it let go and pressed
 /// again). Elsewhere everything reaches the game. A press is an up-to-down edge of a binding held on any pad or the
@@ -101,6 +103,8 @@ public sealed class FieldControls : IInputControls
     private readonly IAnnouncer announcer;
     private readonly Func<long> milliseconds;
     private readonly Action<string>? log;
+    private readonly MissionLine? mission;
+    private readonly Func<int, bool?>? storyFlag;
     private readonly ReachCallouts? reach;
     private readonly Binding nearby = new();
     private readonly Binding next = new();
@@ -122,13 +126,16 @@ public sealed class FieldControls : IInputControls
     /// <paramref name="place"/>, speak through <paramref name="announcer"/>, guide on <paramref name="cues"/>, keep time
     /// by <paramref name="milliseconds"/> and write what each press read, as numbers, to <paramref name="log"/> when
     /// there is one (Debug builds, which alone have the identify key), name things by <paramref name="names"/>, and
-    /// run <paramref name="reach"/>'s check on each keyboard read when there is one (#644). The beacon guides along
-    /// routes from <paramref name="routes"/> when given (#690).</summary>
+    /// run <paramref name="reach"/>'s check on each keyboard read when there is one (#644). "Where am I" ends with
+    /// <paramref name="mission"/>'s current mission when there is one (#658). With a log and
+    /// <paramref name="storyFlag"/>, its record also lists the main-mission flags (<see cref="MainMissionFlags"/>).
+    /// The beacon guides along routes from <paramref name="routes"/> when given (#690).</summary>
     public FieldControls(
         FieldBindings bindings, IFieldReads field, FieldPlace place, IAnnouncer announcer, ICuePlayer cues,
         Func<long> milliseconds, Action<string>? log = null, NamesTable? names = null, ReachCallouts? reach = null,
-        IRoutePlanner? routes = null)
-        : this(() => bindings, _ => true, field, place, announcer, cues, milliseconds, log, names, reach, routes)
+        MissionLine? mission = null, Func<int, bool?>? storyFlag = null, IRoutePlanner? routes = null)
+        : this(() => bindings, _ => true, field, place, announcer, cues, milliseconds, log, names, reach, mission,
+            storyFlag, routes)
     {
         ArgumentNullException.ThrowIfNull(bindings);
     }
@@ -139,7 +146,8 @@ public sealed class FieldControls : IInputControls
     public FieldControls(
         Func<FieldBindings> bindings, Func<Feature, bool> isOn, IFieldReads field, FieldPlace place,
         IAnnouncer announcer, ICuePlayer cues, Func<long> milliseconds, Action<string>? log = null,
-        NamesTable? names = null, ReachCallouts? reach = null, IRoutePlanner? routes = null)
+        NamesTable? names = null, ReachCallouts? reach = null, MissionLine? mission = null,
+        Func<int, bool?>? storyFlag = null, IRoutePlanner? routes = null)
     {
         ArgumentNullException.ThrowIfNull(bindings);
         ArgumentNullException.ThrowIfNull(isOn);
@@ -154,6 +162,8 @@ public sealed class FieldControls : IInputControls
         this.announcer = announcer;
         this.milliseconds = milliseconds;
         this.log = log;
+        this.mission = mission;
+        this.storyFlag = storyFlag;
         this.names = names ?? NamesTable.Empty;
         beacon = new Beacon(
             field, cues, announcer, milliseconds, log, routes, pauseOn: () => this.isOn(Feature.GuidancePause));
@@ -179,6 +189,7 @@ public sealed class FieldControls : IInputControls
     /// </summary>
     public int Pad(int pad, int buttons, bool made)
     {
+        mission?.Poll();
         if (!made)
         {
             beacon.Tick();
@@ -221,6 +232,7 @@ public sealed class FieldControls : IInputControls
     public IReadOnlyList<int> Keys(IReadOnlyList<int> keys)
     {
         ArgumentNullException.ThrowIfNull(keys);
+        mission?.Poll();
         reach?.Check();
         var bindings = liveBindings();
         var listOn = isOn(Feature.Nearby);
@@ -434,8 +446,18 @@ public sealed class FieldControls : IInputControls
     {
         var map = field.MapId();
         var name = place.Name(map);
-        log?.Invoke(string.Create(CultureInfo.InvariantCulture, $"place map={Number(map)} known={name is not null}"));
-        return name ?? "Place not known yet";
+        var current = mission?.Current;
+        if (log is not null)
+        {
+            // #658: the flags the game's main-mission read scans, to pair with the box on screen next session.
+            var flags = storyFlag is null
+                ? ""
+                : " mainFlags=" + MainMissionFlags.Describe(MainMissionFlags.Highest(storyFlag, 4));
+            log(string.Create(CultureInfo.InvariantCulture,
+                $"place map={Number(map)} known={name is not null} mission={current is not null}{flags}"));
+        }
+        var said = name ?? "Place not known yet";
+        return current is null ? said : $"{said}. {MissionLine.Spoken(current)}";
     }
 
     private string List(Press press)

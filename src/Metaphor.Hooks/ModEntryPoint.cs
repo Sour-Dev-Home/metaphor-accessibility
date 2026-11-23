@@ -180,11 +180,13 @@ public sealed class ModEntryPoint : IMod
             (status.Reason is null ? (Action<string>)Log : LogError)(
                 $"build {ModBuild.Revision.CommitSha}{(ModBuild.Revision.HasUncommittedChanges ? "-dirty" : "")}: {status.State} on game build {status.GameBuildSha256}, hooks {status.HooksLoaded}/{status.HooksExpected}" +
                 (status.Reason is null ? "" : $" ({status.Reason})") + $"; load message: {LoadMessage.For(status).Text}");
-            // The tutorial table is the game's own data, read from its archive beside the exe (#118) once hooks are in
+            // The tutorial and field tables are the game's own data, read from its archive beside the exe (#118, #742,
+            // #743) once hooks are in
             // on a known build; off the game's thread, and never written.
             if (status.HooksLoaded > 0 && Path.GetDirectoryName(Environment.ProcessPath) is { Length: > 0 } gameFolder)
             {
                 _ = services.Tutorials.LoadInBackground(() => File.OpenRead(Path.Combine(gameFolder, "base.cpk")), Log);
+                _ = services.FieldTables.LoadInBackground(() => File.OpenRead(Path.Combine(gameFolder, "base.cpk")), Log);
             }
 #if DEBUG
             // After the hooks, so its reads never race their installation; read-only, so the build check isn't needed.

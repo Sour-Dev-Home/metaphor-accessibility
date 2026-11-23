@@ -9,8 +9,10 @@ namespace Metaphor.Features.Field;
 /// file, and the game makes them when the arrival banner or the map strip shows
 /// (docs/findings/field-nearby-unit-names-static.md). [NEEDS VERIFICATION]: that the first lookups after the map id
 /// changes name the place arrived at, region before area, and not a place the travel map browses. So it keeps the first
-/// <see cref="MaxNames"/> distinct ones after each change; with no map id read, the last ones. Safe to call from several
-/// threads.</summary>
+/// <see cref="MaxNames"/> distinct ones after each change; with no map id read, the last ones. A save load looks up only
+/// the region (#742), so the map's own name from the map table (<see cref="FieldTables"/>) follows the lookups when it
+/// isn't among them (docs/findings/field-map-and-objective-tables-static.md). Safe to call from several threads.
+/// </summary>
 public sealed class FieldPlace : IMessageFileObserver
 {
     /// <summary>The message-file table's entry for <c>MapName.msg</c>, as a lookup's message id names it.</summary>
@@ -22,15 +24,20 @@ public sealed class FieldPlace : IMessageFileObserver
     private const string MapNameFile = "message/MapName.msg";
 
     private readonly TextCleaner cleaner;
+    private readonly Func<int, string?> mapNameHash;
     private readonly Lock gate = new();
     private readonly List<int> labels = [];
     private GameMessage[] names = [];
+    private Dictionary<string, GameMessage> byHash = [];
     private int? map;
 
-    public FieldPlace(TextCleaner cleaner)
+    /// <summary>A place that cleans names with <paramref name="cleaner"/> and finds a map's own name's label hash with
+    /// <paramref name="mapNameHash"/> (null, or a null hash, when unknown).</summary>
+    public FieldPlace(TextCleaner cleaner, Func<int, string?>? mapNameHash = null)
     {
         ArgumentNullException.ThrowIfNull(cleaner);
         this.cleaner = cleaner;
+        this.mapNameHash = mapNameHash ?? (_ => null);
     }
 
     /// <summary>Keeps <c>MapName.msg</c>'s messages in file order when the game compiles it.</summary>
@@ -43,9 +50,15 @@ public sealed class FieldPlace : IMessageFileObserver
             return;
         }
         GameMessage[] messages = [.. MessageLibrary.Parse(file.Source)];
+        var hashed = new Dictionary<string, GameMessage>();
+        foreach (var message in messages)
+        {
+            hashed.TryAdd(MessageLibrary.LabelHash(message.Label), message);
+        }
         lock (gate)
         {
             names = messages;
+            byHash = hashed;
         }
     }
 
@@ -87,15 +100,19 @@ public sealed class FieldPlace : IMessageFileObserver
     {
         lock (gate)
         {
-            if (mapId is not null && map is not null && mapId != map)
+            // Lookups made on another map say nothing of this one.
+            var said = mapId is not null && map is not null && mapId != map
+                ? []
+                : labels
+                    .Where(label => label < names.Length)
+                    .Select(label => cleaner.Clean(names[label].Text))
+                    .Where(text => text is { Length: > 0 })
+                    .ToList();
+            if ((mapId ?? map) is { } id && mapNameHash(id) is { } hash && byHash.TryGetValue(hash, out var own) &&
+                cleaner.Clean(own.Text) is { Length: > 0 } area && said.Count < MaxNames && !said.Contains(area))
             {
-                return null;
+                said.Add(area);
             }
-            var said = labels
-                .Where(label => label < names.Length)
-                .Select(label => cleaner.Clean(names[label].Text))
-                .Where(text => text is { Length: > 0 })
-                .ToList();
             return said.Count == 0 ? null : string.Join(", ", said);
         }
     }

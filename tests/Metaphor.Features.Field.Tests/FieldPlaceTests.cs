@@ -83,4 +83,51 @@ public sealed class FieldPlaceTests
 
         Assert.Null(other.Name(1));
     }
+
+    // Map 9's row in the map table names Map_02; map 4's names a label the file hasn't.
+    private static FieldPlace WithMapTable()
+    {
+        var tabled = new FieldPlace(new TextCleaner(TextCleanerRules.None), map => map switch
+        {
+            9 => MessageLibrary.LabelHash("Map_02"),
+            4 => MessageLibrary.LabelHash("Map_99"),
+            _ => null,
+        });
+        tabled.Observe(new MessageFileCompiled("EN/message/MapName.msg", 4, Source));
+        return tabled;
+    }
+
+    [Fact]
+    public void ASaveLoadsRegionLookupIsFollowedByTheMapsOwnName()
+    {
+        var tabled = WithMapTable();
+        tabled.LookedUp(FieldPlace.MapNameEntry, 0, mapId: 9);
+
+        Assert.Equal("Testshire, Mock Harbour", tabled.Name(9));
+    }
+
+    [Fact]
+    public void TheMapsOwnNameIsSaidOnceAndAloneBeforeAnyLookup()
+    {
+        var tabled = WithMapTable();
+        Assert.Equal("Mock Harbour", tabled.Name(9));
+
+        tabled.LookedUp(FieldPlace.MapNameEntry, 2, mapId: 9);
+        Assert.Equal("Mock Harbour", tabled.Name(9));
+
+        tabled.LookedUp(FieldPlace.MapNameEntry, 0, mapId: 9);
+        Assert.Equal("Mock Harbour, Testshire", tabled.Name(9));
+    }
+
+    [Fact]
+    public void AMapTheTableCantNameKeepsTheLookups()
+    {
+        var tabled = WithMapTable();
+        tabled.LookedUp(FieldPlace.MapNameEntry, 0, mapId: 4);
+        tabled.LookedUp(FieldPlace.MapNameEntry, 1, mapId: 5);
+
+        Assert.Null(tabled.Name(4));
+        Assert.Equal("Lower Testwood", tabled.Name(5));
+        Assert.Equal("Lower Testwood", tabled.Name(null));
+    }
 }
