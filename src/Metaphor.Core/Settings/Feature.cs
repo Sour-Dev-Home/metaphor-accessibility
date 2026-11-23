@@ -6,7 +6,9 @@ namespace Metaphor.Core.Settings;
 /// <summary>Every feature that speaks, plays a cue or takes a key, each with its own on/off key in the settings file
 /// (#661). On by default. A new feature gets a member here with its <see cref="SettingKeyAttribute"/>, a
 /// <see cref="FeatureSettingAttribute"/> on its classes, a gate in the wiring and a line in
-/// <c>docs/players/reference/settings.md</c>; the architecture test says so when one is missing.</summary>
+/// <c>docs/players/reference/settings.md</c>; the architecture test says so when one is missing. A member still
+/// waiting for its by-ear check carries <c>Testing = true</c> on its key and is off until the check passes (#783).
+/// </summary>
 public enum Feature
 {
     /// <summary>Dialogue lines, choices and the dialogue keys (#58, #95).</summary>
@@ -17,9 +19,17 @@ public enum Feature
     [SettingKey("speech", "menus", "Menus")]
     Menus,
 
+    /// <summary>The save and load screens' slots (#622). Separate from the menus while it is tested.</summary>
+    [SettingKey("speech", "saveSlots", "Save slots", Testing = true)]
+    SaveSlots,
+
     /// <summary>The name entry screen (#585).</summary>
     [SettingKey("speech", "nameEntry", "Name entry")]
     NameEntry,
+
+    /// <summary>The Equipment screen's focus (#217). Separate from the menus while it is tested.</summary>
+    [SettingKey("speech", "equipmentMenu", "Equipment menu", Testing = true)]
+    EquipmentMenu,
 
     /// <summary>The travel map's destinations (#545).</summary>
     [SettingKey("speech", "travelMap", "Travel map")]
@@ -81,6 +91,10 @@ public enum Feature
 [AttributeUsage(AttributeTargets.Field)]
 public sealed class SettingKeyAttribute(string group, string name, string spoken) : Attribute
 {
+    /// <summary>True for a feature that merged before its by-ear check (#783): off in a normal install unless the
+    /// settings file turns it on, on in a session build. Passing the check is a pull request that removes this.</summary>
+    public bool Testing { get; init; }
+
     public string Group { get; } = group;
 
     public string Name { get; } = name;
@@ -98,7 +112,7 @@ public sealed class FeatureSettingAttribute(params Feature[] features) : Attribu
 }
 
 /// <summary>A setting's place in the file, read from its <see cref="SettingKeyAttribute"/>.</summary>
-public sealed record SettingKey(string Group, string Name, string Spoken)
+public sealed record SettingKey(string Group, string Name, string Spoken, bool Testing = false)
 {
     /// <summary><c>group.name</c>, as log lines name it.</summary>
     public string Path => $"{Group}.{Name}";
@@ -111,6 +125,6 @@ public sealed record SettingKey(string Group, string Name, string Spoken)
     {
         var attribute = type.GetField(member)?.GetCustomAttribute<SettingKeyAttribute>()
             ?? throw new ArgumentOutOfRangeException(nameof(member), member, "no settings key");
-        return new(attribute.Group, attribute.Name, attribute.Spoken);
+        return new(attribute.Group, attribute.Name, attribute.Spoken, attribute.Testing);
     }
 }

@@ -7,8 +7,7 @@ namespace Metaphor.Core.Navigation;
 /// starts reading its <c>.NAV</c> file on the thread pool and returns null; later calls return the graph once it has
 /// loaded. Read-only: the archive is opened, read and closed for each file. The last <see cref="Capacity"/> maps used
 /// are kept, and one that couldn't be read is remembered as missing, so a map is read at most once while kept.
-/// Which file belongs to the map the player is on is [NEEDS VERIFICATION]
-/// (docs/findings/field-navmesh-files-tile-cache-static.md, from #639), so callers name the file's two numbers.
+/// Callers name the file's two numbers, from the map table (<see cref="NavMapFiles"/>, #741).
 /// </summary>
 public sealed class NavMeshSource
 {
@@ -85,9 +84,10 @@ public sealed class NavMeshSource
         try
         {
             using var archive = open();
-            if (NavMeshFile.FromArchive(archive, path) is not { } file)
+            var found = CpkArchive.Lookup(archive, path, NavMeshFile.MaxFileSize);
+            if (found.Bytes is null || NavMeshFile.Parse(found.Bytes) is not { } file)
             {
-                log($"navmesh: no readable {name} in the archive");
+                log($"navmesh: {name}: {Why(found.Status)}");
                 return null;
             }
             log(string.Create(CultureInfo.InvariantCulture,
@@ -100,4 +100,16 @@ public sealed class NavMeshSource
             return null;
         }
     }
+
+    /// <summary>Why a file looked up in the archive gave no data (#741): the log line's reason, so a session tells a
+    /// wrong name from a file that is there but won't read. <see cref="CpkFileStatus.Read"/> means it was read and didn't
+    /// parse.</summary>
+    internal static string Why(CpkFileStatus status) => status switch
+    {
+        CpkFileStatus.NotFound => "not in the archive",
+        CpkFileStatus.Packed => "packed in the archive",
+        CpkFileStatus.TooBig => "over the size limit",
+        CpkFileStatus.Unreadable => "archive unreadable",
+        _ => "doesn't parse",
+    };
 }

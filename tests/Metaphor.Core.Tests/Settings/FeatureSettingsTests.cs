@@ -25,8 +25,53 @@ public sealed class FeatureSettingsTests
     [Fact]
     public void EveryFeatureAndCueIsOnByDefault()
     {
-        Assert.All(Enum.GetValues<Feature>(), feature => Assert.True(ModSettings.Defaults.IsOn(feature)));
+        Assert.All(Enum.GetValues<Feature>().Where(feature => !SettingKey.Of(feature).Testing),
+            feature => Assert.True(ModSettings.Defaults.IsOn(feature)));
         Assert.All(Enum.GetValues<Cue>(), cue => Assert.Equal(new CueSetting(true, 100), ModSettings.Defaults.Sound(cue)));
+    }
+
+    // A feature held for a by-ear check ships in testing: off unless the file turns it on or the session does (#783).
+    [Fact]
+    public void ATestingFeatureIsOffByDefaultAndOnForASession()
+    {
+        var normal = ModSettings.Defaults;
+
+        Assert.False(normal.IsOn(Feature.Dialogue, markedTesting: true));
+        Assert.True(normal.WithTesting(true).IsOn(Feature.Dialogue, markedTesting: true));
+        Assert.True(normal.IsOn(Feature.Dialogue, markedTesting: false));
+    }
+
+    [Theory]
+    [InlineData(false, false)]
+    [InlineData(true, false)]
+    [InlineData(false, true)]
+    [InlineData(true, true)]
+    public void AnExplicitSettingBeatsTheTestingDefault(bool session, bool explicitValue)
+    {
+        var settings = Parse($$"""{ "speech": { "dialogue": {{explicitValue.ToString().ToLowerInvariant()}} } }""")
+            .WithTesting(session);
+
+        Assert.Equal(explicitValue, settings.IsOn(Feature.Dialogue, markedTesting: true));
+    }
+
+    [Fact]
+    public void TheReloaderAppliesTheSessionSwitchToEveryFileItReads()
+    {
+        var reloader = new SettingsReloader(new Metaphor.Core.Announcements.RecordingAnnouncer(), logged.Add, testingOn: true);
+
+        reloader.Load(null);
+        Assert.True(reloader.Current.IsOn(Feature.Dialogue, markedTesting: true));
+        reloader.Reload("{}");
+        Assert.True(reloader.Current.IsOn(Feature.Dialogue, markedTesting: true));
+        Assert.False(new SettingsReloader(new Metaphor.Core.Announcements.RecordingAnnouncer(), logged.Add).Current
+            .IsOn(Feature.Dialogue, markedTesting: true));
+    }
+
+    [Fact]
+    public void AFeatureIsOffInANormalInstallExactlyWhenItsKeyMarksItTesting()
+    {
+        Assert.All(Enum.GetValues<Feature>(), feature =>
+            Assert.Equal(!SettingKey.Of(feature).Testing, ModSettings.Defaults.IsOn(feature)));
     }
 
     [Theory]
@@ -42,7 +87,8 @@ public sealed class FeatureSettingsTests
     {
         var settings = Parse(json);
 
-        Assert.All(Enum.GetValues<Feature>(), feature => Assert.Equal(feature != off, settings.IsOn(feature)));
+        Assert.All(Enum.GetValues<Feature>().Where(feature => !SettingKey.Of(feature).Testing),
+            feature => Assert.Equal(feature != off, settings.IsOn(feature)));
         Assert.Empty(logged);
     }
 

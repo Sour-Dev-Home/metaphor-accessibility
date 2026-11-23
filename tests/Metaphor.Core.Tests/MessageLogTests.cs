@@ -51,6 +51,16 @@ public sealed class MessageLogTests
     }
 
     [Fact]
+    public void RecordsAMenuNote()
+    {
+        var (log, text) = NewLog(now: 41);
+
+        log.MenuNote("slot screen=load index=1");
+
+        Assert.Equal($"41 ms menu slot screen=load index=1{Environment.NewLine}", text.ToString());
+    }
+
+    [Fact]
     public void RecordsAScriptFunctionTheGameRegistered()
     {
         var (log, text) = NewLog(now: 900);

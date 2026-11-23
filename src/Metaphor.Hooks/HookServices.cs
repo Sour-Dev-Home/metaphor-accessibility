@@ -5,6 +5,7 @@ using Metaphor.Core.Cues;
 using Metaphor.Core.Input;
 using Metaphor.Core.Menus;
 using Metaphor.Core.Messages;
+using Metaphor.Core.Navigation;
 using Metaphor.Core.Settings;
 using Metaphor.Features.Battle;
 using Metaphor.Features.Dialogue;
@@ -240,7 +241,12 @@ internal sealed record HookServices
         screens.Observe(new DifficultyFocus(library, menuSpeech, cleaner));
         screens.Observe(new SettingsFocus(library, menuSpeech, cleaner));
         screens.Observe(new QuickMenuFocus(library, menuSpeech, cleaner));
-        screens.Observe(new EquipmentFocus(serials, menuSpeech, cleaner));
+        screens.Observe(new EquipmentFocus(serials, settings.Speech(Feature.EquipmentMenu, reader), cleaner));
+        // The save and load slots (#622): their lists come unnamed, so the slot screens name them before the screens,
+        // from the prompts the serial hook hands MessageEvents (2026-11-22 review, finding 5).
+        var slots = new SlotScreens(screens);
+        events.ObserveSerials(slots);
+        screens.Observe(new SaveSlotFocus(library, settings.Speech(Feature.SaveSlots, reader), cleaner, log is null ? null : log.MenuNote));
         // Battle's skill and item lists say each row by the name the game fetched for it by serial (#247), through
         // their own setting, not the menus' (#661).
         var battleListSpeech = settings.Speech(Feature.BattleLists, reader);
@@ -286,7 +292,7 @@ internal sealed record HookServices
         var selectChoices = new SelectWindowChoices(lines, choices, choiceFocus);
         events.ObserveChoices(selectChoices);
         events.ObserveSelects(selectChoices);
-        cursors.Observe(screens);
+        cursors.Observe(slots);
         cursors.Observe(choiceFocus);
         // The field's nearby list and "where am I" (#181), read on the press and spoken straight to the announcer.
         var menusOpen = new MenusOpenRead();
@@ -298,11 +304,17 @@ internal sealed record HookServices
         var field = new FieldMemory(fieldWorld, fieldScene, fieldDatabase, personTable, names, menusOpen, window);
         var place = new FieldPlace(cleaner);
         events.ObserveFiles(place);
-        // Its two settings, the nearby list and "where am I", are read by the controls on each read (#661).
+        // The beacon's routes (#690) run over the map's .NAV cells, read off the game's thread from the archive beside
+        // the exe, opened read-only for each file (NavMeshSource). The map's file is named by the archive's map table
+        // (NavMapFiles, #741), read once on the first route.
+        var navLog = log is null ? (Action<string>)(_ => { }) : log.FieldRead;
+        var navMeshes = new NavMeshSource(OpenArchive, navLog);
+        var routes = new NavRoutePlanner(NavMapFiles.FromArchive(OpenArchive, navLog), navMeshes.Load);
+        // Its settings, the nearby list, "where am I" and the guidance beep, are read by the controls on each read (#661).
         var fieldControls = new FieldControls(
             settings.Live(FieldBindings.From), feature => settings.Current.IsOn(feature), field, place, announcer,
             cues, () => Environment.TickCount64, log is null ? null : log.FieldRead,
-            new ReachCallouts(field, settings.Speech(Feature.Reach, announcer), () => Environment.TickCount64));
+            new ReachCallouts(field, settings.Speech(Feature.Reach, announcer), () => Environment.TickCount64), routes);
         if (silence is not null)
         {
             screens.Observe(silence);
@@ -381,6 +393,11 @@ internal sealed record HookServices
             Cues = cues,
         };
     }
+
+    // The game's archive, base.cpk beside the exe, opened read-only; a throw is logged by the navmesh source.
+    private static FileStream OpenArchive() => File.OpenRead(Path.Combine(
+        Path.GetDirectoryName(Environment.ProcessPath) ?? throw new FileNotFoundException("no game folder"),
+        "base.cpk"));
 }
 
 /// <summary>A name entry observer that ignores every update: what the hook reports to when no feature listens.</summary>

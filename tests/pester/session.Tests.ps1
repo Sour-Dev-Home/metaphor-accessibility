@@ -277,6 +277,8 @@ Describe 'session.ps1' {
             $result.ExitCode | Should -Be 0 -Because $result.Output
             $result.Output | Should -Match 'opted in: ui-text-panes'
             $result.Output | Should -Match 'opted in: dialogue-window'
+            # A session turns testing features on (#783), and the switch goes with the session.
+            $result.Output | Should -Match 'testing features on: opt-in-testing.txt \(removed when the session ends\)'
             $result.Output | Should -Match 'metaphor.dev: ready on [0-9a-f]{64}, hooks 1/1'
             $result.Output | Should -Match 'hook UiTextPaneListener failed to install'
             $result.Output | Should -Match 'Ready on game build 0123, hooks 1/1'

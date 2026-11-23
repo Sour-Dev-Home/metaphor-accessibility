@@ -383,13 +383,40 @@ public sealed class DialogueControlsTests
         Assert.Equal([Said("Page 2 of 3. Second."), Said("Ada: One.")], announcer.Said);
     }
 
+    // #769: with the reader off while a tutorial pop-up is open, the reader binding must turn it back on. Outside
+    // dialogue the game keeps the binding.
     [Fact]
-    public void APopUpOutsideDialogueLeavesTheReaderBindingToTheGame()
+    public void APopUpOutsideDialogueLetsTheReaderBindingToggleAndStillHandsItToTheGame()
     {
         var withPopUp = new DialogueControls(DialogueBindings.Default, history, reader, announcer, onScreen: () => "Page 1 of 1.");
 
         Assert.Equal(LeftBumper | RightBumper, withPopUp.Pad(0, LeftBumper | RightBumper));
+        withPopUp.Pad(0, 0);
+        Assert.False(reader.On);
         Assert.Equal([T], withPopUp.Keys([T]));
+        Assert.True(reader.On);
+        Assert.Equal([Said("Dialogue reader off"), Said("Dialogue reader on")], announcer.Said);
+    }
+
+    // #769: the field, where the window reads closed, toggles too.
+    [Fact]
+    public void InTheFieldTheReaderBindingTogglesAndIsHandedToTheGame()
+    {
+        controls.WindowRead(0);
+
+        Assert.Equal([T], controls.Keys([T]));
+
+        Assert.False(reader.On);
+        Assert.Equal([Said("Dialogue reader off")], announcer.Said);
+    }
+
+    [Fact]
+    public void InTheFieldTheRepeatBindingStillDoesNothing()
+    {
+        controls.WindowRead(0);
+        history.Add("Ada: One.");
+
+        Assert.Equal(X, controls.Pad(0, X));
         Assert.Empty(announcer.Said);
     }
 }
