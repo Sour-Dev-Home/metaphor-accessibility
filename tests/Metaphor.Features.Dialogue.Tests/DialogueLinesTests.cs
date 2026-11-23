@@ -19,17 +19,6 @@ public sealed class DialogueLinesTests
         new(messages, new DialogueAnnouncer(announcer, new TextCleaner(TextCleanerRules.None), new DialogueHistory()),
             clock);
 
-    private sealed class FakeClock : TimeProvider
-    {
-        private long ticks;
-
-        public override long TimestampFrequency => TimeSpan.TicksPerSecond;
-
-        public override long GetTimestamp() => ticks;
-
-        public void Advance(TimeSpan by) => ticks += by.Ticks;
-    }
-
     [Fact]
     public void ARequestedLineIsSpokenWithItsSpeaker()
     {

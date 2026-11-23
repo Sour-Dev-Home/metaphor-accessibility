@@ -15,6 +15,8 @@ links the rule where it lives, so this page never drifts from it.
    [the stamp](../contributors/reference/security-review.md#the-stamp)).
 5. **Commit** with a typed subject and a body of at most 5 lines, plus the attribution trailer
    ([commit messages](../contributors/reference/commit-messages.md)).
+   A feature that needs a by-ear check merges as testing (default off), not as a held PR
+   ([workflow](workflow.md#a-feature-that-needs-a-by-ear-check)).
 6. **Deliver**: open a PR whose body says `Closes #<issue>`, then `gh pr merge <n> --auto`
    ([Deliver](workflow.md#deliver)).
 7. **Report** in the length the brief gives, or 150 words ([Report](workflow.md#report)).

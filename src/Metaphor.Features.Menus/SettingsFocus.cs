@@ -17,9 +17,13 @@ namespace Metaphor.Features.Menus;
 /// game content. Safe to call from several threads.</summary>
 /// <remarks>Labels, classes and which row opens which page on build 548ddc95:
 /// docs/raw-sources/settings-category-labels-session1-2026-11-20.md.</remarks>
-[FeatureSetting(Feature.Menus)]
+[FeatureSetting(Feature.Menus, Feature.LearnedSettingValues)]
 public sealed class SettingsFocus : IScreenObserver
 {
+    /// <summary>Whether a row with no pinned setting ID says a value by the ID learned at run time
+    /// (<see cref="Feature.LearnedSettingValues"/>, #770). On unless set.</summary>
+    public Func<bool> LearnRowIds { get; init; } = () => true;
+
     // The category list, opened from the title or the field's quick menu, and from the main menu in play: one list.
     private static readonly Screen List = new("Settings", "?$ConfigTopChoicePc@VConfigTopChoicePcLayoutInit@ui@app@@@ope@ui@app");
     private static readonly Screen ListInPlay = new("Settings", "?$ConfigTopChoicePc@VConfigTopChoicePcLayout@ui@app@@@ope@ui@app");
@@ -66,6 +70,10 @@ public sealed class SettingsFocus : IScreenObserver
 
     // The focused row's value as last said, so a change says only a new value (#96).
     private int? lastValue;
+
+    // The page's values at the last event, and the IDs learned for rows with none pinned, by (page, count, row) (#770).
+    private SettingValues? previousValues;
+    private readonly Dictionary<(int Page, int Total, int Index), int> learned = [];
 
     // A changed value waits until it has been still for this long, then is said once: a held key repeats about 100 ms
     // apart and would otherwise say every step (#735, the maintainer's decision of 2026-11-22). Any other event drops it.
@@ -126,11 +134,18 @@ public sealed class SettingsFocus : IScreenObserver
                 pendingValue = null;
             }
         }
-        if (change.Change == ScreenChange.Left || change.Index < 0 || Said(change) is not { } text)
+        var text = change.Change == ScreenChange.Left || change.Index < 0 ? null : Said(change);
+        if (change.Values is not null)
         {
-            return;
+            lock (gate)
+            {
+                previousValues = change.Values;
+            }
         }
-        announcer.Announce(new Announcement(text, Interrupt: true));
+        if (text is not null)
+        {
+            announcer.Announce(new Announcement(text, Interrupt: true));
+        }
     }
 
     private string? Said(ScreenEvent change)
@@ -198,7 +213,14 @@ public sealed class SettingsFocus : IScreenObserver
     // change to another setting's value, or none, leaves the row's.
     private string? ChangedValue(int page, ScreenEvent change)
     {
-        var value = Value(PageRows(page, change.Total), change);
+        SettingValues? before;
+        lock (gate)
+        {
+            before = previousValues;
+        }
+        var pageRows = PageRows(page, change.Total);
+        Learn(pageRows, change, before);
+        var value = Value(pageRows, change);
         lock (gate)
         {
             if (value is null || value == lastValue)
@@ -255,8 +277,49 @@ public sealed class SettingsFocus : IScreenObserver
     }
 
     // The focused row's value as a number, or null when its setting ID or the page's values aren't known.
-    private static int? Value(SettingsPageRows? pageRows, ScreenEvent change) =>
-        pageRows?.ValueId(change.Index) is { } id ? change.Values?.Value(id) : null;
+    private int? Value(SettingsPageRows? pageRows, ScreenEvent change) =>
+        RowId(pageRows, change.Index) is { } id ? change.Values?.Value(id) : null;
+
+    // The row's setting ID: the table's where pinned, else the one learned this session (#770).
+    private int? RowId(SettingsPageRows? pageRows, int index)
+    {
+        if (pageRows is null)
+        {
+            return null;
+        }
+        if (pageRows.ValueId(index) is { } pinned)
+        {
+            return pinned;
+        }
+        if (!LearnRowIds())
+        {
+            return null;
+        }
+        lock (gate)
+        {
+            return learned.TryGetValue((pageRows.Page, pageRows.Total, index), out var id) ? id : null;
+        }
+    }
+
+    // A row with no pinned ID learns it from the one setting, not pinned to another row, whose value moved with this
+    // change, the way the IDs were pinned (docs/raw-sources/settings-values-sessions-2026-11-21.md). Two or none
+    // moving teach nothing, so the row stays silent.
+    private void Learn(SettingsPageRows? pageRows, ScreenEvent change, SettingValues? before)
+    {
+        if (pageRows is null || before is null || change.Values is null || !LearnRowIds()
+            || RowId(pageRows, change.Index) is not null)
+        {
+            return;
+        }
+        var moved = before.ChangedIds(change.Values).Where(id => !pageRows.ValueIds.Contains(id)).ToList();
+        if (moved.Count == 1)
+        {
+            lock (gate)
+            {
+                learned[(pageRows.Page, pageRows.Total, change.Index)] = moved[0];
+            }
+        }
+    }
 
     // The row's name, cleaned, or null when the page's rows aren't known, the row's label isn't, or its message is
     // missing or empty.
