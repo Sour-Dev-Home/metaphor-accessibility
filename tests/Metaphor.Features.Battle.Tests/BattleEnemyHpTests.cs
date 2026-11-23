@@ -1,109 +1,249 @@
 using Metaphor.Core.Announcements;
 using Metaphor.Core.Battle;
+using Metaphor.Core.Settings;
 
 namespace Metaphor.Features.Battle.Tests;
 
-/// <summary>The details key in a battle (#631, the maintainer's call of 2026-11-22): pressed alone it says the HP each
-/// enemy this battle has hit has left, and is hidden from the game; anything else, and the key outside a battle,
-/// reaches it. The targeted enemy isn't read yet, so it says every one. Made-up numbers only.</summary>
+/// <summary>The enemy HP keys in a battle (#767, the maintainer's decision of 2026-11-23): K and J step to the next and
+/// previous enemy and say its name and HP, L says them all, and the pad's LB held with D-pad Down, Up and Left does the
+/// same. Each is hidden from the game in a battle only; F is left to the game. Made-up numbers only.</summary>
 [Trait("Category", "Unit")]
 public sealed class BattleEnemyHpTests
 {
     private const int Number = 1;
-    private const int R3 = 0x0004;
     private const int KeyF = 0x46;
+    private const int KeyJ = 0x4A;
+    private const int KeyK = 0x4B;
+    private const int KeyL = 0x4C;
     private const int A = 0x4000;
+    private const int LB = 0x0400;
+    private const int RS = 0x0004;
+    private const int DpadUp = 0x0010;
+    private const int DpadDown = 0x0040;
+    private const int DpadLeft = 0x0080;
 
     private readonly RecordingAnnouncer announcer = new();
     private readonly ManualTime time = new();
     private readonly Scene scene = new() { On = true };
     private readonly List<string> logged = [];
     private readonly HitLines hits;
-    private readonly BattleEnemyHp details;
+    private readonly BattleEnemyHp enemies;
 
     public BattleEnemyHpTests()
     {
         hits = new HitLines(new SilentAnnouncer(), time, _ => null);
-        details = new BattleEnemyHp(R3, KeyF, hits, scene, announcer, logged.Add);
+        enemies = new BattleEnemyHp(() => BattleBindings.Default, hits, scene, announcer, logged.Add);
     }
 
     private IEnumerable<string> Said() => announcer.Said.Select(said => said.Text);
 
-    [Fact]
-    public void InABattleFAloneSaysEachEnemysHpOfItsMaxAndIsHidden()
+    // Each press is a key going down: let go between presses.
+    private void Press(int key)
+    {
+        enemies.Keyboard.Keys([key]);
+        enemies.Keyboard.Keys([]);
+    }
+
+    private void Chord(int button)
+    {
+        enemies.Pad.Pad(0, LB | button, made: true);
+        enemies.Pad.Pad(0, LB, made: true);
+    }
+
+    private void TwoEnemiesHit()
     {
         hits.Observe(new BattleHit(0xa0, -360, 840, Number, BattleSide.Enemy, HpMax: 1200));
         hits.Observe(new BattleHit(0xb0, -10, 50, Number, BattleSide.Enemy));
+    }
 
-        Assert.Empty(details.Keys([KeyF]));
+    [Fact]
+    public void TheDefaultsAreKJAndLAndLbWithTheDpadClearOfTheGamesAndTheModsBattleKeys()
+    {
+        var keys = BattleBindings.Default;
+
+        Assert.Equal((KeyK, KeyJ, KeyL), (keys.EnemyNextKey, keys.EnemyPreviousKey, keys.EnemyHpKey));
+        Assert.Equal(
+            (LB, DpadDown, DpadUp, DpadLeft),
+            (keys.EnemyHoldButtons, keys.EnemyNextButton, keys.EnemyPreviousButton, keys.EnemyHpButton));
+        // The game's battle keys read aloud on 2026-11-22 (Q, H, F, E, Tab, N, T, 1 to 5), the status key H, the
+        // menus' details key F, the reader key T and the repeat key R.
+        int[] taken = [0x51, 0x48, KeyF, 0x45, 0x09, 0x4E, 0x54, 0x31, 0x32, 0x33, 0x34, 0x35, 0x52];
+        Assert.DoesNotContain(keys.EnemyNextKey, taken);
+        Assert.DoesNotContain(keys.EnemyPreviousKey, taken);
+        Assert.DoesNotContain(keys.EnemyHpKey, taken);
+    }
+
+    // Neither is heard by ear yet, so both ship off: a normal install leaves K, J, L and LB with the D-pad to the game.
+    [Fact]
+    public void TheKeysAndThePadChordsAreEachTheirOwnTestingFeature()
+    {
+        Assert.True(SettingKey.Of(BattleFeature.BattleEnemyKeys).Testing);
+        Assert.True(SettingKey.Of(BattleFeature.BattleEnemyPad).Testing);
+        Assert.False(ModSettings.Defaults.IsOn(BattleFeature.BattleEnemyKeys));
+        Assert.False(ModSettings.Defaults.IsOn(BattleFeature.BattleEnemyPad));
+    }
+
+    [Fact]
+    public void TheFileNamesEveryEnemyBinding()
+    {
+        var settings = ModSettings.Parse(
+            """
+            { "keys": { "battle": { "enemyNextKey": "F2", "enemyPreviousKey": "F3", "enemyHpKey": "none",
+              "enemyHoldButtons": "RB", "enemyNextButton": "Y", "enemyPreviousButton": "none",
+              "enemyHpButton": "DpadRight" } } }
+            """, SettingCatalogue.Empty, _ => { });
 
         Assert.Equal(
-            new Announcement("First enemy, 840 of 1200. Second enemy, 50 left", Interrupt: true), announcer.Said[^1]);
+            BattleBindings.Default with
+            {
+                EnemyNextKey = 0x71,
+                EnemyPreviousKey = 0x72,
+                EnemyHpKey = 0,
+                EnemyHoldButtons = 0x0800,
+                EnemyNextButton = 0x1000,
+                EnemyPreviousButton = 0,
+                EnemyHpButton = 0x0020,
+            },
+            BattleBindings.From(settings));
+        Assert.Equal(BattleBindings.Default, BattleBindings.From(ModSettings.Defaults));
     }
 
     [Fact]
-    public void ThePadsDetailsButtonSaysItToo()
+    public void KStepsToEachEnemyInTurnSayingItsHpAndIsHidden()
     {
-        hits.Observe(new BattleHit(0xa0, -5, 55, Number, BattleSide.Enemy));
+        TwoEnemiesHit();
 
-        Assert.Equal(0, details.Pad(0, R3, made: true));
+        Assert.Empty(enemies.Keyboard.Keys([KeyK]));
+        enemies.Keyboard.Keys([]);
+        Press(KeyK);
+        Press(KeyK);
 
-        Assert.Equal(["Enemy, 55 left"], Said());
+        Assert.Equal(["First enemy, 840 of 1200", "Second enemy, 50 left", "First enemy, 840 of 1200"], Said());
+        Assert.All(announcer.Said, said => Assert.True(said.Interrupt));
     }
 
     [Fact]
-    public void ByDefaultTheReadoutIsUnboundSoFAndRsReachTheGameInABattle()
+    public void JStepsBackFromTheLastEnemy()
     {
-        var unbound = new BattleEnemyHp(() => BattleBindings.Default, hits, scene, announcer);
-        hits.Observe(new BattleHit(0xa0, -5, 55, Number, BattleSide.Enemy));
+        TwoEnemiesHit();
 
-        Assert.Equal([KeyF], unbound.Keys([KeyF]));
-        Assert.Equal(R3, unbound.Pad(0, R3, made: true));
-        Assert.Equal(0, unbound.Pad(0, 0, made: true));
+        Press(KeyJ);
+        Press(KeyJ);
+        Press(KeyK);
+
+        Assert.Equal(["Second enemy, 50 left", "First enemy, 840 of 1200", "Second enemy, 50 left"], Said());
+    }
+
+    [Fact]
+    public void LSaysEveryEnemyInOneLine()
+    {
+        TwoEnemiesHit();
+
+        Assert.Empty(enemies.Keyboard.Keys([KeyL]));
+
+        Assert.Equal(["First enemy, 840 of 1200. Second enemy, 50 left"], Said());
+    }
+
+    [Fact]
+    public void AStepKeepsToTheSameEnemyWhenAnotherIsHit()
+    {
+        hits.Observe(new BattleHit(0xa0, -5, 55, Number, BattleSide.Enemy));
+        Press(KeyK);
+        hits.Observe(new BattleHit(0xb0, -10, 50, Number, BattleSide.Enemy));
+
+        Press(KeyK);
+
+        Assert.Equal(["Enemy, 55 left", "Second enemy, 50 left"], Said());
+    }
+
+    [Fact]
+    public void ANewBattleStartsTheStepsAgainAtTheFirstEnemy()
+    {
+        TwoEnemiesHit();
+        Press(KeyK);
+        hits.BattleOver();
+        time.Advance(HitLines.RepeatMilliseconds + 1);
+        TwoEnemiesHit();
+
+        Press(KeyK);
+
+        Assert.Equal("First enemy, 840 of 1200", Said().Last());
+    }
+
+    [Fact]
+    public void WithNoEnemyHitEachKeySaysSo()
+    {
+        hits.Observe(new BattleHit(0x1000, -5, 55, Number, BattleSide.Ally, 0, Unit: 3));
+
+        Press(KeyK);
+        Press(KeyJ);
+        Press(KeyL);
+
+        Assert.Equal(["No enemy hit yet", "No enemy hit yet", "No enemy hit yet"], Said());
+    }
+
+    [Fact]
+    public void FAndRsReachTheGameInABattle()
+    {
+        TwoEnemiesHit();
+
+        Assert.Equal([KeyF], enemies.Keyboard.Keys([KeyF]));
+        Assert.Equal(RS, enemies.Pad.Pad(0, RS, made: true));
         Assert.Empty(Said());
     }
 
     [Fact]
-    public void ABoundReadoutKeySaysItAndIsHiddenWhileFStaysWithTheGame()
+    public void LbWithTheDpadStepsAndSumsUpHidingOnlyTheDpad()
     {
-        var bound = new BattleEnemyHp(
-            () => BattleBindings.Default with { EnemyHpKey = 0x45, EnemyHpButtons = 0x0010 },
-            hits, scene, announcer);
-        hits.Observe(new BattleHit(0xa0, -5, 55, Number, BattleSide.Enemy));
+        TwoEnemiesHit();
 
-        Assert.Equal([KeyF], bound.Keys([KeyF]));
-        Assert.Empty(bound.Keys([0x45]));
-        bound.Keys([]);
-        Assert.Equal(0, bound.Pad(0, 0x0010, made: true));
-        Assert.Equal(["Enemy, 55 left", "Enemy, 55 left"], Said());
+        Assert.Equal(LB, enemies.Pad.Pad(0, LB, made: true));
+        Assert.Equal(LB, enemies.Pad.Pad(0, LB | DpadDown, made: true));
+        Assert.Equal(LB, enemies.Pad.Pad(0, LB, made: true));
+        Chord(DpadUp);
+        Chord(DpadLeft);
+
+        Assert.Equal(
+            ["First enemy, 840 of 1200", "Second enemy, 50 left", "First enemy, 840 of 1200. Second enemy, 50 left"],
+            Said());
     }
 
     [Fact]
-    public void PartyMembersAreLeftToTheStatusKey()
+    public void TheDpadWithoutLbReachesTheGame()
     {
-        hits.Observe(new BattleHit(0x1000, -5, 55, Number, BattleSide.Ally, 0, Unit: 3));
+        TwoEnemiesHit();
 
-        details.Keys([KeyF]);
-
-        Assert.Equal(["No enemy hit yet"], Said());
+        Assert.Equal(DpadDown, enemies.Pad.Pad(0, DpadDown, made: true));
+        Assert.Empty(Said());
     }
 
     [Fact]
-    public void OutsideABattleTheKeyReachesTheGameAndSaysNothing()
+    public void TheKeyboardKeysAndThePadChordsAreSeparateControls()
+    {
+        TwoEnemiesHit();
+
+        Assert.Equal([KeyK], enemies.Pad.Keys([KeyK]));
+        Assert.Equal(LB | DpadDown, enemies.Keyboard.Pad(0, LB | DpadDown, made: true));
+        Assert.Empty(Said());
+    }
+
+    [Fact]
+    public void OutsideABattleTheKeysReachTheGameAndSayNothing()
     {
         scene.On = false;
 
-        Assert.Equal([KeyF], details.Keys([KeyF]));
-        Assert.Equal(R3, details.Pad(0, R3, made: true));
+        Assert.Equal([KeyK], enemies.Keyboard.Keys([KeyK]));
+        Assert.Equal([KeyL], enemies.Keyboard.Keys([KeyL]));
+        Assert.Equal(LB | DpadDown, enemies.Pad.Pad(0, LB | DpadDown, made: true));
 
         Assert.Empty(announcer.Said);
     }
 
     [Fact]
-    public void AChordWithTheKeyReachesTheGameAndSaysNothing()
+    public void AChordWithAKeyReachesTheGameAndSaysNothing()
     {
-        Assert.Equal(R3 | A, details.Pad(0, R3 | A, made: true));
-        Assert.Equal([KeyF, 0x41], details.Keys([KeyF, 0x41]));
+        Assert.Equal([KeyK, 0x41], enemies.Keyboard.Keys([KeyK, 0x41]));
+        Assert.Equal(LB | DpadDown | A, enemies.Pad.Pad(0, LB | DpadDown | A, made: true));
 
         Assert.Empty(announcer.Said);
     }
@@ -111,20 +251,38 @@ public sealed class BattleEnemyHpTests
     [Fact]
     public void AHeldKeyOrASecondPadMirroringItSpeaksOnce()
     {
-        details.Pad(0, R3, made: true);
-        details.Pad(0, R3, made: true);
-        details.Pad(1, R3, made: true);
+        TwoEnemiesHit();
 
+        enemies.Pad.Pad(0, LB | DpadDown, made: true);
+        enemies.Pad.Pad(0, LB | DpadDown, made: true);
+        enemies.Pad.Pad(1, LB | DpadDown, made: true);
         Assert.Single(announcer.Said);
+
+        enemies.Keyboard.Keys([KeyK]);
+        enemies.Keyboard.Keys([KeyK]);
+        Assert.Equal(2, announcer.Said.Count);
     }
 
-    // For the next session's target read: each press logs every known enemy's record, to match against the target.
     [Fact]
-    public void EachPressLogsTheKnownEnemiesRecords()
+    public void AKeyReboundInTheFileAppliesAtTheNextRead()
+    {
+        var bindings = BattleBindings.Default;
+        var rebound = new BattleEnemyHp(() => bindings, hits, scene, announcer);
+        TwoEnemiesHit();
+        bindings = bindings with { EnemyNextKey = 0x71 };
+
+        Assert.Equal([KeyK], rebound.Keyboard.Keys([KeyK]));
+        Assert.Empty(rebound.Keyboard.Keys([0x71]));
+        Assert.Equal(["First enemy, 840 of 1200"], Said());
+    }
+
+    // For the next session's target read: each summary logs every known enemy's record, to match against the target.
+    [Fact]
+    public void EachSummaryLogsTheKnownEnemiesRecords()
     {
         hits.Observe(new BattleHit(0xa0, -360, 840, Number, BattleSide.Enemy, HpMax: 1200));
 
-        details.Keys([KeyF]);
+        Press(KeyL);
 
         Assert.Equal(["enemies=1 Enemy record=0xa0 hp=840 max=1200"], logged);
     }

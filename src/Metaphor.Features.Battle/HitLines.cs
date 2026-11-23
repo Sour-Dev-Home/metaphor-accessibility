@@ -50,6 +50,7 @@ public sealed class HitLines : IBattleHitObserver
     private readonly List<long> enemies = [];
     private readonly Dictionary<long, (int Hp, int? HpMax)> enemyHp = [];
     private long lastHit = long.MinValue / 2;
+    private long battle;
 
     /// <summary>Hits said through <paramref name="announcer"/>, timed by <paramref name="time"/>; party members named
     /// by <paramref name="memberName"/> from their unit number, or null when unknown; <paramref name="cue"/> is played
@@ -88,6 +89,7 @@ public sealed class HitLines : IBattleHitObserver
             {
                 enemies.Clear();
                 enemyHp.Clear();
+                battle++;
             }
             lastHit = now;
             if (hit.Side == BattleSide.Enemy)
@@ -153,6 +155,21 @@ public sealed class HitLines : IBattleHitObserver
         {
             enemies.Clear();
             enemyHp.Clear();
+            battle++;
+        }
+    }
+
+    /// <summary>Which battle the known enemies belong to: a number that changes each time a battle's enemies are
+    /// forgotten, so a key that remembers an enemy (#767) can tell a record address reused by the next battle.
+    /// </summary>
+    public long Battle
+    {
+        get
+        {
+            lock (gate)
+            {
+                return battle;
+            }
         }
     }
 

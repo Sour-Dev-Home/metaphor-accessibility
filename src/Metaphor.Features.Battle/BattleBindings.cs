@@ -2,9 +2,20 @@ using Metaphor.Core.Settings;
 
 namespace Metaphor.Features.Battle;
 
-/// <summary>The battle feature's keys, each 0 when unbound: the status key and buttons (#631) and the enemy HP readout's
-/// (#767). The settings file can rebind each under <c>keys.battle</c> (#661, <see cref="From"/>).</summary>
-public sealed record BattleBindings(int StatusButtons, int StatusKey, int EnemyHpButtons, int EnemyHpKey)
+/// <summary>The battle feature's keys, each 0 when unbound: the status key and buttons (#631) and the enemy HP keys
+/// (#767): the next, previous and all-enemies keys, and on the pad <see cref="EnemyHoldButtons"/> held with the next,
+/// previous and all-enemies buttons. The settings file can rebind each under <c>keys.battle</c> (#661,
+/// <see cref="From"/>).</summary>
+public sealed record BattleBindings(
+    int StatusButtons,
+    int StatusKey,
+    int EnemyHpKey,
+    int EnemyNextKey,
+    int EnemyPreviousKey,
+    int EnemyHoldButtons,
+    int EnemyHpButton,
+    int EnemyNextButton,
+    int EnemyPreviousButton)
 {
     /// <summary>L3 in the game's pad mask: XInput's left thumb, <c>0x0002</c> on build 548ddc95…
     /// (docs/raw-sources/pad-and-keyboard-state-2026-11-16.md).</summary>
@@ -13,10 +24,14 @@ public sealed record BattleBindings(int StatusButtons, int StatusKey, int EnemyH
     /// <summary>The H key, code <c>0x48</c>.</summary>
     public const int KeyH = 0x48;
 
-    /// <summary>The status key is H and L3, the maintainer's choice of 2026-11-21. The enemy HP readout is unbound until
-    /// #767 finds keys the game leaves free: the menus' details binding it borrowed, F and R3, are the game's keyboard
-    /// melee and its auto-battle toggle, which must always reach the game.</summary>
-    public static BattleBindings Default { get; } = new(LeftThumb, KeyH, 0, 0);
+    /// <summary>The status key is H and L3, the maintainer's choice of 2026-11-21. The enemy HP keys are K, J and L,
+    /// and LB held with D-pad Down, Up and Left, the maintainer's decision of 2026-11-23 on #767, mirroring the field
+    /// list's: the game's battle keys, read aloud on 2026-11-22, are Q, H, F, E, Tab, N, T and 1 to 5, so F (its
+    /// keyboard melee) and R3 (its auto-battle toggle) stay with the game. The codes: K <c>0x4B</c>, J <c>0x4A</c>,
+    /// L <c>0x4C</c>; LB <c>0x0400</c>, D-pad Down <c>0x0040</c>, Up <c>0x0010</c>, Left <c>0x0080</c> on game build
+    /// 548ddc95… (docs/raw-sources/pad-and-keyboard-state-2026-11-16.md). Whether holding LB in a battle does its own
+    /// action first is <c>[NEEDS VERIFICATION]</c> by ear.</summary>
+    public static BattleBindings Default { get; } = new(LeftThumb, KeyH, 0x4C, 0x4B, 0x4A, 0x0400, 0x0080, 0x0040, 0x0010);
 
     /// <summary>The bindings the settings file's <c>keys.battle</c> object names, each missing or unusable one the
     /// default.</summary>
@@ -26,7 +41,12 @@ public sealed record BattleBindings(int StatusButtons, int StatusKey, int EnemyH
         return new BattleBindings(
             settings.Binding("battle", "statusButtons", Default.StatusButtons),
             settings.Binding("battle", "statusKey", Default.StatusKey),
-            settings.Binding("battle", "enemyHpButtons", Default.EnemyHpButtons),
-            settings.Binding("battle", "enemyHpKey", Default.EnemyHpKey));
+            settings.Binding("battle", "enemyHpKey", Default.EnemyHpKey),
+            settings.Binding("battle", "enemyNextKey", Default.EnemyNextKey),
+            settings.Binding("battle", "enemyPreviousKey", Default.EnemyPreviousKey),
+            settings.Binding("battle", "enemyHoldButtons", Default.EnemyHoldButtons),
+            settings.Binding("battle", "enemyHpButton", Default.EnemyHpButton),
+            settings.Binding("battle", "enemyNextButton", Default.EnemyNextButton),
+            settings.Binding("battle", "enemyPreviousButton", Default.EnemyPreviousButton));
     }
 }
