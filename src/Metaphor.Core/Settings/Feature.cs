@@ -27,6 +27,10 @@ public enum Feature
     [SettingKey("speech", "nameEntry", "Name entry")]
     NameEntry,
 
+    /// <summary>The Equipment screen's focus (#217). Separate from the menus while it is tested.</summary>
+    [SettingKey("speech", "equipmentMenu", "Equipment menu", Testing = true)]
+    EquipmentMenu,
+
     /// <summary>The travel map's destinations (#545).</summary>
     [SettingKey("speech", "travelMap", "Travel map")]
     TravelMap,

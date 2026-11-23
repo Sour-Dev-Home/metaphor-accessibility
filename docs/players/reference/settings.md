@@ -59,6 +59,7 @@ Each is `true` to speak or `false` to stay quiet, inside a `speech` object: `{ "
 | `battleLists` | Battle's skill and item lists, row by row. Separate from `menus`. | `true` |
 | `saveSlots` | The save and load screens' slots. Still being tested. | testing, off |
 | `nameEntry` | The name entry screen: its title, each letter you type, and when a name is refused. | `true` |
+| `equipmentMenu` | The Equipment screen's slots and gear. Still being tested. | testing, off |
 | `travelMap` | Each destination on the travel map. | `true` |
 | `placeNames` | The place name the game shows as you arrive somewhere. | `true` |
 | `updateNotice` | The title screen's notice of a newer version. The request itself is `checkForUpdates`. | `true` |

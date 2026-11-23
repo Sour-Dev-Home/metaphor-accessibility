@@ -241,6 +241,7 @@ internal sealed record HookServices
         screens.Observe(new DifficultyFocus(library, menuSpeech, cleaner));
         screens.Observe(new SettingsFocus(library, menuSpeech, cleaner));
         screens.Observe(new QuickMenuFocus(library, menuSpeech, cleaner));
+        screens.Observe(new EquipmentFocus(serials, settings.Speech(Feature.EquipmentMenu, reader), cleaner));
         // The save and load slots (#622): their lists come unnamed, so the slot screens name them before the screens,
         // from the prompts the serial hook hands MessageEvents (2026-11-22 review, finding 5).
         var slots = new SlotScreens(screens);

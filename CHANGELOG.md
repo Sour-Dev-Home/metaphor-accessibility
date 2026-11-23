@@ -9,6 +9,8 @@ checks them in the first game session and removes the tag.
 
 ## Unreleased
 
+- **The Equipment slots are named.** In the slot list, rows two to five say their slot ("Weapon, 2 of 5"); the first row
+  (the archetype), the characters and the items are still said by place (#217). `[NEEDS VERIFICATION by ear]`
 - **The reader key works outside dialogue.** `T`, or `LB` with `RB`, now turns the reader off and on in the field and
   over a tutorial pop-up, so a reader turned off before a pop-up can be turned back on (#769).
   `[NEEDS VERIFICATION by ear]`
