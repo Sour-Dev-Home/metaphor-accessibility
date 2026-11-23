@@ -12,6 +12,10 @@ checks them in the first game session and removes the tag.
 - **The Item screen says each item.** Opening the list says "Item", then each row says its item name and its place
   ("Tonic, 2 of 12"). The equipment tabs, the tab names, quantities and party members' names are still said by
   place or not at all (#216). `[NEEDS VERIFICATION by ear]`
+- **No more gaps where the screen shows a skill, an item or a button.** Text that names a skill or a status condition
+  now says its name, as after "Required Skill:". Items, Archetypes, attributes, buttons and other icons, which the mod
+  can't name yet, say what kind of thing goes there ("item", "button") instead of leaving a gap, as does the action a
+  new key binding clashes with (#108, #109, #564). `[NEEDS VERIFICATION by ear]`
 - **The Calendar says the day.** Opening the Calendar says "Calendar, Waters Day, day 12 of 30", and each move says the
   weekday and the day you land on (the five weekdays are as heard in a test session). The month, events and discounts
   aren't spoken yet (#193). `[NEEDS VERIFICATION by ear]`
@@ -62,6 +66,8 @@ checks them in the first game session and removes the tag.
   who changed: party members by slot, such as "Ally 1 89, Ally 2 120", and each enemy with its HP left, numbered when
   there are several. Misses and blocked hits aren't read yet, and names aren't known yet (#247).
   `[NEEDS VERIFICATION by ear]`
+- **Knock-outs are said.** The hit that takes a party member to 0 HP adds "knocked out" ("Strohl 40, knocked out"), one
+  that defeats an enemy adds "defeated", and a heal from 0 HP adds "revived" (#254). `[NEEDS VERIFICATION by ear]`
 - **No more gaps where the screen shows a skill, an item or a button.** Text that names a skill or a status condition
   now says its name, as after "Required Skill:". Items, Archetypes, attributes, buttons and other icons, which the mod
   can't name yet, say what kind of thing goes there ("item", "button") instead of leaving a gap, as does the action a

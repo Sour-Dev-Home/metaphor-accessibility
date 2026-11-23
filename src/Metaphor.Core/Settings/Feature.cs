@@ -66,6 +66,11 @@ public enum Feature
     [SettingKey("speech", "battleHits", "Battle hits")]
     BattleHits,
 
+    /// <summary>", knocked out", ", defeated" and ", revived" after a hit's number (#254). Separate from the hits
+    /// while it is tested.</summary>
+    [SettingKey("speech", "battleOutcomes", "Battle outcomes", Testing = true)]
+    BattleOutcomes,
+
     /// <summary>Battle's skill and item lists, row by row (#247). Separate from the menus.</summary>
     [SettingKey("speech", "battleLists", "Battle lists")]
     BattleLists,
@@ -95,7 +100,12 @@ public enum Feature
     [SettingKey("field", "reach", "Reach callouts")]
     Reach,
 
-    /// <summary>A choice saying "Choice, N options", the options spoken as focus moves, not every option up front
+    /// <summary>Skill and condition names said for their tags in a line (#108). Separate from the dialogue while it
+    /// is tested; off, a tag says its stand-in.</summary>
+    [SettingKey("speech", "termNames", "Term names", Testing = true)]
+    TermNames,
+
+    ///<summary>A choice saying "Choice, N options", the options spoken as focus moves, not every option up front
     /// (#730). Separate from the dialogue while it is tested.</summary>
     [SettingKey("speech", "choiceCount", "Choice count", Testing = true)]
     ChoiceCount,
