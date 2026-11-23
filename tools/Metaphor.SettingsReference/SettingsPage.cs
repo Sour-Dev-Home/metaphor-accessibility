@@ -1,5 +1,6 @@
 using System.Text;
 using Metaphor.Core.Cues;
+using Metaphor.Core.Input;
 using Metaphor.Core.Settings;
 
 namespace Metaphor.SettingsReference;
@@ -185,6 +186,25 @@ public static class SettingsPage
         | `field.routePingVolume` | How loud a route ping is from a place in reach (`routePings`); farther places are quieter. 0 to 100. | `90` |
         """;
 
+    // The limits made for a slider (#835), each with what it does; the range, step and default come from the limit.
+    private static readonly (SliderLimit Limit, string Description)[] Sliders =
+    [
+        (ShoulderTapLimits.HoldDelay,
+            "How long, in milliseconds, `LB` or `RB` held alone waits for a chord before the game gets it as a held "
+            + "button, in the field (`shoulderHold`) and in a battle. A shorter press reaches the game as a tap when "
+            + "you let go."),
+        (ShoulderTapLimits.TapLength,
+            "How long, in milliseconds, that tap holds the button down for the game. Raise it if the game misses taps."),
+    ];
+
+    /// <summary>A slider limit's row: its range and step after its description.</summary>
+    public static string Row(SliderLimit limit, string description)
+    {
+        ArgumentNullException.ThrowIfNull(limit);
+        return $"| `{limit.Group}.{limit.Name}` | {description} {limit.Min} to {limit.Max}, in steps of {limit.Step}. "
+            + $"| `{limit.Default}` |";
+    }
+
     /// <summary>The page for <paramref name="features"/>, with Unix line ends and a final one. A feature in a group
     /// with no section here throws: a new group needs its section written first.</summary>
     public static string Render(SettingCatalogue features)
@@ -202,7 +222,7 @@ public static class SettingsPage
             Block(page, section, keys.Where(key => key.Group == group).Select(Row));
         }
         Block(page, SoundsSection, Enum.GetValues<Cue>().Select(cue => Sound(SettingKey.Of(cue))));
-        Block(page, LimitsSection);
+        Block(page, LimitsSection, Sliders.Select(slider => Row(slider.Limit, slider.Description)));
         Block(page, Tail);
         return page.ToString().TrimEnd('\n') + "\n";
     }

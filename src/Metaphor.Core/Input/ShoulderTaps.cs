@@ -6,8 +6,11 @@ namespace Metaphor.Core.Input;
 /// mod's chords use a shoulder, that shoulder is kept from the game from the read it goes down. Another button going
 /// down while it's held, the other shoulder too, makes it the mod's chord, and the game never sees the shoulder. Let go
 /// with no chord, it reaches the game as a tap: held down from the release read for at least <see cref="TapReads"/>
-/// reads and <see cref="TapMilliseconds"/>, then let go. The holds are asked at the press, which decides, and again at
-/// the release, so a tap is dropped rather than handed to a screen it wasn't pressed on. Each pad keeps its own state
+/// reads and the tap length, then let go. Held alone for the hold delay (#835, both in <see cref="ShoulderTapLimits"/>),
+/// it is handed to the game as a hold from that read until let go, so the game's held paging works; from then the
+/// controls no longer see it, so no mod chord forms on it, and every press reaches the game until it is let go. The
+/// holds are asked at the press, which decides, and again at the release or the hand-over, so a shoulder is dropped
+/// rather than handed to a screen it wasn't pressed on. Each pad keeps its own state
 /// (Steam Input's second pad reads apart, #225), and a read the game reports as not made changes nothing. Safe to call
 /// from any of the game's threads; the holds are asked under its lock, so they must not call back into it.</summary>
 /// <remarks>How many reads the game needs to see a button down to act on it is <c>[NEEDS VERIFICATION]</c>: the pad is
@@ -28,33 +31,43 @@ public sealed class ShoulderTaps
     /// <summary>The fewest reads a tap is held down for.</summary>
     public const int TapReads = 3;
 
-    /// <summary>The least time a tap is held down for.</summary>
-    public const long TapMilliseconds = 50;
-
     private readonly Func<int>[] holds;
     private readonly Func<long> milliseconds;
+    private readonly Func<ShoulderTapLimits> limits;
     private readonly Lock gate = new();
     private readonly Dictionary<int, PadState> pads = [];
 
     /// <summary>Taps over <paramref name="holds"/>, each saying which shoulders its chords use right now (0 for none),
-    /// timed by <paramref name="milliseconds"/>.</summary>
+    /// timed by <paramref name="milliseconds"/>, with the default limits.</summary>
     public ShoulderTaps(IEnumerable<Func<int>> holds, Func<long> milliseconds)
+        : this(holds, milliseconds, () => ShoulderTapLimits.Default)
+    {
+    }
+
+    /// <summary>Taps as above, timed by the <paramref name="limits"/> in force, read on each pad read (#835).</summary>
+    public ShoulderTaps(IEnumerable<Func<int>> holds, Func<long> milliseconds, Func<ShoulderTapLimits> limits)
     {
         ArgumentNullException.ThrowIfNull(holds);
         ArgumentNullException.ThrowIfNull(milliseconds);
+        ArgumentNullException.ThrowIfNull(limits);
         this.holds = [.. holds];
         this.milliseconds = milliseconds;
+        this.limits = limits;
     }
 
     /// <summary>Takes one read of <paramref name="pad"/>: <paramref name="buttons"/> as the game read them and
-    /// <paramref name="handed"/> as the controls hand them on, and returns what to hand the game: the held-back
-    /// shoulders taken out, a tap being replayed put in. A read not made comes back as <paramref name="handed"/>.
+    /// <paramref name="handed"/> as the controls hand them on, and returns what to hand the game (<see cref="Read"/>
+    /// then <see cref="ShoulderRead.Game"/>).</summary>
+    public int Pad(int pad, int buttons, int handed, bool made) => Read(pad, buttons, made).Game(handed);
+
+    /// <summary>Takes one read of <paramref name="pad"/>, <paramref name="buttons"/> as the game read them, before the
+    /// controls see it, and says what the controls see and what the game gets. A read not made changes nothing.
     /// </summary>
-    public int Pad(int pad, int buttons, int handed, bool made)
+    public ShoulderRead Read(int pad, int buttons, bool made)
     {
         if (!made || holds.Length == 0)
         {
-            return handed;
+            return ShoulderRead.None;
         }
         lock (gate)
         {
@@ -63,19 +76,20 @@ public sealed class ShoulderTaps
                 state = new PadState();
                 pads.Add(pad, state);
             }
-            return Read(state, buttons, handed);
+            return Step(state, buttons);
         }
     }
 
-    private int Read(PadState state, int buttons, int handed)
+    private ShoulderRead Step(PadState state, int buttons)
     {
         var down = buttons & ~state.Previous;
         state.Previous = buttons;
         var now = milliseconds();
+        var timing = limits();
         if (state.Tap != 0)
         {
             // A new press of the tapped shoulder ends the tap, and is held back in turn below.
-            var over = state.TapReads >= TapReads && now - state.TapFrom >= TapMilliseconds;
+            var over = state.TapReads >= TapReads && now - state.TapFrom >= timing.TapMilliseconds;
             if (over || (down & state.Tap) != 0)
             {
                 state.Tap = 0;
@@ -85,7 +99,13 @@ public sealed class ShoulderTaps
                 state.TapReads++;
             }
         }
+        // A handed-over shoulder is the game's until let go, and while one is, so is every other press.
+        state.Over &= buttons;
         var shouldersDown = down & Shoulders;
+        if (state.Over != 0)
+        {
+            return new(0, state.Tap | state.Over, state.Over);
+        }
         if (state.Held == 0)
         {
             var back = shouldersDown == 0 ? 0 : shouldersDown & Holds();
@@ -93,6 +113,7 @@ public sealed class ShoulderTaps
             {
                 state.Held = back;
                 state.Pressed = back;
+                state.HeldFrom = now;
                 // Both shoulders at once, or another button on the same read, is a chord already.
                 state.Chord = back != down || back == Shoulders;
             }
@@ -124,7 +145,19 @@ public sealed class ShoulderTaps
                 state.Chord = false;
             }
         }
-        return (handed & ~state.Held) | state.Tap;
+        if (state.Held != 0 && !state.Chord && now - state.HeldFrom >= timing.HoldDelayMilliseconds)
+        {
+            // Held alone past the delay: the game's from this read, asked again as at a release.
+            var over = state.Held & Holds();
+            if (over != 0)
+            {
+                state.Over = over;
+                state.Held = 0;
+                state.Pressed = 0;
+                return new(0, state.Tap | over, over);
+            }
+        }
+        return new(state.Held, state.Tap, 0);
     }
 
     private int Holds()
@@ -152,5 +185,25 @@ public sealed class ShoulderTaps
         public int TapReads { get; set; }
 
         public long TapFrom { get; set; }
+
+        public long HeldFrom { get; set; }
+
+        public int Over { get; set; }
     }
+}
+
+/// <summary>What one pad read of <see cref="ShoulderTaps"/> decided: the shoulders kept from the game
+/// (<see cref="HeldBack"/>), those put in for it (<see cref="Added"/>: a tap being replayed, or a shoulder handed over
+/// as a hold), and those handed over (<see cref="HandedOver"/>), which the controls no longer see, so no chord forms on
+/// them (#835).</summary>
+public readonly record struct ShoulderRead(int HeldBack, int Added, int HandedOver)
+{
+    /// <summary>A read that changes nothing.</summary>
+    public static ShoulderRead None { get; } = new(0, 0, 0);
+
+    /// <summary>The buttons the controls see of <paramref name="buttons"/>.</summary>
+    public int Controls(int buttons) => buttons & ~HandedOver;
+
+    /// <summary>What the game gets, from <paramref name="handed"/>, the buttons the controls handed on.</summary>
+    public int Game(int handed) => (handed & ~HeldBack) | Added;
 }

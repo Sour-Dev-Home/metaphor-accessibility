@@ -147,6 +147,8 @@ Some features have a limit you can move, inside a `limits` object, then the feat
 | `field.wallRange` | How near a wall comes before its tone starts (`wallTones`), in the game's units, about 100 a step. 50 to 2000. | `300` |
 | `field.wallVolume` | How loud a wall tone is right at the wall. 0 to 100. | `50` |
 | `field.routePingVolume` | How loud a route ping is from a place in reach (`routePings`); farther places are quieter. 0 to 100. | `90` |
+| `shoulders.holdDelay` | How long, in milliseconds, `LB` or `RB` held alone waits for a chord before the game gets it as a held button, in the field (`shoulderHold`) and in a battle. A shorter press reaches the game as a tap when you let go. 100 to 1000, in steps of 50. | `300` |
+| `shoulders.tapLength` | How long, in milliseconds, that tap holds the button down for the game. Raise it if the game misses taps. 20 to 200, in steps of 10. | `50` |
 
 ## Keys
 

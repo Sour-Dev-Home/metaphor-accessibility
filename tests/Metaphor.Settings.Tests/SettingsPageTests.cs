@@ -29,6 +29,16 @@ public sealed class SettingsPageTests
         Assert.Equal("| `bells` | Rings the bells. | `true` |", SettingsPage.Row(key with { Testing = false }));
     }
 
+    // #835: a slider limit's row gives its range, step and default from the limit itself.
+    [Fact]
+    public void ASliderLimitsRowGivesItsRangeStepAndDefault()
+    {
+        var limit = new SliderLimit("pad", "wait", 30, 10, 90, 5);
+
+        Assert.Equal(
+            "| `pad.wait` | Waits. 10 to 90, in steps of 5. | `30` |", SettingsPage.Row(limit, "Waits."));
+    }
+
     [Fact]
     public void FeaturesAreListedInTheirOrderUnderTheirGroup()
     {
