@@ -27,7 +27,8 @@ lacks_in_command() { ! grep -qF -- "$1" "$SEEN/command"; }
 # A checkout with three Pester files: split.Tests.ps1 (three tests, file-level BeforeAll only), shared.Tests.ps1 (a
 # Describe-level BeforeAll its two tests share) and one.Tests.ps1 (a single test).
 FAKE="$WORK/checkout"
-mkdir -p "$FAKE/scripts/check" "$FAKE/scripts/setup" "$FAKE/tests/pester" "$WORK/bin" "$WORK/seen"
+mkdir -p "$FAKE/scripts/check" "$FAKE/scripts/setup" "$FAKE/tests/pester" "$FAKE/installer/Metaphor.Installer" "$WORK/bin" "$WORK/seen"
+: > "$FAKE/installer/Metaphor.Installer/Metaphor.Installer.csproj"
 cp "$ROOT/scripts/check/run-pester.sh" "$ROOT/scripts/check/live-log.sh" "$ROOT/scripts/check/pool.sh" "$FAKE/scripts/check/"
 # The Pester pin, where run-pester.sh reads it: onboard.ps1's line, CRLF-ended as a Windows checkout has it.
 printf "\$pesterVersion = '6.2.0'\r\n" > "$FAKE/scripts/setup/onboard.ps1"
@@ -106,8 +107,15 @@ check "shared: in one process" [ "$(grep -c '^tests/pester/shared' <<< "$calls")
 check "one test: runs whole" [ "$(lines_of one.Tests.ps1)" = "" ]
 check "five processes in all" [ "$(wc -l <<< "$calls")" -eq 5 ]
 check "they run at once" [ "$(sort -n "$SEEN/concurrent" | tail -n 1)" -ge 2 ]
-check "the stand-in game is built once" [ "$(cat "$SEEN/dotnet")" = \
-  "dotnet build tests/Metaphor.StandInGame -c Release -v q --nologo" ]
+check "the stand-in game is built once" [ "$(grep -c '^dotnet build' "$SEEN/dotnet")" -eq 1 ]
+check "the stand-in game build is as it was" grep -qxF \
+  "dotnet build tests/Metaphor.StandInGame -c Release -v q --nologo" "$SEEN/dotnet"
+# Each process has its own TEMP, and NuGet's lock for the shared packages folder lives under TEMP, so two processes
+# restoring the installer's net48 reference package at once on a cold cache don't exclude each other (#629). One
+# restore here fills the cache first.
+check "the installer's packages are restored once, before any test runs" [ "$(grep -c '^dotnet restore' "$SEEN/dotnet")" -eq 1 ]
+check "the restore is of the installer project" grep -qxF \
+  "dotnet restore installer/Metaphor.Installer/Metaphor.Installer.csproj -v q --nologo" "$SEEN/dotnet"
 check "every process is told it's built" [ -z "$(cut -d '|' -f 3 <<< "$calls" | grep -v '^1$')" ]
 check "every process has its own temporary folder" [ "$(cut -d '|' -f 4 <<< "$calls" | sort -u | wc -l)" -eq 5 ]
 check "each folder exists while it runs" [ -z "$(cut -d '|' -f 5 <<< "$calls" | grep -v '^yes$')" ]

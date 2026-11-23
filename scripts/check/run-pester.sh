@@ -69,6 +69,15 @@ if command -v dotnet > /dev/null; then
   dotnet build tests/Metaphor.StandInGame -c Release -v q --nologo > "$tmp/standin.out" 2>&1 ||
     { cat "$tmp/standin.out"; echo "run-pester: the stand-in game didn't build" >&2; exit 1; }
   export METAPHOR_STANDIN_BUILT=1
+  # The installer's packages, restored once here (#629). installer-exe.Tests.ps1 builds the installer in every process
+  # its file is split across, each with its own TEMP, and NuGet's lock on the shared packages folder lives under TEMP:
+  # on a cold cache (CI's) two builds extracted microsoft.netframework.referenceassemblies.net48 into the same folder
+  # at once, and one failed with NU5037. With the package in place, a build's own restore only reads it.
+  installer=installer/Metaphor.Installer/Metaphor.Installer.csproj
+  if [ -f "$installer" ] && ! dotnet restore "$installer" -v q --nologo > "$tmp/installer-restore.out" 2>&1; then
+    cat "$tmp/installer-restore.out"
+    echo "run-pester: the installer's packages didn't restore; its tests may fail on that" >&2
+  fi
 fi
 
 # The units to run: unit_file (an index into files) and unit_lines (the `It` lines to run, empty for the whole file).
