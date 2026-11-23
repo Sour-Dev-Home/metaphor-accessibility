@@ -84,6 +84,18 @@ public sealed class FieldControlsTests
     }
 
     [Fact]
+    public void EachKeyboardReadChecksStunsWithNoKeyHeld()
+    {
+        field.View = new FieldView(0, 0, 0, 0, [new(FieldKind.Enemy, 0, 0, 400, Stunned: true)]);
+        var stuns = new StunCallouts(field, announcer, () => now);
+        var withStuns = new FieldControls(FieldBindings.Default, field, place, announcer, cues, () => now, stuns: stuns);
+
+        withStuns.Keys([]);
+
+        Assert.Equal(new Announcement("Enemy stunned", Interrupt: false), announcer.Said.Single());
+    }
+
+    [Fact]
     public void NSpeaksTheWholeListAndIsHidden()
     {
         var handed = controls.Keys([KeyW, KeyN]);

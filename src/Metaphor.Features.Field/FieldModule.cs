@@ -47,7 +47,10 @@ public sealed class FieldModule : IFeatureModule
             context.Announcer, context.Cues, () => Environment.TickCount64, log is null ? null : log.FieldRead,
             nearbyNames,
             new ReachCallouts(field, settings.Speech(FieldFeature.Reach, context.Announcer), () => Environment.TickCount64),
-            mission, log is null ? null : context.StoryFlag, routes));
+            mission, log is null ? null : context.StoryFlag, routes,
+            // Stun callouts (#772), testing: said through their own setting's gate.
+            new StunCallouts(
+                field, settings.Speech(FieldFeature.StunCallouts, context.Announcer), () => Environment.TickCount64)));
         context.Provide(place);
         context.Provide(fieldTables);
     }

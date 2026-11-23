@@ -21,9 +21,12 @@ public enum FieldKind
 /// <param name="Id">Its object id on the map for the names table (#687), such as <c>npc-2-17</c>, or null when it has
 /// none the mod reads.</param>
 /// <param name="Called">The kind a names-table row gives it, or null to go by its list.</param>
+/// <param name="Stunned">For an enemy, whether it is stunned (#772): its break byte, which the game's
+/// <c>FldEnemyIsBreak</c> returns (docs/findings/enemy-stun-break-and-battle-condition-static.md); false when unread.
+/// </param>
 public sealed record FieldUnit(
     FieldKind Kind, float X, float Y, float Z, string? Name = null, string Raw = "", string? Id = null,
-    NearbyKind? Called = null)
+    NearbyKind? Called = null, bool Stunned = false)
 {
     /// <summary>The kind it is spoken and sorted as: the names table's, or its list's.</summary>
     public NearbyKind Says => Called ?? Nearby.KindOf(Kind);

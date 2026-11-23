@@ -37,4 +37,9 @@ public enum FieldFeature
     [SettingKey("field", "reach", "Reach callouts", Order = 2050, Description = "The callout when a door or chest " +
         "comes into reach: \"Door, in reach\".")]
     Reach,
+
+    /// <summary>The callout when a field enemy is stunned (#772).</summary>
+    [SettingKey("field", "stunCallouts", "Stun callouts", Testing = true, Order = 2060, Description = "The callout " +
+        "when a field enemy near you is stunned: \"Enemy stunned\".")]
+    StunCallouts,
 }
