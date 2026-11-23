@@ -251,7 +251,10 @@ internal sealed record HookServices
         events.ObserveChoices(yesNo);
         events.ObserveSelects(yesNo);
         screens.Observe(new DifficultyFocus(library, menuSpeech, cleaner));
-        screens.Observe(new SettingsFocus(library, menuSpeech, cleaner));
+        screens.Observe(new SettingsFocus(library, menuSpeech, cleaner)
+        {
+            LearnRowIds = () => settings.Current.IsOn(Feature.LearnedSettingValues),
+        });
         screens.Observe(new QuickMenuFocus(library, menuSpeech, cleaner));
         screens.Observe(new EquipmentFocus(serials, settings.Speech(Feature.EquipmentMenu, reader), cleaner));
         // The save and load slots (#622): their lists come unnamed, so the slot screens name them before the screens,

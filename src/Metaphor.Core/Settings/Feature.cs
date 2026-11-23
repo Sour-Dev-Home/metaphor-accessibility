@@ -23,6 +23,11 @@ public enum Feature
     [SettingKey("speech", "saveSlots", "Save slots", Testing = true)]
     SaveSlots,
 
+    /// <summary>The System rows with no pinned setting ID saying their value, by the ID learned at run time (#770).
+    /// Separate from the menus while it is tested.</summary>
+    [SettingKey("speech", "learnedSettingValues", "Learned setting values", Testing = true)]
+    LearnedSettingValues,
+
     /// <summary>The name entry screen (#585).</summary>
     [SettingKey("speech", "nameEntry", "Name entry")]
     NameEntry,

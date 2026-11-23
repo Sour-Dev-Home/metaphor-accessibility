@@ -21,3 +21,14 @@ way on screen is `[NEEDS VERIFICATION]`.
 
 Open Settings > System from the title, move to Message Speed and Skip Selections, change each, and compare what is
 heard with the screen.
+
+## Other System rows (#770)
+
+Session c (same build) logged 96 `silent change=ValueChanged` lines on System rows 10 to 16 and 20 of 24
+(`docs/raw-sources/settings-values-sessions-2026-11-21.md` has the pinned IDs; the log carries no values). Only IDs 5,
+17, 18, 27 and 28 are pinned, so for every other row the setting ID, which row is Camera Speed, and which of
+`System_select_name_PC_01`-`_19` or `System_Option_45`/`_46` name its values are all `[NEEDS VERIFICATION]`
+([inventory](settings-screens-inventory-static.md)). Until pinned, the mod learns a row's ID at run time: the
+one unpinned setting whose dword moved when the row changed. The row then says that number on change and on focus.
+Two or none moving say nothing. Check by ear: change Camera Speed, Skip Special Animations, Dash Effects and Camera
+Shake; each should say a number after 200 ms.
