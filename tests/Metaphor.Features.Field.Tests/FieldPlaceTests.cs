@@ -98,12 +98,23 @@ public sealed class FieldPlaceTests
     }
 
     [Fact]
-    public void ASaveLoadsRegionLookupIsFollowedByTheMapsOwnName()
+    public void ASaveLoadsRegionLookupFollowsTheMapsOwnName()
     {
         var tabled = WithMapTable();
         tabled.LookedUp(FieldPlace.MapNameEntry, 0, mapId: 9);
 
-        Assert.Equal("Testshire, Mock Harbour", tabled.Name(9));
+        // The area first, as the maintainer asked after the by-ear check of #665 (#742).
+        Assert.Equal("Mock Harbour, Testshire", tabled.Name(9));
+    }
+
+    [Fact]
+    public void TheMapsOwnNameLeadsEvenWhenTheGameLookedItUpSecond()
+    {
+        var tabled = WithMapTable();
+        tabled.LookedUp(FieldPlace.MapNameEntry, 0, mapId: 9);
+        tabled.LookedUp(FieldPlace.MapNameEntry, 2, mapId: 9);
+
+        Assert.Equal("Mock Harbour, Testshire", tabled.Name(9));
     }
 
     [Fact]

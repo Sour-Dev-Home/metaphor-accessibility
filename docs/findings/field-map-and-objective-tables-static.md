@@ -67,6 +67,6 @@ two files (`Mission_Dungeon_Data.bin`, `0x28`-byte rows; `Mission_Battle_Data.bi
 
 ## What the next session must check
 
-Load the save in the Forsaken Tower and press L: expect "Principality of Oceana, Forsaken Tower. Mission: The Final
+Load the save in the Forsaken Tower and press L: expect "Forsaken Tower, Principality of Oceana. Mission: The Final
 Battle: Put an end to the kingdom's madness", the log's `field tables: 606 maps, 96 objectives`, and the mission box on
 screen showing the same objective.

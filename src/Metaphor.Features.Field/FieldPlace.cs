@@ -10,8 +10,9 @@ namespace Metaphor.Features.Field;
 /// (docs/findings/field-nearby-unit-names-static.md). [NEEDS VERIFICATION]: that the first lookups after the map id
 /// changes name the place arrived at, region before area, and not a place the travel map browses. So it keeps the first
 /// <see cref="MaxNames"/> distinct ones after each change; with no map id read, the last ones. A save load looks up only
-/// the region (#742), so the map's own name from the map table (<see cref="FieldTables"/>) follows the lookups when it
-/// isn't among them (docs/findings/field-map-and-objective-tables-static.md). Safe to call from several threads.
+/// the region (#742), so the map's own name from the map table (<see cref="FieldTables"/>) is added when it isn't among
+/// them (docs/findings/field-map-and-objective-tables-static.md), and it leads, area before region, as the maintainer
+/// asked (#742). Safe to call from several threads.
 /// </summary>
 public sealed class FieldPlace : IMessageFileObserver
 {
@@ -109,9 +110,15 @@ public sealed class FieldPlace : IMessageFileObserver
                     .Where(text => text is { Length: > 0 })
                     .ToList();
             if ((mapId ?? map) is { } id && mapNameHash(id) is { } hash && byHash.TryGetValue(hash, out var own) &&
-                cleaner.Clean(own.Text) is { Length: > 0 } area && said.Count < MaxNames && !said.Contains(area))
+                cleaner.Clean(own.Text) is { Length: > 0 } area)
             {
-                said.Add(area);
+                // The area leads, then the region (#742: the maintainer asked for the area first).
+                said.Remove(area);
+                said.Insert(0, area);
+                if (said.Count > MaxNames)
+                {
+                    said.RemoveRange(MaxNames, said.Count - MaxNames);
+                }
             }
             return said.Count == 0 ? null : string.Join(", ", said);
         }
