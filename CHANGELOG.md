@@ -9,6 +9,9 @@ checks them in the first game session and removes the tag.
 
 ## Unreleased
 
+- **The Calendar says the day.** Opening the Calendar says "Calendar, Waters Day, day 12 of 30", and each move says the
+  weekday and the day you land on (the five weekdays are as heard in a test session). The month, events and discounts
+  aren't spoken yet (#193). `[NEEDS VERIFICATION by ear]`
 - **Dialogue choices say how many options, not all of them.** When a choice opens, the mod says "Choice, 3 options"
   and then the focused option, instead of reading every option at once. Move the cursor to hear the others (#730).
 - **Field sounds wait while the game takes over.** The guiding beep and "in reach" call-outs go quiet when a menu,

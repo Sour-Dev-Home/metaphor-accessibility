@@ -57,6 +57,7 @@ Each is `true` to speak or `false` to stay quiet, inside a `speech` object: `{ "
 | `menus` | The title menu, the main menu, the quick menu, Settings, the difficulty list, yes or no questions and any other menu. Off also leaves the details key to the game. | `true` |
 | `battleHits` | Each battle hit as it lands, the battle status key and the enemy HP key. Off also leaves those keys to the game. | `true` |
 | `battleLists` | Battle's skill and item lists, row by row. Separate from `menus`. | `true` |
+| `calendar` | The Calendar's day grid. Still being tested. | testing, off |
 | `battleBanners` | The short banner during a battle turn: a boss warning, a stat change, "Not enough MP!". Still being tested. | testing, off |
 | `saveSlots` | The save and load screens' slots. Still being tested. | testing, off |
 | `learnedSettingValues` | The System rows whose setting the mod has not pinned saying their value on change, learned as you change them. Needs `menus`. Still being tested. | testing, off |

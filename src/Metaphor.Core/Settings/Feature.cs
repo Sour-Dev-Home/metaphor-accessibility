@@ -19,6 +19,10 @@ public enum Feature
     [SettingKey("speech", "menus", "Menus")]
     Menus,
 
+    /// <summary>The Calendar's day grid (#193). Separate from the menus while it is tested.</summary>
+    [SettingKey("speech", "calendar", "Calendar", Testing = true)]
+    Calendar,
+
     /// <summary>The save and load screens' slots (#622). Separate from the menus while it is tested.</summary>
     [SettingKey("speech", "saveSlots", "Save slots", Testing = true)]
     SaveSlots,
