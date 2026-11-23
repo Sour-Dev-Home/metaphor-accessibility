@@ -119,7 +119,7 @@ internal static class BattleBannerListening
     private const int KindAt = 0x4;
     private const int PairLength = 0x8;
 
-    public static void Shown(HookServices services, string function, nint pair)
+    public static void Shown(HookServices services, string function, nint pair, string? probe = null)
     {
         var bytes = new byte[PairLength];
         if (pair == 0 || !ModuleMemoryReader.ReadBytes(pair, bytes))
@@ -130,7 +130,21 @@ internal static class BattleBannerListening
         var kind = bytes[KindAt];
         var said = services.BattleBanners?.Shown(kind, id);
         services.Log?.Requested(function, string.Create(CultureInfo.InvariantCulture,
-            $"kind={kind} id={id} said={(said is null ? "no" : "yes")}"));
+            $"kind={kind} id={id} said={(said is null ? "no" : "yes")}{probe}"));
+    }
+
+    /// <summary>A Debug build's probe of a banner's name (#739): message variable slot 0, which the banner queue
+    /// <c>0x326e70</c> fills just before it calls <c>BattleMessageShow</c>, read as the show is called, before the
+    /// original runs (docs/findings/battle-banner-name-variable-static.md), as <see cref="BannerNameSlot"/> says it.
+    /// Empty when there is no log.</summary>
+    public static string NameSlot(HookServices services)
+    {
+        if (services.Log is null)
+        {
+            return "";
+        }
+        var slot = new byte[BannerNameSlot.Read];
+        return BannerNameSlot.Describe(services.DialogueWindow.ReadMessageVariable(0, slot) ? slot : []);
     }
 }
 
@@ -146,7 +160,11 @@ internal sealed class BattleMessageShowHook(HookServices services) : IGameHook, 
     public string SignatureName => "BattleMessageShow";
 
     public void Observe(nint component, nint pair, double seconds, nint unused) =>
+#if DEBUG
+        BattleBannerListening.Shown(services, SignatureName, pair, BattleBannerListening.NameSlot(services));
+#else
         BattleBannerListening.Shown(services, SignatureName, pair);
+#endif
 }
 
 /// <summary>The banner's other show, <c>0xf185d0</c>: <c>void (component*, const request*)</c> in <c>.ecode</c>, which
