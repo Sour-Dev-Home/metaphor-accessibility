@@ -16,6 +16,29 @@ public sealed record TextCleanerRules
     /// <summary>Tags said as a word, such as button icons: the tag's name and arguments, single-spaced
     /// (<c>"PAD 1"</c>), to the word. Unlike a placeholder, the arguments must match too.</summary>
     public IReadOnlyDictionary<string, string> SpokenTags { get; init; } = new Dictionary<string, string>();
+
+    /// <summary>These rules and <paramref name="other"/>'s together; where both name a tag, <paramref name="other"/>'s
+    /// rule wins.</summary>
+    public TextCleanerRules With(TextCleanerRules other)
+    {
+        ArgumentNullException.ThrowIfNull(other);
+        return new TextCleanerRules
+        {
+            Placeholders = Merged(Placeholders, other.Placeholders),
+            SpokenTags = Merged(SpokenTags, other.SpokenTags),
+        };
+    }
+
+    private static Dictionary<string, string> Merged(
+        IReadOnlyDictionary<string, string> first, IReadOnlyDictionary<string, string> second)
+    {
+        var merged = new Dictionary<string, string>(first, StringComparer.Ordinal);
+        foreach (var (tag, value) in second)
+        {
+            merged[tag] = value;
+        }
+        return merged;
+    }
 }
 
 /// <summary>Turns text as the game stores it into what an announcement says (glossary: text cleaner): tags become a

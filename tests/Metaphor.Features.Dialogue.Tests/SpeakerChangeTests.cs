@@ -69,7 +69,7 @@ public sealed class SpeakerChangeTests
         dialogue.Show("Ada", "Two.");
         dialogue.Show("Ada", "Three.");
 
-        Assert.Equal(["Ada: One.", "Choose: Yes; No", "Ada: Two.", "Three."], Said);
+        Assert.Equal(["Ada: One.", "Choice, 2 options", "Ada: Two.", "Three."], Said);
     }
 
     [Fact]
@@ -90,7 +90,7 @@ public sealed class SpeakerChangeTests
         dialogue.Offer("Yes\nNo");
         dialogue.Show("Ada", "<VOICE \"v_e01_002_000_00_c051\">\nTwo.");
 
-        Assert.Equal(["Ada", "Choose: Yes; No", "Ada"], Said);
+        Assert.Equal(["Ada", "Choice, 2 options", "Ada"], Said);
     }
 
     [Fact]

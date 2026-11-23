@@ -93,6 +93,19 @@ public sealed class SettingValues : IEquatable<SettingValues>
     /// <summary>The value of setting <paramref name="id"/>, or null for an ID outside the copy.</summary>
     public int? Value(int id) => id >= 0 && id < values.Length ? values[id] : null;
 
+    /// <summary>The IDs whose value differs between this copy and <paramref name="other"/>.</summary>
+    public IEnumerable<int> ChangedIds(SettingValues other)
+    {
+        ArgumentNullException.ThrowIfNull(other);
+        for (var id = 0; id < values.Length; id++)
+        {
+            if (values[id] != other.values[id])
+            {
+                yield return id;
+            }
+        }
+    }
+
     public bool Equals(SettingValues? other) => other is not null && values.AsSpan().SequenceEqual(other.values);
 
     public override bool Equals(object? obj) => Equals(obj as SettingValues);

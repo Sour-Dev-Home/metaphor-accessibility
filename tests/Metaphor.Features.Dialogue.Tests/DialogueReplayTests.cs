@@ -61,7 +61,7 @@ public sealed class DialogueReplayTests
         // The kind 1 request at the end is a system message, which dialogue doesn't speak.
         Assert.Equal(
             [
-                "Line 19", "Line 02", "The prompt", "Choose: Yes; dot dot dot",
+                "Line 19", "Line 02", "The prompt", "Choice, 2 options",
                 "Line 00", "Line 01", "Line 02", "Line 03", "Line 05", "Line 08", "Line 09",
             ],
             Said());
