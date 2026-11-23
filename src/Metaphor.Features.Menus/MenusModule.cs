@@ -51,13 +51,16 @@ public sealed class MenusModule : IFeatureModule
         screens.Observe(new QuickMenuFocus(library, menuSpeech, cleaner));
         screens.Observe(new SystemMenuFocus(serials, settings.Speech(MenusFeature.SystemMenu, reader), cleaner));
         // The shop's top menu and its Buy and Sell lists, each row by the name the game fetched for it (#736, #197).
-        var shopFocus = new ShopFocus(
-            serials, settings.Speech(MenusFeature.ShopMenu, reader), cleaner, () => Environment.TickCount64);
+        var shopFocus = new ShopFocus(serials, settings.Speech(MenusFeature.ShopMenu, reader), cleaner);
         screens.Observe(shopFocus);
         events.ObserveSerials(shopFocus);
         var itemFocus = new ItemFocus(serials, settings.Speech(MenusFeature.ItemMenu, reader), cleaner);
         screens.Observe(itemFocus);
         events.ObserveSerials(itemFocus);
+        // The shop and the Item list hear each cursor input before the slot screens hand it to the menu screens, so a
+        // list's view is taken before its screen event is told.
+        context.Cursors.Observe(shopFocus);
+        context.Cursors.Observe(itemFocus);
         screens.Observe(new CalendarFocus(settings.Speech(MenusFeature.Calendar, reader)));
         screens.Observe(new EquipmentFocus(serials, settings.Speech(MenusFeature.EquipmentMenu, reader), cleaner));
         // The save and load slots (#622): their lists come unnamed, so the slot screens name them before the screens,

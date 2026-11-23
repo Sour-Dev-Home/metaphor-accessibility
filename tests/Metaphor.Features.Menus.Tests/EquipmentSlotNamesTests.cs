@@ -12,18 +12,20 @@ public sealed class EquipmentSlotNamesTests
 {
     private const string SlotsClass = "EquipPartsChoice@ope@ui@app";
     private const string CharactersClass = "EquipCharaSelChoice@ope@ui@app";
+    private const string SwapClass = "EquipSwapCharaSelChoice@ope@ui@app";
     private const int Settle = 0x1;
-    private const int First = 1500;
+    private const int First = 1470;
+    private const int Count = 50;
 
     private readonly RecordingAnnouncer announcer = new();
     private readonly CursorEvents cursors = new();
 
     public EquipmentSlotNamesTests()
     {
-        var serials = new MessageSerials([new SerialRange("message/system/System_Message.msg", First, 20)]);
+        var serials = new MessageSerials([new SerialRange("message/system/System_Message.msg", First, Count)]);
         var messages = new MessageEvents();
         messages.ObserveFiles(serials);
-        var source = string.Join("\n\n", Enumerable.Range(0, 20).Select(at =>
+        var source = string.Join("\n\n", Enumerable.Range(0, Count).Select(at =>
             $"//--------\n@System_General_{at:00}\n{{\nText {at + First}\n<WAIT>\n}}"));
         messages.Compiled(new MessageFileCompiled("EN/message/system/System_Message.msg", 21, source));
         var screens = new MenuScreens(KnownScreens.All);
@@ -54,6 +56,15 @@ public sealed class EquipmentSlotNamesTests
         Cursor(SlotsClass, 0, count: 5);
 
         Assert.Equal(["1 of 5"], Said());
+    }
+
+    [Fact]
+    public void EnteringTheSwapSaysItsQuestionThenThePosition()
+    {
+        Cursor(SlotsClass, 1, count: 5);
+        Cursor(SwapClass, 0, count: 1);
+
+        Assert.Equal("Text 1478, 1 of 1", Said().Last());
     }
 
     [Fact]
