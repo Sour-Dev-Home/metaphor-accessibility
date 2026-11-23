@@ -32,7 +32,7 @@ public sealed class SelectWindowChoicesTests
         events.ObserveLines(lines);
         events.ObserveShownLines(lines);
         var choices = new DialogueChoices(library, dialogue);
-        focus = new ChoiceFocus(library, announcer, cleaner);
+        focus = new ChoiceFocus(library, announcer, cleaner, dialogue.Release);
         events.ObserveChoices(lines);
         events.ObserveChoices(choices);
         events.ObserveChoices(focus);
@@ -51,7 +51,7 @@ public sealed class SelectWindowChoicesTests
     {
         events.SelectOpened(new SelectRequested(kind, "MES_t_001", choice));
         events.Shown(new LineShown(kind, MessageLibrary.LabelHash("MES_t_001")));
-        // The cursor settles on an option after the options are said (#744).
+        // The cursor settles on an option once the options show (#744, #814).
         clock.Advance(TimeSpan.FromSeconds(1));
     }
 
@@ -83,11 +83,33 @@ public sealed class SelectWindowChoicesTests
     {
         events.ChoiceOpened(new ChoiceRequested(0, "MES_t_001", "MES_t_002"));
         WindowOpens();
+        focus.Observe(Settle(0));
 
         WindowOpens();
+        focus.Observe(Settle(0));
 
         // A choice came between, so the speaker is said again (#740).
-        Assert.Equal(["Ada: Which way?", "Choice, 2 options", "Ada: Which way?", "Choice, 2 options"], Said());
+        Assert.Equal(
+            ["Ada: Which way?", "Choice, 2 options", "North, 1 of 2", "Ada: Which way?", "Choice, 2 options", "North, 1 of 2"],
+            Said());
+    }
+
+    // A voiced choice (new game's first, docs/raw-sources/dialogue-by-ear-session-2026-11-23.md): the scripts' choice
+    // and its select window come with the prompt, and the cursor only once the voice ends, some seconds on. The count
+    // waits for the cursor and is said just before the first option (#814).
+    [Fact]
+    public void AVoicedChoiceSaysItsCountWithTheFirstOptionNotWithTheWindowCall()
+    {
+        events.ChoiceOpened(new ChoiceRequested(0, "MES_t_001", "MES_t_002"));
+        WindowOpens();
+        clock.Advance(TimeSpan.FromSeconds(20));
+
+        Assert.Equal(["Ada: Which way?"], Said());
+
+        focus.Observe(Settle(0));
+
+        Assert.Equal(["Ada: Which way?", "Choice, 2 options", "North, 1 of 2"], Said());
+        Assert.Equal([true, false, false], announcer.Said.Select(said => said.Interrupt));
     }
 
     // Kind 1 is the name entry's confirmation (docs/raw-sources/yes-no-dialog-text-2026-11-20.md); only kind 0 has been
