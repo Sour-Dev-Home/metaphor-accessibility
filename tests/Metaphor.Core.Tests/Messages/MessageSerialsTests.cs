@@ -145,6 +145,15 @@ public sealed class MessageSerialsTests
         Assert.Contains(new SerialRange(MessageSerials.ArchetypeNames, 9441, 18), MessageSerials.Steam18330018);
     }
 
+    // The quest names and quest texts (#194), as the range tests at 0x9f4b80 and 0x9f4b90 hold them on build 548ddc95
+    // (docs/findings/quest-message-serials-static.md).
+    [Fact]
+    public void TheBuildsTableHoldsTheQuestFiles()
+    {
+        Assert.Contains(new SerialRange(MessageSerials.QuestNames, 9508, 136), MessageSerials.Steam18330018);
+        Assert.Contains(new SerialRange(MessageSerials.QuestTexts, 9644, 457), MessageSerials.Steam18330018);
+    }
+
     [Fact]
     public void ASerialIsInAFileByItsRangeEvenBeforeTheFileIsCompiled()
     {

@@ -18,11 +18,6 @@ public sealed class UnknownScreenFocus : IScreenObserver
     /// cursor (docs/raw-sources/main-menu-session-2026-11-17.md).</summary>
     public static Screen DialogueChoice { get; } = new("Dialogue choice", "CommonTalkChoice@ope@ui@app");
 
-    /// <summary>An opened quest (#194): a known screen that nothing speaks yet. Its cursor's count was 9 in session
-    /// 2026-11-22 "c", not the quest's, so the position would be wrong; the quest's description is fetched by a serial
-    /// whose text no known file holds <c>[NEEDS VERIFICATION]</c>. Its class on build 548ddc95.</summary>
-    public static Screen QuestDetail { get; } = new("Quest detail", "CampQuestDetailChoice@ope@ui@app");
-
     private readonly IAnnouncer announcer;
     private readonly UnknownValues unknowns;
 

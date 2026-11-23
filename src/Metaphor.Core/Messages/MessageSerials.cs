@@ -30,7 +30,8 @@ public sealed class MessageSerials : IMessageBySerial, IMessageFileObserver
     /// ranges are read from the same table (docs/findings/item-skill-message-serials-static.md); that the game compiles
     /// them with those counts is <c>[NEEDS VERIFICATION]</c>, and a file that doesn't is dropped. The equipment,
     /// character and archetype name files' ranges are read from the same table and match their compiled counts in a
-    /// Debug log (docs/findings/equipment-character-archetype-serials-static.md).</summary>
+    /// Debug log (docs/findings/equipment-character-archetype-serials-static.md), as do the quest files'
+    /// (docs/findings/quest-message-serials-static.md).</summary>
     public static IReadOnlyList<SerialRange> Steam18330018 { get; } =
     [
         new(CharacterNames, 0, 122),
@@ -42,6 +43,8 @@ public sealed class MessageSerials : IMessageBySerial, IMessageFileObserver
         new(SkillNames, 6749, 1086),
         new(SkillDescriptions, 7835, 1052),
         new(ArchetypeNames, 9441, 18),
+        new(QuestNames, 9508, 136),
+        new(QuestTexts, 9644, 457),
         new("message/system/System_Message_PC.msg", 11453, 354),
     ];
 
@@ -58,6 +61,14 @@ public sealed class MessageSerials : IMessageBySerial, IMessageFileObserver
     /// <summary>The archetype names file, one name per archetype line (Seeker, Mage, ...): the Equipment screen fetches
     /// each character's from it (#217).</summary>
     public const string ArchetypeNames = "message/ATCategoryName.msg";
+
+    /// <summary>The quest names file, <c>QuestName_None</c> then one name per quest (#194): the quest list fetches its
+    /// rows' names from it (docs/findings/quest-message-serials-static.md).</summary>
+    public const string QuestNames = "message/quest/Quest_1.msg";
+
+    /// <summary>The quest texts file, a few per quest (<c>QuestInfo_&lt;quest&gt;_&lt;n&gt;</c>): an opened quest
+    /// fetches its description from it (#194).</summary>
+    public const string QuestTexts = "message/quest/Quest_2.msg";
 
     /// <summary>The item names file: battle's item list resolves its rows' names from it (#247).</summary>
     public const string ItemNames = "message/system/Item_Message_1.msg";
