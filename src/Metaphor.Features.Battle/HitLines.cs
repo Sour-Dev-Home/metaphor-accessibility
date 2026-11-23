@@ -30,7 +30,7 @@ public sealed record KnownEnemy(string Label, int Hp, int? HpMax, long Target);
 /// <para>The game gives no "battle over" signal the mod reads, so a battle ends at a long quiet gap
 /// (<see cref="BattleGapMilliseconds"/>), which forgets its enemies; the length is a guess to check by ear.</para>
 /// </remarks>
-[FeatureSetting(Feature.BattleHits)]
+[FeatureSetting(Feature.BattleHits, Feature.BattleOutcomes)]
 public sealed class HitLines : IBattleHitObserver
 {
     /// <summary>How long the same hit told again is taken as the same one.</summary>
@@ -43,6 +43,7 @@ public sealed class HitLines : IBattleHitObserver
     private readonly TimeProvider time;
     private readonly Func<int, string?> memberName;
     private readonly IHitCue? cue;
+    private readonly Func<bool> outcomesOn;
     private readonly RepeatGate repeats;
     private readonly Lock gate = new();
     private readonly List<long> enemies = [];
@@ -51,9 +52,16 @@ public sealed class HitLines : IBattleHitObserver
 
     /// <summary>Hits said through <paramref name="announcer"/>, timed by <paramref name="time"/>; party members named
     /// by <paramref name="memberName"/> from their unit number, or null when unknown; <paramref name="cue"/> is played
-    /// before each number, when there is one.</summary>
-    public HitLines(IAnnouncer announcer, TimeProvider time, Func<int, string?> memberName, IHitCue? cue = null)
+    /// before each number, when there is one; <paramref name="outcomesOn"/> says whether to add ", knocked out",
+    /// ", defeated" and ", revived" (<see cref="Feature.BattleOutcomes"/>), on when null.</summary>
+    public HitLines(
+        IAnnouncer announcer,
+        TimeProvider time,
+        Func<int, string?> memberName,
+        IHitCue? cue = null,
+        Func<bool>? outcomesOn = null)
     {
+        this.outcomesOn = outcomesOn ?? (() => true);
         ArgumentNullException.ThrowIfNull(announcer);
         ArgumentNullException.ThrowIfNull(time);
         ArgumentNullException.ThrowIfNull(memberName);
@@ -95,13 +103,15 @@ public sealed class HitLines : IBattleHitObserver
             }
             // The outcome the HP left shows (#254): 0 after damage is a knock-out or a defeat, a gain equal to the HP
             // left was a gain from 0, a revive. Read from the hit's own numbers; no banner is used.
-            var change = Change(hit.HpChange) + (hit.HpLeft, hit.HpChange, hit.Side) switch
+            // It is its own setting while it is tested, so a normal install keeps the plain number.
+            var outcome = (hit.HpLeft, hit.HpChange, hit.Side) switch
             {
                 (0, < 0, BattleSide.Ally) => ", knocked out",
                 (0, < 0, BattleSide.Enemy) => ", defeated",
                 (_, > 0, BattleSide.Ally) when hit.HpLeft == hit.HpChange => ", revived",
                 _ => "",
             };
+            var change = Change(hit.HpChange) + (outcomesOn() ? outcome : "");
             line = hit.Side switch
             {
                 BattleSide.Ally => hit.Slot is { } slot ? MemberSays(slot, hit.Unit, change) : $"Ally, {change}",

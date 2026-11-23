@@ -317,6 +317,16 @@ function Assert-ModId([string] $ModId, [string] $Where) {
     }
 }
 
+# The session's switch for testing features (#783; ModSettings.TestingFile): an empty file in the mod's folder that a
+# Debug build reads, removed when the session ends like the opt-ins. The player's settings.json is never touched.
+function Add-TestingSwitch($S, $Mod, [string] $Configuration) {
+    if ($Configuration -ne 'Debug') { return }
+    $file = Join-Path $Mod.Folder 'opt-in-testing.txt'
+    [IO.File]::WriteAllBytes($file, [byte[]] @())
+    $S.OptInFiles.Add($file)
+    Write-Line 'testing features on: opt-in-testing.txt (removed when the session ends)'
+}
+
 # Builds the mod and installs it: replaces its folder in Reloaded-II's mods folder and enables it for the game, keeping
 # the mods already enabled. The install is what deploy is for, so it stays; the old app config is kept beside it as
 # AppConfig.json.deploy-backup. Returns { Id; Folder }.
@@ -571,7 +581,9 @@ function Invoke-Deploy($S) {
     $S.KeepGame = [bool] (Get-Option 'KeepGame' $false)
     Initialize-Launch $S
     Invoke-InSession $S {
-        $mod = Install-DevMod $S (Get-Option 'Configuration' 'Debug')
+        $configuration = Get-Option 'Configuration' 'Debug'
+        $mod = Install-DevMod $S $configuration
+        Add-TestingSwitch $S $mod $configuration
         if (-not (Start-Game $S @($mod))) {
             Stop-Session "$($mod.Id) isn't ready with all its hooks" "read the lines above and Reloaded-II's log in $(Split-Path $S.Paths.Config)\Logs"
         }
@@ -591,6 +603,7 @@ function Invoke-Run($S) {
     Invoke-InSession $S {
         # Only Debug builds write message-log.txt (Metaphor.Core.MessageLog).
         $mod = Install-DevMod $S 'Debug'
+        Add-TestingSwitch $S $mod 'Debug'
         foreach ($name in $optIns) {
             $file = Join-Path $mod.Folder "opt-in-$name.txt"
             [IO.File]::WriteAllBytes($file, [byte[]] @())

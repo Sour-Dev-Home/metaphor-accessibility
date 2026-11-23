@@ -46,6 +46,17 @@ public sealed class HitLinesTests
     }
 
     [Fact]
+    public void WithOutcomesOffTheNumberIsSaidAlone()
+    {
+        var plain = new HitLines(announcer, time, unit => unit == 3 ? "Rowan" : null, outcomesOn: () => false);
+
+        plain.Observe(Ally(0, 3, -40, 0));
+        plain.Observe(Enemy(7, -10, 0));
+
+        Assert.Equal(["Rowan 40", "Enemy, 10"], Said());
+    }
+
+    [Fact]
     public void AHitThatTakesAnAllyToZeroSaysKnockedOutAfterItsNumber()
     {
         lines.Observe(Ally(0, 3, -40, 0));
