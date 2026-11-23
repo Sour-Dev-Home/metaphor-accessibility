@@ -28,7 +28,9 @@ sees every banner. Static only; nothing here has been heard in play.
 
 ## Not pinned
 
-- The name a banner fills in (`<V 0>`), and the second number `0x326e70` formats with `"%d"`: `[NEEDS VERIFICATION]`.
+- The name a banner fills in (`<V 0>`) and the number `0x326e70` formats with `"%d"` are message variables 0 and 1,
+  see [`battle-banner-name-variable-static.md`](battle-banner-name-variable-static.md). "Not enough MP!" doesn't come
+  through either show: [`battle-not-enough-mp-path-static.md`](battle-not-enough-mp-path-static.md).
 - The advantage banners at battle start (#626) are not among the situation messages; whether they are kind 0, 1 or 3,
   or art with no text, is `[NEEDS VERIFICATION]`. A Debug build logs each banner's kind and id to settle it.
 - The turn-icon count (#695): the fields at `G+0x25460` are still leads. A Debug build logs them with each banner and
