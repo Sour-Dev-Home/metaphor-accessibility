@@ -50,6 +50,13 @@ checks them in the first game session and removes the tag.
   who changed: party members by slot, such as "Ally 1 89, Ally 2 120", and each enemy with its HP left, numbered when
   there are several. Misses and blocked hits aren't read yet, and names aren't known yet (#247).
   `[NEEDS VERIFICATION by ear]`
+- **No more gaps where the screen shows a skill, an item or a button.** Text that names a skill or a status condition
+  now says its name, as after "Required Skill:". Items, Archetypes, attributes, buttons and other icons, which the mod
+  can't name yet, say what kind of thing goes there ("item", "button") instead of leaving a gap, as does the action a
+  new key binding clashes with (#108, #109, #564). `[NEEDS VERIFICATION by ear]`
+- **Battle banners are read.** The short banner during a turn, such as a boss powering up, "Attack rose!", "Not
+  enough MP!" or "Gained one Turn Icon!", is read once, after the hits. A name in it isn't read yet. The setting
+  `speech.battleBanners` turns it off (#692, #661). `[NEEDS VERIFICATION by ear]`
 - **Battle's skill and item lists are read**: "Skills" or "Items" as the list opens, then each skill or item's name
   and "n of total" as you move. F, or R3 on the pad, reads the focused one's description (#247). Past the first
   screen each row keeps its own name as the list scrolls; one whose name isn't known is said by its position.

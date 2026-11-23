@@ -56,6 +56,10 @@ public enum Feature
     [SettingKey("speech", "battleLists", "Battle lists")]
     BattleLists,
 
+    /// <summary>The in-turn situation banner: a boss warning, a stat change, "Not enough MP!" (#692, #661).</summary>
+    [SettingKey("speech", "battleBanners", "Battle banners", Testing = true)]
+    BattleBanners,
+
     /// <summary>The nearby list and its pad steps (#181).</summary>
     [SettingKey("field", "nearby", "Nearby list")]
     Nearby,
