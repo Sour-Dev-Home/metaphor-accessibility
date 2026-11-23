@@ -63,6 +63,9 @@ Describe 'session.ps1' {
         )
         $transcript = Join-Path $f.Root 'transcript.txt'
         Set-Content -LiteralPath $transcript -Value 'SECRET announcement'
+        $reportLog = Join-Path $f.Root 'report-log.txt'
+        Set-Content -LiteralPath $reportLog -Value '1000 ms mark 1'
+        $env:METAPHOR_STANDIN_REPORT_LOG = $reportLog
         $env:METAPHOR_STANDIN_LOADER_LOG = $loaderLog
         $env:METAPHOR_STANDIN_MESSAGE_LOG = $messageLog
         $env:METAPHOR_STANDIN_TRANSCRIPT = $transcript
@@ -71,7 +74,7 @@ Describe 'session.ps1' {
     AfterEach {
         Get-Game | Stop-Process -Force -PassThru | Wait-Process -Timeout 10 -ErrorAction SilentlyContinue
         Remove-Item Env:METAPHOR_STANDIN_BEHAVIOUR, Env:METAPHOR_STANDIN_RELOADED_CONFIG, Env:METAPHOR_STANDIN_LOADER_LOG,
-            Env:METAPHOR_STANDIN_MESSAGE_LOG, Env:METAPHOR_STANDIN_TRANSCRIPT -ErrorAction SilentlyContinue
+            Env:METAPHOR_STANDIN_MESSAGE_LOG, Env:METAPHOR_STANDIN_TRANSCRIPT, Env:METAPHOR_STANDIN_REPORT_LOG -ErrorAction SilentlyContinue
     }
 
     Context 'deploy' {
@@ -327,7 +330,7 @@ Describe 'session.ps1' {
             $result.Last | Should -Match '^failed: no message-log.txt from metaphor.dev - '
         }
 
-        It 'saves the message log and transcript once the game exits, with -SaveLog' {
+        It 'saves the message log, transcript and report log once the game exits, with -SaveLog' {
             $save = Join-Path $TestDrive "captures-$(New-Guid)"
 
             # The game quitting ends a capture.
@@ -339,6 +342,7 @@ Describe 'session.ps1' {
             $saved.Count | Should -Be 1
             Join-Path $saved[0].FullName 'message-log.txt' | Should -Exist
             Join-Path $saved[0].FullName 'transcript.txt' | Should -Exist
+            Join-Path $saved[0].FullName 'report-log.txt' | Should -Exist
             $result.Output | Should -Not -Match 'SECRET'
         }
 

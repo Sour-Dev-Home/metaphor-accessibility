@@ -21,6 +21,7 @@ links the rule where it lives, so this page never drifts from it.
    ([Deliver](workflow.md#deliver)).
 7. **Report** in the length the brief gives, or 150 words ([Report](workflow.md#report)).
 
-Helpers, both read-only: `scripts/dev/pr-status.sh <n...>` prints one line per PR (mergeable, merge state, auto-merge,
+Helpers, read-only: `scripts/dev/queue.sh` prints the merge queue's entries, then `pr-status.sh` for every open PR;
+`scripts/dev/pr-status.sh <n...>` prints one line per PR (mergeable, merge state, auto-merge,
 queue position, failing checks); `scripts/dev/session-marks.sh <session folder> <report-log>` digests a session's F8
 marks beside its logs.

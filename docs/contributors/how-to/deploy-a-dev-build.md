@@ -69,9 +69,9 @@ pwsh scripts/dev/session.ps1 run -Seconds 300 -OptIn ui-text-panes,dialogue-wind
 
 5. It removes the opt-in files it added.
 
-With `-SaveLog <folder>`, quitting the game ends the run instead of failing it, and `message-log.txt` and
-`transcript.txt` are copied into a new timestamped folder there. Give `-Seconds` longer than you mean to play. It
-refuses a folder inside a git repository, since the logs hold game text.
+With `-SaveLog <folder>`, quitting the game ends the run instead of failing it, and `message-log.txt`,
+`transcript.txt` and `report-log.txt` are copied into a new timestamped folder there. Give `-Seconds` longer than you
+mean to play. It refuses a folder inside a git repository, since the logs hold game text.
 
 The log itself holds game text, so it stays in the mod's folder and is never printed or committed. Local paths in the
 output are shortened (`<mods>`, `<game>`, `~` and so on), so it can go into an issue or a raw source as it is. It exits
