@@ -146,13 +146,15 @@ public sealed class ModEntryPoint : IMod
 #else
             const bool testingOn = false;
 #endif
-            var settings = new SettingsReloader(announcer, LogError, testingOn);
+            // Every feature module, whose settings the file is read for (#784).
+            var modules = FeatureModules.Create();
+            var settings = new SettingsReloader(announcer, SettingCatalogue.From(modules), LogError, testingOn);
             var file = SettingsFile.Open(configFolder, settings, LogError);
             settingsFile = file;
             // Sound cues play on their own thread through waveOut channels, at the settings in force (#636, #637,
             // ADR 0019).
             cues = new CuePlayer(new WaveOutDevice(), () => settings.Current, LogError);
-            var services = HookServices.Speaking(announcer, cues, settings, report, messageLog, folder);
+            var services = HookServices.Speaking(modules, announcer, cues, settings, report, messageLog, folder);
             // Before the hooks, so the title screen's first events reach it; its outcome is logged in Debug builds only.
 #if DEBUG
             Action<string> updateLog = Log;
@@ -162,7 +164,7 @@ public sealed class ModEntryPoint : IMod
             // The first-launch welcome (#617), queued after the load message and the title screen's own speech, before
             // any update notice; the file's flag keeps later launches quiet.
             services.MenuScreens.Observe(new WelcomeMessage(
-                config.ModVersion ?? "", TitleMenuFocus.Screen, settings.Speech(Feature.Welcome, announcer),
+                config.ModVersion ?? "", TitleMenuFocus.Screen, settings.Speech(MenusFeature.Welcome, announcer),
                 () => settings.Current, file.MarkWelcomed));
             StartUpdateCheck(config.ModVersion ?? "", announcer, settings, services.MenuScreens, updateLog);
             // The mod runs inside the game, so this process's exe is the game executable whose hash identifies the
@@ -208,7 +210,7 @@ public sealed class ModEntryPoint : IMod
     {
         // The notice's speech has its own setting (#661); the request is still checkForUpdates'.
         var notice = new UpdateNotice(
-            modVersion, TitleMenuFocus.Screen, settings.Speech(Feature.UpdateNotice, announcer),
+            modVersion, TitleMenuFocus.Screen, settings.Speech(UpdatesFeature.UpdateNotice, announcer),
             () => settings.Current.CheckForUpdates, log);
         screens.Observe(notice);
         if (!settings.Current.CheckForUpdates)

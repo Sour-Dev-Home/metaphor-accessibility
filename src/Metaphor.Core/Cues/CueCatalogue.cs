@@ -8,16 +8,16 @@ namespace Metaphor.Core.Cues;
 public enum Cue
 {
     /// <summary>One of the player's party was hit: two low notes, falling.</summary>
-    [SettingKey("sounds", "allyHit", "Ally hit sound")]
+    [SettingKey("sounds", "allyHit", "Ally hit sound", Description = "Someone in your party was hit.")]
     AllyHit,
 
     /// <summary>An enemy was hit: two high notes, rising.</summary>
-    [SettingKey("sounds", "enemyHit", "Enemy hit sound")]
+    [SettingKey("sounds", "enemyHit", "Enemy hit sound", Description = "An enemy was hit.")]
     EnemyHit,
 
     /// <summary>The mark key wrote a marker to the report log (#597): one short high note, then the same again.
     /// </summary>
-    [SettingKey("sounds", "mark", "Mark sound")]
+    [SettingKey("sounds", "mark", "Mark sound", Description = "The mark key wrote a marker.")]
     Mark,
 }
 

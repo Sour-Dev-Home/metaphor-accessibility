@@ -8,7 +8,7 @@ namespace Metaphor.Features.Dialogue;
 /// conversation's first line, when the speaker changes and on the first line after a choice, and as the line alone
 /// while the same speaker continues or when there's no speaker (#539, #740), interrupting the line before. A voiced line follows the "Voiced lines" setting
 /// (#57, #104); the history (#126) keeps every line in full whatever is said.</summary>
-[FeatureSetting(Feature.Dialogue, Feature.ChoiceCount, Feature.ChoiceDelay)]
+[FeatureSetting<DialogueFeature>(DialogueFeature.Dialogue, DialogueFeature.ChoiceCount, DialogueFeature.ChoiceDelay)]
 public sealed class DialogueAnnouncer
 {
     private readonly IAnnouncer announcer;
@@ -39,12 +39,12 @@ public sealed class DialogueAnnouncer
     /// <param name="voicedLines">The "Voiced lines" mode now, read on every line so a change applies at once; the full
     /// line when omitted.</param>
     /// <param name="voiceLanguage">The voice language now, for Auto; unknown when omitted.</param>
-    /// <param name="choiceCountOn">Whether a choice says its count (<see cref="Feature.ChoiceCount"/>) rather than
+    /// <param name="choiceCountOn">Whether a choice says its count (<see cref="DialogueFeature.ChoiceCount"/>) rather than
     /// every option; on when omitted.</param>
     /// <param name="timeProvider">Times <see cref="HoldLimit"/>; the system clock when
     /// omitted.</param>
     /// <param name="choiceDelayOn">Whether a choice's options wait for the select window
-    /// (<see cref="Feature.ChoiceDelay"/>) rather than follow the prompt at once; on when omitted.</param>
+    /// (<see cref="DialogueFeature.ChoiceDelay"/>) rather than follow the prompt at once; on when omitted.</param>
     public DialogueAnnouncer(
         IAnnouncer announcer,
         TextCleaner cleaner,

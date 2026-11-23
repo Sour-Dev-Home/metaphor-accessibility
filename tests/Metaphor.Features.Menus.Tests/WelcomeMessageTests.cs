@@ -49,7 +49,7 @@ public sealed class WelcomeMessageTests
     [Fact]
     public void ALaterLaunchWhoseFileHasTheFlagSaysNothing()
     {
-        settings = ModSettings.Parse("""{ "welcomed": true }""", _ => { });
+        settings = ModSettings.Parse("""{ "welcomed": true }""", SettingCatalogue.Of<MenusFeature>(), _ => { });
 
         Welcome().Observe(On(TitleMenuFocus.Screen));
 
@@ -72,7 +72,8 @@ public sealed class WelcomeMessageTests
     [Fact]
     public void TurnedOffItSaysNothingAndLeavesTheFlagForWhenItIsBackOn()
     {
-        settings = ModSettings.Parse("""{ "speech": { "welcome": false } }""", _ => { });
+        settings = ModSettings.Parse(
+            """{ "speech": { "welcome": false } }""", SettingCatalogue.Of<MenusFeature>(), _ => { });
 
         Welcome().Observe(On(TitleMenuFocus.Screen));
 

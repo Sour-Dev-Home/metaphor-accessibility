@@ -8,7 +8,7 @@ namespace Metaphor.Features.Menus;
 /// then on each focus move "label, n of total", each cutting off the last. The menu draws its entries as sprites, so
 /// the labels are the mod's own (<see cref="Labels"/>). Safe to call from several threads.
 /// </summary>
-[FeatureSetting(Feature.Menus)]
+[FeatureSetting<MenusFeature>(MenusFeature.Menus)]
 public sealed class MainMenuFocus : IScreenObserver
 {
     /// <summary>The main menu: its choice's class on build 548ddc95, from its run-time type information

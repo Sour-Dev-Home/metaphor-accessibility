@@ -9,7 +9,7 @@ namespace Metaphor.Features.Dialogue;
 /// the <c>MES_GAMEOVER_</c> labels; the window closes after it and the screen waits for confirm, then the game reloads
 /// the last save by itself (docs/raw-sources/game-over-screen-session-2026-11-22.md). The line is spoken as the window
 /// shows it, as #57 decides for its clip, and once the window closes the screen's words and how to go on.</summary>
-[FeatureSetting(Feature.Dialogue)]
+[FeatureSetting<DialogueFeature>(DialogueFeature.Dialogue)]
 public sealed class GameOverScreen : ILineShownObserver
 {
     private const string LabelPrefix = "MES_GAMEOVER_";

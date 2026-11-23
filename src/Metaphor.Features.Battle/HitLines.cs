@@ -30,7 +30,7 @@ public sealed record KnownEnemy(string Label, int Hp, int? HpMax, long Target);
 /// <para>The game gives no "battle over" signal the mod reads, so a battle ends at a long quiet gap
 /// (<see cref="BattleGapMilliseconds"/>), which forgets its enemies; the length is a guess to check by ear.</para>
 /// </remarks>
-[FeatureSetting(Feature.BattleHits, Feature.BattleOutcomes)]
+[FeatureSetting<BattleFeature>(BattleFeature.BattleHits, BattleFeature.BattleOutcomes)]
 public sealed class HitLines : IBattleHitObserver
 {
     /// <summary>How long the same hit told again is taken as the same one.</summary>
@@ -53,7 +53,7 @@ public sealed class HitLines : IBattleHitObserver
     /// <summary>Hits said through <paramref name="announcer"/>, timed by <paramref name="time"/>; party members named
     /// by <paramref name="memberName"/> from their unit number, or null when unknown; <paramref name="cue"/> is played
     /// before each number, when there is one; <paramref name="outcomesOn"/> says whether to add ", knocked out",
-    /// ", defeated" and ", revived" (<see cref="Feature.BattleOutcomes"/>), on when null.</summary>
+    /// ", defeated" and ", revived" (<see cref="BattleFeature.BattleOutcomes"/>), on when null.</summary>
     public HitLines(
         IAnnouncer announcer,
         TimeProvider time,

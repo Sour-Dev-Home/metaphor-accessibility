@@ -53,7 +53,8 @@ public sealed class MarkKeyTests
     [Fact]
     public void TheSettingsFileMovesTheKey()
     {
-        settings = ModSettings.Parse("""{ "keys": { "report": { "markKey": "F9" } } }""", _ => { });
+        settings = ModSettings.Parse(
+            """{ "keys": { "report": { "markKey": "F9" } } }""", SettingCatalogue.Of<MenusFeature>(), _ => { });
         var key = Key();
 
         Assert.Equal([F8], key.Keys([F8]));
@@ -65,7 +66,8 @@ public sealed class MarkKeyTests
     [Fact]
     public void TurnedOffTheKeyGoesToTheGameAndNothingIsWritten()
     {
-        settings = ModSettings.Parse("""{ "report": { "markKey": false } }""", _ => { });
+        settings = ModSettings.Parse(
+            """{ "report": { "markKey": false } }""", SettingCatalogue.Of<MenusFeature>(), _ => { });
 
         Assert.Equal([F8], Key().Keys([F8]));
         Assert.Empty(report.Marks);

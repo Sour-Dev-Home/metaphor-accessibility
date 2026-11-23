@@ -56,6 +56,13 @@ check "a names-table file runs the field tests, which check its schema" has \
 check "a names-table file compiles" has "compile data/names/7.json changed"
 check "a names-table file skips the other feature's tests" lacks "Menus.Tests"
 
+out="$(sel docs/players/reference/settings.md)"
+check "the generated settings reference runs the tests that check it" has \
+  "dotnet tests/Metaphor.Settings.Tests/Metaphor.Settings.Tests.csproj docs/players/reference/settings.md changed (generated"
+check "the settings reference still runs the docs stage" has "docs docs/players/reference/settings.md changed"
+out="$(sel docs/players/reference/keys-and-speech.md)"
+check "another player page runs no dotnet tests" lacks "dotnet"
+
 out="$(sel docs/README.md)"
 check "docs change skips test-check.sh" lacks "check-tests"
 check "docs change selects the docs stage" has "docs docs/README.md changed"

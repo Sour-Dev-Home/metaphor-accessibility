@@ -176,6 +176,10 @@ select_runs() {
     if [[ "$f" == data/names/* ]]; then
       mark tests/Metaphor.Features.Field.Tests/Metaphor.Features.Field.Tests.csproj "$f changed (the names table, which these tests check)"
     fi
+    # The settings reference is generated from the settings in code (#784, ADR 0022); these tests check it is current.
+    if [[ "$f" == docs/players/reference/settings.md ]]; then
+      mark tests/Metaphor.Settings.Tests/Metaphor.Settings.Tests.csproj "$f changed (generated, which these tests check)"
+    fi
     [ -z "$owner" ] || [ -z "${pester_built[$owner]:-}" ] || reads="${reads:-$f}"
     # A code file: projects no test project reaches (a tool) run nothing, but the local build must still compile them.
     if [ -n "$owner" ] && [[ "$f" =~ \.(cs|csproj|props|targets|json)$ ]]; then need_build "$owner" "$f"; fi

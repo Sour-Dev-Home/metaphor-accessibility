@@ -98,7 +98,9 @@ public sealed class MenuControlsTests
         screens.Observe(rebound);
         Cursor(ItemClass, row: 0);
         bindings = MenuBindings.From(
-            ModSettings.Parse("""{ "keys": { "menus": { "detailsKey": "G", "detailsButtons": "none" } } }""", _ => { }),
+            ModSettings.Parse(
+                """{ "keys": { "menus": { "detailsKey": "G", "detailsButtons": "none" } } }""",
+                SettingCatalogue.Empty, _ => { }),
             LbRb, KeyT);
 
         Assert.Equal([KeyF], rebound.Keys([KeyF]));
@@ -110,7 +112,8 @@ public sealed class MenuControlsTests
     [Fact]
     public void TheFileNamesEveryMenuBindingAndTheReaderComesFromTheWiring()
     {
-        var settings = ModSettings.Parse("""{ "keys": { "menus": { "detailsButtons": "LS" } } }""", _ => { });
+        var settings = ModSettings.Parse(
+            """{ "keys": { "menus": { "detailsButtons": "LS" } } }""", SettingCatalogue.Empty, _ => { });
 
         Assert.Equal(new MenuBindings(0x0002, 0x46) { ReaderButtons = LbRb, ReaderKey = KeyT }, MenuBindings.From(settings, LbRb, KeyT));
     }

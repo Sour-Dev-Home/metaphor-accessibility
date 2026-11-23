@@ -11,7 +11,30 @@ public sealed class SettingsReloaderTests
     private readonly RecordingAnnouncer announcer = new();
     private readonly List<string> logged = [];
 
-    private SettingsReloader Reloader() => new(announcer, logged.Add);
+    private SettingsReloader Reloader() => new(announcer, SampleSettings.Catalogue, logged.Add);
+
+    // In the order the settings reference lists them, which the modules' keys set (#784), whatever the enums' order.
+    [Fact]
+    public void ChangedFeaturesAreSaidInTheCataloguesOrder()
+    {
+        var reloader = new SettingsReloader(announcer, SettingCatalogue.Of<Backwards>(), logged.Add);
+        reloader.Load("{}");
+
+        reloader.Reload("""{ "speech": { "late": false, "early": false } }""");
+
+        Assert.Equal(
+            [new Announcement("Early: off.", Interrupt: true), new Announcement("Late: off.", Interrupt: false)],
+            announcer.Said);
+    }
+
+    private enum Backwards
+    {
+        [SettingKey("speech", "late", "Late", Order = 2)]
+        Late,
+
+        [SettingKey("speech", "early", "Early", Order = 1)]
+        Early,
+    }
 
     [Fact]
     public void StartsWithDefaults()

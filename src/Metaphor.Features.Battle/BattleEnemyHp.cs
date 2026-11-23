@@ -18,7 +18,7 @@ namespace Metaphor.Features.Battle;
 /// (docs/findings/battle-target-cursor-index-static.md), and how a slot maps to a hit's unit record isn't known. Until
 /// it is, every known enemy is said, and each press is logged (Debug builds) with each enemy's record address, to match
 /// against a target read in the next session.</remarks>
-[FeatureSetting(Feature.BattleHits)]
+[FeatureSetting<BattleFeature>(BattleFeature.BattleHits)]
 public sealed class BattleEnemyHp : IInputControls
 {
     private readonly HitLines hits;

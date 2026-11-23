@@ -8,7 +8,7 @@ public sealed class ModSettingsTests
 {
     private readonly List<string> logged = [];
 
-    private ModSettings Parse(string? json) => ModSettings.Parse(json, logged.Add);
+    private ModSettings Parse(string? json) => ModSettings.Parse(json, SampleSettings.Catalogue, logged.Add);
 
     [Fact]
     public void TheBracketKeysAreNamedByThemselves()
@@ -101,7 +101,8 @@ public sealed class ModSettingsTests
     [Fact]
     public void AMissingLogIsRefused()
     {
-        Assert.Throws<ArgumentNullException>("log", () => ModSettings.Parse(null, null!));
+        Assert.Throws<ArgumentNullException>("log", () => ModSettings.Parse(null, SampleSettings.Catalogue, null!));
+        Assert.Throws<ArgumentNullException>("features", () => ModSettings.Parse(null, null!, logged.Add));
     }
 
     [Fact]

@@ -17,7 +17,7 @@ namespace Metaphor.Features.Menus;
 /// from the exe and one run (#594) <c>[NEEDS VERIFICATION]</c>. The page shown is the object's own field, which
 /// stepped 0, 1, 2, 1, 0 with the page turns of a by-ear run (docs/raw-sources/tutorial-page-index-by-ear-2026-11-21.md).
 /// </remarks>
-[FeatureSetting(Feature.Tutorials)]
+[FeatureSetting<MenusFeature>(MenusFeature.Tutorials)]
 public sealed class TutorialPopups
 {
     /// <summary>What a pop-up is said as when its title can't be found.</summary>

@@ -18,7 +18,7 @@ namespace Metaphor.Features.Battle;
 /// 548ddc95… (docs/raw-sources/pad-and-keyboard-state-2026-11-16.md). Whether the game uses either in battle is
 /// <c>[NEEDS VERIFICATION]</c> by ear: the battle inventory names the bottom bar's other buttons but not the one for
 /// its Status entry, which might be L3 (docs/raw-sources/battle-inventory-2026-11-17.md).</remarks>
-[FeatureSetting(Feature.BattleHits)]
+[FeatureSetting<BattleFeature>(BattleFeature.BattleHits)]
 public sealed class BattleStatus : IInputControls
 {
     /// <summary>L3 in the game's pad mask, the default status button.</summary>

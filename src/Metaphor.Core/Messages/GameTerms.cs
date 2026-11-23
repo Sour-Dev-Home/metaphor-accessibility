@@ -1,6 +1,5 @@
 using System.Globalization;
 using Metaphor.Core.Announcements;
-using Metaphor.Core.Settings;
 
 namespace Metaphor.Core.Messages;
 
@@ -10,8 +9,8 @@ namespace Metaphor.Core.Messages;
 /// nothing. Which
 /// numbers are pinned is docs/findings/placeholder-tags-name-file-positions.md: a skill's and a condition's number is
 /// its position in its file on game build 548ddc95… (Steam build 18330018); items, classes, attributes, values and
-/// icons are <c>[NEEDS VERIFICATION]</c>, so they say their stand-in.</summary>
-[FeatureSetting(Feature.TermNames)]
+/// icons are <c>[NEEDS VERIFICATION]</c>, so they say their stand-in. The names are behind the dialogue's
+/// <c>speech.termNames</c> setting, which the text cleaner reads before asking this (#784).</summary>
 public sealed class GameTerms
 {
     /// <summary>The files a pinned tag's number is a position in, as game build 548ddc95… (Steam build 18330018)

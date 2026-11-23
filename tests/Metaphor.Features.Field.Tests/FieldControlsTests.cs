@@ -281,11 +281,21 @@ public sealed class FieldControlsTests
 
     // Each half of the field controls has its own setting (#661): one off leaves its keys to the game, says nothing,
     // and leaves the other working.
+    private static ModSettings Parse(string json) =>
+        ModSettings.Parse(json, SettingCatalogue.Of<FieldFeature>(), _ => { });
+
+    // Field controls whose settings are read from the file text, as the field module reads them (#784).
+    private FieldControls Gated(string json)
+    {
+        var settings = Parse(json);
+        return new FieldControls(
+            () => FieldBindings.Default, feature => settings.IsOn(feature), field, place, announcer, cues, () => now);
+    }
+
     [Fact]
     public void TheNearbyListTurnedOffLeavesItsKeysToTheGameAndWhereAmIWorking()
     {
-        var settings = ModSettings.Parse("""{ "field": { "nearby": false } }""", _ => { });
-        var gated = new FieldControls(() => FieldBindings.Default, settings.IsOn, field, place, announcer, cues, () => now);
+        var gated = Gated("""{ "field": { "nearby": false } }""");
 
         Assert.Equal([KeyN], gated.Keys([KeyN]));
         Assert.Equal(Lb | Down, gated.Pad(0, Lb | Down, made: true));
@@ -297,8 +307,7 @@ public sealed class FieldControlsTests
     [Fact]
     public void TheCategoriesTurnedOffLeaveTheirKeysToTheGameAndTheListWorking()
     {
-        var settings = ModSettings.Parse("""{ "field": { "nearbyCategories": false } }""", _ => { });
-        var gated = new FieldControls(() => FieldBindings.Default, settings.IsOn, field, place, announcer, cues, () => now);
+        var gated = Gated("""{ "field": { "nearbyCategories": false } }""");
 
         Assert.Equal([KeyCloseBracket], gated.Keys([KeyCloseBracket]));
         Assert.Empty(Said());
@@ -309,8 +318,7 @@ public sealed class FieldControlsTests
     [Fact]
     public void GuidanceTurnedOffLeavesItsKeysToTheGameAndStartsNoBeacon()
     {
-        var settings = ModSettings.Parse("""{ "field": { "guidance": false } }""", _ => { });
-        var gated = new FieldControls(() => FieldBindings.Default, settings.IsOn, field, place, announcer, cues, () => now);
+        var gated = Gated("""{ "field": { "guidance": false } }""");
 
         Assert.Equal([KeyG], gated.Keys([KeyG]));
         Assert.Equal(Lb | Right, gated.Pad(0, Lb | Right, made: true));
@@ -322,8 +330,7 @@ public sealed class FieldControlsTests
     [Fact]
     public void WhereAmITurnedOffLeavesItsKeysToTheGameAndTheListWorking()
     {
-        var settings = ModSettings.Parse("""{ "field": { "whereAmI": false } }""", _ => { });
-        var gated = new FieldControls(() => FieldBindings.Default, settings.IsOn, field, place, announcer, cues, () => now);
+        var gated = Gated("""{ "field": { "whereAmI": false } }""");
 
         Assert.Equal([KeyL], gated.Keys([KeyN, KeyL]));
         Assert.Equal(Lb | Left, gated.Pad(0, Lb | Left, made: true));
@@ -337,7 +344,7 @@ public sealed class FieldControlsTests
     {
         var bindings = FieldBindings.Default;
         var rebound = new FieldControls(() => bindings, _ => true, field, place, announcer, cues, () => now);
-        bindings = FieldBindings.From(ModSettings.Parse("""{ "keys": { "field": { "nearbyKey": "M" } } }""", _ => { }));
+        bindings = FieldBindings.From(Parse("""{ "keys": { "field": { "nearbyKey": "M" } } }"""));
 
         Assert.Equal([KeyN], rebound.Keys([KeyN]));
         Assert.Empty(rebound.Keys([0x4D]));
@@ -354,7 +361,7 @@ public sealed class FieldControlsTests
               "guideKey": "F3", "guideButton": "X", "nextKey": "F4", "previousKey": "F5",
               "categoryNextKey": "F6", "categoryPreviousKey": "F7", "categoryHoldButtons": "LB",
               "categoryButton": "DpadRight", "identifyKey": "F8" } } }
-            """, _ => { });
+            """, SettingCatalogue.Of<FieldFeature>(), _ => { });
 
         Assert.Equal(
             new FieldBindings(

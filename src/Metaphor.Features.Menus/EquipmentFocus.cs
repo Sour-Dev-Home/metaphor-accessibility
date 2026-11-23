@@ -12,7 +12,7 @@ namespace Metaphor.Features.Menus;
 /// <c>[NEEDS VERIFICATION]</c>. Safe to call from several threads.</summary>
 /// <remarks>Classes on build 548ddc95 (docs/raw-sources/screen-class-session-2026-11-17.md): the characters, slots,
 /// items and swap, in that order. The slot list had 5 rows in the issue's description; the count is the game's.</remarks>
-[FeatureSetting(Feature.EquipmentMenu)]
+[FeatureSetting<MenusFeature>(MenusFeature.EquipmentMenu)]
 public sealed class EquipmentFocus : IScreenObserver
 {
     /// <summary>The character list, by its owner's class on build 548ddc95.</summary>

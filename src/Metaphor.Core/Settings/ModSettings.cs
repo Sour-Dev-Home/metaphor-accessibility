@@ -55,7 +55,7 @@ public sealed record ModSettings
 
     // Only what the file sets: a feature or cue it doesn't name is on at full volume, a binding it doesn't name is the
     // feature's default. Compared by value, so the same file read twice gives equal settings.
-    private SettingMap<Feature, bool> Toggles { get; init; } = SettingMap<Feature, bool>.Empty;
+    private SettingMap<Enum, bool> Toggles { get; init; } = SettingMap<Enum, bool>.Empty;
 
     private SettingMap<Cue, CueSetting> Sounds { get; init; } = SettingMap<Cue, CueSetting>.Empty;
 
@@ -73,10 +73,10 @@ public sealed record ModSettings
 
     /// <summary>Whether <paramref name="feature"/> speaks, plays and takes its keys (#661). On unless the file turns
     /// it off; a feature marked testing is off unless the file turns it on or the session does (#783).</summary>
-    public bool IsOn(Feature feature) => IsOn(feature, SettingKey.Of(feature).Testing);
+    public bool IsOn(Enum feature) => IsOn(feature, SettingKey.Of(feature).Testing);
 
-    /// <summary><see cref="IsOn(Feature)"/> for a feature that is, or is not, <paramref name="markedTesting"/>.</summary>
-    public bool IsOn(Feature feature, bool markedTesting) => Toggles.Get(feature, !markedTesting || TestingOn);
+    /// <summary><see cref="IsOn(Enum)"/> for a feature that is, or is not, <paramref name="markedTesting"/>.</summary>
+    public bool IsOn(Enum feature, bool markedTesting) => Toggles.Get(feature, !markedTesting || TestingOn);
 
     /// <summary>Whether <paramref name="cue"/> plays, and its volume as a share of <see cref="SoundCueVolume"/>
     /// (#661).</summary>
@@ -97,9 +97,11 @@ public sealed record ModSettings
 
     /// <summary>Reads the file's text; null means no file. Anything unusable, whether the whole file or one setting,
     /// gives the default and a line to <paramref name="log"/>. Keys it doesn't know are ignored, so later settings can
-    /// share the file.</summary>
-    public static ModSettings Parse(string? json, Action<string> log)
+    /// share the file. <paramref name="features"/> are the on/off keys it reads, as the feature modules declare them
+    /// (#784).</summary>
+    public static ModSettings Parse(string? json, SettingCatalogue features, Action<string> log)
     {
+        ArgumentNullException.ThrowIfNull(features);
         ArgumentNullException.ThrowIfNull(log);
         if (json is null)
         {
@@ -120,7 +122,7 @@ public sealed record ModSettings
                 SoundCues = ReadSoundCues(document.RootElement, log),
                 SoundCueVolume = ReadSoundCueVolume(document.RootElement, log),
                 Welcomed = ReadWelcomed(document.RootElement, log),
-                Toggles = ReadToggles(document.RootElement, log),
+                Toggles = ReadToggles(document.RootElement, features, log),
                 Sounds = ReadSounds(document.RootElement, log),
                 Bindings = ReadBindings(document.RootElement, log),
             };
@@ -211,10 +213,10 @@ public sealed record ModSettings
     }
 
     // Each feature's true or false in its group's object; anything else leaves it on and says why.
-    private static SettingMap<Feature, bool> ReadToggles(JsonElement root, Action<string> log)
+    private static SettingMap<Enum, bool> ReadToggles(JsonElement root, SettingCatalogue features, Action<string> log)
     {
-        Dictionary<Feature, bool> read = [];
-        foreach (var group in Enum.GetValues<Feature>().GroupBy(feature => SettingKey.Of(feature).Group))
+        Dictionary<Enum, bool> read = [];
+        foreach (var group in features.Features.GroupBy(feature => SettingKey.Of(feature).Group))
         {
             if (Group(root, group.Key, log) is not { } values)
             {

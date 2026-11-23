@@ -34,7 +34,7 @@ public sealed class ModSettingsPropertyTests
         {
             var logged = new List<string>();
 
-            var settings = ModSettings.Parse(json, logged.Add);
+            var settings = ModSettings.Parse(json, SampleSettings.Catalogue, logged.Add);
 
             Assert.True(Enum.IsDefined(settings.VoicedLines));
             Assert.True(logged.Count <= 1);
@@ -60,7 +60,7 @@ public sealed class ModSettingsPropertyTests
             var logged = new List<string>();
             var json = JsonSerializer.Serialize(new Dictionary<string, object> { ["other"] = 1, ["voicedLines"] = value });
 
-            var settings = ModSettings.Parse(json, logged.Add);
+            var settings = ModSettings.Parse(json, SampleSettings.Catalogue, logged.Add);
 
             var named = ModeNames.FirstOrDefault(name => string.Equals(name, value, StringComparison.OrdinalIgnoreCase));
             if (named is null)

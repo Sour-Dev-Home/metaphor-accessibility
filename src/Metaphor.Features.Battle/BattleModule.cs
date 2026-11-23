@@ -1,0 +1,44 @@
+using Metaphor.Core.Battle;
+using Metaphor.Core.Features;
+
+namespace Metaphor.Features.Battle;
+
+/// <summary>The battle project's wiring and settings (#784, ADR 0022): the hit lines (#247), the status key and the
+/// enemy HP key (#631, #767), and the situation banners (#692). Its controls take each input read after the menus'.
+/// </summary>
+public sealed class BattleModule : IFeatureModule
+{
+    public IEnumerable<Enum> Settings => Enum.GetValues<BattleFeature>().Select(feature => (Enum)feature);
+
+    public void Register(FeatureContext context)
+    {
+        ArgumentNullException.ThrowIfNull(context);
+        var settings = context.Settings;
+        var reader = context.Reader;
+        var log = context.Log;
+        // Each hit is spoken through the reader, queued, with a summary after each action (#247, #631). No safe read
+        // of a party member's name is known yet, so each is named by its slot.
+        var battleSpeech = settings.Speech(BattleFeature.BattleHits, reader);
+        var hitLines = new HitLines(
+            battleSpeech, TimeProvider.System, _ => null,
+            outcomesOn: () => settings.Current.IsOn(BattleFeature.BattleOutcomes));
+        context.Provide<IBattleHitObserver>(hitLines);
+        // The in-turn situation banner, queued behind the hit lines (#692), behind `speech.battleBanners` (#661).
+        context.Provide(new BattleBanners(
+            context.FilePositions, settings.Speech(BattleFeature.BattleBanners, reader), context.Cleaner,
+            () => Environment.TickCount64));
+        var battleBindings = settings.Live(BattleBindings.From);
+        // The status key acts only in a battle (#631); a Debug build logs the scene each press read.
+        context.AddControls(settings.Input(
+            BattleFeature.BattleHits,
+            new BattleStatus(context.BattleParty, hitLines, context.BattleScene, battleSpeech, battleBindings)));
+        // The enemy HP readout has its own binding, unbound by default (#767), so the game keeps F and R3; the menu
+        // controls take a key first while a battle list is shown. A Debug build logs each press's enemy records for the
+        // target read.
+        context.AddControls(settings.Input(
+            BattleFeature.BattleHits,
+            new BattleEnemyHp(
+                battleBindings, hitLines, context.BattleScene, battleSpeech,
+                log is null ? null : text => log.Requested("BattleDetails", text))));
+    }
+}

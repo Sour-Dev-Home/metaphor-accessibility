@@ -54,7 +54,7 @@ public sealed record MenuBindings(int DetailsButtons, int DetailsKey)
 /// silent while the reader is off. The input frame (#301) hands it each pad and keyboard read from any of the game's
 /// threads. The bindings are read on each input read, so a rebinding in the settings file applies at once (#661).
 /// </summary>
-[FeatureSetting(Feature.Menus)]
+[FeatureSetting<MenusFeature>(MenusFeature.Menus)]
 public sealed class MenuControls : IScreenObserver, IInputControls
 {
     private const int KeyboardSource = -1;

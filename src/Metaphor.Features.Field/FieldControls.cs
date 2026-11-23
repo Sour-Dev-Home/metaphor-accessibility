@@ -86,7 +86,9 @@ public sealed record FieldBindings(
 /// thing last stepped to, or the nearest not already reached once that step is forgotten, and stop it when it's on;
 /// every read of the pad or keyboard moves it on. The nearby list, "where am I" and the guidance beep each have their
 /// own setting (#661), read on each input read: one turned off leaves its keys and chords to the game.</summary>
-[FeatureSetting(Feature.Nearby, Feature.NearbyCategories, Feature.WhereAmI, Feature.Guidance, Feature.GuidancePause)]
+[FeatureSetting<FieldFeature>(
+    FieldFeature.Nearby, FieldFeature.NearbyCategories, FieldFeature.WhereAmI, FieldFeature.Guidance,
+    FieldFeature.GuidancePause)]
 public sealed class FieldControls : IInputControls
 {
     /// <summary>How long the pad's place on the list lasts after a step; the next step after that starts again at the
@@ -97,7 +99,7 @@ public sealed class FieldControls : IInputControls
 
     private readonly Lock gate = new();
     private readonly Func<FieldBindings> liveBindings;
-    private readonly Func<Feature, bool> isOn;
+    private readonly Func<FieldFeature, bool> isOn;
     private readonly IFieldReads field;
     private readonly FieldPlace place;
     private readonly IAnnouncer announcer;
@@ -141,10 +143,11 @@ public sealed class FieldControls : IInputControls
     }
 
     /// <summary>Field controls on the bindings and settings in force, read on each input read (#661):
-    /// <paramref name="isOn"/> says whether <see cref="Feature.Nearby"/>, <see cref="Feature.WhereAmI"/> and
-    /// <see cref="Feature.Guidance"/> are on, and <see cref="Feature.NearbyCategories"/> the category keys.</summary>
+    /// <paramref name="isOn"/> says whether <see cref="FieldFeature.Nearby"/>, <see cref="FieldFeature.WhereAmI"/> and
+    /// <see cref="FieldFeature.Guidance"/> are on, and <see cref="FieldFeature.NearbyCategories"/> the category keys.
+    /// </summary>
     public FieldControls(
-        Func<FieldBindings> bindings, Func<Feature, bool> isOn, IFieldReads field, FieldPlace place,
+        Func<FieldBindings> bindings, Func<FieldFeature, bool> isOn, IFieldReads field, FieldPlace place,
         IAnnouncer announcer, ICuePlayer cues, Func<long> milliseconds, Action<string>? log = null,
         NamesTable? names = null, ReachCallouts? reach = null, MissionLine? mission = null,
         Func<int, bool?>? storyFlag = null, IRoutePlanner? routes = null)
@@ -166,7 +169,7 @@ public sealed class FieldControls : IInputControls
         this.storyFlag = storyFlag;
         this.names = names ?? NamesTable.Empty;
         beacon = new Beacon(
-            field, cues, announcer, milliseconds, log, routes, pauseOn: () => this.isOn(Feature.GuidancePause));
+            field, cues, announcer, milliseconds, log, routes, pauseOn: () => this.isOn(FieldFeature.GuidancePause));
         this.reach = reach;
         roam = new FreeRoamGate(field);
     }
@@ -196,13 +199,13 @@ public sealed class FieldControls : IInputControls
             return buttons;
         }
         var bindings = liveBindings();
-        var listOn = isOn(Feature.Nearby);
+        var listOn = isOn(FieldFeature.Nearby);
         var holding = Holds(buttons, bindings.HoldButtons);
         var nextHeld = holding && listOn && Holds(buttons, bindings.NextButton);
         var previousHeld = holding && listOn && Holds(buttons, bindings.PreviousButton);
-        var placeHeld = holding && isOn(Feature.WhereAmI) && Holds(buttons, bindings.PlaceButton);
-        var guideHeld = holding && isOn(Feature.Guidance) && Holds(buttons, bindings.GuideButton);
-        var categoryHeld = isOn(Feature.NearbyCategories) && bindings.CategoryButton != 0 &&
+        var placeHeld = holding && isOn(FieldFeature.WhereAmI) && Holds(buttons, bindings.PlaceButton);
+        var guideHeld = holding && isOn(FieldFeature.Guidance) && Holds(buttons, bindings.GuideButton);
+        var categoryHeld = isOn(FieldFeature.NearbyCategories) && bindings.CategoryButton != 0 &&
             Holds(buttons, bindings.CategoryHoldButtons) && Holds(buttons, bindings.CategoryButton);
         var roaming = (nextHeld || previousHeld || placeHeld || guideHeld || categoryHeld) && roam.Open();
         Press press;
@@ -235,11 +238,11 @@ public sealed class FieldControls : IInputControls
         mission?.Poll();
         reach?.Check();
         var bindings = liveBindings();
-        var listOn = isOn(Feature.Nearby);
-        var categoriesOn = isOn(Feature.NearbyCategories);
+        var listOn = isOn(FieldFeature.Nearby);
+        var categoriesOn = isOn(FieldFeature.NearbyCategories);
         var listHeld = listOn && keys.Contains(bindings.NearbyKey);
-        var placeHeld = isOn(Feature.WhereAmI) && keys.Contains(bindings.PlaceKey);
-        var guideHeld = isOn(Feature.Guidance) && keys.Contains(bindings.GuideKey);
+        var placeHeld = isOn(FieldFeature.WhereAmI) && keys.Contains(bindings.PlaceKey);
+        var guideHeld = isOn(FieldFeature.Guidance) && keys.Contains(bindings.GuideKey);
         var nextHeld = listOn && keys.Contains(bindings.NextKey);
         var previousHeld = listOn && keys.Contains(bindings.PreviousKey);
         var categoryNextHeld = categoriesOn && keys.Contains(bindings.CategoryNextKey);

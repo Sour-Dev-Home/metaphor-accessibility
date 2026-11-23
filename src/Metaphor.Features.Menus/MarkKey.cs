@@ -10,7 +10,7 @@ namespace Metaphor.Features.Menus;
 /// the moment without the player describing it. Nothing is sent anywhere. While the feature is on, the key is dropped
 /// from every keyboard read, so the game never sees it. Keyboard only for now: the pad gets it through the RB layer
 /// (#688). Safe to use from several threads.</summary>
-[FeatureSetting(Feature.MarkKey)]
+[FeatureSetting<MenusFeature>(MenusFeature.MarkKey)]
 public sealed class MarkKey : IInputControls
 {
     /// <summary>F8 (<c>0x77</c>), off the number row and away from the mod's letter keys. That the game binds nothing
@@ -46,7 +46,7 @@ public sealed class MarkKey : IInputControls
         ArgumentNullException.ThrowIfNull(keys);
         var now = settings();
         var key = now.Binding("report", "markKey", DefaultKey);
-        var down = now.IsOn(Feature.MarkKey) && key != 0 && keys.Contains(key);
+        var down = now.IsOn(MenusFeature.MarkKey) && key != 0 && keys.Contains(key);
         int number;
         lock (gate)
         {

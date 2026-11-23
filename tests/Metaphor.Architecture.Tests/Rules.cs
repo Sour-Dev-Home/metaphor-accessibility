@@ -268,14 +268,15 @@ internal static class Rules
 
     private const string AnnouncerInterface = "Metaphor.Core.Announcements.IAnnouncer";
     private const string CuePlayerInterface = "Metaphor.Core.Cues.ICuePlayer";
-    private const string FeatureSettingAttribute = "Metaphor.Core.Settings.FeatureSettingAttribute";
+    private const string FeatureSettingAttribute = "Metaphor.Core.Settings.FeatureSettingAttribute`1";
     private static readonly string[] KeyInterfaces = ["Metaphor.Core.Input.IInputControls", "Metaphor.Core.Input.IKeyWatcher"];
 
     /// <summary>
     /// Rule 18 (#661): a feature class that speaks (calls <c>Announce</c> on an announcer), plays a cue (calls the cue
     /// player) or takes keys (implements the input controls or the key watcher) is marked
-    /// <c>[FeatureSetting(...)]</c>, so every feature can be turned off. Lambdas count for the class that holds them.
-    /// An announcer itself, such as the reader switch, passes on what it's handed and isn't counted as speaking.
+    /// <c>[FeatureSetting&lt;TFeature&gt;(...)]</c> with its project's feature enum (#784), so every feature can be
+    /// turned off. Lambdas count for the class that holds them. An announcer itself, such as the reader switch, passes on
+    /// what it's handed and isn't counted as speaking.
     /// </summary>
     public static IReadOnlyList<string> FeaturesHaveSettings(AssemblyDefinition assembly)
     {
@@ -286,7 +287,8 @@ internal static class Rules
         List<string> violations = [];
         foreach (var type in assembly.Modules.SelectMany(module => module.Types))
         {
-            if (type.CustomAttributes.Any(attribute => attribute.AttributeType.FullName == FeatureSettingAttribute))
+            if (type.CustomAttributes.Any(attribute =>
+                    attribute.AttributeType.GetElementType().FullName == FeatureSettingAttribute))
             {
                 continue;
             }
@@ -310,14 +312,55 @@ internal static class Rules
             if (does.Count > 0)
             {
                 violations.Add(
-                    $"{type.FullName} {string.Join(" and ", does)} but has no setting. Add a member to " +
-                    "Metaphor.Core.Settings.Feature with its [SettingKey(\"group\", \"name\", \"Spoken name\")], mark " +
-                    $"{type.Name} [FeatureSetting(Feature.YourFeature)], gate it in HookServices.Speaking through " +
-                    "settings.Speech(Feature.YourFeature, ...) or settings.Input(Feature.YourFeature, ...), and list " +
-                    "the key in docs/players/reference/settings.md");
+                    $"{type.FullName} {string.Join(" and ", does)} but has no setting. Add a member to its project's " +
+                    "feature enum with its [SettingKey(\"group\", \"name\", \"Spoken name\", Order = ..., Description = " +
+                    $"\"...\")], mark {type.Name} [FeatureSetting<TheFeatureEnum>(TheFeatureEnum.YourFeature)], gate it " +
+                    "in the project's feature module through settings.Speech(...) or settings.Input(...), and run " +
+                    "tools/Metaphor.SettingsReference to list it in docs/players/reference/settings.md");
             }
         }
         return violations;
+    }
+
+    private const string FeatureModuleInterface = "Metaphor.Core.Features.IFeatureModule";
+    private const string ModuleList = "Metaphor.Hooks.FeatureModules";
+
+    /// <summary>The feature modules the hook layer's explicit list creates (#784, ADR 0022), in its order: the types
+    /// <c>FeatureModules.Create</c> constructs.</summary>
+    public static IReadOnlyList<string> ListedModules(AssemblyDefinition hooks)
+    {
+        ArgumentNullException.ThrowIfNull(hooks);
+        var create = hooks.MainModule.GetType(ModuleList)?.Methods.SingleOrDefault(method => method.Name == "Create");
+        return create is { HasBody: true }
+            ? [.. create.Body.Instructions.Where(instruction => instruction.OpCode == Mono.Cecil.Cil.OpCodes.Newobj)
+                .Select(instruction => ((MethodReference)instruction.Operand).DeclaringType)
+                .Where(type => Implements(type, FeatureModuleInterface))
+                .Select(type => type.FullName)]
+            : [];
+    }
+
+    /// <summary>
+    /// The hook layer's list names every feature module (#784): each class in <paramref name="features"/> that implements
+    /// <c>IFeatureModule</c> is created once in <c>FeatureModules.Create</c>, so no project's settings or wiring is left
+    /// out of the mod.
+    /// </summary>
+    public static IReadOnlyList<string> ModulesAreListed(
+        AssemblyDefinition hooks, IEnumerable<AssemblyDefinition> features)
+    {
+        ArgumentNullException.ThrowIfNull(features);
+        var listed = ListedModules(hooks);
+        var declared = features
+            .Where(assembly => assembly.Name.Name.StartsWith(FeaturePrefix, StringComparison.Ordinal))
+            .SelectMany(assembly => assembly.Modules.SelectMany(module => module.Types))
+            .Where(type => type is { IsClass: true, IsAbstract: false } && Implements(type, FeatureModuleInterface))
+            .Select(type => type.FullName);
+        return
+        [
+            .. declared.Where(module => !listed.Contains(module))
+                .Select(module => $"{module} is not in {ModuleList}.Create: add it where its controls and observers belong"),
+            .. listed.GroupBy(module => module, StringComparer.Ordinal).Where(group => group.Count() > 1)
+                .Select(group => $"{group.Key} is in {ModuleList}.Create more than once"),
+        ];
     }
 
     private static IEnumerable<TypeDefinition> WithNested(TypeDefinition type) =>

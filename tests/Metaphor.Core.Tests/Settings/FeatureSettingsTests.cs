@@ -4,41 +4,29 @@ using Metaphor.Core.Settings;
 namespace Metaphor.Core.Tests.Settings;
 
 /// <summary>A toggle for every feature (#661): each feature and each cue has its own key in the settings file, on by
-/// default, and key bindings are read by name.</summary>
+/// default, and key bindings are read by name. The feature projects' own keys are Metaphor.Settings.Tests' (#784);
+/// these use <see cref="SampleFeature"/>.</summary>
 [Trait("Category", "Unit")]
 public sealed class FeatureSettingsTests
 {
     private readonly List<string> logged = [];
 
-    private ModSettings Parse(string json) => ModSettings.Parse(json, logged.Add);
+    private ModSettings Parse(string json) => ModSettings.Parse(json, SampleSettings.Catalogue, logged.Add);
 
     [Fact]
-    public void EveryFeatureAndCueHasItsOwnKeyAndSpokenName()
+    public void EveryCueHasItsOwnKeySpokenNameAndDescription()
     {
-        var keys = Enum.GetValues<Feature>().Select(SettingKey.Of)
-            .Concat(Enum.GetValues<Cue>().Select(SettingKey.Of)).ToList();
+        var keys = Enum.GetValues<Cue>().Select(cue => SettingKey.Of(cue)).ToList();
 
         Assert.All(keys, key => Assert.False(string.IsNullOrWhiteSpace(key.Spoken)));
+        Assert.All(keys, key => Assert.False(string.IsNullOrWhiteSpace(key.Description)));
         Assert.Equal(keys.Count, keys.Select(key => key.Path).Distinct(StringComparer.Ordinal).Count());
-    }
-
-    // Passed by ear in the 2026-11-22 session, so they ship on (#622, #193, #733, #254, #730).
-    [Theory]
-    [InlineData(Feature.SaveSlots)]
-    [InlineData(Feature.Calendar)]
-    [InlineData(Feature.SystemMenu)]
-    [InlineData(Feature.BattleOutcomes)]
-    [InlineData(Feature.ChoiceCount)]
-    public void AFeatureThatPassedItsByEarCheckIsOnByDefault(Feature feature)
-    {
-        Assert.False(SettingKey.Of(feature).Testing);
-        Assert.True(ModSettings.Defaults.IsOn(feature));
     }
 
     [Fact]
     public void EveryFeatureAndCueIsOnByDefault()
     {
-        Assert.All(Enum.GetValues<Feature>().Where(feature => !SettingKey.Of(feature).Testing),
+        Assert.All(SampleSettings.Catalogue.Features.Where(feature => !SettingKey.Of(feature).Testing),
             feature => Assert.True(ModSettings.Defaults.IsOn(feature)));
         Assert.All(Enum.GetValues<Cue>(), cue => Assert.Equal(new CueSetting(true, 100), ModSettings.Defaults.Sound(cue)));
     }
@@ -49,9 +37,11 @@ public sealed class FeatureSettingsTests
     {
         var normal = ModSettings.Defaults;
 
-        Assert.False(normal.IsOn(Feature.Dialogue, markedTesting: true));
-        Assert.True(normal.WithTesting(true).IsOn(Feature.Dialogue, markedTesting: true));
-        Assert.True(normal.IsOn(Feature.Dialogue, markedTesting: false));
+        Assert.False(normal.IsOn(SampleFeature.Dialogue, markedTesting: true));
+        Assert.True(normal.WithTesting(true).IsOn(SampleFeature.Dialogue, markedTesting: true));
+        Assert.True(normal.IsOn(SampleFeature.Dialogue, markedTesting: false));
+        Assert.False(normal.IsOn(SampleFeature.Fresh));
+        Assert.True(normal.WithTesting(true).IsOn(SampleFeature.Fresh));
     }
 
     [Theory]
@@ -64,45 +54,45 @@ public sealed class FeatureSettingsTests
         var settings = Parse($$"""{ "speech": { "dialogue": {{explicitValue.ToString().ToLowerInvariant()}} } }""")
             .WithTesting(session);
 
-        Assert.Equal(explicitValue, settings.IsOn(Feature.Dialogue, markedTesting: true));
+        Assert.Equal(explicitValue, settings.IsOn(SampleFeature.Dialogue, markedTesting: true));
     }
 
     [Fact]
     public void TheReloaderAppliesTheSessionSwitchToEveryFileItReads()
     {
-        var reloader = new SettingsReloader(new Metaphor.Core.Announcements.RecordingAnnouncer(), logged.Add, testingOn: true);
+        var reloader = new SettingsReloader(
+            new Metaphor.Core.Announcements.RecordingAnnouncer(), SampleSettings.Catalogue, logged.Add, testingOn: true);
 
         reloader.Load(null);
-        Assert.True(reloader.Current.IsOn(Feature.Dialogue, markedTesting: true));
+        Assert.True(reloader.Current.IsOn(SampleFeature.Dialogue, markedTesting: true));
         reloader.Reload("{}");
-        Assert.True(reloader.Current.IsOn(Feature.Dialogue, markedTesting: true));
-        Assert.False(new SettingsReloader(new Metaphor.Core.Announcements.RecordingAnnouncer(), logged.Add).Current
-            .IsOn(Feature.Dialogue, markedTesting: true));
-    }
-
-    [Fact]
-    public void AFeatureIsOffInANormalInstallExactlyWhenItsKeyMarksItTesting()
-    {
-        Assert.All(Enum.GetValues<Feature>(), feature =>
-            Assert.Equal(!SettingKey.Of(feature).Testing, ModSettings.Defaults.IsOn(feature)));
+        Assert.True(reloader.Current.IsOn(SampleFeature.Dialogue, markedTesting: true));
+        Assert.False(new SettingsReloader(
+                new Metaphor.Core.Announcements.RecordingAnnouncer(), SampleSettings.Catalogue, logged.Add).Current
+            .IsOn(SampleFeature.Dialogue, markedTesting: true));
     }
 
     [Theory]
-    [InlineData("""{ "speech": { "dialogue": false } }""", Feature.Dialogue)]
-    [InlineData("""{ "speech": { "menus": false } }""", Feature.Menus)]
-    [InlineData("""{ "speech": { "nameEntry": false } }""", Feature.NameEntry)]
-    [InlineData("""{ "speech": { "travelMap": false } }""", Feature.TravelMap)]
-    [InlineData("""{ "speech": { "placeNames": false } }""", Feature.PlaceNames)]
-    [InlineData("""{ "speech": { "updateNotice": false } }""", Feature.UpdateNotice)]
-    [InlineData("""{ "field": { "nearby": false } }""", Feature.Nearby)]
-    [InlineData("""{ "field": { "whereAmI": false } }""", Feature.WhereAmI)]
-    public void AFeatureTurnsOffAloneFromItsKey(string json, Feature off)
+    [InlineData("""{ "speech": { "dialogue": false } }""", SampleFeature.Dialogue)]
+    [InlineData("""{ "speech": { "menus": false } }""", SampleFeature.Menus)]
+    [InlineData("""{ "field": { "nearby": false } }""", SampleFeature.Nearby)]
+    public void AFeatureTurnsOffAloneFromItsKey(string json, SampleFeature off)
     {
         var settings = Parse(json);
 
-        Assert.All(Enum.GetValues<Feature>().Where(feature => !SettingKey.Of(feature).Testing),
+        Assert.All(Enum.GetValues<SampleFeature>().Where(feature => !SettingKey.Of(feature).Testing),
             feature => Assert.Equal(feature != off, settings.IsOn(feature)));
         Assert.Empty(logged);
+    }
+
+    // The reader takes the keys it is given (#784): a feature it wasn't given is left at its default.
+    [Fact]
+    public void AKeyTheCatalogueDoesNotNameIsIgnored()
+    {
+        var settings = ModSettings.Parse("""{ "speech": { "dialogue": false } }""", SettingCatalogue.Empty, logged.Add);
+
+        Assert.True(settings.IsOn(SampleFeature.Dialogue));
+        Assert.Equal(ModSettings.Defaults, settings);
     }
 
     [Theory]
@@ -113,7 +103,7 @@ public sealed class FeatureSettingsTests
     {
         var settings = Parse(json);
 
-        Assert.True(settings.IsOn(Feature.Dialogue));
+        Assert.True(settings.IsOn(SampleFeature.Dialogue));
         Assert.Contains(logged, line => line.Contains($"\"{named}\"", StringComparison.Ordinal));
     }
 

@@ -15,9 +15,9 @@ namespace Metaphor.Features.Field;
 /// objective with the same flags (docs/findings/field-map-and-objective-tables-static.md); [NEEDS VERIFICATION] that the
 /// box picks it so. A title's trailing colon is dropped when no objective follows. A new mission is spoken once, in
 /// free roam, looked for at most once a second; the first one seen is not, since it is the mission the game was loaded
-/// on. It belongs to "where am I" (<see cref="Feature.WhereAmI"/>): with that setting off, it says nothing. Safe to
-/// call from several threads.</summary>
-[FeatureSetting(Feature.WhereAmI)]
+/// on. It belongs to "where am I" (<see cref="FieldFeature.WhereAmI"/>): with that setting off, it says nothing. Safe
+/// to call from several threads.</summary>
+[FeatureSetting<FieldFeature>(FieldFeature.WhereAmI)]
 public sealed class MissionLine
 {
     /// <summary>How often <see cref="Poll"/> reads the game, at most.</summary>

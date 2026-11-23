@@ -85,11 +85,12 @@ Commit with the stamp.
 ## A feature that needs a by-ear check
 
 Don't hold the PR open for the check: it conflicts for days while `main` moves (#783). Merge the feature as **testing**:
-`Testing = true` on its `[SettingKey]` in `Feature.cs` and `testing, off` as its default in
-[`settings.md`](../players/reference/settings.md#features-still-being-tested), with auto-merge on as for any PR. It is
-off in a normal install and on in a by-ear session, because `scripts/dev/session.ps1` (`deploy` or `run`) adds the
-session-only `opt-in-testing.txt`; release builds never read it and `package-mod.sh` refuses a package that holds
-one. Passing by ear means a flip PR that removes `Testing = true` and the `testing, off`; a failure is a fix PR.
+`Testing = true` on its `[SettingKey]` in its project's feature enum, which makes its default `testing, off` in the
+generated [`settings.md`](../players/reference/settings.md#features-still-being-tested), with auto-merge on as for any
+PR. It is off in a normal install and on in a by-ear session, because `scripts/dev/session.ps1` (`deploy` or `run`)
+adds the session-only `opt-in-testing.txt`; release builds never read it and `package-mod.sh` refuses a package that
+holds one. Passing by ear means a flip PR that removes `Testing = true` and regenerates the page
+([ADR 0022](../adr/0022-features-register-their-own-wiring-and-settings.md)); a failure is a fix PR.
 
 ## Deliver
 

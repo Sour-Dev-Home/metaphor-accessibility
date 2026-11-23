@@ -10,19 +10,23 @@ namespace Metaphor.Core.Settings;
 public sealed class SettingsReloader
 {
     private readonly IAnnouncer announcer;
+    private readonly SettingCatalogue features;
     private readonly Action<string> log;
     private readonly bool testingOn;
     private readonly Lock gate = new();
     private volatile ModSettings current = ModSettings.Defaults;
 
     /// <param name="announcer">Where a changed value is said.</param>
+    /// <param name="features">The features' on/off settings, from the feature modules (#784).</param>
     /// <param name="log">Where a file that can't be used is reported (the Debug log).</param>
     /// <param name="testingOn">Whether this is a session that turns every testing feature on (#783).</param>
-    public SettingsReloader(IAnnouncer announcer, Action<string> log, bool testingOn = false)
+    public SettingsReloader(IAnnouncer announcer, SettingCatalogue features, Action<string> log, bool testingOn = false)
     {
         ArgumentNullException.ThrowIfNull(announcer);
+        ArgumentNullException.ThrowIfNull(features);
         ArgumentNullException.ThrowIfNull(log);
         this.announcer = announcer;
+        this.features = features;
         this.log = log;
         this.testingOn = testingOn;
         current = current.WithTesting(testingOn);
@@ -36,7 +40,7 @@ public sealed class SettingsReloader
     {
         lock (gate)
         {
-            current = ModSettings.Parse(json, log).WithTesting(testingOn);
+            current = ModSettings.Parse(json, features, log).WithTesting(testingOn);
         }
     }
 
@@ -46,7 +50,7 @@ public sealed class SettingsReloader
     {
         lock (gate)
         {
-            var next = ModSettings.Parse(json, log).WithTesting(testingOn);
+            var next = ModSettings.Parse(json, features, log).WithTesting(testingOn);
             List<string> said = [];
             if (next.VoicedLines != current.VoicedLines)
             {
@@ -64,7 +68,7 @@ public sealed class SettingsReloader
             {
                 said.Add($"Sound cue volume: {next.SoundCueVolume}.");
             }
-            foreach (var feature in Enum.GetValues<Feature>().Where(feature => next.IsOn(feature) != current.IsOn(feature)))
+            foreach (var feature in features.Features.Where(feature => next.IsOn(feature) != current.IsOn(feature)))
             {
                 said.Add($"{SettingKey.Of(feature).Spoken}: {OnOff(next.IsOn(feature))}.");
             }
@@ -94,7 +98,7 @@ public sealed class SettingsReloader
 
     /// <summary>The one gate on a feature's speech (#661): what goes through it reaches <paramref name="inner"/> only
     /// while <paramref name="feature"/> is on, read at each announcement.</summary>
-    public IAnnouncer Speech(Feature feature, IAnnouncer inner)
+    public IAnnouncer Speech(Enum feature, IAnnouncer inner)
     {
         ArgumentNullException.ThrowIfNull(inner);
         return new SpeechGate(() => current.IsOn(feature), inner);
@@ -102,16 +106,16 @@ public sealed class SettingsReloader
 
     /// <summary>The one gate on a feature's keys (#661): while <paramref name="feature"/> is off, read at each input
     /// read, every read reaches the game untouched and <paramref name="inner"/> never sees it.</summary>
-    public IInputControls Input(Feature feature, IInputControls inner)
+    public IInputControls Input(Enum feature, IInputControls inner)
     {
         ArgumentNullException.ThrowIfNull(inner);
         return new InputGate(() => current.IsOn(feature), inner);
     }
 
-    /// <summary>As <see cref="Input(Feature, IInputControls)"/>, for controls that also take each read of the
+    /// <summary>As <see cref="Input(Enum, IInputControls)"/>, for controls that also take each read of the
     /// dialogue window: those reach them whatever the setting, so they know the window's state when turned back on.
     /// </summary>
-    public IWindowInputControls Input(Feature feature, IWindowInputControls inner)
+    public IWindowInputControls Input(Enum feature, IWindowInputControls inner)
     {
         ArgumentNullException.ThrowIfNull(inner);
         return new InputGate(() => current.IsOn(feature), inner);
