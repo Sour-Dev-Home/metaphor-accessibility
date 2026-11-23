@@ -280,4 +280,30 @@ public sealed class GameNamesTests
             "'s Strength rose. Thanks, .",
             cleaner.Clean("<CHAR_NAME 65535>'s Strength rose. Thanks, <PLAYER_NAME>.<FOLLOWER_NAME 9>"));
     }
+
+    [Fact]
+    public void WithStandInsANameTagWhoseReadFailsSaysNameAndIsReported()
+    {
+        var (names, _, _) = Setup();
+        var missing = new List<string>();
+        var cleaner = new TextCleaner(
+            GameNames.Rules, (key, args) => names.PlaceholderOrStandIn(key, args, (tag, a) => missing.Add($"{tag} {a}".TrimEnd())));
+
+        Assert.Equal(
+            "name's Strength rose. Thanks, name.",
+            cleaner.Clean("<CHAR_NAME 65535>'s Strength rose. Thanks, <HERO_NAME>."));
+        Assert.Equal(["CHAR_NAME 65535", "HERO_NAME"], missing);
+    }
+
+    [Fact]
+    public void WithStandInsANameThatIsReadIsSaidAndNotReported()
+    {
+        var (names, memory, _) = Setup();
+        memory.Typed[TypedName.Hero] = Utf32("Rowan");
+        var missing = new List<string>();
+
+        Assert.Equal("Rowan", names.PlaceholderOrStandIn("hero-name", "", (tag, a) => missing.Add(tag)));
+        Assert.Null(names.PlaceholderOrStandIn("item", "1 2", (tag, a) => missing.Add(tag)));
+        Assert.Empty(missing);
+    }
 }

@@ -158,10 +158,13 @@ public sealed class NameEntryModule : IFeatureModule
     public void Register(FeatureContext context)
     {
         ArgumentNullException.ThrowIfNull(context);
-        var nameEntry = new NameEntrySpeech(
-            context.Library, context.Settings.Speech(MenusFeature.NameEntry, context.Reader), context.Cleaner,
-            () => Environment.TickCount64);
+        var speech = context.Settings.Speech(MenusFeature.NameEntry, context.Reader);
+        var nameEntry = new NameEntrySpeech(context.Library, speech, context.Cleaner, () => Environment.TickCount64);
         context.Events.ObserveShownLines(nameEntry);
         context.Provide(nameEntry);
+        // The read-back (#585) shares the menus' details binding and speaks as the name entry does.
+        var readBack = new NameReadBack(
+            nameEntry.ReadBack, speech, context.Settings.Live(now => MenuBindings.From(now, 0, 0)));
+        context.AddControls(context.Settings.Input(MenusFeature.NameReadBack, readBack));
     }
 }

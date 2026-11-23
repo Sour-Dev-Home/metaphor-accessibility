@@ -74,6 +74,7 @@ Each is `true` to speak or `false` to stay quiet, inside a `speech` object: `{ "
 | `saveSlots` | The save and load screens' slots. | `true` |
 | `learnedSettingValues` | The System rows whose setting the mod has not pinned saying their value on change, learned as you change them. Needs `menus`. | `true` |
 | `nameEntry` | The name entry screen: its title, each letter you type, and when a name is refused. | `true` |
+| `nameReadBack` | On the name entry screen, the details button (R3) saying the name typed so far. Needs `nameEntry`. Still being tested. | testing, off |
 | `equipmentMenu` | The Equipment screen's slots and gear. Still being tested. | testing, off |
 | `travelMap` | Each destination on the travel map. | `true` |
 | `systemMenu` | The System menu's rows. | `true` |
@@ -82,6 +83,8 @@ Each is `true` to speak or `false` to stay quiet, inside a `speech` object: `{ "
 | `updateNotice` | The title screen's notice of a newer version. The request itself is `checkForUpdates`. | `true` |
 | `tutorials` | Tutorial pop-ups: the title, the page count and each page. Off also leaves the repeat key to repeat dialogue, not the pop-up's page. | `true` |
 | `termNames` | The skill and condition names a line's tags stand for. Off says the tag's stand-in. | `true` |
+| `nameStandIn` | A name a line's tag stands for that the mod can't read said as "name", rather than left out. Still being tested. | testing, off |
+| `buttonNames` | A button icon in a line said as the controller button it shows, where known, or as "key" after keyboard input. Needs `termNames`. Still being tested. | testing, off |
 | `choiceCount` | A reply choice saying how many options there are, with each option said as the focus moves, rather than every option up front. Needs `dialogue`. | `true` |
 | `choiceDelay` | A reply choice's options waiting until they are on screen, not said straight after the prompt. Needs `dialogue`. Still being tested. | testing, off |
 | `windowCloseStop` | A closed dialogue window stopping the line still being spoken. Needs `dialogue`. | `true` |

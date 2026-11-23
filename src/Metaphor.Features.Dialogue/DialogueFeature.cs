@@ -20,6 +20,19 @@ public enum DialogueFeature
         "condition names a line's tags stand for. Off says the tag's stand-in.")]
     TermNames,
 
+    /// <summary>A name tag whose name can't be read saying "name", reported in Debug builds, rather than being dropped
+    /// (#107). Separate from the dialogue while it is tested.</summary>
+    [SettingKey("speech", "nameStandIn", "Name stand-in", Testing = true, Order = 1183, Description = "A name a " +
+        "line's tag stands for that the mod can't read said as \"name\", rather than left out.")]
+    NameStandIn,
+
+    /// <summary>Button icons saying the button the screen draws on a controller, and "key" on the keyboard (#109).
+    /// Separate from the dialogue while it is tested.</summary>
+    [SettingKey("speech", "buttonNames", "Button names", Testing = true, Order = 1185, Description = "A button " +
+        "icon in a line said as the controller button it shows, where known, or as \"key\" after keyboard input. " +
+        "Needs `termNames`.")]
+    ButtonNames,
+
     /// <summary>A choice saying "Choice, N options", the options spoken as focus moves, not every option up front
     /// (#730). Separate from the dialogue.</summary>
     [SettingKey("speech", "choiceCount", "Choice count", Order = 1190, Description = "A reply choice saying how many " +
