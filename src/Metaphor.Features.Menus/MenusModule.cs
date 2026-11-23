@@ -55,6 +55,7 @@ public sealed class MenusModule : IFeatureModule
         });
         screens.Observe(new QuickMenuFocus(library, menuSpeech, cleaner));
         screens.Observe(new SystemMenuFocus(serials, settings.Speech(MenusFeature.SystemMenu, reader), cleaner));
+        screens.Observe(new BattleOrderFocus(serials, settings.Speech(MenusFeature.BattleOrderMenu, reader), cleaner));
         // The shop's top menu and its Buy and Sell lists, each row by the name the game fetched for it (#736, #197).
         var shopFocus = new ShopFocus(serials, settings.Speech(MenusFeature.ShopMenu, reader), cleaner);
         screens.Observe(shopFocus);

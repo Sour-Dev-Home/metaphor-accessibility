@@ -64,6 +64,7 @@ Each is `true` to speak or `false` to stay quiet, inside a `speech` object: `{ "
 | `battleEnemyPad` | In a battle, `LB` held with D-pad `Down`, `Up` or `Left` does what `K`, `J` and `L` do. Needs `battleHits`. Still being tested. | testing, off |
 | `battleLists` | Battle's skill and item lists, row by row. Separate from `menus`. | `true` |
 | `battleListViews` | Names the rows of battle's skill and item lists after a wrap to the bottom, not only their positions. Needs `battleLists`. Still being tested. | testing, off |
+| `battleOrderMenu` | Battle's Order menu, opened with LB, and its Tactics submenu. Still being tested. | testing, off |
 | `itemMenu` | The Item screen's rows and its party-member list. Still being tested. | testing, off |
 | `calendar` | The Calendar's day grid. | `true` |
 | `battleBanners` | The short banner during a battle turn: a boss warning, a stat change, "Not enough MP!". Still being tested. | testing, off |

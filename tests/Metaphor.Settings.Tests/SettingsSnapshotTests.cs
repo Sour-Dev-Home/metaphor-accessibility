@@ -31,6 +31,7 @@ public sealed class SettingsSnapshotTests
         "speech.battleListViews | Battle list views | off | testing",
         "speech.battleLists | Battle lists | on | done",
         "speech.battleNumberReset | Battle number reset | off | testing",
+        "speech.battleOrderMenu | Battle order menu | off | testing",
         "speech.battleOutcomes | Battle outcomes | on | done",
         "speech.calendar | Calendar | on | done",
         "speech.choiceCount | Choice count | on | done",

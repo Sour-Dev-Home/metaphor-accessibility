@@ -30,6 +30,11 @@ public enum MenusFeature
         "`battleLists`.")]
     BattleListViews,
 
+    /// <summary>Battle's Order menu and its Tactics submenu (#771). Separate from the menus while it is tested.</summary>
+    [SettingKey("speech", "battleOrderMenu", "Battle order menu", Testing = true, Order = 1047, Description =
+        "Battle's Order menu, opened with LB, and its Tactics submenu.")]
+    BattleOrderMenu,
+
     /// <summary>The Item screen's focus (#216). Separate from the menus while it is tested.</summary>
     [SettingKey("speech", "itemMenu", "Item menu", Testing = true, Order = 1050, Description = "The Item screen's " +
         "rows and its party-member list.")]
