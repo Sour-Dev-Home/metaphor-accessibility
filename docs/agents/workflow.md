@@ -61,6 +61,8 @@ A check that looks stalled: `bash scripts/check/check-status.sh` shows who holds
 - Format: the rules for subject, body and trailers, merge commits included, are in
   [commit messages](../contributors/reference/commit-messages.md) (`commit-msg` hook).
 - Add the trailer the session's attribution reminder gives (`Co-Authored-By: ...`).
+- A change players would notice adds a changelog fragment, `changelog.d/<issue>.<kind>.md`, not a line in `CHANGELOG.md`
+  ([how](../../changelog.d/README.md)). Until the older open PRs have merged, a line under `## Unreleased` is accepted too.
 - Stop only processes you started in this task. A check or lock held by someone else: wait, or hand back and say so.
 
 ## Hook, loading, install or update code, and the guards
