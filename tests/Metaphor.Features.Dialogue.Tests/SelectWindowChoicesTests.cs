@@ -19,6 +19,7 @@ public sealed class SelectWindowChoicesTests
     private readonly MessageLibrary library = new();
     private readonly MessageEvents events = new();
     private readonly ChoiceFocus focus;
+    private readonly FakeClock clock = new();
 
     public SelectWindowChoicesTests()
     {
@@ -26,7 +27,7 @@ public sealed class SelectWindowChoicesTests
         library.Compiled(Options);
         library.Compiled(YesNo);
         var cleaner = new TextCleaner(TextCleanerRules.None);
-        var dialogue = new DialogueAnnouncer(announcer, cleaner, new DialogueHistory());
+        var dialogue = new DialogueAnnouncer(announcer, cleaner, new DialogueHistory(), timeProvider: clock);
         var lines = new DialogueLines(library, dialogue);
         events.ObserveLines(lines);
         events.ObserveShownLines(lines);
@@ -39,6 +40,7 @@ public sealed class SelectWindowChoicesTests
         var selects = new SelectWindowChoices(lines, choices, focus);
         events.ObserveChoices(selects);
         events.ObserveSelects(selects);
+        events.ObserveSelects(choices);
     }
 
     private static CursorInput Settle(int row) =>
@@ -49,6 +51,8 @@ public sealed class SelectWindowChoicesTests
     {
         events.SelectOpened(new SelectRequested(kind, "MES_t_001", choice));
         events.Shown(new LineShown(kind, MessageLibrary.LabelHash("MES_t_001")));
+        // The cursor settles on an option after the options are said (#744).
+        clock.Advance(TimeSpan.FromSeconds(1));
     }
 
     private IEnumerable<string> Said() => announcer.Said.Select(said => said.Text);

@@ -91,6 +91,11 @@ public enum Feature
     [SettingKey("speech", "choiceCount", "Choice count", Testing = true)]
     ChoiceCount,
 
+    /// <summary>A choice's options held until the select window opens, not said at once after the prompt (#744).
+    /// Separate from the dialogue while it is tested.</summary>
+    [SettingKey("speech", "choiceDelay", "Choice delay", Testing = true)]
+    ChoiceDelay,
+
     /// <summary>The first-launch welcome (#617). Whether it has been said is <c>welcomed</c>.</summary>
     [SettingKey("speech", "welcome", "Welcome")]
     Welcome,

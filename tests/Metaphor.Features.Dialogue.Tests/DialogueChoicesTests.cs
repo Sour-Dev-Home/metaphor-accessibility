@@ -15,8 +15,25 @@ public sealed class DialogueChoicesTests
     private readonly MessageLibrary messages = new();
     private readonly DialogueHistory history = new();
 
-    private DialogueChoices Choices() =>
-        new(messages, new DialogueAnnouncer(announcer, new TextCleaner(TextCleanerRules.None), history));
+    private readonly FakeClock clock = new();
+    private readonly DialogueAnnouncer dialogue;
+
+    public DialogueChoicesTests() =>
+        dialogue = new DialogueAnnouncer(
+            announcer, new TextCleaner(TextCleanerRules.None), history, timeProvider: clock);
+
+    private DialogueChoices Choices() => new(messages, dialogue);
+
+    // A choice opens and its window follows.
+    private void Open(ChoiceRequested choice)
+    {
+        var choices = Choices();
+        choices.Observe(choice);
+        choices.Observe(Window);
+    }
+
+    // The select window opening, which shows the options (#744).
+    private static readonly SelectRequested Window = new(0, "MES_q", "MES_c");
 
     [Fact]
     public void ThePromptIsKeptInTheHistoryButTheOptionsAreNot()
@@ -40,6 +57,7 @@ public sealed class DialogueChoicesTests
                 announcer, new TextCleaner(TextCleanerRules.None), history, choiceCountOn: () => false));
 
         plain.Observe(new ChoiceRequested(0, "MES_q", "MES_c"));
+        plain.Observe(Window);
 
         Assert.Equal(new Announcement("Choose: North; South", Interrupt: false), announcer.Said[^1]);
     }
@@ -50,7 +68,9 @@ public sealed class DialogueChoicesTests
         messages.Compiled(Prompt);
         messages.Compiled(Options);
 
-        Choices().Observe(new ChoiceRequested(0, "MES_q", "MES_c"));
+        var choices = Choices();
+        choices.Observe(new ChoiceRequested(0, "MES_q", "MES_c"));
+        choices.Observe(Window);
 
         Assert.Equal(
             [
@@ -60,12 +80,107 @@ public sealed class DialogueChoicesTests
             announcer.Said);
     }
 
+    // The options appear on screen some seconds after the line (about 4 s, session c, #744): they are held until the
+    // select window opens, not said after a fixed delay.
+    [Fact]
+    public void OptionsWaitForTheWindowToOpenHoweverLongItTakes()
+    {
+        messages.Compiled(Prompt);
+        messages.Compiled(Options);
+        var choices = Choices();
+
+        choices.Observe(new ChoiceRequested(0, "MES_q", "MES_c"));
+        clock.Advance(TimeSpan.FromSeconds(4));
+
+        Assert.Equal([new Announcement("Ada: Which way?", Interrupt: true)], announcer.Said);
+
+        choices.Observe(Window);
+
+        Assert.Equal(2, announcer.Said.Count);
+        Assert.Equal("Choice, 2 options", announcer.Said[1].Text);
+    }
+
+    [Fact]
+    public void WithTheDelayOffTheOptionsAreSaidAtOnce()
+    {
+        messages.Compiled(Prompt);
+        messages.Compiled(Options);
+        var immediate = new DialogueChoices(
+            messages,
+            new DialogueAnnouncer(
+                announcer, new TextCleaner(TextCleanerRules.None), history, choiceDelayOn: () => false));
+
+        immediate.Observe(new ChoiceRequested(0, "MES_q", "MES_c"));
+
+        Assert.Equal("Choice, 2 options", announcer.Said[^1].Text);
+    }
+
+    [Fact]
+    public void OptionsAreSaidOnceThoughTheWindowOpensAgain()
+    {
+        messages.Compiled(Prompt);
+        messages.Compiled(Options);
+        var choices = Choices();
+
+        choices.Observe(new ChoiceRequested(0, "MES_q", "MES_c"));
+        choices.Observe(Window);
+        choices.Observe(Window);
+
+        Assert.Equal(2, announcer.Said.Count);
+    }
+
+    [Fact]
+    public void OptionsAreSaidAnywayIfTheWindowNeverReportsOpening()
+    {
+        messages.Compiled(Prompt);
+        messages.Compiled(Options);
+
+        Choices().Observe(new ChoiceRequested(0, "MES_q", "MES_c"));
+        clock.Advance(DialogueAnnouncer.HoldLimit);
+
+        Assert.Equal("Choice, 2 options", announcer.Said[^1].Text);
+    }
+
+    [Fact]
+    public void OptionsAreDroppedWhenTheConversationEndsBeforeTheWindowOpens()
+    {
+        messages.Compiled(Prompt);
+        messages.Compiled(Options);
+        var choices = Choices();
+
+        choices.Observe(new ChoiceRequested(0, "MES_q", "MES_c"));
+        dialogue.EndConversation();
+        choices.Observe(Window);
+        clock.Advance(TimeSpan.FromSeconds(30));
+
+        Assert.Equal([new Announcement("Ada: Which way?", Interrupt: true)], announcer.Said);
+    }
+
+    [Fact]
+    public void AReplacedChoiceDropsTheOptionsStillHeld()
+    {
+        messages.Compiled(Prompt);
+        messages.Compiled(Options);
+        messages.Compiled("@MES_d SEL 0\n{\n<SEL_ITEM>East\n<WAIT>\n}");
+        var choices = Choices();
+
+        choices.Observe(new ChoiceRequested(0, "MES_q", "MES_c"));
+        choices.Observe(new ChoiceRequested(0, "MES_q", "MES_d"));
+        choices.Observe(Window);
+
+        Assert.Equal(
+            ["Ada: Which way?", "Which way?", "Choice, 1 option"],
+            announcer.Said.Select(said => said.Text));
+    }
+
     [Fact]
     public void AChoiceLabelNoCompiledFileHasSaysChoice()
     {
         messages.Compiled(Prompt);
 
-        Choices().Observe(new ChoiceRequested(0, "MES_q", "MES_missing"));
+        var choices = Choices();
+        choices.Observe(new ChoiceRequested(0, "MES_q", "MES_missing"));
+        choices.Observe(Window);
 
         Assert.Equal(
             [new Announcement("Ada: Which way?", Interrupt: true), new Announcement("Choice", Interrupt: false)],
@@ -75,7 +190,7 @@ public sealed class DialogueChoicesTests
     [Fact]
     public void AnUnreadableChoiceLabelSaysChoice()
     {
-        Choices().Observe(new ChoiceRequested(0, null, null));
+        Open(new ChoiceRequested(0, null, null));
 
         Assert.Equal([new Announcement("Choice", Interrupt: false)], announcer.Said);
     }
@@ -85,7 +200,7 @@ public sealed class DialogueChoicesTests
     {
         messages.Compiled("@MES_c\n{\n<SEL_ITEM>\n<WAIT>\n}");
 
-        Choices().Observe(new ChoiceRequested(0, "MES_missing", "MES_c"));
+        Open(new ChoiceRequested(0, "MES_missing", "MES_c"));
 
         Assert.Equal([new Announcement("Choice", Interrupt: false)], announcer.Said);
     }
@@ -98,7 +213,7 @@ public sealed class DialogueChoicesTests
     {
         messages.Compiled($"@MES_c SEL 0\n{{\n<SEL_ITEM>North\n\n{dots}\n<WAIT>\n}}");
 
-        Choices().Observe(new ChoiceRequested(0, "MES_missing", "MES_c"));
+        Open(new ChoiceRequested(0, "MES_missing", "MES_c"));
 
         Assert.Equal([new Announcement("Choice, 2 options", Interrupt: false)], announcer.Said);
     }
@@ -108,7 +223,7 @@ public sealed class DialogueChoicesTests
     {
         messages.Compiled("@MES_c SEL 0\n{\n<SEL_ITEM>Well...\n<WAIT>\n}");
 
-        Choices().Observe(new ChoiceRequested(0, "MES_missing", "MES_c"));
+        Open(new ChoiceRequested(0, "MES_missing", "MES_c"));
 
         Assert.Equal([new Announcement("Choice, 1 option", Interrupt: false)], announcer.Said);
     }
