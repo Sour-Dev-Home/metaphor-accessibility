@@ -83,6 +83,7 @@ the game.
 | Setting | What it does | Default |
 |---|---|---|
 | `nearby` | The nearby list: N, or LB with Down and Up on the D-pad. | `true` |
+| `nearbyCategories` | The nearby list's categories: `]` and `[`, or the pad chord if you bind one. | `true` |
 | `whereAmI` | "Where am I": L, or LB with Left on the D-pad. | `true` |
 | `guidance` | The guidance beep toward a nearby thing: G, or LB with Right on the D-pad. | `true` |
 | `guidancePause` | The beep pausing, not ending, while the game has control (a cutscene or a line), and coming back once free roam has held. Needs `guidance`. Still being tested. | testing, off |
@@ -149,6 +150,11 @@ DpadUp, DpadDown, DpadLeft and DpadRight.
 | `field.guideButton` | With the held button: starts or stops the guidance beep. | `"DpadRight"` |
 | `field.nextKey` | The next thing on the nearby list, from the keyboard. | `"K"` |
 | `field.previousKey` | The thing before, from the keyboard. | `"J"` |
+| `field.categoryNextKey` | The next nearby category, from the keyboard. | `"]"` |
+| `field.categoryPreviousKey` | The category before. | `"["` |
+| `field.categoryHoldButtons` | Held for the pad's category chord. | `"none"` |
+| `field.categoryButton` | With the held button: the next nearby category. | `"none"` |
+| `field.identifyKey` | Debug builds only: logs the nearest thing for the names table. | `"I"` |
 | `report.markKey` | Writes a marker to the report log. Keyboard only for now. | `"F8"` |
 
 A key the game also uses still reaches the game whenever the mod isn't using it, so choose one the game leaves free

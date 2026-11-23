@@ -293,6 +293,7 @@ Describe 'the package' {
         }
         $project | Should -Match ([regex]::Escape('<None Include="../Metaphor.Core/known-game-builds.json" Link="known-game-builds.json"'))
         $project | Should -Match ([regex]::Escape('<None Include="prism.json" CopyToPublishDirectory'))
+        $project | Should -Match ([regex]::Escape('<None Include="../../data/names/*.json" Link="data/names/%(Filename)%(Extension)"'))
         $project | Should -Not -Match 'scripts/dev/ReloadedDev\.psm1'
     }
 

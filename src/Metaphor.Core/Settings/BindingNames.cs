@@ -11,12 +11,13 @@ public static class BindingNames
     public const string None = "none";
 
     // Windows virtual-key codes (VK_* in WinUser.h, Windows SDK 10.0.26100.0): letters are their capital's ASCII code,
-    // digits their ASCII code, F1 to F12 0x70 to 0x7B. The game's keyboard read lists codes like these:
+    // digits their ASCII code, F1 to F12 0x70 to 0x7B, [ VK_OEM_4 0xDB and ] VK_OEM_6 0xDD (US layout). The game's keyboard read lists codes like these:
     // docs/raw-sources/pad-and-keyboard-state-2026-11-16.md.
     private static readonly FrozenDictionary<string, int> KeyCodes = Enumerable.Range('A', 26)
         .Select(code => (Name: ((char)code).ToString(), Code: code))
         .Concat(Enumerable.Range('0', 10).Select(code => (Name: ((char)code).ToString(), Code: code)))
         .Concat(Enumerable.Range(1, 12).Select(n => (Name: string.Create(CultureInfo.InvariantCulture, $"F{n}"), Code: 0x6F + n)))
+        .Concat([(Name: "[", Code: 0xDB), (Name: "]", Code: 0xDD)])
         .ToFrozenDictionary(key => key.Name, key => key.Code, StringComparer.OrdinalIgnoreCase);
 
     // Bits of the game's 16-bit pad mask by XInput button, on game build 548ddc95 (Steam build 18330018):

@@ -15,9 +15,24 @@ public sealed record NearbyThing(FieldUnit Unit, double Distance, double Bearing
     {
         var steps = Nearby.Steps(Distance);
         var text = string.Create(CultureInfo.InvariantCulture,
-            $"{Unit.Name ?? Nearby.KindWord(Unit.Kind)}, {steps} {(steps == 1 ? "step" : "steps")} {Nearby.Direction(Bearing)}");
+            $"{Unit.Name ?? Nearby.KindWord(Unit.Says)}, {steps} {(steps == 1 ? "step" : "steps")} {Nearby.Direction(Bearing)}");
         return InReach ? text + ", in reach" : text;
     }
+}
+
+/// <summary>Which things the nearby list holds (#697): everything, or one category, per the maintainer's decision of
+/// 2026-11-22 on #697. The category design comes from Arcana, the Persona 3 Reload accessibility mod
+/// (<c>ChipsAhoiMcCoy/arcana</c>, Zlib, <c>main</c> at <c>ed3b005f86b1cde27e30ab299ae91af3d974c988</c>,
+/// <c>CHANGELOG.md</c> "0.5.0 / Field" and <c>src/nav.cpp</c>; docs/raw-sources/arcana-combat-navigation-2026-11-22.md).
+/// No code is copied.</summary>
+public enum NearbyCategory
+{
+    Everything,
+    People,
+    DoorsAndExits,
+    ChestsAndItems,
+    Enemies,
+    Examine,
 }
 
 /// <summary>The nearby list (#181), per the maintainer's decisions of 2026-11-21 on #181: things within about 30 metres,
@@ -45,10 +60,11 @@ public static class Nearby
 
     /// <summary>The things of <paramref name="view"/> within <see cref="Radius"/>, nearest first, at most
     /// <see cref="MaxThings"/>.</summary>
-    public static IReadOnlyList<NearbyThing> List(FieldView view)
+    public static IReadOnlyList<NearbyThing> List(FieldView view, NearbyCategory category = NearbyCategory.Everything)
     {
         ArgumentNullException.ThrowIfNull(view);
         return [.. view.Units
+            .Where(unit => category == NearbyCategory.Everything || CategoryOf(unit.Says) == category)
             .Select(unit => Place(view, unit))
             .Where(thing => thing.Distance <= Radius)
             .OrderBy(thing => thing.Distance)
@@ -71,13 +87,50 @@ public static class Nearby
 
     /// <summary>What a nameless thing is called. Doors are "Door", never "Exit", until a session proves which leave the
     /// map (maintainer, 2026-11-21).</summary>
-    public static string KindWord(FieldKind kind) => kind switch
+    public static string KindWord(FieldKind kind) => KindWord(KindOf(kind));
+
+    /// <summary>What a nameless thing of <paramref name="kind"/> is called. "Exit", "Item" and "Something to examine"
+    /// come only from a names-table row (#687).</summary>
+    public static string KindWord(NearbyKind kind) => kind switch
     {
-        FieldKind.Person => "Person",
-        FieldKind.Door => "Door",
-        FieldKind.Chest => "Chest",
-        FieldKind.Enemy => "Enemy",
+        NearbyKind.Person => "Person",
+        NearbyKind.Door => "Door",
+        NearbyKind.Exit => "Exit",
+        NearbyKind.Chest => "Chest",
+        NearbyKind.Item => "Item",
+        NearbyKind.Enemy => "Enemy",
+        NearbyKind.Examine => "Something to examine",
         _ => "Thing",
+    };
+
+    /// <summary>The kind a unit of <paramref name="kind"/>'s list is spoken as before any names-table row.</summary>
+    public static NearbyKind KindOf(FieldKind kind) => kind switch
+    {
+        FieldKind.Door => NearbyKind.Door,
+        FieldKind.Chest => NearbyKind.Chest,
+        FieldKind.Enemy => NearbyKind.Enemy,
+        _ => NearbyKind.Person,
+    };
+
+    /// <summary>The category a thing of <paramref name="kind"/> is listed under.</summary>
+    public static NearbyCategory CategoryOf(NearbyKind kind) => kind switch
+    {
+        NearbyKind.Person => NearbyCategory.People,
+        NearbyKind.Door or NearbyKind.Exit => NearbyCategory.DoorsAndExits,
+        NearbyKind.Chest or NearbyKind.Item => NearbyCategory.ChestsAndItems,
+        NearbyKind.Enemy => NearbyCategory.Enemies,
+        _ => NearbyCategory.Examine,
+    };
+
+    /// <summary>A category's spoken name.</summary>
+    public static string CategoryWord(NearbyCategory category) => category switch
+    {
+        NearbyCategory.People => "People",
+        NearbyCategory.DoorsAndExits => "Doors and exits",
+        NearbyCategory.ChestsAndItems => "Chests and items",
+        NearbyCategory.Enemies => "Enemies",
+        NearbyCategory.Examine => "Examine",
+        _ => "Everything",
     };
 
     /// <summary>One of eight directions for a bearing, left positive: ahead, ahead-left, left, behind-left, behind,

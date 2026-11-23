@@ -78,6 +78,13 @@ internal sealed class FieldMemory(
     private const int NpcBlockSize = 0x30;
     private const int NpcDirectKind = 7;
     private const int NpcDirectIndex = 0x2c;
+    // The model id at +0x3634 that fldNpc::vf5 (0x67b9e0) sets for every kind; logged only, to learn whether it tells a
+    // character from an object that talks (#687; docs/findings/field-npc-kinds-objects-static.md).
+    private const int NpcModel = 0x4;
+    // A gimmick's layout index (doors and chests), which FldGimmickLayoutName (0x697a70) looks up
+    // (docs/raw-sources/field-actors-2026-11-16.md): the names table's object id. Stable across loads is [NEEDS
+    // VERIFICATION].
+    private const int GimmickLayout = 0x2888;
     // NpcID.bin: 0x20-byte entries, up to 0x99d, the CharaID index a u16 at +0x4 (0xffff for none).
     private const int NpcEntrySize = 0x20;
     private const int NpcLast = 0x99d;
@@ -205,12 +212,12 @@ internal sealed class FieldMemory(
             {
                 continue;
             }
-            var (name, raw) = Identify(kind, unit);
-            units.Add(new FieldUnit(kind, at.X, at.Y, at.Z, name, raw));
+            var (name, raw, id) = Identify(kind, unit);
+            units.Add(new FieldUnit(kind, at.X, at.Y, at.Z, name, raw, id));
         }
     }
 
-    private (string? Name, string Raw) Identify(FieldKind kind, nint unit)
+    private (string? Name, string Raw, string? Id) Identify(FieldKind kind, nint unit)
     {
         switch (kind)
         {
@@ -218,7 +225,7 @@ internal sealed class FieldMemory(
                 var block = new byte[NpcBlockSize];
                 if (!ModuleMemoryReader.ReadBytes(unit + NpcBlock, block))
                 {
-                    return (null, "npc=?");
+                    return (null, "npc=?", null);
                 }
                 var npcKind = BinaryPrimitives.ReadInt32LittleEndian(block);
                 var index = BinaryPrimitives.ReadInt32LittleEndian(block.AsSpan(NpcDirectIndex));
@@ -228,19 +235,44 @@ internal sealed class FieldMemory(
                 {
                     chara = BinaryPrimitives.ReadUInt16LittleEndian(entry.AsSpan(4));
                 }
+                var model = BinaryPrimitives.ReadInt32LittleEndian(block.AsSpan(NpcModel));
+                var source = NpcSource(npcKind) is { } at ? BinaryPrimitives.ReadInt32LittleEndian(block.AsSpan(at)) : (int?)null;
                 var raw = string.Create(CultureInfo.InvariantCulture,
-                    $"npcKind={npcKind} npcIndex={index} chara={chara?.ToString(CultureInfo.InvariantCulture) ?? "?"}");
-                return (chara is { } character ? names.Character(character) : null, raw);
+                    $"npcKind={npcKind} npcIndex={index} source={Number(source)} model={model} chara={chara?.ToString(CultureInfo.InvariantCulture) ?? "?"}");
+                var id = source is { } row and >= 0 and <= 0xffff
+                    ? string.Create(CultureInfo.InvariantCulture, $"npc-{npcKind}-{row}") : null;
+                return (chara is { } character ? names.Character(character) : null, raw, id);
             case FieldKind.Enemy:
                 return (null, string.Create(CultureInfo.InvariantCulture,
-                    $"enemyRow={Number(ModuleMemoryReader.ReadInt32(unit + EnemyRow) & 0xffff)}"));
+                    $"enemyRow={Number(ModuleMemoryReader.ReadInt32(unit + EnemyRow) & 0xffff)}"), null);
             case FieldKind.Door:
+                var doorLayout = ModuleMemoryReader.ReadInt32(unit + GimmickLayout);
                 return (null, string.Create(CultureInfo.InvariantCulture,
-                    $"link={Number(ModuleMemoryReader.ReadInt32(unit + DoorLink))}"));
+                    $"link={Number(ModuleMemoryReader.ReadInt32(unit + DoorLink))} layout={Number(doorLayout)}"),
+                    LayoutId("door", doorLayout));
+            case FieldKind.Chest:
+                var chestLayout = ModuleMemoryReader.ReadInt32(unit + GimmickLayout);
+                return (null, string.Create(CultureInfo.InvariantCulture, $"layout={Number(chestLayout)}"),
+                    LayoutId("chest", chestLayout));
             default:
-                return (null, "");
+                return (null, "", null);
         }
     }
+
+    // Where each NpcID kind keeps the index it was made from, from npc+0x3630, as fldNpc::vf5 (0x67b9e0) writes it.
+    private static int? NpcSource(int npcKind) => npcKind switch
+    {
+        0 => 0x8,
+        1 => 0xc,
+        2 or 3 or 4 => 0x18,
+        5 => 0x20,
+        6 => 0x28,
+        7 => NpcDirectIndex,
+        _ => null,
+    };
+
+    private static string? LayoutId(string prefix, int? layout) => layout is { } index and >= 0 and <= 999_999
+        ? string.Create(CultureInfo.InvariantCulture, $"{prefix}-{index}") : null;
 
     private static string Number(int? value) => value?.ToString(CultureInfo.InvariantCulture) ?? "?";
 

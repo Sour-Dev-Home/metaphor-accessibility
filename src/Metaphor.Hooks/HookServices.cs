@@ -333,16 +333,20 @@ internal sealed record HookServices
         var field = new FieldMemory(fieldWorld, fieldScene, fieldDatabase, personTable, names, menusOpen, window);
         var place = new FieldPlace(cleaner);
         events.ObserveFiles(place);
+        // The names table (#687) ships as data/names/<map>.json in the mod folder; the checks keep each file to the
+        // schema, and a bad one is skipped (said in the dev log) so the rest still name things.
+        var nearbyNames = NamesTable.Load(
+            Path.Combine(modFolder, "data", "names"), problem => log?.FieldRead("names table: " + problem));
         // The beacon's routes (#690) run over the map's .NAV cells, read off the game's thread from the archive beside
         // the exe, opened read-only for each file (NavMeshSource). The map's file is named by the archive's map table
         // (NavMapFiles, #741), read once on the first route.
         var navLog = log is null ? (Action<string>)(_ => { }) : log.FieldRead;
         var navMeshes = new NavMeshSource(OpenArchive, navLog);
         var routes = new NavRoutePlanner(NavMapFiles.FromArchive(OpenArchive, navLog), navMeshes.Load);
-        // Its settings, the nearby list, "where am I" and the guidance beep, are read by the controls on each read (#661).
+        // Its settings, the nearby list, its categories, "where am I" and guidance, are read on each read (#661).
         var fieldControls = new FieldControls(
             settings.Live(FieldBindings.From), feature => settings.Current.IsOn(feature), field, place, announcer,
-            cues, () => Environment.TickCount64, log is null ? null : log.FieldRead,
+            cues, () => Environment.TickCount64, log is null ? null : log.FieldRead, nearbyNames,
             new ReachCallouts(field, settings.Speech(Feature.Reach, announcer), () => Environment.TickCount64), routes);
         if (silence is not null)
         {

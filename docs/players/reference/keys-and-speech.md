@@ -20,6 +20,7 @@ usual job in the game.
 | Step to the previous thing | `J` | `LB` held, then D-pad `Up` | Walking in the field |
 | Say where you are | `L` | `LB` held, then D-pad `Left` | Walking in the field |
 | Guide you to a nearby thing with a beep | `G` | `LB` held, then D-pad `Right` | Walking in the field |
+| Next or previous nearby category | `]` and `[` | none yet | Walking in the field |
 | Read more of the focused menu entry | `F` | Right stick press (`R3`) | A menu is open |
 | Note a moment for your report ([mark key](#mark-key-note-a-moment-for-your-report)) | `F8` | none | Anywhere in the game |
 
@@ -60,6 +61,9 @@ anywhere.
   means you can probably use it from where you stand and face. With nothing near: "Nothing nearby".
 - `K` and `J`, or the pad's `LB` and D-pad `Down` and `Up`, step through the same list, such as "2 of 5. Door, 9 steps
   behind"; after 10 seconds without a step it starts again at the nearest.
+- `]` and `[` move the list to the next or previous category, and say it and how many are near, such as "Doors and
+  exits, 2 nearby". The categories are Everything, People, Doors and exits, Chests and items, Enemies and Examine.
+  `N`, the steps and `G` then keep to that category. The controller's `RB` with `Y` comes later.
 - `L` says the place name the game last showed, or "Place not known yet".
 - `G`, or `LB` and D-pad `Right`, guides you to the thing you last stepped to, or to the nearest thing you aren't
   already at if you haven't stepped in the last 10 seconds. At it already: "Already next to", then the name. Otherwise

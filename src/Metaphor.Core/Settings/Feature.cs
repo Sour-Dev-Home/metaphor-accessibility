@@ -91,6 +91,10 @@ public enum Feature
     [SettingKey("field", "nearby", "Nearby list")]
     Nearby,
 
+    /// <summary>The nearby list's categories and their keys (#697, #661).</summary>
+    [SettingKey("field", "nearbyCategories", "Nearby categories")]
+    NearbyCategories,
+
     /// <summary>"Where am I" (#181).</summary>
     [SettingKey("field", "whereAmI", "Where am I")]
     WhereAmI,
