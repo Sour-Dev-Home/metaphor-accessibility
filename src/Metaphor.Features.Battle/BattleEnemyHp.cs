@@ -14,7 +14,7 @@ namespace Metaphor.Features.Battle;
 /// all-enemies buttons (D-pad Down, Up and Left) does the same, mirroring the field list. <see cref="Keyboard"/> and
 /// <see cref="Pad"/> are separate controls, so each can wait for its own by-ear check. Each key acts as
 /// <see cref="BattleKey"/> does: pressed alone in a battle it is hidden from the game, elsewhere it reaches it; a chord
-/// hides only its D-pad button. A step keeps to the enemy, not its place, so a newly hit enemy doesn't move it, and a
+/// hides only its D-pad button, and the shoulder taps hold LB back (#811, <see cref="HeldShoulders"/>). A step keeps to the enemy, not its place, so a newly hit enemy doesn't move it, and a
 /// battle's end forgets it. The wiring puts these after the menu controls, which take a key first while a battle list
 /// is shown.</summary>
 /// <remarks>The design is the targeted enemy's HP alone, but which enemy is targeted is <c>[NEEDS VERIFICATION]</c>:
@@ -27,6 +27,8 @@ public sealed class BattleEnemyHp
 {
     private const string NoEnemy = "No enemy hit yet";
 
+    private readonly Func<BattleBindings> bindings;
+    private readonly IBattleScene scene;
     private readonly HitLines hits;
     private readonly IAnnouncer announcer;
     private readonly Action<string>? log;
@@ -44,6 +46,8 @@ public sealed class BattleEnemyHp
         ArgumentNullException.ThrowIfNull(hits);
         ArgumentNullException.ThrowIfNull(scene);
         ArgumentNullException.ThrowIfNull(announcer);
+        this.bindings = bindings;
+        this.scene = scene;
         this.hits = hits;
         this.announcer = announcer;
         this.log = log;
@@ -64,6 +68,15 @@ public sealed class BattleEnemyHp
 
     /// <summary>The pad's chords, LB held with D-pad Down, Up and Left by default.</summary>
     public IInputControls Pad { get; }
+
+    /// <summary>The pad chords' hold for the shoulder taps (#811): in a battle, the hold buttons while any chord is
+    /// bound, so LB is kept from the game (which opens Tactics on it) until it's let go; 0 outside one.</summary>
+    public int HeldShoulders()
+    {
+        var b = bindings();
+        var bound = b.EnemyHpButton != 0 || b.EnemyNextButton != 0 || b.EnemyPreviousButton != 0;
+        return bound && scene.InBattle() ? b.EnemyHoldButtons : 0;
+    }
 
     // The hold buttons with one more, hiding only that one; unbound when that one is.
     private static BattleKey Chord(

@@ -18,6 +18,7 @@ namespace Metaphor.Core.Features;
 public sealed class FeatureContext
 {
     private readonly List<IInputControls> controls = [];
+    private readonly List<Func<int>> shoulderHolds = [];
     private readonly Dictionary<Type, object> ports = [];
 
     /// <summary>The settings in force, and the gates each feature speaks and takes keys through (#661).</summary>
@@ -109,6 +110,18 @@ public sealed class FeatureContext
     {
         ArgumentNullException.ThrowIfNull(added);
         controls.Add(added);
+    }
+
+    /// <summary>The shoulder holds, in the order they were added (<see cref="AddShoulderHold"/>).</summary>
+    public IReadOnlyList<Func<int>> ShoulderHolds => shoulderHolds;
+
+    /// <summary>Adds a hold for the shoulder taps (#811, <see cref="ShoulderTaps"/>): <paramref name="held"/> says
+    /// which of LB and RB the feature's chords use right now, 0 for none, asked as a shoulder goes down and as it's let
+    /// go. A feature gates it on its own setting.</summary>
+    public void AddShoulderHold(Func<int> held)
+    {
+        ArgumentNullException.ThrowIfNull(held);
+        shoulderHolds.Add(held);
     }
 
     /// <summary>Leaves <paramref name="port"/> for whoever asks for a <typeparamref name="T"/>. A second one of the

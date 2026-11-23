@@ -30,9 +30,10 @@ public enum BattleFeature
     BattleEnemyKeys,
 
     /// <summary>The pad's enemy HP chords (#767): LB held with D-pad Down, Up or Left, as <see cref="BattleEnemyKeys"/>.
-    /// Whether holding LB in a battle does its own action first is <c>[NEEDS VERIFICATION]</c> by ear.</summary>
+    /// LB opens Tactics as it goes down, so it reaches the game only when let go with no chord (#811).</summary>
     [SettingKey("speech", "battleEnemyPad", "Battle enemy pad chords", Testing = true, Order = 1037, Description =
-        "In a battle, `LB` held with D-pad `Down`, `Up` or `Left` does what `K`, `J` and `L` do. Needs `battleHits`.")]
+        "In a battle, `LB` held with D-pad `Down`, `Up` or `Left` does what `K`, `J` and `L` do. `LB` tapped alone " +
+        "opens Tactics when you let go. Needs `battleHits`.")]
     BattleEnemyPad,
 
     /// <summary>The in-turn situation banner: a boss warning, a stat change, "Not enough MP!" (#692, #661).</summary>

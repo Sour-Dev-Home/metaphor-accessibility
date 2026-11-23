@@ -65,8 +65,10 @@ public readonly record struct KeysAnswer(IReadOnlyList<int> Keys, long? Window);
 /// controls a read of the window and the menu screens a read of whether the menus are open, then the read to the menu
 /// controls first and what they leave to the dialogue controls, so in a menu the reader binding toggles once, through
 /// them. A pad read the game reports as not made (#225) fires nothing and comes back unchanged. The answer only ever
-/// clears bits or drops keys from the read, so the hook's write-back can't add input the game didn't see. It keeps no
-/// state of its own; the controls lock theirs, so any of the game's threads may call it.</summary>
+/// clears bits or drops keys from the read, so the hook's write-back can't add input the game didn't see, with one
+/// exception: the shoulder taps (#811, <see cref="ShoulderTaps"/>), applied after every control, hand on a tap of LB or
+/// RB for a few reads after the player let go of it, a press the game held back but did see. It keeps no state of its
+/// own; the controls and the taps lock theirs, so any of the game's threads may call it.</summary>
 public sealed class InputFrame
 {
     private readonly IGameInputState game;
@@ -77,6 +79,7 @@ public sealed class InputFrame
     private readonly IPadWatcher? padWatcher;
     private readonly LastInputDevice? lastDevice;
     private readonly Func<bool>? typing;
+    private readonly ShoulderTaps? taps;
 
     public InputFrame(IGameInputState game, MenuScreens screens, IInputControls menus, IWindowInputControls dialogue)
         : this(game, screens, menus, dialogue, NoControls)
@@ -102,12 +105,14 @@ public sealed class InputFrame
     /// before left (#784, the feature modules' order); those that take window reads get each one first. The watchers
     /// are as above. While <paramref name="typing"/> says the game takes typed text (the name entry screen), the keys
     /// that type a character reach no control and always reach the game, so a name with a T in it doesn't turn the
-    /// reader off (#807); other keys, such as F8, go to the controls as usual.</summary>
+    /// reader off (#807); other keys, such as F8, go to the controls as usual. <paramref name="taps"/>, when given, takes
+    /// each pad read after the controls: they see a held shoulder, the game a tap of it on release (#811).</summary>
     public InputFrame(
         IGameInputState game, MenuScreens screens, IReadOnlyList<IInputControls> controls, IKeyWatcher? watcher,
-        IPadWatcher? padWatcher, LastInputDevice? lastDevice, Func<bool>? typing = null)
+        IPadWatcher? padWatcher, LastInputDevice? lastDevice, Func<bool>? typing = null, ShoulderTaps? taps = null)
     {
         this.typing = typing;
+        this.taps = taps;
         ArgumentNullException.ThrowIfNull(game);
         ArgumentNullException.ThrowIfNull(screens);
         ArgumentNullException.ThrowIfNull(controls);
@@ -121,7 +126,7 @@ public sealed class InputFrame
     }
 
     /// <summary>Takes one read of <paramref name="pad"/>'s 16-bit <paramref name="buttons"/>, made or not, and returns
-    /// the buttons to hand the game: a subset of them.</summary>
+    /// the buttons to hand the game: a subset of them, but for a shoulder tap being replayed (#811).</summary>
     public PadAnswer Pad(int pad, int buttons, bool made)
     {
         var window = ReadState();
@@ -132,7 +137,8 @@ public sealed class InputFrame
         {
             handed = control.Pad(pad, handed, made);
         }
-        return new(handed & buttons, window);
+        handed &= buttons;
+        return new(taps?.Pad(pad, buttons, handed, made) ?? handed, window);
     }
 
     /// <summary>Takes one read of the keys held down and returns the keys to hand the game: <paramref name="keys"/>

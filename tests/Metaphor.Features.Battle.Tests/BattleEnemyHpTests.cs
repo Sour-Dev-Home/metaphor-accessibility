@@ -1,5 +1,6 @@
 using Metaphor.Core.Announcements;
 using Metaphor.Core.Battle;
+using Metaphor.Core.Input;
 using Metaphor.Core.Settings;
 
 namespace Metaphor.Features.Battle.Tests;
@@ -285,6 +286,51 @@ public sealed class BattleEnemyHpTests
         Press(KeyL);
 
         Assert.Equal(["enemies=1 Enemy record=0xa0 hp=840 max=1200"], logged);
+    }
+
+    // #811: LB opens Tactics as it goes down, so in a battle the pad chords hold LB back until it's let go; held with the
+    // D-pad it's the chord and the game never sees it, tapped alone it reaches the game on release.
+    private int ChordThroughTaps(ShoulderTaps taps, int buttons) =>
+        taps.Pad(0, buttons, enemies.Pad.Pad(0, buttons, made: true), made: true);
+
+    [Fact]
+    public void InABattleLbWithTheDpadIsTheChordAndNeverReachesTheGame()
+    {
+        var taps = new ShoulderTaps([enemies.HeldShoulders], () => 0);
+        TwoEnemiesHit();
+
+        var handed = new[]
+        {
+            ChordThroughTaps(taps, LB), ChordThroughTaps(taps, LB | DpadDown), ChordThroughTaps(taps, LB),
+            ChordThroughTaps(taps, 0), ChordThroughTaps(taps, 0), ChordThroughTaps(taps, 0),
+        };
+
+        Assert.Equal([0, 0, 0, 0, 0, 0], handed);
+        Assert.Equal(["First enemy, 840 of 1200"], Said());
+    }
+
+    [Fact]
+    public void InABattleALoneLbTapReachesTheGameOnRelease()
+    {
+        var taps = new ShoulderTaps([enemies.HeldShoulders], () => 0);
+
+        Assert.Equal(0, ChordThroughTaps(taps, LB));
+        Assert.Equal(0, ChordThroughTaps(taps, LB));
+        Assert.Equal(LB, ChordThroughTaps(taps, 0));
+        Assert.Empty(Said());
+    }
+
+    [Fact]
+    public void OutsideABattleOrWithTheChordsUnboundLbIsNotHeld()
+    {
+        var unbound = new BattleEnemyHp(
+            () => BattleBindings.Default with { EnemyHpButton = 0, EnemyNextButton = 0, EnemyPreviousButton = 0 },
+            hits, scene, announcer);
+
+        Assert.Equal(LB, enemies.HeldShoulders() & LB);
+        Assert.Equal(0, unbound.HeldShoulders());
+        scene.On = false;
+        Assert.Equal(0, enemies.HeldShoulders());
     }
 
     private sealed class Scene : IBattleScene

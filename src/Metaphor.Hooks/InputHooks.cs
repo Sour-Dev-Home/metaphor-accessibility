@@ -18,7 +18,8 @@ namespace Metaphor.Hooks;
 // (MenusOpenRead, #268), whose globals the loader locates on its own (#300); a reader whose signature didn't match reads
 // as unknown without keeping either hook out. Every read goes through ModuleMemoryReader (rule 10); the one write is
 // WriteProcessMemory on this process into the state the original has just filled, and the frame's answer only clears
-// bits or drops keys from it. WriteProcessMemory fails instead of faulting, but it also writes through read-only pages,
+// bits or drops keys from it, but for a shoulder tap (#811): LB or RB set for a few pad reads after the player let go
+// of it, in the same 16-bit mask. WriteProcessMemory fails instead of faulting, but it also writes through read-only pages,
 // so it is safe only on memory known to be the game's own writable data, never on an arbitrary pointer. In Debug builds
 // each change of a read is logged, as #58's input spike did (numbers only, no game text). The functions, their arguments
 // and the names (ours) are in docs/raw-sources/input-route-2026-11-16.md; the layout of what they write is in
@@ -35,10 +36,10 @@ internal sealed class GameInputReads(DialogueWindowPointer window, MenusOpenRead
     /// <summary>The input frame over <paramref name="services"/>' readers, menu screens and controls, which take each
     /// read in the feature modules' order (#784): the mark key, the menus, the battle status and enemy HP keys (#631),
     /// the dialogue, the field (#181); and its key and pad watchers. While a name entry screen is up, the keys that
-    /// type a name reach no control (#807).</summary>
+    /// type a name reach no control (#807). The shoulder taps take each pad read after the controls (#811).</summary>
     public static InputFrame Frame(HookServices services) =>
         new(new GameInputReads(services.DialogueWindow, services.MenusOpen), services.MenuScreens, services.Controls,
-            services.KeyWatcher, services.PadWatcher, services.LastDevice, services.NameEntryUp);
+            services.KeyWatcher, services.PadWatcher, services.LastDevice, services.NameEntryUp, services.ShoulderTaps);
 }
 
 /// <summary>The pad read: <c>(32-bit pad number, pointer to the game's pad state) → al</c>; it writes the game's own
