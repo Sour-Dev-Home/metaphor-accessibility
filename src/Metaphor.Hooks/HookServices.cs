@@ -207,7 +207,8 @@ internal sealed record HookServices
         var terms = new GameTerms(filePositions, log is null ? null : log.PlaceholderMissing);
         var cleaner = new TextCleaner(
             GameNames.Rules.With(GameTerms.Rules),
-            (key, arguments) => names.Placeholder(key, arguments) ?? terms.Placeholder(key, arguments));
+            (key, arguments) => names.Placeholder(key, arguments)
+                ?? (settings.Current.IsOn(Feature.TermNames) ? terms.Placeholder(key, arguments) : null));
         // Lines go through the reader on/off switch; the repeat and the switch's own state are spoken either way.
         // Auto follows the game's voice language, read on each line (#538); unknown speaks the full line.
         var reader = new DialogueReader(announcer);

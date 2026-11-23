@@ -44,8 +44,7 @@ below: in a normal install it stays off until you set it to `true`, and it turns
 the check passes. Release builds never turn it on for you. For a contributor, a by-ear session
 (`scripts/dev/session.ps1 deploy` or `run`) turns every testing feature on for that session only and never edits your
 `settings.json`; a value you set in the file still wins. Passing the check is a one-line pull request that removes
-`Testing = true` from the feature's `[SettingKey]` in `Feature.cs` and the `testing, off` from its row here. No
-feature is in testing now.
+`Testing = true` from the feature's `[SettingKey]` in `Feature.cs` and the `testing, off` from its row here.
 
 ## Speech
 
@@ -68,6 +67,7 @@ Each is `true` to speak or `false` to stay quiet, inside a `speech` object: `{ "
 | `placeNames` | The place name the game shows as you arrive somewhere. | `true` |
 | `updateNotice` | The title screen's notice of a newer version. The request itself is `checkForUpdates`. | `true` |
 | `tutorials` | Tutorial pop-ups: the title, the page count and each page. Off also leaves the repeat key to repeat dialogue, not the pop-up's page. | `true` |
+| `termNames` | The skill and condition names a line's tags stand for. Off says the tag's stand-in. Still being tested. | testing, off |
 | `choiceCount` | A reply choice saying how many options there are, with each option said as the focus moves, rather than every option up front. Needs `dialogue`. Still being tested. | testing, off |
 | `choiceDelay` | A reply choice's options waiting until they are on screen, not said straight after the prompt. Needs `dialogue`. Still being tested. | testing, off |
 | `welcome` | The welcome on the title screen the first time the game starts with the mod: the mod's version and the field keys. | `true` |

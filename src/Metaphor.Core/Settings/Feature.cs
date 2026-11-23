@@ -95,7 +95,12 @@ public enum Feature
     [SettingKey("field", "reach", "Reach callouts")]
     Reach,
 
-    /// <summary>A choice saying "Choice, N options", the options spoken as focus moves, not every option up front
+    /// <summary>Skill and condition names said for their tags in a line (#108). Separate from the dialogue while it
+    /// is tested; off, a tag says its stand-in.</summary>
+    [SettingKey("speech", "termNames", "Term names", Testing = true)]
+    TermNames,
+
+    ///<summary>A choice saying "Choice, N options", the options spoken as focus moves, not every option up front
     /// (#730). Separate from the dialogue while it is tested.</summary>
     [SettingKey("speech", "choiceCount", "Choice count", Testing = true)]
     ChoiceCount,
