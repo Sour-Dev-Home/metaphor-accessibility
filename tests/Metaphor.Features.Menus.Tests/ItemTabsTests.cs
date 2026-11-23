@@ -20,6 +20,8 @@ public sealed class ItemTabsTests
     private const int Weapon = 2500;
     private const int Armour = 2900;
     private const int Accessory = 3305;
+    private const int EquipmentFirst = 4000;
+    private const string TargetClass = "ItemCharaSelChoice@ope@ui@app";
 
     private static readonly int[] TabSerials = [1369, 1371, 1372, 1379, 1374, 1375, 1376, 1377];
 
@@ -34,6 +36,8 @@ public sealed class ItemTabsTests
         var serials = new MessageSerials([
             new SerialRange("message/system/System_Message.msg", 1300, 300),
             new SerialRange(MessageSerials.ItemNames, ItemFirst, 12),
+            new SerialRange(MessageSerials.EquipmentNames, EquipmentFirst, 2),
+            new SerialRange(MessageSerials.CharacterNames, 0, 8),
         ]);
         var screens = new MenuScreens(KnownScreens.All);
         screens.MenusRead(open: true);
@@ -51,6 +55,10 @@ public sealed class ItemTabsTests
             .Append(Entry("ItemName_CASH_001", "Nugget"))
             .Append(Entry("ItemName_Info_001", "Note"));
         messages.Compiled(new MessageFileCompiled("EN/message/system/Item_Message_1.msg", 21, string.Join("\n\n", items)));
+        messages.Compiled(new MessageFileCompiled("EN/message/system/Equip_Message_1.msg", 12, string.Join("\n\n",
+            Entry("WeaponName_SSWORD_01", "Sword"), Entry("ArmorName_Heavy_01", "Mail"))));
+        messages.Compiled(new MessageFileCompiled("EN/message/CharaName.msg", 1, string.Join("\n\n",
+            Enumerable.Range(0, 8).Select(at => Entry($"CharaName_PC{at:00}", $"Member {at}")))));
     }
 
     private static string Entry(string label, string text) => $"//--------\n@{label}\n{{\n{text}\n<WAIT>\n}}";
@@ -210,5 +218,29 @@ public sealed class ItemTabsTests
         Settled(0, 0, count: 5);
 
         Assert.Equal(["Item, 1 of 5"], Said());
+    }
+
+    // #216: the equipment tabs' rows said positions only, as their names' file wasn't known.
+    [Fact]
+    public void AnEquipmentTabsRowIsNamedAndTheTabToldByItsKind()
+    {
+        Batch(EquipmentFirst + 1);
+        Settled(0, 0, count: 3);
+
+        Assert.Equal(["Item, Text 1375, Mail, 1 of 3"], Said());
+    }
+
+    // #216: the target list's rows are the protagonist, then the party members the list fetched after its rows (2, 4, 7
+    // here); the protagonist's name isn't a message.
+    [Fact]
+    public void TheTargetListNamesThePartyMembersTheListFetched()
+    {
+        Batch(Items(0, 8));
+        Settled(0, 0, count: 10);
+        Settled(0, 0, count: 8, screenClass: TargetClass);
+        Settled(2, 0, count: 8, screenClass: TargetClass);
+        Settled(4, 0, count: 8, screenClass: TargetClass);
+
+        Assert.Equal(["1 of 8", "Member 4, 3 of 8", "5 of 8"], Said().Skip(1));
     }
 }

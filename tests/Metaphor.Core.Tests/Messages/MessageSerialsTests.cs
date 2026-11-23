@@ -134,6 +134,17 @@ public sealed class MessageSerialsTests
         Assert.Contains(new SerialRange(MessageSerials.SkillDescriptions, 7835, 1052), MessageSerials.Steam18330018);
     }
 
+    // The equipment, character and archetype names (#216, #217, #736), as the range tests at 0x9f4d00, 0x9f4d10,
+    // 0x9f4a70 and 0x9f4b50 hold them on build 548ddc95 (docs/findings/equipment-character-archetype-serials-static.md).
+    [Fact]
+    public void TheBuildsTableHoldsTheEquipmentCharacterAndArchetypeNameFiles()
+    {
+        Assert.Contains(new SerialRange(MessageSerials.EquipmentNames, 2442, 1205), MessageSerials.Steam18330018);
+        Assert.Contains(new SerialRange(MessageSerials.EquipmentDescriptions, 3647, 1206), MessageSerials.Steam18330018);
+        Assert.Contains(new SerialRange(MessageSerials.CharacterNames, 0, 122), MessageSerials.Steam18330018);
+        Assert.Contains(new SerialRange(MessageSerials.ArchetypeNames, 9441, 18), MessageSerials.Steam18330018);
+    }
+
     [Fact]
     public void ASerialIsInAFileByItsRangeEvenBeforeTheFileIsCompiled()
     {
