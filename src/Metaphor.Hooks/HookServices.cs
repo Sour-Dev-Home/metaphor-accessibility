@@ -130,6 +130,10 @@ internal sealed record HookServices
     /// <summary>Where the battle hit hook reports each target an action hit (#247).</summary>
     public IBattleHitObserver BattleHits { get; init; } = new NoBattleHits();
 
+    /// <summary>Says the battle's situation banners (#692): the banner hooks hand it each one shown; null for none.
+    /// </summary>
+    public BattleBanners? BattleBanners { get; init; }
+
     /// <summary>The party as the game data holds it (#247), for the battle hit hook's sides and the status key.</summary>
     public required BattlePartyMemory BattleParty { get; init; }
 
@@ -198,7 +202,15 @@ internal sealed record HookServices
         var characterTable = DataTableRead.Characters();
         var followerTable = DataTableRead.Followers();
         var names = new GameNames(new GameNameMemory(gameData, characterTable, followerTable), library);
-        var cleaner = new TextCleaner(GameNames.Rules, names.Placeholder);
+        // Game terms and icons (#108, #109): a skill or condition named by its place in its file as build 548ddc95
+        // compiles it, anything else said as a stand-in for its kind, logged in Debug builds (#83). The battle banners'
+        // situation file (#692) is kept by the same store: one "file + position" key.
+        var filePositions = new MessageFilePositions([.. GameTerms.Steam18330018, BattleBanners.Steam18330018]);
+        var terms = new GameTerms(filePositions, log is null ? null : log.PlaceholderMissing);
+        var cleaner = new TextCleaner(
+            GameNames.Rules.With(GameTerms.Rules),
+            (key, arguments) => names.Placeholder(key, arguments)
+                ?? (settings.Current.IsOn(Feature.TermNames) ? terms.Placeholder(key, arguments) : null));
         // Lines go through the reader on/off switch; the repeat and the switch's own state are spoken either way.
         // Auto follows the game's voice language, read on each line (#538); unknown speaks the full line.
         var reader = new DialogueReader(announcer);
@@ -209,7 +221,8 @@ internal sealed record HookServices
         var dialogueSpeech = settings.Speech(Feature.Dialogue, reader);
         var dialogue = new DialogueAnnouncer(
             windowSpeech.Through(dialogueSpeech), cleaner, history, () => settings.Current.VoicedLines,
-            voiceLanguage.Read);
+            voiceLanguage.Read, () => settings.Current.IsOn(Feature.ChoiceCount),
+            choiceDelayOn: () => settings.Current.IsOn(Feature.ChoiceDelay));
         // Tutorial pop-ups speak through the reader too, once their table has loaded (#118). They aren't the dialogue
         // window's speech, so closing that window doesn't stop them.
         var tutorials = new TutorialTableSource();
@@ -230,7 +243,8 @@ internal sealed record HookServices
                 dialogue.EndConversation();
                 gameOver.WindowClosed();
             },
-            windowSpeech, () => settings.Current.IsOn(Feature.Tutorials) ? tutorialPopups.OnScreen : null);
+            windowSpeech, () => settings.Current.IsOn(Feature.Tutorials) ? tutorialPopups.OnScreen : null,
+            () => settings.Current.IsOn(Feature.WindowCloseStop));
         // Menus speak through the reader too (#214), and their controls toggle it with the dialogue's binding.
         var menuSpeech = settings.Speech(Feature.Menus, reader);
         var screens = new MenuScreens(KnownScreens.All);
@@ -246,8 +260,27 @@ internal sealed record HookServices
         events.ObserveChoices(yesNo);
         events.ObserveSelects(yesNo);
         screens.Observe(new DifficultyFocus(library, menuSpeech, cleaner));
-        screens.Observe(new SettingsFocus(library, menuSpeech, cleaner));
+        screens.Observe(new SettingsFocus(library, menuSpeech, cleaner)
+        {
+            LearnRowIds = () => settings.Current.IsOn(Feature.LearnedSettingValues),
+        });
         screens.Observe(new QuickMenuFocus(library, menuSpeech, cleaner));
+        screens.Observe(new SystemMenuFocus(serials, settings.Speech(Feature.SystemMenu, reader), cleaner));
+        // The shop's top menu and its Buy and Sell lists, each row by the name the game fetched for it (#736, #197).
+        var shopFocus = new ShopFocus(
+            serials, settings.Speech(Feature.ShopMenu, reader), cleaner, () => Environment.TickCount64);
+        screens.Observe(shopFocus);
+        events.ObserveSerials(shopFocus);
+        var itemFocus = new ItemFocus(serials, settings.Speech(Feature.ItemMenu, reader), cleaner);
+        screens.Observe(itemFocus);
+        events.ObserveSerials(itemFocus);
+        screens.Observe(new CalendarFocus(settings.Speech(Feature.Calendar, reader)));
+        screens.Observe(new EquipmentFocus(serials, settings.Speech(Feature.EquipmentMenu, reader), cleaner));
+        // The save and load slots (#622): their lists come unnamed, so the slot screens name them before the screens,
+        // from the prompts the serial hook hands MessageEvents (2026-11-22 review, finding 5).
+        var slots = new SlotScreens(screens);
+        events.ObserveSerials(slots);
+        screens.Observe(new SaveSlotFocus(library, settings.Speech(Feature.SaveSlots, reader), cleaner, log is null ? null : log.MenuNote));
         // Battle's skill and item lists say each row by the name the game fetched for it by serial (#247), through
         // their own setting, not the menus' (#661).
         var battleListSpeech = settings.Speech(Feature.BattleLists, reader);
@@ -277,6 +310,7 @@ internal sealed record HookServices
         events.ObserveFiles(library);
         events.ObserveFiles(serials);
         events.ObserveFiles(filesById);
+        events.ObserveFiles(filePositions);
         // Lines and choices name each speaker as the screen shows it (#81).
         var (lines, choices) = DialogueSpeech.Shown(library, names, dialogue);
         events.ObserveLines(lines);
@@ -293,7 +327,9 @@ internal sealed record HookServices
         var selectChoices = new SelectWindowChoices(lines, choices, choiceFocus);
         events.ObserveChoices(selectChoices);
         events.ObserveSelects(selectChoices);
-        cursors.Observe(screens);
+        // After the above, which holds the options of a choice only the window reports, so the window opening says them (#744).
+        events.ObserveSelects(choices);
+        cursors.Observe(slots);
         cursors.Observe(choiceFocus);
         // The field's nearby list and "where am I" (#181), read on the press and spoken straight to the announcer.
         var menusOpen = new MenusOpenRead();
@@ -336,7 +372,8 @@ internal sealed record HookServices
             cursors.Observe(log);
         }
         var battleSpeech = settings.Speech(Feature.BattleHits, reader);
-        var hitLines = new HitLines(battleSpeech, TimeProvider.System, _ => null);
+        var hitLines = new HitLines(
+            battleSpeech, TimeProvider.System, _ => null, outcomesOn: () => settings.Current.IsOn(Feature.BattleOutcomes));
         var battleBindings = settings.Live(BattleBindings.From);
         // The status key acts only in a battle (#631); a Debug build logs the scene each press read.
         var battleScene = new BattleSceneRead { Log = log };
@@ -351,6 +388,9 @@ internal sealed record HookServices
             // read of a party member's name is known yet, so each is named by its slot.
             BattleHits = hitLines,
             BattleParty = party,
+            // The in-turn situation banner, queued behind the hit lines (#692), behind `speech.battleBanners` (#661).
+            BattleBanners = new BattleBanners(
+                filePositions, settings.Speech(Feature.BattleBanners, reader), cleaner, () => Environment.TickCount64),
             BattleScene = battleScene,
             BattleStatus = settings.Input(
                 Feature.BattleHits, new BattleStatus(party, hitLines, battleScene, battleSpeech, battleBindings)),

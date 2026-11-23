@@ -190,8 +190,55 @@ public sealed class BeaconTests
         Assert.Empty(cues.Held);
     }
 
+    // #702: the game taking control (a cutscene, dialogue, menu or scripted move) silences the beep at the next poll,
+    // mid-pulse, and nothing sounds until free roam comes back; then it goes on toward the same thing, without a word.
     [Fact]
-    public void LeavingFreeRoamStopsWithoutAWord()
+    public void LeavingFreeRoamSilencesItUntilFreeRoamComesBack()
+    {
+        beacon.Start(Person(0, 1000));
+        beacon.Tick();
+        field.Roaming = false;
+        now += Beacon.PollMilliseconds;
+        beacon.Tick();
+        Assert.Equal(1, cues.Silenced);
+
+        for (var i = 0; i < 100; i++)
+        {
+            now += Beacon.PollMilliseconds;
+            beacon.Tick();
+        }
+        Assert.True(beacon.Active);
+        Assert.Single(cues.Held);
+        Assert.Equal(1, cues.Silenced);
+
+        field.Roaming = true;
+        now += Beacon.PollMilliseconds;
+        beacon.Tick();
+        now += Beacon.FreeRoamSettleMilliseconds;
+        beacon.Tick();
+
+        Assert.Equal(2, cues.Held.Count);
+        Assert.Equal(["Guiding to Testa"], Said());
+    }
+
+    [Fact]
+    public void WithThePauseOffLeavingFreeRoamEndsTheBeepAsBefore()
+    {
+        var ending = new Beacon(field, cues, announcer, () => now, pauseOn: () => false);
+        ending.Start(Person(0, 1000));
+        ending.Tick();
+        field.Roaming = false;
+        now += Beacon.PollMilliseconds;
+        ending.Tick();
+
+        Assert.False(ending.Active);
+    }
+
+    // #709, by ear 2026-11-22 (Steam build 18330018): the beep sounded again between the lines of a story scene. A
+    // beacon that went quiet for a conversation stays quiet through a moment of free roam, and sounds again only once
+    // free roam has held for FreeRoamSettleMilliseconds.
+    [Fact]
+    public void ABriefFreeRoamBetweenTheSceneAndTheNextLineDoesNotSoundTheBeep()
     {
         beacon.Start(Person(0, 1000));
         beacon.Tick();
@@ -199,9 +246,67 @@ public sealed class BeaconTests
         now += Beacon.PollMilliseconds;
         beacon.Tick();
 
+        field.Roaming = true;
+        now += Beacon.PollMilliseconds;
+        beacon.Tick();
+        field.Roaming = false;
+        for (var i = 0; i < 20; i++)
+        {
+            now += Beacon.PollMilliseconds;
+            beacon.Tick();
+        }
+
+        Assert.Single(cues.Held);
+
+        field.Roaming = true;
+        now += Beacon.PollMilliseconds;
+        beacon.Tick();
+        Assert.Single(cues.Held);
+        now += Beacon.FreeRoamSettleMilliseconds;
+        beacon.Tick();
+
+        Assert.Equal(2, cues.Held.Count);
+    }
+
+    [Fact]
+    public void ThePauseAndTheResumeAreLoggedSoASessionCanTellThem()
+    {
+        var log = new List<string>();
+        var logged = new Beacon(field, cues, announcer, () => now, log.Add);
+        logged.Start(Person(0, 1000));
+        logged.Tick();
+        field.Roaming = false;
+        now += Beacon.PollMilliseconds;
+        logged.Tick();
+        field.Roaming = true;
+        now += Beacon.PollMilliseconds;
+        logged.Tick();
+        now += Beacon.FreeRoamSettleMilliseconds;
+        logged.Tick();
+
+        Assert.Equal(["beacon pause: not free roam", "beacon resume: free roam held"], log.Skip(1));
+    }
+
+    // A pause that ends on another map has nothing left to guide to: it stops without a word.
+    [Fact]
+    public void FreeRoamComingBackOnAnotherMapStopsWithoutAWord()
+    {
+        field.Map = 1;
+        beacon.Start(Person(0, 1000));
+        beacon.Tick();
+        field.Roaming = false;
+        now += Beacon.PollMilliseconds;
+        beacon.Tick();
+        field.Map = 2;
+        field.Roaming = true;
+        now += Beacon.PollMilliseconds;
+        beacon.Tick();
+        now += Beacon.FreeRoamSettleMilliseconds;
+        beacon.Tick();
+
         Assert.False(beacon.Active);
+        Assert.Single(cues.Held);
         Assert.Equal(["Guiding to Testa"], Said());
-        Assert.Equal(1, cues.Silenced);
     }
 
     [Fact]
@@ -411,7 +516,9 @@ public sealed class BeaconTests
 
         public FieldView? Read() => null;
 
-        public int? MapId() => null;
+        public int? Map { get; set; }
+
+        public int? MapId() => Map;
 
         public FieldPose? ReadPose()
         {

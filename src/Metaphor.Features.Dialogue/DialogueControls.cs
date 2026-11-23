@@ -42,7 +42,7 @@ public sealed record DialogueBindings(int RepeatButtons, int ReaderButtons, int 
 /// page, #118) the repeat binding re-speaks the pop-up instead, and acts and is hidden even with the dialogue window
 /// closed. The reader binding also acts in the field (the window reads closed) and over a pop-up, handed to the game there (#769); menus take it before it gets here (InputFrame). The bindings are read on each input read, so a rebinding in
 /// the settings file applies at once (#661).</summary>
-[FeatureSetting(Feature.Dialogue)]
+[FeatureSetting(Feature.Dialogue, Feature.WindowCloseStop)]
 public sealed class DialogueControls : IWindowInputControls
 {
     private const int KeyboardSource = -1;
@@ -54,6 +54,7 @@ public sealed class DialogueControls : IWindowInputControls
     private readonly IAnnouncer announcer;
     private readonly Action? onClose;
     private readonly SpeechSource? windowSpeech;
+    private readonly Func<bool>? stopOn;
     private readonly Func<string?>? onScreen;
     private readonly Binding repeat = new();
     private readonly Binding toggle = new();
@@ -70,6 +71,8 @@ public sealed class DialogueControls : IWindowInputControls
     /// <param name="onClose">Told when the dialogue window closes.</param>
     /// <param name="windowSpeech">The window's speech, stopped when the window closes (#676); its lines and the repeat
     /// go through it.</param>
+    /// <param name="stopOn">Whether a closed window stops its line (<see cref="Feature.WindowCloseStop"/>); null is
+    /// yes.</param>
     /// <param name="onScreen">What the pop-up on screen last said, or null while none is up; asked on each read, so it
     /// must be cheap.</param>
     public DialogueControls(
@@ -79,8 +82,9 @@ public sealed class DialogueControls : IWindowInputControls
         IAnnouncer announcer,
         Action? onClose = null,
         SpeechSource? windowSpeech = null,
-        Func<string?>? onScreen = null)
-        : this(() => bindings, history, reader, announcer, onClose, windowSpeech, onScreen)
+        Func<string?>? onScreen = null,
+        Func<bool>? stopOn = null)
+        : this(() => bindings, history, reader, announcer, onClose, windowSpeech, onScreen, stopOn)
     {
         ArgumentNullException.ThrowIfNull(bindings);
     }
@@ -93,10 +97,12 @@ public sealed class DialogueControls : IWindowInputControls
         IAnnouncer announcer,
         Action? onClose = null,
         SpeechSource? windowSpeech = null,
-        Func<string?>? onScreen = null)
+        Func<string?>? onScreen = null,
+        Func<bool>? stopOn = null)
     {
         this.onClose = onClose;
         this.windowSpeech = windowSpeech;
+        this.stopOn = stopOn;
         this.onScreen = onScreen;
         ArgumentNullException.ThrowIfNull(bindings);
         ArgumentNullException.ThrowIfNull(history);
@@ -136,7 +142,10 @@ public sealed class DialogueControls : IWindowInputControls
         }
         else if (closed)
         {
-            windowSpeech?.StopSpeaking();
+            if (stopOn?.Invoke() ?? true)
+            {
+                windowSpeech?.StopSpeaking();
+            }
         }
     }
 

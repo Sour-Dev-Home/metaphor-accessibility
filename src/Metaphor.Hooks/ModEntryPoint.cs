@@ -140,7 +140,13 @@ public sealed class ModEntryPoint : IMod
             MessageLog? messageLog = null;
 #endif
             // The settings report only a file they can't use, so each of their lines is an error.
-            var settings = new SettingsReloader(announcer, LogError);
+            // A by-ear session turns every testing feature on (#783). Debug builds only: a release never reads the file.
+#if DEBUG
+            var testingOn = File.Exists(Path.Combine(folder, ModSettings.TestingFile));
+#else
+            const bool testingOn = false;
+#endif
+            var settings = new SettingsReloader(announcer, LogError, testingOn);
             var file = SettingsFile.Open(configFolder, settings, LogError);
             settingsFile = file;
             // Sound cues play on their own thread through waveOut channels, at the settings in force (#636, #637,

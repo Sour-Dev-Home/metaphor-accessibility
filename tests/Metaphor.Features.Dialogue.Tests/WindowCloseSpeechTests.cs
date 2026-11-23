@@ -13,6 +13,7 @@ public sealed class WindowCloseSpeechTests
 
     private readonly RecordingAnnouncer output = new();
     private readonly StoppableAnnouncer speech;
+    private readonly SpeechSource window;
     private readonly DialogueAnnouncer dialogue;
     private readonly DialogueReader reader;
     private readonly DialogueControls controls;
@@ -21,7 +22,7 @@ public sealed class WindowCloseSpeechTests
     public WindowCloseSpeechTests()
     {
         speech = new StoppableAnnouncer(output, () => stops++);
-        var window = speech.Source();
+        window = speech.Source();
         var history = new DialogueHistory();
         reader = new DialogueReader(speech);
         dialogue = new DialogueAnnouncer(window.Through(reader), new TextCleaner(TextCleanerRules.None), history);
@@ -38,6 +39,20 @@ public sealed class WindowCloseSpeechTests
         controls.WindowRead(0);
 
         Assert.Equal(1, stops);
+    }
+
+    [Fact]
+    public void ClosingTheWindowStopsNothingWhileTheSettingIsOff()
+    {
+        var history = new DialogueHistory();
+        var off = new DialogueControls(
+            DialogueBindings.Default, history, reader, window.Through(speech), windowSpeech: window, stopOn: () => false);
+        dialogue.Show("Ada", "A long line.");
+        off.WindowRead(Message);
+
+        off.WindowRead(0);
+
+        Assert.Equal(0, stops);
     }
 
     [Fact]
