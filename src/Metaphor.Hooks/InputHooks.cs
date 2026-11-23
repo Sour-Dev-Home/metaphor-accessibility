@@ -32,19 +32,12 @@ internal sealed class GameInputReads(DialogueWindowPointer window, MenusOpenRead
 
     public bool MenusOpen() => menus.IsOpen();
 
-    /// <summary>The input frame over <paramref name="services"/>' readers, menu screens and controls; the menu controls
-    /// take each read first, then the battle status key and the battle details key (#631), then the dialogue controls,
-    /// the field's (#181) last when there are, and its key and pad watchers.</summary>
-    public static InputFrame Frame(HookServices services)
-    {
-        var game = new GameInputReads(services.DialogueWindow, services.MenusOpen);
-        var menus =
-            services.BattleStatus is { } status ? (IInputControls)new ChainedControls(services.MenuControls, status) : services.MenuControls;
-        menus = services.BattleDetails is { } details ? new ChainedControls(menus, details) : menus;
-        return new(game, services.MenuScreens, menus, services.DialogueControls,
-            services.FieldControls ?? InputFrame.NoControls, services.KeyWatcher, services.PadWatcher,
-            services.ReportControls, services.LastDevice);
-    }
+    /// <summary>The input frame over <paramref name="services"/>' readers, menu screens and controls, which take each
+    /// read in the feature modules' order (#784): the mark key, the menus, the battle status and enemy HP keys (#631),
+    /// the dialogue, the field (#181); and its key and pad watchers.</summary>
+    public static InputFrame Frame(HookServices services) =>
+        new(new GameInputReads(services.DialogueWindow, services.MenusOpen), services.MenuScreens, services.Controls,
+            services.KeyWatcher, services.PadWatcher, services.LastDevice);
 }
 
 /// <summary>The pad read: <c>(32-bit pad number, pointer to the game's pad state) → al</c>; it writes the game's own

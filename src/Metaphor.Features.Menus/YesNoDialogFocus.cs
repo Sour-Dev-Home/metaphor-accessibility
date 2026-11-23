@@ -27,7 +27,7 @@ public interface IYesNoQuestion
 /// message is <c>[NEEDS VERIFICATION]</c>. The name entry and
 /// the difficulty list open theirs through the select window call with their prompt's label, and the scripts' choices
 /// go through the same call (docs/raw-sources/yes-no-dialog-text-2026-11-20.md).</remarks>
-[FeatureSetting(Feature.Menus)]
+[FeatureSetting<MenusFeature>(MenusFeature.Menus)]
 public sealed partial class YesNoDialogFocus : IScreenObserver, IChoiceRequestObserver, ISelectRequestObserver
 {
     /// <summary>A yes/no dialog: its choice's class on build 548ddc95, from its run-time type information

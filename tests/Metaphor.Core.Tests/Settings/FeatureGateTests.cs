@@ -15,14 +15,14 @@ public sealed class FeatureGateTests
 
     public FeatureGateTests()
     {
-        settings = new SettingsReloader(announcer, _ => { });
+        settings = new SettingsReloader(announcer, SampleSettings.Catalogue, _ => { });
         settings.Load("{}");
     }
 
     [Fact]
     public void SpeechPassesWhileTheFeatureIsOnAndStopsAtOnceWhenItIsTurnedOff()
     {
-        var menus = settings.Speech(Feature.Menus, underneath);
+        var menus = settings.Speech(SampleFeature.Menus, underneath);
 
         menus.Announce(new Announcement("Items", Interrupt: true));
         settings.Reload("""{ "speech": { "menus": false } }""");
@@ -36,7 +36,7 @@ public sealed class FeatureGateTests
     [Fact]
     public void AnotherFeatureTurnedOffLeavesThisOneSpeaking()
     {
-        var menus = settings.Speech(Feature.Menus, underneath);
+        var menus = settings.Speech(SampleFeature.Menus, underneath);
         settings.Reload("""{ "speech": { "dialogue": false } }""");
 
         menus.Announce(new Announcement("Items", Interrupt: true));
@@ -48,7 +48,7 @@ public sealed class FeatureGateTests
     public void InputReachesTheGameUntouchedWhileTheFeatureIsOff()
     {
         var controls = new HidingControls();
-        var gated = settings.Input(Feature.Dialogue, controls);
+        var gated = settings.Input(SampleFeature.Dialogue, controls);
         settings.Reload("""{ "speech": { "dialogue": false } }""");
 
         Assert.Equal(0xFF, gated.Pad(0, 0xFF, made: true));
@@ -63,7 +63,7 @@ public sealed class FeatureGateTests
     [Fact]
     public void InputGoesToTheControlsWhileTheFeatureIsOn()
     {
-        var gated = settings.Input(Feature.Dialogue, new HidingControls());
+        var gated = settings.Input(SampleFeature.Dialogue, new HidingControls());
 
         Assert.Equal(0, gated.Pad(0, 0xFF, made: true));
         Assert.Empty(gated.Keys([1, 2]));
@@ -85,7 +85,7 @@ public sealed class FeatureGateTests
 
     [Theory]
     [InlineData("""{ "speech": { "dialogue": false } }""", "Dialogue: off.")]
-    [InlineData("""{ "field": { "whereAmI": false } }""", "Where am I: off.")]
+    [InlineData("""{ "field": { "nearby": false } }""", "Nearby list: off.")]
     [InlineData("""{ "sounds": { "allyHit": { "on": false } } }""", "Ally hit sound: off.")]
     [InlineData("""{ "sounds": { "enemyHit": { "volume": 40 } } }""", "Enemy hit sound volume: 40.")]
     [InlineData("""{ "keys": { "field": { "nearbyKey": "M" } } }""", "Keys changed.")]
@@ -99,11 +99,11 @@ public sealed class FeatureGateTests
     [Fact]
     public void TurningAFeatureBackOnIsSaid()
     {
-        settings.Load("""{ "speech": { "travelMap": false } }""");
+        settings.Load("""{ "speech": { "menus": false } }""");
 
         settings.Reload("{}");
 
-        Assert.Equal([new Announcement("Travel map: on.", Interrupt: true)], announcer.Said);
+        Assert.Equal([new Announcement("Menus: on.", Interrupt: true)], announcer.Said);
     }
 
     /// <summary>Controls that hide every bound input, and count what they're handed.</summary>

@@ -1,6 +1,7 @@
 using System.Buffers.Binary;
 using Metaphor.Core;
 using Metaphor.Core.Announcements;
+using Metaphor.Core.Features;
 using Metaphor.Core.Messages;
 using Metaphor.Core.Settings;
 using Metaphor.Features.Dialogue;
@@ -8,9 +9,9 @@ using Metaphor.Features.Menus;
 
 namespace Metaphor.Input.Tests;
 
-/// <summary>The tutorials' setting (#661, speech.tutorials) wired as the mod wires it: speech through
-/// <c>settings.Speech(Feature.Tutorials, ...)</c> and the dialogue controls' pop-up read gated on
-/// <c>settings.Current.IsOn(Feature.Tutorials)</c>. Off, a pop-up is not spoken and repeat says the dialogue line;
+/// <summary>The tutorials' setting (#661, speech.tutorials) wired as the menus module wires it (#784): speech through
+/// <c>settings.Speech(MenusFeature.Tutorials, ...)</c> and the dialogue controls' pop-up read through the
+/// <see cref="PopupOnScreen"/> gated on it. Off, a pop-up is not spoken and repeat says the dialogue line;
 /// on, the pop-up is spoken and repeat says its page. Made-up labels and text only.</summary>
 [Trait("Category", "Unit")]
 public sealed class TutorialToggleTests
@@ -28,7 +29,7 @@ public sealed class TutorialToggleTests
 
     public TutorialToggleTests()
     {
-        settings = new SettingsReloader(new RecordingAnnouncer(), _ => { });
+        settings = new SettingsReloader(new RecordingAnnouncer(), SettingCatalogue.Of<MenusFeature>(), _ => { });
         settings.Load("{}");
         var library = new MessageLibrary();
         library.Observe(new MessageFileCompiled("EN/message/system/System_Tutorial_1.msg", 59,
@@ -37,13 +38,14 @@ public sealed class TutorialToggleTests
             "@Made_Page_01_01\n{\nPress to walk.\n<WAIT>\n}"));
         var table = TutorialTable.Parse(TableBytes("Made_Title_01", "Made_Page_01_01"));
         popups = new TutorialPopups(
-            library, settings.Speech(Feature.Tutorials, announcer), new TextCleaner(TextCleanerRules.None),
+            library, settings.Speech(MenusFeature.Tutorials, announcer), new TextCleaner(TextCleanerRules.None),
             () => table, () => 1_000);
         var history = new DialogueHistory();
         history.Add("Ada: One.");
+        var popup = new PopupOnScreen(() => settings.Current.IsOn(MenusFeature.Tutorials) ? popups.OnScreen : null);
         controls = new DialogueControls(
             () => DialogueBindings.Default, history, new DialogueReader(announcer), announcer, null, null,
-            () => settings.Current.IsOn(Feature.Tutorials) ? popups.OnScreen : null);
+            () => popup.Said);
     }
 
     // One entry's layout, as in docs/findings/tutorial-table-maps-numbers-to-labels.md; unused slots are the empty

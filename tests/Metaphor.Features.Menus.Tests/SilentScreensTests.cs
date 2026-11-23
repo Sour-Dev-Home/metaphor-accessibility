@@ -86,7 +86,8 @@ public sealed class SilentScreensTests
     [Fact]
     public void TurnedOffNothingIsListed()
     {
-        settings = ModSettings.Parse("""{ "report": { "silentScreens": false } }""", _ => { });
+        settings = ModSettings.Parse(
+            """{ "report": { "silentScreens": false } }""", SettingCatalogue.Of<MenusFeature>(), _ => { });
 
         List().Observe(Moved(3));
 

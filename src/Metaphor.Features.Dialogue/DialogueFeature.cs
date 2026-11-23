@@ -1,0 +1,41 @@
+using Metaphor.Core.Settings;
+
+namespace Metaphor.Features.Dialogue;
+
+/// <summary>The dialogue project's features, each with its own on/off key in the settings file (#661, #784). A new
+/// feature gets a member here with its <see cref="SettingKeyAttribute"/> (a description and an <c>Order</c> unique across
+/// the projects), a <c>[FeatureSetting]</c> on its classes and a gate in <see cref="DialogueModule"/>; the architecture
+/// test says so when one is missing. A member still waiting for its by-ear check carries <c>Testing = true</c> and is
+/// off until the check passes (#783).</summary>
+public enum DialogueFeature
+{
+    /// <summary>Dialogue lines, choices and the dialogue keys (#58, #95).</summary>
+    [SettingKey("speech", "dialogue", "Dialogue", Order = 1000, Description = "Dialogue lines and reply choices. Off " +
+        "also leaves the repeat and reader keys to the game in dialogue.")]
+    Dialogue,
+
+    /// <summary>Skill and condition names said for their tags in a line (#108). Separate from the dialogue while it
+    /// is tested; off, a tag says its stand-in.</summary>
+    [SettingKey("speech", "termNames", "Term names", Testing = true, Order = 1180, Description = "The skill and " +
+        "condition names a line's tags stand for. Off says the tag's stand-in.")]
+    TermNames,
+
+    /// <summary>A choice saying "Choice, N options", the options spoken as focus moves, not every option up front
+    /// (#730). Separate from the dialogue.</summary>
+    [SettingKey("speech", "choiceCount", "Choice count", Order = 1190, Description = "A reply choice saying how many " +
+        "options there are, with each option said as the focus moves, rather than every option up front. Needs " +
+        "`dialogue`.")]
+    ChoiceCount,
+
+    /// <summary>A choice's options held until the select window opens, not said at once after the prompt (#744).
+    /// Separate from the dialogue while it is tested.</summary>
+    [SettingKey("speech", "choiceDelay", "Choice delay", Testing = true, Order = 1200, Description = "A reply " +
+        "choice's options waiting until they are on screen, not said straight after the prompt. Needs `dialogue`.")]
+    ChoiceDelay,
+
+    /// <summary>A dialogue window closing stopping the line still being spoken (#676). Separate from the dialogue
+    /// while it is tested.</summary>
+    [SettingKey("speech", "windowCloseStop", "Window close stop", Testing = true, Order = 1210, Description = "A " +
+        "closed dialogue window stopping the line still being spoken. Needs `dialogue`.")]
+    WindowCloseStop,
+}

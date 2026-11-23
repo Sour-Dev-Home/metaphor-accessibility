@@ -17,11 +17,11 @@ namespace Metaphor.Features.Menus;
 /// game content. Safe to call from several threads.</summary>
 /// <remarks>Labels, classes and which row opens which page on build 548ddc95:
 /// docs/raw-sources/settings-category-labels-session1-2026-11-20.md.</remarks>
-[FeatureSetting(Feature.Menus, Feature.LearnedSettingValues)]
+[FeatureSetting<MenusFeature>(MenusFeature.Menus, MenusFeature.LearnedSettingValues)]
 public sealed class SettingsFocus : IScreenObserver
 {
     /// <summary>Whether a row with no pinned setting ID says a value by the ID learned at run time
-    /// (<see cref="Feature.LearnedSettingValues"/>, #770). On unless set.</summary>
+    /// (<see cref="MenusFeature.LearnedSettingValues"/>, #770). On unless set.</summary>
     public Func<bool> LearnRowIds { get; init; } = () => true;
 
     // The category list, opened from the title or the field's quick menu, and from the main menu in play: one list.

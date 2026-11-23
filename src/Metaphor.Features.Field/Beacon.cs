@@ -22,8 +22,8 @@ public sealed record BeaconTarget(FieldUnit Unit, int? DoorReachValue);
 /// <see cref="Stop"/>, and silently on leaving free roam or when the player can't be read. <see cref="Tick"/> is called
 /// on every input read; it reads the field at most once per <see cref="PollMilliseconds"/>, and allocates nothing
 /// between a pulse's start and the next except when a route is asked for. Its keys are gated by
-/// <see cref="Feature.Guidance"/> in <see cref="FieldControls"/> (#661).</summary>
-[FeatureSetting(Feature.Guidance, Feature.GuidancePause)]
+/// <see cref="FieldFeature.Guidance"/> in <see cref="FieldControls"/> (#661).</summary>
+[FeatureSetting<FieldFeature>(FieldFeature.Guidance, FieldFeature.GuidancePause)]
 public sealed class Beacon
 {
     /// <summary>How often the field is read while guiding.</summary>
@@ -89,7 +89,7 @@ public sealed class Beacon
     /// player's positions, as numbers, to <paramref name="log"/> on a start and an arrival when there is one (Debug
     /// builds), with each route's outcome and what it read. With <paramref name="routes"/> it guides along routes that
     /// <paramref name="run"/> plans (on the thread pool unless given). <paramref name="pauseOn"/> says whether leaving
-    /// free roam pauses the beep (<see cref="Feature.GuidancePause"/>, on when null) rather than ending it.</summary>
+    /// free roam pauses the beep (<see cref="FieldFeature.GuidancePause"/>, on when null) rather than ending it.</summary>
     public Beacon(
         IFieldReads field, ICuePlayer cues, IAnnouncer announcer, Func<long> milliseconds, Action<string>? log = null,
         IRoutePlanner? routes = null, Func<Func<RoutePlan>, Task<RoutePlan>>? run = null, Func<bool>? pauseOn = null)

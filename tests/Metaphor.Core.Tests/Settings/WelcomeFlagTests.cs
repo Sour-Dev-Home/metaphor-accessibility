@@ -9,7 +9,7 @@ public sealed class WelcomeFlagTests
 {
     private readonly List<string> logged = [];
 
-    private ModSettings Parse(string? json) => ModSettings.Parse(json, logged.Add);
+    private ModSettings Parse(string? json) => ModSettings.Parse(json, SampleSettings.Catalogue, logged.Add);
 
     [Fact]
     public void WithNoFileTheWelcomeIsStillToSay() => Assert.False(Parse(null).Welcomed);
@@ -53,7 +53,7 @@ public sealed class WelcomeFlagTests
         Assert.Contains("// my settings", marked, StringComparison.Ordinal);
         var settings = Parse(marked);
         Assert.True(settings.Welcomed);
-        Assert.False(settings.IsOn(Feature.Menus));
+        Assert.False(settings.IsOn(SampleFeature.Menus));
         Assert.Equal(0x51, settings.Binding("dialogue", "repeatKey", 0));
         Assert.Empty(logged);
     }

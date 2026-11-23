@@ -9,7 +9,7 @@ namespace Metaphor.Features.Menus;
 /// is running and the three field keys, queued after the title screen's own speech and the load message before it.
 /// Then the settings file's <c>welcomed</c> flag is set, so later launches say nothing. Its own setting turns it off
 /// without setting the flag. Safe to use from several threads.</summary>
-[FeatureSetting(Feature.Welcome)]
+[FeatureSetting<MenusFeature>(MenusFeature.Welcome)]
 public sealed class WelcomeMessage : IScreenObserver
 {
     private readonly string text;
@@ -53,7 +53,7 @@ public sealed class WelcomeMessage : IScreenObserver
             return;
         }
         var now = settings();
-        if (now.Welcomed || !now.IsOn(Feature.Welcome) || Interlocked.Exchange(ref said, 1) != 0)
+        if (now.Welcomed || !now.IsOn(MenusFeature.Welcome) || Interlocked.Exchange(ref said, 1) != 0)
         {
             return;
         }

@@ -13,7 +13,7 @@ namespace Metaphor.Features.Menus;
 /// call from several threads. Its System submenu, served by the same choice, is spoken as its own two items (#210). While
 /// the screen waits for a button before showing the menu, only its prompt is spoken (#555).
 /// </summary>
-[FeatureSetting(Feature.Menus)]
+[FeatureSetting<MenusFeature>(MenusFeature.Menus)]
 public sealed class TitleMenuFocus : IScreenObserver
 {
     /// <summary>The title menu: its choice's class on build 548ddc95, from its run-time type information

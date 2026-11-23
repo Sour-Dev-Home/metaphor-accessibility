@@ -14,7 +14,7 @@ namespace Metaphor.Features.Menus;
 /// log carries them: the month, and the events and discounts of a day, whose message lookups (the
 /// <c>Calendar_Message</c> labels) are not logged
 /// (<c>[NEEDS VERIFICATION]</c>: how the day panel picks them).</remarks>
-[FeatureSetting(Feature.Calendar)]
+[FeatureSetting<MenusFeature>(MenusFeature.Calendar)]
 public sealed class CalendarFocus : IScreenObserver
 {
     /// <summary>The Calendar: its class on build 548ddc95, as the mod's cursor hook logs it

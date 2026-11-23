@@ -27,21 +27,23 @@ public sealed class FeatureSettingRuleTests
         }
         namespace Metaphor.Core.Settings
         {
-            public enum Feature { Bells }
             [System.AttributeUsage(System.AttributeTargets.Class)]
-            public sealed class FeatureSettingAttribute(params Feature[] features) : System.Attribute
+            public sealed class FeatureSettingAttribute<TFeature>(params TFeature[] features) : System.Attribute
+                where TFeature : struct, System.Enum
             {
-                public Feature[] Features { get; } = features;
+                public TFeature[] Features { get; } = features;
             }
         }
         """);
 
+    // The planted feature project's own feature enum (#784).
     private static IReadOnlyList<string> Check(string source) =>
         Rules.FeaturesHaveSettings(Plant.Compile("Metaphor.Features.Bells", """
             using Metaphor.Core.Announcements;
             using Metaphor.Core.Cues;
             using Metaphor.Core.Input;
             using Metaphor.Core.Settings;
+            public enum BellsFeature { Bells }
             """ + source, references: Core));
 
     [Fact]
@@ -53,9 +55,10 @@ public sealed class FeatureSettingRuleTests
 
         var violation = Assert.Single(violations);
         Assert.Contains("Bell speaks", violation, StringComparison.Ordinal);
-        Assert.Contains("Metaphor.Core.Settings.Feature", violation, StringComparison.Ordinal);
-        Assert.Contains("[FeatureSetting(Feature.", violation, StringComparison.Ordinal);
-        Assert.Contains("HookServices.Speaking", violation, StringComparison.Ordinal);
+        Assert.Contains("its project's feature enum", violation, StringComparison.Ordinal);
+        Assert.Contains("[FeatureSetting<", violation, StringComparison.Ordinal);
+        Assert.Contains("feature module", violation, StringComparison.Ordinal);
+        Assert.Contains("tools/Metaphor.SettingsReference", violation, StringComparison.Ordinal);
         Assert.Contains("docs/players/reference/settings.md", violation, StringComparison.Ordinal);
     }
 
@@ -100,7 +103,7 @@ public sealed class FeatureSettingRuleTests
     public void AFeatureMarkedWithItsSettingPasses()
     {
         Assert.Empty(Check("""
-            [FeatureSetting(Feature.Bells)]
+            [FeatureSetting<BellsFeature>(BellsFeature.Bells)]
             public sealed class Bell(IAnnouncer announcer, ICuePlayer cues) : IInputControls
             {
                 public void Ring() { announcer.Announce(new("Ding", true)); cues.Play(Cue.AllyHit); }

@@ -16,19 +16,22 @@ public sealed record DialogueBindings(int RepeatButtons, int ReaderButtons, int 
     /// <summary>X and LB + RB, R and T (#58's design comment). The game's mask puts XInput's X at <c>0x8000</c>, LB at
     /// <c>0x400</c> and RB at <c>0x800</c> on game build 548ddc95… (Steam build 18330018):
     /// docs/raw-sources/pad-and-keyboard-state-2026-11-16.md. R and T are <c>VK_R</c> (0x52) and <c>VK_T</c> (0x54).
-    /// The settings file can rebind each (#661, <see cref="From"/>).</summary>
-    public static DialogueBindings Default { get; } = new(0x8000, 0x400 | 0x800, 0x52, 0x54);
+    /// The settings file can rebind each (#661, <see cref="From"/>). The reader binding is
+    /// <see cref="ReaderBinding"/>'s, which the menus share.</summary>
+    public static DialogueBindings Default { get; } =
+        new(0x8000, ReaderBinding.Default.Buttons, 0x52, ReaderBinding.Default.Key);
 
     /// <summary>The bindings the settings file's <c>keys.dialogue</c> object names (#661), each missing or unusable
     /// one the default.</summary>
     public static DialogueBindings From(ModSettings settings)
     {
         ArgumentNullException.ThrowIfNull(settings);
+        var reader = ReaderBinding.From(settings);
         return new(
             settings.Binding("dialogue", "repeatButtons", Default.RepeatButtons),
-            settings.Binding("dialogue", "readerButtons", Default.ReaderButtons),
+            reader.Buttons,
             settings.Binding("dialogue", "repeatKey", Default.RepeatKey),
-            settings.Binding("dialogue", "readerKey", Default.ReaderKey));
+            reader.Key);
     }
 }
 
@@ -42,7 +45,7 @@ public sealed record DialogueBindings(int RepeatButtons, int ReaderButtons, int 
 /// page, #118) the repeat binding re-speaks the pop-up instead, and acts and is hidden even with the dialogue window
 /// closed. The reader binding also acts in the field (the window reads closed) and over a pop-up, handed to the game there (#769); menus take it before it gets here (InputFrame). The bindings are read on each input read, so a rebinding in
 /// the settings file applies at once (#661).</summary>
-[FeatureSetting(Feature.Dialogue, Feature.WindowCloseStop)]
+[FeatureSetting<DialogueFeature>(DialogueFeature.Dialogue, DialogueFeature.WindowCloseStop)]
 public sealed class DialogueControls : IWindowInputControls
 {
     private const int KeyboardSource = -1;
@@ -50,7 +53,7 @@ public sealed class DialogueControls : IWindowInputControls
     private readonly Lock gate = new();
     private readonly Func<DialogueBindings> liveBindings;
     private readonly DialogueHistory history;
-    private readonly DialogueReader reader;
+    private readonly IReaderSwitch reader;
     private readonly IAnnouncer announcer;
     private readonly Action? onClose;
     private readonly SpeechSource? windowSpeech;
@@ -71,14 +74,14 @@ public sealed class DialogueControls : IWindowInputControls
     /// <param name="onClose">Told when the dialogue window closes.</param>
     /// <param name="windowSpeech">The window's speech, stopped when the window closes (#676); its lines and the repeat
     /// go through it.</param>
-    /// <param name="stopOn">Whether a closed window stops its line (<see cref="Feature.WindowCloseStop"/>); null is
+    /// <param name="stopOn">Whether a closed window stops its line (<see cref="DialogueFeature.WindowCloseStop"/>); null is
     /// yes.</param>
     /// <param name="onScreen">What the pop-up on screen last said, or null while none is up; asked on each read, so it
     /// must be cheap.</param>
     public DialogueControls(
         DialogueBindings bindings,
         DialogueHistory history,
-        DialogueReader reader,
+        IReaderSwitch reader,
         IAnnouncer announcer,
         Action? onClose = null,
         SpeechSource? windowSpeech = null,
@@ -93,7 +96,7 @@ public sealed class DialogueControls : IWindowInputControls
     public DialogueControls(
         Func<DialogueBindings> bindings,
         DialogueHistory history,
-        DialogueReader reader,
+        IReaderSwitch reader,
         IAnnouncer announcer,
         Action? onClose = null,
         SpeechSource? windowSpeech = null,

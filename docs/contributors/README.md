@@ -119,9 +119,11 @@ The guards, why each may block you, and what to do:
 - **No security-review stamp** (pre-commit, CI trailer): [the stamp](reference/security-review.md#the-stamp).
 - **Build, tests or formatting** (pre-push, `full`): fix and rerun; a busy build slot:
   [recorded pass](reference/checks.md#recorded-pass), `bash scripts/check/check-status.sh` shows who holds it.
-- **A feature with no setting** (architecture rule 18): mark it `[FeatureSetting(Feature.X)]` and list its key in
-  [the settings reference](../players/reference/settings.md); the rule is in
-  [coding standards](../coding-standards.md#architecture-rules).
+- **A feature with no setting** (architecture rule 18): give it a member of its project's feature enum, mark it
+  `[FeatureSetting<TheFeatureEnum>(...)]` and regenerate [the settings reference](../players/reference/settings.md); the
+  rule is in [coding standards](../coding-standards.md#architecture-rules).
+- **Stale settings reference** (`Metaphor.Settings.Tests`): run
+  `dotnet run --project tools/Metaphor.SettingsReference -c Release -v q` from the repository root and commit the page.
 - **Architecture tests:** a rule in [coding standards](../coding-standards.md#architecture-rules) was broken.
 - **Broken link or anchor** (`check.sh docs`): fix the link; lint and Vale only warn.
 - **Missing `security-reviewed` label** (`review-gate`): wait for the maintainer

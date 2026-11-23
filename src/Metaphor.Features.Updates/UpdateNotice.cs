@@ -11,7 +11,7 @@ namespace Metaphor.Features.Updates;
 /// included, is compared with the running version. The notice is queued after what the title screen says, on its
 /// first visit once the answer is in, or at once when the answer comes while it is open. A failure says nothing and
 /// goes to the log. Safe to use from several threads.</summary>
-[FeatureSetting(Feature.UpdateNotice)]
+[FeatureSetting<UpdatesFeature>(UpdatesFeature.UpdateNotice)]
 public sealed class UpdateNotice : IScreenObserver
 {
     /// <summary>The longest tag taken; a longer one is skipped rather than read out in full.</summary>

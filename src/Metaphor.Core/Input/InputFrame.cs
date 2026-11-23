@@ -71,13 +71,11 @@ public sealed class InputFrame
 {
     private readonly IGameInputState game;
     private readonly MenuScreens screens;
-    private readonly IInputControls menus;
-    private readonly IWindowInputControls dialogue;
-    private readonly IInputControls field;
+    private readonly IInputControls[] controls;
+    private readonly IWindowInputControls[] windowControls;
     private readonly IKeyWatcher? watcher;
     private readonly IPadWatcher? padWatcher;
     private readonly LastInputDevice? lastDevice;
-    private readonly IInputControls report;
 
     public InputFrame(IGameInputState game, MenuScreens screens, IInputControls menus, IWindowInputControls dialogue)
         : this(game, screens, menus, dialogue, NoControls)
@@ -95,21 +93,27 @@ public sealed class InputFrame
         IGameInputState game, MenuScreens screens, IInputControls menus, IWindowInputControls dialogue,
         IInputControls field, IKeyWatcher? watcher = null, IPadWatcher? padWatcher = null,
         IInputControls? report = null, LastInputDevice? lastDevice = null)
+        : this(game, screens, Ordered(report ?? NoControls, menus, dialogue, field), watcher, padWatcher, lastDevice)
     {
-        this.watcher = watcher;
-        this.padWatcher = padWatcher;
-        this.report = report ?? NoControls;
-        this.lastDevice = lastDevice;
+    }
+
+    /// <summary>A frame whose <paramref name="controls"/> take each read in their order, each handed what the one
+    /// before left (#784, the feature modules' order); those that take window reads get each one first. The watchers
+    /// are as above.</summary>
+    public InputFrame(
+        IGameInputState game, MenuScreens screens, IReadOnlyList<IInputControls> controls, IKeyWatcher? watcher,
+        IPadWatcher? padWatcher, LastInputDevice? lastDevice)
+    {
         ArgumentNullException.ThrowIfNull(game);
         ArgumentNullException.ThrowIfNull(screens);
-        ArgumentNullException.ThrowIfNull(menus);
-        ArgumentNullException.ThrowIfNull(dialogue);
-        ArgumentNullException.ThrowIfNull(field);
+        ArgumentNullException.ThrowIfNull(controls);
         this.game = game;
         this.screens = screens;
-        this.menus = menus;
-        this.dialogue = dialogue;
-        this.field = field;
+        this.controls = [.. controls];
+        windowControls = [.. this.controls.OfType<IWindowInputControls>()];
+        this.watcher = watcher;
+        this.padWatcher = padWatcher;
+        this.lastDevice = lastDevice;
     }
 
     /// <summary>Takes one read of <paramref name="pad"/>'s 16-bit <paramref name="buttons"/>, made or not, and returns
@@ -119,7 +123,11 @@ public sealed class InputFrame
         var window = ReadState();
         padWatcher?.Pad(pad, buttons, made);
         lastDevice?.Pad(buttons);
-        var handed = field.Pad(pad, dialogue.Pad(pad, menus.Pad(pad, report.Pad(pad, buttons, made), made), made), made);
+        var handed = buttons;
+        foreach (var control in controls)
+        {
+            handed = control.Pad(pad, handed, made);
+        }
         return new(handed & buttons, window);
     }
 
@@ -131,8 +139,21 @@ public sealed class InputFrame
         var window = ReadState();
         watcher?.Keys(keys);
         lastDevice?.Keys(keys);
-        var handed = field.Keys(dialogue.Keys(menus.Keys(report.Keys(keys))));
+        var handed = keys;
+        foreach (var control in controls)
+        {
+            handed = control.Keys(handed);
+        }
         return new(Kept(keys, handed), window);
+    }
+
+    private static IInputControls[] Ordered(
+        IInputControls report, IInputControls menus, IWindowInputControls dialogue, IInputControls field)
+    {
+        ArgumentNullException.ThrowIfNull(menus);
+        ArgumentNullException.ThrowIfNull(dialogue);
+        ArgumentNullException.ThrowIfNull(field);
+        return [report, menus, dialogue, field];
     }
 
     /// <summary>Controls that hand every read on unchanged, for a frame without field controls.</summary>
@@ -148,7 +169,10 @@ public sealed class InputFrame
     private long? ReadState()
     {
         var window = game.DialogueWindow();
-        dialogue.WindowRead(window);
+        foreach (var control in windowControls)
+        {
+            control.WindowRead(window);
+        }
         screens.MenusRead(game.MenusOpen());
         return window;
     }

@@ -83,6 +83,37 @@ public sealed class InputFrameTests
         Assert.Equal(B, pad.Buttons);
     }
 
+    // #784: the feature modules' controls as one ordered list: each read reaches them in turn, each handed what the
+    // one before left, and every control that takes window reads gets each one.
+    [Fact]
+    public void AListOfControlsTakesEachReadInItsOrder()
+    {
+        var first = new Controls { OnKeys = keys => [.. keys.Where(key => key != 1)], OnPad = buttons => buttons & ~A };
+        var second = new WindowControls();
+        var third = new WindowControls { OnKeys = keys => [.. keys.Where(key => key != 2)] };
+        game.Window = 7;
+        var frame = new InputFrame(game, screens, [first, second, third], null, null, null);
+
+        var keys = frame.Keys([1, 2, 3]);
+        var pad = frame.Pad(0, A | B, made: true);
+
+        Assert.Equal([3], keys.Keys);
+        Assert.Equal(["keys 2,3", "pad 0 0x2000 True"], second.Seen);
+        Assert.Equal(["keys 2,3", "pad 0 0x2000 True"], third.Seen);
+        Assert.Equal(B, pad.Buttons);
+        Assert.Equal([7L, 7L], second.WindowReads);
+        Assert.Equal([7L, 7L], third.WindowReads);
+    }
+
+    [Fact]
+    public void AFrameWithNoControlsHandsEveryReadOn()
+    {
+        var frame = new InputFrame(game, screens, [], null, null, null);
+
+        Assert.Equal([1, 2], frame.Keys([1, 2]).Keys);
+        Assert.Equal(A | B, frame.Pad(0, A | B, made: true).Buttons);
+    }
+
     // #562: the settings confirm questions see each pad read as the game read it, before the menu controls hide their
     // buttons, made or not, and change nothing.
     [Fact]

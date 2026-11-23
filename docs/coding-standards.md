@@ -106,14 +106,16 @@ each rule on every assembly built from `src/`. Each test plants a violation to p
     exactly when it is a Debug build, so the read-only inspector's pipe never reaches players
     ([inspect the running game](contributors/how-to/inspect-the-running-game.md), #291).
 18. **Every feature can be turned off.** A feature class that speaks, plays a cue or takes a key is marked
-    `[FeatureSetting(Feature.X)]`, so a player with some sight can use less of the mod (#661). `X` is a member of
-    `Metaphor.Core.Settings.Feature`, whose `[SettingKey]` names its key in the settings file; the wiring
-    (`HookServices.Speaking`) puts the class behind `settings.Speech(Feature.X, ...)` or `settings.Input(Feature.X, ...)`,
+    `[FeatureSetting<TFeature>(TFeature.X)]`, so a player with some sight can use less of the mod (#661). `TFeature` is
+    its project's feature enum, whose `[SettingKey]` names its key in the settings file, its order and its description;
+    the project's feature module puts the class behind `settings.Speech(TFeature.X, ...)` or
+    `settings.Input(TFeature.X, ...)` ([ADR 0022](adr/0022-features-register-their-own-wiring-and-settings.md)),
     which read the setting at each announcement and input read, so a changed file applies at once. A cue gets its own
     `[SettingKey]` on its `Cue` member. Every default is on: a blind player never has to configure anything. The one exception is a feature still waiting
     for its by-ear check, marked `Testing = true` on its `[SettingKey]`: off until a flip PR removes the mark
     ([workflow](agents/workflow.md#a-feature-that-needs-a-by-ear-check), #783). Each
-    setting is listed in [the settings reference](players/reference/settings.md).
+    setting is listed in [the settings reference](players/reference/settings.md), generated from the keys; and every
+    feature module is in the hook layer's `FeatureModules` list, once.
 19. **Field sounds go through the free-roam gate.** In `Metaphor.Features.Field`, every type that plays or holds a cue
     or speaks also calls `FreeRoamGate.Open`, so no field sound plays through a cutscene, dialogue, menu or scripted
     move (#702).

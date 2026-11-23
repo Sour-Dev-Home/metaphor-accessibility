@@ -56,7 +56,8 @@ public sealed class CuePlayerTests
     public void ACueTurnedOffAloneIsSilentAndTheOtherPlays()
     {
         var device = new FakeWaveDevice { Instant = true };
-        var settings = ModSettings.Parse("""{ "sounds": { "allyHit": { "on": false } } }""", logged.Add);
+        var settings = ModSettings.Parse(
+            """{ "sounds": { "allyHit": { "on": false } } }""", SettingCatalogue.Empty, logged.Add);
         using (var player = new CuePlayer(device, () => settings, logged.Add))
         {
             player.Play(Cue.AllyHit);
@@ -73,7 +74,8 @@ public sealed class CuePlayerTests
     {
         var device = new FakeWaveDevice { Instant = true };
         var settings = ModSettings.Parse(
-            """{ "soundCueVolume": 60, "sounds": { "enemyHit": { "volume": 50 } } }""", logged.Add);
+            """{ "soundCueVolume": 60, "sounds": { "enemyHit": { "volume": 50 } } }""", SettingCatalogue.Empty,
+            logged.Add);
         using (var player = new CuePlayer(device, () => settings, logged.Add))
         {
             player.Play(Cue.EnemyHit);

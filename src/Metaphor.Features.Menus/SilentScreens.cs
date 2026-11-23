@@ -11,7 +11,7 @@ namespace Metaphor.Features.Menus;
 /// the features that speak for it: an event with nothing said since the one before is silent. Speech that a feature
 /// says later, off the event's call, isn't seen, so such a screen may be listed though it spoke. At most
 /// <see cref="MaxEntries"/> entries a session, so the log stays small. Safe to use from several threads.</summary>
-[FeatureSetting(Feature.SilentScreens)]
+[FeatureSetting<MenusFeature>(MenusFeature.SilentScreens)]
 public sealed class SilentScreens : IAnnouncer, IScreenObserver
 {
     /// <summary>The most entries listed in one session.</summary>
@@ -65,7 +65,7 @@ public sealed class SilentScreens : IAnnouncer, IScreenObserver
             var now = Interlocked.Read(ref announced);
             var quiet = now == seen;
             seen = now;
-            write = quiet && listed < limit && settings().IsOn(Feature.SilentScreens);
+            write = quiet && listed < limit && settings().IsOn(MenusFeature.SilentScreens);
             if (write)
             {
                 listed++;

@@ -321,7 +321,8 @@ public sealed class DialogueControlsTests
         var rebound = new DialogueControls(() => bindings, history, reader, announcer);
         history.Add("Ada: One.");
         rebound.WindowRead(Message);
-        bindings = DialogueBindings.From(ModSettings.Parse("""{ "keys": { "dialogue": { "repeatKey": "Q" } } }""", _ => { }));
+        bindings = DialogueBindings.From(ModSettings.Parse(
+            """{ "keys": { "dialogue": { "repeatKey": "Q" } } }""", SettingCatalogue.Empty, _ => { }));
 
         Assert.Equal([R], rebound.Keys([R]));
         Assert.Empty(rebound.Keys([0x51]));
@@ -335,7 +336,7 @@ public sealed class DialogueControlsTests
             """
             { "keys": { "dialogue": { "repeatButtons": "Y", "readerButtons": "LT+RT", "repeatKey": "F3",
               "readerKey": "none" } } }
-            """, _ => { });
+            """, SettingCatalogue.Empty, _ => { });
 
         Assert.Equal(new DialogueBindings(0x1000, 0x0300, 0x72, 0), DialogueBindings.From(settings));
         Assert.Equal(DialogueBindings.Default, DialogueBindings.From(ModSettings.Defaults));

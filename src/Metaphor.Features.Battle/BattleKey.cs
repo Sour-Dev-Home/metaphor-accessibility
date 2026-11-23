@@ -10,7 +10,7 @@ namespace Metaphor.Features.Battle;
 /// the keyboard, so a mirroring second pad can't fire it again; whether a battle is on is asked once, at that edge, and
 /// holds until every source lets go. Safe to call from any of the game's threads; <paramref name="pressed"/> runs
 /// outside its lock.</summary>
-[FeatureSetting(Feature.BattleHits)]
+[FeatureSetting<BattleFeature>(BattleFeature.BattleHits)]
 internal sealed class BattleKey(Func<int> binding, Func<int> key, IBattleScene scene, Action pressed) : IInputControls
 {
     private const int KeyboardSource = -1;

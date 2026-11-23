@@ -19,7 +19,7 @@ namespace Metaphor.Features.Menus;
 /// (<c>Shop_Other_41</c>, serial 1412, flags 8) was fetched just before its five item names, so it is taken as row 0
 /// <c>[NEEDS VERIFICATION]</c>. A view's fetches start a new run when they come more than
 /// <see cref="CursorEvents.QuietMilliseconds"/> after the list's last fetch or focus.</remarks>
-[FeatureSetting(Feature.ShopMenu)]
+[FeatureSetting<MenusFeature>(MenusFeature.ShopMenu)]
 public sealed class ShopFocus : IScreenObserver, ISerialResolveObserver
 {
     /// <summary>The flags a view fetches its row names with.</summary>
