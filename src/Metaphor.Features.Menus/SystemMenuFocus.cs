@@ -17,7 +17,7 @@ namespace Metaphor.Features.Menus;
 /// "Config", Return to Title), each a help line's label minus 6. That the rows use those labels, and why the file says
 /// "Tutorial" and "Config" where the maintainer heard "Tutorials" and "Settings", are <c>[NEEDS VERIFICATION]</c>
 /// (docs/findings/system-submenu-and-shop-menu-names.md).</remarks>
-[FeatureSetting(Feature.Menus)]
+[FeatureSetting(Feature.SystemMenu)]
 public sealed class SystemMenuFocus : IScreenObserver
 {
     // System_Option_49 is serial 1673 (System_Option_55, "The story so far...", is 1679), so each row's label is below.
