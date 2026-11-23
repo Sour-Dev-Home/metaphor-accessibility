@@ -62,7 +62,7 @@ internal sealed record HookServices
     public LastInputDevice? LastDevice { get; init; }
 
     /// <summary>Whether a name entry screen is up (#585), so the keyboard hook's dev log gives a key count, not the
-    /// codes of a name being typed.</summary>
+    /// codes of a name being typed, and the input frame keeps those keys from the mod's bindings (#807).</summary>
     public Func<bool> NameEntryUp { get; init; } = () => false;
 
     /// <summary>Reads the message the dialogue window holds (#232); the loader locates what it reads (#300).</summary>

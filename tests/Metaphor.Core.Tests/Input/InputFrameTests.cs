@@ -105,6 +105,45 @@ public sealed class InputFrameTests
         Assert.Equal([7L, 7L], third.WindowReads);
     }
 
+    // #807: typing a name at new game fired the reader (T) and repeat (R) keys. While the game takes typed text, the
+    // keys that type a character reach no control and still reach the game; F8 (the mark key) works as before.
+    [Fact]
+    public void WhileTextIsTypedTheCharacterKeysReachNoControlButReachTheGame()
+    {
+        const int T = 0x54, R = 0x52, Digit = 0x31, Bracket = 0xDB, F8 = 0x77;
+        var controls = new Controls { OnKeys = keys => [.. keys.Where(key => key != F8)] };
+        var frame = new InputFrame(game, screens, [controls], null, null, null, typing: () => true);
+
+        var keys = frame.Keys([T, R, Digit, Bracket, F8]);
+
+        Assert.Equal(["keys 119"], controls.Seen);
+        Assert.Equal([T, R, Digit, Bracket], keys.Keys);
+    }
+
+    [Fact]
+    public void OnceTheTextIsDoneTheCharacterKeysReachTheControlsAgain()
+    {
+        var typing = true;
+        var controls = new Controls { OnKeys = keys => [] };
+        var frame = new InputFrame(game, screens, [controls], null, null, null, typing: () => typing);
+
+        frame.Keys([0x54]);
+        typing = false;
+        var keys = frame.Keys([0x54]);
+
+        Assert.Equal(["keys ", "keys 84"], controls.Seen);
+        Assert.Empty(keys.Keys);
+    }
+
+    [Fact]
+    public void WhileTextIsTypedAReadOfOnlyCharacterKeysIsHandedBackAsItIs()
+    {
+        var read = new[] { 0x41, 0x42 };
+        var frame = new InputFrame(game, screens, [new Controls()], null, null, null, typing: () => true);
+
+        Assert.Same(read, frame.Keys(read).Keys);
+    }
+
     [Fact]
     public void AFrameWithNoControlsHandsEveryReadOn()
     {

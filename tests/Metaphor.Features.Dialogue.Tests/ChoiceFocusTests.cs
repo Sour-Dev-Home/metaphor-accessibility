@@ -47,6 +47,21 @@ public sealed class ChoiceFocusTests
         Assert.Empty(announcer.Said);
     }
 
+    // #814: the count held for the options is said just before the first of them, once per choice.
+    [Fact]
+    public void TheFirstOptionIsToldOnceJustBeforeItIsSaid()
+    {
+        var told = new List<int>();
+        var counted = new ChoiceFocus(
+            messages, announcer, new TextCleaner(TextCleanerRules.None), () => told.Add(announcer.Said.Count));
+        counted.Observe(new ChoiceRequested(0, "MES_q", "MES_c"));
+
+        counted.Observe(Input(Choice, Settle, row: 0));
+        counted.Observe(Input(Choice, Settle, row: 1));
+
+        Assert.Equal([0], told);
+    }
+
     [Fact]
     public void TheFirstFocusWaitsForTheOptionsToBeSpoken()
     {

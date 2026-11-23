@@ -53,15 +53,17 @@ public sealed class DialogueModule : IFeatureModule
         // A choice's prompt, spoken as it opens, isn't spoken again when the window shows it (#541).
         events.ObserveChoices(lines);
         events.ObserveChoices(choices);
-        var choiceFocus = new ChoiceFocus(library, settings.Speech(DialogueFeature.Dialogue, context.Announcer), cleaner);
+        // A choice's count waits for its first option, when the options are on screen (#814).
+        var choiceFocus = new ChoiceFocus(
+            library, settings.Speech(DialogueFeature.Dialogue, context.Announcer), cleaner, dialogue.Release);
         events.ObserveChoices(choiceFocus);
         events.ObserveLines(choiceFocus);
         // A reply choice opened outside the scripts reaches only the select window call (#541).
         var selectChoices = new SelectWindowChoices(lines, choices, choiceFocus);
         events.ObserveChoices(selectChoices);
         events.ObserveSelects(selectChoices);
-        // After the above, which holds the options of a choice only the window reports, so the window opening says
-        // them (#744).
+        // After the above, which holds the options of a choice only the window reports, so the window call can say a
+        // choice with no options (#744, #814).
         events.ObserveSelects(choices);
         context.Cursors.Observe(choiceFocus);
         // The input frame (#301) hands the controls each read and, with it, the dialogue window's message pointer

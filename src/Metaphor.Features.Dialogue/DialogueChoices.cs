@@ -31,12 +31,13 @@ public sealed class DialogueChoices : IChoiceRequestObserver, ISelectRequestObse
         dialogue.Hold(Find(choice.ChoiceLabel)?.Text);
     }
 
-    /// <summary>The select window opened, so the held options are on screen: says them. Register after
-    /// <see cref="SelectWindowChoices"/>, which holds the options of a choice only this window reports.</summary>
+    /// <summary>The select window was called: held options with no first option to wait for are said
+    /// (<see cref="DialogueAnnouncer.WindowOpened"/>, #814). Register after <see cref="SelectWindowChoices"/>, which
+    /// holds the options of a choice only this window reports.</summary>
     public void Observe(SelectRequested window)
     {
         ArgumentNullException.ThrowIfNull(window);
-        dialogue.Release();
+        dialogue.WindowOpened();
     }
 
     private GameMessage? Find(string? label) => label is null ? null : messages.Find(label);
