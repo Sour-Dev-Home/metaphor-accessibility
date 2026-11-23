@@ -73,6 +73,7 @@ Each is `true` to speak or `false` to stay quiet, inside a `speech` object: `{ "
 | `termNames` | The skill and condition names a line's tags stand for. Off says the tag's stand-in. Still being tested. | testing, off |
 | `choiceCount` | A reply choice saying how many options there are, with each option said as the focus moves, rather than every option up front. Needs `dialogue`. Still being tested. | testing, off |
 | `choiceDelay` | A reply choice's options waiting until they are on screen, not said straight after the prompt. Needs `dialogue`. Still being tested. | testing, off |
+| `windowCloseStop` | A closed dialogue window stopping the line still being spoken. Needs `dialogue`. Still being tested. | testing, off |
 | `welcome` | The welcome on the title screen the first time the game starts with the mod: the mod's version and the field keys. | `true` |
 
 ## Field

@@ -127,6 +127,11 @@ public enum Feature
     [SettingKey("speech", "choiceDelay", "Choice delay", Testing = true)]
     ChoiceDelay,
 
+    /// <summary>A dialogue window closing stopping the line still being spoken (#676). Separate from the dialogue
+    /// while it is tested.</summary>
+    [SettingKey("speech", "windowCloseStop", "Window close stop", Testing = true)]
+    WindowCloseStop,
+
     /// <summary>The first-launch welcome (#617). Whether it has been said is <c>welcomed</c>.</summary>
     [SettingKey("speech", "welcome", "Welcome")]
     Welcome,

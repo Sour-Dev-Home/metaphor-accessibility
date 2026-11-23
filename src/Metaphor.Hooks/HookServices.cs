@@ -168,7 +168,7 @@ internal sealed record HookServices
     public required string ModFolder { get; init; }
 
     /// <summary>Services for the mod in <paramref name="modFolder"/> whose requested dialogue lines and opened choices
-    /// are spoken through <paramref name="announcer"/>, voiced lines as <paramref name="settings"/> say. The library
+    /// are spoken through <paramref name="stoppable"/>, voiced lines as <paramref name="settings"/> say. The library
     /// hears each compiled file first, speech each requested line and choice first, and the menu screens (#208, which
     /// tell the title menu, #94, the main menu and any other screen, #97) and a choice's focus (#95) each cursor input; the report log (#188) and the message log,
     /// when there are, hear every event last.</summary>
@@ -177,9 +177,11 @@ internal sealed record HookServices
     /// <c>settings.Input</c> in front of its controls, read live, so a changed file applies without a restart. A new
     /// feature is gated here with the <see cref="Feature"/> its class is marked with.</remarks>
     public static HookServices Speaking(
-        IAnnouncer announcer, ICuePlayer cues, SettingsReloader settings, ReportLog? report, MessageLog? log,
+        StoppableAnnouncer stoppable, ICuePlayer cues, SettingsReloader settings, ReportLog? report, MessageLog? log,
         string modFolder)
     {
+        ArgumentNullException.ThrowIfNull(stoppable);
+        IAnnouncer announcer = stoppable;
         ArgumentNullException.ThrowIfNull(cues);
         ArgumentNullException.ThrowIfNull(settings);
         // The silent screen list (#597) counts everything the features below say, so it hears each screen event after
@@ -213,11 +215,16 @@ internal sealed record HookServices
         // Auto follows the game's voice language, read on each line (#538); unknown speaks the full line.
         var reader = new DialogueReader(announcer);
         var voiceLanguage = new VoiceLanguageRead();
+        // The window's lines, choices and repeat stop when the window closes (#676), while still the last
+        // thing said.
+        var windowSpeech = stoppable.Source();
         var dialogueSpeech = settings.Speech(Feature.Dialogue, reader);
         var dialogue = new DialogueAnnouncer(
-            dialogueSpeech, cleaner, history, () => settings.Current.VoicedLines, voiceLanguage.Read,
-            () => settings.Current.IsOn(Feature.ChoiceCount), choiceDelayOn: () => settings.Current.IsOn(Feature.ChoiceDelay));
-        // Tutorial pop-ups speak through the reader too, once their table has loaded (#118).
+            windowSpeech.Through(dialogueSpeech), cleaner, history, () => settings.Current.VoicedLines,
+            voiceLanguage.Read, () => settings.Current.IsOn(Feature.ChoiceCount),
+            choiceDelayOn: () => settings.Current.IsOn(Feature.ChoiceDelay));
+        // Tutorial pop-ups speak through the reader too, once their table has loaded (#118). They aren't the dialogue
+        // window's speech, so closing that window doesn't stop them.
         var tutorials = new TutorialTableSource();
         var tutorialPopups = new TutorialPopups(
             library, settings.Speech(Feature.Tutorials, reader), cleaner, () => tutorials.Table);
@@ -230,13 +237,14 @@ internal sealed record HookServices
         // While a pop-up is up, the repeat binding says its page again (by-ear finding of 2026-11-21), unless the
         // tutorials' setting is off.
         var controls = new DialogueControls(
-            dialogueBindings, history, reader, announcer,
+            dialogueBindings, history, reader, windowSpeech.Through(announcer),
             () =>
             {
                 dialogue.EndConversation();
                 gameOver.WindowClosed();
             },
-            () => settings.Current.IsOn(Feature.Tutorials) ? tutorialPopups.OnScreen : null);
+            windowSpeech, () => settings.Current.IsOn(Feature.Tutorials) ? tutorialPopups.OnScreen : null,
+            () => settings.Current.IsOn(Feature.WindowCloseStop));
         // Menus speak through the reader too (#214), and their controls toggle it with the dialogue's binding.
         var menuSpeech = settings.Speech(Feature.Menus, reader);
         var screens = new MenuScreens(KnownScreens.All);

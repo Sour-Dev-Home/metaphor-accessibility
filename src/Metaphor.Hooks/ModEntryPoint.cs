@@ -18,8 +18,9 @@ namespace Metaphor.Hooks;
 public sealed class ModEntryPoint : IMod
 {
     /// <summary>Starts the announcer every feature speaks through (ADR 0004): Prism when it starts, silence otherwise,
-    /// and in Debug builds the transcript in front of either.</summary>
-    private static IAnnouncer StartSpeech(string folder, Action<string> log)
+    /// and in Debug builds the transcript in front of either. In front of all of them, a source's speech can be stopped
+    /// (#676).</summary>
+    private static StoppableAnnouncer StartSpeech(string folder, Action<string> log)
     {
         var (speech, whyNot) = PrismSpeech.TryStart(folder, log);
         log(speech is null ? $"speech unavailable: {whyNot}"
@@ -30,7 +31,7 @@ public sealed class ModEntryPoint : IMod
         var started = Process.GetCurrentProcess().StartTime; // the report log's clock (#763)
         announcer = new TranscriptAnnouncer(announcer, folder, () => (long)(DateTime.Now - started).TotalMilliseconds);
 #endif
-        return announcer;
+        return new StoppableAnnouncer(announcer, speech is null ? () => { } : speech.StopSpeaking);
     }
 
     /// <summary>The report log a player attaches to a bug report (#188), fresh each run, in every build, redacting what
