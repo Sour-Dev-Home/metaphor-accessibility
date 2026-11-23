@@ -5,6 +5,13 @@ using Metaphor.Core.Battle;
 
 namespace Metaphor.Hooks;
 
+/// <summary>The turn icons as the game data block holds them (#252), read through <see cref="GameDataRead"/> only.
+/// </summary>
+internal sealed class BattleTurnIconsMemory(GameDataRead data) : IBattleTurnIcons
+{
+    public TurnIcons? Read() => data.TurnIcons();
+}
+
 /// <summary>The party as the game data block holds it (#247): each slot's unit and its HP at unit <c>+0x0C</c>, the
 /// offset session 6 checked (docs/findings/battle-turn-icons-and-ui-components-static.md), and the max HP the last hit
 /// on it showed. Reads through <see cref="GameDataRead"/> and <see cref="ModuleMemoryReader"/> only.</summary>

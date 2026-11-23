@@ -40,4 +40,19 @@ public enum BattleFeature
     [SettingKey("speech", "battleBanners", "Battle banners", Testing = true, Order = 1070, Description = "The short " +
         "banner during a battle turn: a boss warning, a stat change, \"Not enough MP!\".")]
     BattleBanners,
+
+    /// <summary>"Your turn, 4 actions" or "Enemy turn" as each side's turn starts (#252).</summary>
+    [SettingKey("speech", "battleTurnLine", "Battle turn line", Testing = true, Order = 1072, Description = "Says " +
+        "\"Your turn\" with the actions left, or \"Enemy turn\", as each side's turn starts in a battle.")]
+    BattleTurnLine,
+
+    /// <summary>"Ambushed" when the enemy strikes first (#626).</summary>
+    [SettingKey("speech", "battleStart", "Battle start", Testing = true, Order = 1074, Description = "Says " +
+        "\"Ambushed\" when a battle starts with the enemy striking first.")]
+    BattleStart,
+
+    /// <summary>"Victory", "Escaped" or "Defeated" as a battle ends (#166).</summary>
+    [SettingKey("speech", "battleEnd", "Battle end", Testing = true, Order = 1076, Description = "Says " +
+        "\"Victory\", \"Escaped\" or \"Defeated\" as a battle ends.")]
+    BattleEnd,
 }

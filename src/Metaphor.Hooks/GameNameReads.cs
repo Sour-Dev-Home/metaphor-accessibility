@@ -76,6 +76,20 @@ internal sealed class GameDataRead : IReadsGlobal
     public nint? UnitAddress(int unit) =>
         unit is > 0 and <= LastUnit && Data() is { } data ? data + Units + unit * UnitSize : null;
 
+    // The turn icons (#252), in the same block: the side's int at G+0x25460, then the full and half icons' shorts, as
+    // 0x3b0f80, 0x3b0f10 and 0x3b0ed0 read them (docs/findings/battle-turn-icons-and-ui-components-static.md); their
+    // meanings from four Debug session logs (docs/findings/battle-turn-side-start-and-end-layouts-logged.md).
+    private const int TurnSide = 0x25460;
+
+    /// <summary>The turn icons now, or null when unknown or out of range.</summary>
+    public Core.Battle.TurnIcons? TurnIcons()
+    {
+        var bytes = new byte[Core.Battle.TurnIcons.Size];
+        return Data() is { } data && ModuleMemoryReader.ReadBytes(data + TurnSide, bytes)
+            ? Core.Battle.TurnIcons.From(bytes)
+            : null;
+    }
+
     private nint? Data() =>
         global != 0 && ModuleMemoryReader.ReadPointer(global) is { } data && data != 0 ? data : null;
 }
