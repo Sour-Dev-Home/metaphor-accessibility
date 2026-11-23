@@ -73,6 +73,7 @@ Each is `true` to speak or `false` to stay quiet, inside a `speech` object: `{ "
 | `termNames` | The skill and condition names a line's tags stand for. Off says the tag's stand-in. Still being tested. | testing, off |
 | `choiceCount` | A reply choice saying how many options there are, with each option said as the focus moves, rather than every option up front. Needs `dialogue`. Still being tested. | testing, off |
 | `choiceDelay` | A reply choice's options waiting until they are on screen, not said straight after the prompt. Needs `dialogue`. Still being tested. | testing, off |
+| `windowCloseStop` | A closed dialogue window stopping the line still being spoken. Needs `dialogue`. Still being tested. | testing, off |
 | `welcome` | The welcome on the title screen the first time the game starts with the mod: the mod's version and the field keys. | `true` |
 
 ## Field
@@ -83,6 +84,7 @@ the game.
 | Setting | What it does | Default |
 |---|---|---|
 | `nearby` | The nearby list: N, or LB with Down and Up on the D-pad. | `true` |
+| `nearbyCategories` | The nearby list's categories: `]` and `[`, or the pad chord if you bind one. | `true` |
 | `whereAmI` | "Where am I": L, or LB with Left on the D-pad. | `true` |
 | `guidance` | The guidance beep toward a nearby thing: G, or LB with Right on the D-pad. | `true` |
 | `guidancePause` | The beep pausing, not ending, while the game has control (a cutscene or a line), and coming back once free roam has held. Needs `guidance`. Still being tested. | testing, off |
@@ -149,6 +151,11 @@ DpadUp, DpadDown, DpadLeft and DpadRight.
 | `field.guideButton` | With the held button: starts or stops the guidance beep. | `"DpadRight"` |
 | `field.nextKey` | The next thing on the nearby list, from the keyboard. | `"K"` |
 | `field.previousKey` | The thing before, from the keyboard. | `"J"` |
+| `field.categoryNextKey` | The next nearby category, from the keyboard. | `"]"` |
+| `field.categoryPreviousKey` | The category before. | `"["` |
+| `field.categoryHoldButtons` | Held for the pad's category chord. | `"none"` |
+| `field.categoryButton` | With the held button: the next nearby category. | `"none"` |
+| `field.identifyKey` | Debug builds only: logs the nearest thing for the names table. | `"I"` |
 | `report.markKey` | Writes a marker to the report log. Keyboard only for now. | `"F8"` |
 
 A key the game also uses still reaches the game whenever the mod isn't using it, so choose one the game leaves free

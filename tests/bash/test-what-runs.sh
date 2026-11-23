@@ -50,6 +50,12 @@ check "a workflow change runs test-check.sh" has "check-tests"
 out="$(sel src/Metaphor.Core/X.cs)"
 check "a code change skips test-check.sh" lacks "check-tests"
 
+out="$(sel data/names/7.json)"
+check "a names-table file runs the field tests, which check its schema" has \
+  "dotnet tests/Metaphor.Features.Field.Tests/Metaphor.Features.Field.Tests.csproj data/names/7.json changed (the names table"
+check "a names-table file compiles" has "compile data/names/7.json changed"
+check "a names-table file skips the other feature's tests" lacks "Menus.Tests"
+
 out="$(sel docs/README.md)"
 check "docs change skips test-check.sh" lacks "check-tests"
 check "docs change selects the docs stage" has "docs docs/README.md changed"

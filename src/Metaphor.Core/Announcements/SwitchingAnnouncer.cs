@@ -14,6 +14,10 @@ public interface ISpeechBackend : IDisposable
 
     /// <summary>Speaks the text.</summary>
     int Speak(string text, bool interrupt);
+
+    /// <summary>Stops what is being said, as an interrupting line does before its text, and says nothing after
+    /// (<c>docs/raw-sources/prism-backend-stop-2026-11-21.md</c>).</summary>
+    int StopSpeaking();
 }
 
 /// <summary>The announcer that moves to a screen reader started after the game, and back to the Windows voice when it
@@ -162,6 +166,25 @@ public sealed class SwitchingAnnouncer : IAnnouncer
             {
                 probing = false; // The next due line tries again.
             }
+        }
+    }
+
+    /// <summary>Stops what the current backend is saying (#676), and forgets a failed line, so a move to another backend
+    /// doesn't say it after all. Never throws.</summary>
+    [SuppressMessage("Design", "CA1031", Justification = "Speech failing must never reach the game.")]
+    public void StopSpeaking()
+    {
+        try
+        {
+            lock (gate)
+            {
+                unsaid = null;
+                current?.StopSpeaking();
+            }
+        }
+        catch (Exception)
+        {
+            // Nothing to tell: the line goes on, as before #676.
         }
     }
 

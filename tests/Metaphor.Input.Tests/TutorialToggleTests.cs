@@ -42,7 +42,7 @@ public sealed class TutorialToggleTests
         var history = new DialogueHistory();
         history.Add("Ada: One.");
         controls = new DialogueControls(
-            () => DialogueBindings.Default, history, new DialogueReader(announcer), announcer, null,
+            () => DialogueBindings.Default, history, new DialogueReader(announcer), announcer, null, null,
             () => settings.Current.IsOn(Feature.Tutorials) ? popups.OnScreen : null);
     }
 

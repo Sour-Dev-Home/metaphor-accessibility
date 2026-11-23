@@ -91,6 +91,10 @@ public enum Feature
     [SettingKey("field", "nearby", "Nearby list")]
     Nearby,
 
+    /// <summary>The nearby list's categories and their keys (#697, #661).</summary>
+    [SettingKey("field", "nearbyCategories", "Nearby categories")]
+    NearbyCategories,
+
     /// <summary>"Where am I" (#181).</summary>
     [SettingKey("field", "whereAmI", "Where am I")]
     WhereAmI,
@@ -122,6 +126,11 @@ public enum Feature
     /// Separate from the dialogue while it is tested.</summary>
     [SettingKey("speech", "choiceDelay", "Choice delay", Testing = true)]
     ChoiceDelay,
+
+    /// <summary>A dialogue window closing stopping the line still being spoken (#676). Separate from the dialogue
+    /// while it is tested.</summary>
+    [SettingKey("speech", "windowCloseStop", "Window close stop", Testing = true)]
+    WindowCloseStop,
 
     /// <summary>The first-launch welcome (#617). Whether it has been said is <c>welcomed</c>.</summary>
     [SettingKey("speech", "welcome", "Welcome")]
