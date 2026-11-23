@@ -11,6 +11,17 @@ public sealed class SignatureScanTests : IDisposable
 
     public void Dispose() => Directory.Delete(modFolder, recursive: true);
 
+    [Fact]
+    public void ItsLogLineSaysHowLongTheScanTook()
+    {
+        var report = new SignatureScanReport(Build, 900, 4096, 4000, 96, 37, [new("a", 1, [0x10]), new("b", 2, [])], null);
+
+        Assert.Equal(
+            $"1 of 2 probes matched once; 4000 of 4096 bytes read, 96 failed; took 37 ms, 900 ms after start ({SignatureScan.ReportFileName})",
+            report.Summary());
+        Assert.Equal("failed after 5 ms: IOException", (report with { ScanMilliseconds = 5, Error = "IOException" }).Summary());
+    }
+
     private string ReportPath => Path.Combine(modFolder, SignatureScan.ReportFileName);
 
     private string RequestPath => Path.Combine(modFolder, SignatureScan.RequestFileName);

@@ -1,4 +1,5 @@
 using Metaphor.Core.Announcements;
+using Metaphor.Core.Logging;
 using Metaphor.Core.Menus;
 
 namespace Metaphor.Features.Menus.Tests;
@@ -16,13 +17,25 @@ public sealed class UnknownScreenFocusTests
 
     private readonly RecordingAnnouncer announcer = new();
     private readonly CursorEvents cursors = new();
+    private readonly List<string> unknown = [];
 
     public UnknownScreenFocusTests()
     {
         var screens = new MenuScreens(KnownScreens.All);
         screens.MenusRead(open: true);
         cursors.Observe(screens);
-        screens.Observe(new UnknownScreenFocus(announcer));
+        screens.Observe(new UnknownScreenFocus(announcer, new UnknownValues(unknown.Add)));
+    }
+
+    [Fact]
+    public void EachUnknownScreensClassGoesToTheUnknownListOnceASession()
+    {
+        Cursor(Settle, row: 0, count: 7);
+        Cursor(Down, row: 1, count: 7);
+        Cursor(Settle, row: 1, count: 7);
+        Cursor(Settle, row: 0, screenClass: "OtherChoice@ope@ui@app", manager: 0xd0);
+
+        Assert.Equal([$"screen class {CalendarClass}", "screen class OtherChoice@ope@ui@app"], unknown);
     }
 
     private void Cursor(

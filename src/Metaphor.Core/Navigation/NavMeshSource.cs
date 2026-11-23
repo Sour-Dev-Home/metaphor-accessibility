@@ -1,5 +1,6 @@
 using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
+using Metaphor.Core.Logging;
 
 namespace Metaphor.Core.Navigation;
 
@@ -81,6 +82,7 @@ public sealed class NavMeshSource
     private WalkGraph? Read(string path)
     {
         var name = path[(Folder.Length + 1)..];
+        var started = StepTimer.Start();
         try
         {
             using var archive = open();
@@ -91,7 +93,7 @@ public sealed class NavMeshSource
                 return null;
             }
             log(string.Create(CultureInfo.InvariantCulture,
-                $"navmesh: {name}: {file.Tiles.Count} tiles read, {file.FailedTiles} skipped"));
+                $"navmesh: {name}: {file.Tiles.Count} tiles read, {file.FailedTiles} skipped, {StepTimer.Took(started)}"));
             return new WalkGraph(file);
         }
         catch (Exception e)

@@ -2,6 +2,7 @@ using Metaphor.Core.Announcements;
 using Metaphor.Core.Battle;
 using Metaphor.Core.Cues;
 using Metaphor.Core.Input;
+using Metaphor.Core.Logging;
 using Metaphor.Core.Menus;
 using Metaphor.Core.Messages;
 using Metaphor.Core.Settings;
@@ -40,6 +41,9 @@ public sealed class FeatureContext
 
     /// <summary>The report log (#188), or null when it couldn't be opened.</summary>
     public required ReportLog? Report { get; init; }
+
+    /// <summary>Each value the mod has no mapping for, written once a session (#824).</summary>
+    public UnknownValues Unknowns { get; init; } = UnknownValues.None;
 
     /// <summary>#55's message log: null in Release builds, or when the file couldn't be opened.</summary>
     public required MessageLog? Log { get; init; }

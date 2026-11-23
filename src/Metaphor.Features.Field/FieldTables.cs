@@ -2,6 +2,7 @@ using System.Buffers.Binary;
 using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
 using Metaphor.Core;
+using Metaphor.Core.Logging;
 using Metaphor.Core.Messages;
 
 namespace Metaphor.Features.Field;
@@ -134,12 +135,13 @@ public sealed class FieldTablesSource
     [SuppressMessage("Design", "CA1031", Justification = "A failed read leaves the tables empty; it must not reach the game.")]
     private string Load(Func<Stream> open)
     {
+        var started = StepTimer.Start();
         try
         {
             using var archive = open();
             var read = FieldTables.From(path => CpkArchive.ReadFile(archive, path, FieldTables.MaxSize));
             tables = read;
-            return read.Describe();
+            return $"{read.Describe()} {StepTimer.Took(started)}";
         }
         catch (Exception e)
         {

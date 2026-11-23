@@ -1,7 +1,7 @@
 using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
-using System.Text.RegularExpressions;
+using Metaphor.Core.Logging;
 using Metaphor.Core.Menus;
 using Metaphor.Core.Messages;
 
@@ -12,7 +12,7 @@ namespace Metaphor.Core;
 /// <see cref="MessageLog"/> but keeps only their numbers and labels. Safe to call from any game thread, and never
 /// throws. Only <see cref="Error"/> waits for the file, and only briefly (#204): every other caller just queues its
 /// line, and a background thread writes the queue.</summary>
-public sealed class ReportLog(TextWriter writer, Func<long> millisecondsSinceStart, IEnumerable<string> redact)
+public sealed class ReportLog(TextWriter writer, Func<long> millisecondsSinceStart, LogScrubber scrubber)
     : IMessageFileObserver, ILineRequestObserver, IChoiceRequestObserver, ICursorObserver, ISessionReport
 {
     /// <summary>The longest screen class name written; anything longer is counted instead.</summary>
@@ -35,8 +35,15 @@ public sealed class ReportLog(TextWriter writer, Func<long> millisecondsSinceSta
     private bool writing;
     private Thread? writerThread;
 
-    private readonly Regex[] redacted = [.. redact
-        .Where(s => !string.IsNullOrEmpty(s)).OrderByDescending(s => s.Length).Select(RedactionPattern)];
+    /// <summary>A log redacting the strings in <paramref name="redact"/>, and memory dumps (#824).</summary>
+    public ReportLog(TextWriter writer, Func<long> millisecondsSinceStart, IEnumerable<string> redact)
+        : this(writer, millisecondsSinceStart, new LogScrubber(redact))
+    {
+    }
+
+    /// <summary>What every note and error is cleaned with: shared with the loader's console (<see cref="ModLog"/>), so
+    /// a name the player typed is cleaned from both once the mod has read it.</summary>
+    public LogScrubber Scrubber { get; } = scrubber;
 
     /// <summary>A message file the game compiled: its number, its path (as a label, so usually only its length) and
     /// its length, not its source.</summary>
@@ -76,9 +83,9 @@ public sealed class ReportLog(TextWriter writer, Func<long> millisecondsSinceSta
     public void SilentListFull(int limit) =>
         Write(() => Line($"silent list full at {limit} entries; later silent screens aren't listed"));
 
-    /// <summary>One line from the mod itself, such as the startup status with its hook counts, or an error. Each
-    /// string the log was made to redact (the mod's folder, the player's user name) is replaced first.</summary>
-    public void Note(string line) => Write(() => Line($"{Redact(line)}"));
+    /// <summary>One line from the mod itself, such as the startup status with its hook counts, or an error, cleaned by
+    /// <see cref="Scrubber"/> first: the folders and user name it was made with, typed names and memory dumps.</summary>
+    public void Note(string line) => Write(() => Line($"{Scrubber.Scrub(line)}"));
 
     /// <summary>An error from the mod, redacted as <see cref="Note"/> is. An error may come just before a crash, so
     /// unlike every other line it's on disk, after everything queued before it, when this returns; a stalled disk
@@ -100,39 +107,10 @@ public sealed class ReportLog(TextWriter writer, Func<long> millisecondsSinceSta
     /// <summary>The longest <see cref="Error"/> waits for the disk.</summary>
     public static readonly TimeSpan ErrorWriteTimeout = TimeSpan.FromMilliseconds(500);
 
-    private string Redact(string? line) =>
-        redacted.Aggregate(line ?? "", (text, pattern) => pattern.Replace(text, "<redacted>"));
-
-    /// <summary>Matches a redacted string however a path in it may be written (#204): with either slash, or with
-    /// doubled ones as an escaped string shows them, and with any folder after the first in an 8.3 short form, since
-    /// Windows may pass a path along that way. A short form is matched by shape (up to seven characters, a tilde and a
-    /// number, as in <c>SOMEON~1</c> or the hashed <c>SO1A2B~1</c>), so a few unrelated short paths may be redacted
-    /// too; that errs the safe way.</summary>
-    private static Regex RedactionPattern(string text)
-    {
-        var parts = text.Split(Separators, StringSplitOptions.RemoveEmptyEntries).Select(Regex.Escape).ToArray();
-        var pattern = parts.Length <= 1
-            ? Regex.Escape(text)
-            : string.Join(@"[\\/]+", parts.Take(1).Concat(parts.Skip(1).Select(part => $"(?:{part}|{ShortName})")));
-        return new(pattern, RegexOptions.IgnoreCase | RegexOptions.CultureInvariant, TimeSpan.FromMilliseconds(100));
-    }
-
-    private const string ShortName = @"[^\\/\s~]{1,7}~[0-9]+(?:\.[^\\/\s.]{1,3})?";
-
-    private static readonly char[] Separators = ['\\', '/'];
-
-    /// <summary>What a report log redacts, since a path to any of these can turn up in an error: the mod's folder, its
-    /// settings folder, the game's install folder (#204), the user profile and the user name. A user name under three
-    /// characters isn't redacted on its own, as replacing it everywhere would garble the log.</summary>
+    /// <summary>What a report log redacts: <see cref="LogScrubber.PathsToRedact"/>.</summary>
     public static IReadOnlyList<string> PathsToRedact(
         string modFolder, string configFolder, string? gameExecutable, string userProfile, string userName) =>
-        [.. new[] { modFolder, configFolder, FolderOf(gameExecutable), userProfile, userName.Length >= 3 ? userName : null }
-            .OfType<string>().Where(s => s.Length > 0)];
-
-    /// <summary>The folder part of a Windows path, split by hand so it reads the same on any OS the tests run on. Null
-    /// for a bare drive such as <c>F:</c>, which names no one and would garble every mention of the drive.</summary>
-    private static string? FolderOf(string? path) =>
-        path?.LastIndexOfAny(Separators) is > 2 and var end ? path[..end] : null;
+        LogScrubber.PathsToRedact(modFolder, configFolder, gameExecutable, userProfile, userName);
 
     /// <summary>Waits until every line logged so far is written; false if that takes longer than
     /// <paramref name="timeout"/>. It blocks, so it's only for bounded waits off the per-message path: <see cref="Error"/>,

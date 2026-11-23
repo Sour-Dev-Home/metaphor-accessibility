@@ -1,4 +1,6 @@
+using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
+using System.Globalization;
 
 namespace Metaphor.Core;
 
@@ -28,7 +30,8 @@ public static class HookInstallation
         Action<string> log,
         Action<string>? logError = null,
         Action<THook>? pairInstalled = null,
-        GlobalLookup? globals = null)
+        GlobalLookup? globals = null,
+        Action<string>? timings = null)
         where THook : class
     {
         ArgumentNullException.ThrowIfNull(hooks);
@@ -49,9 +52,27 @@ public static class HookInstallation
             }
         }
 
+        // The signature scan and the installs are the slow steps of the mod's start, so each is timed (#824).
+        var scanTime = TimeSpan.Zero;
+        ScanResult TimedScan(IReadOnlyList<HookSignature> wanted)
+        {
+            var started = Stopwatch.GetTimestamp();
+            try
+            {
+                return scan(wanted);
+            }
+            finally
+            {
+                scanTime += Stopwatch.GetElapsedTime(started);
+            }
+        }
         var full = HookPlanner.Plan(
-            runningBuild, [.. hooks.Select(h => h.Spec)], globals?.Globals ?? [], signatures, scan,
+            runningBuild, [.. hooks.Select(h => h.Spec)], globals?.Globals ?? [], signatures, TimedScan,
             globals?.ReadInt32 ?? (_ => null));
+        void Time(string step, TimeSpan took) => Safely(timings ?? (_ => { }), string.Create(
+            CultureInfo.InvariantCulture, $"{step} took {(long)took.TotalMilliseconds} ms"));
+        Time("signature scan", scanTime);
+        var installing = Stopwatch.GetTimestamp();
         foreach (var (global, decision) in (globals?.Globals ?? []).Zip(full.Globals))
         {
             Log(decision.Found
@@ -96,6 +117,7 @@ public static class HookInstallation
             wentIn.Add(decision.Name);
             Log($"hook {decision.Name} installed at module offset 0x{decision.Rva:x}");
         }
+        Time("hook install", Stopwatch.GetElapsedTime(installing));
         foreach (var (spec, hook) in hooks)
         {
             if (hook is not null && spec.Partner is { } partner && wentIn.Contains(spec.Name) && wentIn.Contains(partner))

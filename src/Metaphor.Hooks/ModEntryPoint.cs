@@ -3,6 +3,7 @@ using System.Diagnostics.CodeAnalysis;
 using Metaphor.Core;
 using Metaphor.Core.Announcements;
 using Metaphor.Core.Cues;
+using Metaphor.Core.Logging;
 using Metaphor.Core.Menus;
 using Metaphor.Core.Settings;
 using Metaphor.Features.Menus;
@@ -20,12 +21,13 @@ public sealed class ModEntryPoint : IMod
     /// <summary>Starts the announcer every feature speaks through (ADR 0004): Prism when it starts, silence otherwise,
     /// and in Debug builds the transcript in front of either. In front of all of them, a source's speech can be stopped
     /// (#676).</summary>
-    private static StoppableAnnouncer StartSpeech(string folder, Action<string> log)
+    private static StoppableAnnouncer StartSpeech(string folder, ModLog log)
     {
-        var (speech, whyNot) = PrismSpeech.TryStart(folder, log);
-        log(speech is null ? $"speech unavailable: {whyNot}"
+        var (speech, whyNot) = PrismSpeech.TryStart(folder, log.For(LogArea.Speech));
+        // Its startup result (#824): the backend, or why there is none.
+        log.Result(speech is null ? $"speech: unavailable, {whyNot}"
             : speech.BackendName is { } name ? $"speech: {name}"
-            : SwitchingAnnouncer.NoBackend);
+            : "speech: unavailable, no speech backend is available", failed: speech?.BackendName is null);
         IAnnouncer announcer = speech is null ? new SilentAnnouncer() : speech;
 #if DEBUG
         var started = Process.GetCurrentProcess().StartTime; // the report log's clock (#763)
@@ -34,11 +36,11 @@ public sealed class ModEntryPoint : IMod
         return new StoppableAnnouncer(announcer, speech is null ? () => { } : speech.StopSpeaking);
     }
 
-    /// <summary>The report log a player attaches to a bug report (#188), fresh each run, in every build, redacting what
-    /// <see cref="ReportLog.PathsToRedact"/> lists. Null when it can't be opened.</summary>
+    /// <summary>The report log a player attaches to a bug report (#188), fresh each run, in every build, cleaned by
+    /// <paramref name="scrubber"/>. Null when it can't be opened.</summary>
     [SuppressMessage("Design", "CA1031", Justification = "A report log must never stop the mod.")]
     [SuppressMessage("Reliability", "CA2000", Justification = "Lives as long as the game process.")]
-    private static ReportLog? OpenReportLog(string folder, string configFolder)
+    private static ReportLog? OpenReportLog(string folder, LogScrubber scrubber)
     {
         try
         {
@@ -46,10 +48,7 @@ public sealed class ModEntryPoint : IMod
                 Path.Combine(folder, ReportLog.FileName), FileMode.Create, FileAccess.Write, FileShare.Read);
             var started = Process.GetCurrentProcess().StartTime;
             var report = new ReportLog(
-                new StreamWriter(stream), () => (long)(DateTime.Now - started).TotalMilliseconds,
-                ReportLog.PathsToRedact(
-                    folder, configFolder, Environment.ProcessPath,
-                    Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), Environment.UserName));
+                new StreamWriter(stream), () => (long)(DateTime.Now - started).TotalMilliseconds, scrubber);
             // The queue's last lines are the ones a crash report needs, so they're written on the way out, waiting
             // briefly so exit can't hang (#204). A crash in native code runs neither handler.
             AppDomain.CurrentDomain.ProcessExit += (_, _) => DrainBeforeExit(report);
@@ -120,20 +119,16 @@ public sealed class ModEntryPoint : IMod
             // The settings live in Reloaded-II's per-mod user-config folder (IModLoaderV3.GetModConfigDirectory, in
             // Reloaded.Mod.Interfaces 2.4.0), read now and again when the file changes (#104).
             var configFolder = modLoader.GetModConfigDirectory(config.ModId);
-            var report = OpenReportLog(folder, configFolder);
-            void Log(string line)
-            {
-                logger.WriteLine($"[{config.ModId}] {line}");
-                report?.Note(line);
-            }
-            // An error is on disk before the game goes on, in case a crash follows (#204).
-            void LogError(string line)
-            {
-                logger.WriteLine($"[{config.ModId}] {line}");
-                report?.Error(line);
-            }
+            // Both logs are cleaned the same way (#204, #824): Reloaded-II keeps its console in a log file too.
+            var scrubber = new LogScrubber(LogScrubber.PathsToRedact(
+                folder, configFolder, Environment.ProcessPath,
+                Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), Environment.UserName));
+            var report = OpenReportLog(folder, scrubber);
+            // Each area's lines carry its prefix; an error is on disk before the game goes on, in case a crash follows
+            // (#204, #824).
+            var log = new ModLog(line => logger.WriteLine($"[{config.ModId}] {line}"), report, scrubber);
             // Speech and the logs first: hooks are created with them, and one may fire at once.
-            var announcer = StartSpeech(folder, Log);
+            var announcer = StartSpeech(folder, log);
 #if DEBUG
             var messageLog = OpenMessageLog(folder);
 #else
@@ -148,16 +143,21 @@ public sealed class ModEntryPoint : IMod
 #endif
             // Every feature module, whose settings the file is read for (#784).
             var modules = FeatureModules.Create();
-            var settings = new SettingsReloader(announcer, SettingCatalogue.From(modules), LogError, testingOn);
-            var file = SettingsFile.Open(configFolder, settings, LogError);
+            var settingsErrors = log.ErrorsFor(LogArea.Settings);
+            var settings = new SettingsReloader(announcer, SettingCatalogue.From(modules), settingsErrors, testingOn);
+            var file = SettingsFile.Open(configFolder, settings, settingsErrors);
             settingsFile = file;
+            log.Result(File.Exists(Path.Combine(configFolder, ModSettings.FileName))
+                ? $"settings: read from {ModSettings.FileName}"
+                : $"settings: defaults, no {ModSettings.FileName} yet");
             // Sound cues play on their own thread through waveOut channels, at the settings in force (#636, #637,
             // ADR 0019).
-            cues = new CuePlayer(new WaveOutDevice(), () => settings.Current, LogError);
-            var services = HookServices.Speaking(modules, announcer, cues, settings, report, messageLog, folder);
+            cues = new CuePlayer(new WaveOutDevice(), () => settings.Current, log.ErrorsFor(LogArea.Sounds));
+            log.Result(settings.Current.SoundCues ? "sounds: on" : "sounds: off in the settings");
+            var services = HookServices.Speaking(modules, announcer, cues, settings, report, messageLog, folder, log);
             // Before the hooks, so the title screen's first events reach it; its outcome is logged in Debug builds only.
 #if DEBUG
-            Action<string> updateLog = Log;
+            var updateLog = log.For(LogArea.Updates);
 #else
             Action<string> updateLog = _ => { };
 #endif
@@ -167,32 +167,52 @@ public sealed class ModEntryPoint : IMod
                 config.ModVersion ?? "", TitleMenuFocus.Screen, settings.Speech(MenusFeature.Welcome, announcer),
                 () => settings.Current, file.MarkWelcomed));
             StartUpdateCheck(config.ModVersion ?? "", announcer, settings, services.MenuScreens, updateLog);
+            log.Result(settings.Current.CheckForUpdates ? "updates: check on" : "updates: check off in the settings");
             // The mod runs inside the game, so this process's exe is the game executable whose hash identifies the
             // build (seen in docs/raw-sources/mod-entry-point-first-run-2026-11-15.md). Hooks go in only on a known
             // build, through the loader (#39). Issue #21's spike scans first, so it reads the game's own bytes (#92).
             var candidates = HookLoader.Candidates(folder);
+            var installTook = "";
             var status = ModStartup.CheckAndReport(
                 config.ModId, Environment.ProcessPath ?? "", folder, () => KnownGameBuilds.All, HookLoader.Expected(candidates),
-                build => HookLoader.Install(
-                    build, candidates, modLoader, services, Log, LogError),
-                build => ScanIfRequested(folder, build, Log, LogError),
+                build =>
+                {
+                    var started = StepTimer.Start();
+                    try
+                    {
+                        return HookLoader.Install(
+                            build, candidates, modLoader, services, log.For(LogArea.Hooks), log.ErrorsFor(LogArea.Hooks));
+                    }
+                    finally
+                    {
+                        installTook = " " + StepTimer.Took(started);
+                    }
+                },
+                build => ScanIfRequested(folder, build, log.For(LogArea.Scan), log.ErrorsFor(LogArea.Scan)),
                 announcer);
             // The load message is spoken (#187); the log repeats it for when speech didn't start. A reason means
             // something went wrong, so it's written as an error.
-            (status.Reason is null ? (Action<string>)Log : LogError)(
+            (status.Reason is null ? log.For(LogArea.Startup) : log.ErrorsFor(LogArea.Startup))(
                 $"build {ModBuild.Revision.CommitSha}{(ModBuild.Revision.HasUncommittedChanges ? "-dirty" : "")}: {status.State} on game build {status.GameBuildSha256}, hooks {status.HooksLoaded}/{status.HooksExpected}" +
                 (status.Reason is null ? "" : $" ({status.Reason})") + $"; load message: {LoadMessage.For(status).Text}");
+            log.Result(
+                $"hooks: {status.HooksLoaded} of {status.HooksExpected} installed{installTook}" +
+                (status.Reason is null ? "" : $", {status.Reason}"),
+                failed: status.Reason is not null);
             // The tutorial and field tables are the game's own data, read from its archive beside the exe (#118, #742,
-            // #743) once hooks are in
-            // on a known build; off the game's thread, and never written.
+            // #743) once hooks are in on a known build; off the game's thread, and never written. Each one's line is
+            // its startup result.
             if (status.HooksLoaded > 0 && Path.GetDirectoryName(Environment.ProcessPath) is { Length: > 0 } gameFolder)
             {
-                _ = services.Tutorials.LoadInBackground(() => File.OpenRead(Path.Combine(gameFolder, "base.cpk")), Log);
-                _ = services.FieldTables.LoadInBackground(() => File.OpenRead(Path.Combine(gameFolder, "base.cpk")), Log);
+                _ = services.Tutorials.LoadInBackground(
+                    () => File.OpenRead(Path.Combine(gameFolder, "base.cpk")), line => log.Result(line));
+                _ = services.FieldTables.LoadInBackground(
+                    () => File.OpenRead(Path.Combine(gameFolder, "base.cpk")), line => log.Result(line));
             }
 #if DEBUG
             // After the hooks, so its reads never race their installation; read-only, so the build check isn't needed.
-            liveInspector = LiveInspector.StartIfOptedIn(folder, Log, LogError);
+            liveInspector = LiveInspector.StartIfOptedIn(
+                folder, log.For(LogArea.Inspector), log.ErrorsFor(LogArea.Inspector));
 #endif
         }
         catch (Exception)
@@ -213,9 +233,9 @@ public sealed class ModEntryPoint : IMod
             modVersion, TitleMenuFocus.Screen, settings.Speech(UpdatesFeature.UpdateNotice, announcer),
             () => settings.Current.CheckForUpdates, log);
         screens.Observe(notice);
+        // Off in the settings: the startup summary says so.
         if (!settings.Current.CheckForUpdates)
         {
-            log("update check: off in the settings");
             return;
         }
         _ = Task.Run(async () =>
@@ -243,14 +263,7 @@ public sealed class ModEntryPoint : IMod
             return;
         }
 
-        if (scan.Error is null)
-        {
-            log($"signature scan: {scan.Probes.Count(probe => probe.Matches == 1)} of {scan.Probes.Count} probes matched once; {scan.ReadableBytes} of {scan.ModuleBytes} bytes read, {scan.UnreadableBytes} failed; {scan.MillisecondsSinceGameStart} ms after start ({SignatureScan.ReportFileName})");
-        }
-        else
-        {
-            logError($"signature scan failed: {scan.Error}");
-        }
+        (scan.Error is null ? log : logError)(scan.Summary());
     }
 
     /// <summary>The game's main module for the signature scan, read a chunk at a time through

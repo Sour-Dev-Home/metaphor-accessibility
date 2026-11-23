@@ -81,7 +81,8 @@ public sealed class NavMapFilesTests
         Assert.Equal((1, 1), fileOf(1));
         Assert.Null(fileOf(0));
         Assert.Equal(1, opens);
-        Assert.Equal(["navmesh: MapData.bin: 3 maps"], lines);
+        // Timed, as a slow step (#824).
+        Assert.Matches("^navmesh: MapData.bin: 3 maps in [0-9]+ ms$", Assert.Single(lines));
     }
 
     [Fact]

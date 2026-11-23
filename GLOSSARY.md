@@ -32,7 +32,8 @@ _Avoid_: loop, beacon (when used to mean this tone)
 
 **Transcript**:
 The ordered record of every announcement in one run of the game, kept in dev builds so what was said can be checked
-without listening. Each line is `<ms> ms <text>`, the milliseconds since the game started, the report log's clock.
+without listening. Each line is `<ms> ms <mode>: <text>`, the milliseconds since the game started, the report log's
+clock, then `interrupting` or `queued` for whether the announcement cut off the speech before it (#824).
 _Avoid_: speech log
 
 **Announcer**:

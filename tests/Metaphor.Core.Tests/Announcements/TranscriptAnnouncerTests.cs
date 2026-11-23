@@ -24,9 +24,10 @@ public sealed class TranscriptAnnouncerTests : IDisposable
         now = 172230;
         announcer.Announce(new Announcement("The wind picks up.", Interrupt: false));
 
-        // #763: each line starts with the report log's clock, "<ms> ms ".
+        // #763: each line starts with the report log's clock, "<ms> ms "; #824: then whether it cut in or waited.
         Assert.Equal(
-            ["1500 ms Ada: The bridge is out.", "172230 ms The wind picks up."], File.ReadAllLines(TranscriptPath));
+            ["1500 ms interrupting: Ada: The bridge is out.", "172230 ms queued: The wind picks up."],
+            File.ReadAllLines(TranscriptPath));
         Assert.Equal(2, speech.Said.Count);
     }
 
@@ -37,7 +38,7 @@ public sealed class TranscriptAnnouncerTests : IDisposable
 
         announcer.Announce(new Announcement("First part\r\nsecond part", Interrupt: true));
 
-        Assert.Equal(["0 ms First part second part"], File.ReadAllLines(TranscriptPath));
+        Assert.Equal(["0 ms interrupting: First part second part"], File.ReadAllLines(TranscriptPath));
     }
 
     // #585: the name the player types is spoken but never written down.
@@ -49,7 +50,7 @@ public sealed class TranscriptAnnouncerTests : IDisposable
 
         announcer.Announce(typed);
 
-        Assert.Equal(["0 ms " + TranscriptAnnouncer.PrivateLine(3)], File.ReadAllLines(TranscriptPath));
+        Assert.Equal(["0 ms interrupting: " + TranscriptAnnouncer.PrivateLine(3)], File.ReadAllLines(TranscriptPath));
         Assert.DoesNotContain("Ada", File.ReadAllText(TranscriptPath), StringComparison.Ordinal);
         Assert.DoesNotContain("Ada", typed.ToString(), StringComparison.Ordinal);
         Assert.Equal([typed], speech.Said);
@@ -62,7 +63,7 @@ public sealed class TranscriptAnnouncerTests : IDisposable
 
         new TranscriptAnnouncer(speech, folder, () => now).Announce(new Announcement("Now.", Interrupt: true));
 
-        Assert.Equal(["0 ms Now."], File.ReadAllLines(TranscriptPath));
+        Assert.Equal(["0 ms interrupting: Now."], File.ReadAllLines(TranscriptPath));
     }
 
     [Fact]

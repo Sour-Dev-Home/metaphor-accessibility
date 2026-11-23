@@ -4,6 +4,7 @@ using Metaphor.Core.Battle;
 using Metaphor.Core.Cues;
 using Metaphor.Core.Features;
 using Metaphor.Core.Input;
+using Metaphor.Core.Logging;
 using Metaphor.Core.Menus;
 using Metaphor.Core.Messages;
 using Metaphor.Core.Settings;
@@ -175,8 +176,10 @@ internal sealed record HookServices
     /// keys through its own setting's gate (#661), read live, so a changed file applies without a restart.</remarks>
     public static HookServices Speaking(
         IReadOnlyList<IFeatureModule> modules, StoppableAnnouncer stoppable, ICuePlayer cues, SettingsReloader settings,
-        ReportLog? report, MessageLog? log, string modFolder)
+        ReportLog? report, MessageLog? log, string modFolder, ModLog? modLog = null)
     {
+        // Each unmapped value is written once a session, and each typed name read is cleaned from the logs (#824).
+        var unknowns = modLog?.Unknowns ?? UnknownValues.None;
         ArgumentNullException.ThrowIfNull(modules);
         ArgumentNullException.ThrowIfNull(stoppable);
         IAnnouncer announcer = stoppable;
@@ -199,12 +202,15 @@ internal sealed record HookServices
         var party = new BattlePartyMemory(gameData);
         var characterTable = DataTableRead.Characters();
         var followerTable = DataTableRead.Followers();
-        var names = new GameNames(new GameNameMemory(gameData, characterTable, followerTable), library);
+        var names = new GameNames(new GameNameMemory(gameData, characterTable, followerTable), library)
+        {
+            TypedNameRead = modLog is null ? null : modLog.Scrubber.AddName,
+        };
         // Game terms and icons (#108, #109): a skill or condition named by its place in its file as build 548ddc95
         // compiles it, anything else said as a stand-in for its kind, logged in Debug builds (#83). The battle banners'
         // situation file (#692) is kept by the same store: one "file + position" key.
         var filePositions = new MessageFilePositions([.. GameTerms.Steam18330018, BattleBanners.Steam18330018]);
-        var terms = new GameTerms(filePositions, log is null ? null : log.PlaceholderMissing);
+        var terms = new GameTerms(filePositions, log is null ? null : log.PlaceholderMissing, unknowns);
         var cleaner = new TextCleaner(
             GameNames.Rules.With(GameTerms.Rules),
             (key, arguments) => names.Placeholder(key, arguments)
@@ -243,6 +249,7 @@ internal sealed record HookServices
             Reader = reader,
             Cues = cues,
             Report = report,
+            Unknowns = unknowns,
             Log = log,
             ModFolder = modFolder,
             Events = events,

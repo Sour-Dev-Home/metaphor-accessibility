@@ -1,4 +1,5 @@
 using Metaphor.Core.Announcements;
+using Metaphor.Core.Logging;
 using Metaphor.Core.Messages;
 
 namespace Metaphor.Core.Tests.Messages;
@@ -97,6 +98,20 @@ public sealed class GameTermsTests
 
         Assert.Equal(spoken, cleaner.Clean(text));
         Assert.Equal([reported], missing);
+    }
+
+    [Fact]
+    public void EachUnmappedIconOrTagGoesToTheUnknownListOnceASession()
+    {
+        var unknown = new List<string>();
+        var files = new MessageFilePositions(Shapes);
+        var terms = new GameTerms(files, unknowns: new UnknownValues(unknown.Add));
+        var cleaner = new TextCleaner(GameTerms.Rules, terms.Placeholder);
+
+        cleaner.Clean("Press <PAD_ICON 80> or <PAD_ICON 80>, then <PAD_ICON 81> for <ITEM 20637 2>");
+        cleaner.Clean("<PAD_ICON 80> again");
+
+        Assert.Equal(["icon PAD_ICON 80", "icon PAD_ICON 81", "tag ITEM 20637 2"], unknown);
     }
 
     [Theory]

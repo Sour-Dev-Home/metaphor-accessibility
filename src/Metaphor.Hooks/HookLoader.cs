@@ -147,7 +147,8 @@ internal static class HookLoader
             new GlobalLookup(
                 [.. readers.Select(reader => reader.Global)],
                 rva => ModuleMemoryReader.ReadInt32(moduleBase + (nint)rva),
-                decision => UseGlobal(readers, decision, moduleBase, missing)));
+                decision => UseGlobal(readers, decision, moduleBase, missing)),
+            Log);
         // Referenced for the life of the game (HookInstallation.Run says why).
         Installed.AddRange(kept);
         // A hook skipped above, such as one without the constructor, isn't in wentIn, so its opt-in isn't active.

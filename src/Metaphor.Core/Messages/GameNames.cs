@@ -173,7 +173,16 @@ public sealed class GameNames
             : null;
 
     /// <summary>A typed name, or null.</summary>
-    public string? Typed(TypedName name) => memory.TypedName(name) is { } field ? TypedNameText.Decode(field) : null;
+    public string? Typed(TypedName name)
+    {
+        var typed = memory.TypedName(name) is { } field ? TypedNameText.Decode(field) : null;
+        TypedNameRead?.Invoke(typed);
+        return typed;
+    }
+
+    /// <summary>Told each typed name read, or null when none was: the log scrubber, so a name the player chose never
+    /// reaches a log they share (#824).</summary>
+    public Action<string?>? TypedNameRead { get; init; }
 
     /// <summary>A placeholder's value for <see cref="Rules"/>, from its key and its tag's arguments, or null.</summary>
     public string? Placeholder(string key, string arguments) => key switch

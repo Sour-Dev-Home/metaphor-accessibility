@@ -107,7 +107,7 @@ public sealed class MenusModule : IFeatureModule
             screens.Observe(list);
             events.ObserveSerials(list);
         }
-        screens.Observe(new UnknownScreenFocus(menuSpeech));
+        screens.Observe(new UnknownScreenFocus(menuSpeech, context.Unknowns));
         var menuBindings = settings.Live(now =>
         {
             var toggle = ReaderBinding.From(now);
