@@ -58,13 +58,18 @@ Each is `true` to speak or `false` to stay quiet, inside a `speech` object: `{ "
 | `battleHits` | Each battle hit as it lands, the battle status key and the enemy HP key. Off also leaves those keys to the game. | `true` |
 | `battleOutcomes` | "Knocked out", "defeated" or "revived" after a battle hit's number. Needs `battleHits`. Still being tested. | testing, off |
 | `battleLists` | Battle's skill and item lists, row by row. Separate from `menus`. | `true` |
+| `calendar` | The Calendar's day grid. Still being tested. | testing, off |
+| `battleBanners` | The short banner during a battle turn: a boss warning, a stat change, "Not enough MP!". Still being tested. | testing, off |
 | `saveSlots` | The save and load screens' slots. Still being tested. | testing, off |
+| `learnedSettingValues` | The System rows whose setting the mod has not pinned saying their value on change, learned as you change them. Needs `menus`. Still being tested. | testing, off |
 | `nameEntry` | The name entry screen: its title, each letter you type, and when a name is refused. | `true` |
 | `equipmentMenu` | The Equipment screen's slots and gear. Still being tested. | testing, off |
 | `travelMap` | Each destination on the travel map. | `true` |
 | `placeNames` | The place name the game shows as you arrive somewhere. | `true` |
 | `updateNotice` | The title screen's notice of a newer version. The request itself is `checkForUpdates`. | `true` |
 | `tutorials` | Tutorial pop-ups: the title, the page count and each page. Off also leaves the repeat key to repeat dialogue, not the pop-up's page. | `true` |
+| `choiceCount` | A reply choice saying how many options there are, with each option said as the focus moves, rather than every option up front. Needs `dialogue`. Still being tested. | testing, off |
+| `choiceDelay` | A reply choice's options waiting until they are on screen, not said straight after the prompt. Needs `dialogue`. Still being tested. | testing, off |
 | `welcome` | The welcome on the title screen the first time the game starts with the mod: the mod's version and the field keys. | `true` |
 
 ## Field
@@ -77,6 +82,7 @@ the game.
 | `nearby` | The nearby list: N, or LB with Down and Up on the D-pad. | `true` |
 | `whereAmI` | "Where am I": L, or LB with Left on the D-pad. | `true` |
 | `guidance` | The guidance beep toward a nearby thing: G, or LB with Right on the D-pad. | `true` |
+| `guidancePause` | The beep pausing, not ending, while the game has control (a cutscene or a line), and coming back once free roam has held. Needs `guidance`. Still being tested. | testing, off |
 | `reach` | The callout when a door or chest comes into reach: "Door, in reach". | `true` |
 
 ## Report

@@ -9,6 +9,15 @@ checks them in the first game session and removes the tag.
 
 ## Unreleased
 
+- **The Calendar says the day.** Opening the Calendar says "Calendar, Waters Day, day 12 of 30", and each move says the
+  weekday and the day you land on (the five weekdays are as heard in a test session). The month, events and discounts
+  aren't spoken yet (#193). `[NEEDS VERIFICATION by ear]`
+- **Dialogue choices say how many options, not all of them.** When a choice opens, the mod says "Choice, 3 options"
+  and then the focused option, instead of reading every option at once. Move the cursor to hear the others (#730).
+- **Field sounds wait while the game takes over.** The guiding beep and "in reach" call-outs go quiet when a menu,
+  dialogue or cutscene starts, and the beep picks up again toward the same thing when you can walk again, unless you
+  are on another map by then (#702). The beep waits a second after you can walk again, so a pause between the lines of
+  a scene doesn't bring it back (#709). Whether a scripted walk quiets them too isn't known yet.
 - **The Equipment slots are named.** In the slot list, rows two to five say their slot ("Weapon, 2 of 5"); the first row
   (the archetype), the characters and the items are still said by place (#217). `[NEEDS VERIFICATION by ear]`
 - **The reader key works outside dialogue.** `T`, or `LB` with `RB`, now turns the reader off and on in the field and
@@ -52,6 +61,13 @@ checks them in the first game session and removes the tag.
   `[NEEDS VERIFICATION by ear]`
 - **Knock-outs are said.** The hit that takes a party member to 0 HP adds "knocked out" ("Strohl 40, knocked out"), one
   that defeats an enemy adds "defeated", and a heal from 0 HP adds "revived" (#254). `[NEEDS VERIFICATION by ear]`
+- **No more gaps where the screen shows a skill, an item or a button.** Text that names a skill or a status condition
+  now says its name, as after "Required Skill:". Items, Archetypes, attributes, buttons and other icons, which the mod
+  can't name yet, say what kind of thing goes there ("item", "button") instead of leaving a gap, as does the action a
+  new key binding clashes with (#108, #109, #564). `[NEEDS VERIFICATION by ear]`
+- **Battle banners are read.** The short banner during a turn, such as a boss powering up, "Attack rose!", "Not
+  enough MP!" or "Gained one Turn Icon!", is read once, after the hits. A name in it isn't read yet. The setting
+  `speech.battleBanners` turns it off (#692, #661). `[NEEDS VERIFICATION by ear]`
 - **Battle's skill and item lists are read**: "Skills" or "Items" as the list opens, then each skill or item's name
   and "n of total" as you move. F, or R3 on the pad, reads the focused one's description (#247). Past the first
   screen each row keeps its own name as the list scrolls; one whose name isn't known is said by its position.

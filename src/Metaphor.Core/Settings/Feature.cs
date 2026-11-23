@@ -19,9 +19,18 @@ public enum Feature
     [SettingKey("speech", "menus", "Menus")]
     Menus,
 
+    /// <summary>The Calendar's day grid (#193). Separate from the menus while it is tested.</summary>
+    [SettingKey("speech", "calendar", "Calendar", Testing = true)]
+    Calendar,
+
     /// <summary>The save and load screens' slots (#622). Separate from the menus while it is tested.</summary>
     [SettingKey("speech", "saveSlots", "Save slots", Testing = true)]
     SaveSlots,
+
+    /// <summary>The System rows with no pinned setting ID saying their value, by the ID learned at run time (#770).
+    /// Separate from the menus while it is tested.</summary>
+    [SettingKey("speech", "learnedSettingValues", "Learned setting values", Testing = true)]
+    LearnedSettingValues,
 
     /// <summary>The name entry screen (#585).</summary>
     [SettingKey("speech", "nameEntry", "Name entry")]
@@ -61,6 +70,10 @@ public enum Feature
     [SettingKey("speech", "battleLists", "Battle lists")]
     BattleLists,
 
+    /// <summary>The in-turn situation banner: a boss warning, a stat change, "Not enough MP!" (#692, #661).</summary>
+    [SettingKey("speech", "battleBanners", "Battle banners", Testing = true)]
+    BattleBanners,
+
     /// <summary>The nearby list and its pad steps (#181).</summary>
     [SettingKey("field", "nearby", "Nearby list")]
     Nearby,
@@ -73,9 +86,24 @@ public enum Feature
     [SettingKey("field", "guidance", "Guidance beep")]
     Guidance,
 
+    /// <summary>The guidance beep pausing while the game has control and settling before it returns (#702, #709), not
+    /// ending. Separate from the beep while it is tested.</summary>
+    [SettingKey("field", "guidancePause", "Guidance pause", Testing = true)]
+    GuidancePause,
+
     /// <summary>The callout when a door or chest comes into reach (#644).</summary>
     [SettingKey("field", "reach", "Reach callouts")]
     Reach,
+
+    /// <summary>A choice saying "Choice, N options", the options spoken as focus moves, not every option up front
+    /// (#730). Separate from the dialogue while it is tested.</summary>
+    [SettingKey("speech", "choiceCount", "Choice count", Testing = true)]
+    ChoiceCount,
+
+    /// <summary>A choice's options held until the select window opens, not said at once after the prompt (#744).
+    /// Separate from the dialogue while it is tested.</summary>
+    [SettingKey("speech", "choiceDelay", "Choice delay", Testing = true)]
+    ChoiceDelay,
 
     /// <summary>The first-launch welcome (#617). Whether it has been said is <c>welcomed</c>.</summary>
     [SettingKey("speech", "welcome", "Welcome")]

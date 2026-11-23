@@ -8,7 +8,7 @@ namespace Metaphor.Features.Dialogue;
 /// <summary>Speaks the focus as the player moves through a reply choice (#95). The first menu cursor whose input the game
 /// handles after a choice opens is taken as the choice's (decided in #95 that choices use the shared cursor; which
 /// cursor the game uses is <c>[NEEDS VERIFICATION]</c>, docs/raw-sources/spike-session-2-2026-11-16.md). Each option it
-/// settles on is said as "option, n of total": the first after "Choose: …" (#82) finishes, each later one cutting off
+/// settles on is said as "option, n of total": the first after "Choice, N options" (#82) finishes, each later one cutting off
 /// the last. Options are the choice message's lines, as #82 reads them. The choice ends at the next dialogue line.
 /// Safe to call from several threads.</summary>
 [FeatureSetting(Feature.Dialogue)]
