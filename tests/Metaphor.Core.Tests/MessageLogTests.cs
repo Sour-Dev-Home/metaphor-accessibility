@@ -51,6 +51,16 @@ public sealed class MessageLogTests
     }
 
     [Fact]
+    public void RecordsAMenuNote()
+    {
+        var (log, text) = NewLog(now: 41);
+
+        log.MenuNote("slot screen=load index=1");
+
+        Assert.Equal($"41 ms menu slot screen=load index=1{Environment.NewLine}", text.ToString());
+    }
+
+    [Fact]
     public void RecordsAScriptFunctionTheGameRegistered()
     {
         var (log, text) = NewLog(now: 900);
@@ -290,6 +300,16 @@ public sealed class MessageLogTests
         log.TutorialSeen("open", "via=X id=12");
 
         Assert.Equal($"9 ms tutorial open via=X id=12{Environment.NewLine}", text.ToString());
+    }
+
+    [Fact]
+    public void RecordsATagSpokenAsItsStandIn()
+    {
+        var (log, text) = NewLog(now: 9);
+
+        log.PlaceholderMissing("ITEM", "20637 2");
+
+        Assert.Equal($"9 ms placeholder missing tag=ITEM args=\"20637 2\"{Environment.NewLine}", text.ToString());
     }
 
     [Fact]
