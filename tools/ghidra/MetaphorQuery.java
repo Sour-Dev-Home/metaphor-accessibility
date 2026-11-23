@@ -3,6 +3,9 @@
 // saved. Arguments: <output file> <command> <target> [<extra>]. A target is an address, as an RVA (0x21e1c0, the form
 // the raw sources use) or a full address (0x14021e1c0), or a symbol name (CursorManagerInput, Package::vftable).
 //
+// Batch (#796): arguments <work file> batch. The work file, written by ghidra.ps1 from its own batch file, has one
+// query per line (answer file, command, target, extra; tab-separated); each is answered as above in this one session.
+//
 // Commands:
 //   decompile <target>          the function's C, from Ghidra's decompiler
 //   disasm <target>             the function's instructions
@@ -24,6 +27,9 @@
 //@category Metaphor
 
 import java.io.PrintWriter;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -55,34 +61,62 @@ public class MetaphorQuery extends GhidraScript {
 	@Override
 	protected void run() throws Exception {
 		String[] args = getScriptArgs();
-		if (args.length < 3) {
+		if (args.length < 3 && !(args.length == 2 && args[1].equals("batch"))) {
 			throw new IllegalArgumentException("usage: MetaphorQuery.java <output file> <command> <target> [<extra>]");
 		}
 		imageBase = currentProgram.getImageBase().getOffset();
+		if (args.length == 2 && args[1].equals("batch")) {
+			batch(args[0]);
+			return;
+		}
 		try (PrintWriter writer = new PrintWriter(args[0], "UTF-8")) {
 			out = writer;
-			String extra = args.length > 3 ? args[3] : null;
 			try {
-				switch (args[1]) {
-					case "decompile" -> decompile(function(args[2]));
-					case "disasm" -> disasm(function(args[2]));
-					case "callers" -> callers(function(args[2]));
-					case "callees" -> callees(function(args[2]));
-					case "offset" -> offset(parseNumber(args[2]), extra == null ? null : function(extra));
-					case "global" -> global(address(args[2]));
-					case "rtti" -> rtti(address(args[2]));
-					case "vtable" -> {
-						for (Address start : vtableAddresses(args[2])) {
-							vtable(start);
-						}
-					}
-					default -> throw new IllegalArgumentException("unknown command " + args[1]);
-				}
+				answer(args[1], args[2], args.length > 3 ? args[3] : null);
 			}
 			catch (IllegalArgumentException e) {
 				// A bad target: scripts/dev/ghidra.ps1 prints this line and exits 1.
 				out.println("# error: " + e.getMessage());
 			}
+		}
+	}
+
+	// batch (#796): the work file scripts/dev/ghidra.ps1 wrote has one query per line, tab-separated: answer file, query,
+	// target, extra (empty when absent). Each is answered into its own file exactly as a single query is, in this one
+	// session. A failing query writes its "# error:" line and the rest still run.
+	private void batch(String workFile) throws Exception {
+		for (String line : Files.readAllLines(Path.of(workFile), StandardCharsets.UTF_8)) {
+			String[] fields = line.split("\t", -1);
+			if (fields.length < 3) {
+				continue;
+			}
+			try (PrintWriter writer = new PrintWriter(fields[0], "UTF-8")) {
+				out = writer;
+				try {
+					answer(fields[1], fields[2], fields.length > 3 && !fields[3].isEmpty() ? fields[3] : null);
+				}
+				catch (Exception e) {
+					out.println("# error: " + e.getMessage());
+				}
+			}
+		}
+	}
+
+	private void answer(String command, String target, String extra) throws Exception {
+		switch (command) {
+			case "decompile" -> decompile(function(target));
+			case "disasm" -> disasm(function(target));
+			case "callers" -> callers(function(target));
+			case "callees" -> callees(function(target));
+			case "offset" -> offset(parseNumber(target), extra == null ? null : function(extra));
+			case "global" -> global(address(target));
+			case "rtti" -> rtti(address(target));
+			case "vtable" -> {
+				for (Address start : vtableAddresses(target)) {
+					vtable(start);
+				}
+			}
+			default -> throw new IllegalArgumentException("unknown command " + command);
 		}
 	}
 

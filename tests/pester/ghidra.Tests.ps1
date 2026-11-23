@@ -156,3 +156,137 @@ Describe 'the JDK choice' {
         $result.Output | Should -Match ([regex]::Escape("ghidra can't start: no JDK with Java 25 or later, which Ghidra needs (found: jdk-21.0.10 (Java 21), jdk-8 (Java 8))"))
     }
 }
+
+# #796: `batch <file>` answers many queries in one headless run. A stand-in analyzeHeadless records each run's arguments
+# and, for MetaphorQuery.java, writes each answer file as the real script does ("# error: ..." for a target named bad).
+Describe 'batch mode' {
+    BeforeAll {
+        $script:fakeScript = @'
+$all = $args
+Add-Content -LiteralPath $env:FAKE_LOG -Value ($all -join ' ')
+$i = [array]::IndexOf($all, 'MetaphorQuery.java')
+if ($i -lt 0) { exit 0 }
+function Answer($file, $command, $target) {
+    if ($target -eq 'bad') { Set-Content -LiteralPath $file -Value "# error: no symbol named bad" }
+    else { Set-Content -LiteralPath $file -Value "# $command $target answered" }
+}
+if ($all[$i + 2] -eq 'batch') {
+    Copy-Item -LiteralPath $all[$i + 1] -Destination "$($all[$i + 1]).seen"
+    foreach ($line in Get-Content -LiteralPath $all[$i + 1]) {
+        $f = $line -split "`t"
+        Answer $f[0] $f[1] $f[2]
+    }
+}
+else { Answer $all[$i + 1] $all[$i + 2] $all[$i + 3] }
+exit 0
+'@
+
+        function Invoke-Query([string[]] $Arguments) {
+            $saved = $env:GHIDRA_INSTALL_DIR, $env:JAVA_HOME, $env:LOCALAPPDATA, $env:FAKE_LOG
+            try {
+                $env:GHIDRA_INSTALL_DIR = $env:JAVA_HOME = $null
+                $env:LOCALAPPDATA = Join-Path $root 'Local'
+                $env:FAKE_LOG = $fakeLog
+                $output = & pwsh -NoProfile -NonInteractive -File (Join-Path $clone 'scripts/dev/ghidra.ps1') @Arguments `
+                    -GameExe $exe -KnownBuilds $known 2>&1
+            }
+            finally { $env:GHIDRA_INSTALL_DIR, $env:JAVA_HOME, $env:LOCALAPPDATA, $env:FAKE_LOG = $saved }
+            [pscustomobject]@{ ExitCode = $LASTEXITCODE; Output = ($output -join "`n") }
+        }
+
+        function New-BatchFile([string[]] $Lines) {
+            $path = Join-Path $root 'queries.txt'
+            Set-Content -LiteralPath $path -Value $Lines
+            $path
+        }
+    }
+
+    BeforeEach {
+        New-Clone
+        $programs = New-Item -ItemType Directory -Force (Join-Path $root 'Local/Programs')
+        $ghidra = New-Item -ItemType Directory -Force (Join-Path $programs 'ghidra_12.2_PUBLIC')
+        New-Item -ItemType Directory -Force (Join-Path $ghidra 'support'), (Join-Path $ghidra 'Ghidra') | Out-Null
+        Set-Content -LiteralPath (Join-Path $ghidra 'support/analyzeHeadless.bat') -Encoding ascii -Value @(
+            '@echo off', "pwsh -NoProfile -NonInteractive -File `"%~dp0fake.ps1`" %*")
+        Set-Content -LiteralPath (Join-Path $ghidra 'support/fake.ps1') -Value $fakeScript
+        Set-Content -LiteralPath (Join-Path $ghidra 'Ghidra/application.properties') -Value 'application.java.min=21'
+        $jdk = New-Item -ItemType Directory -Force (Join-Path $programs 'jdk-21')
+        New-Item -ItemType File -Force (Join-Path $jdk 'bin/java.exe') | Out-Null
+        Set-Content -LiteralPath (Join-Path $jdk 'release') -Value 'JAVA_VERSION="21"'
+        $script:exe = Join-Path $root 'game.exe'
+        Set-Content -LiteralPath $exe -Value 'stand-in exe'
+        $script:known = Join-Path $root 'known.json'
+        Set-Content -LiteralPath $known -Value '[]'
+        $sha = (Get-FileHash -LiteralPath $exe -Algorithm SHA256).Hash.ToLower()
+        $projectFolder = New-Item -ItemType Directory -Force (Join-Path $clone "out/ghidra/$($sha.Substring(0, 16))")
+        Set-Content -LiteralPath (Join-Path $projectFolder 'ready.txt') -Value 'ready'
+        $script:fakeLog = Join-Path $root 'fake.log'
+    }
+
+    It 'keeps the single query as it was: one run, the answer file, the command and the target' {
+        $result = Invoke-Query 'disasm', '0x1000'
+        $result.ExitCode | Should -Be 0 -Because $result.Output
+        $result.Output | Should -Match '# disasm 0x1000 answered'
+        $result.Output | Should -Not -Match '==='
+        $run = @(Get-Content -LiteralPath $fakeLog)
+        $run.Count | Should -Be 1
+        $run[0] | Should -Match 'MetaphorQuery\.java .*disasm-0x1000\.txt disasm 0x1000 -scriptPath'
+    }
+
+    It 'answers every query in one headless run, skipping blank lines and # comments' {
+        $file = New-BatchFile '# the cursor', '', 'disasm 0x1000', '   ', 'offset 0x48 Cursor  ', '  # indented comment', 'callers 0x2000'
+        $result = Invoke-Query 'batch', $file
+        $result.ExitCode | Should -Be 0 -Because $result.Output
+        @(Get-Content -LiteralPath $fakeLog).Count | Should -Be 1
+        $work = @(Get-Content -LiteralPath (Join-Path $clone 'out/ghidra/out/batch-work.txt.seen'))
+        $work.Count | Should -Be 3
+        ($work[1] -split "`t")[1..3] | Should -Be 'offset', '0x48', 'Cursor'
+        ($work[0] -split "`t")[0] | Should -Match 'disasm-0x1000\.txt$'
+    }
+
+    It 'prints each answer under a separator naming its query, and keeps each answer file' {
+        $file = New-BatchFile 'disasm 0x1000', 'offset 0x48 Cursor'
+        $result = Invoke-Query 'batch', $file
+        $result.Output | Should -Match '(?s)=== disasm 0x1000 ===\s+# disasm 0x1000 answered\s+=== offset 0x48 Cursor ===\s+# offset 0x48 answered'
+        Join-Path $clone 'out/ghidra/out/disasm-0x1000.txt' | Should -Exist
+        Join-Path $clone 'out/ghidra/out/offset-0x48-Cursor.txt' | Should -Exist
+    }
+
+    It 'reports a failing query, carries on with the rest and exits 1' {
+        $file = New-BatchFile 'disasm bad', 'disasm 0x1000'
+        $result = Invoke-Query 'batch', $file
+        $result.ExitCode | Should -Be 1
+        $result.Output | Should -Match '# error: no symbol named bad'
+        $result.Output | Should -Match '# disasm 0x1000 answered'
+    }
+
+    It 'reports a line it cannot read without running it, and still answers the others' {
+        $file = New-BatchFile 'frobnicate 0x1', 'disasm', 'build 0x1', 'offset 1 2 3', 'disasm 0x1000'
+        $result = Invoke-Query 'batch', $file
+        $result.ExitCode | Should -Be 1
+        $result.Output | Should -Match '# error: unknown command frobnicate'
+        $result.Output | Should -Match '# error: disasm needs a target'
+        $result.Output | Should -Match '# error: unknown command build'
+        $result.Output | Should -Match '# error: too many words'
+        $result.Output | Should -Match '# disasm 0x1000 answered'
+        @(Get-Content -LiteralPath (Join-Path $clone 'out/ghidra/out/batch-work.txt.seen')).Count | Should -Be 1
+    }
+
+    It 'stops with exit 2 when the file is missing or holds no queries, without starting Ghidra' {
+        $missing = Invoke-Query 'batch', (Join-Path $root 'nope.txt')
+        $missing.ExitCode | Should -Be 2
+        $missing.Output | Should -Match "ghidra can't start: no batch file"
+        $empty = Invoke-Query 'batch', (New-BatchFile '# only a comment', '')
+        $empty.ExitCode | Should -Be 2
+        $empty.Output | Should -Match "ghidra can't start: .*no queries"
+        $none = Invoke-Query 'batch'
+        $none.ExitCode | Should -Be 2
+        $fakeLog | Should -Not -Exist
+    }
+
+    It 'exits 1 when every line was bad and Ghidra was never needed' {
+        $result = Invoke-Query 'batch', (New-BatchFile 'frobnicate 0x1')
+        $result.ExitCode | Should -Be 1
+        $fakeLog | Should -Not -Exist
+    }
+}

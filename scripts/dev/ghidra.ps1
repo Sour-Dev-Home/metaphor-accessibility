@@ -11,6 +11,10 @@ build   Creates the project for the current game build in the git-ignored out/gh
 <query> One of decompile, disasm, callers, callees, offset, global, rtti, vtable (tools/ghidra/MetaphorQuery.java lists
         what each takes). Opens the project read-only, so a query never changes it. Prints the answer and keeps it in
         out/ghidra/out/.
+batch   `batch <file>` answers many queries in one headless run: the project opens once, not once per query. The file has
+        one query per line, as `<query> <target> [<in>]`; blank lines and lines starting with # are skipped. Each answer
+        is printed and kept as a single query's is, under a `=== <query> ===` line. A line that fails reports its error
+        and the rest still run; the exit code is 1 if any did.
 
 Only the exe on disk is read: nothing is launched, attached to, decrypted or unpacked (AGENTS.md rule 5,
 docs/raw-sources/drm-status-2026-11-13.md). The project holds the exe's bytes and the answers hold decompiled code, so
@@ -29,11 +33,12 @@ pwsh scripts/dev/ghidra.ps1 decompile 0x21e1c0
 pwsh scripts/dev/ghidra.ps1 callers CursorManagerInput
 pwsh scripts/dev/ghidra.ps1 offset 0x48 CursorManagerInput
 pwsh scripts/dev/ghidra.ps1 global 0x2f04960
+pwsh scripts/dev/ghidra.ps1 batch queries.txt
 #>
 [CmdletBinding()]
 param(
     [Parameter(Mandatory, Position = 0)]
-    [ValidateSet('build', 'decompile', 'disasm', 'callers', 'callees', 'offset', 'global', 'rtti', 'vtable')]
+    [ValidateSet('build', 'batch', 'decompile', 'disasm', 'callers', 'callees', 'offset', 'global', 'rtti', 'vtable')]
     [string] $Command,
     # The query's target: an RVA such as 0x21e1c0, a full address, or a symbol name. For offset, the displacement.
     [Parameter(Position = 1)] [string] $Target,
@@ -223,12 +228,55 @@ if ($Command -eq 'build') {
     exit 0
 }
 
-if (-not $Target) { Stop-Start "$Command needs a target" }
+if (-not $Target) { Stop-Start $(if ($Command -eq 'batch') { 'batch needs a file of queries, one per line' } else { "$Command needs a target" }) }
+if ($Command -eq 'batch' -and -not (Test-Path -LiteralPath $Target -PathType Leaf)) { Stop-Start 'no batch file: give a file of queries, one per line' }
 if (-not (Test-Path -LiteralPath (Join-Path $project $readyFile))) {
     Stop-Start "no complete project for build $($build.Sha256.Substring(0, 16)): run scripts/dev/ghidra.ps1 build"
 }
-$safe = ($Command, $Target, $In | Where-Object { $_ }) -join '-' -replace '[^A-Za-z0-9_.-]', '_'
-$out = Join-Path $root "out/$safe.txt"
+function Get-AnswerFile([string[]] $Words) {
+    Join-Path $root ("out/" + (($Words | Where-Object { $_ }) -join '-' -replace '[^A-Za-z0-9_.-]', '_') + '.txt')
+}
+
+# batch: one headless run answers every line of the file (#796). Blank lines and # comments are skipped; a line that
+# isn't <query> <target> [<in>] is reported without running, and Ghidra isn't started when no line is runnable. The runnable
+# lines go to the script in a work file, one per line: answer file, query, target, in (tab-separated).
+if ($Command -eq 'batch') {
+    $queryCommands = 'decompile', 'disasm', 'callers', 'callees', 'offset', 'global', 'rtti', 'vtable'
+    $planned = @()
+    foreach ($line in Get-Content -LiteralPath $Target) {
+        $words = @($line.Trim() -split '\s+' | Where-Object { $_ })
+        if (-not $words -or $words[0].StartsWith('#')) { continue }
+        $problem = if ($words[0] -notin $queryCommands) { "unknown command $($words[0])" }
+        elseif ($words.Count -lt 2) { "$($words[0]) needs a target" }
+        elseif ($words.Count -gt 3) { 'too many words (a query is <query> <target> [<in>])' }
+        $planned += [pscustomobject]@{ Label = $words -join ' '; Words = $words; Problem = $problem; Out = if (-not $problem) { Get-AnswerFile $words } }
+    }
+    if (-not $planned) { Stop-Start 'the batch file has no queries' }
+    $runnable = @($planned | Where-Object { -not $_.Problem })
+    $failed = $runnable.Count -lt $planned.Count
+    if ($runnable) {
+        $workFile = Join-Path $root 'out/batch-work.txt'
+        foreach ($item in $runnable) { Remove-Item -LiteralPath $item.Out -ErrorAction SilentlyContinue }
+        Set-Content -LiteralPath $workFile -Encoding utf8NoBOM -Value @($runnable | ForEach-Object {
+            (@($_.Out) + @($_.Words) + @('') | Select-Object -First 4) -join "`t"
+        })
+        $ok = Invoke-Headless 'query' @('-process', $programName, '-readOnly', '-noanalysis', '-postScript', 'MetaphorQuery.java', $workFile, 'batch')
+        if (-not $ok) { $failed = $true }
+    }
+    foreach ($item in $planned) {
+        Write-Out "=== $($item.Label) ==="
+        if ($item.Problem) { Write-Out "# error: $($item.Problem)"; continue }
+        if (Test-Path -LiteralPath $item.Out) {
+            Get-Content -LiteralPath $item.Out | ForEach-Object { Write-Out $_ }
+            if (Select-String -LiteralPath $item.Out -Pattern '^# error: ' -Quiet) { $failed = $true }
+        }
+        else { Write-Out '# error: no answer was written'; $failed = $true }
+    }
+    if ($failed) { exit 1 }
+    exit 0
+}
+
+$out = Get-AnswerFile $Command, $Target, $In
 Remove-Item -LiteralPath $out -ErrorAction SilentlyContinue
 $arguments = @('-process', $programName, '-readOnly', '-noanalysis', '-postScript', 'MetaphorQuery.java', $out, $Command, $Target)
 if ($In) { $arguments += $In }

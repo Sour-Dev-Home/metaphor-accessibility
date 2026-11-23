@@ -78,6 +78,30 @@ query does is saved. The answer is also kept in `out/ghidra/out/`, and Ghidra's 
 
 Ghidra locks the project, so run one command at a time.
 
+## Ask many at once
+
+Every call pays for Ghidra's startup and for opening the project, which is most of a short query's time, and holds the
+lock for all of it. When you have several questions, put them in a file and ask them in one run:
+
+```powershell
+pwsh scripts/dev/ghidra.ps1 batch queries.txt
+```
+
+The file has one query per line, in the form the commands above take (`<query> <target> [<in>]`). Blank lines and lines
+starting with `#` are skipped.
+
+```text
+# who touches the cursor
+disasm 0x21e1c0
+callers CursorManagerInput
+offset 0x48 CursorManagerInput
+```
+
+Each answer prints under a `=== <query> ===` line and is kept in `out/ghidra/out/` as a single query's is; the project is
+still opened read-only. A line that fails (an unknown query, no such symbol) prints its `# error:` and the rest still
+run; the exit code is 1 if any line failed. Queries run in file order in one session, so a function one of them creates
+on demand (see above) is already there for the next, which then doesn't print the "created for this query only" note.
+
 ## Browse it by hand
 
 To look around rather than ask, open the project in Ghidra's own window.
