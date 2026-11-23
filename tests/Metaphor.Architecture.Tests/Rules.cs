@@ -144,6 +144,24 @@ internal static class Rules
                 .Where(type => IsInNamespace(type, "System.IO.Pipes"))
                 .Select(type => $"{assembly.Name.Name} uses pipe type {type.FullName} in a Release build")];
 
+    /// <summary>The debug-only types: diagnostics that read more of the game than a feature needs, logged to settle a
+    /// finding in a session, never shipped to players.</summary>
+    public static readonly IReadOnlyList<string> DebugOnlyTypes = ["Metaphor.Core.FieldEnemyState"]; // #649
+
+    /// <summary>No Release assembly calls a <see cref="DebugOnlyTypes"/> member from outside that type, so that logging
+    /// is compiled into Debug builds only.</summary>
+    public static IReadOnlyList<string> NoDebugOnlyCallsInRelease(AssemblyDefinition assembly) =>
+        IsDebugBuild(assembly)
+            ? []
+            : [.. assembly.MainModule.Types.Where(type => !DebugOnlyTypes.Contains(type.FullName)).SelectMany(WithNested)
+                .SelectMany(type => type.Methods)
+                .Where(method => method.HasBody)
+                .SelectMany(method => method.Body.Instructions
+                    .Select(instruction => instruction.Operand)
+                    .OfType<MethodReference>()
+                    .Where(called => DebugOnlyTypes.Contains(called.DeclaringType.FullName))
+                    .Select(called => $"{method.FullName} calls debug-only {called.FullName} in a Release build"))];
+
     /// <summary>Whether <paramref name="assembly"/> was compiled without optimizations, as a Debug build is: its
     /// <c>DebuggableAttribute</c> has <c>DisableOptimizations</c>.</summary>
     public static bool IsDebugBuild(AssemblyDefinition assembly)

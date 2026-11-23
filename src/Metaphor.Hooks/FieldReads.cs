@@ -243,8 +243,15 @@ internal sealed class FieldMemory(
                     ? string.Create(CultureInfo.InvariantCulture, $"npc-{npcKind}-{row}") : null;
                 return (chara is { } character ? names.Character(character) : null, raw, id);
             case FieldKind.Enemy:
-                return (null, string.Create(CultureInfo.InvariantCulture,
-                    $"enemyRow={Number(ModuleMemoryReader.ReadInt32(unit + EnemyRow) & 0xffff)}"), null);
+                var enemyRow = string.Create(CultureInfo.InvariantCulture,
+                    $"enemyRow={Number(ModuleMemoryReader.ReadInt32(unit + EnemyRow) & 0xffff)}");
+#if DEBUG
+                // Debug builds only (#649): the AI state and HP are logged to settle #649's and #696's leads in a
+                // session, and never reach a Release package (DebugOnlyFieldEnemyStateTests).
+                enemyRow += " " + FieldEnemyState.Describe(unit, address => ModuleMemoryReader.ReadPointer((nint)address),
+                    address => ModuleMemoryReader.ReadInt32((nint)address));
+#endif
+                return (null, enemyRow, null);
             case FieldKind.Door:
                 var doorLayout = ModuleMemoryReader.ReadInt32(unit + GimmickLayout);
                 return (null, string.Create(CultureInfo.InvariantCulture,
