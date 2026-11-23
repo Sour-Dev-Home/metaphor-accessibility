@@ -72,6 +72,11 @@ public enum Feature
     [SettingKey("field", "guidance", "Guidance beep")]
     Guidance,
 
+    /// <summary>The guidance beep pausing while the game has control and settling before it returns (#702, #709), not
+    /// ending. Separate from the beep while it is tested.</summary>
+    [SettingKey("field", "guidancePause", "Guidance pause", Testing = true)]
+    GuidancePause,
+
     /// <summary>The callout when a door or chest comes into reach (#644).</summary>
     [SettingKey("field", "reach", "Reach callouts")]
     Reach,

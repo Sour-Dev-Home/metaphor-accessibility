@@ -78,6 +78,7 @@ the game.
 | `nearby` | The nearby list: N, or LB with Down and Up on the D-pad. | `true` |
 | `whereAmI` | "Where am I": L, or LB with Left on the D-pad. | `true` |
 | `guidance` | The guidance beep toward a nearby thing: G, or LB with Right on the D-pad. | `true` |
+| `guidancePause` | The beep pausing, not ending, while the game has control (a cutscene or a line), and coming back once free roam has held. Needs `guidance`. Still being tested. | testing, off |
 | `reach` | The callout when a door or chest comes into reach: "Door, in reach". | `true` |
 
 ## Report
