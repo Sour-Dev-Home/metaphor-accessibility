@@ -99,4 +99,33 @@ function Stop-StandIn([Parameter(Mandatory)] [string] $Folder) {
     }
 }
 
-Export-ModuleMember -Function New-SessionFixture, Get-FixtureArgs, Stop-StandIn
+# A watchdog for a test that waits on a stand-in run (#629). run 45115023838 and 45131721170 hung for 602 s in the
+# interrupted-run test, in a loop whose own 120 s deadline never fired: the test's thread was stuck in one call until the
+# run's 600 s ended, and the job only failed then, with no hint of where. The watchdog runs in a runspace of its own, so
+# it still acts when the test's thread is stuck. PROGRESS is a synchronized hashtable the test updates: Phase (what it is
+# waiting on, named in the message), Done (set when it finished). After SECONDS without Done it sets Hung, runs ONHUNG
+# with the message and PROGRESS (the test's: stop the run, kill the stand-ins), and gives the test GRACE seconds to finish; if it
+# still hasn't, it runs ONSTUCK with the message (the test's: end the process, so the job fails now, not at its limit).
+function Start-HangWatchdog([hashtable] $Progress, [int] $Seconds, [scriptblock] $OnHung, [scriptblock] $OnStuck, [int] $Grace = 15) {
+    $dog = [powershell]::Create()
+    $null = $dog.AddScript({
+            param($Progress, $Seconds, $OnHung, $OnStuck, $Grace)
+            $until = [datetime]::UtcNow.AddSeconds($Seconds)
+            while (-not $Progress.Done) {
+                if ([datetime]::UtcNow -gt $until) {
+                    $message = "hang: no progress for $Seconds s, last waiting on '$($Progress.Phase)'"
+                    $Progress.Hung = $message
+                    try { & ([scriptblock]::Create($OnHung)) $message $Progress } catch { $message += "; stopping it failed: $_" }
+                    $stuckAt = [datetime]::UtcNow.AddSeconds($Grace)
+                    while (-not $Progress.Done -and [datetime]::UtcNow -lt $stuckAt) { Start-Sleep -Milliseconds 100 }
+                    if (-not $Progress.Done) { & ([scriptblock]::Create($OnStuck)) "$message; the test's thread is still stuck $Grace s after the stand-ins were stopped" $Progress }
+                    return
+                }
+                Start-Sleep -Milliseconds 100
+            }
+        }).AddArgument($Progress).AddArgument($Seconds).AddArgument($OnHung.ToString()).AddArgument($OnStuck.ToString()).AddArgument($Grace)
+    $null = $dog.BeginInvoke()
+    $dog
+}
+
+Export-ModuleMember -Function New-SessionFixture, Get-FixtureArgs, Stop-StandIn, Start-HangWatchdog

@@ -374,8 +374,22 @@ Describe 'session.ps1' {
         }
 
         It 'restores the config, removes the opt-ins and closes the game when interrupted partway' {
-            # Ctrl+C stops the running pipeline; stopping an in-process one does the same.
+            # Ctrl+C stops the running pipeline; stopping an in-process one does the same. Two runs of this test hung
+            # for 602 s on CI (#629): the watchdog fails it within 60 s, naming what it waited on, and stops the run.
+            $progress = [hashtable]::Synchronized(@{ Phase = 'the run to start'; Done = $false; GameExe = $f.GameExe })
             $session = [powershell]::Create()
+            $progress.Session = $session
+            $watchdog = Start-HangWatchdog $progress 60 -OnHung {
+                param($message, $progress)
+                [Console]::Error.WriteLine("session.Tests: $message")
+                $progress.Session.BeginStop($null, $null) | Out-Null
+                [Diagnostics.Process]::GetProcessesByName('METAPHOR') | Where-Object Path -EQ $progress.GameExe |
+                    Stop-Process -Force -PassThru | Wait-Process -Timeout 10 -ErrorAction SilentlyContinue
+            } -OnStuck {
+                param($message, $progress)
+                [Console]::Error.WriteLine("session.Tests: $message; ending this Pester process")
+                [Environment]::Exit(1)
+            }
             $null = $session.AddCommand('Import-Module').AddArgument((Join-Path $repo 'scripts/dev/GameSession.psm1')).AddStatement()
             $null = $session.AddCommand('Invoke-GameSession').AddParameter('Verb', 'run').AddParameter('Options', @{
                     GameExe = $f.GameExe; LauncherExe = $f.Launcher; ReloadedConfig = $f.Config; KnownBuilds = $f.Known
@@ -384,24 +398,54 @@ Describe 'session.ps1' {
             $null = $session.BeginInvoke()
             try {
                 # Partway: the game is running with the opt-in in place.
-                $deadline = (Get-Date).AddSeconds(120)
-                while (-not ((Get-OptInFiles) -and (Test-Path (Join-Path $f.ModFolder 'mod-status.json')) -and (Get-Game))) {
-                    if ((Get-Date) -gt $deadline -or $session.InvocationStateInfo.State -ne 'Running') {
-                        throw "the run never got going: $($session.Streams.Information -join "`n") $($session.Streams.Error)"
+                $deadline = (Get-Date).AddSeconds(40)
+                while ($true) {
+                    $progress.Phase = 'the opt-in file'
+                    $optIn = Get-OptInFiles
+                    $progress.Phase = 'mod-status.json'
+                    $status = Test-Path (Join-Path $f.ModFolder 'mod-status.json')
+                    $progress.Phase = 'the game process'
+                    $game = Get-Game
+                    if ($optIn -and $status -and $game) { break }
+                    if ((Get-Date) -gt $deadline -or $session.InvocationStateInfo.State -ne 'Running' -or $progress.Hung) {
+                        throw "the run never got going (opt-in: $([bool] $optIn), status: $status, game: $([bool] $game), run: $($session.InvocationStateInfo.State), $($progress.Hung)): $($session.Streams.Information -join "`n") $($session.Streams.Error)"
                     }
                     Start-Sleep -Milliseconds 100
                 }
                 # Reloaded-II rewrites its config on a launch; the session puts back what it found.
                 Set-Content -LiteralPath $f.Config -Value '{"saved":"by the launcher"}'
 
-                $session.Stop()
+                $progress.Phase = 'the run to stop'
+                $stopped = $session.BeginStop($null, $null)
+                if (-not $stopped.AsyncWaitHandle.WaitOne(45000)) { throw 'the interrupted run did not stop within 45 s' }
             }
-            finally { $session.Dispose() }
+            finally { $progress.Done = $true; $session.Dispose(); $watchdog.Dispose() }
 
             Get-ConfigHash | Should -Be $configBefore
             "$($f.Config).session-backup" | Should -Not -Exist
             Get-OptInFiles | Should -BeNullOrEmpty
             Get-Game | Should -BeNullOrEmpty
+        }
+
+        It 'the hang watchdog reports a test that stalls, naming what it waited on, and ends one that stays stuck (#629)' {
+            $progress = [hashtable]::Synchronized(@{ Phase = 'the game process'; Done = $false })
+            $watchdog = Start-HangWatchdog $progress 1 -Grace 1 -OnHung { param($m, $p) $p.HungSeen = $m } -OnStuck { param($m, $p) $p.StuckSeen = $m }
+            try {
+                $deadline = (Get-Date).AddSeconds(20)
+                while (-not $progress.StuckSeen -and (Get-Date) -lt $deadline) { Start-Sleep -Milliseconds 100 }
+            }
+            finally { $progress.Done = $true; $watchdog.Dispose() }
+            $progress.HungSeen | Should -Match "no progress for 1 s, last waiting on 'the game process'"
+            $progress.Hung | Should -Be $progress.HungSeen
+            $progress.StuckSeen | Should -Match 'still stuck 1 s after'
+        }
+
+        It 'the hang watchdog stays quiet when the test finishes in time (#629)' {
+            $progress = [hashtable]::Synchronized(@{ Phase = 'x'; Done = $false })
+            $watchdog = Start-HangWatchdog $progress 2 -Grace 1 -OnHung { param($m, $p) $p.HungSeen = $m } -OnStuck { param($m, $p) $p.StuckSeen = $m }
+            try { Start-Sleep -Milliseconds 300; $progress.Done = $true; Start-Sleep -Seconds 4 } finally { $watchdog.Dispose() }
+            $progress.ContainsKey('HungSeen') | Should -BeFalse
+            $progress.ContainsKey('StuckSeen') | Should -BeFalse
         }
     }
 
