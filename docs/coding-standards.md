@@ -110,7 +110,12 @@ each rule on every assembly built from `src/`. Each test plants a violation to p
     `Metaphor.Core.Settings.Feature`, whose `[SettingKey]` names its key in the settings file; the wiring
     (`HookServices.Speaking`) puts the class behind `settings.Speech(Feature.X, ...)` or `settings.Input(Feature.X, ...)`,
     which read the setting at each announcement and input read, so a changed file applies at once. A cue gets its own
-    `[SettingKey]` on its `Cue` member. Every default is on: a blind player never has to configure anything. Each
+    `[SettingKey]` on its `Cue` member. Every default is on: a blind player never has to configure anything. The one exception is a feature still waiting
+    for its by-ear check, marked `Testing = true` on its `[SettingKey]`: off until a flip PR removes the mark
+    ([workflow](agents/workflow.md#a-feature-that-needs-a-by-ear-check), #783). Each
     setting is listed in [the settings reference](players/reference/settings.md).
+19. **Field sounds go through the free-roam gate.** In `Metaphor.Features.Field`, every type that plays or holds a cue
+    or speaks also calls `FreeRoamGate.Open`, so no field sound plays through a cutscene, dialogue, menu or scripted
+    move (#702).
 
 A new project under `src/` must be added to the architecture test project, and a test fails until it is.

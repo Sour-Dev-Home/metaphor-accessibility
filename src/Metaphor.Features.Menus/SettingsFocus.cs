@@ -17,9 +17,13 @@ namespace Metaphor.Features.Menus;
 /// game content. Safe to call from several threads.</summary>
 /// <remarks>Labels, classes and which row opens which page on build 548ddc95:
 /// docs/raw-sources/settings-category-labels-session1-2026-11-20.md.</remarks>
-[FeatureSetting(Feature.Menus)]
+[FeatureSetting(Feature.Menus, Feature.LearnedSettingValues)]
 public sealed class SettingsFocus : IScreenObserver
 {
+    /// <summary>Whether a row with no pinned setting ID says a value by the ID learned at run time
+    /// (<see cref="Feature.LearnedSettingValues"/>, #770). On unless set.</summary>
+    public Func<bool> LearnRowIds { get; init; } = () => true;
+
     // The category list, opened from the title or the field's quick menu, and from the main menu in play: one list.
     private static readonly Screen List = new("Settings", "?$ConfigTopChoicePc@VConfigTopChoicePcLayoutInit@ui@app@@@ope@ui@app");
     private static readonly Screen ListInPlay = new("Settings", "?$ConfigTopChoicePc@VConfigTopChoicePcLayout@ui@app@@@ope@ui@app");
@@ -287,6 +291,10 @@ public sealed class SettingsFocus : IScreenObserver
         {
             return pinned;
         }
+        if (!LearnRowIds())
+        {
+            return null;
+        }
         lock (gate)
         {
             return learned.TryGetValue((pageRows.Page, pageRows.Total, index), out var id) ? id : null;
@@ -298,7 +306,8 @@ public sealed class SettingsFocus : IScreenObserver
     // moving teach nothing, so the row stays silent.
     private void Learn(SettingsPageRows? pageRows, ScreenEvent change, SettingValues? before)
     {
-        if (pageRows is null || before is null || change.Values is null || RowId(pageRows, change.Index) is not null)
+        if (pageRows is null || before is null || change.Values is null || !LearnRowIds()
+            || RowId(pageRows, change.Index) is not null)
         {
             return;
         }

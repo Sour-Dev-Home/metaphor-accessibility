@@ -24,7 +24,7 @@ hundred lines of plain C# can decode and search. What the files can't give: obst
 | Tile data? | Upstream `dtTileCacheLayerHeader` (`RLTD`, v1), then FastLZ heights, areas, connections | High: every tile of 362 of 367 files decodes to `3 × width × height` bytes |
 | Cell size? | `cs` 20 and `ch` 3 world units in 358 files; tiles of 16 × 16 cells | High from the files; the unit (cm?) `[NEEDS VERIFICATION]` |
 | Walkable area eroded by? | the agent radius: 50 (166 files) or 100 (191), others 5 to 300 | High that the field is there; that the game erodes by it as upstream does `[NEEDS VERIFICATION]` |
-| Which file is the current map? | `f_<a>_<b>.NAV`; how the map id (session 6: 2, 12, 285, 371, 372) maps to `<a>`, `<b>` is unknown | Low |
+| Which file is the current map? | `f_<a>_<b>.NAV`, `<a>` and `<b>` from the map's row of `MapData.bin` ([`field-navmesh-file-from-map-data.md`](field-navmesh-file-from-map-data.md), #741) | High from the files |
 | Run-time obstacles? | Yes: tile-cache obstacles (`maxObstacles` 256), toggled by the script function `FldGmcSetObstacleActive` | Medium (name and file field only) |
 | Wall collision the player bumps? | PhysX character controller (`Cct` obstacle context RTTI), `.COL` files; `fldRayCast` is in `.text1` | Low, not followed |
 | Game's own "walk the player to" | `FldPlayerWalkToPos` (`0x8e9120`) reaches `.text1` through the stub `0x576c40`: off-limits (#586) | High |

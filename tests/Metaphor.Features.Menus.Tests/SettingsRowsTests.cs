@@ -19,6 +19,7 @@ public sealed class SettingsRowsTests
     private static readonly TimeSpan Settled = TimeSpan.FromMilliseconds(200);
 
     private readonly FakeClock clock = new();
+    private bool learnRowIds = true;
     private readonly RecordingAnnouncer announcer = new();
     private readonly MessageEvents messages = new();
     private readonly CursorEvents cursors = new();
@@ -40,7 +41,10 @@ public sealed class SettingsRowsTests
             new(Page: 1, Total: 2, NameLabels: ["Fake_row_C", "Fake_row_missing"]),
         ];
         screens.Observe(new SettingsFocus(
-            library, announcer, new TextCleaner(TextCleanerRules.None), rows, KeyConfigTab.Steam18330018, clock));
+            library, announcer, new TextCleaner(TextCleanerRules.None), rows, KeyConfigTab.Steam18330018, clock)
+        {
+            LearnRowIds = () => learnRowIds,
+        });
         messages.Compiled(new MessageFileCompiled(SystemPcFile, 48, string.Join("\n\n",
             Message("System_category_name_PC_01", "Alpha Pane"), Message("System_category_name_PC_02", "Beta Pane"),
             Message("Fake_row_A", "Fake <COLOR 3>speed<COLOR -1>"), Message("Fake_row_B", "Fake volume"),
@@ -279,6 +283,18 @@ public sealed class SettingsRowsTests
         clock.Advance(Settled);
 
         Assert.Equal(["Alpha Pane, Fake volume, 2 of 3", "4"], Said());
+    }
+
+    [Fact]
+    public void WithLearnedValuesOffAnUnpinnedRowStaysSilent()
+    {
+        learnRowIds = false;
+        Cursor(1, SystemPage, count: 3, values: Values((27, 50), (9, 3)));
+
+        Cursor(1, SystemPage, count: 3, values: Values((27, 50), (9, 4)));
+        clock.Advance(Settled);
+
+        Assert.Equal(["Alpha Pane, Fake volume, 2 of 3"], Said());
     }
 
     [Fact]

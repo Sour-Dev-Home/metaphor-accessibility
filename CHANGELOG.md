@@ -9,10 +9,24 @@ checks them in the first game session and removes the tag.
 
 ## Unreleased
 
+- **Field sounds wait while the game takes over.** The guiding beep and "in reach" call-outs go quiet when a menu,
+  dialogue or cutscene starts, and the beep picks up again toward the same thing when you can walk again, unless you
+  are on another map by then (#702). The beep waits a second after you can walk again, so a pause between the lines of
+  a scene doesn't bring it back (#709). Whether a scripted walk quiets them too isn't known yet.
+- **The Equipment slots are named.** In the slot list, rows two to five say their slot ("Weapon, 2 of 5"); the first row
+  (the archetype), the characters and the items are still said by place (#217). `[NEEDS VERIFICATION by ear]`
+- **The reader key works outside dialogue.** `T`, or `LB` with `RB`, now turns the reader off and on in the field and
+  over a tutorial pop-up, so a reader turned off before a pop-up can be turned back on (#769).
+  `[NEEDS VERIFICATION by ear]`
 - **A beep that guides you to something nearby.** In the field, `G`, or `LB` with the D-pad's Right, starts a
   repeating beep toward the thing you last stepped to, or the nearest you aren't already at: from its side, higher
   ahead, faster as you near it. It says when you reach it; press again to stop (#183). `K` and `J` step through the
   nearby list from the keyboard. `[NEEDS VERIFICATION by ear]`
+- **Save and load slots are read.** Each slot says "Slot 3"; the load list's first row says "Autosave". The place,
+  playtime and whether a slot is empty aren't read yet (#622). `[NEEDS VERIFICATION by ear]`
+- **The guidance beep leads around walls.** It now points at the next turn of a walking route over the map's walkable
+  area, not straight through buildings, and plans again if you stray or get stuck. Where it can't find a route it
+  points straight and says "No path found, pointing straight" once (#690). `[NEEDS VERIFICATION by ear]`
 - **The game-over screen is read.** Its voiced line is spoken, then "Fantasy is Dead. Press A to continue." once the
   voice ends; if you last used the keyboard it says "Press Space to continue" (#623). `[NEEDS VERIFICATION by ear]`
 - **"Save complete" is read.** The small pop-up after saving is spoken (#622). `[NEEDS VERIFICATION by ear]`
@@ -40,8 +54,16 @@ checks them in the first game session and removes the tag.
   who changed: party members by slot, such as "Ally 1 89, Ally 2 120", and each enemy with its HP left, numbered when
   there are several. Misses and blocked hits aren't read yet, and names aren't known yet (#247).
   `[NEEDS VERIFICATION by ear]`
+- **No more gaps where the screen shows a skill, an item or a button.** Text that names a skill or a status condition
+  now says its name, as after "Required Skill:". Items, Archetypes, attributes, buttons and other icons, which the mod
+  can't name yet, say what kind of thing goes there ("item", "button") instead of leaving a gap, as does the action a
+  new key binding clashes with (#108, #109, #564). `[NEEDS VERIFICATION by ear]`
+- **Battle banners are read.** The short banner during a turn, such as a boss powering up, "Attack rose!", "Not
+  enough MP!" or "Gained one Turn Icon!", is read once, after the hits. A name in it isn't read yet. The setting
+  `speech.battleBanners` turns it off (#692, #661). `[NEEDS VERIFICATION by ear]`
 - **Battle's skill and item lists are read**: "Skills" or "Items" as the list opens, then each skill or item's name
-  and "n of total" as you move. F, or R3 on the pad, reads the focused one's description (#247).
+  and "n of total" as you move. F, or R3 on the pad, reads the focused one's description (#247). Past the first
+  screen each row keeps its own name as the list scrolls; one whose name isn't known is said by its position.
   `[NEEDS VERIFICATION by ear]`
 - **A status key.** In a battle, H, or L3 on the pad, pressed on its own, says each party member's HP, then the
   enemies' (#631). Outside a battle both keys reach the game as before, so L3 still recentres the world map.
