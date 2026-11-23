@@ -354,7 +354,8 @@ internal sealed record HookServices
             cursors.Observe(log);
         }
         var battleSpeech = settings.Speech(Feature.BattleHits, reader);
-        var hitLines = new HitLines(battleSpeech, TimeProvider.System, _ => null);
+        var hitLines = new HitLines(
+            battleSpeech, TimeProvider.System, _ => null, outcomesOn: () => settings.Current.IsOn(Feature.BattleOutcomes));
         var battleBindings = settings.Live(BattleBindings.From);
         // The status key acts only in a battle (#631); a Debug build logs the scene each press read.
         var battleScene = new BattleSceneRead { Log = log };

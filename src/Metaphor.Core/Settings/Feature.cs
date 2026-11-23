@@ -61,6 +61,11 @@ public enum Feature
     [SettingKey("speech", "battleHits", "Battle hits")]
     BattleHits,
 
+    /// <summary>", knocked out", ", defeated" and ", revived" after a hit's number (#254). Separate from the hits
+    /// while it is tested.</summary>
+    [SettingKey("speech", "battleOutcomes", "Battle outcomes", Testing = true)]
+    BattleOutcomes,
+
     /// <summary>Battle's skill and item lists, row by row (#247). Separate from the menus.</summary>
     [SettingKey("speech", "battleLists", "Battle lists")]
     BattleLists,
