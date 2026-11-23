@@ -191,7 +191,7 @@ public sealed class SettingsFocus : IScreenObserver
         {
             lastValue = Value(pageRows, change);
         }
-        return Join(RowText(pageRows, change.Index), Join(lastValue?.ToString(CultureInfo.InvariantCulture), position));
+        return Join(RowText(pageRows, change.Index), Join(ValueText(pageRows, change.Index, lastValue), position));
     }
 
     // Only the focused row's new value (#96's "on change"), said once it has been still (#735), so always null here; a
@@ -206,7 +206,7 @@ public sealed class SettingsFocus : IScreenObserver
                 return null;
             }
             lastValue = value;
-            pendingValue = value.Value.ToString(CultureInfo.InvariantCulture);
+            pendingValue = ValueText(PageRows(page, change.Total), change.Index, value);
         }
         settle.Change(SettleWait, Timeout.InfiniteTimeSpan);
         return null;
@@ -230,9 +230,31 @@ public sealed class SettingsFocus : IScreenObserver
     private SettingsPageRows? PageRows(int page, int? total) =>
         total is { } count ? rows.FirstOrDefault(known => known.Page == page && known.Total == count) : null;
 
-    // The focused row's value as a number, or null when its setting ID or the page's values aren't known. Every pinned
-    // value is said as its number: which of the game's labels names each choice of an on/off or list row is
-    // [NEEDS VERIFICATION] (docs/raw-sources/settings-values-sessions-2026-11-21.md).
+    // The value as said (#734): the row's choice name where the page names the row's choices, else the number; null when
+    // there is no value. A name is the game's message text, or the table's fixed text, and the number when neither is
+    // found (docs/findings/settings-value-names.md).
+    private string? ValueText(SettingsPageRows? pageRows, int index, int? value)
+    {
+        if (value is not { } number)
+        {
+            return null;
+        }
+        if (pageRows?.Choice(index, number) is { } choice)
+        {
+            if (choice.Label is { } label && messages.Find(label) is { } message
+                && cleaner.Clean(message.Text) is { Length: > 0 } text)
+            {
+                return text;
+            }
+            if (choice.Text is { Length: > 0 } fixedText)
+            {
+                return fixedText;
+            }
+        }
+        return number.ToString(CultureInfo.InvariantCulture);
+    }
+
+    // The focused row's value as a number, or null when its setting ID or the page's values aren't known.
     private static int? Value(SettingsPageRows? pageRows, ScreenEvent change) =>
         pageRows?.ValueId(change.Index) is { } id ? change.Values?.Value(id) : null;
 

@@ -18,6 +18,7 @@ public sealed class BattleListFocusTests
     private const int ItemFirst = 300;
     private const int DescriptionFlags = BattleListFocus.DescriptionFlags;
     private const int SkillDescriptionFirst = 900;
+    private const int ItemDescriptionFirst = 400;
     private const long Later = BattleListFocus.RunGapMilliseconds + 1;
 
     private readonly RecordingAnnouncer announcer = new();
@@ -25,6 +26,7 @@ public sealed class BattleListFocusTests
     private readonly CursorEvents cursors;
     private readonly MenuScreens screens = new(KnownScreens.All);
     private readonly BattleListFocus skills;
+    private readonly BattleListFocus items;
     private long now = 50_000;
 
     public BattleListFocusTests()
@@ -32,8 +34,9 @@ public sealed class BattleListFocusTests
         cursors = new CursorEvents(() => now);
         var serials = new MessageSerials([
             new SerialRange(MessageSerials.SkillNames, SkillFirst, 3),
-            new SerialRange(MessageSerials.ItemNames, ItemFirst, 2),
+            new SerialRange(MessageSerials.ItemNames, ItemFirst, 6),
             new SerialRange(MessageSerials.SkillDescriptions, SkillDescriptionFirst, 2),
+            new SerialRange(MessageSerials.ItemDescriptions, ItemDescriptionFirst, 2),
         ]);
         var cleaner = new TextCleaner(TextCleanerRules.None);
         messages.ObserveFiles(serials);
@@ -41,7 +44,7 @@ public sealed class BattleListFocusTests
         screens.MenusRead(open: false);
         cursors.Observe(screens);
         skills = BattleListFocus.Skills(serials, announcer, cleaner, () => now);
-        var items = BattleListFocus.Items(serials, announcer, cleaner, () => now);
+        items = BattleListFocus.Items(serials, announcer, cleaner, () => now);
         screens.Observe(skills);
         screens.Observe(items);
         screens.Observe(new UnknownScreenFocus(announcer));
@@ -50,9 +53,19 @@ public sealed class BattleListFocusTests
         messages.Compiled(new MessageFileCompiled("EN/message/system/Skill_Message_1.msg", 20,
             Source("Skill", "Spark", "Gust", "Frost <COLOR 3>")));
         messages.Compiled(new MessageFileCompiled("EN/message/system/Item_Message_1.msg", 21,
-            Source("Item", "Tonic", "Salve")));
+            Source("Item", "Tonic", "Salve", "Ether", "Elixir", "Remedy", "Antidote")));
         messages.Compiled(new MessageFileCompiled("EN/message/system/Skill_Message_2.msg", 22,
             Source("SkillHelp", "Burns one foe", "Cuts all foes")));
+        messages.Compiled(new MessageFileCompiled("EN/message/system/Item_Message_2.msg", 23,
+            Source("ItemText", "Heals a little", "Heals more")));
+    }
+
+    private void Described(params int[] serials)
+    {
+        foreach (var serial in serials)
+        {
+            messages.Resolved(new SerialResolved(serial, DescriptionFlags));
+        }
     }
 
     private static string Source(string prefix, params string[] texts) => string.Join("\n\n",
@@ -127,9 +140,10 @@ public sealed class BattleListFocusTests
         Assert.Equal(["Skills, Spark, 1 of 2"], Said());
     }
 
-    // A row a focus move brings in, fetched soon after it, adds to the rows.
+    // Past the first page a row whose name wasn't fetched before its cursor settled is said by its position, never
+    // left silent: a name fetched after it can't be told from the next move's.
     [Fact]
-    public void ANameFetchedSoonAfterAFocusMoveAddsARow()
+    public void ARowPastTheFirstPageWithNoNameFetchedIsSaidByItsPosition()
     {
         Fetched(SkillFirst);
         Cursor(SkillClass, 0, count: 2);
@@ -137,7 +151,107 @@ public sealed class BattleListFocusTests
         Cursor(SkillClass, 1, count: 2);
         Fetched(SkillFirst + 2);
 
-        Assert.Equal(["Skills, Spark, 1 of 2", "Frost, 2 of 2"], Said());
+        Assert.Equal(["Skills, Spark, 1 of 2", "2 of 2"], Said());
+    }
+
+    // A move, then the names it fetched, then where the cursor settled, as the game hands them: top is the row within
+    // the view and row the rows scrolled (docs/raw-sources/battle-item-list-scroll-by-ear-2026-11-22.md).
+    private void Walked(int command, int inView, int scrolled, int count, params int[] fetched)
+    {
+        now += Later;
+        cursors.Handled(new CursorInput(0xa0, ClassRva: 0x100, command, Result: command, Top: inView, Row: scrolled,
+            Flags: 0x46, ItemClass, count));
+        Fetched(fetched);
+        cursors.Handled(new CursorInput(0xa0, ClassRva: 0x100, Settle, Result: 1, Top: inView, Row: scrolled,
+            Flags: 0x46, ItemClass, count));
+    }
+
+    // The by-ear run of 2026-11-22 (PR #646): past the first page some rows were silent, moving back up brought speech
+    // back, then a row was said by another's name. Each scroll fetches the row it brings in, last going down, with
+    // some of the rows it redraws, each move well apart; a three-row view stands in for the game's eight.
+    [Fact]
+    public void RowsKeepTheirOwnNamesAsTheListScrolls()
+    {
+        const int down = 0x14;
+        const int up = 0x15;
+        Fetched(ItemFirst, ItemFirst + 1, ItemFirst + 2);
+        Cursor(ItemClass, 0, count: 6);
+        Walked(down, 1, 0, 6);
+        Walked(down, 2, 0, 6, ItemFirst, ItemFirst + 1, ItemFirst + 2);
+        Walked(down, 2, 1, 6, ItemFirst + 3);
+        Walked(down, 2, 2, 6, ItemFirst + 2, ItemFirst + 4);
+        Walked(down, 2, 3, 6, ItemFirst + 5);
+        Walked(up, 1, 3, 6, ItemFirst + 3);
+        Walked(up, 0, 3, 6, ItemFirst + 4, ItemFirst + 5);
+        Walked(up, 0, 2, 6, ItemFirst + 2, ItemFirst + 3, ItemFirst + 4);
+
+        Assert.Equal([
+            "Items, Tonic, 1 of 6", "Salve, 2 of 6", "Ether, 3 of 6", "Elixir, 4 of 6", "Remedy, 5 of 6",
+            "Antidote, 6 of 6", "Remedy, 5 of 6", "Elixir, 4 of 6", "Ether, 3 of 6",
+        ], Said());
+    }
+
+    // Wrapped to the bottom, the rows there aren't known: each is said by its position until one scrolls in, the first
+    // name fetched going up, as on the settings pages (docs/raw-sources/settings-ok-and-rows-by-ear-2026-11-21.md).
+    [Fact]
+    public void ARowScrolledInGoingUpIsTheOnlyNameFetched()
+    {
+        const int up = 0x15;
+        Fetched(ItemFirst, ItemFirst + 1);
+        Cursor(ItemClass, 0, count: 6);
+        Walked(up, 1, 4, 6);
+        Walked(up, 0, 4, 6);
+        Walked(up, 0, 3, 6, ItemFirst + 3);
+        Walked(up, 0, 2, 6, ItemFirst + 2);
+
+        Assert.Equal(["Items, Tonic, 1 of 6", "6 of 6", "5 of 6", "Elixir, 4 of 6", "Ether, 3 of 6"], Said());
+    }
+
+    // #737, by ear 2026-11-22 (build 548ddc95, [NEEDS VERIFICATION] beyond that run): after a wrap up the game fetched the
+    // whole view again on the next move up, the view's top row first, and its names were no scroll's: the row focused,
+    // not the view's top, was named. A name the fetched rows can't be matched to the focused index with is left unsaid.
+    [Fact]
+    public void AfterAWrapUpAWholeViewFetchedAgainNamesNoWrongRow()
+    {
+        const int up = 0x15;
+        // A three-row view of a six-row list.
+        Fetched(ItemFirst, ItemFirst + 1, ItemFirst + 2);
+        Cursor(ItemClass, 0, count: 6);
+        Walked(up, 2, 3, 6, ItemFirst + 3, ItemFirst + 4, ItemFirst + 5);
+        Walked(up, 1, 3, 6, ItemFirst + 3, ItemFirst + 4, ItemFirst + 5);
+        Walked(up, 0, 3, 6, ItemFirst + 3, ItemFirst + 4, ItemFirst + 5);
+
+        Assert.Equal(["Items, Tonic, 1 of 6", "6 of 6", "5 of 6", "4 of 6"], Said());
+    }
+
+    [Fact]
+    public void AfterAWrapUpMovingDownAndBackNeverSaysAWrongName()
+    {
+        const int up = 0x15;
+        const int down = 0x14;
+        Fetched(ItemFirst, ItemFirst + 1, ItemFirst + 2);
+        Cursor(ItemClass, 0, count: 6);
+        Walked(up, 2, 3, 6, ItemFirst + 3, ItemFirst + 4, ItemFirst + 5);
+        Walked(up, 1, 3, 6, ItemFirst + 3, ItemFirst + 4, ItemFirst + 5);
+        Walked(down, 2, 3, 6, ItemFirst + 3, ItemFirst + 4, ItemFirst + 5);
+        // Wrapping down to the top fetches the first page afresh.
+        Walked(down, 0, 0, 6, ItemFirst, ItemFirst + 1, ItemFirst + 2);
+        Walked(down, 1, 0, 6);
+
+        Assert.Equal(
+            ["Items, Tonic, 1 of 6", "6 of 6", "5 of 6", "6 of 6", "Tonic, 1 of 6", "Salve, 2 of 6"], Said());
+    }
+
+    // Another tab of the item list: after a gap it fetches its first page, then its cursor settles on the top row.
+    [Fact]
+    public void AnotherTabStartsTheRowsAfresh()
+    {
+        Fetched(ItemFirst, ItemFirst + 1, ItemFirst + 2);
+        Cursor(ItemClass, 0, count: 6);
+        Walked(0x14, 1, 0, 6);
+        Walked(0x16, 0, 0, 3, ItemFirst + 3, ItemFirst + 4, ItemFirst + 5);
+
+        Assert.Equal(["Items, Tonic, 1 of 6", "Salve, 2 of 6", "Elixir, 1 of 3"], Said());
     }
 
     // A description, another file's name, or a name fetched with other flags is no row.
@@ -247,19 +361,99 @@ public sealed class BattleListFocusTests
         Assert.Equal(["Skills, 1 of 3"], spoken.Said.Select(said => said.Text));
     }
 
-    // The details key (#247): the description the list fetched for its help line.
+    // The by-ear run of 2026-11-21: backing out of the skill list to battle's commands tells nothing (they are no
+    // screen), so the skill list stays current until the item list's cursor settles, after the item list fetched its
+    // names. Those names are the item list's rows all the same.
     [Fact]
-    public void TheDetailsAreTheLastDescriptionTheListFetched()
+    public void TheItemListOpenedAfterTheSkillListSaysItsFirstRow()
+    {
+        Fetched(SkillFirst);
+        Cursor(SkillClass, 0, count: 1);
+        now += 80_000;
+        Fetched(ItemFirst);
+        Described(ItemDescriptionFirst);
+        Fetched(ItemFirst + 1);
+        Described(ItemDescriptionFirst + 1);
+
+        Cursor(ItemClass, 0, count: 2, manager: 0xc0);
+
+        Assert.Equal(["Skills, Spark, 1 of 1", "Items, Tonic, 1 of 2"], Said());
+        Assert.Equal("Heals a little", items.Details(Focus(ItemClass, 0)));
+    }
+
+    // The same run's second opening: the item list closed and opened again on the same manager, its cursor settling on
+    // the same row with no other cursor between, after it fetched its names afresh.
+    [Fact]
+    public void TheListOpenedAgainOnTheSameManagerAndRowIsHeadedAgain()
+    {
+        Fetched(ItemFirst, ItemFirst + 1);
+        Cursor(ItemClass, 0, count: 2);
+        now += 16;
+        Cursor(ItemClass, 0, count: 2);
+        now += 30_000;
+        Fetched(ItemFirst, ItemFirst + 1);
+
+        Cursor(ItemClass, 0, count: 2);
+
+        Assert.Equal(["Items, Tonic, 1 of 2", "Items, Tonic, 1 of 2"], Said());
+    }
+
+    [Fact]
+    public void TheSkillListOpenedAfterTheItemListSaysItsFirstRow()
+    {
+        Fetched(ItemFirst);
+        Cursor(ItemClass, 0, count: 1);
+        now += 80_000;
+        Fetched(SkillFirst + 1);
+
+        Cursor(SkillClass, 0, count: 1, manager: 0xc0);
+
+        Assert.Equal(["Items, Tonic, 1 of 1", "Skills, Gust, 1 of 1"], Said());
+    }
+
+    // The details key (#247): the list fetches each row's description right after its name as it opens (the item
+    // list, by-ear run of 2026-11-21), so each row's details are the description fetched after its name.
+    [Fact]
+    public void TheDetailsAreTheFocusedRowsDescription()
+    {
+        Fetched(ItemFirst);
+        Described(ItemDescriptionFirst);
+        Fetched(ItemFirst + 1);
+        Described(ItemDescriptionFirst + 1);
+        Cursor(ItemClass, 0, count: 2);
+        Assert.Equal("Heals a little", items.Details(Focus(ItemClass, 0)));
+
+        Cursor(ItemClass, 1, count: 2);
+        Assert.Equal("Heals more", items.Details(Focus(ItemClass, 1)));
+
+        // The help line fetched again on a focus move, with no name before it, changes no row's.
+        Cursor(ItemClass, 0, count: 2);
+        Described(ItemDescriptionFirst + 1);
+        Assert.Equal("Heals a little", items.Details(Focus(ItemClass, 0)));
+    }
+
+    [Fact]
+    public void ARowWhoseDescriptionWasNotFetchedHasNoDetails()
     {
         Fetched(SkillFirst, SkillFirst + 1);
-        messages.Resolved(new SerialResolved(SkillDescriptionFirst, DescriptionFlags));
+        Described(SkillDescriptionFirst);
         Cursor(SkillClass, 0, count: 2);
-        Assert.Equal("Burns one foe", skills.Details(Focus(SkillClass, 0)));
 
-        Cursor(SkillClass, 1, count: 2);
-        messages.Resolved(new SerialResolved(SkillDescriptionFirst + 1, DescriptionFlags));
+        Assert.Null(skills.Details(Focus(SkillClass, 0)));
+        Assert.Equal("Burns one foe", skills.Details(Focus(SkillClass, 1)));
+    }
 
-        Assert.Equal("Cuts all foes", skills.Details(Focus(SkillClass, 1)));
+    [Fact]
+    public void TheListOpenedAgainForgetsTheLastVisitsDescriptions()
+    {
+        Fetched(SkillFirst);
+        Described(SkillDescriptionFirst);
+        Cursor(SkillClass, 0, count: 1);
+        now += 5_000;
+        Fetched(SkillFirst + 1);
+        Cursor(SkillClass, 0, count: 1, manager: 0xc0);
+
+        Assert.Null(skills.Details(Focus(SkillClass, 0)));
     }
 
     [Fact]
@@ -269,7 +463,9 @@ public sealed class BattleListFocusTests
         Cursor(SkillClass, 0, count: 1);
         Assert.Null(skills.Details(Focus(SkillClass, 0)));
 
-        messages.Resolved(new SerialResolved(SkillDescriptionFirst, DescriptionFlags));
+        Fetched(SkillFirst);
+        Described(SkillDescriptionFirst);
+        Assert.Equal("Burns one foe", skills.Details(Focus(SkillClass, 0)));
         Cursor(DifficultyClass, 0, count: 5, manager: 0xb0);
 
         Assert.Null(skills.Details(Focus(SkillClass, 0)));
