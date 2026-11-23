@@ -16,7 +16,7 @@ public enum DialogueFeature
 
     /// <summary>Skill and condition names said for their tags in a line (#108). Separate from the dialogue while it
     /// is tested; off, a tag says its stand-in.</summary>
-    [SettingKey("speech", "termNames", "Term names", Testing = true, Order = 1180, Description = "The skill and " +
+    [SettingKey("speech", "termNames", "Term names", Order = 1180, Description = "The skill and " +
         "condition names a line's tags stand for. Off says the tag's stand-in.")]
     TermNames,
 
@@ -35,7 +35,7 @@ public enum DialogueFeature
 
     /// <summary>A dialogue window closing stopping the line still being spoken (#676). Separate from the dialogue
     /// while it is tested.</summary>
-    [SettingKey("speech", "windowCloseStop", "Window close stop", Testing = true, Order = 1210, Description = "A " +
+    [SettingKey("speech", "windowCloseStop", "Window close stop", Order = 1210, Description = "A " +
         "closed dialogue window stopping the line still being spoken. Needs `dialogue`.")]
     WindowCloseStop,
 }
