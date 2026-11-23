@@ -23,7 +23,7 @@ public sealed record BeaconTarget(FieldUnit Unit, int? DoorReachValue);
 /// on every input read; it reads the field at most once per <see cref="PollMilliseconds"/>, and allocates nothing
 /// between a pulse's start and the next except when a route is asked for. Its keys are gated by
 /// <see cref="Feature.Guidance"/> in <see cref="FieldControls"/> (#661).</summary>
-[FeatureSetting(Feature.Guidance)]
+[FeatureSetting(Feature.Guidance, Feature.GuidancePause)]
 public sealed class Beacon
 {
     /// <summary>How often the field is read while guiding.</summary>
@@ -52,6 +52,9 @@ public sealed class Beacon
     /// <summary>The pulses' volume, within the sound cue volume.</summary>
     public const int Volume = 80;
 
+    /// <summary>How long free roam must have held after it ended before the beep plays again (#709).</summary>
+    public const long FreeRoamSettleMilliseconds = 1000;
+
     /// <summary>What is said, once per start, when a route was asked for and none found (#690).</summary>
     public const string NoPathText = "No path found, pointing straight";
 
@@ -67,6 +70,10 @@ public sealed class Beacon
     private Task<RoutePlan>? pending;
     private Vector3 pendingFrom;
     private bool saidStraight;
+    private readonly FreeRoamGate roam;
+    private readonly Func<bool> pauseOn;
+    private int? map;
+    private bool paused;
     private BeaconTarget? target;
     private volatile bool active;
     private bool polled;
@@ -81,11 +88,13 @@ public sealed class Beacon
     /// through <paramref name="announcer"/>, keeps time by <paramref name="milliseconds"/> and writes the target's and the
     /// player's positions, as numbers, to <paramref name="log"/> on a start and an arrival when there is one (Debug
     /// builds), with each route's outcome and what it read. With <paramref name="routes"/> it guides along routes that
-    /// <paramref name="run"/> plans (on the thread pool unless given).</summary>
+    /// <paramref name="run"/> plans (on the thread pool unless given). <paramref name="pauseOn"/> says whether leaving
+    /// free roam pauses the beep (<see cref="Feature.GuidancePause"/>, on when null) rather than ending it.</summary>
     public Beacon(
         IFieldReads field, ICuePlayer cues, IAnnouncer announcer, Func<long> milliseconds, Action<string>? log = null,
-        IRoutePlanner? routes = null, Func<Func<RoutePlan>, Task<RoutePlan>>? run = null)
+        IRoutePlanner? routes = null, Func<Func<RoutePlan>, Task<RoutePlan>>? run = null, Func<bool>? pauseOn = null)
     {
+        this.pauseOn = pauseOn ?? (() => true);
         this.routes = routes;
         this.run = run ?? Task.Run;
         ArgumentNullException.ThrowIfNull(field);
@@ -97,6 +106,7 @@ public sealed class Beacon
         this.announcer = announcer;
         this.milliseconds = milliseconds;
         this.log = log;
+        roam = new FreeRoamGate(field, FreeRoamSettleMilliseconds, milliseconds);
     }
 
     /// <summary>Whether the beacon is guiding.</summary>
@@ -135,8 +145,11 @@ public sealed class Beacon
     public void Start(BeaconTarget next)
     {
         ArgumentNullException.ThrowIfNull(next);
+        var startMap = MapOrNull();
         lock (gate)
         {
+            map = startMap;
+            paused = false;
             target = next;
             follower.Reset();
             pending = null;
@@ -186,7 +199,42 @@ public sealed class Beacon
                 {
                     polled = true;
                     polledAt = now;
-                    if (!field.InFreeRoam() || field.ReadPose() is not { } pose)
+                    // Out of free roam the beep pauses and comes back when free roam has held (#702, #709); on another
+                    // map it ends.
+                    if (!pauseOn())
+                    {
+                        // The pause is its own setting while it is tested (#783): off, leaving free roam ends the
+                        // beep as before.
+                        paused = false;
+                        if (!field.InFreeRoam())
+                        {
+                            EndLocked();
+                            return;
+                        }
+                    }
+                    else if (!roam.Open())
+                    {
+                        if (!paused)
+                        {
+                            paused = true;
+                            sounding = false;
+                            cues.Silence(ToneChannel.Guidance);
+                            log?.Invoke("beacon pause: not free roam");
+                        }
+                        return;
+                    }
+                    if (paused)
+                    {
+                        paused = false;
+                        log?.Invoke("beacon resume: free roam held");
+                        nextPulseAt = now;
+                        if (field.MapId() != map)
+                        {
+                            EndLocked();
+                            return;
+                        }
+                    }
+                    if (field.ReadPose() is not { } pose)
                     {
                         EndLocked();
                         return;
@@ -208,6 +256,10 @@ public sealed class Beacon
                     bearing = Aim(guided.Unit, pose, now, ref straight) is { } corner
                         ? Nearby.Normalised(Math.Atan2(corner.X - pose.X, corner.Z - pose.Z) - ahead)
                         : Nearby.Normalised(toward + pose.Heading - ahead);
+                }
+                if (paused)
+                {
+                    return;
                 }
                 if (sounding && now >= pulseEndsAt)
                 {
@@ -308,6 +360,20 @@ public sealed class Beacon
             }
             EndLocked();
             return true;
+        }
+    }
+
+    /// <summary>The map now, or null when it can't be read: a read that throws never reaches the game.</summary>
+    [SuppressMessage("Design", "CA1031", Justification = "A failed read must never reach the game; it reads as unknown.")]
+    private int? MapOrNull()
+    {
+        try
+        {
+            return field.MapId();
+        }
+        catch (Exception)
+        {
+            return null;
         }
     }
 

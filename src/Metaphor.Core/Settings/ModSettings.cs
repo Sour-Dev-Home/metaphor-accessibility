@@ -61,9 +61,22 @@ public sealed record ModSettings
 
     private SettingMap<string, int> Bindings { get; init; } = SettingMap<string, int>.Empty;
 
+    /// <summary>The file inside the mod's folder that turns every testing feature on (#783). Only a Debug build reads
+    /// it, and the session script adds it for the length of a session; a release package never carries it.</summary>
+    public const string TestingFile = "opt-in-testing.txt";
+
+    // Set by the session, never read from the file: a testing feature is then on unless the file turns it off.
+    private bool TestingOn { get; init; }
+
+    /// <summary>These settings with every testing feature on (a by-ear session) or at its own default.</summary>
+    public ModSettings WithTesting(bool on) => this with { TestingOn = on };
+
     /// <summary>Whether <paramref name="feature"/> speaks, plays and takes its keys (#661). On unless the file turns
-    /// it off.</summary>
-    public bool IsOn(Feature feature) => Toggles.Get(feature, true);
+    /// it off; a feature marked testing is off unless the file turns it on or the session does (#783).</summary>
+    public bool IsOn(Feature feature) => IsOn(feature, SettingKey.Of(feature).Testing);
+
+    /// <summary><see cref="IsOn(Feature)"/> for a feature that is, or is not, <paramref name="markedTesting"/>.</summary>
+    public bool IsOn(Feature feature, bool markedTesting) => Toggles.Get(feature, !markedTesting || TestingOn);
 
     /// <summary>Whether <paramref name="cue"/> plays, and its volume as a share of <see cref="SoundCueVolume"/>
     /// (#661).</summary>

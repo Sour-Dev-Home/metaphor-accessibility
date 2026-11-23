@@ -84,7 +84,7 @@ public sealed record FieldBindings(
 /// thing last stepped to, or the nearest not already reached once that step is forgotten, and stop it when it's on;
 /// every read of the pad or keyboard moves it on. The nearby list, "where am I" and the guidance beep each have their
 /// own setting (#661), read on each input read: one turned off leaves its keys and chords to the game.</summary>
-[FeatureSetting(Feature.Nearby, Feature.NearbyCategories, Feature.WhereAmI, Feature.Guidance)]
+[FeatureSetting(Feature.Nearby, Feature.NearbyCategories, Feature.WhereAmI, Feature.Guidance, Feature.GuidancePause)]
 public sealed class FieldControls : IInputControls
 {
     /// <summary>How long the pad's place on the list lasts after a step; the next step after that starts again at the
@@ -113,6 +113,7 @@ public sealed class FieldControls : IInputControls
     private readonly NamesTable names;
     private readonly Beacon beacon;
     private NearbyCategory category = NearbyCategory.Everything;
+    private readonly FreeRoamGate roam;
     private int position = -1;
     private long steppedAt;
     private BeaconTarget? current;
@@ -154,8 +155,10 @@ public sealed class FieldControls : IInputControls
         this.milliseconds = milliseconds;
         this.log = log;
         this.names = names ?? NamesTable.Empty;
-        beacon = new Beacon(field, cues, announcer, milliseconds, log, routes);
+        beacon = new Beacon(
+            field, cues, announcer, milliseconds, log, routes, pauseOn: () => this.isOn(Feature.GuidancePause));
         this.reach = reach;
+        roam = new FreeRoamGate(field);
     }
 
     private enum Press
@@ -190,7 +193,7 @@ public sealed class FieldControls : IInputControls
         var guideHeld = holding && isOn(Feature.Guidance) && Holds(buttons, bindings.GuideButton);
         var categoryHeld = isOn(Feature.NearbyCategories) && bindings.CategoryButton != 0 &&
             Holds(buttons, bindings.CategoryHoldButtons) && Holds(buttons, bindings.CategoryButton);
-        var roaming = (nextHeld || previousHeld || placeHeld || guideHeld || categoryHeld) && field.InFreeRoam();
+        var roaming = (nextHeld || previousHeld || placeHeld || guideHeld || categoryHeld) && roam.Open();
         Press press;
         lock (gate)
         {
@@ -231,7 +234,7 @@ public sealed class FieldControls : IInputControls
         var categoryPreviousHeld = categoriesOn && keys.Contains(bindings.CategoryPreviousKey);
         var identifyHeld = log is not null && keys.Contains(bindings.IdentifyKey);
         var roaming = (listHeld || placeHeld || guideHeld || nextHeld || previousHeld || categoryNextHeld ||
-            categoryPreviousHeld || identifyHeld) && field.InFreeRoam();
+            categoryPreviousHeld || identifyHeld) && roam.Open();
         Press press;
         lock (gate)
         {

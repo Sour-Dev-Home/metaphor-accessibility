@@ -46,6 +46,58 @@ public sealed class HitLinesTests
     }
 
     [Fact]
+    public void WithOutcomesOffTheNumberIsSaidAlone()
+    {
+        var plain = new HitLines(announcer, time, unit => unit == 3 ? "Rowan" : null, outcomesOn: () => false);
+
+        plain.Observe(Ally(0, 3, -40, 0));
+        plain.Observe(Enemy(7, -10, 0));
+
+        Assert.Equal(["Rowan 40", "Enemy, 10"], Said());
+    }
+
+    [Fact]
+    public void AHitThatTakesAnAllyToZeroSaysKnockedOutAfterItsNumber()
+    {
+        lines.Observe(Ally(0, 3, -40, 0));
+        lines.Observe(Ally(1, 5, -30, 0));
+
+        Assert.Equal(["Rowan 40, knocked out", "Second ally, 30, knocked out"], Said());
+    }
+
+    [Fact]
+    public void AHitThatTakesAnEnemyToZeroSaysDefeated()
+    {
+        lines.Observe(Enemy(0xa0, -52, 0));
+
+        Assert.Equal(["Enemy, 52, defeated"], Said());
+    }
+
+    [Fact]
+    public void AnAllyLeftWithHpIsNotKnockedOut()
+    {
+        lines.Observe(Ally(0, 3, -40, 1));
+
+        Assert.Equal(["Rowan 40"], Said());
+    }
+
+    [Fact]
+    public void AGainFromZeroSaysRevived()
+    {
+        lines.Observe(Ally(0, 3, 25, 25));
+
+        Assert.Equal(["Rowan 25 healed, revived"], Said());
+    }
+
+    [Fact]
+    public void AGainOnALivingAllyDoesNotSayRevived()
+    {
+        lines.Observe(Ally(0, 3, 25, 80));
+
+        Assert.Equal(["Rowan 25 healed"], Said());
+    }
+
+    [Fact]
     public void AGainIsSaidAsHealed()
     {
         lines.Observe(Ally(0, 3, 20, 120));
