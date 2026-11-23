@@ -30,6 +30,21 @@ public sealed class DialogueChoicesTests
     }
 
     [Fact]
+    public void WithTheCountOffEveryOptionIsReadInTheOneLine()
+    {
+        messages.Compiled(Prompt);
+        messages.Compiled(Options);
+        var plain = new DialogueChoices(
+            messages,
+            new DialogueAnnouncer(
+                announcer, new TextCleaner(TextCleanerRules.None), history, choiceCountOn: () => false));
+
+        plain.Observe(new ChoiceRequested(0, "MES_q", "MES_c"));
+
+        Assert.Equal(new Announcement("Choose: North; South", Interrupt: false), announcer.Said[^1]);
+    }
+
+    [Fact]
     public void ThePromptIsSpokenAsALineThenTheOptionsWithoutCuttingItOff()
     {
         messages.Compiled(Prompt);

@@ -3,6 +3,7 @@ using System.Globalization;
 using Metaphor.Core.Announcements;
 using Metaphor.Core.Cues;
 using Metaphor.Core.Input;
+using Metaphor.Core.Navigation;
 using Metaphor.Core.Settings;
 
 namespace Metaphor.Features.Field;
@@ -97,12 +98,13 @@ public sealed class FieldControls : IInputControls
     /// <summary>Field controls on <paramref name="bindings"/> that read <paramref name="field"/>, name the place through
     /// <paramref name="place"/>, speak through <paramref name="announcer"/>, guide on <paramref name="cues"/>, keep time
     /// by <paramref name="milliseconds"/> and write what each press read, as numbers, to <paramref name="log"/> when
-    /// there is one (Debug builds). Each keyboard read also runs <paramref name="reach"/>'s check when there is one
-    /// (#644).</summary>
+    /// there is one (Debug builds). Each keyboard read also runs <paramref name="reach"/>'s check when there is one (#644).
+    /// The beacon guides along routes from <paramref name="routes"/> when given (#690).
+    /// </summary>
     public FieldControls(
         FieldBindings bindings, IFieldReads field, FieldPlace place, IAnnouncer announcer, ICuePlayer cues,
-        Func<long> milliseconds, Action<string>? log = null, ReachCallouts? reach = null)
-        : this(() => bindings, _ => true, field, place, announcer, cues, milliseconds, log, reach)
+        Func<long> milliseconds, Action<string>? log = null, ReachCallouts? reach = null, IRoutePlanner? routes = null)
+        : this(() => bindings, _ => true, field, place, announcer, cues, milliseconds, log, reach, routes)
     {
         ArgumentNullException.ThrowIfNull(bindings);
     }
@@ -113,7 +115,7 @@ public sealed class FieldControls : IInputControls
     public FieldControls(
         Func<FieldBindings> bindings, Func<Feature, bool> isOn, IFieldReads field, FieldPlace place,
         IAnnouncer announcer, ICuePlayer cues, Func<long> milliseconds, Action<string>? log = null,
-        ReachCallouts? reach = null)
+        ReachCallouts? reach = null, IRoutePlanner? routes = null)
     {
         ArgumentNullException.ThrowIfNull(bindings);
         ArgumentNullException.ThrowIfNull(isOn);
@@ -128,7 +130,7 @@ public sealed class FieldControls : IInputControls
         this.announcer = announcer;
         this.milliseconds = milliseconds;
         this.log = log;
-        beacon = new Beacon(field, cues, announcer, milliseconds, log);
+        beacon = new Beacon(field, cues, announcer, milliseconds, log, routes);
         this.reach = reach;
     }
 
