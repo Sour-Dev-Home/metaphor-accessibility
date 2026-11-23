@@ -24,6 +24,9 @@ One command for every game session (#437): deploy, run, smoke, spike, inspect, s
 The game and Reloaded-II are found by the game locator (scripts/player/MetaphorInstall.psm1); METAPHOR_GAME_EXE and
 METAPHOR_RELOADED_EXE override it, and -GameExe and -LauncherExe override those.
 
+deploy and run in Debug also add opt-in-testing.txt, which turns on every feature marked Testing (#783) for the session;
+it is removed with the other opt-ins, and settings.json is never edited.
+
 Every verb leaves the machine as it found it, also after a failure or Ctrl+C: Reloaded-II's root config is restored,
 the game is closed unless -KeepGame, and the opt-in files it added are removed. The install itself (the mod's folder
 and its place in the game's enabled mods) stays: that is what deploy and run are for.

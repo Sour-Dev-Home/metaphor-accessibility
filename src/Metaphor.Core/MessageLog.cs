@@ -42,6 +42,11 @@ public sealed class MessageLog(TextWriter writer, Func<long> millisecondsSinceSt
     public void FieldRead(string text) =>
         Write(() => Line($"{millisecondsSinceStart()} ms field {text}"));
 
+    /// <summary>A menu feature's note on what it said and what it couldn't read yet (#622), as the feature words it:
+    /// positions and the words it said, so a session can pin what's left.</summary>
+    public void MenuNote(string text) =>
+        Write(() => Line($"{millisecondsSinceStart()} ms menu {text}"));
+
     /// <summary>A function the game registered for its scripts: its script name, and where the native function is in
     /// the game module. <paramref name="viaUserdata"/> says the address came from the userdata the game pushed (a game
     /// function behind a shared trampoline) and not from the registered function itself.</summary>

@@ -37,6 +37,15 @@ A file that turns off menu speech and the nearby list, and moves the repeat key 
 | `soundCueVolume` | How loud the sound cues are, a whole number from 0, silent, to 100. | `50` |
 | `welcomed` | Whether the welcome has been said. The mod sets it to `true` itself after the first launch; set it to `false` to hear the welcome again next time. | `false` |
 
+## Features still being tested
+
+A feature that needs a by-ear check can ship while it is still being tested. Its default is shown as `testing, off`
+below: in a normal install it stays off until you set it to `true`, and it turns on by default in the release after
+the check passes. Release builds never turn it on for you. For a contributor, a by-ear session
+(`scripts/dev/session.ps1 deploy` or `run`) turns every testing feature on for that session only and never edits your
+`settings.json`; a value you set in the file still wins. Passing the check is a one-line pull request that removes
+`Testing = true` from the feature's `[SettingKey]` in `Feature.cs` and the `testing, off` from its row here.
+
 ## Speech
 
 Each is `true` to speak or `false` to stay quiet, inside a `speech` object: `{ "speech": { "menus": false } }`.
@@ -47,11 +56,15 @@ Each is `true` to speak or `false` to stay quiet, inside a `speech` object: `{ "
 | `menus` | The title menu, the main menu, the quick menu, Settings, the difficulty list, yes or no questions and any other menu. Off also leaves the details key to the game. | `true` |
 | `battleHits` | Each battle hit as it lands, the battle status key and the enemy HP key. Off also leaves those keys to the game. | `true` |
 | `battleLists` | Battle's skill and item lists, row by row. Separate from `menus`. | `true` |
+| `battleBanners` | The short banner during a battle turn: a boss warning, a stat change, "Not enough MP!". Still being tested. | testing, off |
+| `saveSlots` | The save and load screens' slots. Still being tested. | testing, off |
 | `nameEntry` | The name entry screen: its title, each letter you type, and when a name is refused. | `true` |
+| `equipmentMenu` | The Equipment screen's slots and gear. Still being tested. | testing, off |
 | `travelMap` | Each destination on the travel map. | `true` |
 | `placeNames` | The place name the game shows as you arrive somewhere. | `true` |
 | `updateNotice` | The title screen's notice of a newer version. The request itself is `checkForUpdates`. | `true` |
 | `tutorials` | Tutorial pop-ups: the title, the page count and each page. Off also leaves the repeat key to repeat dialogue, not the pop-up's page. | `true` |
+| `termNames` | The skill and condition names a line's tags stand for. Off says the tag's stand-in. Still being tested. | testing, off |
 | `welcome` | The welcome on the title screen the first time the game starts with the mod: the mod's version and the field keys. | `true` |
 
 ## Field
