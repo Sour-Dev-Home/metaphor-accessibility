@@ -32,6 +32,7 @@ public sealed record ModSettings
     private const string SoundCueVolumeKey = "soundCueVolume";
     private const string SoundsKey = "sounds";
     private const string KeysKey = "keys";
+    private const string LimitsKey = "limits";
 
     /// <summary>What every setting is without a usable file.</summary>
     public static ModSettings Defaults { get; } = new();
@@ -61,6 +62,8 @@ public sealed record ModSettings
 
     private SettingMap<string, int> Bindings { get; init; } = SettingMap<string, int>.Empty;
 
+    private SettingMap<string, int> Limits { get; init; } = SettingMap<string, int>.Empty;
+
     /// <summary>The file inside the mod's folder that turns every testing feature on (#783). Only a Debug build reads
     /// it, and the session script adds it for the length of a session; a release package never carries it.</summary>
     public const string TestingFile = "opt-in-testing.txt";
@@ -87,6 +90,11 @@ public sealed record ModSettings
     /// <c>Buttons</c>, 0 for none. <paramref name="fallback"/>, the feature's default, when the file has no usable
     /// value (#661).</summary>
     public int Binding(string group, string name, int fallback) => Bindings.Get($"{group}.{name}", fallback);
+
+    /// <summary>The whole number the file gives <paramref name="name"/> in <paramref name="group"/> of its
+    /// <c>limits</c> object, such as an angle a feature warns at (#828), or <paramref name="fallback"/>, the feature's
+    /// default, when it has no usable one. The feature keeps the value within its own range.</summary>
+    public int Limit(string group, string name, int fallback) => Limits.Get($"{group}.{name}", fallback);
 
     /// <summary>Whether <paramref name="other"/> binds the same keys, for saying when they changed.</summary>
     public bool SameBindings(ModSettings other)
@@ -125,6 +133,7 @@ public sealed record ModSettings
                 Toggles = ReadToggles(document.RootElement, features, log),
                 Sounds = ReadSounds(document.RootElement, log),
                 Bindings = ReadBindings(document.RootElement, log),
+                Limits = ReadLimits(document.RootElement, log),
             };
         }
         // A lone surrogate, raw or escaped, is ArgumentException or InvalidOperationException rather than JsonException
@@ -323,6 +332,36 @@ public sealed record ModSettings
                     log(buttons
                         ? $"settings file: \"{KeysKey}.{group.Name}.{binding.Name}\" is not pad buttons like \"LB+RB\"; using the default"
                         : $"settings file: \"{KeysKey}.{group.Name}.{binding.Name}\" is not a key like \"R\" or \"F5\"; using the default");
+                }
+            }
+        }
+        return new(read);
+    }
+
+    // Every group in "limits", as for "keys": each value a JSON whole number, anything else the feature's default.
+    private static SettingMap<string, int> ReadLimits(JsonElement root, Action<string> log)
+    {
+        Dictionary<string, int> read = new(StringComparer.Ordinal);
+        if (Group(root, LimitsKey, log) is not { } groups)
+        {
+            return new(read);
+        }
+        foreach (var group in groups.EnumerateObject())
+        {
+            if (group.Value.ValueKind != JsonValueKind.Object)
+            {
+                log($"settings file: \"{LimitsKey}.{group.Name}\" is not an object; using the default limits");
+                continue;
+            }
+            foreach (var limit in group.Value.EnumerateObject())
+            {
+                if (limit.Value.ValueKind == JsonValueKind.Number && limit.Value.TryGetInt32(out var number))
+                {
+                    read[$"{group.Name}.{limit.Name}"] = number;
+                }
+                else
+                {
+                    log($"settings file: \"{LimitsKey}.{group.Name}.{limit.Name}\" is not a whole number; using the default");
                 }
             }
         }

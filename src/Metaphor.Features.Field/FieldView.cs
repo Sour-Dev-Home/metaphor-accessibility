@@ -56,9 +56,14 @@ public enum NearbyKind
 /// <param name="MapId">The map's id, or null when it wasn't read.</param>
 /// <param name="CameraHeading">As <see cref="FieldPose.CameraHeading"/>; the nearby list's directions are from it
 /// (#686).</param>
+/// <param name="CameraPitch">As <see cref="FieldPose.CameraPitch"/>.</param>
 public sealed record FieldView(
     float X, float Y, float Z, double Heading, IReadOnlyList<FieldUnit> Units, int? DoorReachValue = null,
-    int? MapId = null, double? CameraHeading = null);
+    int? MapId = null, double? CameraHeading = null, double? CameraPitch = null)
+{
+    /// <summary>Where the player stands and faces, and the camera, as a pose.</summary>
+    public FieldPose Pose => new(X, Y, Z, Heading, CameraHeading, CameraPitch);
+}
 
 /// <summary>Where the player stands and faces, as <see cref="FieldView"/>'s: a value, so the beacon (#183) reads it on
 /// every poll without allocating.</summary>
@@ -69,7 +74,11 @@ public sealed record FieldView(
 /// <param name="CameraHeading">The way the field camera looks across the ground (from its eye to its look-at point),
 /// measured as <paramref name="Heading"/>, or null when it can't be read
 /// (docs/raw-sources/field-position-camera-session6-2026-11-17.md).</param>
-public readonly record struct FieldPose(float X, float Y, float Z, double Heading, double? CameraHeading = null);
+/// <param name="CameraPitch">How far the camera looks up from level, in radians, negative looking down: the angle of its
+/// look-at point above its eye (#828), or null when it can't be read. Moving the camera up and down moves only the eye's
+/// height (same source).</param>
+public readonly record struct FieldPose(
+    float X, float Y, float Z, double Heading, double? CameraHeading = null, double? CameraPitch = null);
 
 /// <summary>What the field controls read from the game, on the thread that called them.</summary>
 public interface IFieldReads

@@ -183,4 +183,36 @@ public sealed class ModSettingsTests
         Assert.Equal(VoicedLinesMode.Nothing, settings.VoicedLines);
         Assert.Contains("\"checkForUpdates\" is not true or false; using true", Assert.Single(logged), StringComparison.Ordinal);
     }
+
+    [Fact]
+    public void ALimitIsTheFilesWholeNumberOrTheFeaturesDefault()
+    {
+        var settings = Parse("""{ "limits": { "field": { "cameraDownDegrees": 40 } } }""");
+
+        Assert.Equal(40, settings.Limit("field", "cameraDownDegrees", 30));
+        Assert.Equal(25, settings.Limit("field", "cameraUpDegrees", 25));
+        Assert.Equal(25, Parse("{}").Limit("field", "cameraUpDegrees", 25));
+        Assert.Empty(logged);
+    }
+
+    [Theory]
+    [InlineData("\"40\"")]
+    [InlineData("40.5")]
+    [InlineData("true")]
+    public void ALimitThatIsNotAWholeNumberIsTheDefaultAndIsLogged(string value)
+    {
+        var settings = Parse($$"""{ "limits": { "field": { "cameraDownDegrees": {{value}} } } }""");
+
+        Assert.Equal(30, settings.Limit("field", "cameraDownDegrees", 30));
+        Assert.Contains("\"limits.field.cameraDownDegrees\" is not a whole number", Assert.Single(logged), StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void TheSameLimitsReadTwiceAreEqualSettings()
+    {
+        const string json = """{ "limits": { "field": { "cameraDownDegrees": 40 } } }""";
+
+        Assert.Equal(Parse(json), Parse(json));
+        Assert.NotEqual(Parse(json), Parse("{}"));
+    }
 }

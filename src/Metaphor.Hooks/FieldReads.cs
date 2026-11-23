@@ -135,28 +135,36 @@ internal sealed class FieldMemory(
         }
         int? doorValue = database.Object() is { } db && ModuleMemoryReader.ReadInt32(db + DoorReachOffset) is { } value &&
             value != -1 ? value : null;
-        return new FieldView(pose.X, pose.Y, pose.Z, pose.Heading, units, doorValue, MapId(), pose.CameraHeading);
+        return new FieldView(
+            pose.X, pose.Y, pose.Z, pose.Heading, units, doorValue, MapId(), pose.CameraHeading, pose.CameraPitch);
     }
 
     // The beacon's poll (#183): the same reads as Read's player, and no allocation.
-    public FieldPose? ReadPose() =>
-        UnitManager() is { } manager && Pose(manager) is { } pose ? pose with { CameraHeading = CameraHeading() } : null;
+    public FieldPose? ReadPose()
+    {
+        if (UnitManager() is not { } manager || Pose(manager) is not { } pose)
+        {
+            return null;
+        }
+        var (heading, pitch) = Camera();
+        return pose with { CameraHeading = heading, CameraPitch = pitch };
+    }
 
     // The camera object [[fldWorld+0x10]+0x0], its eye at +0x60 and look-at at +0x70: the session-6 reader's chain, its
-    // view heading that of look-at − eye (docs/raw-sources/field-position-camera-session6-2026-11-17.md; the static
-    // lead FldCameraGetRelativeToPlayerDir_Yaw 0x8d8870 in docs/raw-sources/field-position-2026-11-16.md).
-    private double? CameraHeading()
+    // view heading that of look-at − eye and its pitch (#828) that vector's angle above the ground, since moving the
+    // camera up and down moves the eye's height (docs/raw-sources/field-position-camera-session6-2026-11-17.md; the
+    // static lead FldCameraGetRelativeToPlayerDir_Yaw 0x8d8870 in docs/raw-sources/field-position-2026-11-16.md).
+    // Read only; the mod never writes the camera (#823).
+    private (double? Heading, double? Pitch) Camera()
     {
         if (world.Object() is not { } fieldWorld ||
             ModuleMemoryReader.ReadPointer(fieldWorld + CameraManager) is not { } cameras || cameras == 0 ||
             ModuleMemoryReader.ReadPointer(cameras) is not { } camera || camera == 0 ||
             Vector(camera + CameraEye) is not { } eye || Vector(camera + CameraLookAt) is not { } lookAt)
         {
-            return null;
+            return (null, null);
         }
-        var dx = lookAt.X - eye.X;
-        var dz = lookAt.Z - eye.Z;
-        return dx == 0 && dz == 0 ? null : Math.Atan2(dx, dz);
+        return CameraFrame.Camera(eye, lookAt);
     }
 
     private nint? UnitManager() =>

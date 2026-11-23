@@ -100,6 +100,8 @@ the game.
 | `reach` | The callout when a door or chest comes into reach: "Door, in reach". | `true` |
 | `stunCallouts` | The callout when a field enemy near you is stunned: "Enemy stunned". | `true` |
 | `shoulderHold` | In the field, LB and RB reach the game when you let go, so LB with RB (the reader) and LB with the D-pad open neither the popularity ranking nor the map. Tapped alone, they still open them. Still being tested. | testing, off |
+| `cameraTilt` | "Camera looking down" or "Camera looking up" when the camera tilts past a limit, "Camera level" when it comes back, and the camera's tilt at the end of "where am I". The limits are in `limits`. Still being tested. | testing, off |
+| `sonar` | A short sound for each person, object and exit nearby, every two seconds: a sound of its own for each kind, on the side it is on screen, louder when nearer. Still being tested. | testing, off |
 
 ## Report
 
@@ -126,6 +128,20 @@ from 0 to 100 that is a share of `soundCueVolume`: 50 plays it at half the sound
 | `allyHit` | Someone in your party was hit. | on, volume 100 |
 | `enemyHit` | An enemy was hit. | on, volume 100 |
 | `mark` | The mark key wrote a marker. | on, volume 100 |
+
+## Limits
+
+Some features warn at a limit you can move, inside a `limits` object, then the feature's object, as a whole number.
+
+```json
+{ "limits": { "field": { "cameraDownDegrees": 50 } } }
+```
+
+| Setting | What it does | Default |
+|---|---|---|
+| `field.cameraDownDegrees` | How far down the camera tilts, from level, before "Camera looking down" (`cameraTilt`). 1 to 89. | `40` |
+| `field.cameraUpDegrees` | How far up before "Camera looking up". 1 to 89. | `20` |
+| `field.cameraMarginDegrees` | How far back inside a limit the camera comes before "Camera level". 0 to 30. | `5` |
 
 ## Keys
 

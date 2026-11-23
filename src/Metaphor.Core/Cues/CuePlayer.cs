@@ -11,6 +11,9 @@ public enum ToneChannel
 
     /// <summary>Walls and obstacles nearby (#185).</summary>
     Wall,
+
+    /// <summary>The field sonar's pings for nearby people, objects and exits (#827).</summary>
+    Sonar,
 }
 
 /// <summary>A held tone: a sine at <paramref name="Hertz"/>, placed at <paramref name="Pan"/> from -1 (left) to +1
