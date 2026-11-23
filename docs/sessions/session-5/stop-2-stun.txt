@@ -1,0 +1,18 @@
+# Game session 5, stop 2: a stunned enemy, in the field and in battle (#772).
+# Game build 548ddc95... (Steam 18330018). Lead: docs/findings/enemy-stun-break-and-battle-condition-static.md.
+# Field: run [field] once near unhit enemies. Each follow lands on enemy i's break byte (+0x36d0, what
+# FldEnemyIsBreak returns) in the field enemy list. Then, by hand, read <addr> 0x28 for each address printed, at four
+# moments: before any strike, after one strike that doesn't stun, while the enemy shows as stunned, once it moves
+# again. The 0x28 bytes cover +0x36d0 break, +0x36d1, +0x36dc carry, +0x36e0 stun gauge (int), +0x36e4 and +0x36e8
+# regen timers, +0x36ec flag, +0x36f0 int, +0x36f4 float.
+# Expect: break 0 and the gauge dropping per strike, then break 1 and the gauge 0 while stunned, then break 0 and the
+# gauge refilled. The list's order is not the screen's; match the enemy by its gauge changing.
+# Battle: no global reaches the battle package. After the hit that stuns, take record= from the last BattleHitResult
+# line in message-log.txt and read <record>+0x1c 4 (the unit's condition mask); expect 0x2000 (bit 13) set, and
+# again when the "cannot move due to Stun" banner shows. Bit 13 for stun is a lead, not pinned.
+[field]
+base
+follow base+0x2ee7510 0x20 0x18 0x0 0x36d0
+follow base+0x2ee7510 0x20 0x18 0x8 0x36d0
+follow base+0x2ee7510 0x20 0x18 0x10 0x36d0
+follow base+0x2ee7510 0x20 0x18 0x18 0x36d0

@@ -1,0 +1,24 @@
+# Game session 5, stop 1: the shop's buy quantity and total (#197).
+# Game build 548ddc95... (Steam 18330018). Lead: docs/findings/shop-rows-quantity-and-rank-up-notice-static.md,
+# "The quantity step". Run [count-1] at the quantity window with count 1, [count-2] after one up press, [count-down]
+# after one down press.
+# R = the UI registry ([base+0x2ee72e8]); its entries are 0x20 bytes from R+0x18: object at +0x8, id at +0x18.
+# Follow-ups by hand, once, from [count-1]'s first follow (R):
+#   read <R>+0x18 0x3c0, find the entry whose +0x18 is 86 00 00 00; Main = the qword at that entry's +0x8;
+#   rtti <Main> (expect Main@shop@layout@ui@app).
+# Then at each step:
+#   read <Main>+0x345150 4   the drawn total, weapon shop (general shop: <Main>+0x6e990)
+#   read <Main>+0x37afe0 8   the weapon layout's {row's first int, count} (general: <Main>+0xeea40)
+# Expect the total to be count x the row's price and the count to follow each press (wrapping from 1 to the maximum).
+# If the mod's ChoiceGetCursor hook ever logs the choice (vtable base+0x2201b90): read <choice>+0x404 0x24 holds the
+# shown count, digit count, a flag byte, then mode, shop, count, maximum, item and unit price (one int each).
+# Money (below) is unchanged until the purchase.
+[count-1]
+base
+follow base+0x2ee72e8 0x0
+follow base+0x2ee72e8 0x18
+read base+0x2cc9348 4
+[count-2]
+read base+0x2cc9348 4
+[count-down]
+read base+0x2cc9348 4

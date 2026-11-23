@@ -21,7 +21,7 @@ here is read in a running game: every value is `[NEEDS VERIFICATION]` until the 
 | Dead | `FldEnemyIsDead` (`0x8dc240`): `vf14` returns 0 | High in code |
 | Field damage | `fldEnemy::vf58` (`0x65d7a0`, `.text`): clamps the damage to HP, writes it, posts `fldReportJob::OnDamaging` | High in code |
 | Defeat | `0x661210`, once per enemy (byte `+0x36f9`), from `vf58` when HP is 0, `vf41` (`0x65e680`) and `0x6617d0` | Medium |
-| Stagger | `vf58` adds to `int enemy+0x37d8`; at a per-enemy threshold it requests state `0x24` unless the state is 5 or 6 | Low: "stun" is a guess |
+| Stagger | `vf58` adds to `int enemy+0x37d8`; at a per-enemy threshold it requests state `0x24` unless the state is 5 or 6 | Low. The stun is the break byte `+0x36d0` instead ([stun note](enemy-stun-break-and-battle-condition-static.md)) |
 | Perception test | `0x650070` (controller): `0x64c7d0` and `0x64c560`, or `0x64c660` | Low: named by its use |
 | Discover script | kind 7 entries (`0x6b78a0(2,7,..)`), run by `0x6b6c30(2,7,id)` from `0x64fdc0`, `0x64fff0`, `0x653770` | High in code |
 | State table order | slot *i* of `C+0x2d0` is the *i*th of 40 calls to `0x64bb20` in `vf3` (`0x6567b0`), in stack order | High in code |
