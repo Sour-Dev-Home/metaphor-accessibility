@@ -20,12 +20,16 @@ view_filter='[.mergeable, .mergeStateStatus, (if .autoMergeRequest then "true" e
   ([.statusCheckRollup[]? | select((.conclusion // "") as $c | ($c == "FAILURE" or $c == "TIMED_OUT" or $c == "CANCELLED"
     or $c == "STARTUP_FAILURE" or $c == "ACTION_REQUIRED") or (.state // "") == "FAILURE" or (.state // "") == "ERROR")
     | (.name // .context)] | join(","))] | @tsv'
-query='query($number: Int!) { repository(owner: "{owner}", name: "{repo}") { pullRequest(number: $number) { mergeQueueEntry { position } } } }'
+query='query($owner: String!, $name: String!, $number: Int!) { repository(owner: $owner, name: $name) { pullRequest(number: $number) { mergeQueueEntry { position } } } }'
+# gh 2.101.0 no longer fills {owner}/{repo} in GraphQL, so resolve them here (#786).
+repo="$(gh repo view --json owner,name --jq '.owner.login + "/" + .name')" ||
+  { echo "could not resolve the repository" >&2; exit 1; }
+repo="${repo//$'\r'/}"
 
 failed=0
 for n in "$@"; do
   view="$(gh pr view "$n" --json mergeable,mergeStateStatus,autoMergeRequest,statusCheckRollup --jq "$view_filter")" &&
-    queue="$(gh api graphql -F number="$n" -f query="$query" \
+    queue="$(gh api graphql -F number="$n" -f owner="${repo%%/*}" -f name="${repo#*/}" -f query="$query" \
       --jq '.data.repository.pullRequest.mergeQueueEntry.position // "none"')" ||
     { echo "#$n could not read its state"; failed=1; continue; }
   IFS=$'\t' read -r mergeable state auto failing <<<"${view//$'\r'/}"
