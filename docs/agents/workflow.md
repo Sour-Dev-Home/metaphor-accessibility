@@ -47,7 +47,8 @@ on that same tree prints `reused the recorded pass for tree <hash>` and skips th
 whose parents' trees have passes, `full` runs only what both sides' changes reach, so run it after each merge from
 `main` too.
 
-A building run prints `step times: restore=.. build=.. tests=.. ...` and keeps them as the run log line's last field.
+A building run prints `step times: restore=.. build=.. tests=.. ...` and keeps them in the run log line, followed by `failed=<steps>` when a step failed. Every worktree's runs also land in
+`check-run-history` in the common git folder.
 `tests/check/test-check.sh` runs its tests in parallel, printing a line per test as it finishes; narrow it with a name
 pattern as its argument.
 

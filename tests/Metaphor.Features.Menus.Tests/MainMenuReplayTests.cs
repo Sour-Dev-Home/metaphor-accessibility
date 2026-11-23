@@ -22,6 +22,7 @@ public sealed class MainMenuReplayTests
         screens.Observe(new MainMenuFocus(announcer));
         screens.Observe(new SystemMenuFocus(new MessageSerials([]), announcer, new TextCleaner(TextCleanerRules.None)));
         screens.Observe(new YesNoDialogFocus(new MessageLibrary(), announcer, new TextCleaner(TextCleanerRules.None)));
+        screens.Observe(new ItemFocus(announcer));
         screens.Observe(new EquipmentFocus(announcer));
         screens.Observe(new UnknownScreenFocus(announcer));
         cursors.Observe(screens);
@@ -37,7 +38,8 @@ public sealed class MainMenuReplayTests
         // The run of 2026-11-17 (build 548ddc95): the main menu from its third entry to System, which opens; inputs
         // without a class (skipped) and a Yes/No dialog, spoken by its position as the fixture compiles no choice text
         // (#549); back on the main menu, Equipment, Party and Item opened from their entries (3, 4 and 2) and spoken as
-        // unknown screens, except Equipment, which says its name and position (#217); then System again.
+        // unknown screens, except Item and Equipment, which say their names and positions (#216, #217); then System
+        // again.
         Assert.Equal(
             [
                 "Menu, Equipment, 3 of 9", "Party, 4 of 9", "Follower, 5 of 9", "Quest, 6 of 9", "Calendar, 7 of 9",
@@ -45,7 +47,7 @@ public sealed class MainMenuReplayTests
                 "1 of 2",
                 "Menu, Equipment, 3 of 9", "Party, 4 of 9", "Follower, 5 of 9", "Party, 4 of 9", "Equipment, 3 of 9", "Equipment, 1",
                 "Menu, Party, 4 of 9", "1",
-                "Menu, Equipment, 3 of 9", "Item, 2 of 9", "1",
+                "Menu, Equipment, 3 of 9", "Item, 2 of 9", "Item, 1",
                 "Menu, Equipment, 3 of 9", "Party, 4 of 9", "Follower, 5 of 9", "Quest, 6 of 9", "Calendar, 7 of 9",
                 "Memorandum, 8 of 9", "System, 9 of 9", "System, 1", "2", "1", "2", "1",
             ],

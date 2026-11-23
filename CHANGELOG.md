@@ -13,6 +13,13 @@ checks them in the first game session and removes the tag.
   Return to Title) and the shop's top menu says Buy, Sell, Appraise or Listen. Buy and Sell rows say their item's
   name where it is known (not weapons or armour yet); prices and counts are not read. Opening a quest no longer says
   "1 of 9" (#733, #736, #197, #194). `[NEEDS VERIFICATION by ear]`
+- **The Item screen says each item.** Opening the list says "Item", then each row says its item name and its place
+  ("Tonic, 2 of 12"). The equipment tabs, the tab names, quantities and party members' names are still said by
+  place or not at all (#216). `[NEEDS VERIFICATION by ear]`
+- **No more gaps where the screen shows a skill, an item or a button.** Text that names a skill or a status condition
+  now says its name, as after "Required Skill:". Items, Archetypes, attributes, buttons and other icons, which the mod
+  can't name yet, say what kind of thing goes there ("item", "button") instead of leaving a gap, as does the action a
+  new key binding clashes with (#108, #109, #564). `[NEEDS VERIFICATION by ear]`
 - **The Calendar says the day.** Opening the Calendar says "Calendar, Waters Day, day 12 of 30", and each move says the
   weekday and the day you land on (the five weekdays are as heard in a test session). The month, events and discounts
   aren't spoken yet (#193). `[NEEDS VERIFICATION by ear]`

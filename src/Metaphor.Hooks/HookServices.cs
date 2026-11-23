@@ -207,7 +207,8 @@ internal sealed record HookServices
         var terms = new GameTerms(filePositions, log is null ? null : log.PlaceholderMissing);
         var cleaner = new TextCleaner(
             GameNames.Rules.With(GameTerms.Rules),
-            (key, arguments) => names.Placeholder(key, arguments) ?? terms.Placeholder(key, arguments));
+            (key, arguments) => names.Placeholder(key, arguments)
+                ?? (settings.Current.IsOn(Feature.TermNames) ? terms.Placeholder(key, arguments) : null));
         // Lines go through the reader on/off switch; the repeat and the switch's own state are spoken either way.
         // Auto follows the game's voice language, read on each line (#538); unknown speaks the full line.
         var reader = new DialogueReader(announcer);
@@ -262,6 +263,9 @@ internal sealed record HookServices
             serials, settings.Speech(Feature.ShopMenu, reader), cleaner, () => Environment.TickCount64);
         screens.Observe(shopFocus);
         events.ObserveSerials(shopFocus);
+        var itemFocus = new ItemFocus(serials, settings.Speech(Feature.ItemMenu, reader), cleaner);
+        screens.Observe(itemFocus);
+        events.ObserveSerials(itemFocus);
         screens.Observe(new CalendarFocus(settings.Speech(Feature.Calendar, reader)));
         screens.Observe(new EquipmentFocus(serials, settings.Speech(Feature.EquipmentMenu, reader), cleaner));
         // The save and load slots (#622): their lists come unnamed, so the slot screens name them before the screens,

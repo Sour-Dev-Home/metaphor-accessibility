@@ -19,6 +19,10 @@ public enum Feature
     [SettingKey("speech", "menus", "Menus")]
     Menus,
 
+    /// <summary>The Item screen's focus (#216). Separate from the menus while it is tested.</summary>
+    [SettingKey("speech", "itemMenu", "Item menu", Testing = true)]
+    ItemMenu,
+
     /// <summary>The Calendar's day grid (#193). Separate from the menus while it is tested.</summary>
     [SettingKey("speech", "calendar", "Calendar", Testing = true)]
     Calendar,
@@ -103,6 +107,11 @@ public enum Feature
     /// <summary>The callout when a door or chest comes into reach (#644).</summary>
     [SettingKey("field", "reach", "Reach callouts")]
     Reach,
+
+    /// <summary>Skill and condition names said for their tags in a line (#108). Separate from the dialogue while it
+    /// is tested; off, a tag says its stand-in.</summary>
+    [SettingKey("speech", "termNames", "Term names", Testing = true)]
+    TermNames,
 
     /// <summary>A choice saying "Choice, N options", the options spoken as focus moves, not every option up front
     /// (#730). Separate from the dialogue while it is tested.</summary>
