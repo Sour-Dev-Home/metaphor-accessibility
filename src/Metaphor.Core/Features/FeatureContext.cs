@@ -55,6 +55,9 @@ public sealed class FeatureContext
     /// <summary>The menu screens (#211).</summary>
     public required MenuScreens Screens { get; init; }
 
+    /// <summary>The animations of the layout classes a feature asks for (#809).</summary>
+    public LayoutAnimations Layouts { get; init; } = new();
+
     /// <summary>The message files the game compiled.</summary>
     public required MessageLibrary Library { get; init; }
 

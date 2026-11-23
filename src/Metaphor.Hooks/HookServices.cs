@@ -43,6 +43,10 @@ internal sealed record HookServices
     /// (#268) before the menu controls take the read.</summary>
     public required MenuScreens MenuScreens { get; init; }
 
+    /// <summary>Where the layout animation hook hands the animations of the layout classes features asked for (#809):
+    /// none unless a feature module asked.</summary>
+    public LayoutAnimations Layouts { get; init; } = new();
+
     /// <summary>Reads whether the game has its menus open (#268); the loader locates what it reads (#300).</summary>
     public MenusOpenRead MenusOpen { get; init; } = new();
 
@@ -300,6 +304,7 @@ internal sealed record HookServices
             FieldMapName = context.Find<FieldMapName>() ?? throw Missing(nameof(FieldMapName)),
             DialogueHistory = history,
             MenuScreens = screens,
+            Layouts = context.Layouts,
             NameEntry = (INameEntryObserver?)nameEntry ?? new NoNameEntry(),
             KeyWatcher = nameEntry,
             PadWatcher = context.Find<IPadWatcher>(),
