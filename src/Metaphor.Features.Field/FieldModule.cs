@@ -40,10 +40,25 @@ public sealed class FieldModule : IFeatureModule
         // #741), read once on the first route.
         var navLog = log is null ? (Action<string>)(_ => { }) : log.FieldRead;
         var navMeshes = new NavMeshSource(context.OpenArchive, navLog);
-        var routes = new NavRoutePlanner(NavMapFiles.FromArchive(context.OpenArchive, navLog), navMeshes.Load);
+        var navFiles = NavMapFiles.FromArchive(context.OpenArchive, navLog);
+        var routes = new NavRoutePlanner(navFiles, navMeshes.Load);
+        // The navigation sounds take turns (#823): the sonar waits for the beep and a route ping, and the wall tones
+        // duck under them. The controls, made below, say whether the beep guides.
+        FieldControls? controls = null;
+        var floor = new NavFloor(() => Environment.TickCount64, () => controls?.Guiding == true);
+        // The wall tones (#830) and route pings (#831), testing; their limits are read on each probe and ping.
+        var edges = new MapEdges(navFiles, navMeshes.Load);
+        var walls = new WallTones(
+            field, context.Cues, settings.Speech(FieldFeature.WallTones, context.Announcer),
+            () => Environment.TickCount64, () => settings.Current.IsOn(FieldFeature.WallTones),
+            () => WallLimits.From(settings.Current), edges.For, floor, log is null ? null : log.FieldRead);
+        var routePings = new RoutePings(
+            field, context.Cues, () => Environment.TickCount64, () => settings.Current.IsOn(FieldFeature.RoutePings),
+            () => RoutePingLimits.From(settings.Current), routes, floor: floor,
+            log: log is null ? null : log.FieldRead);
         // Its settings, the nearby list, its categories, "where am I" and guidance, are read on each read (#661).
         // Debug builds only: the "where am I" record lists the main-mission flags (#658).
-        context.AddControls(new FieldControls(
+        controls = new FieldControls(
             settings.Live(FieldBindings.From), feature => settings.Current.IsOn(feature), field, place,
             context.Announcer, context.Cues, () => Environment.TickCount64, log is null ? null : log.FieldRead,
             nearbyNames,
@@ -58,7 +73,9 @@ public sealed class FieldModule : IFeatureModule
                 () => TiltLimits.From(settings.Current)),
             new Sonar(
                 field, context.Cues, () => Environment.TickCount64, () => settings.Current.IsOn(FieldFeature.Sonar),
-                log is null ? null : log.FieldRead, nearbyNames)));
+                log is null ? null : log.FieldRead, nearbyNames, floor),
+            walls, routePings);
+        context.AddControls(controls);
         // LB and RB held back in free roam until let go, so the reader's and the list's chords open no screen (#811),
         // testing.
         var shoulders = new FieldShoulderHold(

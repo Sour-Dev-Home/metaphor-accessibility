@@ -17,6 +17,8 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\src\Metaphor.Features.Field\Metaphor.Features.Field.csproj" />
+    <!-- The navigation sounds' generator (#839): its tests check data/sounds/ is what it writes. -->
+    <ProjectReference Include="..\..\tools\Metaphor.NavSounds\Metaphor.NavSounds.csproj" />
   </ItemGroup>
 
 </Project>

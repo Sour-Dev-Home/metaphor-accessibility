@@ -101,7 +101,9 @@ the game.
 | `stunCallouts` | The callout when a field enemy near you is stunned: "Enemy stunned". | `true` |
 | `shoulderHold` | In the field, LB and RB reach the game when you let go, so LB with RB (the reader) and LB with the D-pad open neither the popularity ranking nor the map. Tapped alone, they still open them. Still being tested. | testing, off |
 | `cameraTilt` | "Camera looking down" or "Camera looking up" when the camera tilts past a limit, "Camera level" when it comes back, and the camera's tilt at the end of "where am I". The limits are in `limits`. Still being tested. | testing, off |
-| `sonar` | A short sound for each person, object and exit nearby, every two seconds: a sound of its own for each kind, on the side it is on screen, louder when nearer. Still being tested. | testing, off |
+| `sonar` | A short sound for each person, object and exit nearby, every two seconds: a sound of its own for each kind, on the side it is on screen, louder when nearer. It waits while the guidance beep guides or a route ping sounds. Still being tested. | testing, off |
+| `wallTones` | A low steady tone for each wall near you, ahead, behind, left and right of the screen, louder as the wall nears. Silent on maps the mod has no walking map for, which it says once. The range and volume are in `limits`. Still being tested. | testing, off |
+| `routePings` | A ping from the direction of each place the nearby list steps to: two high notes when the way is straight, two rising notes from the next corner when the way bends, one low note when there is no path. Its volume is in `limits`. Still being tested. | testing, off |
 
 ## Report
 
@@ -131,7 +133,7 @@ from 0 to 100 that is a share of `soundCueVolume`: 50 plays it at half the sound
 
 ## Limits
 
-Some features warn at a limit you can move, inside a `limits` object, then the feature's object, as a whole number.
+Some features have a limit you can move, inside a `limits` object, then the feature's object, as a whole number.
 
 ```json
 { "limits": { "field": { "cameraDownDegrees": 50 } } }
@@ -142,6 +144,9 @@ Some features warn at a limit you can move, inside a `limits` object, then the f
 | `field.cameraDownDegrees` | How far down the camera tilts, from level, before "Camera looking down" (`cameraTilt`). 1 to 89. | `40` |
 | `field.cameraUpDegrees` | How far up before "Camera looking up". 1 to 89. | `20` |
 | `field.cameraMarginDegrees` | How far back inside a limit the camera comes before "Camera level". 0 to 30. | `5` |
+| `field.wallRange` | How near a wall comes before its tone starts (`wallTones`), in the game's units, about 100 a step. 50 to 2000. | `300` |
+| `field.wallVolume` | How loud a wall tone is right at the wall. 0 to 100. | `50` |
+| `field.routePingVolume` | How loud a route ping is from a place in reach (`routePings`); farther places are quieter. 0 to 100. | `90` |
 
 ## Keys
 

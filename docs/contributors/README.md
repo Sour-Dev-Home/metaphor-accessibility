@@ -124,6 +124,8 @@ The guards, why each may block you, and what to do:
   rule is in [coding standards](../coding-standards.md#architecture-rules).
 - **Stale settings reference** (`Metaphor.Settings.Tests`): run
   `dotnet run --project tools/Metaphor.SettingsReference -c Release -v q` from the repository root and commit the page.
+- **Stale navigation sounds** (`NavSoundFilesTests`): run `dotnet run --project tools/Metaphor.NavSounds -c Release -v q`
+  from the repository root and commit `data/sounds/`.
 - **Architecture tests:** a rule in [coding standards](../coding-standards.md#architecture-rules) was broken.
 - **Broken link or anchor** (`check.sh docs`): fix the link; lint and Vale only warn.
 - **Missing `security-reviewed` label** (`review-gate`): wait for the maintainer

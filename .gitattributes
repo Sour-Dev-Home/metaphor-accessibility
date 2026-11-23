@@ -4,3 +4,5 @@
 # Except batch files, which players run with cmd.exe: Windows' own line endings, as Notepad shows them.
 *.cmd text eol=crlf
 *.bat text eol=crlf
+# Generated sounds (#839) are bytes, compared exactly by their test: never converted.
+*.wav binary

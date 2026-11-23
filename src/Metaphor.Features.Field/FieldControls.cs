@@ -111,6 +111,8 @@ public sealed class FieldControls : IInputControls
     private readonly StunCallouts? stuns;
     private readonly TiltWarning? tilt;
     private readonly Sonar? sonar;
+    private readonly WallTones? walls;
+    private readonly RoutePings? routePings;
     private readonly Binding nearby = new();
     private readonly Binding next = new();
     private readonly Binding previous = new();
@@ -140,9 +142,10 @@ public sealed class FieldControls : IInputControls
         FieldBindings bindings, IFieldReads field, FieldPlace place, IAnnouncer announcer, ICuePlayer cues,
         Func<long> milliseconds, Action<string>? log = null, NamesTable? names = null, ReachCallouts? reach = null,
         MissionLine? mission = null, Func<int, bool?>? storyFlag = null, IRoutePlanner? routes = null,
-        StunCallouts? stuns = null, TiltWarning? tilt = null, Sonar? sonar = null)
+        StunCallouts? stuns = null, TiltWarning? tilt = null, Sonar? sonar = null, WallTones? walls = null,
+        RoutePings? routePings = null)
         : this(() => bindings, _ => true, field, place, announcer, cues, milliseconds, log, names, reach, mission,
-            storyFlag, routes, stuns, tilt, sonar)
+            storyFlag, routes, stuns, tilt, sonar, walls, routePings)
     {
         ArgumentNullException.ThrowIfNull(bindings);
     }
@@ -152,16 +155,19 @@ public sealed class FieldControls : IInputControls
     /// <see cref="FieldFeature.Guidance"/> are on, and <see cref="FieldFeature.NearbyCategories"/> the category keys.
     /// <paramref name="tilt"/>'s check and <paramref name="sonar"/>'s tick run on each keyboard read when there are ones
     /// (#828, #827), and "where am I" ends with the tilt's line while <see cref="FieldFeature.CameraTilt"/> is on.
-    /// </summary>
+    /// <paramref name="walls"/> tick on each keyboard read too (#830), and <paramref name="routePings"/> ping each place
+    /// the list steps to (#831).</summary>
     public FieldControls(
         Func<FieldBindings> bindings, Func<FieldFeature, bool> isOn, IFieldReads field, FieldPlace place,
         IAnnouncer announcer, ICuePlayer cues, Func<long> milliseconds, Action<string>? log = null,
         NamesTable? names = null, ReachCallouts? reach = null, MissionLine? mission = null,
         Func<int, bool?>? storyFlag = null, IRoutePlanner? routes = null, StunCallouts? stuns = null,
-        TiltWarning? tilt = null, Sonar? sonar = null)
+        TiltWarning? tilt = null, Sonar? sonar = null, WallTones? walls = null, RoutePings? routePings = null)
     {
         this.tilt = tilt;
         this.sonar = sonar;
+        this.walls = walls;
+        this.routePings = routePings;
         ArgumentNullException.ThrowIfNull(bindings);
         ArgumentNullException.ThrowIfNull(isOn);
         ArgumentNullException.ThrowIfNull(field);
@@ -251,6 +257,8 @@ public sealed class FieldControls : IInputControls
         stuns?.Check();
         tilt?.Check();
         sonar?.Tick();
+        walls?.Tick();
+        routePings?.Tick();
         var bindings = liveBindings();
         var listOn = isOn(FieldFeature.Nearby);
         var categoriesOn = isOn(FieldFeature.NearbyCategories);
@@ -510,6 +518,7 @@ public sealed class FieldControls : IInputControls
             at = position;
             current = new BeaconTarget(things[at].Unit, view.DoorReachValue);
         }
+        routePings?.Focus(things[at].Unit);
         return string.Create(CultureInfo.InvariantCulture, $"{at + 1} of {things.Count}. {things[at].Text()}");
     }
 

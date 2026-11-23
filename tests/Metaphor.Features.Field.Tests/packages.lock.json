@@ -109,6 +109,13 @@
         "dependencies": {
           "Metaphor.Core": "[1.0.0, )"
         }
+      },
+      "metaphor.navsounds": {
+        "type": "Project",
+        "dependencies": {
+          "Metaphor.Core": "[1.0.0, )",
+          "Metaphor.Features.Field": "[1.0.0, )"
+        }
       }
     }
   }

@@ -9,11 +9,24 @@ public enum ToneChannel
     /// <summary>Guidance toward a target (#183).</summary>
     Guidance,
 
-    /// <summary>Walls and obstacles nearby (#185).</summary>
+    /// <summary>The wall ahead (#185, #830); the other three directions have their own channels, so all four loop at
+    /// once.</summary>
     Wall,
 
     /// <summary>The field sonar's pings for nearby people, objects and exits (#827).</summary>
     Sonar,
+
+    /// <summary>The wall behind (#830).</summary>
+    WallBehind,
+
+    /// <summary>The wall on the left (#830).</summary>
+    WallLeft,
+
+    /// <summary>The wall on the right (#830).</summary>
+    WallRight,
+
+    /// <summary>The route ping toward the place picked in the nearby list (#831).</summary>
+    Route,
 }
 
 /// <summary>A held tone: a sine at <paramref name="Hertz"/>, placed at <paramref name="Pan"/> from -1 (left) to +1

@@ -357,6 +357,26 @@ public sealed class FieldControlsTests
         Assert.Single(pings);
     }
 
+    [Fact]
+    public void AStepInTheListPingsTheRouteToThePlaceAndReadsMoveTheWallsOn()
+    {
+        var routeCues = new ChannelCues();
+        var routePings = new RoutePings(field, routeCues, () => now, () => true, () => RoutePingLimits.Default);
+        var walls = new WallTones(field, routeCues, announcer, () => now, () => true, () => WallLimits.Default,
+            _ => Task.FromResult<EdgeDistance?>((_, _, _) => 10));
+        var withPings = new FieldControls(
+            FieldBindings.Default, field, place, announcer, cues, () => now, walls: walls, routePings: routePings);
+
+        withPings.Keys([]);
+        Assert.Empty(routeCues.Held(ToneChannel.Route));
+        Assert.NotNull(routeCues.Now(ToneChannel.Wall));
+        withPings.Keys([KeyK]);
+
+        // The first step is the nearest thing, the chest straight ahead.
+        var ping = Assert.Single(routeCues.Held(ToneChannel.Route));
+        Assert.Equal(0, ping.Pan, 6);
+    }
+
     private sealed class PingCues(List<HeldTone> pings) : ICuePlayer
     {
         public void Play(Cue cue)
