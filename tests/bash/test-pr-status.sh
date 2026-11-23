@@ -20,6 +20,7 @@ cat > "$WORK/bin/gh" <<'FAKE'
 all="$*"; echo "${all//$'\n'/ }" >> "$FIX/log" # one line per call, whatever newlines its arguments hold
 case "$1 $2" in
   "pr view") n="$3"; [ ! -f "$FIX/fail-$n" ] || exit 1; cat "$FIX/view-$n" ;;
+  "repo view") echo "example-owner/example-repo" ;; # the repository the script runs in, as owner/name
   "api graphql")
     for arg in "$@"; do case "$arg" in number=*) n="${arg#number=}" ;; esac; done
     [ ! -f "$FIX/fail-$n" ] || exit 1
@@ -57,7 +58,9 @@ check "a failing PR lists its checks" grep -qx '#2 mergeable=CONFLICTING state=D
 check "an unqueued PR shows queue=none" grep -qx '#3 mergeable=MERGEABLE state=BLOCKED auto=on queue=none failing=none' <<<"$out"
 check "a PR it can't read gets a line, not a stop" grep -qx '#4 could not read its state' <<<"$out"
 check "it exits non-zero when a PR could not be read" test "$status" -ne 0
-check "it only reads" bash -c '! grep -Ev "^(pr view|api graphql) " "$1" && ! grep -Eq "mutation| -X " "$1"' _ "$FIX/log"
+check "the query never sends the {owner}/{repo} placeholders (#786)" bash -c '! grep -Eq "[{](owner|repo)[}]" "$1"' _ "$FIX/log"
+check "it passes the resolved owner and name as variables (#786)" bash -c 'grep -q "owner=example-owner" "$1" && grep -q "name=example-repo" "$1"' _ "$FIX/log"
+check "it only reads" bash -c '! grep -Ev "^(pr view|repo view|api graphql) " "$1" && ! grep -Eq "mutation| -X " "$1"' _ "$FIX/log"
 
 out="$(PATH="$WORK/bin:$PATH" bash "$SCRIPT" 2>&1)"; code=$?
 check "no arguments prints the usage" grep -q '^usage: pr-status.sh' <<<"$out"
