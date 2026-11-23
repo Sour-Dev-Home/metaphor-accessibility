@@ -58,7 +58,9 @@ Each is `true` to speak or `false` to stay quiet, inside a `speech` object: `{ "
 | `menus` | The title menu, the main menu, the quick menu, Settings, the difficulty list, yes or no questions and any other menu. Off also leaves the details key to the game. | `true` |
 | `battleHits` | Each battle hit as it lands, the battle status key and the enemy HP key. Off also leaves those keys to the game. | `true` |
 | `battleOutcomes` | "Knocked out", "defeated" or "revived" after a battle hit's number. Needs `battleHits`. | `true` |
+| `battleNumberReset` | Numbers each battle's enemies from "First enemy", not on from the battle before. Needs `battleHits`. Still being tested. | testing, off |
 | `battleLists` | Battle's skill and item lists, row by row. Separate from `menus`. | `true` |
+| `battleListViews` | Names the rows of battle's skill and item lists after a wrap to the bottom, not only their positions. Needs `battleLists`. Still being tested. | testing, off |
 | `itemMenu` | The Item screen's rows and its party-member list. Still being tested. | testing, off |
 | `calendar` | The Calendar's day grid. | `true` |
 | `battleBanners` | The short banner during a battle turn: a boss warning, a stat change, "Not enough MP!". Still being tested. | testing, off |

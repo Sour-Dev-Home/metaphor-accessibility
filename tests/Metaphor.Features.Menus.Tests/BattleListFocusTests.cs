@@ -16,6 +16,8 @@ public sealed class BattleListFocusTests
     private const int Settle = 0x1;
     private const int SkillFirst = 700;
     private const int ItemFirst = 300;
+    // The item names file: six named rows, then "Herb 7" to "Herb 40", for a list as long as the game's 40-item tab.
+    private const int ItemCount = 40;
     private const int DescriptionFlags = BattleListFocus.DescriptionFlags;
     private const int SkillDescriptionFirst = 900;
     private const int ItemDescriptionFirst = 400;
@@ -28,13 +30,14 @@ public sealed class BattleListFocusTests
     private readonly BattleListFocus skills;
     private readonly BattleListFocus items;
     private long now = 50_000;
+    private bool viewsOn = true;
 
     public BattleListFocusTests()
     {
         cursors = new CursorEvents(() => now);
         var serials = new MessageSerials([
             new SerialRange(MessageSerials.SkillNames, SkillFirst, 3),
-            new SerialRange(MessageSerials.ItemNames, ItemFirst, 6),
+            new SerialRange(MessageSerials.ItemNames, ItemFirst, ItemCount),
             new SerialRange(MessageSerials.SkillDescriptions, SkillDescriptionFirst, 2),
             new SerialRange(MessageSerials.ItemDescriptions, ItemDescriptionFirst, 2),
         ]);
@@ -44,7 +47,7 @@ public sealed class BattleListFocusTests
         screens.MenusRead(open: false);
         cursors.Observe(screens);
         skills = BattleListFocus.Skills(serials, announcer, cleaner, () => now);
-        items = BattleListFocus.Items(serials, announcer, cleaner, () => now);
+        items = BattleListFocus.Items(serials, announcer, cleaner, () => now, () => viewsOn);
         screens.Observe(skills);
         screens.Observe(items);
         screens.Observe(new UnknownScreenFocus(announcer));
@@ -53,7 +56,10 @@ public sealed class BattleListFocusTests
         messages.Compiled(new MessageFileCompiled("EN/message/system/Skill_Message_1.msg", 20,
             Source("Skill", "Spark", "Gust", "Frost <COLOR 3>")));
         messages.Compiled(new MessageFileCompiled("EN/message/system/Item_Message_1.msg", 21,
-            Source("Item", "Tonic", "Salve", "Ether", "Elixir", "Remedy", "Antidote")));
+            Source("Item", [
+                "Tonic", "Salve", "Ether", "Elixir", "Remedy", "Antidote",
+                .. Enumerable.Range(7, ItemCount - 6).Select(n => $"Herb {n}"),
+            ])));
         messages.Compiled(new MessageFileCompiled("EN/message/system/Skill_Message_2.msg", 22,
             Source("SkillHelp", "Burns one foe", "Cuts all foes")));
         messages.Compiled(new MessageFileCompiled("EN/message/system/Item_Message_2.msg", 23,
@@ -207,11 +213,11 @@ public sealed class BattleListFocusTests
         Assert.Equal(["Items, Tonic, 1 of 6", "6 of 6", "5 of 6", "Elixir, 4 of 6", "Ether, 3 of 6"], Said());
     }
 
-    // #737, by ear 2026-11-22 (build 548ddc95, [NEEDS VERIFICATION] beyond that run): after a wrap up the game fetched the
-    // whole view again on the next move up, the view's top row first, and its names were no scroll's: the row focused,
-    // not the view's top, was named. A name the fetched rows can't be matched to the focused index with is left unsaid.
+    // #737, by ear 2026-11-22 (build 548ddc95, Steam 18330018; [NEEDS VERIFICATION] beyond those runs): a wrap up to the
+    // last row fetches the whole view again, as many names as the first page, in list order and ending at the last row,
+    // and each move up after it fetches the same view. Those are the bottom rows, so each is named.
     [Fact]
-    public void AfterAWrapUpAWholeViewFetchedAgainNamesNoWrongRow()
+    public void AfterAWrapUpTheBottomRowsAreNamedFromTheViewFetched()
     {
         const int up = 0x15;
         // A three-row view of a six-row list.
@@ -221,7 +227,70 @@ public sealed class BattleListFocusTests
         Walked(up, 1, 3, 6, ItemFirst + 3, ItemFirst + 4, ItemFirst + 5);
         Walked(up, 0, 3, 6, ItemFirst + 3, ItemFirst + 4, ItemFirst + 5);
 
-        Assert.Equal(["Items, Tonic, 1 of 6", "6 of 6", "5 of 6", "4 of 6"], Said());
+        Assert.Equal(["Items, Tonic, 1 of 6", "Antidote, 6 of 6", "Remedy, 5 of 6", "Elixir, 4 of 6"], Said());
+    }
+
+    // The 14-item tab of the by-ear session of 2026-11-22 (F8 marks 18 to 20), its eight-row view as the game fetched it:
+    // after the wrap the game fetched rows 7 to 14, two of them already known, and the same eight on the next move up.
+    [Fact]
+    public void TheFourteenItemTabNamesItsRowsAfterAWrap()
+    {
+        const int up = 0x15;
+        const int down = 0x14;
+        int[] page = [.. Enumerable.Range(ItemFirst, 8)];
+        int[] bottom = [.. Enumerable.Range(ItemFirst + 6, 8)];
+        Fetched(page);
+        Cursor(ItemClass, 0, count: 14);
+        Walked(down, 1, 0, 14);
+        Walked(down, 2, 0, 14, page);
+        Walked(up, 1, 0, 14);
+        Walked(up, 0, 0, 14);
+        Walked(up, 7, 6, 14, bottom);
+        Walked(up, 6, 6, 14, bottom);
+
+        Assert.Equal([
+            "Items, Tonic, 1 of 14", "Salve, 2 of 14", "Ether, 3 of 14", "Salve, 2 of 14", "Tonic, 1 of 14",
+            "Herb 14, 14 of 14", "Herb 13, 13 of 14",
+        ], Said());
+    }
+
+    // The 40-item tab of #737's run: the wrap fetched rows 33 to 40, none known, then the same eight going up.
+    [Fact]
+    public void TheFortyItemTabNamesItsRowsAfterAWrap()
+    {
+        const int up = 0x15;
+        int[] bottom = [.. Enumerable.Range(ItemFirst + 32, 8)];
+        Fetched([.. Enumerable.Range(ItemFirst, 8)]);
+        Cursor(ItemClass, 0, count: 40);
+        Walked(up, 7, 32, 40, bottom);
+        Walked(up, 6, 32, 40, bottom);
+        Walked(up, 5, 32, 40, bottom);
+
+        Assert.Equal(["Items, Tonic, 1 of 40", "Herb 40, 40 of 40", "Herb 39, 39 of 40", "Herb 38, 38 of 40"], Said());
+    }
+
+    // A view whose names don't line up with the rows known (one known row out of place) names nothing.
+    [Fact]
+    public void AViewFetchedOutOfLineWithTheKnownRowsNamesNoRow()
+    {
+        const int up = 0x15;
+        Fetched(ItemFirst, ItemFirst + 1, ItemFirst + 2);
+        Cursor(ItemClass, 0, count: 6);
+        Walked(up, 2, 3, 6, ItemFirst + 1, ItemFirst + 4, ItemFirst + 5);
+
+        Assert.Equal(["Items, Tonic, 1 of 6", "6 of 6"], Said());
+    }
+
+    // With the views setting off (#737's fix while it is tested) a wrap says the position alone, as before.
+    [Fact]
+    public void WithViewsOffAWrapSaysThePositionAlone()
+    {
+        viewsOn = false;
+        Fetched(ItemFirst, ItemFirst + 1, ItemFirst + 2);
+        Cursor(ItemClass, 0, count: 6);
+        Walked(0x15, 2, 3, 6, ItemFirst + 3, ItemFirst + 4, ItemFirst + 5);
+
+        Assert.Equal(["Items, Tonic, 1 of 6", "6 of 6"], Said());
     }
 
     [Fact]
@@ -239,7 +308,8 @@ public sealed class BattleListFocusTests
         Walked(down, 1, 0, 6);
 
         Assert.Equal(
-            ["Items, Tonic, 1 of 6", "6 of 6", "5 of 6", "6 of 6", "Tonic, 1 of 6", "Salve, 2 of 6"], Said());
+            ["Items, Tonic, 1 of 6", "Antidote, 6 of 6", "Remedy, 5 of 6", "Antidote, 6 of 6", "Tonic, 1 of 6",
+                "Salve, 2 of 6"], Said());
     }
 
     // Another tab of the item list: after a gap it fetches its first page, then its cursor settles on the top row.

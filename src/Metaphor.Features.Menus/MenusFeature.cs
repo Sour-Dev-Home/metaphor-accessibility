@@ -17,6 +17,13 @@ public enum MenusFeature
         "row by row. Separate from `menus`.")]
     BattleLists,
 
+    /// <summary>Battle lists' rows named from a whole view the game fetched again, as after a wrap (#737). Separate
+    /// from the battle lists while it is tested.</summary>
+    [SettingKey("speech", "battleListViews", "Battle list views", Testing = true, Order = 1045, Description =
+        "Names the rows of battle's skill and item lists after a wrap to the bottom, not only their positions. Needs " +
+        "`battleLists`.")]
+    BattleListViews,
+
     /// <summary>The Item screen's focus (#216). Separate from the menus while it is tested.</summary>
     [SettingKey("speech", "itemMenu", "Item menu", Testing = true, Order = 1050, Description = "The Item screen's " +
         "rows and its party-member list.")]
