@@ -214,7 +214,8 @@ internal sealed record HookServices
         var voiceLanguage = new VoiceLanguageRead();
         var dialogueSpeech = settings.Speech(Feature.Dialogue, reader);
         var dialogue = new DialogueAnnouncer(
-            dialogueSpeech, cleaner, history, () => settings.Current.VoicedLines, voiceLanguage.Read);
+            dialogueSpeech, cleaner, history, () => settings.Current.VoicedLines, voiceLanguage.Read,
+            () => settings.Current.IsOn(Feature.ChoiceCount));
         // Tutorial pop-ups speak through the reader too, once their table has loaded (#118).
         var tutorials = new TutorialTableSource();
         var tutorialPopups = new TutorialPopups(

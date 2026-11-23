@@ -81,6 +81,11 @@ public enum Feature
     [SettingKey("field", "reach", "Reach callouts")]
     Reach,
 
+    /// <summary>A choice saying "Choice, N options", the options spoken as focus moves, not every option up front
+    /// (#730). Separate from the dialogue while it is tested.</summary>
+    [SettingKey("speech", "choiceCount", "Choice count", Testing = true)]
+    ChoiceCount,
+
     /// <summary>The first-launch welcome (#617). Whether it has been said is <c>welcomed</c>.</summary>
     [SettingKey("speech", "welcome", "Welcome")]
     Welcome,

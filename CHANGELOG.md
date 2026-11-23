@@ -9,6 +9,8 @@ checks them in the first game session and removes the tag.
 
 ## Unreleased
 
+- **Dialogue choices say how many options, not all of them.** When a choice opens, the mod says "Choice, 3 options"
+  and then the focused option, instead of reading every option at once. Move the cursor to hear the others (#730).
 - **Field sounds wait while the game takes over.** The guiding beep and "in reach" call-outs go quiet when a menu,
   dialogue or cutscene starts, and the beep picks up again toward the same thing when you can walk again, unless you
   are on another map by then (#702). The beep waits a second after you can walk again, so a pause between the lines of
