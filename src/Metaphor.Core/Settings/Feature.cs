@@ -19,6 +19,10 @@ public enum Feature
     [SettingKey("speech", "menus", "Menus")]
     Menus,
 
+    /// <summary>The Calendar's day grid (#193). Separate from the menus while it is tested.</summary>
+    [SettingKey("speech", "calendar", "Calendar", Testing = true)]
+    Calendar,
+
     /// <summary>The save and load screens' slots (#622). Separate from the menus while it is tested.</summary>
     [SettingKey("speech", "saveSlots", "Save slots", Testing = true)]
     SaveSlots,
@@ -66,6 +70,11 @@ public enum Feature
     [SettingKey("speech", "battleHits", "Battle hits")]
     BattleHits,
 
+    /// <summary>", knocked out", ", defeated" and ", revived" after a hit's number (#254). Separate from the hits
+    /// while it is tested.</summary>
+    [SettingKey("speech", "battleOutcomes", "Battle outcomes", Testing = true)]
+    BattleOutcomes,
+
     /// <summary>Battle's skill and item lists, row by row (#247). Separate from the menus.</summary>
     [SettingKey("speech", "battleLists", "Battle lists")]
     BattleLists,
@@ -99,6 +108,11 @@ public enum Feature
     /// (#730). Separate from the dialogue while it is tested.</summary>
     [SettingKey("speech", "choiceCount", "Choice count", Testing = true)]
     ChoiceCount,
+
+    /// <summary>A choice's options held until the select window opens, not said at once after the prompt (#744).
+    /// Separate from the dialogue while it is tested.</summary>
+    [SettingKey("speech", "choiceDelay", "Choice delay", Testing = true)]
+    ChoiceDelay,
 
     /// <summary>The first-launch welcome (#617). Whether it has been said is <c>welcomed</c>.</summary>
     [SettingKey("speech", "welcome", "Welcome")]

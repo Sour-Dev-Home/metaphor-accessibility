@@ -13,6 +13,9 @@ checks them in the first game session and removes the tag.
   Return to Title) and the shop's top menu says Buy, Sell, Appraise or Listen. Buy and Sell rows say their item's
   name where it is known (not weapons or armour yet); prices and counts are not read. Opening a quest no longer says
   "1 of 9" (#733, #736, #197, #194). `[NEEDS VERIFICATION by ear]`
+- **The Calendar says the day.** Opening the Calendar says "Calendar, Waters Day, day 12 of 30", and each move says the
+  weekday and the day you land on (the five weekdays are as heard in a test session). The month, events and discounts
+  aren't spoken yet (#193). `[NEEDS VERIFICATION by ear]`
 - **Dialogue choices say how many options, not all of them.** When a choice opens, the mod says "Choice, 3 options"
   and then the focused option, instead of reading every option at once. Move the cursor to hear the others (#730).
 - **Field sounds wait while the game takes over.** The guiding beep and "in reach" call-outs go quiet when a menu,
@@ -60,6 +63,8 @@ checks them in the first game session and removes the tag.
   who changed: party members by slot, such as "Ally 1 89, Ally 2 120", and each enemy with its HP left, numbered when
   there are several. Misses and blocked hits aren't read yet, and names aren't known yet (#247).
   `[NEEDS VERIFICATION by ear]`
+- **Knock-outs are said.** The hit that takes a party member to 0 HP adds "knocked out" ("Strohl 40, knocked out"), one
+  that defeats an enemy adds "defeated", and a heal from 0 HP adds "revived" (#254). `[NEEDS VERIFICATION by ear]`
 - **No more gaps where the screen shows a skill, an item or a button.** Text that names a skill or a status condition
   now says its name, as after "Required Skill:". Items, Archetypes, attributes, buttons and other icons, which the mod
   can't name yet, say what kind of thing goes there ("item", "button") instead of leaving a gap, as does the action a
