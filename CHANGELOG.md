@@ -11,7 +11,6 @@ New entries wait as files in [changelog.d](changelog.d/README.md) until a releas
 
 ## Unreleased
 
-
 ## 0.1.0 - not released yet
 
 The first early-access release. It is for the Steam version of Metaphor: ReFantazio on PC, single-player only.
