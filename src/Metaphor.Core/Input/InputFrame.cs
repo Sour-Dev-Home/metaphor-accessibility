@@ -76,6 +76,7 @@ public sealed class InputFrame
     private readonly IKeyWatcher? watcher;
     private readonly IPadWatcher? padWatcher;
     private readonly LastInputDevice? lastDevice;
+    private readonly Func<bool>? typing;
 
     public InputFrame(IGameInputState game, MenuScreens screens, IInputControls menus, IWindowInputControls dialogue)
         : this(game, screens, menus, dialogue, NoControls)
@@ -99,11 +100,14 @@ public sealed class InputFrame
 
     /// <summary>A frame whose <paramref name="controls"/> take each read in their order, each handed what the one
     /// before left (#784, the feature modules' order); those that take window reads get each one first. The watchers
-    /// are as above.</summary>
+    /// are as above. While <paramref name="typing"/> says the game takes typed text (the name entry screen), the keys
+    /// that type a character reach no control and always reach the game, so a name with a T in it doesn't turn the
+    /// reader off (#807); other keys, such as F8, go to the controls as usual.</summary>
     public InputFrame(
         IGameInputState game, MenuScreens screens, IReadOnlyList<IInputControls> controls, IKeyWatcher? watcher,
-        IPadWatcher? padWatcher, LastInputDevice? lastDevice)
+        IPadWatcher? padWatcher, LastInputDevice? lastDevice, Func<bool>? typing = null)
     {
+        this.typing = typing;
         ArgumentNullException.ThrowIfNull(game);
         ArgumentNullException.ThrowIfNull(screens);
         ArgumentNullException.ThrowIfNull(controls);
@@ -139,13 +143,21 @@ public sealed class InputFrame
         var window = ReadState();
         watcher?.Keys(keys);
         lastDevice?.Keys(keys);
-        var handed = keys;
+        var typed = typing?.Invoke() == true;
+        var handed = typed && keys.Any(TypesACharacter)
+            ? keys.Where(key => !TypesACharacter(key)).ToList()
+            : keys;
         foreach (var control in controls)
         {
             handed = control.Keys(handed);
         }
-        return new(Kept(keys, handed), window);
+        return new(Kept(keys, handed, typed), window);
     }
+
+    /// <summary>Whether a key types a character in a name: the letters, the digits and the brackets, the bindable keys
+    /// that do (the settings file's key names, <see cref="Settings.BindingNames"/>, #661). F1 to F12 don't.</summary>
+    private static bool TypesACharacter(int key) =>
+        key is (>= 0x30 and <= 0x39) or (>= 0x41 and <= 0x5A) or 0xDB or 0xDD;
 
     private static IInputControls[] Ordered(
         IInputControls report, IInputControls menus, IWindowInputControls dialogue, IInputControls field)
@@ -177,13 +189,14 @@ public sealed class InputFrame
         return window;
     }
 
-    private static IReadOnlyList<int> Kept(IReadOnlyList<int> keys, IReadOnlyList<int> handed)
+    // While text is typed, the character keys were kept from the controls, so are kept for the game.
+    private static IReadOnlyList<int> Kept(IReadOnlyList<int> keys, IReadOnlyList<int> handed, bool typed)
     {
         if (ReferenceEquals(keys, handed))
         {
             return keys;
         }
-        var kept = keys.Where(handed.Contains).ToList();
+        var kept = keys.Where(key => (typed && TypesACharacter(key)) || handed.Contains(key)).ToList();
         return kept.Count == keys.Count ? keys : kept;
     }
 }

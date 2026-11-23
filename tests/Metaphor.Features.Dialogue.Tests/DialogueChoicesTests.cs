@@ -24,16 +24,20 @@ public sealed class DialogueChoicesTests
 
     private DialogueChoices Choices() => new(messages, dialogue);
 
-    // A choice opens and its window follows.
+    // A choice opens, its window follows, and its first option is said.
     private void Open(ChoiceRequested choice)
     {
         var choices = Choices();
         choices.Observe(choice);
         choices.Observe(Window);
+        FirstOption();
     }
 
-    // The select window opening, which shows the options (#744).
+    // The select window call, which comes with the prompt (#744, #814).
     private static readonly SelectRequested Window = new(0, "MES_q", "MES_c");
+
+    // The focus is about to say the choice's first option: the options are on screen (#814).
+    private void FirstOption() => dialogue.Release();
 
     [Fact]
     public void ThePromptIsKeptInTheHistoryButTheOptionsAreNot()
@@ -51,13 +55,13 @@ public sealed class DialogueChoicesTests
     {
         messages.Compiled(Prompt);
         messages.Compiled(Options);
-        var plain = new DialogueChoices(
-            messages,
-            new DialogueAnnouncer(
-                announcer, new TextCleaner(TextCleanerRules.None), history, choiceCountOn: () => false));
+        var plainDialogue = new DialogueAnnouncer(
+            announcer, new TextCleaner(TextCleanerRules.None), history, choiceCountOn: () => false);
+        var plain = new DialogueChoices(messages, plainDialogue);
 
         plain.Observe(new ChoiceRequested(0, "MES_q", "MES_c"));
         plain.Observe(Window);
+        plainDialogue.Release();
 
         Assert.Equal(new Announcement("Choose: North; South", Interrupt: false), announcer.Said[^1]);
     }
@@ -71,6 +75,7 @@ public sealed class DialogueChoicesTests
         var choices = Choices();
         choices.Observe(new ChoiceRequested(0, "MES_q", "MES_c"));
         choices.Observe(Window);
+        FirstOption();
 
         Assert.Equal(
             [
@@ -80,24 +85,41 @@ public sealed class DialogueChoicesTests
             announcer.Said);
     }
 
-    // The options appear on screen some seconds after the line (about 4 s, session c, #744): they are held until the
-    // select window opens, not said after a fixed delay.
+    // The options appear on screen some seconds after the line (about 4 s, session c, #744): they are held, not said
+    // after a fixed delay.
     [Fact]
-    public void OptionsWaitForTheWindowToOpenHoweverLongItTakes()
+    public void OptionsWaitForTheirFirstOptionHoweverLongItTakes()
     {
         messages.Compiled(Prompt);
         messages.Compiled(Options);
         var choices = Choices();
 
         choices.Observe(new ChoiceRequested(0, "MES_q", "MES_c"));
-        clock.Advance(TimeSpan.FromSeconds(4));
+        choices.Observe(Window);
+        clock.Advance(TimeSpan.FromSeconds(30));
 
         Assert.Equal([new Announcement("Ada: Which way?", Interrupt: true)], announcer.Said);
 
-        choices.Observe(Window);
+        FirstOption();
 
         Assert.Equal(2, announcer.Said.Count);
         Assert.Equal("Choice, 2 options", announcer.Said[1].Text);
+    }
+
+    // On a voiced choice the select window call comes with the prompt, and the options show some seconds later, when
+    // the voice ends (8.7 s at new game's first choice, docs/raw-sources/dialogue-by-ear-session-2026-11-23.md, #814):
+    // the count waits for the first option, not the window call.
+    [Fact]
+    public void TheWindowCallAloneDoesNotSayTheCount()
+    {
+        messages.Compiled(Prompt);
+        messages.Compiled(Options);
+        var choices = Choices();
+
+        choices.Observe(new ChoiceRequested(0, "MES_q", "MES_c"));
+        choices.Observe(Window);
+
+        Assert.Equal([new Announcement("Ada: Which way?", Interrupt: true)], announcer.Said);
     }
 
     [Fact]
@@ -124,7 +146,9 @@ public sealed class DialogueChoicesTests
 
         choices.Observe(new ChoiceRequested(0, "MES_q", "MES_c"));
         choices.Observe(Window);
+        FirstOption();
         choices.Observe(Window);
+        FirstOption();
 
         Assert.Equal(2, announcer.Said.Count);
     }
@@ -167,6 +191,7 @@ public sealed class DialogueChoicesTests
         choices.Observe(new ChoiceRequested(0, "MES_q", "MES_c"));
         choices.Observe(new ChoiceRequested(0, "MES_q", "MES_d"));
         choices.Observe(Window);
+        FirstOption();
 
         Assert.Equal(
             ["Ada: Which way?", "Which way?", "Choice, 1 option"],

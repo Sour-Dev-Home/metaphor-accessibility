@@ -104,6 +104,21 @@ internal sealed class FieldMemory(
     public bool InFreeRoam() =>
         !menus.IsOpen() && window.Read() is null or 0 && SceneIsIdle();
 
+    // Debug builds only (#702's probe): the player's input-lock count (+0x34CC, what FldPlayerIsInputLock reads) and
+    // action flags (+0x34C8), both read as raw 32-bit values, on game build 548ddc95 (Steam 18330018)
+    // (docs/raw-sources/field-state-and-map-2026-11-16.md, field-state-map-session6-2026-11-17.md). Never in Release.
+    public string? PlayerLocks()
+    {
+#if DEBUG
+        if (UnitManager() is { } manager && ModuleMemoryReader.ReadPointer(manager) is { } player && player != 0)
+        {
+            return string.Create(CultureInfo.InvariantCulture,
+                $"lock34CC={Number(ModuleMemoryReader.ReadInt32(player + 0x34CC))} action34C8={Number(ModuleMemoryReader.ReadInt32(player + 0x34C8))}");
+        }
+#endif
+        return null;
+    }
+
     public int? MapId() =>
         database.Object() is { } db ? ModuleMemoryReader.ReadInt32(db + MapIdOffset) : null;
 

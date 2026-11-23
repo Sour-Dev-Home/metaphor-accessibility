@@ -21,12 +21,18 @@ public sealed class ChoiceFocus : IChoiceRequestObserver, ILineRequestObserver, 
     private readonly IMessageLookup messages;
     private readonly IAnnouncer announcer;
     private readonly TextCleaner cleaner;
+    private readonly Action? firstOption;
     private readonly Lock gate = new();
     private IReadOnlyList<string> options = [];
     private long? choiceCursor;
     private int? lastIndex;
 
-    public ChoiceFocus(IMessageLookup messages, IAnnouncer announcer, TextCleaner cleaner)
+    /// <param name="messages">Where the choice's options are looked up.</param>
+    /// <param name="announcer">Where each option is said.</param>
+    /// <param name="cleaner">Turns the game's text into what is said.</param>
+    /// <param name="firstOption">Told just before a choice's first option is said, when the options are on screen, so
+    /// the count held for them is said first (<see cref="DialogueAnnouncer.Release()"/>, #814).</param>
+    public ChoiceFocus(IMessageLookup messages, IAnnouncer announcer, TextCleaner cleaner, Action? firstOption = null)
     {
         ArgumentNullException.ThrowIfNull(messages);
         ArgumentNullException.ThrowIfNull(announcer);
@@ -34,6 +40,7 @@ public sealed class ChoiceFocus : IChoiceRequestObserver, ILineRequestObserver, 
         this.messages = messages;
         this.announcer = announcer;
         this.cleaner = cleaner;
+        this.firstOption = firstOption;
     }
 
     /// <summary>A choice opened: the next cursor to become active is its own. One whose options have no message is not
@@ -99,6 +106,10 @@ public sealed class ChoiceFocus : IChoiceRequestObserver, ILineRequestObserver, 
             choiceCursor = input.Manager;
             lastIndex = input.Index;
             option = options[input.Index];
+        }
+        if (first)
+        {
+            firstOption?.Invoke();
         }
         announcer.Announce(new Announcement($"{option}, {input.Index + 1} of {total}", Interrupt: !first));
     }

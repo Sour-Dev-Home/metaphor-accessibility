@@ -125,9 +125,9 @@ public sealed class DialogueAnnouncer
         }
     }
 
-    /// <summary>Holds a choice's options until its window opens (<see cref="Release()"/>), because the options appear
-    /// on screen some seconds after the line before them (about 4 s in session c, #744), so saying them at once, or
-    /// after a fixed delay, is over the line. If the window never opens they are said after <see cref="HoldLimit"/>.
+    /// <summary>Holds a choice's options until they are on screen (<see cref="Release()"/>), because they appear some
+    /// seconds after the line before them (about 4 s in session c, #744), so saying them at once, or after a fixed
+    /// delay, is over the line. If the select window is never called they are said after <see cref="HoldLimit"/>.
     /// Options already held are replaced; <see cref="EndConversation"/> drops them.</summary>
     public void Hold(string? options)
     {
@@ -147,8 +147,45 @@ public sealed class DialogueAnnouncer
         }
     }
 
-    /// <summary>Says the held options, if any: the choice's window has opened.</summary>
+    /// <summary>Says the held options, if any: they are on screen, and the focus is about to say the first of them.
+    /// </summary>
     public void Release() => Release(null);
+
+    /// <summary>The choice's select window was called. On a voiced choice that comes with the prompt, and the options
+    /// show only when the voice ends, 8.7 s later at new game's first choice
+    /// (docs/raw-sources/dialogue-by-ear-session-2026-11-23.md, #814). So held options that have a first option for the
+    /// focus to say keep waiting for it (<see cref="Release()"/>), now with no time limit; held options with none
+    /// ("Choice") are said now.</summary>
+    public void WindowOpened()
+    {
+        string? options;
+        int id;
+        lock (gate)
+        {
+            if (!holding)
+            {
+                return;
+            }
+            options = heldOptions;
+            id = holdId;
+        }
+        // Cleaned outside the lock: the cleaner may read names from the game.
+        var focusFollows = ChoiceOptions.From(options, cleaner).Count > 0;
+        lock (gate)
+        {
+            if (!holding || id != holdId)
+            {
+                return;
+            }
+            if (focusFollows)
+            {
+                fallback?.Dispose();
+                fallback = null;
+                return;
+            }
+        }
+        Release(id);
+    }
 
     private void Release(int? id)
     {
@@ -162,7 +199,8 @@ public sealed class DialogueAnnouncer
             options = heldOptions;
             CancelHeld();
         }
-        // May run on a timer thread, where an exception nobody catches ends the process.
+        // May run on a timer thread, where an exception nobody catches ends the process; with an id, from the timer or
+        // the window call, the options are dropped as a timer's would be.
         try
         {
             Offer(options);

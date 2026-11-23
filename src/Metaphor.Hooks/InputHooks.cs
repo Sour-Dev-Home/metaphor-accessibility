@@ -34,10 +34,11 @@ internal sealed class GameInputReads(DialogueWindowPointer window, MenusOpenRead
 
     /// <summary>The input frame over <paramref name="services"/>' readers, menu screens and controls, which take each
     /// read in the feature modules' order (#784): the mark key, the menus, the battle status and enemy HP keys (#631),
-    /// the dialogue, the field (#181); and its key and pad watchers.</summary>
+    /// the dialogue, the field (#181); and its key and pad watchers. While a name entry screen is up, the keys that
+    /// type a name reach no control (#807).</summary>
     public static InputFrame Frame(HookServices services) =>
         new(new GameInputReads(services.DialogueWindow, services.MenusOpen), services.MenuScreens, services.Controls,
-            services.KeyWatcher, services.PadWatcher, services.LastDevice);
+            services.KeyWatcher, services.PadWatcher, services.LastDevice, services.NameEntryUp);
 }
 
 /// <summary>The pad read: <c>(32-bit pad number, pointer to the game's pad state) → al</c>; it writes the game's own
