@@ -221,6 +221,19 @@ public sealed class BeaconTests
         Assert.Equal(["Guiding to Testa"], Said());
     }
 
+    [Fact]
+    public void WithThePauseOffLeavingFreeRoamEndsTheBeepAsBefore()
+    {
+        var ending = new Beacon(field, cues, announcer, () => now, pauseOn: () => false);
+        ending.Start(Person(0, 1000));
+        ending.Tick();
+        field.Roaming = false;
+        now += Beacon.PollMilliseconds;
+        ending.Tick();
+
+        Assert.False(ending.Active);
+    }
+
     // #709, by ear 2026-11-22 (Steam build 18330018): the beep sounded again between the lines of a story scene. A
     // beacon that went quiet for a conversation stays quiet through a moment of free roam, and sounds again only once
     // free roam has held for FreeRoamSettleMilliseconds.

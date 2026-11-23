@@ -23,7 +23,7 @@ public sealed record BeaconTarget(FieldUnit Unit, int? DoorReachValue);
 /// on every input read; it reads the field at most once per <see cref="PollMilliseconds"/>, and allocates nothing
 /// between a pulse's start and the next except when a route is asked for. Its keys are gated by
 /// <see cref="Feature.Guidance"/> in <see cref="FieldControls"/> (#661).</summary>
-[FeatureSetting(Feature.Guidance)]
+[FeatureSetting(Feature.Guidance, Feature.GuidancePause)]
 public sealed class Beacon
 {
     /// <summary>How often the field is read while guiding.</summary>
@@ -71,6 +71,7 @@ public sealed class Beacon
     private Vector3 pendingFrom;
     private bool saidStraight;
     private readonly FreeRoamGate roam;
+    private readonly Func<bool> pauseOn;
     private int? map;
     private bool paused;
     private BeaconTarget? target;
@@ -87,11 +88,13 @@ public sealed class Beacon
     /// through <paramref name="announcer"/>, keeps time by <paramref name="milliseconds"/> and writes the target's and the
     /// player's positions, as numbers, to <paramref name="log"/> on a start and an arrival when there is one (Debug
     /// builds), with each route's outcome and what it read. With <paramref name="routes"/> it guides along routes that
-    /// <paramref name="run"/> plans (on the thread pool unless given).</summary>
+    /// <paramref name="run"/> plans (on the thread pool unless given). <paramref name="pauseOn"/> says whether leaving
+    /// free roam pauses the beep (<see cref="Feature.GuidancePause"/>, on when null) rather than ending it.</summary>
     public Beacon(
         IFieldReads field, ICuePlayer cues, IAnnouncer announcer, Func<long> milliseconds, Action<string>? log = null,
-        IRoutePlanner? routes = null, Func<Func<RoutePlan>, Task<RoutePlan>>? run = null)
+        IRoutePlanner? routes = null, Func<Func<RoutePlan>, Task<RoutePlan>>? run = null, Func<bool>? pauseOn = null)
     {
+        this.pauseOn = pauseOn ?? (() => true);
         this.routes = routes;
         this.run = run ?? Task.Run;
         ArgumentNullException.ThrowIfNull(field);
@@ -198,7 +201,18 @@ public sealed class Beacon
                     polledAt = now;
                     // Out of free roam the beep pauses and comes back when free roam has held (#702, #709); on another
                     // map it ends.
-                    if (!roam.Open())
+                    if (!pauseOn())
+                    {
+                        // The pause is its own setting while it is tested (#783): off, leaving free roam ends the
+                        // beep as before.
+                        paused = false;
+                        if (!field.InFreeRoam())
+                        {
+                            EndLocked();
+                            return;
+                        }
+                    }
+                    else if (!roam.Open())
                     {
                         if (!paused)
                         {

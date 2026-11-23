@@ -42,6 +42,11 @@ public sealed class MessageLog(TextWriter writer, Func<long> millisecondsSinceSt
     public void FieldRead(string text) =>
         Write(() => Line($"{millisecondsSinceStart()} ms field {text}"));
 
+    /// <summary>A menu feature's note on what it said and what it couldn't read yet (#622), as the feature words it:
+    /// positions and the words it said, so a session can pin what's left.</summary>
+    public void MenuNote(string text) =>
+        Write(() => Line($"{millisecondsSinceStart()} ms menu {text}"));
+
     /// <summary>A function the game registered for its scripts: its script name, and where the native function is in
     /// the game module. <paramref name="viaUserdata"/> says the address came from the userdata the game pushed (a game
     /// function behind a shared trampoline) and not from the registered function itself.</summary>
@@ -116,6 +121,11 @@ public sealed class MessageLog(TextWriter writer, Func<long> millisecondsSinceSt
     /// details as the listening hook formatted them. Numbers, and the window's strings, which are file paths.</summary>
     public void TutorialSeen(string what, string details) =>
         Write(() => Line($"{millisecondsSinceStart()} ms tutorial {what} {details}"));
+
+    /// <summary>A tag spoken as its stand-in because its value wasn't found (#83, #108, #109): the tag's name and its
+    /// arguments, which are numbers.</summary>
+    public void PlaceholderMissing(string tag, string arguments) =>
+        Write(() => Line($"{millisecondsSinceStart()} ms placeholder missing tag={tag} args=\"{LogText.Escaped(arguments)}\""));
 
     /// <summary>A map screen's place text (#545, #586): which part (<c>panel</c>, <c>compose</c> or <c>strip</c>) and
     /// its details as the hook formatted them: numbers, raw reference bytes and the text that was said or read.</summary>

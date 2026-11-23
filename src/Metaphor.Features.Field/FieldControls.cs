@@ -67,7 +67,7 @@ public sealed record FieldBindings(
 /// thing last stepped to, or the nearest not already reached once that step is forgotten, and stop it when it's on;
 /// every read of the pad or keyboard moves it on. The nearby list, "where am I" and the guidance beep each have their
 /// own setting (#661), read on each input read: one turned off leaves its keys and chords to the game.</summary>
-[FeatureSetting(Feature.Nearby, Feature.WhereAmI, Feature.Guidance)]
+[FeatureSetting(Feature.Nearby, Feature.WhereAmI, Feature.Guidance, Feature.GuidancePause)]
 public sealed class FieldControls : IInputControls
 {
     /// <summary>How long the pad's place on the list lasts after a step; the next step after that starts again at the
@@ -131,7 +131,8 @@ public sealed class FieldControls : IInputControls
         this.announcer = announcer;
         this.milliseconds = milliseconds;
         this.log = log;
-        beacon = new Beacon(field, cues, announcer, milliseconds, log, routes);
+        beacon = new Beacon(
+            field, cues, announcer, milliseconds, log, routes, pauseOn: () => this.isOn(Feature.GuidancePause));
         this.reach = reach;
         roam = new FreeRoamGate(field);
     }

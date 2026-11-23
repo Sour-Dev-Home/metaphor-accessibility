@@ -11,17 +11,21 @@ public sealed class SettingsReloader
 {
     private readonly IAnnouncer announcer;
     private readonly Action<string> log;
+    private readonly bool testingOn;
     private readonly Lock gate = new();
     private volatile ModSettings current = ModSettings.Defaults;
 
     /// <param name="announcer">Where a changed value is said.</param>
     /// <param name="log">Where a file that can't be used is reported (the Debug log).</param>
-    public SettingsReloader(IAnnouncer announcer, Action<string> log)
+    /// <param name="testingOn">Whether this is a session that turns every testing feature on (#783).</param>
+    public SettingsReloader(IAnnouncer announcer, Action<string> log, bool testingOn = false)
     {
         ArgumentNullException.ThrowIfNull(announcer);
         ArgumentNullException.ThrowIfNull(log);
         this.announcer = announcer;
         this.log = log;
+        this.testingOn = testingOn;
+        current = current.WithTesting(testingOn);
     }
 
     /// <summary>The settings in force now.</summary>
@@ -32,7 +36,7 @@ public sealed class SettingsReloader
     {
         lock (gate)
         {
-            current = ModSettings.Parse(json, log);
+            current = ModSettings.Parse(json, log).WithTesting(testingOn);
         }
     }
 
@@ -42,7 +46,7 @@ public sealed class SettingsReloader
     {
         lock (gate)
         {
-            var next = ModSettings.Parse(json, log);
+            var next = ModSettings.Parse(json, log).WithTesting(testingOn);
             List<string> said = [];
             if (next.VoicedLines != current.VoicedLines)
             {
