@@ -241,6 +241,11 @@ internal sealed record HookServices
         screens.Observe(new DifficultyFocus(library, menuSpeech, cleaner));
         screens.Observe(new SettingsFocus(library, menuSpeech, cleaner));
         screens.Observe(new QuickMenuFocus(library, menuSpeech, cleaner));
+        // The save and load slots (#622): their lists come unnamed, so the slot screens name them before the screens,
+        // from the prompts the serial hook hands MessageEvents (2026-11-22 review, finding 5).
+        var slots = new SlotScreens(screens);
+        events.ObserveSerials(slots);
+        screens.Observe(new SaveSlotFocus(library, settings.Speech(Feature.SaveSlots, reader), cleaner, log is null ? null : log.MenuNote));
         // Battle's skill and item lists say each row by the name the game fetched for it by serial (#247), through
         // their own setting, not the menus' (#661).
         var battleListSpeech = settings.Speech(Feature.BattleLists, reader);
@@ -286,7 +291,7 @@ internal sealed record HookServices
         var selectChoices = new SelectWindowChoices(lines, choices, choiceFocus);
         events.ObserveChoices(selectChoices);
         events.ObserveSelects(selectChoices);
-        cursors.Observe(screens);
+        cursors.Observe(slots);
         cursors.Observe(choiceFocus);
         // The field's nearby list and "where am I" (#181), read on the press and spoken straight to the announcer.
         var menusOpen = new MenusOpenRead();

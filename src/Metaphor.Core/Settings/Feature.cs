@@ -19,6 +19,10 @@ public enum Feature
     [SettingKey("speech", "menus", "Menus")]
     Menus,
 
+    /// <summary>The save and load screens' slots (#622). Separate from the menus while it is tested.</summary>
+    [SettingKey("speech", "saveSlots", "Save slots", Testing = true)]
+    SaveSlots,
+
     /// <summary>The name entry screen (#585).</summary>
     [SettingKey("speech", "nameEntry", "Name entry")]
     NameEntry,

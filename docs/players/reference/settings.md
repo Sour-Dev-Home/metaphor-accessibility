@@ -57,6 +57,7 @@ Each is `true` to speak or `false` to stay quiet, inside a `speech` object: `{ "
 | `menus` | The title menu, the main menu, the quick menu, Settings, the difficulty list, yes or no questions and any other menu. Off also leaves the details key to the game. | `true` |
 | `battleHits` | Each battle hit as it lands, the battle status key and the enemy HP key. Off also leaves those keys to the game. | `true` |
 | `battleLists` | Battle's skill and item lists, row by row. Separate from `menus`. | `true` |
+| `saveSlots` | The save and load screens' slots. Still being tested. | testing, off |
 | `nameEntry` | The name entry screen: its title, each letter you type, and when a name is refused. | `true` |
 | `travelMap` | Each destination on the travel map. | `true` |
 | `placeNames` | The place name the game shows as you arrive somewhere. | `true` |

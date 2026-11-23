@@ -25,7 +25,8 @@ public sealed class FeatureSettingsTests
     [Fact]
     public void EveryFeatureAndCueIsOnByDefault()
     {
-        Assert.All(Enum.GetValues<Feature>(), feature => Assert.True(ModSettings.Defaults.IsOn(feature)));
+        Assert.All(Enum.GetValues<Feature>().Where(feature => !SettingKey.Of(feature).Testing),
+            feature => Assert.True(ModSettings.Defaults.IsOn(feature)));
         Assert.All(Enum.GetValues<Cue>(), cue => Assert.Equal(new CueSetting(true, 100), ModSettings.Defaults.Sound(cue)));
     }
 
@@ -86,7 +87,8 @@ public sealed class FeatureSettingsTests
     {
         var settings = Parse(json);
 
-        Assert.All(Enum.GetValues<Feature>(), feature => Assert.Equal(feature != off, settings.IsOn(feature)));
+        Assert.All(Enum.GetValues<Feature>().Where(feature => !SettingKey.Of(feature).Testing),
+            feature => Assert.Equal(feature != off, settings.IsOn(feature)));
         Assert.Empty(logged);
     }
 
