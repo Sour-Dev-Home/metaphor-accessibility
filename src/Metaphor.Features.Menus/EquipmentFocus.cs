@@ -7,7 +7,8 @@ namespace Metaphor.Features.Menus;
 
 /// <summary>Speaks the camp Equipment screen's focus (#217): on entering the character list, "Equipment" and the
 /// position, then each move's position ("n of total", or "n" when the game's count can't be read), each cutting off the
-/// last, on the characters, the slots, a slot's items and the swap's characters. Slot rows 1 to 4 add their name;
+/// last, on the characters, the slots, a slot's items and the swap's characters. Slot rows 1 to 4 add their name, and
+/// entering the swap says its question first;
 /// character names, item names, the "equipped" mark, the archetype row's name and the sort key are not spoken: no finding gives their source
 /// <c>[NEEDS VERIFICATION]</c>. Safe to call from several threads.</summary>
 /// <remarks>Classes on build 548ddc95 (docs/raw-sources/screen-class-session-2026-11-17.md): the characters, slots,
@@ -35,6 +36,10 @@ public sealed class EquipmentFocus : IScreenObserver
     // archetype, has no label yet.
     private const int FirstSlotSerial = 1511;
     private const int SlotRows = 4;
+
+    // The swap's question, MainMenu_Equip_25 (serial 1478, System_Message.msg), which the game fetches as the swap opens
+    // (docs/raw-sources/menus-by-ear-session-message-log-2026-11-22.md). The characters' names aren't known yet.
+    private const int SwapQuestionSerial = 1478;
 
     private readonly IAnnouncer announcer;
     private readonly MessageSerials? serials;
@@ -65,7 +70,11 @@ public sealed class EquipmentFocus : IScreenObserver
         {
             return;
         }
-        var heading = change.Change == ScreenChange.Entered && change.Screen == Characters ? $"{Characters.Name}, " : "";
+        var heading = change.Change != ScreenChange.Entered ? ""
+            : change.Screen == Characters ? $"{Characters.Name}, "
+            : change.Screen == Swap && serials?.TextOf(SwapQuestionSerial, cleaner!) is { } question
+                ? question + (question[^1] is '.' or '?' or '!' ? " " : ", ")
+                : "";
         var line = ListFocus.Position(change);
         if (change.Screen == Slots && change.Index is >= 1 and <= SlotRows
             && serials?.TextOf(FirstSlotSerial + change.Index - 1, cleaner!) is { } name)

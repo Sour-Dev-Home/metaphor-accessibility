@@ -343,6 +343,36 @@ public sealed class SettingsRowsTests
         Assert.Equal(2, Said().Count());
     }
 
+    // #770, by ear on 2026-11-22: the System page's on/off rows say Off and On, not 0 and 1, and Button Display says
+    // Auto and Type 1 to 4, not 0 to 4, once their setting is learned; a slider such as Camera Speed keeps its number.
+    [Theory]
+    [InlineData(20, 13, 1, "On")]
+    [InlineData(20, 0, 0, "Off")]
+    [InlineData(20, 9, 1, "On")]
+    [InlineData(20, 18, 0, "Auto")]
+    [InlineData(20, 18, 3, "Type 3")]
+    [InlineData(24, 22, 2, "Type 2")]
+    [InlineData(24, 16, 0, "Off")]
+    [InlineData(20, 8, 64, "64")]
+    public void TheSystemPagesLearnedRowsSayTheirChoicesOnThisBuild(int count, int index, int value, string said)
+    {
+        var library = new MessageLibrary();
+        var screens = new MenuScreens(SettingsFocus.Screens);
+        screens.MenusRead(open: true);
+        screens.Observe(new SettingsFocus(
+            library, announcer, new TextCleaner(TextCleanerRules.None), SettingsPageRows.Steam18330018,
+            KeyConfigTab.Steam18330018, clock));
+        var start = value == 0 ? 1 : 0;
+
+        screens.Observe(new CursorInput(0xb0, 0x100, Settle, 1, Top: index, Row: 0, Flags: 0x47, SystemPage, count,
+            Values: Values((9, start))));
+        screens.Observe(new CursorInput(0xb0, 0x100, Settle, 1, Top: index, Row: 0, Flags: 0x47, SystemPage, count,
+            Values: Values((9, value))));
+        clock.Advance(Settled);
+
+        Assert.Equal(said, Said().Last());
+    }
+
     [Fact]
     public void EachPinnedPageHasAValueSlotPerRow()
     {

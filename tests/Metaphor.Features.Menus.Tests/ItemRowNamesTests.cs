@@ -5,7 +5,7 @@ using Metaphor.Core.Messages;
 namespace Metaphor.Features.Menus.Tests;
 
 /// <summary>The camp Item list's row names (#216): the list fetches each visible row's name by serial in row order just
-/// before its cursor record, so row n is the n-th item name fetched since the list opened
+/// before its cursor record, so with the view at the top row n is the n-th item name of that batch
 /// (docs/findings/item-equipment-menu-names-from-resolves.md). A row with no fetched item name is said by position.
 /// Hook events in, announcements out; made-up file text and serials only.</summary>
 [Trait("Category", "Unit")]
@@ -30,8 +30,9 @@ public sealed class ItemRowNamesTests
         var serials = new MessageSerials([new SerialRange(MessageSerials.ItemNames, ItemFirst, 4)]);
         var screens = new MenuScreens(KnownScreens.All);
         screens.MenusRead(open: true);
-        cursors.Observe(screens);
         var focus = new ItemFocus(serials, announcer, new TextCleaner(TextCleanerRules.None));
+        cursors.Observe(focus);
+        cursors.Observe(screens);
         screens.Observe(focus);
         screens.Observe(new UnknownScreenFocus(announcer));
         messages.ObserveFiles(serials);
@@ -75,20 +76,6 @@ public sealed class ItemRowNamesTests
         Cursor(2);
 
         Assert.Equal(["Item, Salve, 1 of 4", "Tonic, 2 of 4", "Elixir, 3 of 4"], Said());
-    }
-
-    [Fact]
-    public void AStepPastTheFetchedRowsFetchesOneMoreNameJustBeforeItsCursor()
-    {
-        Fetched(300, 301);
-        Cursor(0);
-        now += 10;
-        Cursor(1);
-        now += 10;
-        Fetched(303);
-        Cursor(2);
-
-        Assert.Equal(["Item, Tonic, 1 of 4", "Salve, 2 of 4", "Ether, 3 of 4"], Said());
     }
 
     [Fact]

@@ -19,7 +19,13 @@ public sealed class ShopFocusTests
     private const int EquipmentSerial = 2453;
     private const long Later = CursorEvents.QuietMilliseconds + 1;
 
+    private const string ConfirmClass = "ItemShopConfirmChoice@ope@ui@app";
+    private const int Nugget = ItemFirst + 4;
+    private const int CancelSerial = 1430;
+    private const int ConfirmBuySerial = 1431;
+
     private static readonly string[] ItemTexts = ["Tonic", "Salve", "Elixir", "Ether"];
+    private static readonly int[] TabSerials = [1371, 1369, 1374, 1375, 1376, 1377];
 
     private readonly RecordingAnnouncer announcer = new();
     private readonly MessageEvents messages = new();
@@ -31,25 +37,41 @@ public sealed class ShopFocusTests
         cursors = new CursorEvents(() => now);
         var serials = new MessageSerials([
             new SerialRange("message/system/System_Message.msg", 1300, 300),
-            new SerialRange(MessageSerials.ItemNames, ItemFirst, 4),
+            new SerialRange(MessageSerials.ItemNames, ItemFirst, 5),
         ]);
         var screens = new MenuScreens(KnownScreens.All);
         screens.MenusRead(open: true);
+        var focus = new ShopFocus(serials, announcer, new TextCleaner(TextCleanerRules.None));
+        // The focus hears each cursor input before the screens turn it into a screen event, as MenusModule wires it.
+        cursors.Observe(focus);
         cursors.Observe(screens);
-        var focus = new ShopFocus(serials, announcer, new TextCleaner(TextCleanerRules.None), () => now);
         screens.Observe(focus);
         screens.Observe(new UnknownScreenFocus(announcer));
         messages.ObserveFiles(serials);
         messages.ObserveSerials(focus);
         messages.Compiled(new MessageFileCompiled("EN/message/system/System_Message.msg", 20,
-            string.Join("\n\n", Enumerable.Range(0, 300).Select(at => Entry("System_Filler", at, $"Text {1300 + at}")))));
+            string.Join("\n\n", Enumerable.Range(0, 300).Select(at => (1300 + at) switch
+            {
+                CancelSerial => Entry("System_Window_01", "Cancel"),
+                ConfirmBuySerial => Entry("System_Window_02", "Buy"),
+                var serial => Entry($"System_Filler_{at:000}", $"Text {serial}"),
+            }))));
         messages.Compiled(new MessageFileCompiled("EN/message/system/Item_Message_1.msg", 21,
-            string.Join("\n\n", ItemTexts.Select((text, at) =>
-                Entry("ItemName", at, text)))));
+            string.Join("\n\n", ItemTexts.Select((text, at) => Entry($"ItemName_Consumable_{at:000}", text))
+                .Append(Entry("ItemName_CASH_001", "Nugget")))));
     }
 
-    private static string Entry(string prefix, int at, string text) =>
-        $"//--------\n@{prefix}_{at:000}\n{{\n{text}\n<WAIT>\n}}";
+    private static string Entry(string label, string text) => $"//--------\n@{label}\n{{\n{text}\n<WAIT>\n}}";
+
+    // A Sell tab's batch: its rows, then the tab names (flags 2).
+    private void SellBatch(params int[] fetched)
+    {
+        Fetched(fetched);
+        foreach (var serial in TabSerials)
+        {
+            messages.Resolved(new SerialResolved(serial, 2));
+        }
+    }
 
     private void Fetched(params int[] fetched)
     {
@@ -128,5 +150,56 @@ public sealed class ShopFocusTests
         Cursor(ListClass, 1, count: 2);
 
         Assert.Equal(["Text 1412, 1 of 2", "Tonic, 2 of 2"], Said());
+    }
+
+    [Fact]
+    public void BuyOpensOnItsOwnFirstRowNotTheSellRowsFetchedBehindTheMenu()
+    {
+        Cursor(TopClass, 1, count: 4);
+        Fetched(1412, Nugget);
+        Cursor(TopClass, 0, count: 4);
+        Fetched(301, 302);
+        Cursor(ListClass, 0, count: 37);
+
+        Assert.Equal("Salve, 1 of 37", Said().Last());
+    }
+
+    [Fact]
+    public void EachSellTabIsNamedOnOpeningAndOnEachSwitch()
+    {
+        Cursor(TopClass, 1, count: 4);
+        SellBatch(1412, Nugget);
+        Cursor(ListClass, 0, count: 2);
+        now += 10;
+        SellBatch(ItemFirst, ItemFirst + 1);
+        Cursor(ListClass, 0, count: 5);
+        now += 10;
+        SellBatch(EquipmentSerial);
+        Cursor(ListClass, 0, count: 3);
+
+        Assert.Equal(
+            ["Shop, Text 1492, 2 of 4", "Text 1371, Text 1412, 1 of 2", "Text 1369, Tonic, 1 of 5", "Text 1374, 1 of 3"],
+            Said());
+    }
+
+    [Fact]
+    public void TheBuyListSaysNoTab()
+    {
+        Cursor(TopClass, 0, count: 4);
+        SellBatch(ItemFirst);
+        Cursor(ListClass, 0, count: 5);
+
+        Assert.Equal("Tonic, 1 of 5", Said().Last());
+    }
+
+    [Fact]
+    public void TheConfirmRowsAreNamedFromTheWindowLabelsFetchedAsItOpens()
+    {
+        Fetched(ConfirmBuySerial, CancelSerial);
+        Cursor(ConfirmClass, 0, count: 2);
+        Fetched(ItemFirst);
+        Cursor(ConfirmClass, 1, count: 2);
+
+        Assert.Equal(["Buy, 1 of 2", "Cancel, 2 of 2"], Said());
     }
 }

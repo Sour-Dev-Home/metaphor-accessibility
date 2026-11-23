@@ -33,7 +33,7 @@ public sealed record SettingsPageRows(int Page, int Total, IReadOnlyList<string?
             ["System_Option_14", "System_Option_16", "System_Option_17", "System_Option_103", .. SharedSystemRows])
         {
             ValueIds = [null, null, null, null, .. SharedSystemValues],
-            ValueChoices = [null, null, null, null, .. SharedSystemChoices],
+            ValueChoices = [OnOff, OnOff, OnOff, OnOff, .. SharedSystemChoices],
         },
 
         // System in play: rows 7–23 by the down walk, the title's rows 4–19 with System_Option_28 at row 18.
@@ -72,13 +72,22 @@ public sealed record SettingsPageRows(int Page, int Total, IReadOnlyList<string?
     // the messages System_Option_82, _83, _84 that resolve together with the page (the log of the 2026-11-22 session,
     // build 548ddc95); Skip Selections 0 is Off and 1 is On, with no message found for them. Both orders were confirmed
     // by the maintainer on 2026-11-22 (issue #734, comment 7083706421; docs/findings/settings-value-names.md).
+    // The other rows' words are the maintainer's, by ear on 2026-11-22 (issue #770's latest comments): the on/off rows
+    // (Toggle Autolock, both Invert Camera rows, Camera Assist, Camera Shake, Dash Effects, Skip Special Animations and
+    // Network Functions; on the title page also Vibration, Auto Advance, Anime Subtitles and Confirmations, the rows
+    // whose learned values were only 0 and 1 that session) say Off and On, and Button Display Auto and Type 1 to 4. That
+    // 0 is Off on every on/off row, as on Skip Selections, and that Button Display's values run in that order, are
+    // [NEEDS VERIFICATION] by ear. Camera Speed, Language Selection, both sensitivities and Dash keep their numbers.
     private static IReadOnlyList<ValueName>?[] SharedSystemChoices =>
     [
-        null, null, null, null, null, null, null,
+        OnOff, OnOff, OnOff, OnOff, null, OnOff, OnOff,
         [new("System_Option_82"), new("System_Option_83"), new("System_Option_84")],
-        [new(null, "Off"), new(null, "On")],
-        null, null, null, null, null, null, null,
+        OnOff, OnOff, OnOff, null, null, null,
+        [new(null, "Auto"), new(null, "Type 1"), new(null, "Type 2"), new(null, "Type 3"), new(null, "Type 4")],
+        null,
     ];
+
+    private static IReadOnlyList<ValueName> OnOff => [new(null, "Off"), new(null, "On")];
 
     /// <summary>The name label of the row at <paramref name="index"/>, or null when it isn't known.</summary>
     public string? NameLabel(int index) => index >= 0 && index < NameLabels.Count ? NameLabels[index] : null;
