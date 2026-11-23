@@ -24,7 +24,7 @@ public enum BattleFeature
 
     /// <summary>K and J step through the enemies hit, saying each one's HP, and L says them all (#767). Separate from
     /// the pad's chords, each waiting for its by-ear check.</summary>
-    [SettingKey("speech", "battleEnemyKeys", "Battle enemy keys", Testing = true, Order = 1036, Description = "In a " +
+    [SettingKey("speech", "battleEnemyKeys", "Battle enemy keys", Order = 1036, Description = "In a " +
         "battle, `K` and `J` step to the next or previous enemy hit and say its HP; `L` says every one's. Needs " +
         "`battleHits`.")]
     BattleEnemyKeys,

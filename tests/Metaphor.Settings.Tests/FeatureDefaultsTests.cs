@@ -64,6 +64,23 @@ public sealed class FeatureDefaultsTests
         });
     }
 
+    // Passed by ear in the 2026-11-23 session, so they ship on (#770, #772, #767, #736).
+    [Fact]
+    public void AFeatureThatPassedTheSecondByEarCheckIsOnByDefault()
+    {
+        Enum[] passed =
+        [
+            MenusFeature.LearnedSettingValues, FieldFeature.StunCallouts, BattleFeature.BattleEnemyKeys,
+            MenusFeature.ShopMenu, DialogueFeature.WindowCloseStop, DialogueFeature.TermNames,
+        ];
+
+        Assert.All(passed, feature =>
+        {
+            Assert.False(SettingKey.Of(feature).Testing);
+            Assert.True(ModSettings.Defaults.IsOn(feature));
+        });
+    }
+
     [Fact]
     public void AFeatureIsOffInANormalInstallExactlyWhenItsKeyMarksItTesting()
     {

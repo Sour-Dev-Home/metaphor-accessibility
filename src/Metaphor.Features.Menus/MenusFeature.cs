@@ -39,7 +39,7 @@ public enum MenusFeature
 
     /// <summary>The System rows with no pinned setting ID saying their value, by the ID learned at run time (#770).
     /// Separate from the menus while it is tested.</summary>
-    [SettingKey("speech", "learnedSettingValues", "Learned setting values", Testing = true, Order = 1090,
+    [SettingKey("speech", "learnedSettingValues", "Learned setting values", Order = 1090,
         Description = "The System rows whose setting the mod has not pinned saying their value on change, learned as " +
         "you change them. Needs `menus`.")]
     LearnedSettingValues,
@@ -64,7 +64,7 @@ public enum MenusFeature
 
     /// <summary>The shop's top menu and its Buy and Sell lists (#736, #197). Separate from the menus while it is
     /// tested.</summary>
-    [SettingKey("speech", "shopMenu", "Shop menu", Testing = true, Order = 1140, Description = "The shop's top menu " +
+    [SettingKey("speech", "shopMenu", "Shop menu", Order = 1140, Description = "The shop's top menu " +
         "and its Buy and Sell lists.")]
     ShopMenu,
 

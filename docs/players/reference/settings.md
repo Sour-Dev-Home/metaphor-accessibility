@@ -59,7 +59,7 @@ Each is `true` to speak or `false` to stay quiet, inside a `speech` object: `{ "
 | `battleHits` | Each battle hit as it lands, the battle status key and the enemy HP keys. Off also leaves those keys to the game. | `true` |
 | `battleOutcomes` | "Knocked out", "defeated" or "revived" after a battle hit's number. Needs `battleHits`. | `true` |
 | `battleNumberReset` | Numbers each battle's enemies from "First enemy", not on from the battle before. Needs `battleHits`. Still being tested. | testing, off |
-| `battleEnemyKeys` | In a battle, `K` and `J` step to the next or previous enemy hit and say its HP; `L` says every one's. Needs `battleHits`. Still being tested. | testing, off |
+| `battleEnemyKeys` | In a battle, `K` and `J` step to the next or previous enemy hit and say its HP; `L` says every one's. Needs `battleHits`. | `true` |
 | `battleEnemyPad` | In a battle, `LB` held with D-pad `Down`, `Up` or `Left` does what `K`, `J` and `L` do. Needs `battleHits`. Still being tested. | testing, off |
 | `battleLists` | Battle's skill and item lists, row by row. Separate from `menus`. | `true` |
 | `battleListViews` | Names the rows of battle's skill and item lists after a wrap to the bottom, not only their positions. Needs `battleLists`. Still being tested. | testing, off |
@@ -67,19 +67,19 @@ Each is `true` to speak or `false` to stay quiet, inside a `speech` object: `{ "
 | `calendar` | The Calendar's day grid. | `true` |
 | `battleBanners` | The short banner during a battle turn: a boss warning, a stat change, "Not enough MP!". Still being tested. | testing, off |
 | `saveSlots` | The save and load screens' slots. | `true` |
-| `learnedSettingValues` | The System rows whose setting the mod has not pinned saying their value on change, learned as you change them. Needs `menus`. Still being tested. | testing, off |
+| `learnedSettingValues` | The System rows whose setting the mod has not pinned saying their value on change, learned as you change them. Needs `menus`. | `true` |
 | `nameEntry` | The name entry screen: its title, each letter you type, and when a name is refused. | `true` |
 | `equipmentMenu` | The Equipment screen's slots and gear. Still being tested. | testing, off |
 | `travelMap` | Each destination on the travel map. | `true` |
 | `systemMenu` | The System menu's rows. | `true` |
-| `shopMenu` | The shop's top menu and its Buy and Sell lists. Still being tested. | testing, off |
+| `shopMenu` | The shop's top menu and its Buy and Sell lists. | `true` |
 | `placeNames` | The place name the game shows as you arrive somewhere. | `true` |
 | `updateNotice` | The title screen's notice of a newer version. The request itself is `checkForUpdates`. | `true` |
 | `tutorials` | Tutorial pop-ups: the title, the page count and each page. Off also leaves the repeat key to repeat dialogue, not the pop-up's page. | `true` |
-| `termNames` | The skill and condition names a line's tags stand for. Off says the tag's stand-in. Still being tested. | testing, off |
+| `termNames` | The skill and condition names a line's tags stand for. Off says the tag's stand-in. | `true` |
 | `choiceCount` | A reply choice saying how many options there are, with each option said as the focus moves, rather than every option up front. Needs `dialogue`. | `true` |
 | `choiceDelay` | A reply choice's options waiting until they are on screen, not said straight after the prompt. Needs `dialogue`. Still being tested. | testing, off |
-| `windowCloseStop` | A closed dialogue window stopping the line still being spoken. Needs `dialogue`. Still being tested. | testing, off |
+| `windowCloseStop` | A closed dialogue window stopping the line still being spoken. Needs `dialogue`. | `true` |
 | `welcome` | The welcome on the title screen the first time the game starts with the mod: the mod's version and the field keys. | `true` |
 
 ## Field
@@ -95,7 +95,7 @@ the game.
 | `guidance` | The guidance beep toward a nearby thing: G, or LB with Right on the D-pad. | `true` |
 | `guidancePause` | The beep pausing, not ending, while the game has control (a cutscene or a line), and coming back once free roam has held. Needs `guidance`. Still being tested. | testing, off |
 | `reach` | The callout when a door or chest comes into reach: "Door, in reach". | `true` |
-| `stunCallouts` | The callout when a field enemy near you is stunned: "Enemy stunned". Still being tested. | testing, off |
+| `stunCallouts` | The callout when a field enemy near you is stunned: "Enemy stunned". | `true` |
 
 ## Report
 
@@ -146,7 +146,7 @@ DpadUp, DpadDown, DpadLeft and DpadRight.
 | `menus.detailsButtons` | The same on the pad. | `"RS"` |
 | `battle.statusKey` | In a battle, says each party member's HP and the enemies hit so far. | `"H"` |
 | `battle.statusButtons` | The same on the pad. | `"LS"` |
-| `battle.enemyNextKey` | In a battle, steps to the next enemy hit so far and says its HP (testing: `battleEnemyKeys`). | `"K"` |
+| `battle.enemyNextKey` | In a battle, steps to the next enemy hit so far and says its HP (`battleEnemyKeys`). | `"K"` |
 | `battle.enemyPreviousKey` | The enemy before. | `"J"` |
 | `battle.enemyHpKey` | In a battle, says the HP of every enemy hit so far, in one line. | `"L"` |
 | `battle.enemyHoldButtons` | Held for the battle's enemy chords (testing: `battleEnemyPad`). | `"LB"` |

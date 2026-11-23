@@ -75,11 +75,11 @@ public sealed class BattleEnemyHpTests
 
     // Neither is heard by ear yet, so both ship off: a normal install leaves K, J, L and LB with the D-pad to the game.
     [Fact]
-    public void TheKeysAndThePadChordsAreEachTheirOwnTestingFeature()
+    public void TheKeysAreOnAndThePadChordsAreStillTesting()
     {
-        Assert.True(SettingKey.Of(BattleFeature.BattleEnemyKeys).Testing);
+        Assert.False(SettingKey.Of(BattleFeature.BattleEnemyKeys).Testing);
         Assert.True(SettingKey.Of(BattleFeature.BattleEnemyPad).Testing);
-        Assert.False(ModSettings.Defaults.IsOn(BattleFeature.BattleEnemyKeys));
+        Assert.True(ModSettings.Defaults.IsOn(BattleFeature.BattleEnemyKeys));
         Assert.False(ModSettings.Defaults.IsOn(BattleFeature.BattleEnemyPad));
     }
 

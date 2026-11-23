@@ -83,8 +83,8 @@ anywhere.
 
 ### In a battle
 
-- The enemy HP keys are for testing: turn on `battleEnemyKeys` for `K`, `J` and `L`, and `battleEnemyPad` for the
-  pad's `LB` chords ([settings](settings.md)). They know only the enemies hit so far in this battle, numbered by the
+- The enemy HP keys `K`, `J` and `L` are on (`battleEnemyKeys`). The pad's `LB` chords are still being tested: turn
+  on `battleEnemyPad` for them ([settings](settings.md)). They know only the enemies hit so far in this battle, numbered by the
   order they were first hit.
 - `K` and `J`, or `LB` with D-pad `Down` and `Up`, step to the next or previous enemy and say it, such as "Second
   enemy, 50 of 300", or "50 left" when its full HP isn't known. With no enemy hit yet: "No enemy hit yet".
