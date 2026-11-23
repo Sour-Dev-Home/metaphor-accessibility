@@ -114,7 +114,8 @@ public sealed class TutorialTableTests
             line => said = line);
 
         Assert.Equal(Hex("Made_Title_01"), source.Table?.Entry(0)?.TitleHash);
-        Assert.Equal("tutorial table: 1 tutorials", said);
+        // Timed, as a slow step (#824).
+        Assert.Matches("^tutorial table: 1 tutorials in [0-9]+ ms$", said);
     }
 
     [Fact]

@@ -1,6 +1,7 @@
 using System.Buffers.Binary;
 using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
+using Metaphor.Core.Logging;
 
 namespace Metaphor.Core.Navigation;
 
@@ -83,6 +84,7 @@ public sealed class NavMapFiles
     private static NavMapFiles? Read(Func<Stream> open, Action<string> log)
     {
         const string name = "MapData.bin";
+        var started = StepTimer.Start();
         try
         {
             using var archive = open();
@@ -92,7 +94,7 @@ public sealed class NavMapFiles
                 log($"navmesh: {name}: {NavMeshSource.Why(found.Status)}");
                 return null;
             }
-            log(string.Create(CultureInfo.InvariantCulture, $"navmesh: {name}: {files.Count} maps"));
+            log(string.Create(CultureInfo.InvariantCulture, $"navmesh: {name}: {files.Count} maps {StepTimer.Took(started)}"));
             return files;
         }
         catch (Exception e)

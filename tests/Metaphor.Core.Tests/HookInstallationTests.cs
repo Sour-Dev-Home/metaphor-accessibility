@@ -47,6 +47,32 @@ public sealed class HookInstallationTests
     }
 
     [Fact]
+    public void TimesTheSignatureScanAndTheInstalls()
+    {
+        var timings = new List<string>();
+
+        HookInstallation.Run(
+            Build, [Hook("Dialogue", "show-line")], Signatures,
+            wanted =>
+            {
+                Thread.Sleep(40);
+                return Found(wanted);
+            },
+            () => (_, _) => Thread.Sleep(40), _ => { }, timings: timings.Add);
+
+        Assert.Equal(2, timings.Count);
+        Assert.True(Took(timings[0], "signature scan") >= 30, timings[0]);
+        Assert.True(Took(timings[1], "hook install") >= 30, timings[1]);
+    }
+
+    private static long Took(string line, string step)
+    {
+        var match = System.Text.RegularExpressions.Regex.Match(line, $"^{step} took ([0-9]+) ms$");
+        Assert.True(match.Success, line);
+        return long.Parse(match.Groups[1].Value, System.Globalization.CultureInfo.InvariantCulture);
+    }
+
+    [Fact]
     public void InstallsNothingAndNeverAsksForTheInstallerWhenNothingIsPlanned()
     {
         var asked = false;

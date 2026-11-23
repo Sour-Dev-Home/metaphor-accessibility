@@ -1,4 +1,5 @@
 using Metaphor.Core.Announcements;
+using Metaphor.Core.Logging;
 using Metaphor.Core.Menus;
 using Metaphor.Core.Settings;
 
@@ -23,18 +24,27 @@ public sealed class UnknownScreenFocus : IScreenObserver
     public static Screen QuestDetail { get; } = new("Quest detail", "CampQuestDetailChoice@ope@ui@app");
 
     private readonly IAnnouncer announcer;
+    private readonly UnknownValues unknowns;
 
-    public UnknownScreenFocus(IAnnouncer announcer)
+    /// <param name="announcer">Where the position is said.</param>
+    /// <param name="unknowns">Told each unknown screen's class, which it writes once a session (#824).</param>
+    public UnknownScreenFocus(IAnnouncer announcer, UnknownValues? unknowns = null)
     {
         ArgumentNullException.ThrowIfNull(announcer);
         this.announcer = announcer;
+        this.unknowns = unknowns ?? UnknownValues.None;
     }
 
     /// <summary>Speaks the focus when an unknown screen is entered or its focus moves.</summary>
     public void Observe(ScreenEvent change)
     {
         ArgumentNullException.ThrowIfNull(change);
-        if (change.Screen is not null || change.Change == ScreenChange.Left || change.Index < 0)
+        if (change.Screen is not null || change.Change == ScreenChange.Left)
+        {
+            return;
+        }
+        unknowns.Report("screen class", change.ScreenClass ?? "unreadable");
+        if (change.Index < 0)
         {
             return;
         }

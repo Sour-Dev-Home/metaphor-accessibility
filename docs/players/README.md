@@ -8,6 +8,8 @@ so pages here are drafts for testers. Start with [Install the mod](how-to/instal
 - [Install the mod](how-to/install-the-mod.md) (draft): the spoken installer, the game, the mod and a desktop shortcut.
 - [Troubleshoot the mod](how-to/troubleshoot.md) (draft): no speech, the mod did not load, and the mod gone quiet
   after a game update, with where to report each.
+- [Find crash details](how-to/find-crash-details.md) (draft): Windows' own record of why the game closed, from
+  Reliability Monitor or Event Viewer, for a report.
 - [Turn off the update check](how-to/turn-off-the-update-check.md) (draft): the one request the mod makes, and the
   setting that stops it.
 - [Check a download](how-to/check-a-download.md) (draft): that a zip of the mod, a release or a dev build, is the

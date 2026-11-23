@@ -195,8 +195,11 @@ Use the Alpha feedback form on the project's issues page.
    "Attach report-log.txt" box, or choose it with the file picker.
 3. The log holds what the mod did (whether it loaded, how many hooks went in, errors, and which lines and choices the
    game asked for, by label such as `Title_System_08`), your mark key presses and the screens the mod said nothing
-   for, never the game's text, and your user name is replaced with `<redacted>`. Read it in Notepad first if you want
-   to check.
+   for, never the game's text. Your user name is replaced with `<redacted>`, and the names you typed for your
+   characters with `<name>`. Its first lines say how each part of the mod started. Read it in Notepad first if you
+   want to check.
+4. If the game closed on its own, add Windows' record of the crash too:
+   [Find crash details](find-crash-details.md), no admin rights needed.
 
 ## Not checked by ear yet
 

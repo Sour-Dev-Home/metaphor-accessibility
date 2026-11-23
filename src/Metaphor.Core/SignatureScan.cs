@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
+using System.Globalization;
 using System.Text.Json;
 
 namespace Metaphor.Core;
@@ -31,7 +32,15 @@ public sealed record ProbeResult(string Name, int Matches, IReadOnlyList<long> F
 /// <param name="Error">Why the scan failed, or null.</param>
 public sealed record SignatureScanReport(
     string GameBuildSha256, long MillisecondsSinceGameStart, long ModuleBytes, long ReadableBytes, long UnreadableBytes,
-    long ScanMilliseconds, IReadOnlyList<ProbeResult> Probes, string? Error);
+    long ScanMilliseconds, IReadOnlyList<ProbeResult> Probes, string? Error)
+{
+    /// <summary>The scan's log line: what it matched, what it read, how long it took (#824) and when it started.
+    /// </summary>
+    public string Summary() => Error is null
+        ? string.Create(CultureInfo.InvariantCulture,
+            $"{Probes.Count(probe => probe.Matches == 1)} of {Probes.Count} probes matched once; {ReadableBytes} of {ModuleBytes} bytes read, {UnreadableBytes} failed; took {ScanMilliseconds} ms, {MillisecondsSinceGameStart} ms after start ({SignatureScan.ReportFileName})")
+        : string.Create(CultureInfo.InvariantCulture, $"failed after {ScanMilliseconds} ms: {Error}");
+}
 
 /// <summary>Scans the running game's memory for other mods' signatures, once, when asked (issue #21). The hook layer
 /// reads the memory; this only searches it.</summary>

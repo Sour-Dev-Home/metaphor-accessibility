@@ -43,7 +43,8 @@ You heard "Metaphor accessibility couldn't start; the mod is off", or the game s
 1. Run the installer again and read what the install check says, as in "No speech", step 4. Fix the first
    problem it names, then run the installer once more.
 2. Look at the newest file in `%APPDATA%\Reloaded-Mod-Loader-II\Logs\` (press `Windows+R`, type that folder name, press
-   `Enter`). It lists the mod by its ID, `metaphor.accessibility`, and says why it failed to start.
+   `Enter`). It lists the mod by its ID, `metaphor.accessibility`, and says why it failed to start: the lines starting
+   with `startup:` say how each part of the mod started.
 3. If Windows blocked the installer or its files, see
    [If Windows says the file is from the internet](install-the-mod.md#if-windows-says-the-file-is-from-the-internet).
 4. [Report it](#report-it).
@@ -66,4 +67,5 @@ on purpose, rather than guess: the game runs as normal, with no speech from the 
 
 Use the Alpha feedback form on the project's issues page. Steps: [Report a problem](install-the-mod.md#report-a-problem).
 It attaches `report-log.txt`, which the mod writes fresh each game start, with no game text and your user name
-replaced, so copy it before you start the game again.
+replaced, so copy it before you start the game again. If the game closed on its own, add Windows' record of the crash:
+[Find crash details](find-crash-details.md).

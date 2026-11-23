@@ -92,6 +92,16 @@ public sealed class FieldTablesTests
     }
 
     [Fact]
+    public async Task ALoadSaysWhatItReadAndHowLongItTook()
+    {
+        string? said = null;
+        await new FieldTablesSource().LoadInBackground(() => new MemoryStream(), line => said = line);
+
+        // Timed, as a slow step (#824).
+        Assert.Matches("^field tables: no maps, no objectives in [0-9]+ ms$", said);
+    }
+
+    [Fact]
     public async Task AnArchiveThatCantBeReadLeavesTheSourceEmptyAndSaysWhy()
     {
         var source = new FieldTablesSource();

@@ -1,5 +1,6 @@
 using System.Buffers.Binary;
 using System.Diagnostics.CodeAnalysis;
+using Metaphor.Core.Logging;
 
 namespace Metaphor.Core;
 
@@ -98,12 +99,13 @@ public sealed class TutorialTableSource
     [SuppressMessage("Design", "CA1031", Justification = "A failed read leaves tutorials untitled; it must not reach the game.")]
     private string Load(Func<Stream> open)
     {
+        var started = StepTimer.Start();
         try
         {
             using var archive = open();
             table = TutorialTable.FromArchive(archive);
             return table is { } read
-                ? $"tutorial table: {read.Count} tutorials"
+                ? $"tutorial table: {read.Count} tutorials {StepTimer.Took(started)}"
                 : $"tutorial table: no readable {TutorialTable.ArchivePath} in the archive";
         }
         catch (Exception e)

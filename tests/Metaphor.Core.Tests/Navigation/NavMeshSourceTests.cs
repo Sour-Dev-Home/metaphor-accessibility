@@ -53,7 +53,8 @@ public sealed class NavMeshSourceTests
         Assert.True(first is null || first == graph);
         Assert.Equal(2, graph!.File.Tiles.Count);
         Assert.Same(graph, source.Get(12, 3));
-        Assert.Equal(["navmesh: f_0012_003.NAV: 2 tiles read, 0 skipped"], lines);
+        // Timed, as a slow step (#824).
+        Assert.Matches("^navmesh: f_0012_003.NAV: 2 tiles read, 0 skipped, in [0-9]+ ms$", Assert.Single(lines));
         Assert.Equal(1, opens);
     }
 

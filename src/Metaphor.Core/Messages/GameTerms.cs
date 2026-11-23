@@ -1,5 +1,6 @@
 using System.Globalization;
 using Metaphor.Core.Announcements;
+using Metaphor.Core.Logging;
 
 namespace Metaphor.Core.Messages;
 
@@ -61,14 +62,18 @@ public sealed class GameTerms
 
     private readonly MessageFilePositions files;
     private readonly Action<string, string>? missing;
+    private readonly UnknownValues unknowns;
 
     /// <param name="files">The compiled files a pinned tag's number is a position in.</param>
     /// <param name="missing">Told the tag and its arguments each time one says its stand-in (Debug builds' log).</param>
-    public GameTerms(MessageFilePositions files, Action<string, string>? missing = null)
+    /// <param name="unknowns">Told each tag and arguments said as a stand-in, as an <c>icon</c> or a <c>tag</c>, which
+    /// it writes once a session (#824).</param>
+    public GameTerms(MessageFilePositions files, Action<string, string>? missing = null, UnknownValues? unknowns = null)
     {
         ArgumentNullException.ThrowIfNull(files);
         this.files = files;
         this.missing = missing;
+        this.unknowns = unknowns ?? UnknownValues.None;
     }
 
     /// <summary>The tags, as placeholders keyed by their stand-in.</summary>
@@ -94,7 +99,9 @@ public sealed class GameTerms
             return name;
         }
         missing?.Invoke(tag, arguments);
-        return Icons.Contains(tag) ? $" {key} " : key;
+        var icon = Icons.Contains(tag);
+        unknowns.Report(icon ? "icon" : "tag", $"{tag} {arguments}".TrimEnd());
+        return icon ? $" {key} " : key;
     }
 
     private string? Found(string tag, string[] parts)
