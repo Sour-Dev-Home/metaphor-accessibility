@@ -257,6 +257,12 @@ internal sealed record HookServices
             LearnRowIds = () => settings.Current.IsOn(Feature.LearnedSettingValues),
         });
         screens.Observe(new QuickMenuFocus(library, menuSpeech, cleaner));
+        screens.Observe(new SystemMenuFocus(serials, settings.Speech(Feature.SystemMenu, reader), cleaner));
+        // The shop's top menu and its Buy and Sell lists, each row by the name the game fetched for it (#736, #197).
+        var shopFocus = new ShopFocus(
+            serials, settings.Speech(Feature.ShopMenu, reader), cleaner, () => Environment.TickCount64);
+        screens.Observe(shopFocus);
+        events.ObserveSerials(shopFocus);
         var itemFocus = new ItemFocus(serials, settings.Speech(Feature.ItemMenu, reader), cleaner);
         screens.Observe(itemFocus);
         events.ObserveSerials(itemFocus);

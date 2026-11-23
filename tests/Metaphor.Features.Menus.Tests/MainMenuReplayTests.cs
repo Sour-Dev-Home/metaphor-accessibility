@@ -20,6 +20,7 @@ public sealed class MainMenuReplayTests
         screens.MenusRead(open: true);
         var cursors = new CursorEvents();
         screens.Observe(new MainMenuFocus(announcer));
+        screens.Observe(new SystemMenuFocus(new MessageSerials([]), announcer, new TextCleaner(TextCleanerRules.None)));
         screens.Observe(new YesNoDialogFocus(new MessageLibrary(), announcer, new TextCleaner(TextCleanerRules.None)));
         screens.Observe(new ItemFocus(announcer));
         screens.Observe(new EquipmentFocus(announcer));
@@ -42,13 +43,13 @@ public sealed class MainMenuReplayTests
         Assert.Equal(
             [
                 "Menu, Equipment, 3 of 9", "Party, 4 of 9", "Follower, 5 of 9", "Quest, 6 of 9", "Calendar, 7 of 9",
-                "Memorandum, 8 of 9", "System, 9 of 9", "1",
+                "Memorandum, 8 of 9", "System, 9 of 9", "System, 1",
                 "1 of 2",
                 "Menu, Equipment, 3 of 9", "Party, 4 of 9", "Follower, 5 of 9", "Party, 4 of 9", "Equipment, 3 of 9", "Equipment, 1",
                 "Menu, Party, 4 of 9", "1",
                 "Menu, Equipment, 3 of 9", "Item, 2 of 9", "Item, 1",
                 "Menu, Equipment, 3 of 9", "Party, 4 of 9", "Follower, 5 of 9", "Quest, 6 of 9", "Calendar, 7 of 9",
-                "Memorandum, 8 of 9", "System, 9 of 9", "1", "2", "1", "2", "1",
+                "Memorandum, 8 of 9", "System, 9 of 9", "System, 1", "2", "1", "2", "1",
             ],
             announcer.Said.Select(said => said.Text));
         Assert.All(announcer.Said, said => Assert.True(said.Interrupt));
