@@ -219,14 +219,14 @@ public sealed class Beacon
                             paused = true;
                             sounding = false;
                             cues.Silence(ToneChannel.Guidance);
-                            log?.Invoke("beacon pause: not free roam");
+                            log?.Invoke("beacon pause: not free roam" + Locks());
                         }
                         return;
                     }
                     if (paused)
                     {
                         paused = false;
-                        log?.Invoke("beacon resume: free roam held");
+                        log?.Invoke("beacon resume: free roam held" + Locks());
                         nextPulseAt = now;
                         if (field.MapId() != map)
                         {
@@ -376,6 +376,9 @@ public sealed class Beacon
             return null;
         }
     }
+
+    // The player's lock values for a pause or resume log line (#702's probe); empty in a Release build.
+    private string Locks() => log is not null && field.PlayerLocks() is { } locks ? " " + locks : "";
 
     private void EndLocked()
     {

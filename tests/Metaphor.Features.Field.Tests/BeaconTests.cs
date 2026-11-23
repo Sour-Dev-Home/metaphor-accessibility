@@ -287,6 +287,28 @@ public sealed class BeaconTests
         Assert.Equal(["beacon pause: not free roam", "beacon resume: free roam held"], log.Skip(1));
     }
 
+    [Fact]
+    public void ThePauseAndResumeLinesCarryThePlayersLockValuesWhenTheyCanBeRead()
+    {
+        field.Locks = "lock34CC=1 action34C8=2";
+        var log = new List<string>();
+        var logged = new Beacon(field, cues, announcer, () => now, log.Add);
+        logged.Start(Person(0, 1000));
+        logged.Tick();
+        field.Roaming = false;
+        now += Beacon.PollMilliseconds;
+        logged.Tick();
+        field.Roaming = true;
+        now += Beacon.PollMilliseconds;
+        logged.Tick();
+        now += Beacon.FreeRoamSettleMilliseconds;
+        logged.Tick();
+
+        Assert.Equal(
+            ["beacon pause: not free roam lock34CC=1 action34C8=2", "beacon resume: free roam held lock34CC=1 action34C8=2"],
+            log.Skip(1));
+    }
+
     // A pause that ends on another map has nothing left to guide to: it stops without a word.
     [Fact]
     public void FreeRoamComingBackOnAnotherMapStopsWithoutAWord()
@@ -517,6 +539,10 @@ public sealed class BeaconTests
         public FieldView? Read() => null;
 
         public int? Map { get; set; }
+
+        public string? Locks { get; set; }
+
+        public string? PlayerLocks() => Locks;
 
         public int? MapId() => Map;
 

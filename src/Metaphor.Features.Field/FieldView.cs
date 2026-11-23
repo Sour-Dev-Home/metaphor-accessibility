@@ -85,4 +85,8 @@ public interface IFieldReads
 
     /// <summary>The player's position and facing alone, or null when they can't be read; allocates nothing.</summary>
     FieldPose? ReadPose();
+
+    /// <summary>The player's input-lock count and action flags as text for the Debug log (#702's probe), or null when
+    /// they can't be read or in a Release build.</summary>
+    string? PlayerLocks() => null;
 }
