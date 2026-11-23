@@ -53,6 +53,20 @@ public sealed class FieldShoulderHoldTests
         Assert.Equal([0, 0, 0, 0], [Read(LB), Read(LB | Down, LB), Read(LB), Read(0)]);
     }
 
+    // #835: RB held alone past the hold delay reaches the game as a hold.
+    [Fact]
+    public void InFreeRoamRbHeldPastTheDelayReachesTheGameAsAHold()
+    {
+        long now = 0;
+        var timed = new ShoulderTaps([hold.Held], () => now, () => new ShoulderTapLimits(200, 50));
+
+        Assert.Equal(0, timed.Pad(0, RB, RB, made: true));
+        now = 200;
+        Assert.Equal(RB, timed.Pad(0, RB, RB, made: true));
+        now = 216;
+        Assert.Equal(0, timed.Pad(0, 0, 0, made: true));
+    }
+
     [Fact]
     public void OutsideFreeRoamTheShouldersReachTheGameAtOnce()
     {

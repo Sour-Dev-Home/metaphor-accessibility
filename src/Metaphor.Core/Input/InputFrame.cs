@@ -67,7 +67,8 @@ public readonly record struct KeysAnswer(IReadOnlyList<int> Keys, long? Window);
 /// them. A pad read the game reports as not made (#225) fires nothing and comes back unchanged. The answer only ever
 /// clears bits or drops keys from the read, so the hook's write-back can't add input the game didn't see, with one
 /// exception: the shoulder taps (#811, <see cref="ShoulderTaps"/>), applied after every control, hand on a tap of LB or
-/// RB for a few reads after the player let go of it, a press the game held back but did see. It keeps no state of its
+/// RB for a few reads after the player let go of it, a press the game held back but did see, and a shoulder held past
+/// the hold delay from then on (#835). It keeps no state of its
 /// own; the controls and the taps lock theirs, so any of the game's threads may call it.</summary>
 public sealed class InputFrame
 {
@@ -106,7 +107,8 @@ public sealed class InputFrame
     /// are as above. While <paramref name="typing"/> says the game takes typed text (the name entry screen), the keys
     /// that type a character reach no control and always reach the game, so a name with a T in it doesn't turn the
     /// reader off (#807); other keys, such as F8, go to the controls as usual. <paramref name="taps"/>, when given, takes
-    /// each pad read after the controls: they see a held shoulder, the game a tap of it on release (#811).</summary>
+    /// each pad read after the controls: they see a held shoulder, the game a tap of it on release (#811), and once it
+    /// is handed to the game as a hold the controls stop seeing it (#835).</summary>
     public InputFrame(
         IGameInputState game, MenuScreens screens, IReadOnlyList<IInputControls> controls, IKeyWatcher? watcher,
         IPadWatcher? padWatcher, LastInputDevice? lastDevice, Func<bool>? typing = null, ShoulderTaps? taps = null)
@@ -132,13 +134,15 @@ public sealed class InputFrame
         var window = ReadState();
         padWatcher?.Pad(pad, buttons, made);
         lastDevice?.Pad(buttons);
-        var handed = buttons;
+        var shoulders = taps?.Read(pad, buttons, made) ?? ShoulderRead.None;
+        var seen = shoulders.Controls(buttons);
+        var handed = seen;
         foreach (var control in controls)
         {
             handed = control.Pad(pad, handed, made);
         }
-        handed &= buttons;
-        return new(taps?.Pad(pad, buttons, handed, made) ?? handed, window);
+        handed &= seen;
+        return new(shoulders.Game(handed), window);
     }
 
     /// <summary>Takes one read of the keys held down and returns the keys to hand the game: <paramref name="keys"/>
