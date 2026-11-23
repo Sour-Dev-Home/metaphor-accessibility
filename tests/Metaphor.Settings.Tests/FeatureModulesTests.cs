@@ -52,10 +52,11 @@ public sealed class FeatureModulesTests
     {
         var controls = Register(withReport: true).Controls;
 
-        Assert.Equal(6, controls.Count);
+        // Seven since the battle's end check (#750), gated, before the battle keys; it only watches the reads.
+        Assert.Equal(7, controls.Count);
         Assert.IsType<MarkKey>(controls[0]);
         Assert.IsType<FieldControls>(controls[^1]);
-        Assert.Equal(5, Register(withReport: false).Controls.Count);
+        Assert.Equal(6, Register(withReport: false).Controls.Count);
     }
 
     [Fact]

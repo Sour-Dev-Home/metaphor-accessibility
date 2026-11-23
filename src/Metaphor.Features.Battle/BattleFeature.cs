@@ -16,6 +16,12 @@ public enum BattleFeature
         "\"defeated\" or \"revived\" after a battle hit's number. Needs `battleHits`.")]
     BattleOutcomes,
 
+    /// <summary>Enemy numbering started afresh when a battle ends (#750). Separate from the hits while it is tested.
+    /// </summary>
+    [SettingKey("speech", "battleNumberReset", "Battle number reset", Testing = true, Order = 1035, Description =
+        "Numbers each battle's enemies from \"First enemy\", not on from the battle before. Needs `battleHits`.")]
+    BattleNumberReset,
+
     /// <summary>The in-turn situation banner: a boss warning, a stat change, "Not enough MP!" (#692, #661).</summary>
     [SettingKey("speech", "battleBanners", "Battle banners", Testing = true, Order = 1070, Description = "The short " +
         "banner during a battle turn: a boss warning, a stat change, \"Not enough MP!\".")]

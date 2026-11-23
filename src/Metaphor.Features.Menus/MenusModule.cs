@@ -69,10 +69,12 @@ public sealed class MenusModule : IFeatureModule
         // Battle's skill and item lists say each row by the name the game fetched for it by serial (#247), through
         // their own setting, not the menus' (#661).
         var battleListSpeech = settings.Speech(MenusFeature.BattleLists, reader);
+        // A whole view fetched again, as after a wrap, names its rows behind its own setting while tested (#737).
+        bool ListViewsOn() => settings.Current.IsOn(MenusFeature.BattleListViews);
         BattleListFocus[] battleLists =
         [
-            BattleListFocus.Skills(serials, battleListSpeech, cleaner, () => Environment.TickCount64),
-            BattleListFocus.Items(serials, battleListSpeech, cleaner, () => Environment.TickCount64),
+            BattleListFocus.Skills(serials, battleListSpeech, cleaner, () => Environment.TickCount64, ListViewsOn),
+            BattleListFocus.Items(serials, battleListSpeech, cleaner, () => Environment.TickCount64, ListViewsOn),
         ];
         foreach (var list in battleLists)
         {
