@@ -29,8 +29,9 @@ public sealed record BattleBindings(
     /// list's: the game's battle keys, read aloud on 2026-11-22, are Q, H, F, E, Tab, N, T and 1 to 5, so F (its
     /// keyboard melee) and R3 (its auto-battle toggle) stay with the game. The codes: K <c>0x4B</c>, J <c>0x4A</c>,
     /// L <c>0x4C</c>; LB <c>0x0400</c>, D-pad Down <c>0x0040</c>, Up <c>0x0010</c>, Left <c>0x0080</c> on game build
-    /// 548ddc95… (docs/raw-sources/pad-and-keyboard-state-2026-11-16.md). Whether holding LB in a battle does its own
-    /// action first is <c>[NEEDS VERIFICATION]</c> by ear.</summary>
+    /// 548ddc95… (docs/raw-sources/pad-and-keyboard-state-2026-11-16.md). LB going down in a battle opens Tactics (by
+    /// ear, session of 2026-11-23, build 0c122d3 Debug, Steam 18330018, #811), so the chords hold it back until it's let
+    /// go (<see cref="BattleEnemyHp.HeldShoulders"/>).</summary>
     public static BattleBindings Default { get; } = new(LeftThumb, KeyH, 0x4C, 0x4B, 0x4A, 0x0400, 0x0080, 0x0040, 0x0010);
 
     /// <summary>The bindings the settings file's <c>keys.battle</c> object names, each missing or unusable one the

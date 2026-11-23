@@ -39,6 +39,10 @@ internal sealed record HookServices
     /// dialogue window's message pointer (#232) to those that take it.</summary>
     public IReadOnlyList<IInputControls> Controls { get; init; } = [];
 
+    /// <summary>LB and RB hold-or-tap (#811): the pad hook's frame hands it each read after the controls; none unless a
+    /// feature module added a hold.</summary>
+    public ShoulderTaps? ShoulderTaps { get; init; }
+
     /// <summary>The menu screens (#211): the input hooks' frame (#301) hands them each read of <see cref="MenusOpen"/>
     /// (#268) before the menu controls take the read.</summary>
     public required MenuScreens MenuScreens { get; init; }
@@ -300,6 +304,9 @@ internal sealed record HookServices
             BattleBanners = context.Find<BattleBanners>(),
             BattleScene = battleScene,
             Controls = context.Controls,
+            ShoulderTaps = context.ShoulderHolds.Count == 0
+                ? null
+                : new ShoulderTaps(context.ShoulderHolds, () => Environment.TickCount64),
             TravelMap = context.Find<TravelMapDestination>() ?? throw Missing(nameof(TravelMapDestination)),
             FieldMapName = context.Find<FieldMapName>() ?? throw Missing(nameof(FieldMapName)),
             DialogueHistory = history,

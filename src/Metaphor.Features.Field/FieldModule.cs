@@ -1,5 +1,6 @@
 using Metaphor.Core.Features;
 using Metaphor.Core.Navigation;
+using Metaphor.Core.Settings;
 
 namespace Metaphor.Features.Field;
 
@@ -51,6 +52,11 @@ public sealed class FieldModule : IFeatureModule
             // Stun callouts (#772), testing: said through their own setting's gate.
             new StunCallouts(
                 field, settings.Speech(FieldFeature.StunCallouts, context.Announcer), () => Environment.TickCount64)));
+        // LB and RB held back in free roam until let go, so the reader's and the list's chords open no screen (#811),
+        // testing.
+        var shoulders = new FieldShoulderHold(
+            settings.Live(FieldBindings.From), settings.Live(s => ReaderBinding.From(s).Buttons), new FreeRoamGate(field));
+        context.AddShoulderHold(() => settings.Current.IsOn(FieldFeature.ShoulderHold) ? shoulders.Held() : 0);
         context.Provide(place);
         context.Provide(fieldTables);
     }

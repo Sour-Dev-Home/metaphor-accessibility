@@ -62,7 +62,7 @@ Each is `true` to speak or `false` to stay quiet, inside a `speech` object: `{ "
 | `battleOutcomes` | "Knocked out", "defeated" or "revived" after a battle hit's number. Needs `battleHits`. | `true` |
 | `battleNumberReset` | Numbers each battle's enemies from "First enemy", not on from the battle before. Needs `battleHits`. Still being tested. | testing, off |
 | `battleEnemyKeys` | In a battle, `K` and `J` step to the next or previous enemy hit and say its HP; `L` says every one's. Needs `battleHits`. | `true` |
-| `battleEnemyPad` | In a battle, `LB` held with D-pad `Down`, `Up` or `Left` does what `K`, `J` and `L` do. Needs `battleHits`. Still being tested. | testing, off |
+| `battleEnemyPad` | In a battle, `LB` held with D-pad `Down`, `Up` or `Left` does what `K`, `J` and `L` do. `LB` tapped alone opens Tactics when you let go. Needs `battleHits`. Still being tested. | testing, off |
 | `battleLists` | Battle's skill and item lists, row by row. Separate from `menus`. | `true` |
 | `battleListViews` | Names the rows of battle's skill and item lists after a wrap to the bottom, not only their positions. Needs `battleLists`. Still being tested. | testing, off |
 | `battleOrderMenu` | Battle's Order menu, opened with LB, and its Tactics submenu. Still being tested. | testing, off |
@@ -99,6 +99,7 @@ the game.
 | `guidancePause` | The beep pausing, not ending, while the game has control (a cutscene or a line), and coming back once free roam has held. Needs `guidance`. Still being tested. | testing, off |
 | `reach` | The callout when a door or chest comes into reach: "Door, in reach". | `true` |
 | `stunCallouts` | The callout when a field enemy near you is stunned: "Enemy stunned". | `true` |
+| `shoulderHold` | In the field, LB and RB reach the game when you let go, so LB with RB (the reader) and LB with the D-pad open neither the popularity ranking nor the map. Tapped alone, they still open them. Still being tested. | testing, off |
 
 ## Report
 

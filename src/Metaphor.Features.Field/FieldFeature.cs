@@ -42,4 +42,11 @@ public enum FieldFeature
     [SettingKey("field", "stunCallouts", "Stun callouts", Order = 2060, Description = "The callout " +
         "when a field enemy near you is stunned: \"Enemy stunned\".")]
     StunCallouts,
+
+    /// <summary>LB and RB held back in free roam until let go, then tapped to the game if no chord came (#811).
+    /// </summary>
+    [SettingKey("field", "shoulderHold", "Shoulder hold or tap", Testing = true, Order = 2070, Description = "In " +
+        "the field, LB and RB reach the game when you let go, so LB with RB (the reader) and LB with the D-pad open " +
+        "neither the popularity ranking nor the map. Tapped alone, they still open them.")]
+    ShoulderHold,
 }
