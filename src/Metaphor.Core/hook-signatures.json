@@ -390,5 +390,12 @@
     "pattern": "48 89 5C 24 10 55 56 57 48 8B EC 48 83 EC 50 48 8B F2 C7 45 30 11 00 00 00 48 8B F9 48 8D 55 30 BB FF FF FF FF 48 8B CE 89 5D 38 E8 ?? ?? ?? ?? 84 C0 0F 84 ?? ?? ?? ?? 48 8D 4D 30 E8 ?? ?? ?? ?? 48 8B D0 48 8D 4D D0 E8 ?? ?? ?? ?? 48 8B 0F 48 8D 55 D0 48 8B 89 D8 03 00 00",
     "gameBuilds": ["548ddc955c176867f062c44f94c03dd9ac33caefb278a5ac388e792aedf09504"],
     "evidence": "Our reading of the exe in Ghidra 12.2: 0xe70900, which PurchaseNumSelectChoice's up/down event handler 0xe7af70 jumps to and which steps the count at +0x418 (docs/findings/shop-rows-quantity-and-rank-up-notice-static.md); one match on disk; not yet checked in memory"
+  },
+  {
+    "name": "LearnClass",
+    "section": ".ecode",
+    "pattern": "48 89 5C 24 10 48 89 6C 24 18 48 89 74 24 20 89 4C 24 08 57 48 83 EC 20 8B 7A 04 48 8B F2 8B E9 E8 ?? ?? ?? ?? 33 DB 44 0F B7 C3 0F 1F 44 00 00",
+    "gameBuilds": ["548ddc955c176867f062c44f94c03dd9ac33caefb278a5ac388e792aedf09504"],
+    "evidence": "Our reading of the exe in Ghidra 12.2 (disasm 0x389c70, 2026-11-24): the archetype learn function 0x389c70, a whole .ecode function and not a jump stub, ecx the member and rdx the class record whose class id is at +0x4 (docs/findings/archetype-learned-slots-and-awakening-static.md, #625); one match on disk; not yet checked in memory"
   }
 ]
