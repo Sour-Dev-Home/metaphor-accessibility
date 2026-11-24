@@ -15,15 +15,37 @@ public readonly record struct TiltLimits(int DownDegrees, int UpDegrees, int Mar
     /// measured yet [NEEDS VERIFICATION].</summary>
     public static TiltLimits Default { get; } = new(40, 20, 5);
 
-    /// <summary>The limits the settings file's <c>limits.field</c> object gives, each kept within 1 to 89 degrees (the
-    /// margin 0 to 30), each missing one the default.</summary>
+    /// <summary>The downward limit's slider (#754): 1 to 89 degrees, in steps of 5.</summary>
+    public static SliderLimit Down { get; } = new("field", "cameraDownDegrees", Default.DownDegrees, 1, 89, 5)
+    {
+        Spoken = "Camera down limit",
+        Description = "How far down the camera tilts, from level, before \"Camera looking down\" (`cameraTilt`), " +
+            "in degrees.",
+        Order = 10,
+    };
+
+    /// <summary>The upward limit's slider: 1 to 89 degrees, in steps of 5.</summary>
+    public static SliderLimit Up { get; } = new("field", "cameraUpDegrees", Default.UpDegrees, 1, 89, 5)
+    {
+        Spoken = "Camera up limit",
+        Description = "How far up before \"Camera looking up\", in degrees.",
+        Order = 20,
+    };
+
+    /// <summary>The margin's slider: 0 to 30 degrees, in steps of 1.</summary>
+    public static SliderLimit Margin { get; } = new("field", "cameraMarginDegrees", Default.MarginDegrees, 0, 30, 1)
+    {
+        Spoken = "Camera level margin",
+        Description = "How far back inside a limit the camera comes before \"Camera level\", in degrees.",
+        Order = 30,
+    };
+
+    /// <summary>The limits the settings file's <c>limits.field</c> object gives, each kept within its slider's range,
+    /// each missing one the default.</summary>
     public static TiltLimits From(ModSettings settings)
     {
         ArgumentNullException.ThrowIfNull(settings);
-        return new(
-            Math.Clamp(settings.Limit("field", "cameraDownDegrees", Default.DownDegrees), 1, 89),
-            Math.Clamp(settings.Limit("field", "cameraUpDegrees", Default.UpDegrees), 1, 89),
-            Math.Clamp(settings.Limit("field", "cameraMarginDegrees", Default.MarginDegrees), 0, 30));
+        return new(Down.From(settings), Up.From(settings), Margin.From(settings));
     }
 }
 

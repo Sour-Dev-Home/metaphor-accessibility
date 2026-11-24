@@ -86,6 +86,36 @@ public sealed class ShoulderTapsTests
         Assert.Equal(0, inMenu.Pad(0, LB, LB, made: true));
     }
 
+    // #754: the settings menu's chord holds LT and RT back on every screen, menus included, since that menu opens
+    // anywhere; both triggers then View is the mod's chord, and the game sees none of it.
+    [Fact]
+    public void TheTriggersAreHeldBackInMenusTooAndBothWithViewAreTheModsChord()
+    {
+        const int LT = 0x0100;
+        const int RT = 0x0200;
+        const int View = 0x0001;
+        held = ShoulderTaps.Triggers;
+        var inMenu = new ShoulderTaps([() => held], () => now, () => limits, () => true);
+
+        Assert.Equal(0, inMenu.Pad(0, LT, LT, made: true));
+        Assert.Equal(0, inMenu.Pad(0, LT | RT, LT | RT, made: true));
+        Assert.Equal(0, inMenu.Pad(0, LT | RT | View, LT | RT | View, made: true));
+        Assert.Equal(0, inMenu.Pad(0, 0, 0, made: true));
+        // LB still passes at once in the menu, beside the trigger hold.
+        Assert.Equal(LB, inMenu.Pad(0, LB, LB, made: true));
+    }
+
+    // A lone trigger tap passes through, as a tap on release, as a lone shoulder does (#754).
+    [Fact]
+    public void ALoneTriggerTapReachesTheGameOnRelease()
+    {
+        const int RT = 0x0200;
+        held = ShoulderTaps.Triggers;
+
+        Assert.Equal(0, Read(RT));
+        Assert.Equal(RT, Read(0));
+    }
+
     // A battle menu shows while the game's menus read closed; its cursor, called every frame, says it is open, and it
     // closes once the cursor goes quiet. The battle's command buttons have no cursor, so there the shoulders are held.
     [Fact]

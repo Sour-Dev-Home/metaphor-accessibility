@@ -82,6 +82,7 @@ public sealed class BattleModule : IFeatureModule
             BattleFeature.BattleHits, settings.Input(BattleFeature.BattleEnemyKeys, enemyHp.Keyboard)));
         context.AddControls(settings.Input(
             BattleFeature.BattleHits, settings.Input(BattleFeature.BattleEnemyPad, enemyHp.Pad)));
+        context.AddKeys(BattleKeys.All);
         // The chords' LB is held back until it's let go, then tapped to the game if no chord came (#811).
         context.AddShoulderHold(() =>
             settings.Current.IsOn(BattleFeature.BattleHits) && settings.Current.IsOn(BattleFeature.BattleEnemyPad)

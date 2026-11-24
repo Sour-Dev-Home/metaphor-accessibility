@@ -9,7 +9,15 @@ namespace Metaphor.Core.Input;
 public readonly record struct ShoulderTapLimits(int TapMilliseconds)
 {
     /// <summary>The tap length: 50 ms, 20 to 200 in steps of 10.</summary>
-    public static SliderLimit TapLength { get; } = new("shoulders", "tapLength", 50, 20, 200, 10);
+    public static SliderLimit TapLength { get; } = new("shoulders", "tapLength", 50, 20, 200, 10)
+    {
+        Spoken = "Shoulder tap length",
+        Description = "How long, in milliseconds, a lone `LB` or `RB` press holds the button down for the game when " +
+            "you let go, in the field (`shoulderHold`) and in a battle, where the mod keeps a held shoulder for its " +
+            "chords, and a lone `LT` or `RT` press while `settingsMenu` or `keyHelp` holds them for its chord. Raise " +
+            "it if the game misses taps.",
+        Order = 70,
+    };
 
     /// <summary>The default.</summary>
     public static ShoulderTapLimits Default { get; } = new(TapLength.Default);

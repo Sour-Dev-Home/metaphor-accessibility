@@ -41,7 +41,13 @@ public sealed class Sonar
 
     /// <summary>The settings file's <c>limits.field.sonarPings</c>: how many things a sweep pings. 1, the default, is one
     /// at a time, cycling through what's nearby.</summary>
-    public static SliderLimit PingsPerSweep { get; } = new("field", "sonarPings", 1, 1, MaxPings, 1);
+    public static SliderLimit PingsPerSweep { get; } = new("field", "sonarPings", 1, 1, MaxPings, 1)
+    {
+        Spoken = "Sonar pings at a time",
+        Description = "How many things the field sonar (`sonar`) pings at a time. 1 plays one at a time, cycling " +
+            "through what's nearby, nearest first; more plays the nearest few in a row.",
+        Order = 90,
+    };
 
     /// <summary>The gap between the starts of two pings in a sweep.</summary>
     public const long PingGapMilliseconds = 200;
