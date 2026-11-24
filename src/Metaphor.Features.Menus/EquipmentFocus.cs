@@ -10,10 +10,10 @@ namespace Metaphor.Features.Menus;
 /// last, on the characters, the slots, a slot's items and the swap's characters. A character row adds the member's name
 /// and archetype, the specific one when the list fetched it (<see cref="ClassNames"/>, #857), row 0 the protagonist's typed name (<see cref="ProtagonistName"/>), since his isn't a message; slot row
 /// 0 says the archetype, rows 1 to 4 their label and the item worn in it; entering the swap says its question first.
-/// Names come from the block the game fetches for the focused character between the move's cursor records. The item
-/// list's names, the "equipped" mark, the sort key and the swap's character are not spoken: where the worn row sits in
-/// the list isn't in the fetches, and the swap fetches no name <c>[NEEDS VERIFICATION]</c>. Safe to call from several
-/// threads.</summary>
+/// Names come from the block the game fetches for the focused character between the move's cursor records. A slot's
+/// item list names its rows from the equipment names the game fetches for the rows coming into view (#923, see
+/// <see cref="ViewRows"/>). The "equipped" mark, the sort key and the swap's character are not spoken: the swap fetches
+/// no name <c>[NEEDS VERIFICATION]</c>. Safe to call from several threads.</summary>
 /// <remarks>Classes on build 548ddc95 (docs/raw-sources/screen-class-session-2026-11-17.md): the characters, slots,
 /// items and swap, in that order. The block (docs/raw-sources/item-equipment-menus-message-log-2026-11-22.md): the
 /// member's <c>CharaName.msg</c> serial (flags 9), the archetype's <c>ATCategoryName.msg</c> serial (flags 8), then each
@@ -75,6 +75,27 @@ public sealed class EquipmentFocus : IScreenObserver, ISerialResolveObserver, IC
 
     // Whether a block is being fetched: from its first member or archetype until the next cursor record.
     private bool blockOpen;
+
+    /// <summary>The item list's rows on view, an inference <c>[NEEDS VERIFICATION]</c> by ear (#923): on build
+    /// 548ddc95 (Steam 18330018) an 18-row list opened at index 5 with row 0 first on view fetched five equipment names
+    /// (flags 8), and moving to index 4 fetched none (2026-11-24 session, #923); a 7-row list opened on its worn item
+    /// fetched five, all but the worn one's (docs/findings/item-equipment-menu-names-from-resolves.md). Six lines, less
+    /// the worn row the list opens on, fit both. A batch that doesn't fit stops the naming for that visit, so a wrong
+    /// guess falls back to positions instead of naming the wrong row.</summary>
+    public const int ViewRows = 6;
+
+    // The item list's names fetched since the last cursor input, the rows named so far, the rows on view, the worn row
+    // (where the list opened, when the slot has an item) and whether the fetches stopped fitting the view (#923).
+    private readonly List<int> itemBatch = [];
+    private readonly Dictionary<int, int> itemRows = [];
+    private (int First, int End) itemView;
+    private int? wornRow;
+    private int? wornItem;
+    private bool itemsUnknown;
+    private bool itemsVisit;
+
+    // The slot row last focused, whose items the item list shows.
+    private int slot;
 
     // Each row's current archetype, as the character list fetches them all in row order before a cursor record, each
     // from ClassName.msg with the member flags (#857, docs/findings/class-name-and-battle-item-tab-serials.md).
@@ -167,6 +188,11 @@ public sealed class EquipmentFocus : IScreenObserver, ISerialResolveObserver, IC
                 wornDescriptions[described] = serial;
                 lastWorn = null;
             }
+            else if (!blockOpen && kind is not null && !itemBatch.Contains(serial))
+            {
+                // Outside a character's block, an equipment name is an item list row's (#923).
+                itemBatch.Add(serial);
+            }
         }
     }
 
@@ -188,15 +214,75 @@ public sealed class EquipmentFocus : IScreenObserver, ISerialResolveObserver, IC
         return description is { } known ? serials.TextOf(known, cleaner!) : null;
     }
 
-    /// <summary>Ends the block being fetched: the item list fetches equipment names too, which aren't worn.</summary>
+    /// <summary>Ends the block being fetched: the item list fetches equipment names too, which aren't worn. A settled
+    /// input on the item list, before the menu screens tell it, names the rows that came into view from the names
+    /// fetched since the last input (#923).</summary>
     public void Observe(CursorInput input)
     {
+        ArgumentNullException.ThrowIfNull(input);
         lock (gate)
         {
             blockOpen = false;
             classRunOpen = false;
+            var batch = itemBatch.ToList();
+            itemBatch.Clear();
+            if (!string.Equals(input.ScreenClass, Items.ScreenClass, StringComparison.Ordinal))
+            {
+                itemsVisit = false;
+                return;
+            }
+            if (input.IsMove)
+            {
+                return;
+            }
+            if (!itemsVisit)
+            {
+                itemsVisit = true;
+                itemRows.Clear();
+                itemView = (0, 0);
+                itemsUnknown = false;
+                wornItem = slot is >= 1 and <= SlotRows ? worn[slot - 1] : null;
+                wornRow = wornItem is null ? null : input.Index;
+            }
+            TakeView(input, batch);
         }
     }
+
+    // Names the rows that came into view, in order, the worn row left out, when the batch fits them; else stops naming.
+    private void TakeView(CursorInput input, List<int> batch)
+    {
+        var end = input.Row + ViewRows;
+        if (input.Count is { } count)
+        {
+            end = Math.Min(end, count);
+        }
+        var (first, last) = itemView;
+        var arrived = Enumerable.Range(input.Row, Math.Max(0, end - input.Row))
+            .Where(row => (row < first || row >= last) && row != wornRow)
+            .ToList();
+        itemView = (input.Row, end);
+        if (batch.Count == 0 || itemsUnknown)
+        {
+            return;
+        }
+        if (batch.Count != arrived.Count)
+        {
+            itemsUnknown = true;
+            itemRows.Clear();
+            return;
+        }
+        for (var at = 0; at < batch.Count; at++)
+        {
+            itemRows[arrived[at]] = batch[at];
+        }
+    }
+
+    // The item list row's name serial, or null when it isn't known.
+    private int? ItemAt(int index) =>
+        itemsUnknown ? null
+        : index == wornRow ? wornItem
+        : itemRows.TryGetValue(index, out var serial) ? serial
+        : null;
 
     private void StartBlock(int? memberSerial)
     {
@@ -223,6 +309,10 @@ public sealed class EquipmentFocus : IScreenObserver, ISerialResolveObserver, IC
             {
                 character = change.Index;
             }
+            else if (change.Screen == Slots)
+            {
+                slot = change.Index;
+            }
             var archetypeRow = change.Screen == Characters || (change.Screen == Slots && change.Index == 0);
             if (archetypeRow)
             {
@@ -231,6 +321,7 @@ public sealed class EquipmentFocus : IScreenObserver, ISerialResolveObserver, IC
                     serials, character < classes.Count ? classes[character] : null, archetype, cleaner!);
             }
             names = change.Screen == Characters ? [change.Index == 0 ? null : member]
+                : change.Screen == Items ? [ItemAt(change.Index)]
                 : change.Screen != Slots || change.Index == 0 ? []
                 : change.Index <= SlotRows ? [FirstSlotSerial + change.Index - 1, worn[change.Index - 1]]
                 : [];
