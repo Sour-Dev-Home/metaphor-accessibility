@@ -58,6 +58,7 @@ public sealed class SettingsSnapshotTests
         "speech.keyHelp | Key help | off | testing",
         "speech.learnedSettingValues | Learned setting values | on | done",
         "speech.menus | Menus | on | done",
+        "speech.moreTermNames | More term names | off | testing",
         "speech.nameEntry | Name entry | on | done",
         "speech.nameReadBack | Name read-back | on | done",
         "speech.nameStandIn | Name stand-in | off | testing",

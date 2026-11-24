@@ -93,6 +93,7 @@ Each is `true` to speak or `false` to stay quiet, inside a `speech` object: `{ "
 | `updateNotice` | The title screen's notice of a newer version. The request itself is `checkForUpdates`. | `true` |
 | `tutorials` | Tutorial pop-ups: the title, the page count and each page. Off also leaves the repeat key to repeat dialogue, not the pop-up's page. | `true` |
 | `termNames` | The skill and condition names a line's tags stand for. Off says the tag's stand-in. | `true` |
+| `moreTermNames` | The Archetype, enemy and Royal Virtue names a line's tags stand for. Off, an Archetype says its stand-in and the others are left out. Needs `termNames`. Still being tested. | testing, off |
 | `nameStandIn` | A name a line's tag stands for that the mod can't read said as "name", rather than left out. Still being tested. | testing, off |
 | `buttonNames` | A button icon in a line said as the controller button it shows, where known, or as "key" after keyboard input. Needs `termNames`. | `true` |
 | `choiceCount` | A reply choice saying how many options there are, with each option said as the focus moves, rather than every option up front. Needs `dialogue`. | `true` |
