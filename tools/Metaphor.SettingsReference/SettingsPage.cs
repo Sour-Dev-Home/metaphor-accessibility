@@ -147,6 +147,7 @@ public static class SettingsPage
         | `battle.enemyNextButton` | With the held button: the next enemy. | `"DpadDown"` |
         | `battle.enemyPreviousButton` | With the held button: the enemy before. | `"DpadUp"` |
         | `battle.enemyHpButton` | With the held button: every enemy's HP. | `"DpadLeft"` |
+        | `battle.hpMpKey` | In a battle, says each party member's HP and MP (testing: `battleHpMp`). No pad button yet. | `"M"` |
         | `field.nearbyKey` | Speaks the whole nearby list. | `"N"` |
         | `field.placeKey` | Says where you are. | `"L"` |
         | `field.holdButtons` | Held for the field's pad chords. | `"LB"` |

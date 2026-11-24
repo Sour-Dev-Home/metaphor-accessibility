@@ -15,9 +15,12 @@ internal sealed class BattleTurnIconsMemory(GameDataRead data) : IBattleTurnIcon
 /// <summary>The party as the game data block holds it (#247): each slot's unit and its HP at unit <c>+0x0C</c>, the
 /// offset session 6 checked (docs/findings/battle-turn-icons-and-ui-components-static.md), and the max HP the last hit
 /// on it showed. Reads through <see cref="GameDataRead"/> and <see cref="ModuleMemoryReader"/> only.</summary>
-internal sealed class BattlePartyMemory(GameDataRead data) : IBattleParty
+internal sealed class BattlePartyMemory(GameDataRead data) : IBattleParty, IBattleUnits
 {
+    // HP and MP, which the hit popup's getters 0x3e60f0 and 0x3e6c00 read from any target's record, enemies included
+    // (docs/findings/battle-hit-result-hp-left-static.md).
     private const int HpAt = 0x0C;
+    private const int MpAt = 0x10;
 
     private readonly ConcurrentDictionary<long, int> maxByUnit = new();
 
@@ -29,11 +32,16 @@ internal sealed class BattlePartyMemory(GameDataRead data) : IBattleParty
             if (data.SlotUnit(slot) is { } unit && data.UnitAddress(unit) is { } address &&
                 ModuleMemoryReader.ReadInt32(address + HpAt) is { } hp)
             {
-                members.Add(new PartyMember(slot, unit, hp, maxByUnit.TryGetValue(address, out var max) ? max : null));
+                members.Add(new PartyMember(slot, unit, hp, maxByUnit.TryGetValue(address, out var max) ? max : null,
+                    ModuleMemoryReader.ReadInt32(address + MpAt)));
             }
         }
         return members;
     }
+
+    public int? Hp(long record) => record == 0 ? null : ModuleMemoryReader.ReadInt32((nint)record + HpAt);
+
+    public int? Mp(long record) => record == 0 ? null : ModuleMemoryReader.ReadInt32((nint)record + MpAt);
 
     /// <summary>The party slot and unit number whose unit is at <paramref name="record"/>, or null for none.</summary>
     public (int Slot, int Unit)? Find(long record)
@@ -113,6 +121,53 @@ internal sealed class BattleHitResultHook : IGameHook, IObserves6WithResult
             $"target=0x{target:x} record=0x{record ?? 0:x} side={side} slot={member?.Slot} unit={member?.Unit} index={index & 0xFFFF} mode={(int)mode} kind=0x{kind:x} sub=0x{(kindAndSub >> 16) & 0xFFFF:x} flags=0x{ModuleMemoryReader.ReadInt32(result + FlagsAt) ?? 0:x} hp={hpChange} hpLeft={hpLeft} hpMax={hpMax} mp={ModuleMemoryReader.ReadInt32(request + MpChangeAt)} mpLeft={ModuleMemoryReader.ReadInt32(request + MpLeftAt)}"));
         hits.Observe(new BattleHit(record is { } identity and not 0 ? identity : target, hpChange, hpLeft, kind, side,
             member?.Slot, hpMax, member?.Unit));
+    }
+}
+
+/// <summary>The battle package's per-frame update (#750), <c>void (Package* this, float seconds)</c> at <c>0x21e1c0</c> in
+/// <c>.ecode</c>, a full function body with one caller, the battle task's update
+/// (docs/findings/battle-enemy-list-order-and-update-hook-static.md, build 548ddc95…). Observed before the original
+/// runs; each call hands the package to <see cref="BattleEnemyWatch"/>, which reads the enemy count, and walks the enemy
+/// list only when it may have changed. Reads through <see cref="ModuleMemoryReader"/> only, never writes or calls. The
+/// float travels in <c>xmm1</c>, which the shape passes on untouched. First built and reviewed on the closed
+/// <c>247-battle</c> branch (commit <c>8be3b86</c>, #251). In a Debug build each list it hands on is logged, one line per
+/// enemy, so a by-ear run can match list order against the screen.</summary>
+[GameHook(GameBuilds.Steam18330018)]
+internal sealed class BattlePackageUpdateHook : IGameHook, IObserves2WithDouble
+{
+    private readonly BattleEnemyWatch watch;
+
+    public BattlePackageUpdateHook(HookServices services)
+    {
+        ArgumentNullException.ThrowIfNull(services);
+        var enemies = services.Log is { } log
+            ? new LoggedEnemies(services.BattleEnemies, services.BattleParty, log, SignatureName)
+            : services.BattleEnemies;
+        watch = new BattleEnemyWatch(
+            enemies, () => Environment.TickCount64,
+            address => ModuleMemoryReader.ReadPointer((nint)address),
+            address => ModuleMemoryReader.ReadInt32((nint)address));
+    }
+
+    public string SignatureName => "BtlPackageUpdate";
+
+    public void Observe(nint first, double second) => watch.Frame(first);
+
+    // Debug builds: each enemy's list index, record and HP, then the list goes on to the feature.
+    private sealed class LoggedEnemies(IBattleEnemyObserver next, IBattleUnits units, MessageLog log, string function)
+        : IBattleEnemyObserver
+    {
+        public void Enemies(long package, IReadOnlyList<long> records)
+        {
+            log.Requested(function, string.Create(CultureInfo.InvariantCulture,
+                $"package=0x{package:x} enemies={records.Count}"));
+            for (var i = 0; i < records.Count; i++)
+            {
+                log.Requested(function, string.Create(CultureInfo.InvariantCulture,
+                    $"enemy index={i} record=0x{records[i]:x} hp={units.Hp(records[i])} mp={units.Mp(records[i])}"));
+            }
+            next.Enemies(package, records);
+        }
     }
 }
 

@@ -45,9 +45,9 @@ public sealed class NoBattleHits : IBattleHitObserver
     }
 }
 
-/// <summary>A party member as the game data holds it now (#247): its slot from 0, its unit number, its HP, and its max
-/// HP when a hit has shown it, else null.</summary>
-public sealed record PartyMember(int Slot, int Unit, int Hp, int? HpMax);
+/// <summary>A party member as the game data holds it now (#247): its slot from 0, its unit number, its HP, its max
+/// HP when a hit has shown it, else null, and its MP when read (#692).</summary>
+public sealed record PartyMember(int Slot, int Unit, int Hp, int? HpMax, int? Mp = null);
 
 /// <summary>Reads the party's members and HP from the game data; empty when it can't.</summary>
 public interface IBattleParty

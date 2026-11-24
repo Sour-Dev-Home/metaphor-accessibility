@@ -1,5 +1,6 @@
 using Metaphor.Core.Battle;
 using Metaphor.Core.Features;
+using Metaphor.Core.Settings;
 
 namespace Metaphor.Features.Battle;
 
@@ -19,10 +20,18 @@ public sealed class BattleModule : IFeatureModule
         // Each hit is spoken through the reader, queued, with a summary after each action (#247, #631). No safe read
         // of a party member's name is known yet, so each is named by its slot.
         var battleSpeech = settings.Speech(BattleFeature.BattleHits, reader);
+        // The enemy list from the battle's start (#750) and numbers-only hits with a placed sound (#855), each testing.
         var hitLines = new HitLines(
             battleSpeech, TimeProvider.System, _ => null,
-            outcomesOn: () => settings.Current.IsOn(BattleFeature.BattleOutcomes));
+            outcomesOn: () => settings.Current.IsOn(BattleFeature.BattleOutcomes))
+        {
+            ListOn = () => settings.Current.IsOn(BattleFeature.BattleEnemyList),
+            NumbersOnly = () => settings.Current.IsOn(BattleFeature.BattleHitNumbers),
+            SlotCue = new PlacedHitCue(context.Cues).Play,
+        };
         context.Provide<IBattleHitObserver>(hitLines);
+        context.Provide<IBattleEnemyObserver>(hitLines);
+        var units = context.Find<IBattleUnits>();
         // The in-turn situation banner, queued behind the hit lines (#692), behind `speech.battleBanners` (#661).
         context.Provide(new BattleBanners(
             context.FilePositions, settings.Speech(BattleFeature.BattleBanners, reader), context.Cleaner,
@@ -46,6 +55,12 @@ public sealed class BattleModule : IFeatureModule
         context.AddControls(settings.Input(
             BattleFeature.BattleHits,
             new BattleStatus(context.BattleParty, hitLines, context.BattleScene, battleSpeech, battleBindings)));
+        // The HP and MP key (#692), testing, on top of the hits.
+        context.AddControls(settings.Input(
+            BattleFeature.BattleHits,
+            settings.Input(
+                BattleFeature.BattleHpMp,
+                new BattleHpMp(context.BattleParty, hitLines, context.BattleScene, battleSpeech, battleBindings))));
         // The enemy HP keys (#767): K, J and L, and LB with the D-pad, each its own testing feature on top of the hits,
         // so the game keeps F and R3; the menu controls take a key first while a battle list is shown. A Debug build
         // logs each all-enemies press's enemy records for the target read.
@@ -54,6 +69,9 @@ public sealed class BattleModule : IFeatureModule
             log is null ? null : text => log.Requested("BattleDetails", text))
         {
             SayMaxHp = () => settings.Current.IsOn(BattleFeature.BattleEnemyMaxHp),
+            ListOn = () => settings.Current.IsOn(BattleFeature.BattleEnemyList),
+            SayPositions = () => settings.Current.IsOn(SpokenDetail.Positions),
+            Units = units,
         };
         context.AddControls(settings.Input(
             BattleFeature.BattleHits, settings.Input(BattleFeature.BattleEnemyKeys, enemyHp.Keyboard)));

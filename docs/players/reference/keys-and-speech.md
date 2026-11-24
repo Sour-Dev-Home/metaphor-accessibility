@@ -25,6 +25,7 @@ usual job in the game.
 | Step to the next enemy and say its HP (testing) | `K` | `LB` held, then D-pad `Down` | In a battle |
 | Step to the previous enemy (testing) | `J` | `LB` held, then D-pad `Up` | In a battle |
 | Say every enemy's HP in one line (testing) | `L` | `LB` held, then D-pad `Left` | In a battle |
+| Say the party's HP and MP (testing) | `M` | none yet | In a battle |
 | Note a moment for your report ([mark key](#mark-key-note-a-moment-for-your-report)) | `F8` | none | Anywhere in the game |
 
 The first rows are in the code on `main` and in `v0.0.1-unstable.3`. Coming: a key that reads back a name you typed, and
@@ -89,6 +90,10 @@ anywhere.
 - `K` and `J`, or `LB` with D-pad `Down` and `Up`, step to the next or previous enemy and say it, such as "Second
   enemy, 50 of 300", or "50 left" when its full HP isn't known. With no enemy hit yet: "No enemy hit yet".
 - `L`, or `LB` with D-pad `Left`, says every enemy's HP in one line.
+- Testing, with `battleEnemyList` on: the keys know every enemy in the battle from its start, hit or not, and a step
+  ends with its place, such as "First enemy, 840 of 1320, 1 of 3". An enemy not hit yet says the HP the game holds for
+  it, or "not hit yet".
+- Testing, with `battleHpMp` on: `M` says each party member's HP and MP.
 - In a battle the game keeps `F` (Wield Arms) and the right stick press (auto-battle).
 - `[NEEDS VERIFICATION]` By ear, and whether holding `LB` in a battle does the game's own `LB` action first.
 
