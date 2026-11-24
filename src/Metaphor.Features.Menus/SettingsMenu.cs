@@ -7,8 +7,9 @@ namespace Metaphor.Features.Menus;
 
 /// <summary>The mod's own spoken settings menu (#754, the maintainer's decisions of 2026-11-23): F2, or the chord, opens
 /// it on any screen and says its name, the section and the focused row (ADR 0023); Up and Down move, interrupting;
-/// Left and Right change the value, a toggle turning over, a choice stepping round, a number by its step (Shift: 5
-/// steps), and each change is saved to the settings file at once and said, then "saved"; F or R3 says what the row
+/// Left and Right change the value by one rule for every kind (#959): left is off, the first choice or less, right is
+/// on, the last choice or more, stopping at either end; a number moves by its step (Shift: 5 steps); Enter or A turns
+/// a toggle over or steps a choice round; and each change is saved to the settings file at once and said, then "saved"; F or R3 says what the row
 /// does; Page Down and Page Up, or RB and LB, jump a section; Escape, B or F2 again closes. While it is open the game
 /// gets nothing (<see cref="IInputBlock"/>), and after it closes the keys or buttons that closed it stay kept until they
 /// are let go, so the game never sees half a press. Opened while a dialogue line is up, its first line waits behind the
@@ -180,9 +181,13 @@ public sealed class SettingsMenu : IWindowInputControls, IInputBlock
             {
                 Change(-1);
             }
-            else if ((down & (PadRight | PadA)) != 0)
+            else if ((down & PadRight) != 0)
             {
                 Change(1);
+            }
+            else if ((down & PadA) != 0)
+            {
+                Activate();
             }
             else if ((down & PadLb) != 0)
             {
@@ -242,8 +247,10 @@ public sealed class SettingsMenu : IWindowInputControls, IInputBlock
                         Change(-steps);
                         break;
                     case Right:
-                    case Enter:
                         Change(steps);
+                        break;
+                    case Enter:
+                        Activate();
                         break;
                     case PageUp:
                         Section(-1);
@@ -282,7 +289,21 @@ public sealed class SettingsMenu : IWindowInputControls, IInputBlock
         index = Math.Clamp(index, 0, Math.Max(0, Rows.Count - 1));
         // A dialogue line being read is let finish: the menu's first line queues behind it.
         var reading = window is { } message && message != 0;
-        Say($"{Name}. {Rows[index].Section}. {Line(index)}", interrupt: !reading);
+        var intro = SayIntro() ? $" {Intro()}" : "";
+        Say($"{Name}.{intro} {Rows[index].Section}. {Line(index)}", interrupt: !reading);
+    }
+
+    /// <summary>Whether opening says the layout first (#927), read at each opening; off by default.</summary>
+    public Func<bool> SayIntro { get; init; } = () => false;
+
+    // "6 sections: General, Speech, ... Page Down and Page Up, or RB and LB, move between them. ..." (#927).
+    private string Intro()
+    {
+        var sections = Rows.Select(row => row.Section).Distinct().ToList();
+        const string Keys = "Page Down and Page Up, or RB and LB, move between them. Up and Down move, Left is off " +
+            "or less, Right is on or more, Escape or B closes.";
+        return string.Create(
+            CultureInfo.InvariantCulture, $"{sections.Count} sections: {string.Join(", ", sections)}. {Keys}");
     }
 
     private void Close()
@@ -309,7 +330,11 @@ public sealed class SettingsMenu : IWindowInputControls, IInputBlock
         Say($"{next}. {Line(index)}");
     }
 
-    private void Change(int steps)
+    private void Change(int steps) => Apply(row => row.Change(settings(), steps));
+
+    private void Activate() => Apply(row => row.Activate(settings()));
+
+    private void Apply(Func<PlayerSetting, SettingChange?> changeOf)
     {
         var row = Rows[index];
         if (row is KeySetting)
@@ -317,7 +342,7 @@ public sealed class SettingsMenu : IWindowInputControls, IInputBlock
             Say("To change a key, edit settings.json.");
             return;
         }
-        if (row.Change(settings(), steps) is not { } change)
+        if (changeOf(row) is not { } change)
         {
             Say(row.Value(settings()));
             return;
