@@ -64,15 +64,21 @@ public enum BattleFeature
     BattleEnemyPad,
 
     /// <summary>The "of &lt;max HP&gt;" in an enemy's HP line ("840 of 1200") when a hit has shown the maximum (#854).
-    /// Off says the current HP alone, "840 left".</summary>
+    /// Off says the current HP alone, "840".</summary>
     [SettingKey("speech", "battleEnemyMaxHp", "Battle enemy max HP", Order = 1038, Description = "The \"of max HP\" " +
-        "in an enemy's HP line: \"840 of 1200\". Off says only \"840 left\". Needs `battleEnemyKeys`.")]
+        "in an enemy's HP line: \"840 of 1200\". Off says only the number, \"840\". Needs `battleEnemyKeys`.")]
     BattleEnemyMaxHp,
 
     /// <summary>A key that says the party's HP and MP in a battle (#692): <c>M</c>, no pad button yet.</summary>
     [SettingKey("speech", "battleHpMp", "Battle HP and MP key", Testing = true, Order = 1039, Description = "In a " +
         "battle, `M` says each party member's HP and MP. Needs `battleHits`.")]
     BattleHpMp,
+
+    /// <summary>A key that says what an enemy looks like (#699), from the mod's own hand-written descriptions.</summary>
+    [SettingKey("speech", "battleEnemyLooks", "Battle enemy looks", Testing = true, Order = 1082, Description = "In a " +
+        "battle, `I` says what the enemy the enemy keys are on looks like, from descriptions written for the mod. An " +
+        "enemy with none yet says so. Needs `battleHits`.")]
+    BattleEnemyLooks,
 
     /// <summary>A skill's HP or MP cost after its name in the battle skill and Synthesis lists (#692 (b), #260), from
     /// the game's skill tables.</summary>
@@ -107,15 +113,16 @@ public enum BattleFeature
         "name of each reserve ally you can swap in.")]
     BattlePartyScreen,
 
-    /// <summary>"Row changed" when a party member's Formation row changes in battle (#259).</summary>
+    /// <summary>"Row changed" when a party member's Formation row changes in battle (#259), and who came in for whom on a
+    /// swap with the reserve (#258).</summary>
     [SettingKey("speech", "battleFormation", "Battle formation", Testing = true, Order = 1078, Description =
         "In a battle, says \"row changed\" with the member when a party member moves between the front and back " +
-        "row.")]
+        "row, and \"Strohl, in for Hulkenberg\" when a reserve ally is swapped in.")]
     BattleFormation,
 
     /// <summary>The skill a move banner shows, by name (#954), from the game's skill tables.</summary>
     [SettingKey("speech", "battleMoveNames", "Battle move names", Testing = true, Order = 1073, Description = "Says " +
-        "the skill a battle's move banner shows as it is used, such as an enemy's spell, before its hits.")]
+        "the skill a battle's move banner shows as it is used, an enemy's or the party's own, before its hits.")]
     BattleMoveNames,
 
     /// <summary>The in-turn situation banner: a boss warning, a stat change (#692, #661).</summary>

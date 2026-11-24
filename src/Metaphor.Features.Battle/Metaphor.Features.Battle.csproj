@@ -10,4 +10,9 @@
     <ProjectReference Include="..\Metaphor.Core\Metaphor.Core.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <!-- What each enemy looks like, by name (#699), written by contributors. -->
+    <EmbeddedResource Include="enemy-looks.json" LogicalName="Metaphor.Features.Battle.enemy-looks.json" />
+  </ItemGroup>
+
 </Project>

@@ -27,7 +27,7 @@ namespace Metaphor.Features.Battle;
 /// on, and the all-enemies key starts from it; with no target in this battle they start from the first.</remarks>
 [FeatureSetting<BattleFeature>(
     BattleFeature.BattleHits, BattleFeature.BattleEnemyKeys, BattleFeature.BattleEnemyPad,
-    BattleFeature.BattleEnemyList, BattleFeature.BattleEnemyTarget)]
+    BattleFeature.BattleEnemyList, BattleFeature.BattleEnemyTarget, BattleFeature.BattleEnemyLooks)]
 public sealed class BattleEnemyHp
 {
     private const string NoEnemy = "No enemy hit yet";
@@ -67,7 +67,15 @@ public sealed class BattleEnemyHp
                 Chord(bindings, b => b.EnemyNextButton, scene, () => Step(1)),
                 Chord(bindings, b => b.EnemyPreviousButton, scene, () => Step(-1))),
             Chord(bindings, b => b.EnemyHpButton, scene, All));
+        Look = new BattleKey(() => 0, () => bindings().EnemyLookKey, scene, LookAt);
     }
+
+    /// <summary>The look key, I by default (#699): says what <see cref="Looks"/> gives for the enemy the next and
+    /// previous keys are on, else the targeted one, else the first, without moving them.</summary>
+    public IInputControls Look { get; }
+
+    /// <summary>What the look key says about an enemy (#699); none, so the key says nothing, when null.</summary>
+    public Func<ListedEnemy, string>? Looks { get; init; }
 
     /// <summary>The keyboard's keys, K, J and L by default.</summary>
     public IInputControls Keyboard { get; }
@@ -155,6 +163,34 @@ public sealed class BattleEnemyHp
         Say(enemies.Count == 0 ? NoEnemy : string.Join(". ", enemies.Select(Hp)));
     }
 
+    private void LookAt()
+    {
+        if (Looks is not { } looks)
+        {
+            return;
+        }
+        var battle = hits.Battle;
+        var enemies = Enemies();
+        if (enemies.Count == 0)
+        {
+            Say(NoEnemy);
+            return;
+        }
+        int at;
+        long moves;
+        lock (gate)
+        {
+            at = current is { } target && currentBattle == battle ? IndexOf(enemies, target) : -1;
+            moves = stepMoves;
+        }
+        // The cursor moved since the last step (#253): its enemy, as a step would start from.
+        if (Targeted(enemies) is { } cursor && (cursor.Moves != moves || at < 0))
+        {
+            at = cursor.Index;
+        }
+        Say(looks(enemies[Math.Max(at, 0)]));
+    }
+
     private static int IndexOf(IReadOnlyList<ListedEnemy> enemies, long target)
     {
         for (var i = 0; i < enemies.Count; i++)
@@ -192,14 +228,15 @@ public sealed class BattleEnemyHp
     // (docs/findings/battle-hit-result-hp-left-static.md); for enemies that is [NEEDS VERIFICATION] by ear.
     private string Hp(ListedEnemy enemy) => Line(enemy, Units, SayMaxHp());
 
-    /// <summary>An enemy's HP line: "Second enemy, 840 of 1200", "Second enemy, 50 left" without the maximum or with
-    /// <paramref name="sayMax"/> off, or "Second enemy, not hit yet"; <paramref name="units"/> reads the HP of one not
-    /// yet hit.</summary>
+    /// <summary>An enemy's HP line: "Second enemy, 840 of 1200", "Second enemy, 50 left" when the maximum isn't known,
+    /// "Second enemy, 840" with <paramref name="sayMax"/> off (the maintainer's decision of 2026-11-24 on #854), or
+    /// "Second enemy, not hit yet"; <paramref name="units"/> reads the HP of one not yet hit.</summary>
     internal static string Line(ListedEnemy enemy, IBattleUnits? units, bool sayMax) =>
         (enemy.Hp ?? units?.Hp(enemy.Target), enemy.HpMax) switch
         {
             ({ } hp, { } max) when sayMax =>
                 string.Create(CultureInfo.InvariantCulture, $"{enemy.Label}, {hp} of {max}"),
+            ({ } hp, _) when !sayMax => string.Create(CultureInfo.InvariantCulture, $"{enemy.Label}, {hp}"),
             ({ } hp, _) => string.Create(CultureInfo.InvariantCulture, $"{enemy.Label}, {hp} left"),
             _ => $"{enemy.Label}, not hit yet",
         };

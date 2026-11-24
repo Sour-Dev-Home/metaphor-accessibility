@@ -23,6 +23,8 @@ public static class BattleKeys
             "Enemy before", new("battle", "enemyPreviousKey", Defaults.EnemyPreviousKey))),
         new(KeyPlaces.Battle, BattleFeature.BattleEnemyKeys, new(
             "Every enemy's HP", new("battle", "enemyHpKey", Defaults.EnemyHpKey))),
+        new(KeyPlaces.Battle, BattleFeature.BattleEnemyLooks, new(
+            "What the enemy looks like", new("battle", "enemyLookKey", Defaults.EnemyLookKey))),
         new(KeyPlaces.Battle, BattleFeature.BattleEnemyPad, new(
             "Next enemy and its HP", Button: new("battle", "enemyNextButton", Defaults.EnemyNextButton), Hold: Hold)),
         new(KeyPlaces.Battle, BattleFeature.BattleEnemyPad, new(

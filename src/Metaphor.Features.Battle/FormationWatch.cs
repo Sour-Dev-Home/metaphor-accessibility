@@ -12,8 +12,10 @@ namespace Metaphor.Features.Battle;
 /// (docs/findings/battle-party-swap-and-formation-static.md, build 548ddc95…). Only read; takes each input read only
 /// as a clock, as <see cref="TurnLine"/> does: it asks <see cref="IBattleScene"/> at most once every
 /// <see cref="AskSceneEveryMilliseconds"/>, and while that says battle reads the party at most once every
-/// <see cref="ReadEveryMilliseconds"/>. A battle's first read, and a slot's new member after a swap, set what later
-/// reads compare with and say nothing. Every read reaches the game unchanged. Safe to call from any of the game's
+/// <see cref="ReadEveryMilliseconds"/>. A battle's first read sets what later reads compare with and says nothing; a
+/// slot's new member later in the battle is a swap with the reserve (#258), said as "Strohl, in for Hulkenberg".
+/// Whether the party slots change during a battle at all is <c>[NEEDS VERIFICATION]</c>: the battle copies them back
+/// at its end (docs/findings/battle-party-swap-and-formation-static.md), so the line may wait for a live read. Every read reaches the game unchanged. Safe to call from any of the game's
 /// threads.</summary>
 [FeatureSetting<BattleFeature>(BattleFeature.BattleFormation)]
 public sealed class FormationWatch : IInputControls
@@ -58,6 +60,9 @@ public sealed class FormationWatch : IInputControls
     /// <summary>A Debug build's log of each Formation bit and party slot change read, for the by-ear check of which
     /// value is the back row and whether a swap shows in the party slots (#258). None, when not set.</summary>
     public Action<string>? Log { get; init; }
+
+    /// <summary>The name a character goes by, for the member a swap took out (#258); none known when unset.</summary>
+    public Func<int, string?> NameOf { get; init; } = _ => null;
 
     public int Pad(int pad, int buttons, bool made)
     {
@@ -108,6 +113,8 @@ public sealed class FormationWatch : IInputControls
                 {
                     logged.Add(string.Create(CultureInfo.InvariantCulture,
                         $"slot={member.Slot} unit {was.Unit} -> {member.Unit} bit={bit}"));
+                    said.Add(memberSays(
+                        member.Slot, member.Unit, NameOf(was.Unit) is { } left ? $"in for {left}" : "swapped in"));
                 }
                 else if (was.Bit != bit)
                 {
