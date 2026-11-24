@@ -67,6 +67,30 @@ public static class CpkArchive
         return new(null, CpkFileStatus.NotFound);
     }
 
+    /// <summary>Every file the table of contents names, in its order (#895, for the dev-only extract tool), or null when
+    /// the archive isn't one this reads. A row missing its name or sizes is left out. Never throws on a damaged archive.
+    /// </summary>
+    public static IReadOnlyList<CpkEntry>? List(Stream archive)
+    {
+        ArgumentNullException.ThrowIfNull(archive);
+        if (Table(archive, 0) is not { RowCount: > 0 } header || header.Number(0, "TocOffset") is not { } tocOffset ||
+            Table(archive, tocOffset) is not { } toc)
+        {
+            return null;
+        }
+        var entries = new List<CpkEntry>(toc.RowCount);
+        for (var row = 0; row < toc.RowCount; row++)
+        {
+            if (toc.Text(row, "FileName") is { } name && toc.Number(row, "FileSize") is { } size &&
+                toc.Number(row, "ExtractSize") is { } extract)
+            {
+                var dir = toc.Text(row, "DirName") ?? "";
+                entries.Add(new(dir.Length == 0 ? name : dir + "/" + name, size, extract));
+            }
+        }
+        return entries;
+    }
+
     // The @UTF table in the container at offset, or null.
     private static UtfTable? Table(Stream archive, long offset)
     {
@@ -113,6 +137,10 @@ public enum CpkFileStatus
     /// <summary>The archive, its tables or the file's row are damaged or of a kind this doesn't read.</summary>
     Unreadable,
 }
+
+/// <summary>One file of a CPK archive's table of contents: its <c>DIR/NAME</c> path, stored size and size once unpacked
+/// (the two differ for a compressed file).</summary>
+public readonly record struct CpkEntry(string Path, long Size, long ExtractSize);
 
 /// <summary>A file looked up in a CPK archive: its bytes when <see cref="Status"/> is <see cref="CpkFileStatus.Read"/>,
 /// otherwise null.</summary>

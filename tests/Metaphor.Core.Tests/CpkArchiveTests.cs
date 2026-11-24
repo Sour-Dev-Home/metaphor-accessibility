@@ -278,4 +278,16 @@ public sealed class CpkArchiveTests
         using var cut = new MemoryStream(new byte[8]);
         Assert.Equal(CpkFileStatus.Unreadable, CpkArchive.Lookup(cut, "A/one.bin", 6).Status);
     }
+
+    [Fact]
+    public void ListsEveryFileInTheTableOfContentsAndNothingFromADamagedArchive()
+    {
+        using var archive = Archive(Stored("A/b", "one.bin", "first"), Stored("", "top.bin", "x"), ("C", "p.bin", "yy"u8.ToArray(), 9));
+
+        Assert.Equal(
+            [new CpkEntry("A/b/one.bin", 5, 5), new CpkEntry("top.bin", 1, 1), new CpkEntry("C/p.bin", 2, 9)],
+            CpkArchive.List(archive));
+        using var cut = new MemoryStream(new byte[8]);
+        Assert.Null(CpkArchive.List(cut));
+    }
 }

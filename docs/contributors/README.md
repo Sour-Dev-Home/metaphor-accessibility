@@ -45,7 +45,7 @@ scripts/
   player/                   exactly what the release zip ships (installer, install check)
   dev/                      game sessions (session.ps1: deploy, run, smoke, spike, inspect, status), Ghidra
   setup/                    onboard, WSL, docs tools, Claude Code launcher
-tools/                    dev-only programs: session log, session fixture, signature check, Ghidra scripts,
+tools/                    dev-only programs: session log, session fixture, signature check, CPK extract, Ghidra scripts,
                           and the docs and slow-suite tool pins (docs/, slow/)
 docs/                     players/, contributors/, findings/, raw-sources/, adr/, agents/ (see docs/README.md)
 ```
@@ -214,7 +214,8 @@ How-tos: [set up a clone](how-to/set-up-a-clone.md), [add a hook](how-to/add-a-h
 [add a feature project](how-to/add-a-feature-project.md), [handle a game update](how-to/handle-a-game-update.md),
 [write a player doc](how-to/write-a-player-doc.md), [plan a chapter](how-to/plan-a-chapter.md),
 [scrub a chapter](how-to/scrub-a-chapter.md), [name a nearby thing](how-to/name-a-nearby-thing.md),
-[fit the objective markers](how-to/fit-objective-markers.md).
+[fit the objective markers](how-to/fit-objective-markers.md),
+[read game data for findings](how-to/read-game-data-for-findings.md).
 
 Reference: [checks](reference/checks.md), every check stage and how CI runs them;
 [security review](reference/security-review.md), the stamp, the label gate and the deny rules;

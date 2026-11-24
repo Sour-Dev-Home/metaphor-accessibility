@@ -9,8 +9,9 @@ anything that defeats it.
 | Reading the open-source mods that already hook this game (OpenGFD, MF.Toolkit, MetaphorFix and others) | Yes |
 | Our own Reloaded-II mod reading the running game's memory and hooking its functions, as those community mods do | Yes |
 | Opening the shipped executable in a disassembler as-is, accepting that protected parts may be unreadable | Yes |
+| Reading the game's own data archives (CPK) offline with our read-only tool (`tools/Metaphor.CpkExtract`), output kept in git-ignored `extracted/` | Yes |
 | Attaching a debugger to the running game | Only if it works with no help; if the game resists, stop |
-| Anti-debug hiding plugins, dumping or unpacking protected code, patching or disabling Denuvo checks | No |
+| Anti-debug hiding plugins, dumping or unpacking protected code, extracting decryption keys from protected code, patching or disabling Denuvo checks | No |
 
 ## Consequences
 
