@@ -6,7 +6,7 @@ on:
   pull_request:
   # The merge queue tests each PR merged with the ones ahead of it; its required checks come from this run.
   merge_group:
-  # Nightly on main: pester-varied-setup only (#655), whatever changed; every other job skips.
+  # Nightly on main: pester-varied-setup and pre-push-hook only (#655), whatever changed; every other job skips.
   schedule:
     # 03:41 UTC. Off the hour: GitHub delays, and may drop, scheduled runs at the start of each hour.
     - cron: "41 3 * * *"
@@ -16,7 +16,7 @@ permissions:
 
 jobs:
   repo-rules:
-    if: github.event_name != 'schedule' # the nightly run is pester-varied-setup's alone
+    if: github.event_name != 'schedule' # the nightly run is pester-varied-setup's and pre-push-hook's alone
     runs-on: ubuntu-latest
     timeout-minutes: 5
     # PII_PATTERNS lives in the main-push environment, which only main may use (#309), so no branch's run can read it.
@@ -324,12 +324,60 @@ jobs:
           if-no-files-found: ignore
           retention-days: 3
 
-  # The required check named `scripts` (the ruleset asks for it by name): it passes when every Pester job passed, or was
-  # skipped on the one event its `if` skips it on, and fails otherwise: failed, cancelled, or skipped where it should
-  # have run (#655). GitHub counts a skipped job's check as passed, so the result is read here, not trusted. Add a test
-  # file under tests/pester and to the matrix above; tests/bash/test-ci-matrix.sh fails when the two disagree.
+  # The pre-push hook, run by a real `git push` to a scratch remote (scripts/ci/pre-push-hook.sh, #655), so it gets
+  # git's own hook environment, which every other job here skips by running the checks directly: #672's bug passed CI
+  # and failed every local push. Merge queue and main only, beside the Windows build (ADR 0008), when scripts/, tests/
+  # or the workflows change (what-runs.sh --job pre-push-hook); nightly on main it takes every file as changed. When it
+  # runs, the required `scripts` check needs it to pass.
+  pre-push-hook:
+    if: github.event_name != 'pull_request'
+    runs-on: windows-latest
+    timeout-minutes: 40 # in CI the hook builds and tests the whole solution when code changed (build.sh's whole_solution)
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          fetch-depth: 0 # the hook diffs the pushed commit against its base, and finds origin/main
+      - name: Check what changed
+        id: changes
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          BASE: ${{ github.event.merge_group.base_sha || github.event.before }}
+          HEAD: ${{ github.event.merge_group.head_sha || github.event.after }}
+        run: bash scripts/ci/what-runs.sh --job pre-push-hook "$BASE" "$HEAD"
+      - uses: actions/setup-dotnet@0f4a354dd5547a28c70b7853dbd95d5b67886e73 # v6.1.0
+        if: steps.changes.outputs.run == 'true'
+        with:
+          global-json-file: global.json
+      - name: Install the pinned Pester
+        if: steps.changes.outputs.run == 'true'
+        run: bash scripts/ci/install-pester.sh
+      # The hook runs tests, so the flake rule (#655) applies: a failure runs once more. A failure the hook's
+      # environment causes fails both times.
+      - name: Push through the pre-push hook
+        if: steps.changes.outputs.run == 'true'
+        env:
+          BASE: ${{ github.event.merge_group.base_sha || github.event.before }}
+          HEAD: ${{ github.event.merge_group.head_sha || github.event.after || github.sha }}
+        run: bash scripts/ci/retry-test.sh "$GITHUB_JOB" bash scripts/ci/pre-push-hook.sh "$BASE" "$HEAD"
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: steps.changes.outputs.run == 'true'
+        with:
+          name: flake-${{ github.job }}
+          path: ${{ runner.temp }}/flake/flake.txt
+          if-no-files-found: ignore
+          retention-days: 3
+
+  # The required check named `scripts` (the ruleset asks for it by name): it passes when every Pester job and the
+  # pre-push hook passed, or was skipped on the one event its `if` skips it on, and fails otherwise: failed, cancelled,
+  # or skipped where it should have run (#655). GitHub counts a skipped job's check as passed, so the result is read
+  # here, not trusted. Add a test file under tests/pester and to the matrix above; tests/bash/test-ci-matrix.sh fails
+  # when the two disagree.
   scripts:
-    needs: [pester, pester-varied-setup]
+    needs: [pester, pester-varied-setup, pre-push-hook]
     if: always()
     runs-on: ubuntu-latest
     timeout-minutes: 2
@@ -339,10 +387,12 @@ jobs:
           EVENT_NAME: ${{ github.event_name }}
           RESULT: ${{ needs.pester.result }}
           VARIED: ${{ needs.pester-varied-setup.result }}
+          HOOK: ${{ needs.pre-push-hook.result }}
         run: |
-          echo "pester jobs: $RESULT; varied setup: $VARIED ($EVENT_NAME)"
+          echo "pester jobs: $RESULT; varied setup: $VARIED; pre-push hook: $HOOK ($EVENT_NAME)"
           [ "$RESULT" = success ] || { [ "$RESULT" = skipped ] && [ "$EVENT_NAME" = schedule ]; } || exit 1
           [ "$VARIED" = success ] || { [ "$VARIED" = skipped ] && [ "$EVENT_NAME" = pull_request ]; } || exit 1
+          [ "$HOOK" = success ] || { [ "$HOOK" = skipped ] && [ "$EVENT_NAME" = pull_request ]; } || exit 1
 
   # Runs beside build, so it gates merges without slowing the commit stage. A vulnerable package fails the job; a new
   # high or critical CodeQL security alert blocks the merge through the ruleset's code-scanning rule. It runs on every
@@ -381,7 +431,7 @@ jobs:
   # Stage 2's time against its 5-minute budget (issue #1): each job's duration on the run's summary page, and a warning
   # annotation when the stage runs over. It only reports, so it runs after the others whatever their result.
   timing:
-    needs: [repo-rules, build, pester, pester-varied-setup, scripts, security]
+    needs: [repo-rules, build, pester, pester-varied-setup, pre-push-hook, scripts, security]
     if: always()
     runs-on: ubuntu-latest
     timeout-minutes: 2

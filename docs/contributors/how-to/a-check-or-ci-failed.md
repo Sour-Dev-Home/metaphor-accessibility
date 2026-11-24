@@ -19,7 +19,7 @@ same `scripts/check.sh` runs locally and in CI, so a local failure is the one CI
 
 ## A test failed once and passed on the retry
 
-- **You see:** a `Test failed once` warning on a `pester`, `pester-varied-setup` or `repo-rules` job, then `Flaky test`,
+- **You see:** a `Test failed once` warning on a `pester`, `pester-varied-setup`, `pre-push-hook` or `repo-rules` job, then `Flaky test`,
   and the job green. A comment on [#629](https://github.com/Sour-Dev-Home/metaphor-accessibility/issues/629) names the
   job, the test and the run.
 - **Why:** the flake rule (#655). CI's test steps run through `scripts/ci/retry-test.sh`, which runs a failed test
