@@ -15,7 +15,7 @@ stamp_script="$check_dir/ci/security-stamp.sh"
 
 # in_scope [COMMIT]: exit 0 when the staged changes (or COMMIT) touch the security-review scope, 1 when they don't.
 in_scope() {
-  bash "$stamp_script" touches "$@"
+  bash "$stamp_script" touches "$@" > /dev/null
   case $? in
     0) return 0 ;;
     1) return 1 ;;
