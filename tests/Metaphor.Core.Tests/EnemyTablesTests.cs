@@ -110,6 +110,15 @@ public sealed class EnemyTablesTests
     }
 
     [Fact]
+    public void AnIdGivesBackItsNamesHash()
+    {
+        var tables = Sample();
+
+        Assert.Equal(Hash("EnemyName_sword_Bone").ToUpperInvariant(), tables.NameHashOf(2));
+        Assert.Null(tables.NameHashOf(99));
+    }
+
+    [Fact]
     public void MaxHpPicksAmongTheNamesSeenElseAloneWhenUnique()
     {
         var tables = Sample();

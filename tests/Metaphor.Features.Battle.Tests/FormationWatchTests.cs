@@ -28,13 +28,14 @@ public sealed class FormationWatchTests
     private static PartyMember Member(int slot, int unit, int flags) => new(slot, unit, 100, null, 10, flags);
 
     // Input reads, one each 50 ms frame, over the given time.
-    private void Frames(long milliseconds)
+    private void Frames(long milliseconds, FormationWatch? other = null)
     {
+        var on = other ?? watch;
         for (var at = 0L; at < milliseconds; at += 50)
         {
             time.Advance(50);
-            watch.Keys([]);
-            watch.Pad(0, 0, made: true);
+            on.Keys([]);
+            on.Pad(0, 0, made: true);
         }
     }
 
@@ -52,15 +53,32 @@ public sealed class FormationWatchTests
     }
 
     [Fact]
-    public void ASwapIsLoggedNotSaidAndOtherFlagsDontCount()
+    public void ASwapSaysWhoCameInForWhomAndOtherFlagsDontCount()
     {
+        var named = new FormationWatch(
+            party, scene, announcer, time, (slot, unit, rest) => $"Member {slot} of {unit}, {rest}")
+        {
+            Log = logged.Add,
+            NameOf = unit => unit == 5 ? "Hulkenberg" : null,
+        };
         party.Now = [Member(0, 1, 0), Member(1, 5, 0)];
-        Frames(500);
+        Frames(500, named);
         party.Now = [Member(0, 1, 0x1), Member(1, 3, Back)];
+        Frames(500, named);
+
+        Assert.Equal(["Member 1 of 3, in for Hulkenberg"], Said());
+        Assert.Contains("slot=1 unit 5 -> 3 bit=True", logged);
+    }
+
+    [Fact]
+    public void ASwapWithNoNameForTheMemberTakenOutSaysSwappedIn()
+    {
+        party.Now = [Member(0, 1, 0)];
+        Frames(500);
+        party.Now = [Member(0, 4, 0)];
         Frames(500);
 
-        Assert.Empty(Said());
-        Assert.Contains("slot=1 unit 5 -> 3 bit=True", logged);
+        Assert.Equal(["Member 0 of 4, swapped in"], Said());
     }
 
     [Fact]

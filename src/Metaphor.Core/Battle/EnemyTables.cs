@@ -111,14 +111,26 @@ public sealed class EnemyTables
     private readonly Dictionary<string, List<int>> idsByName;
     private readonly HashSet<int> named;
     private readonly byte[] skillElements;
+    private readonly Dictionary<int, string> nameOf = [];
 
     private EnemyTables(EnemyRow[] rows, Dictionary<string, List<int>> idsByName, byte[] skillElements)
     {
         this.rows = rows;
         this.idsByName = idsByName;
         named = [.. idsByName.Values.SelectMany(ids => ids)];
+        foreach (var (hash, ids) in idsByName)
+        {
+            foreach (var id in ids)
+            {
+                nameOf.TryAdd(id, hash);
+            }
+        }
         this.skillElements = skillElements;
     }
+
+    /// <summary>The <c>EnemyName</c> label hash of enemy <paramref name="id"/> (32 hex digits, upper case), the way
+    /// back from <see cref="IdsOf"/> (#699); null for an id with no name.</summary>
+    public string? NameHashOf(int id) => nameOf.TryGetValue(id, out var hash) ? hash : null;
 
     /// <summary>How many enemy rows were read.</summary>
     public int Rows => rows.Length;

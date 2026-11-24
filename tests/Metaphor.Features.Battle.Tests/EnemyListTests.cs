@@ -195,7 +195,7 @@ public sealed class EnemyListTests
 
         Press(KeyK);
 
-        Assert.Equal("First enemy, 840 left", LastKey());
+        Assert.Equal("First enemy, 840", LastKey());
     }
 
     [Fact]

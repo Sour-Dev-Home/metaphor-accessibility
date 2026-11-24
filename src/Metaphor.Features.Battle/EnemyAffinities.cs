@@ -162,6 +162,23 @@ public sealed class EnemyAffinities : IBattleHitObserver
         return Describe(row, mask);
     }
 
+    /// <summary>Which enemy table row <paramref name="enemy"/> is, told apart as for its affinities, or null when the
+    /// tables aren't loaded or it isn't told apart (#699, its name).</summary>
+    public int? TableIdOf(ListedEnemy enemy)
+    {
+        ArgumentNullException.ThrowIfNull(enemy);
+        if (tables() is not { } read)
+        {
+            return null;
+        }
+        lock (gate)
+        {
+            Current();
+            var max = enemy.HpMax ?? (enemy.Hp is null ? Units?.Hp(enemy.Target) : null);
+            return IdOf(read, enemy.Target, max)?.Id;
+        }
+    }
+
     /// <summary>The table's EXP and archetype EXP over <paramref name="enemies"/>, and its money and magla, or null
     /// when the tables aren't loaded or any enemy isn't told apart.</summary>
     public (int Exp, int ArchetypeExp, int Money, int Magla)? Rewards(IReadOnlyList<ListedEnemy> enemies)

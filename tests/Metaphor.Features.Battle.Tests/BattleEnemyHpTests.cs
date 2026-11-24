@@ -124,7 +124,8 @@ public sealed class BattleEnemyHpTests
         say = true;
         quiet.Keyboard.Keys([KeyK]);
 
-        Assert.Equal(["First enemy, 840 left", "Second enemy, 50 left"], Said());
+        // Off says the bare number (#854); on with no maximum known still says "left".
+        Assert.Equal(["First enemy, 840", "Second enemy, 50 left"], Said());
     }
 
     [Fact]
@@ -365,6 +366,52 @@ public sealed class BattleEnemyHpTests
         Assert.Equal(0, unbound.HeldShoulders());
         scene.On = false;
         Assert.Equal(0, enemies.HeldShoulders());
+    }
+
+    [Fact]
+    public void ILooksAtTheEnemyTheStepsAreOnWithoutMovingThem()
+    {
+        var looking = new BattleEnemyHp(() => BattleBindings.Default, hits, scene, announcer)
+        {
+            Looks = enemy => $"look at {enemy.Label}",
+        };
+        TwoEnemiesHit();
+
+        Look(looking);
+        looking.Keyboard.Keys([KeyK]);
+        looking.Keyboard.Keys([]);
+        looking.Keyboard.Keys([KeyK]);
+        looking.Keyboard.Keys([]);
+        Look(looking);
+        looking.Keyboard.Keys([KeyK]);
+
+        Assert.Equal(
+            ["look at First enemy", "First enemy, 840 of 1200", "Second enemy, 50 left", "look at Second enemy",
+                "First enemy, 840 of 1200"],
+            Said());
+    }
+
+    [Fact]
+    public void ILooksAtNothingBeforeAHitAndIsLeftToTheGameOutsideABattle()
+    {
+        var looking = new BattleEnemyHp(() => BattleBindings.Default, hits, scene, announcer)
+        {
+            Looks = enemy => $"look at {enemy.Label}",
+        };
+
+        Look(looking);
+        scene.On = false;
+        var passed = looking.Look.Keys([BattleBindings.KeyI]);
+
+        Assert.Equal(["No enemy hit yet"], Said());
+        Assert.Equal([BattleBindings.KeyI], passed);
+    }
+
+    // The look key pressed and let go: hidden from the game in a battle.
+    private static void Look(BattleEnemyHp on)
+    {
+        Assert.Empty(on.Look.Keys([BattleBindings.KeyI]));
+        on.Look.Keys([]);
     }
 
     private sealed class Scene : IBattleScene

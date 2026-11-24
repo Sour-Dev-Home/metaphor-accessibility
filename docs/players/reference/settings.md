@@ -71,7 +71,7 @@ Each is `true` to speak or `false` to stay quiet, inside a `speech` object: `{ "
 | `battleNumberReset` | Numbers each battle's enemies from "First enemy", not on from the battle before. Needs `battleHits`. Still being tested. | testing, off |
 | `battleEnemyKeys` | In a battle, `K` and `J` step to the next or previous enemy hit and say its HP; `L` says every one's. Needs `battleHits`. | `true` |
 | `battleEnemyPad` | In a battle, `LB` held with D-pad `Down`, `Up` or `Left` does what `K`, `J` and `L` do. `LB` tapped alone opens Tactics when you let go. Needs `battleHits`. Still being tested. | testing, off |
-| `battleEnemyMaxHp` | The "of max HP" in an enemy's HP line: "840 of 1200". Off says only "840 left". Needs `battleEnemyKeys`. | `true` |
+| `battleEnemyMaxHp` | The "of max HP" in an enemy's HP line: "840 of 1200". Off says only the number, "840". Needs `battleEnemyKeys`. | `true` |
 | `battleHpMp` | In a battle, `M` says each party member's HP and MP. Needs `battleHits`. Still being tested. | testing, off |
 | `battleLists` | Battle's skill and item lists, row by row. Separate from `menus`. | `true` |
 | `battleSkillCosts` | Says what a skill costs after its name in the battle skill list and Synthesis list, such as "4 MP" or "15 percent HP". The Synthesis list says its turn icons too. Needs `battleLists`. Still being tested. | testing, off |
@@ -93,15 +93,16 @@ Each is `true` to speak or `false` to stay quiet, inside a `speech` object: `{ "
 | `battleBanners` | The short banner during a battle turn: a boss warning, a stat change. | `true` |
 | `battleBannerNames` | Says who a battle banner is about: "Bow Scourge Malmorta cannot move due to Stun!". Off leaves the name out. Needs `battleBanners`. | `true` |
 | `battleTurnLine` | Says "Your turn" with the actions left, or "Enemy turn", as each side's turn starts in a battle. Still being tested. | testing, off |
-| `battleMoveNames` | Says the skill a battle's move banner shows as it is used, such as an enemy's spell, before its hits. Still being tested. | testing, off |
+| `battleMoveNames` | Says the skill a battle's move banner shows as it is used, an enemy's or the party's own, before its hits. Still being tested. | testing, off |
 | `battleStart` | Says "Ambushed" when a battle starts with the enemy striking first. | `true` |
 | `battleStartStun` | As a battle starts, says how many enemies are stunned: "All 3 enemies stunned" or "1 of 3 enemies stunned". Still being tested. | testing, off |
 | `battleEnd` | Says "Victory", "Escaped" or "Defeated" as a battle ends. Still being tested. | testing, off |
 | `battleRewards` | After a won battle, says the money and MAG it gained: "Gained 240 money and 30 MAG". Still being tested. | testing, off |
-| `battleFormation` | In a battle, says "row changed" with the member when a party member moves between the front and back row. Still being tested. | testing, off |
+| `battleFormation` | In a battle, says "row changed" with the member when a party member moves between the front and back row, and "Strohl, in for Hulkenberg" when a reserve ally is swapped in. Still being tested. | testing, off |
 | `battleRewardExp` | As a battle is won, says the EXP and archetype EXP of the enemies you beat, from the game's enemy tables: "Gained 160 EXP and 60 archetype EXP". Needs `battleRewards`. Still being tested. | testing, off |
 | `saveSlots` | The save and load screens' slots. | `true` |
 | `saveSlotDetails` | Each save and load slot's date and playtime, read from its save file; the details key adds the weekday and time of day. Still being tested. | testing, off |
+| `battleEnemyLooks` | In a battle, `I` says what the enemy the enemy keys are on looks like, from descriptions written for the mod. An enemy with none yet says so. Needs `battleHits`. Still being tested. | testing, off |
 | `learnedSettingValues` | The System rows whose setting the mod has not pinned saying their value on change, learned as you change them. Needs `menus`. | `true` |
 | `settingsHelp` | The game's help line for the focused row on a Settings page, on the details key (F, or R3 on the pad). The line is the one the game fetched for the row, so a row you have not moved to yet says no more. Needs `menus`. | `true` |
 | `nameEntry` | The name entry screen: its title, each letter you type, and when a name is refused. | `true` |

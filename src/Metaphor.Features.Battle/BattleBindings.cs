@@ -4,8 +4,8 @@ namespace Metaphor.Features.Battle;
 
 /// <summary>The battle feature's keys, each 0 when unbound: the status key and buttons (#631) and the enemy HP keys
 /// (#767): the next, previous and all-enemies keys, and on the pad <see cref="EnemyHoldButtons"/> held with the next,
-/// previous and all-enemies buttons; and the HP and MP key (#692). The settings file can rebind each under <c>keys.battle</c> (#661,
-/// <see cref="From"/>).</summary>
+/// previous and all-enemies buttons; the HP and MP key (#692); and the enemy look key (#699). The settings file can
+/// rebind each under <c>keys.battle</c> (#661, <see cref="From"/>).</summary>
 public sealed record BattleBindings(
     int StatusButtons,
     int StatusKey,
@@ -16,8 +16,13 @@ public sealed record BattleBindings(
     int EnemyHpButton,
     int EnemyNextButton,
     int EnemyPreviousButton,
-    int HpMpKey)
+    int HpMpKey,
+    int EnemyLookKey = BattleBindings.KeyI)
 {
+    /// <summary>The I key, code <c>0x49</c>: the enemy look key (#699), free of the game's battle keys read aloud on
+    /// 2026-11-22 (below) and of the mod's.</summary>
+    public const int KeyI = 0x49;
+
     /// <summary>L3 in the game's pad mask: XInput's left thumb, <c>0x0002</c> on build 548ddc95…
     /// (docs/raw-sources/pad-and-keyboard-state-2026-11-16.md).</summary>
     public const int LeftThumb = 0x0002;
@@ -54,6 +59,7 @@ public sealed record BattleBindings(
             settings.Binding("battle", "enemyHpButton", Default.EnemyHpButton),
             settings.Binding("battle", "enemyNextButton", Default.EnemyNextButton),
             settings.Binding("battle", "enemyPreviousButton", Default.EnemyPreviousButton),
-            settings.Binding("battle", "hpMpKey", Default.HpMpKey));
+            settings.Binding("battle", "hpMpKey", Default.HpMpKey),
+            settings.Binding("battle", "enemyLookKey", Default.EnemyLookKey));
     }
 }

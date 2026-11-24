@@ -11,8 +11,9 @@ namespace Metaphor.Features.Battle;
 /// <remarks>Build 548ddc95… (Steam build 18330018): the banner reads its label from the skill record's <c>+0x2</c>
 /// (docs/findings/battle-affinity-discovery-from-move-banner.md). The banner hands its layout a text reference, so the
 /// name never passes a message lookup the mod hooks (docs/findings/battle-move-banner-text-reference-static.md), and
-/// before this the move went unsaid. Whether the party's own moves show the banner too is <c>[NEEDS VERIFICATION]</c>
-/// by ear. The idea of saying the skill-name banner comes from Arcana, the Persona 3 Reload accessibility mod
+/// before this the move went unsaid. The party's own moves are named as the enemies' are (the maintainer's decision of
+/// 2026-11-24 on #954), so nothing here asks whose move it is; whether the game shows the banner for the party's moves
+/// is <c>[NEEDS VERIFICATION]</c> by ear. The idea of saying the skill-name banner comes from Arcana, the Persona 3 Reload accessibility mod
 /// (<c>ChipsAhoiMcCoy/arcana</c>, Zlib licence, <c>main</c> at <c>ed3b005f86b1cde27e30ab299ae91af3d974c988</c>,
 /// <c>src/screens/battle.cpp</c> L107-124, as docs/raw-sources/arcana-combat-navigation-2026-11-22.md describes it); no
 /// code is copied.</remarks>

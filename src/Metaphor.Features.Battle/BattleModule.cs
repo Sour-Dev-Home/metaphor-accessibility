@@ -39,6 +39,9 @@ public sealed class BattleModule : IFeatureModule
         var tableLoad = new EnemyTableLoad(enemyTables);
         context.AddControls(settings.Input(BattleFeature.BattleAffinities, tableLoad));
         context.AddControls(settings.Input(BattleFeature.BattleRewardExp, tableLoad));
+        context.AddControls(settings.Input(BattleFeature.BattleEnemyLooks, tableLoad));
+        // The mod's own descriptions of each enemy's look, by name (#699), shipped in this assembly.
+        var looks = EnemyLooks.Embedded();
         var serials = context.Serials;
         var affinities = new EnemyAffinities(
             () => enemyTables.Tables, () => hitLines.Battle, () => Environment.TickCount64,
@@ -167,7 +170,16 @@ public sealed class BattleModule : IFeatureModule
             SayPositions = () => settings.Current.IsOn(SpokenDetail.Positions),
             Units = units,
             Affinities = affinities.Says,
+            // What the enemy looks like (#699), testing: its table row's name, then the mod's description of it.
+            Looks = enemy => looks.Line(
+                enemy.Label,
+                affinities.TableIdOf(enemy) is { } id && enemyTables.Tables?.NameHashOf(id) is { } hash &&
+                serials.FindByLabelHash(MessageSerials.EnemyNames, hash) is { } serial
+                    ? serials.TextOf(serial, context.Cleaner)
+                    : null),
         };
+        context.AddControls(settings.Input(
+            BattleFeature.BattleHits, settings.Input(BattleFeature.BattleEnemyLooks, enemyHp.Look)));
         context.AddControls(settings.Input(
             BattleFeature.BattleHits, settings.Input(BattleFeature.BattleEnemyKeys, enemyHp.Keyboard)));
         context.AddControls(settings.Input(
@@ -243,6 +255,8 @@ public sealed class BattleModule : IFeatureModule
                     : hitLines.MemberSays(slot, unit, rest))
             {
                 Log = log is null ? null : text => log.Requested("BattleFormation", text),
+                // The member a swap took out, by the name the Party screen last fetched for them (#258).
+                NameOf = partyScreen.NameOf,
             }));
     }
 }
