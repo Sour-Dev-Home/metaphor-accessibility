@@ -107,6 +107,18 @@ public sealed class MenusModule : IFeatureModule
             serials, menuSpeech, cleaner, () => settings.Current.IsOn(MenusFeature.FollowerList));
         screens.Observe(followerFocus);
         events.ObserveSerials(followerFocus);
+        // The Archetype Tree's pick and each archetype it focuses, by the names fetched, while tested (#220).
+        var archetypeTree = new ArchetypeTreeFocus(
+            serials, menuSpeech, cleaner, () => settings.Current.IsOn(MenusFeature.ArchetypeTree))
+        {
+            ProtagonistName = Protagonist,
+        };
+        screens.Observe(archetypeTree);
+        events.ObserveSerials(archetypeTree);
+        context.Cursors.Observe(archetypeTree);
+        // The level-up point screen's stats, while tested (#624).
+        var levelUp = new LevelUpFocus(serials, menuSpeech, cleaner, () => settings.Current.IsOn(MenusFeature.LevelUpPoints));
+        screens.Observe(levelUp);
         context.Cursors.Observe(shopFocus);
         context.Cursors.Observe(itemFocus);
         context.Cursors.Observe(questFocus);
@@ -135,7 +147,9 @@ public sealed class MenusModule : IFeatureModule
         BattleListFocus[] battleLists =
         [
             BattleListFocus.Skills(serials, battleListSpeech, cleaner, () => Environment.TickCount64, ListViewsOn),
-            BattleListFocus.Items(serials, battleListSpeech, cleaner, () => Environment.TickCount64, ListViewsOn),
+            // The item list's tabs say their names behind their own setting while tested (#851).
+            BattleListFocus.Items(serials, battleListSpeech, cleaner, () => Environment.TickCount64, ListViewsOn,
+                () => settings.Current.IsOn(MenusFeature.BattleItemTabs)),
         ];
         foreach (var list in battleLists)
         {
@@ -150,7 +164,9 @@ public sealed class MenusModule : IFeatureModule
         });
         // The details key reads a battle list's description (#247); on a screen shown outside the menus it answers only
         // while that screen's cursor is still called.
-        var menuControls = new MenuControls(menuBindings, screens, reader, battleLists, context.Cursors.CalledRecently);
+        // The level-up screen's details are its stat's description (#624).
+        IScreenDetails[] details = [.. battleLists, levelUp];
+        var menuControls = new MenuControls(menuBindings, screens, reader, details, context.Cursors.CalledRecently);
         screens.Observe(menuControls);
         context.Cursors.Observe(slots);
         context.AddControls(settings.Input(MenusFeature.Menus, menuControls));

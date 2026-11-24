@@ -145,6 +145,15 @@ public sealed class MessageSerialsTests
         Assert.Contains(new SerialRange(MessageSerials.ArchetypeNames, 9441, 18), MessageSerials.Steam18330018);
     }
 
+    // The class names (#857, #220) and battle commands (#851), from their compiled counts and their neighbours' ranges
+    // on build 548ddc95 (docs/findings/class-name-and-battle-item-tab-serials.md).
+    [Fact]
+    public void TheBuildsTableHoldsTheClassNamesAndBattleCommands()
+    {
+        Assert.Contains(new SerialRange(MessageSerials.ClassNames, 1082, 60), MessageSerials.Steam18330018);
+        Assert.Contains(new SerialRange(MessageSerials.BattleCommandMessages, 1932, 159), MessageSerials.Steam18330018);
+    }
+
     // The quest names and quest texts (#194), as the range tests at 0x9f4b80 and 0x9f4b90 hold them on build 548ddc95
     // (docs/findings/quest-message-serials-static.md).
     [Fact]

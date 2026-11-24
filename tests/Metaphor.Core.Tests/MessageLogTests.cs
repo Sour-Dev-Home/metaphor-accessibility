@@ -161,6 +161,17 @@ public sealed class MessageLogTests
     }
 
     [Fact]
+    public void RecordsAChoicesFieldsAsHexWithItsScreenClass()
+    {
+        var (log, text) = NewLog();
+
+        log.OwnerState("BTL_ItemSelect@ope@ui@app", choice: 0x3ca2b040, at: 0x4440, bytes: "00ff01");
+
+        Assert.Equal("1500 ms owner-state screen=BTL_ItemSelect@ope@ui@app choice=0x3ca2b040 at=+0x4440 bytes=00ff01"
+            + Environment.NewLine, text.ToString());
+    }
+
+    [Fact]
     public void RecordsASettingsPagesWorkingCopyAsHex()
     {
         var (log, text) = NewLog();

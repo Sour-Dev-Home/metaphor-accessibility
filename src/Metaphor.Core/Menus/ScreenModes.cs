@@ -14,11 +14,18 @@ public static class ScreenModes
     /// values in a running game are <c>[NEEDS VERIFICATION]</c>: the by-ear check of #210.</summary>
     public const int TitleChoiceModeOffset = 0x4a8;
 
+    /// <summary><c>BTL_ItemSelect</c>, battle's item list, serves its tabs with one cursor manager. Its field at
+    /// <c>+0x44b8</c> is the tab shown, from 0, on game build 548ddc95…: its setup writes it and steps it modulo the tab
+    /// count (docs/findings/battle-item-list-tab-index-static.md, #851). Its values in a running game are
+    /// <c>[NEEDS VERIFICATION]</c>: the cursor records' <c>mode=</c> in a Debug session.</summary>
+    public const int BattleItemTabOffset = 0x44b8;
+
     /// <summary>The offset of <paramref name="screenClass"/>'s mode field, or null when the class has none known.
     /// </summary>
     public static int? FieldOffset(string? screenClass) => screenClass switch
     {
         "TitleChoice@ope@ui@app" => TitleChoiceModeOffset,
+        "BTL_ItemSelect@ope@ui@app" => BattleItemTabOffset,
         _ => null,
     };
 }
