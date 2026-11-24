@@ -36,7 +36,7 @@ public sealed class TutorialPopupsTests
 
     // The table's layout (docs/findings/tutorial-table-maps-numbers-to-labels.md), unused slots as the empty label's
     // hash.
-    private static byte[] TableBytes(params (string Title, string[] Pages)[] entries)
+    internal static byte[] TableBytes(params (string Title, string[] Pages)[] entries)
     {
         var bytes = new byte[0x10 + entries.Length * 0xe0];
         "TUTO"u8.CopyTo(bytes);
@@ -316,5 +316,45 @@ public sealed class TutorialPopupsTests
         Assert.Equal("One Thing, 1 page. Only page.", popups.OnScreen);
         popups.WindowUpdated(Other, 1, Model + 0x100, page: 0, ended: true);
         Assert.Equal("Walking About, 3 pages. Press to walk. More here.", popups.OnScreen);
+    }
+
+    // #806: a tutorial may ask for a button or menu, so its last page names the help key.
+    private TutorialPopups Hinted(string? keys) =>
+        new(library, announcer, new TextCleaner(TextCleanerRules.None), () => table, () => now) { KeyHint = () => keys };
+
+    [Fact]
+    public void AOnePagePopUpEndsWithTheHelpKey()
+    {
+        Compiled();
+
+        Hinted("F1").WindowUpdated(Window, 1, Model, page: 0, ended: false);
+
+        Assert.Equal(["One Thing, 1 page. Only page. For the mod's keys here, press F1."], Said());
+    }
+
+    [Fact]
+    public void OnlyTheLastPageOfALongerPopUpNamesTheHelpKey()
+    {
+        Compiled();
+        var hinted = Hinted("F1");
+
+        hinted.WindowUpdated(Window, 0, Model, page: 0, ended: false);
+        hinted.WindowUpdated(Window, 0, Model, page: 1, ended: false);
+        hinted.WindowUpdated(Window, 0, Model, page: 2, ended: false);
+
+        Assert.Equal(
+            ["Walking About, 3 pages. Press to walk. More here.", "Page 2 of 3. Second.",
+                "Page 3 of 3. For the mod's keys here, press F1."],
+            Said());
+    }
+
+    [Fact]
+    public void WithNoHintTheLastPageEndsWithItsText()
+    {
+        Compiled();
+
+        Hinted(null).WindowUpdated(Window, 1, Model, page: 0, ended: false);
+
+        Assert.Equal(["One Thing, 1 page. Only page."], Said());
     }
 }

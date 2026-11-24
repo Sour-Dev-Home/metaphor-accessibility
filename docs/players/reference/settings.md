@@ -91,7 +91,7 @@ Each is `true` to speak or `false` to stay quiet, inside a `speech` object: `{ "
 | `archetypeTree` | On the Archetype Tree, each character on the pick, then each archetype the cursor reaches, with its line and rank; the details key (F, or R3 on the pad) says whether it is studied or what it needs. Needs `menus`. | `true` |
 | `levelUpPoints` | The level-up screen where you spend points: its heading and each stat's name, and the stat's description on the details key. Needs `menus`. Still being tested. | testing, off |
 | `battleBanners` | The short banner during a battle turn: a boss warning, a stat change. | `true` |
-| `battleBannerNames` | Says who a battle banner is about: "Bow Scourge Malmorta cannot move due to Stun!". Off leaves the name out. Needs `battleBanners`. Still being tested. | testing, off |
+| `battleBannerNames` | Says who a battle banner is about: "Bow Scourge Malmorta cannot move due to Stun!". Off leaves the name out. Needs `battleBanners`. | `true` |
 | `battleTurnLine` | Says "Your turn" with the actions left, or "Enemy turn", as each side's turn starts in a battle. Still being tested. | testing, off |
 | `battleStart` | Says "Ambushed" when a battle starts with the enemy striking first. | `true` |
 | `battleStartStun` | As a battle starts, says how many enemies are stunned: "All 3 enemies stunned" or "1 of 3 enemies stunned". Still being tested. | testing, off |
@@ -112,6 +112,8 @@ Each is `true` to speak or `false` to stay quiet, inside a `speech` object: `{ "
 | `autosaveNotice` | "Autosaving" when the game autosaves in the field, after the dialogue or line before it. | `true` |
 | `updateNotice` | The title screen's notice of a newer version. The request itself is `checkForUpdates`. | `true` |
 | `tutorials` | Tutorial pop-ups: the title, the page count and each page. Off also leaves the repeat key to repeat dialogue, not the pop-up's page. | `true` |
+| `tutorialList` | Each tutorial's title on the System menu's Tutorials list. Needs `menus`. Still being tested. | testing, off |
+| `tutorialKeyHint` | After a tutorial pop-up's last page, how to hear the mod's keys for where you are, since a tutorial may ask for a button the mod changes. Needs `tutorials` and `keyHelp`. Still being tested. | testing, off |
 | `termNames` | The skill and condition names a line's tags stand for. Off says the tag's stand-in. | `true` |
 | `moreTermNames` | The Archetype, enemy and Royal Virtue names a line's tags stand for. Off, an Archetype says its stand-in and the others are left out. Needs `termNames`. Still being tested. | testing, off |
 | `nameStandIn` | A name a line's tag stands for that the mod can't read said as "name", rather than left out. Still being tested. | testing, off |
@@ -122,6 +124,7 @@ Each is `true` to speak or `false` to stay quiet, inside a `speech` object: `{ "
 | `dialogueKeys` | In dialogue, the keys that stop the speech, say who is speaking and say the line on screen, with the reader on or off. | `true` |
 | `messageLog` | The game's message log, the backlog of recent dialogue, saying its name and each line's position as you move through it. The lines' words are still to come. Still being tested. | testing, off |
 | `narration` | The day count ("1 day remains") and the narration that opens a place, said without a speaker, after the line being said rather than over it. Needs `dialogue`. Still being tested. | testing, off |
+| `movieSubtitles` | The subtitles of animated cutscenes, such as the opening movie, said without a speaker, after the line being said rather than over it. Needs `dialogue`. Still being tested. | testing, off |
 | `welcome` | The welcome on the title screen the first time the game starts with the mod: the mod's version and the field keys. | `true` |
 | `settingsMenu` | The mod's own settings menu, opened with F2, or LT and RT held then View on the pad, on any screen. Up and Down move, Left and Right change the setting and save it at once, F or R3 says what it does, and Escape or B closes. While it is open the game gets no keys or buttons. | `true` |
 | `keyHelp` | The help key, F1, or LT and RT held then Y on the pad: says the mod's keys that work where you are now, with their current bindings. | `true` |

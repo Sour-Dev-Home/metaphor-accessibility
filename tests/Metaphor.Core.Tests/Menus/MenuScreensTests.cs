@@ -159,6 +159,25 @@ public sealed class MenuScreensTests
         Assert.Equal([ScreenChange.Entered], seen.Select(change => change.Change));
     }
 
+    // #806: a list that keeps a number per row (the tutorial list) changes it on a tab change with the row unmoved; the
+    // new number is a focus move, and each event carries it.
+    [Fact]
+    public void ARowNumberChangingOnTheSameItemIsAFocusMove()
+    {
+        var (screens, seen) = Watched();
+
+        screens.Observe(new CursorInput(0xa0, 0x100, Command: 0x1, Result: 1, Top: 0, Row: 0, Flags: 0x46, ItemClass,
+            Count: 3, RowId: 11));
+        screens.Observe(new CursorInput(0xa0, 0x100, Command: 0x1, Result: 1, Top: 0, Row: 0, Flags: 0x46, ItemClass,
+            Count: 3, RowId: 11));
+        screens.Observe(new CursorInput(0xa0, 0x100, Command: 0x1, Result: 1, Top: 0, Row: 0, Flags: 0x46, ItemClass,
+            Count: 5, RowId: 40));
+
+        Assert.Equal(
+            [(ScreenChange.Entered, 11), (ScreenChange.FocusMoved, 40)],
+            seen.Select(change => (change.Change, change.RowId ?? -1)));
+    }
+
     // #563: a grid cursor's events carry its cells, so a feature can say the column; repeating keeps it.
     [Fact]
     public void EachEventCarriesTheGridOfTheInputBehindIt()

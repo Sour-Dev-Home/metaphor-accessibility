@@ -31,5 +31,7 @@ speech.shopMenu | Shop menu | on | done
 speech.skipSceneQuestion | Skip scene question | off | testing
 speech.systemMenu | System menu | on | done
 speech.travelMap | Travel map | on | done
+speech.tutorialKeyHint | Tutorial key hint | off | testing
+speech.tutorialList | Tutorial list | off | testing
 speech.tutorials | Tutorials | on | done
 speech.welcome | Welcome | on | done

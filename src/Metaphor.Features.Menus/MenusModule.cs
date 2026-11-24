@@ -213,8 +213,18 @@ public sealed class MenusModule : IFeatureModule
         // window's speech, so closing that window doesn't stop them. While one is up, the dialogue's repeat binding says
         // its page again (by-ear finding of 2026-11-21), unless the tutorials' setting is off.
         var tutorials = context.Tutorials;
+        // A pop-up's last page names the help key, while tested and while that key is on (#806).
         var tutorialPopups = new TutorialPopups(
-            library, settings.Speech(MenusFeature.Tutorials, reader), cleaner, () => tutorials.Table);
+            library, settings.Speech(MenusFeature.Tutorials, reader), cleaner, () => tutorials.Table)
+        {
+            KeyHint = () => settings.Current is var now && now.IsOn(MenusFeature.TutorialKeyHint)
+                && now.IsOn(MenusFeature.KeyHelp)
+                    ? MenuKeys.Help.Keys(now)
+                    : null,
+        };
+        // The System tutorial list's rows by the titles their pop-ups say, while tested (#806); off, positions.
+        screens.Observe(new TutorialListFocus(
+            library, menuSpeech, cleaner, () => tutorials.Table, () => settings.Current.IsOn(MenusFeature.TutorialList)));
         context.Provide(tutorialPopups);
         context.Provide(new PopupOnScreen(
             () => settings.Current.IsOn(MenusFeature.Tutorials) ? tutorialPopups.OnScreen : null));

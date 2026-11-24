@@ -1,6 +1,6 @@
 speech.battleAffinities | Battle affinities | on | done
 speech.battleAffinitiesFoundOnly | Battle affinities found only | on | done
-speech.battleBannerNames | Battle banner names | off | testing
+speech.battleBannerNames | Battle banner names | on | done
 speech.battleBanners | Battle banners | on | done
 speech.battleEnd | Battle end | off | testing
 speech.battleEnemyKeys | Battle enemy keys | on | done
