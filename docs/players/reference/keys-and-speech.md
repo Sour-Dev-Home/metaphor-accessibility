@@ -27,6 +27,8 @@ usual job in the game.
 | Say every enemy's HP in one line (testing) | `L` | `LB` held, then D-pad `Left` | In a battle |
 | Say the party's HP and MP (testing) | `M` | none yet | In a battle |
 | Note a moment for your report ([mark key](#mark-key-note-a-moment-for-your-report)) | `F8` | none | Anywhere in the game |
+| Open or close the mod's settings ([settings menu](#settings-menu-change-a-setting-by-ear), testing) | `F2` | `LT` and `RT` held, then `View` | Anywhere in the game |
+| Say the mod's keys that work here (testing) | `F1` | `LT` and `RT` held, then `Y` | Anywhere in the game |
 
 The first rows are in the code on `main` and in `v0.0.1-unstable.3`. Coming: a key that reads back a name you typed, and
 spoken details for menu entries. Until details arrive, the menu key says "No more details".
@@ -43,6 +45,16 @@ mark key in the settings file.
 The mod also lists in the same log each screen and each menu move it said nothing for, by the screen's name inside the
 game's code, the position and the list's length, at most 200 a session. Both only write to the log; nothing is sent
 anywhere.
+
+### Settings menu: change a setting by ear
+
+While it is being tested, turn it on once in the settings file with `{ "speech": { "settingsMenu": true } }`
+([settings](settings.md)). Then press `F2`, or hold `LT` and `RT` and press `View`, on any screen. The mod says "Mod
+settings", the section and the first setting. `Up` and `Down` move, and each setting says its name and value. `Left`
+and `Right` change it, with `Shift` for bigger steps on a number, and the mod saves it to `settings.json` at once and
+says "saved". `F` or `R3` says what the setting does. `Page Down` and `Page Up`, or `RB` and `LB`, jump to the next or
+previous section. Keys are listed too, but are changed in the file for now. `Escape` or `B` closes the menu. While it is
+open, the game gets none of your keys or buttons. `[NEEDS VERIFICATION]` By ear in the game.
 
 ## What is spoken where
 

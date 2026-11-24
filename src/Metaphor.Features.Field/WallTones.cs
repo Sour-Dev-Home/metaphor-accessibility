@@ -25,14 +25,29 @@ public readonly record struct WallLimits(int RangeUnits, int Volume)
     /// than the sonar's nearest ping.</summary>
     public static WallLimits Default { get; } = new(300, 50);
 
-    /// <summary>The limits the settings file's <c>limits.field</c> object gives: the range kept within 50 to 2000, the
-    /// volume 0 to 100, each missing one the default.</summary>
+    /// <summary>The range's slider (#754): 50 to 2000 units, in steps of 50.</summary>
+    public static SliderLimit Range { get; } = new("field", "wallRange", Default.RangeUnits, 50, 2000, 50)
+    {
+        Spoken = "Wall tone range",
+        Description = "How near a wall comes before its tone starts (`wallTones`), in the game's units, about 100 a " +
+            "step.",
+        Order = 40,
+    };
+
+    /// <summary>The volume's slider: 0 to 100, in steps of 5.</summary>
+    public static SliderLimit Loudness { get; } = new("field", "wallVolume", Default.Volume, 0, 100, 5)
+    {
+        Spoken = "Wall tone volume",
+        Description = "How loud a wall tone is right at the wall.",
+        Order = 50,
+    };
+
+    /// <summary>The limits the settings file's <c>limits.field</c> object gives, each kept within its slider's range,
+    /// each missing one the default.</summary>
     public static WallLimits From(ModSettings settings)
     {
         ArgumentNullException.ThrowIfNull(settings);
-        return new(
-            Math.Clamp(settings.Limit("field", "wallRange", Default.RangeUnits), 50, 2000),
-            Math.Clamp(settings.Limit("field", "wallVolume", Default.Volume), 0, 100));
+        return new(Range.From(settings), Loudness.From(settings));
     }
 }
 

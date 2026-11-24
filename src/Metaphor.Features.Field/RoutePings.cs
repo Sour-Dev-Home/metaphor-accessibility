@@ -28,12 +28,20 @@ public readonly record struct RoutePingLimits(int Volume)
     /// <summary>The default: as loud as the sonar's nearest ping.</summary>
     public static RoutePingLimits Default { get; } = new(Sonar.NearVolume);
 
+    /// <summary>The volume's slider (#754): 0 to 100, in steps of 5.</summary>
+    public static SliderLimit Loudness { get; } = new("field", "routePingVolume", Default.Volume, 0, 100, 5)
+    {
+        Spoken = "Route ping volume",
+        Description = "How loud a route ping is from a place in reach (`routePings`); farther places are quieter.",
+        Order = 60,
+    };
+
     /// <summary>The limit the settings file's <c>limits.field</c> object gives, kept within 0 to 100, or the default.
     /// </summary>
     public static RoutePingLimits From(ModSettings settings)
     {
         ArgumentNullException.ThrowIfNull(settings);
-        return new(Math.Clamp(settings.Limit("field", "routePingVolume", Default.Volume), 0, 100));
+        return new(Loudness.From(settings));
     }
 }
 

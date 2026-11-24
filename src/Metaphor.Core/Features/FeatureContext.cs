@@ -20,6 +20,7 @@ public sealed class FeatureContext
 {
     private readonly List<IInputControls> controls = [];
     private readonly List<Func<int>> shoulderHolds = [];
+    private readonly List<KeyEntry> keys = [];
     private readonly Dictionary<Type, object> ports = [];
 
     /// <summary>The settings in force, and the gates each feature speaks and takes keys through (#661).</summary>
@@ -108,6 +109,21 @@ public sealed class FeatureContext
     /// <summary>Opens the game's archive read-only (#690).</summary>
     public required Func<Stream> OpenArchive { get; init; }
 
+    /// <summary>The settings file, for the settings menu to change (#754); none unless the hook layer has one.</summary>
+    public ISettingsStore SettingsStore { get; init; } = new NoSettingsStore();
+
+    /// <summary>Every mod key the modules registered, in the order they were added (<see cref="AddKeys"/>).</summary>
+    public IReadOnlyList<KeyEntry> Keys => keys;
+
+    /// <summary>Lists mod keys for the help key and the settings menu's key list (#868, #754), each said only while
+    /// its feature is on and the player is where it works. A module lists every key its controls read, so the help
+    /// can't drift from the bindings.</summary>
+    public void AddKeys(IEnumerable<KeyEntry> added)
+    {
+        ArgumentNullException.ThrowIfNull(added);
+        keys.AddRange(added);
+    }
+
     /// <summary>The controls, in the order each input read reaches them.</summary>
     public IReadOnlyList<IInputControls> Controls => controls;
 
@@ -123,7 +139,7 @@ public sealed class FeatureContext
     public IReadOnlyList<Func<int>> ShoulderHolds => shoulderHolds;
 
     /// <summary>Adds a hold for the shoulder taps (#811, <see cref="ShoulderTaps"/>): <paramref name="held"/> says
-    /// which of LB and RB the feature's chords use right now, 0 for none, asked as a shoulder goes down and as it's let
+    /// which of LB, RB, LT and RT (#754) the feature's chords use right now, 0 for none, asked as a shoulder goes down and as it's let
     /// go. A feature gates it on its own setting.</summary>
     public void AddShoulderHold(Func<int> held)
     {

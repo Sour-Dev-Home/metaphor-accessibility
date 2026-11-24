@@ -55,11 +55,25 @@ public interface IPadWatcher
     void Pad(int pad, int buttons, bool made);
 }
 
+/// <summary>What keeps every read from the game (#754): the settings menu while it is open, and the keys or buttons
+/// that closed it until they are let go. Asked after the controls have taken the read, so the read that opens the menu
+/// is already kept.</summary>
+public interface IInputBlock
+{
+    /// <summary>Whether the game gets no pad buttons.</summary>
+    bool BlocksPad { get; }
+
+    /// <summary>Whether the game gets no keys.</summary>
+    bool BlocksKeys { get; }
+}
+
 /// <summary>What the frame hands the game for one pad read, and the window read it was decided on.</summary>
 public readonly record struct PadAnswer(int Buttons, long? Window);
 
-/// <summary>What the frame hands the game for one keyboard read, and the window read it was decided on.</summary>
-public readonly record struct KeysAnswer(IReadOnlyList<int> Keys, long? Window);
+/// <summary>What the frame hands the game for one keyboard read, and the window read it was decided on.
+/// <paramref name="Blocked"/> says every key is kept from the game (#754), the fixed keys too (Escape, the arrows,
+/// Enter: the mask the game keeps beside its key list, docs/raw-sources/pad-and-keyboard-state-2026-11-16.md).</summary>
+public readonly record struct KeysAnswer(IReadOnlyList<int> Keys, long? Window, bool Blocked = false);
 
 /// <summary>The per-frame input rules (#301), behind the pad and keyboard hooks: on each read it hands the dialogue
 /// controls a read of the window and the menu screens a read of whether the menus are open, then the read to the menu
@@ -80,6 +94,7 @@ public sealed class InputFrame
     private readonly LastInputDevice? lastDevice;
     private readonly Func<bool>? typing;
     private readonly ShoulderTaps? taps;
+    private readonly IInputBlock? block;
 
     public InputFrame(IGameInputState game, MenuScreens screens, IInputControls menus, IWindowInputControls dialogue)
         : this(game, screens, menus, dialogue, NoControls)
@@ -107,13 +122,16 @@ public sealed class InputFrame
     /// that type a character reach no control and always reach the game, so a name with a T in it doesn't turn the
     /// reader off (#807); other keys, such as F8, go to the controls as usual. <paramref name="taps"/>, when given, takes
     /// each pad read after the controls: they see a held shoulder, the game a tap of it on release (#811), and once it
-    /// is handed to the game as a hold the controls stop seeing it (#835).</summary>
+    /// is handed to the game as a hold the controls stop seeing it (#835). While <paramref name="block"/> says so, the
+    /// game gets nothing from a read, after the controls have taken it (#754).</summary>
     public InputFrame(
         IGameInputState game, MenuScreens screens, IReadOnlyList<IInputControls> controls, IKeyWatcher? watcher,
-        IPadWatcher? padWatcher, LastInputDevice? lastDevice, Func<bool>? typing = null, ShoulderTaps? taps = null)
+        IPadWatcher? padWatcher, LastInputDevice? lastDevice, Func<bool>? typing = null, ShoulderTaps? taps = null,
+        IInputBlock? block = null)
     {
         this.typing = typing;
         this.taps = taps;
+        this.block = block;
         ArgumentNullException.ThrowIfNull(game);
         ArgumentNullException.ThrowIfNull(screens);
         ArgumentNullException.ThrowIfNull(controls);
@@ -140,7 +158,7 @@ public sealed class InputFrame
             handed = control.Pad(pad, handed, made);
         }
         handed &= buttons;
-        return new(shoulders.Game(handed), window);
+        return made && block?.BlocksPad == true ? new(0, window) : new(shoulders.Game(handed), window);
     }
 
     /// <summary>Takes one read of the keys held down and returns the keys to hand the game: <paramref name="keys"/>
@@ -161,7 +179,7 @@ public sealed class InputFrame
         {
             handed = control.Keys(handed);
         }
-        return new(Kept(keys, handed, typed), window);
+        return block?.BlocksKeys == true ? new([], window, Blocked: true) : new(Kept(keys, handed, typed), window);
     }
 
     /// <summary>Whether a key types a character in a name: the letters, the digits and the brackets, the bindable keys

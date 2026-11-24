@@ -13,6 +13,13 @@ public sealed class FieldModule : IFeatureModule
 {
     public IEnumerable<Enum> Settings => Enum.GetValues<FieldFeature>().Select(feature => (Enum)feature);
 
+    // The field's sliders, and the volumes of the two kinds of sound only the field plays.
+    public IEnumerable<SliderLimit> Limits =>
+    [
+        TiltLimits.Down, TiltLimits.Up, TiltLimits.Margin, WallLimits.Range, WallLimits.Loudness,
+        RoutePingLimits.Loudness, CueVolumes.Sonar, Sonar.PingsPerSweep, CueVolumes.Guidance,
+    ];
+
     public void Register(FeatureContext context)
     {
         ArgumentNullException.ThrowIfNull(context);
@@ -89,6 +96,7 @@ public sealed class FieldModule : IFeatureModule
             field, context.Cues, settings.Speech(FieldFeature.EnemyAwareness, context.Announcer),
             () => Environment.TickCount64, () => settings.Current.IsOn(FieldFeature.EnemyAwareness),
             log is null ? null : log.FieldRead));
+        context.AddKeys(FieldKeys.All);
         // LB and RB held back in free roam until let go, so the reader's and the list's chords open no screen (#811),
         // testing.
         var shoulders = new FieldShoulderHold(

@@ -42,6 +42,43 @@ public static class BindingNames
         ["DpadRight"] = 0x0020,
     }.ToFrozenDictionary(StringComparer.OrdinalIgnoreCase);
 
+    // How the help key and the settings menu say each button (#868): the controller's own names where the file's
+    // differ (Back is View, Start is Menu, the stick presses L3 and R3), in the file's order.
+    private static readonly (string Name, string Said)[] SaidButtons =
+    [
+        ("LB", "LB"), ("RB", "RB"), ("LT", "LT"), ("RT", "RT"), ("A", "A"), ("B", "B"), ("X", "X"), ("Y", "Y"),
+        ("Start", "Menu"), ("Back", "View"), ("LS", "L3"), ("RS", "R3"), ("DpadUp", "D-pad up"),
+        ("DpadDown", "D-pad down"), ("DpadLeft", "D-pad left"), ("DpadRight", "D-pad right"),
+    ];
+
+    /// <summary>A key's code as said: its name in the file ("R", "F8"), the brackets as words; null for none.
+    /// </summary>
+    public static string? SpokenKey(int code)
+    {
+        if (code == 0)
+        {
+            return null;
+        }
+        if (code == 0xDB)
+        {
+            return "left bracket";
+        }
+        if (code == 0xDD)
+        {
+            return "right bracket";
+        }
+        return KeyCodes.FirstOrDefault(pair => pair.Value == code).Key
+            ?? string.Create(CultureInfo.InvariantCulture, $"key {code}");
+    }
+
+    /// <summary>A pad mask as said, its buttons joined by "and": "LT and RT"; null for none.</summary>
+    public static string? SpokenButtons(int mask)
+    {
+        var said = SaidButtons.Where(button => (ButtonBits[button.Name] & mask) != 0).Select(button => button.Said)
+            .ToList();
+        return said.Count == 0 ? null : string.Join(" and ", said);
+    }
+
     /// <summary>Whether a binding named <paramref name="name"/> in the file holds pad buttons rather than a key: its
     /// name ends in <c>Button</c> or <c>Buttons</c>.</summary>
     public static bool IsButtons(string name) =>

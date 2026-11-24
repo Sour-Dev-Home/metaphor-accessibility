@@ -10,13 +10,29 @@ namespace Metaphor.Core.Cues;
 public static class CueVolumes
 {
     /// <summary>The field sonar's pings (#827).</summary>
-    public static SliderLimit Sonar { get; } = new("cues", "sonarVolume", 100, 0, 100, 5);
+    public static SliderLimit Sonar { get; } = new("cues", "sonarVolume", 100, 0, 100, 5)
+    {
+        Spoken = "Sonar volume",
+        Description = "How loud the field sonar's pings are, as a share of `soundCueVolume` (the master). Wall tones " +
+            "and route pings have their own, `field.wallVolume` and `field.routePingVolume`.",
+        Order = 80,
+    };
 
     /// <summary>The guidance beep toward a nearby thing (#183).</summary>
-    public static SliderLimit Guidance { get; } = new("cues", "guidanceVolume", 100, 0, 100, 5);
+    public static SliderLimit Guidance { get; } = new("cues", "guidanceVolume", 100, 0, 100, 5)
+    {
+        Spoken = "Guidance beep volume",
+        Description = "How loud the guidance beep is, as a share of `soundCueVolume`.",
+        Order = 100,
+    };
 
     /// <summary>The one-shot cues, such as the hit sounds and the mark sound.</summary>
-    public static SliderLimit Other { get; } = new("cues", "otherVolume", 100, 0, 100, 5);
+    public static SliderLimit Other { get; } = new("cues", "otherVolume", 100, 0, 100, 5)
+    {
+        Spoken = "Other sounds volume",
+        Description = "How loud the one-shot sounds are (hits and the mark sound), as a share of `soundCueVolume`.",
+        Order = 110,
+    };
 
     /// <summary>The volume, 0 to 100, <paramref name="settings"/> give the kind of sound on <paramref name="channel"/>;
     /// 100 for a channel whose kind has its own level in the field's limits.</summary>

@@ -1,3 +1,4 @@
+using Metaphor.Core.Cues;
 using Metaphor.Core.Features;
 using Metaphor.Core.Input;
 using Metaphor.Core.Menus;
@@ -17,6 +18,10 @@ public sealed class MenusModule : IFeatureModule
     public IEnumerable<Enum> Settings =>
         [.. Enum.GetValues<MenusFeature>().Select(feature => (Enum)feature), SpokenDetail.Positions];
 
+    // Core's sliders that no one feature owns: the shoulder tap length (the field's and the battle's chords) and the
+    // one-shot sounds' volume (hits and the mark sound).
+    public IEnumerable<SliderLimit> Limits => [ShoulderTapLimits.TapLength, CueVolumes.Other];
+
     public void Register(FeatureContext context)
     {
         ArgumentNullException.ThrowIfNull(context);
@@ -34,6 +39,7 @@ public sealed class MenusModule : IFeatureModule
         {
             context.AddControls(new MarkKey(() => settings.Current, context.Cues, report));
         }
+        RegisterSettingsMenu(context);
         // Menus speak through the reader (#214), and their controls toggle it with the dialogue's binding.
         var menuSpeech = settings.Speech(MenusFeature.Menus, reader);
         screens.Observe(new TitleMenuFocus(library, menuSpeech, cleaner));
@@ -161,6 +167,40 @@ public sealed class MenusModule : IFeatureModule
         context.Provide(new TravelMapDestination(
             context.FilesById, settings.Speech(MenusFeature.TravelMap, reader), cleaner, () => Environment.TickCount64));
         context.Provide(new FieldMapName(settings.Speech(MenusFeature.PlaceNames, reader), cleaner));
+    }
+
+    // The mod's settings menu (#754) and the help key (#868), while tested, after the mark key: the help first, so it
+    // answers in the menu too, then the menu, which keeps each read from every later control and, through the input
+    // block, from the game while it's open. Both speak straight to speech, not through the reader switch, so they
+    // work with the reader off. Their chord's triggers are held back while either is on (#754).
+    private static void RegisterSettingsMenu(FeatureContext context)
+    {
+        var settings = context.Settings;
+        context.AddKeys(MenuKeys.All);
+        var menuKeys = settings.Live(SettingsMenuBindings.From);
+        var editor = new SettingsEditor(context.SettingsStore, settings);
+        var settingsMenu = new SettingsMenu(
+            () => PlayerSettings.Rows(
+                settings.Catalogue, SettingsMenu.KeyRows(context.Keys),
+                feature => feature is MenusFeature.SettingsMenu),
+            () => settings.Current, editor.Set, settings.Speech(MenusFeature.SettingsMenu, context.Announcer),
+            menuKeys, settings.Live(now => MenuBindings.From(now, 0, 0)),
+            () => settings.Current.IsOn(MenusFeature.SettingsMenu),
+            () => settings.Current.IsOn(SpokenDetail.Positions));
+        var menuOpen = ShoulderTaps.MenuOpen(context.Screens, context.Cursors);
+        var battle = context.BattleScene;
+        var help = new KeyHelp(
+            context.Keys, () => settings.Current, settings.Speech(MenusFeature.KeyHelp, context.Announcer), menuKeys,
+            () => settingsMenu.IsOpen
+                ? KeyPlaces.SettingsMenu
+                : (menuOpen() ? KeyPlaces.Menu : KeyPlaces.None) | (battle.InBattle() ? KeyPlaces.Battle : KeyPlaces.None));
+        context.AddControls(settings.Input(MenusFeature.KeyHelp, help));
+        context.AddControls(settings.Input(MenusFeature.SettingsMenu, settingsMenu));
+        context.Provide<IInputBlock>(settingsMenu);
+        context.AddShoulderHold(() =>
+            settings.Current.IsOn(MenusFeature.SettingsMenu) || settings.Current.IsOn(MenusFeature.KeyHelp)
+                ? menuKeys().ChordButtons & ShoulderTaps.Holdable
+                : 0);
     }
 }
 
