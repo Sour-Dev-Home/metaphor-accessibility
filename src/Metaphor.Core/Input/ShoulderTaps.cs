@@ -8,13 +8,12 @@ namespace Metaphor.Core.Input;
 /// mod's chords use a shoulder, that shoulder is kept from the game from the read it goes down, unless a menu is open,
 /// where the shoulders page the game's tabs and reach it at once (#835). Another button going down while it's held, the
 /// other shoulder too, makes it the mod's chord: the game never sees the shoulder, nor that button until it is let go
-/// (#811), and the shoulder is never handed over however long it's held (#835). Let go
-/// with no chord, it reaches the game as a tap: held down from the release read for at least <see cref="TapReads"/>
-/// reads and the tap length, then let go. Held alone for the hold delay (#835, both in <see cref="ShoulderTapLimits"/>),
-/// it is handed to the game as a hold from that read until let go, so the game's held paging works; from then the
-/// controls no longer see it, so no mod chord forms on it, and every press reaches the game until it is let go. The
-/// holds are asked at the press, which decides, and again at the release or the hand-over, so a shoulder is dropped
-/// rather than handed to a screen it wasn't pressed on. Each pad keeps its own state
+/// (#811). Let go with no chord, it reaches the game as a tap: held down from the release read for at least
+/// <see cref="TapReads"/> reads and the tap length (<see cref="ShoulderTapLimits"/>), then let go. A held shoulder is
+/// never handed to the game while held, however long it's held alone (#835, the maintainer's decision of 2026-11-23),
+/// so it can stay down while a chord's other button is pressed again and again. The holds are asked at the press, which
+/// decides, and again at the release, so a tap is dropped rather than handed to a screen it wasn't pressed on. Each pad
+/// keeps its own state
 /// (Steam Input's second pad reads apart, #225), and a read the game reports as not made changes nothing. Safe to call
 /// from any of the game's threads; the holds are asked under its lock, so they must not call back into it.</summary>
 /// <remarks>How many reads the game needs to see a button down to act on it is <c>[NEEDS VERIFICATION]</c>: the pad is
@@ -96,7 +95,7 @@ public sealed class ShoulderTaps
     public int Pad(int pad, int buttons, int handed, bool made) => Read(pad, buttons, made).Game(handed);
 
     /// <summary>Takes one read of <paramref name="pad"/>, <paramref name="buttons"/> as the game read them, before the
-    /// controls see it, and says what the controls see and what the game gets. A read not made changes nothing.
+    /// controls see it, and says what the game gets. A read not made changes nothing.
     /// </summary>
     public ShoulderRead Read(int pad, int buttons, bool made)
     {
@@ -134,15 +133,9 @@ public sealed class ShoulderTaps
                 state.TapReads++;
             }
         }
-        // A handed-over shoulder is the game's until let go, and while one is, so is every other press. A chord's other
-        // button is kept from the game until it is let go, even after the shoulder (#811).
-        state.Over &= buttons;
+        // A chord's other button is kept from the game until it is let go, even after the shoulder (#811).
         state.Swallowed &= buttons;
         var shouldersDown = down & Shoulders;
-        if (state.Over != 0)
-        {
-            return new(state.Swallowed, state.Tap | state.Over, state.Over);
-        }
         if (state.Held == 0)
         {
             var back = shouldersDown == 0 || menuOpen() ? 0 : shouldersDown & Holds();
@@ -150,7 +143,6 @@ public sealed class ShoulderTaps
             {
                 state.Held = back;
                 state.Pressed = back;
-                state.HeldFrom = now;
                 // Both shoulders at once, or another button on the same read, is a chord already.
                 state.Chord = back != down || back == Shoulders;
                 state.Swallowed |= down & ~Shoulders;
@@ -160,9 +152,8 @@ public sealed class ShoulderTaps
         {
             if (down != 0)
             {
-                // A chord: from here the shoulder is never handed over until it is let go, however long it's held
-                // (#835), and the button that made it never reaches the game (#811): the game would act on the D-pad
-                // alone (quick save, the memorandum).
+                // A chord: the button that made it never reaches the game (#811), which would act on the D-pad alone
+                // (quick save, the memorandum).
                 state.Chord = true;
                 state.Swallowed |= down & ~Shoulders;
             }
@@ -187,19 +178,7 @@ public sealed class ShoulderTaps
                 state.Chord = false;
             }
         }
-        if (state.Held != 0 && !state.Chord && now - state.HeldFrom >= timing.HoldDelayMilliseconds)
-        {
-            // Held alone past the delay: the game's from this read, asked again as at a release.
-            var over = state.Held & Holds();
-            if (over != 0)
-            {
-                state.Over = over;
-                state.Held = 0;
-                state.Pressed = 0;
-                return new(state.Swallowed, state.Tap | over, over);
-            }
-        }
-        return new(state.Held | state.Swallowed, state.Tap, 0);
+        return new(state.Held | state.Swallowed, state.Tap);
     }
 
     private int Holds()
@@ -228,25 +207,17 @@ public sealed class ShoulderTaps
 
         public long TapFrom { get; set; }
 
-        public long HeldFrom { get; set; }
-
-        public int Over { get; set; }
-
         public int Swallowed { get; set; }
     }
 }
 
 /// <summary>What one pad read of <see cref="ShoulderTaps"/> decided: the buttons kept from the game
-/// (<see cref="HeldBack"/>: a held shoulder, and a chord's other button, #811), those put in for it (<see cref="Added"/>: a tap being replayed, or a shoulder handed over
-/// as a hold), and those handed over (<see cref="HandedOver"/>), which the controls no longer see, so no chord forms on
-/// them (#835).</summary>
-public readonly record struct ShoulderRead(int HeldBack, int Added, int HandedOver)
+/// (<see cref="HeldBack"/>: a held shoulder, and a chord's other button, #811) and those put in for it
+/// (<see cref="Added"/>: a tap being replayed).</summary>
+public readonly record struct ShoulderRead(int HeldBack, int Added)
 {
     /// <summary>A read that changes nothing.</summary>
-    public static ShoulderRead None { get; } = new(0, 0, 0);
-
-    /// <summary>The buttons the controls see of <paramref name="buttons"/>.</summary>
-    public int Controls(int buttons) => buttons & ~HandedOver;
+    public static ShoulderRead None { get; } = new(0, 0);
 
     /// <summary>What the game gets, from <paramref name="handed"/>, the buttons the controls handed on.</summary>
     public int Game(int handed) => (handed & ~HeldBack) | Added;

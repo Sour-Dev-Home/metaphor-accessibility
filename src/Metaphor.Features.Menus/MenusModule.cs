@@ -58,8 +58,10 @@ public sealed class MenusModule : IFeatureModule
         screens.Observe(titleQuestion);
         events.ObserveChoices(yesNo);
         events.ObserveSelects(yesNo);
-        // The cutscene's skip menu (#809) isn't wired: its layout's one animation is the close, and nothing the mod reads
-        // in a Release build marks the open (SkipSceneQuestion), so it would speak as the player leaves.
+        // The cutscene's skip menu (#809) says its question on its component's show request, not on its layout's one
+        // animation, which is the close, while tested.
+        context.MoviePause.Observe(new SkipSceneQuestion(
+            settings.Speech(MenusFeature.SkipSceneQuestion, reader), context.LastDevice));
         screens.Observe(new DifficultyFocus(library, menuSpeech, cleaner));
         screens.Observe(new SettingsFocus(library, menuSpeech, cleaner)
         {

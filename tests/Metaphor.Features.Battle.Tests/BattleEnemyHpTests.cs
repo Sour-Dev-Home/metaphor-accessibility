@@ -338,18 +338,19 @@ public sealed class BattleEnemyHpTests
         Assert.Empty(Said());
     }
 
-    // #835: LB held alone past the hold delay reaches the game as a hold, so held paging in battle menus works.
+    // #835, the maintainer's decision of 2026-11-23: LB held alone is never handed to the game, however long, so it
+    // can stay down while the D-pad steps the enemies; let go with no chord, it is a tap.
     [Fact]
-    public void InABattleLbHeldPastTheDelayReachesTheGameAsAHold()
+    public void InABattleLbHeldAloneForAnyTimeIsATapOnRelease()
     {
         long now = 0;
-        var taps = new ShoulderTaps([enemies.HeldShoulders], () => now, () => new ShoulderTapLimits(200, 50));
+        var taps = new ShoulderTaps([enemies.HeldShoulders], () => now);
 
         Assert.Equal(0, ChordThroughTaps(taps, LB));
-        now = 200;
-        Assert.Equal(LB, ChordThroughTaps(taps, LB));
-        now = 216;
-        Assert.Equal(0, ChordThroughTaps(taps, 0));
+        now = 5000;
+        Assert.Equal(0, ChordThroughTaps(taps, LB));
+        now = 5016;
+        Assert.Equal(LB, ChordThroughTaps(taps, 0));
         Assert.Empty(Said());
     }
 
