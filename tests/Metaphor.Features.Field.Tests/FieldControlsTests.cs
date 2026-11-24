@@ -324,7 +324,13 @@ public sealed class FieldControlsTests
     {
         Tilted("""{ "field": { "cameraTilt": true } }""").Keys([KeyL]);
 
-        Assert.Equal(["Place not known yet. Camera looking down, 45 degrees"], Said());
+        // #856: the tilt is its own queued line, so the reader pauses between it and the place and mission line.
+        Assert.Equal(
+            [
+                new Announcement("Place not known yet", Interrupt: true),
+                new Announcement("Camera looking down, 45 degrees", Interrupt: false),
+            ],
+            announcer.Said);
     }
 
     [Fact]

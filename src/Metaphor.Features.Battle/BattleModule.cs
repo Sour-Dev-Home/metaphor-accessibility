@@ -51,7 +51,10 @@ public sealed class BattleModule : IFeatureModule
         // logs each all-enemies press's enemy records for the target read.
         var enemyHp = new BattleEnemyHp(
             battleBindings, hitLines, context.BattleScene, battleSpeech,
-            log is null ? null : text => log.Requested("BattleDetails", text));
+            log is null ? null : text => log.Requested("BattleDetails", text))
+        {
+            SayMaxHp = () => settings.Current.IsOn(BattleFeature.BattleEnemyMaxHp),
+        };
         context.AddControls(settings.Input(
             BattleFeature.BattleHits, settings.Input(BattleFeature.BattleEnemyKeys, enemyHp.Keyboard)));
         context.AddControls(settings.Input(

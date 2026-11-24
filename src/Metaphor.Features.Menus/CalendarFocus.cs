@@ -42,7 +42,7 @@ public sealed class CalendarFocus : IScreenObserver
         {
             return;
         }
-        var day = change.Total is { } total ? $"{change.Index + 1} of {total}" : $"{change.Index + 1}";
+        var day = change.Position();
         var said = $"{Weekdays[change.Index % Weekdays.Length]}, day {day}";
         if (change.Change == ScreenChange.Entered)
         {

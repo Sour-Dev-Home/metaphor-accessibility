@@ -154,10 +154,9 @@ public sealed class EquipmentFocus : IScreenObserver, ISerialResolveObserver, IC
     // "<names>, n of total", each name left out when it isn't known.
     private string Line(ScreenEvent change)
     {
-        var position = ListFocus.Position(change);
         if (serials is null)
         {
-            return position;
+            return change.Positioned();
         }
         int?[] names;
         lock (gate)
@@ -169,10 +168,6 @@ public sealed class EquipmentFocus : IScreenObserver, ISerialResolveObserver, IC
                 : [];
         }
         var protagonist = change.Screen == Characters && change.Index == 0 ? ProtagonistName?.Invoke() : null;
-        var said = names.Select(serial => serial is { } known ? serials.TextOf(known, cleaner!) : null)
-            .Prepend(protagonist)
-            .OfType<string>()
-            .Append(position);
-        return string.Join(", ", said);
+        return change.Positioned([protagonist, .. names.Select(serial => serial is { } known ? serials.TextOf(known, cleaner!) : null)]);
     }
 }

@@ -60,7 +60,7 @@ public sealed class FollowerFocus : IScreenObserver, ISerialResolveObserver, ICu
         {
             return;
         }
-        var line = ListFocus.Position(change);
+        var line = change.Positioned();
         if (on() && rows.SerialAt(change.Index) is { } serial && serials.TextOf(serial, cleaner) is { } name)
         {
             int? archetype;
@@ -69,7 +69,7 @@ public sealed class FollowerFocus : IScreenObserver, ISerialResolveObserver, ICu
                 archetype = archetypeOf.TryGetValue(serial, out var found) ? found : null;
             }
             var kind = archetype is { } known ? serials.TextOf(known, cleaner) : null;
-            line = kind is null ? $"{name}, {line}" : $"{name}, {kind}, {line}";
+            line = change.Positioned(name, kind);
         }
         announcer.Announce(new Announcement(line, Interrupt: true));
     }

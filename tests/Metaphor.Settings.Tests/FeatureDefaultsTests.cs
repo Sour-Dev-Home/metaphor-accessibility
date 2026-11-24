@@ -40,6 +40,7 @@ public sealed class FeatureDefaultsTests
             .. Enum.GetValues<DialogueFeature>().Select(feature => (Enum)feature),
             .. Enum.GetValues<FieldFeature>().Select(feature => (Enum)feature),
             .. Enum.GetValues<MenusFeature>().Select(feature => (Enum)feature),
+            SpokenDetail.Positions,
             .. Enum.GetValues<UpdatesFeature>().Select(feature => (Enum)feature),
         ];
 

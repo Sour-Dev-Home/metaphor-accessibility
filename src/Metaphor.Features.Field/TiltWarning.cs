@@ -1,6 +1,7 @@
 using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
 using Metaphor.Core.Announcements;
+using Metaphor.Core.Input;
 using Metaphor.Core.Settings;
 
 namespace Metaphor.Features.Field;
@@ -44,6 +45,7 @@ public sealed class TiltWarning
     private readonly IAnnouncer announcer;
     private readonly Func<long> milliseconds;
     private readonly Func<TiltLimits> limits;
+    private readonly Func<InputDevice>? lastDevice;
     private Tilt state = Tilt.Level;
     private long checkedAt;
     private bool checkedOnce;
@@ -52,7 +54,19 @@ public sealed class TiltWarning
     /// <paramref name="milliseconds"/> and reads <paramref name="limits"/> on each check, so a changed file applies at
     /// once.</summary>
     public TiltWarning(IFieldReads field, IAnnouncer announcer, Func<long> milliseconds, Func<TiltLimits> limits)
+        : this(field, announcer, milliseconds, limits, null)
     {
+    }
+
+    /// <summary>As the other constructor, and a crossing line adds "press right stick to recenter" while
+    /// <paramref name="lastDevice"/> says the last input was the controller (#828: R3 recenters the field camera,
+    /// confirmed by ear 2026-11-23, build 4d936b2). The keyboard's equivalent isn't known, so nothing is added there.
+    /// </summary>
+    public TiltWarning(
+        IFieldReads field, IAnnouncer announcer, Func<long> milliseconds, Func<TiltLimits> limits,
+        Func<InputDevice>? lastDevice)
+    {
+        this.lastDevice = lastDevice;
         ArgumentNullException.ThrowIfNull(field);
         ArgumentNullException.ThrowIfNull(announcer);
         ArgumentNullException.ThrowIfNull(milliseconds);
@@ -140,10 +154,11 @@ public sealed class TiltWarning
             return null;
         }
         state = next;
+        var recenter = lastDevice?.Invoke() == InputDevice.Controller ? ", press right stick to recenter" : "";
         return next switch
         {
-            Tilt.Down => "Camera looking down",
-            Tilt.Up => "Camera looking up",
+            Tilt.Down => "Camera looking down" + recenter,
+            Tilt.Up => "Camera looking up" + recenter,
             _ => "Camera level",
         };
     }

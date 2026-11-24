@@ -28,6 +28,10 @@ public sealed record MenuBindings(int DetailsButtons, int DetailsKey)
     /// </summary>
     public static MenuBindings Default { get; } = new(0x0004, 0x46);
 
+    /// <summary>The key that, held with Ctrl, reads the typed name back on the name entry screen (#585, the
+    /// maintainer's decision): R, since F types a letter there. The pad uses <see cref="DetailsButtons"/>.</summary>
+    public int NameReadBackKey { get; init; } = 0x52;
+
     /// <summary>The bindings the settings file's <c>keys.menus</c> object names (#661), each missing or unusable one
     /// the default, with the reader binding the wiring hands in from the dialogue's.</summary>
     public static MenuBindings From(ModSettings settings, int readerButtons, int readerKey)
@@ -39,6 +43,7 @@ public sealed record MenuBindings(int DetailsButtons, int DetailsKey)
         {
             ReaderButtons = readerButtons,
             ReaderKey = readerKey,
+            NameReadBackKey = settings.Binding("menus", "nameReadBackKey", 0x52),
         };
     }
 }

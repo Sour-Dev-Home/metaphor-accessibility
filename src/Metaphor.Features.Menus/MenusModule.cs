@@ -12,7 +12,10 @@ namespace Metaphor.Features.Menus;
 /// menus) and its observers hear each event before the dialogue's.</summary>
 public sealed class MenusModule : IFeatureModule
 {
-    public IEnumerable<Enum> Settings => Enum.GetValues<MenusFeature>().Select(feature => (Enum)feature);
+    // The positions setting (#664) is Core's, shared with the dialogue's choices; the menus list it, since they own the
+    // settings pages it mostly acts on.
+    public IEnumerable<Enum> Settings =>
+        [.. Enum.GetValues<MenusFeature>().Select(feature => (Enum)feature), SpokenDetail.Positions];
 
     public void Register(FeatureContext context)
     {
@@ -41,8 +44,15 @@ public sealed class MenusModule : IFeatureModule
         var settingsQuestion = new SettingsConfirmQuestion();
         // The quick menu's Return to title dialog says its question too, while tested (#810).
         var titleQuestion = new ReturnToTitleQuestion(() => settings.Current.IsOn(MenusFeature.ReturnToTitleQuestion));
+        // The name confirmation says the name typed where the game's text has <V 0> (#850); the name entry's module,
+        // after this one, says where that name is.
+        var typedName = new TypedNameSource();
+        context.Provide(typedName);
         var yesNo = new YesNoDialogFocus(
-            library, menuSpeech, cleaner, new YesNoQuestions([settingsQuestion, titleQuestion]));
+            library, menuSpeech, cleaner, new YesNoQuestions([settingsQuestion, titleQuestion]))
+        {
+            TypedName = typedName.Name,
+        };
         screens.Observe(yesNo);
         screens.Observe(settingsQuestion);
         screens.Observe(titleQuestion);
@@ -60,7 +70,11 @@ public sealed class MenusModule : IFeatureModule
         screens.Observe(new SystemMenuFocus(serials, settings.Speech(MenusFeature.SystemMenu, reader), cleaner));
         screens.Observe(new BattleOrderFocus(serials, settings.Speech(MenusFeature.BattleOrderMenu, reader), cleaner));
         // The shop's top menu and its Buy and Sell lists, each row by the name the game fetched for it (#736, #197).
-        var shopFocus = new ShopFocus(serials, settings.Speech(MenusFeature.ShopMenu, reader), cleaner);
+        bool SayPositions() => settings.Current.IsOn(SpokenDetail.Positions);
+        var shopFocus = new ShopFocus(serials, settings.Speech(MenusFeature.ShopMenu, reader), cleaner)
+        {
+            SayPositions = SayPositions,
+        };
         screens.Observe(shopFocus);
         events.ObserveSerials(shopFocus);
         // The protagonist's name is typed, not a message: the <HERO_NAME> field, read when said (#216).
@@ -69,6 +83,7 @@ public sealed class MenusModule : IFeatureModule
         var itemFocus = new ItemFocus(serials, settings.Speech(MenusFeature.ItemMenu, reader), cleaner)
         {
             ProtagonistName = Protagonist,
+            SayPositions = SayPositions,
         };
         screens.Observe(itemFocus);
         events.ObserveSerials(itemFocus);
@@ -162,6 +177,7 @@ public sealed class NameEntryModule : IFeatureModule
         var nameEntry = new NameEntrySpeech(context.Library, speech, context.Cleaner, () => Environment.TickCount64);
         context.Events.ObserveShownLines(nameEntry);
         context.Provide(nameEntry);
+        context.Find<TypedNameSource>()?.ReadFrom(nameEntry.LastName);
         // The read-back (#585) shares the menus' details binding and speaks as the name entry does.
         var readBack = new NameReadBack(
             nameEntry.ReadBack, speech, context.Settings.Live(now => MenuBindings.From(now, 0, 0)));

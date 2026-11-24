@@ -69,6 +69,9 @@ public sealed class ShopFocus : IScreenObserver, ISerialResolveObserver, ICursor
     private bool selling;
     private string? tabToSay;
 
+    /// <summary>Whether a row says "of total" (#664), for the events this class makes itself; on by default.</summary>
+    public Func<bool> SayPositions { get; init; } = () => true;
+
     public ShopFocus(MessageSerials serials, IAnnouncer announcer, TextCleaner cleaner)
     {
         ArgumentNullException.ThrowIfNull(serials);
@@ -165,7 +168,10 @@ public sealed class ShopFocus : IScreenObserver, ISerialResolveObserver, ICursor
         var tab = tabs.Showing(view.Rows) is { } shown ? serials.TextOf(SellTabSerials[shown], cleaner) : null;
         if (view.SameRow)
         {
-            var change = new ScreenEvent(ScreenChange.FocusMoved, List, List.ScreenClass, input.Index, input.Count);
+            var change = new ScreenEvent(ScreenChange.FocusMoved, List, List.ScreenClass, input.Index, input.Count)
+            {
+                SayPositions = SayPositions(),
+            };
             announcer.Announce(new Announcement(Line(tab, rows.SerialAt(input.Index), change), Interrupt: true));
             return;
         }
@@ -178,12 +184,8 @@ public sealed class ShopFocus : IScreenObserver, ISerialResolveObserver, ICursor
     // "<tab>, <row>, n of total", each name left out when it isn't known.
     private string Line(string? tab, int? serial, ScreenEvent change)
     {
-        var line = ListFocus.Position(change);
-        if (serial is { } known && serials.TextOf(known, cleaner) is { } name)
-        {
-            line = $"{name}, {line}";
-        }
-        return tab is null ? line : $"{tab}, {line}";
+        var name = serial is { } known ? serials.TextOf(known, cleaner) : null;
+        return change.Positioned(tab, name);
     }
 
     // The Sell tab a row name says: Exchange for "Sell All" and the CASH group, Use for any other item group, an

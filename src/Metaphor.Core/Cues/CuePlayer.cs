@@ -121,7 +121,7 @@ public sealed class CuePlayer : ICuePlayer, IDisposable
         var now = settings();
         // Each cue's own setting is a share of the sound cue volume (#661).
         var own = now.Sound(cue);
-        var volume = now.SoundCueVolume * own.Volume / 100;
+        var volume = now.SoundCueVolume * own.Volume / 100 * CueVolumes.Other.From(now) / 100;
         if (disposing || !now.SoundCues || !own.On || volume == 0)
         {
             return;
@@ -215,9 +215,11 @@ public sealed class CuePlayer : ICuePlayer, IDisposable
             {
                 held[i] = request.Tone;
             }
-            if (audible && held[i] is { } tone)
+            // The master volume scaled by the tone's kind (#852).
+            var kindVolume = now.SoundCueVolume * CueVolumes.For((ToneChannel)i, now) / 100;
+            if (audible && kindVolume > 0 && held[i] is { } tone)
             {
-                mixer.Hold((ToneChannel)i, tone, now.SoundCueVolume);
+                mixer.Hold((ToneChannel)i, tone, kindVolume);
             }
             else
             {

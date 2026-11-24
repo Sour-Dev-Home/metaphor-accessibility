@@ -70,7 +70,7 @@ public sealed class FieldModule : IFeatureModule
             // The camera-tilt warning (#828) and the sonar (#827), testing; the limits are read on each check.
             new TiltWarning(
                 field, settings.Speech(FieldFeature.CameraTilt, context.Announcer), () => Environment.TickCount64,
-                () => TiltLimits.From(settings.Current)),
+                () => TiltLimits.From(settings.Current), () => context.LastDevice.Current),
             new Sonar(
                 field, context.Cues, () => Environment.TickCount64, () => settings.Current.IsOn(FieldFeature.Sonar),
                 log is null ? null : log.FieldRead, nearbyNames, floor),

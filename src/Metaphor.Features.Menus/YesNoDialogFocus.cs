@@ -127,11 +127,14 @@ public sealed partial class YesNoDialogFocus : IScreenObserver, IChoiceRequestOb
                 textLabel ??= question;
             }
         }
-        var heading = textLabel is null ? null : Text(textLabel);
+        var named = false;
+        var heading = textLabel is null ? null : Text(textLabel, out named);
         var said = ListFocus.Of(
             change, Screen, heading, ChoiceCount, index => MessageLines.Line(messages, cleaner, ChoicesLabel, index));
         if (said is not null)
         {
+            // The typed name is personal: spoken, recorded by its length only (#585).
+            said = named && change.Change == ScreenChange.Entered ? said with { Private = true } : said;
             // After a scripts' choice spoke the prompt and "Choice, N options" (DialogueChoices, #82), the first focus queues
             // behind them instead of cutting them off (the save prompt, heard 2026-11-21); later moves cut off as usual.
             announcer.Announce(waitsItsTurn ? said with { Interrupt = false } : said);
@@ -139,15 +142,40 @@ public sealed partial class YesNoDialogFocus : IScreenObserver, IChoiceRequestOb
     }
 
     // The message's lines cleaned and joined, a note line starting "Note:", or null when it has no text.
-    private string? Text(string label)
+    // The name confirmation's <V 0> is the name just typed (#850); the game fills it in protected code, so the mod says
+    // the name the name entry read. Any other dialog's <V n> keeps the cleaner's stand-in.
+    private string? Text(string label, out bool namedByTyped)
     {
+        var name = label.StartsWith(NameEntryPrefix, StringComparison.Ordinal) ? TypedName?.Invoke() : null;
+        var filled = false;
+        string Clean(string line)
+        {
+            if (name is null || !NameTag().IsMatch(line))
+            {
+                return cleaner.Clean(line);
+            }
+            filled = true;
+            return string.Join($" {name} ", NameTag().Split(line).Select(cleaner.Clean)).Trim();
+        }
         var lines = (messages.Find(label)?.Text ?? "").Split('\n')
-            .Select(cleaner.Clean)
+            .Select(Clean)
             .Where(line => line.Length > 0)
             .Select(line => line[0] == NoteMarker ? NoteWord + line[1..].TrimStart() : line);
         var text = SpaceBeforePunctuation().Replace(string.Join(" ", lines), "$1");
+        namedByTyped = filled;
         return text.Length > 0 ? text : null;
     }
+
+    /// <summary>The name last typed on the name entry screen, or null when none is known (#850); said in place of
+    /// <c>&lt;V 0&gt;</c> in the name confirmation's question.</summary>
+    public Func<string?>? TypedName { get; init; }
+
+    // The labels of the name entry's messages, such as the confirmation's System_NameEntry_08 (as seen in the dialog's
+    // text lookups, docs/raw-sources/yes-no-dialog-text-2026-11-20.md).
+    private const string NameEntryPrefix = "System_NameEntry_";
+
+    [GeneratedRegex(@"<V\s+0\s*>")]
+    private static partial Regex NameTag();
 
     // A space left before punctuation where a dropped tag stood ("Is the name <V 0>?").
     [GeneratedRegex(@"\s+([?!.,])")]

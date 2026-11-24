@@ -109,6 +109,24 @@ public sealed class BattleEnemyHpTests
         Assert.Equal(BattleBindings.Default, BattleBindings.From(ModSettings.Defaults));
     }
 
+    // #854: the "of max HP" is a setting; off says the current HP alone, as for an enemy whose maximum isn't known.
+    [Fact]
+    public void WithTheMaxHpTurnedOffALineSaysTheCurrentHpAlone()
+    {
+        var say = true;
+        var quiet = new BattleEnemyHp(() => BattleBindings.Default, hits, scene, announcer) { SayMaxHp = () => say };
+        TwoEnemiesHit();
+        quiet.Keyboard.Keys([]);
+
+        say = false;
+        quiet.Keyboard.Keys([KeyK]);
+        quiet.Keyboard.Keys([]);
+        say = true;
+        quiet.Keyboard.Keys([KeyK]);
+
+        Assert.Equal(["First enemy, 840 left", "Second enemy, 50 left"], Said());
+    }
+
     [Fact]
     public void KStepsToEachEnemyInTurnSayingItsHpAndIsHidden()
     {

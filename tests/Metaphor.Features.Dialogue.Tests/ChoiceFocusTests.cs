@@ -62,6 +62,18 @@ public sealed class ChoiceFocusTests
         Assert.Equal([0], told);
     }
 
+    // #664: the "of total" is a setting; off says the option alone.
+    [Fact]
+    public void WithPositionsOffAnOptionIsSaidAlone()
+    {
+        var quiet = new ChoiceFocus(messages, announcer, new TextCleaner(TextCleanerRules.None)) { SayPositions = () => false };
+        quiet.Observe(new ChoiceRequested(0, "MES_q", "MES_c"));
+
+        quiet.Observe(Input(Choice, Settle, row: 0));
+
+        Assert.Equal([new Announcement("North", Interrupt: false)], announcer.Said);
+    }
+
     [Fact]
     public void TheFirstFocusWaitsForTheOptionsToBeSpoken()
     {

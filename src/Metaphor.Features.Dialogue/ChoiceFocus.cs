@@ -111,6 +111,10 @@ public sealed class ChoiceFocus : IChoiceRequestObserver, ILineRequestObserver, 
         {
             firstOption?.Invoke();
         }
-        announcer.Announce(new Announcement($"{option}, {input.Index + 1} of {total}", Interrupt: !first));
+        announcer.Announce(new Announcement(
+            SayPositions() ? $"{option}, {input.Index + 1} of {total}" : option, Interrupt: !first));
     }
+
+    /// <summary>Whether an option says its "n of total" after it (#664); on by default.</summary>
+    public Func<bool> SayPositions { get; init; } = () => true;
 }

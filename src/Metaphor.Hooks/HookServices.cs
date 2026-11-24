@@ -229,7 +229,7 @@ internal sealed record HookServices
         var reader = new DialogueReader(announcer);
         var voiceLanguage = new VoiceLanguageRead();
         var tutorials = new TutorialTableSource();
-        var screens = new MenuScreens(KnownScreens.All);
+        var screens = new MenuScreens(KnownScreens.All, () => settings.Current.IsOn(SpokenDetail.Positions));
         events.ObserveFiles(library);
         events.ObserveFiles(serials);
         events.ObserveFiles(filesById);

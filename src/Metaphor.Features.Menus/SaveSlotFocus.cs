@@ -54,7 +54,7 @@ public sealed class SaveSlotFocus : IScreenObserver
         }
         var said = change.Total == (load ? LoadCount : SaveCount)
             ? SlotName(change.Index, load)
-            : change.Total is { } total ? $"{change.Index + 1} of {total}" : $"{change.Index + 1}";
+            : change.Position();
         announcer.Announce(new Announcement(said, Interrupt: true));
         debug?.Invoke(
             $"slot screen={(load ? "load" : "save")} index={change.Index} said=\"{said}\" unread=place,playtime,empty (#622)");

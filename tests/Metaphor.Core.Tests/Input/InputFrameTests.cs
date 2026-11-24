@@ -120,6 +120,23 @@ public sealed class InputFrameTests
         Assert.Equal([T, R, Digit, Bracket], keys.Keys);
     }
 
+    // #585: Ctrl+R reads the typed name back, so while text is typed a Ctrl chord isn't typing: the letters reach the
+    // controls, and the game gets what they hand on (R taken by the control is not typed).
+    [Theory]
+    [InlineData(0xA2)]
+    [InlineData(0xA3)]
+    public void WhileTextIsTypedACtrlChordStillReachesTheControls(int ctrl)
+    {
+        const int R = 0x52;
+        var controls = new Controls { OnKeys = keys => [.. keys.Where(key => key != R)] };
+        var frame = new InputFrame(game, screens, [controls], null, null, null, typing: () => true);
+
+        var keys = frame.Keys([ctrl, R]);
+
+        Assert.Equal([$"keys {ctrl},{R}"], controls.Seen);
+        Assert.Equal([ctrl], keys.Keys);
+    }
+
     [Fact]
     public void OnceTheTextIsDoneTheCharacterKeysReachTheControlsAgain()
     {

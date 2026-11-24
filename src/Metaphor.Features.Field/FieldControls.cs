@@ -333,11 +333,12 @@ public sealed class FieldControls : IInputControls
             return;
         }
         string text;
+        string? tiltLine = null;
         try
         {
             text = press switch
             {
-                Press.Place => Place(),
+                Press.Place => Place(out tiltLine),
                 Press.CategoryNext or Press.CategoryPrevious => Cycle(press == Press.CategoryNext ? 1 : -1),
                 Press.Identify => Identify(),
                 _ => List(press),
@@ -348,6 +349,11 @@ public sealed class FieldControls : IInputControls
             return;
         }
         announcer.Announce(new Announcement(text, Interrupt: true));
+        // The tilt is its own queued line, so the reader pauses between it and the mission line (#856).
+        if (tiltLine is not null)
+        {
+            announcer.Announce(new Announcement(tiltLine, Interrupt: false));
+        }
     }
 
     /// <summary>Stops the beacon when it's on; otherwise starts it toward the thing last stepped to, while the step is
@@ -467,7 +473,7 @@ public sealed class FieldControls : IInputControls
         return unit.Id is { } id ? $"Logged {id}, {text}" : $"Logged, no id, {text}";
     }
 
-    private string Place()
+    private string Place(out string? tiltLine)
     {
         var map = field.MapId();
         var name = place.Name(map);
@@ -483,7 +489,8 @@ public sealed class FieldControls : IInputControls
         }
         var said = name ?? "Place not known yet";
         var line = current is null ? said : $"{said}. {MissionLine.Spoken(current)}";
-        return tilt is not null && isOn(FieldFeature.CameraTilt) ? $"{line}. {tilt.Line()}" : line;
+        tiltLine = tilt is not null && isOn(FieldFeature.CameraTilt) ? tilt.Line() : null;
+        return line;
     }
 
     private string List(Press press)
