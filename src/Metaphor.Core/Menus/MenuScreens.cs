@@ -34,10 +34,12 @@ public enum ScreenChange
 /// <paramref name="Index"/> reads 0. <paramref name="Grid"/> is the focus's cell on a grid cursor
 /// (<see cref="CursorInput.Grid"/>, #563), null on any other. <paramref name="Values"/> is a settings page's values
 /// (<see cref="CursorInput.Values"/>, #96), null on any other screen. <paramref name="SayPositions"/> is whether
-/// the "of total" is spoken after an item (#664); on unless the player turned it off.</summary>
+/// the "of total" is spoken after an item (#664); on unless the player turned it off. <paramref name="RowId"/> is the
+/// game's own number for the focused row (<see cref="CursorInput.RowId"/>, #806), null on a list that keeps none.</summary>
 public sealed record ScreenEvent(
     ScreenChange Change, Screen? Screen, string ScreenClass, int Index, int? Count = null, int? Mode = null,
-    bool OffList = false, GridCursor? Grid = null, SettingValues? Values = null, bool SayPositions = true)
+    bool OffList = false, GridCursor? Grid = null, SettingValues? Values = null, bool SayPositions = true,
+    int? RowId = null)
 {
     /// <summary>The focus's position as a screen says it: "n of total", or "n" when the game's count can't be read or
     /// <see cref="SayPositions"/> is off (#664: the "of total" is left out).</summary>
@@ -92,7 +94,8 @@ public interface IScreenDetails
 /// changing on the same item is a focus move, so a choice's other list is heard even where the index stays; so is the
 /// focus moving on or off the list's items (<see cref="CursorInput.OffList"/>), as from a settings page's OK button to
 /// its first row, both at index 0 (#560); and on a grid cursor, its count changing on the same cell, as when Key
-/// Configuration's sub-tab changes (#589). A settings page's values (<see cref="CursorInput.Values"/>) changing with
+/// Configuration's sub-tab changes (#589); and the focused row's own number (<see cref="CursorInput.RowId"/>)
+/// changing on the same item, as when the tutorial list's tab changes (#806). A settings page's values (<see cref="CursorInput.Values"/>) changing with
 /// nothing else is a value change (#96); values that stop being read keep the last ones read. A screen outside the
 /// menus told its manager's same input twice running (so shown again after going quiet) is entered afresh.
 /// </summary>
@@ -109,6 +112,7 @@ public sealed class MenuScreens : ICursorObserver
     private int? currentMode;
     private bool currentOffList;
     private GridCursor? currentGrid;
+    private int? currentRowId;
     private SettingValues? currentValues;
     private bool menusOpen;
 
@@ -157,7 +161,8 @@ public sealed class MenuScreens : ICursorObserver
             {
                 var values = input.Values ?? currentValues;
                 var focusMoved = input.Index != currentIndex || input.Mode != currentMode
-                    || input.OffList != currentOffList || (input.Grid is not null && input.Count != currentCount);
+                    || input.OffList != currentOffList || (input.Grid is not null && input.Count != currentCount)
+                    || input.RowId != currentRowId;
                 if (focusMoved)
                 {
                     changes = [Change(ScreenChange.FocusMoved, screenClass, input, values)];
@@ -191,6 +196,7 @@ public sealed class MenuScreens : ICursorObserver
             currentMode = input.Mode;
             currentOffList = input.OffList;
             currentGrid = input.Grid;
+            currentRowId = input.RowId;
         }
         var each = Volatile.Read(ref observers);
         foreach (var change in changes)
@@ -251,11 +257,11 @@ public sealed class MenuScreens : ICursorObserver
     // The current focus as a change to screenClass; called under the gate.
     private ScreenEvent Current(ScreenChange change, string screenClass) =>
         new(change, known.GetValueOrDefault(screenClass), screenClass, currentIndex, currentCount, currentMode,
-            currentOffList, currentGrid, currentValues, sayPositions());
+            currentOffList, currentGrid, currentValues, sayPositions(), currentRowId);
 
     private ScreenEvent Change(ScreenChange change, string screenClass, CursorInput input, SettingValues? values) =>
         new(change, known.GetValueOrDefault(screenClass), screenClass, input.Index, input.Count, input.Mode,
-            input.OffList, input.Grid, values, sayPositions());
+            input.OffList, input.Grid, values, sayPositions(), input.RowId);
 
     [SuppressMessage("Design", "CA1031", Justification = "One observer's failure must not keep the change from the others, or reach the game.")]
     private static void TellEach(IScreenObserver[] observers, ScreenEvent change)

@@ -15,11 +15,14 @@ namespace Metaphor.Core.Menus;
 /// they read as a grid, else null. <paramref name="OnButton"/> is whether the focus is on the screen's button, from a
 /// field of its owner, for a screen whose flags don't say it (Key Configuration, <see cref="SettingsPages"/>, #589),
 /// else null. <paramref name="Values"/> is a settings page's values from its working copy (<see cref="SettingValues"/>,
-/// #96), null on any other screen or when unreadable.
+/// #96), null on any other screen or when unreadable. <paramref name="RowId"/> is the game's own number for the focused
+/// row, from its owner, on a list that keeps one (the System tutorial list's tutorial number, <see cref="TutorialList"/>,
+/// #806), else null.
 /// </summary>
 public sealed record CursorInput(
     long Manager, long? ClassRva, int Command, int Result, int Top, int Row, int Flags, string? ScreenClass = null,
-    int? Count = null, int? Mode = null, GridCursor? Grid = null, bool? OnButton = null, SettingValues? Values = null)
+    int? Count = null, int? Mode = null, GridCursor? Grid = null, bool? OnButton = null, SettingValues? Values = null,
+    int? RowId = null)
 {
     /// <summary>The cursor's position: what the class's index getter returns, the grid's own for a grid cursor.
     /// </summary>

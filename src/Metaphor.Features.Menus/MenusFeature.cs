@@ -176,6 +176,18 @@ public enum MenusFeature
         "page count and each page. Off also leaves the repeat key to repeat dialogue, not the pop-up's page.")]
     Tutorials,
 
+    /// <summary>The System &gt; Tutorials list's titles (#806). Separate from the menus while it is tested; off, the
+    /// list says positions only.</summary>
+    [SettingKey("speech", "tutorialList", "Tutorial list", Testing = true, Order = 1172, Description = "Each " +
+        "tutorial's title on the System menu's Tutorials list. Needs `menus`.")]
+    TutorialList,
+
+    /// <summary>The key help's binding after a tutorial pop-up's last page (#806).</summary>
+    [SettingKey("speech", "tutorialKeyHint", "Tutorial key hint", Testing = true, Order = 1174, Description = "After " +
+        "a tutorial pop-up's last page, how to hear the mod's keys for where you are, since a tutorial may ask for a " +
+        "button the mod changes. Needs `tutorials` and `keyHelp`.")]
+    TutorialKeyHint,
+
     /// <summary>The first-launch welcome (#617). Whether it has been said is <c>welcomed</c>.</summary>
     [SettingKey("speech", "welcome", "Welcome", Order = 1220, Description = "The welcome on the title screen the " +
         "first time the game starts with the mod: the mod's version and the field keys.")]
