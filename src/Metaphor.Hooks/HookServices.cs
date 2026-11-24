@@ -134,6 +134,9 @@ internal sealed record HookServices
     /// <summary>Where the battle hit hook reports each target an action hit (#247).</summary>
     public IBattleHitObserver BattleHits { get; init; } = new NoBattleHits();
 
+    /// <summary>Where the battle package hook reports the enemy list (#750).</summary>
+    public IBattleEnemyObserver BattleEnemies { get; init; } = new NoBattleEnemies();
+
     /// <summary>Says the battle's situation banners (#692): the banner hooks hand it each one shown; null for none.
     /// </summary>
     public BattleBanners? BattleBanners { get; init; }
@@ -278,6 +281,7 @@ internal sealed record HookServices
         };
         context.Provide<IFieldReads>(field);
         context.Provide<IBattleTurnIcons>(new BattleTurnIconsMemory(gameData));
+        context.Provide<IBattleUnits>(party);
         context.Provide(new MissionRows(missionTable.Rows));
         // Each module builds its features, in the list's order: their observers hear each event, and their controls
         // take each input read, in that order (#784, ADR 0022).
@@ -314,6 +318,7 @@ internal sealed record HookServices
             ModFolder = modFolder,
             Serials = serials,
             BattleHits = context.Find<IBattleHitObserver>() ?? new NoBattleHits(),
+            BattleEnemies = context.Find<IBattleEnemyObserver>() ?? new NoBattleEnemies(),
             BattleParty = party,
             BattleBanners = context.Find<BattleBanners>(),
             BattleScene = battleScene,

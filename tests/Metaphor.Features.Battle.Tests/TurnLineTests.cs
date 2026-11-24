@@ -30,13 +30,9 @@ public sealed class TurnLineTests
     }
 
     [Fact]
-    public void APlayerTurnThenAnEnemyTurnAreEachSaidOnce()
+    public void APlayerTurnThenAnEnemyTurnAreEachSaidOnceCuttingOffTheQueue()
     {
         icons.Now = new TurnIcons(0, 4, 0);
-        Frames(300);
-        icons.Now = new TurnIcons(0, 3, 1);
-        Frames(300);
-        icons.Now = new TurnIcons(0, 2, 1);
         Frames(300);
         icons.Now = new TurnIcons(1, 3, 0);
         Frames(300);
@@ -44,8 +40,55 @@ public sealed class TurnLineTests
         Frames(300);
 
         Assert.Equal(["Your turn, 4 actions", "Enemy turn"], Said());
-        Assert.All(announcer.Said, said => Assert.False(said.Interrupt));
+        // #252, by ear 2026-11-23: queued, "Your turn" came behind 17 hit lines.
+        Assert.All(announcer.Said, said => Assert.True(said.Interrupt));
     }
+
+    [Fact]
+    public void AChangeInThePlayersIconsMidTurnSaysTheNewCountOnceSettled()
+    {
+        icons.Now = new TurnIcons(0, 3, 2);
+        Frames(300);
+        // One full icon spent turns half, and a skill gains two (#695, by ear 2026-11-23): read in two steps.
+        icons.Now = new TurnIcons(0, 2, 3);
+        Frames(100);
+        icons.Now = new TurnIcons(0, 2, 5);
+        Frames(TurnLine.SettleMilliseconds + 100);
+
+        Assert.Equal(["Your turn, 3 actions, 2 half", "2 actions, 5 half"], Said());
+        Assert.False(announcer.Said[^1].Interrupt);
+    }
+
+    [Fact]
+    public void ACountThatComesBackBeforeItSettlesSaysNothing()
+    {
+        icons.Now = new TurnIcons(0, 3, 1);
+        Frames(300);
+        icons.Now = new TurnIcons(0, 3, 0);
+        Frames(100);
+        icons.Now = new TurnIcons(0, 3, 1);
+        Frames(TurnLine.SettleMilliseconds + 100);
+
+        Assert.Equal(["Your turn, 3 actions, 1 half"], Said());
+    }
+
+    [Fact]
+    public void TheEnemysIconsChangingSaysNothing()
+    {
+        icons.Now = new TurnIcons(1, 3, 0);
+        Frames(300);
+        icons.Now = new TurnIcons(1, 2, 1);
+        Frames(TurnLine.SettleMilliseconds + 100);
+
+        Assert.Equal(["Enemy turn"], Said());
+    }
+
+    [Theory]
+    [InlineData(1, 0, "1 action")]
+    [InlineData(3, 3, "3 actions, 3 half")]
+    [InlineData(0, 2, "0 actions, 2 half")]
+    public void TheCountSaysActionsThenHalves(int full, int half, string expected) =>
+        Assert.Equal(expected, TurnLine.Count(new TurnIcons(0, full, half)));
 
     [Fact]
     public void ARefillOnTheSameSideIsANewTurn()

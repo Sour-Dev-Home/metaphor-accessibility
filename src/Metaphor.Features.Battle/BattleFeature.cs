@@ -16,6 +16,20 @@ public enum BattleFeature
         "\"defeated\" or \"revived\" after a battle hit's number. Needs `battleHits`.")]
     BattleOutcomes,
 
+    /// <summary>A hit's number alone, with a sound for whose it was (#855): the side's hit sound, placed left to right
+    /// by the enemy's place in the battle's list or the party member's slot.</summary>
+    [SettingKey("speech", "battleHitNumbers", "Battle hit numbers only", Testing = true, Order = 1032, Description =
+        "Each battle hit says only its number, and the hit sound plays from the left for the first enemy or party " +
+        "member through to the right for the last, so an attack on every enemy stays short. Needs `battleHits`.")]
+    BattleHitNumbers,
+
+    /// <summary>The battle's enemy list from its start (#750, #253): hits numbered by the list, and the enemy HP keys
+    /// stepping through every enemy, hit or not, with "n of total".</summary>
+    [SettingKey("speech", "battleEnemyList", "Battle enemy list", Testing = true, Order = 1034, Description =
+        "Numbers a battle's enemies from its start, so the first hit already says \"Second enemy\", and `K`, `J` and " +
+        "`L` take in every enemy, hit or not. Needs `battleHits`.")]
+    BattleEnemyList,
+
     /// <summary>Enemy numbering started afresh when a battle ends (#750). Separate from the hits while it is tested.
     /// </summary>
     [SettingKey("speech", "battleNumberReset", "Battle number reset", Testing = true, Order = 1035, Description =
@@ -41,6 +55,11 @@ public enum BattleFeature
     [SettingKey("speech", "battleEnemyMaxHp", "Battle enemy max HP", Order = 1038, Description = "The \"of max HP\" " +
         "in an enemy's HP line: \"840 of 1200\". Off says only \"840 left\". Needs `battleEnemyKeys`.")]
     BattleEnemyMaxHp,
+
+    /// <summary>A key that says the party's HP and MP in a battle (#692): <c>M</c>, no pad button yet.</summary>
+    [SettingKey("speech", "battleHpMp", "Battle HP and MP key", Testing = true, Order = 1039, Description = "In a " +
+        "battle, `M` says each party member's HP and MP. Needs `battleHits`.")]
+    BattleHpMp,
 
     /// <summary>The in-turn situation banner: a boss warning, a stat change (#692, #661).</summary>
     [SettingKey("speech", "battleBanners", "Battle banners", Order = 1070, Description = "The short " +

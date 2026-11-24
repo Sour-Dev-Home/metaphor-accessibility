@@ -266,6 +266,13 @@
     "evidence": "Our reading of the exe in Ghidra 12.2: the battle GUI's per-target hit popup, which writes the HP change and the HP left into its request (docs/findings/battle-hit-result-hp-left-static.md); one match on disk (tools/Metaphor.SignatureCheck/battle-turn-probes.json); not yet checked in memory"
   },
   {
+    "name": "BtlPackageUpdate",
+    "section": ".ecode",
+    "pattern": "48 8B C4 48 89 58 10 48 89 70 18 48 89 78 20 55 41 54 41 55 41 56 41 57 48 8D 68 A1 48 81 EC E0 00 00 00 C5 F8 29 70 C8 C5 F8 29 78 B8 C5 78 29 40 A8 C5 78 29 48 98 C5 78 28 C9 4C 8B F9",
+    "gameBuilds": ["548ddc955c176867f062c44f94c03dd9ac33caefb278a5ac388e792aedf09504"],
+    "evidence": "Our reading of the exe in Ghidra 12.2: the battle package's per-frame update, in .ecode at rva 0x21e1c0, a full function body whose first argument is the package (docs/findings/battle-enemy-list-order-and-update-hook-static.md); hooked in memory through three fights of capture session 6 (docs/raw-sources/battle-state-session6-2026-11-17.md)"
+  },
+  {
     "name": "TutorialWindowUpdate",
     "section": ".ecode",
     "pattern": "41 56 48 83 EC 30 83 79 18 03 4C 8B F1 0F 84 ?? ?? ?? ?? 48 8B 01 FF 50 08 84 C0 0F 84 ?? ?? ?? ?? 41 8B 4E 18 48 89 5C 24 50",

@@ -54,11 +54,12 @@ public sealed class FeatureModulesTests
 
         // Seven since the battle's end check (#750), gated, before the battle keys; it only watches the reads. Eight
         // since the enemy HP keys split into the keyboard's and the pad's, each its own testing feature (#767). Nine
-        // since the name entry's read-back (#585), gated, before the field.
-        Assert.Equal(9, controls.Count);
+        // since the name entry's read-back (#585), gated, before the field. Ten since the battle's HP and MP key (#692),
+        // gated, before the enemy HP keys.
+        Assert.Equal(10, controls.Count);
         Assert.IsType<MarkKey>(controls[0]);
         Assert.IsType<FieldControls>(controls[^1]);
-        Assert.Equal(8, Register(withReport: false).Controls.Count);
+        Assert.Equal(9, Register(withReport: false).Controls.Count);
     }
 
     // #809, by ear 2026-11-23 evening: the skip menu's animation 4768 is its close, so the question was said as the

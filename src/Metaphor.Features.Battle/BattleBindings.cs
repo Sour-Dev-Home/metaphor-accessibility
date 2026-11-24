@@ -4,7 +4,7 @@ namespace Metaphor.Features.Battle;
 
 /// <summary>The battle feature's keys, each 0 when unbound: the status key and buttons (#631) and the enemy HP keys
 /// (#767): the next, previous and all-enemies keys, and on the pad <see cref="EnemyHoldButtons"/> held with the next,
-/// previous and all-enemies buttons. The settings file can rebind each under <c>keys.battle</c> (#661,
+/// previous and all-enemies buttons; and the HP and MP key (#692). The settings file can rebind each under <c>keys.battle</c> (#661,
 /// <see cref="From"/>).</summary>
 public sealed record BattleBindings(
     int StatusButtons,
@@ -15,7 +15,8 @@ public sealed record BattleBindings(
     int EnemyHoldButtons,
     int EnemyHpButton,
     int EnemyNextButton,
-    int EnemyPreviousButton)
+    int EnemyPreviousButton,
+    int HpMpKey)
 {
     /// <summary>L3 in the game's pad mask: XInput's left thumb, <c>0x0002</c> on build 548ddc95…
     /// (docs/raw-sources/pad-and-keyboard-state-2026-11-16.md).</summary>
@@ -23,6 +24,10 @@ public sealed record BattleBindings(
 
     /// <summary>The H key, code <c>0x48</c>.</summary>
     public const int KeyH = 0x48;
+
+    /// <summary>The M key, code <c>0x4D</c>: the HP and MP key (#692), free of the game's battle keys read aloud on
+    /// 2026-11-22 (below) and of the mod's.</summary>
+    public const int KeyM = 0x4D;
 
     /// <summary>The status key is H and L3, the maintainer's choice of 2026-11-21. The enemy HP keys are K, J and L,
     /// and LB held with D-pad Down, Up and Left, the maintainer's decision of 2026-11-23 on #767, mirroring the field
@@ -32,7 +37,7 @@ public sealed record BattleBindings(
     /// 548ddc95… (docs/raw-sources/pad-and-keyboard-state-2026-11-16.md). LB going down in a battle opens Tactics (by
     /// ear, session of 2026-11-23, build 0c122d3 Debug, Steam 18330018, #811), so the chords hold it back until it's let
     /// go (<see cref="BattleEnemyHp.HeldShoulders"/>).</summary>
-    public static BattleBindings Default { get; } = new(LeftThumb, KeyH, 0x4C, 0x4B, 0x4A, 0x0400, 0x0080, 0x0040, 0x0010);
+    public static BattleBindings Default { get; } = new(LeftThumb, KeyH, 0x4C, 0x4B, 0x4A, 0x0400, 0x0080, 0x0040, 0x0010, KeyM);
 
     /// <summary>The bindings the settings file's <c>keys.battle</c> object names, each missing or unusable one the
     /// default.</summary>
@@ -48,6 +53,7 @@ public sealed record BattleBindings(
             settings.Binding("battle", "enemyHoldButtons", Default.EnemyHoldButtons),
             settings.Binding("battle", "enemyHpButton", Default.EnemyHpButton),
             settings.Binding("battle", "enemyNextButton", Default.EnemyNextButton),
-            settings.Binding("battle", "enemyPreviousButton", Default.EnemyPreviousButton));
+            settings.Binding("battle", "enemyPreviousButton", Default.EnemyPreviousButton),
+            settings.Binding("battle", "hpMpKey", Default.HpMpKey));
     }
 }

@@ -17,6 +17,10 @@ public interface IHitCue
 /// (null when unread) at its last hit, and its record address, an identity only.</summary>
 public sealed record KnownEnemy(string Label, int Hp, int? HpMax, long Target);
 
+/// <summary>An enemy this battle knows (#750), hit or not: its label, record address (an identity only), and the HP its
+/// last hit left and its max HP, each null when no hit has shown it.</summary>
+public sealed record ListedEnemy(string Label, long Target, int? Hp, int? HpMax);
+
 /// <summary>Says each target a battle action hits as the hit lands (#247, #738; the maintainer's call of 2026-11-22): a
 /// party member as "name damage" ("Strohl 30", "Hulkenberg 12 healed"), an enemy as "Enemy, 52", given an ordinal by
 /// the order the battle first hit them when it has hit more than one ("Second enemy, 52"; a label never ends in a digit
@@ -30,10 +34,30 @@ public sealed record KnownEnemy(string Label, int Hp, int? HpMax, long Target);
 /// <para>The game gives no "battle over" signal the mod reads, so a battle ends at a long quiet gap
 /// (<see cref="BattleGapMilliseconds"/>), which forgets its enemies; the length is a guess to check by ear. Leaving the battle scene ends one sooner
 /// (<see cref="BattleEnds"/>, #750).</para>
+/// <para>With <see cref="ListOn"/> (#750, <see cref="BattleFeature.BattleEnemyList"/>) the battle package's enemy list
+/// (<see cref="Enemies"/>) sets the ordinals from the battle's start, in list order, which is not yet known to be the
+/// order on screen (<c>[NEEDS VERIFICATION]</c>, docs/findings/battle-enemy-list-order-and-update-hook-static.md). With
+/// <see cref="NumbersOnly"/> (#855, <see cref="BattleFeature.BattleHitNumbers"/>) a hit says its number alone and
+/// <see cref="SlotCue"/> marks whose it was by side and place.</para>
 /// </remarks>
-[FeatureSetting<BattleFeature>(BattleFeature.BattleHits, BattleFeature.BattleOutcomes)]
-public sealed class HitLines : IBattleHitObserver
+[FeatureSetting<BattleFeature>(
+    BattleFeature.BattleHits, BattleFeature.BattleOutcomes, BattleFeature.BattleEnemyList,
+    BattleFeature.BattleHitNumbers)]
+public sealed class HitLines : IBattleHitObserver, IBattleEnemyObserver
 {
+    /// <summary>The party's slots, the count a party member's <see cref="SlotCue"/> is placed among.</summary>
+    public const int PartySlots = 4;
+
+    /// <summary>How far left or right the first and last place sound: not fully, so one ear never hears it alone.
+    /// </summary>
+    public const double WidestPan = 0.8;
+
+    /// <summary>Where place <paramref name="index"/> of <paramref name="count"/> sounds, from -<see cref="WidestPan"/>
+    /// (the first) to +<see cref="WidestPan"/> (the last) in even steps; the centre when there is one place.</summary>
+    public static double Pan(int index, int count) => count <= 1
+        ? 0
+        : -WidestPan + 2 * WidestPan * Math.Clamp(index, 0, count - 1) / (count - 1);
+
     /// <summary>How long the same hit told again is taken as the same one.</summary>
     public const long RepeatMilliseconds = 500;
 
@@ -51,6 +75,48 @@ public sealed class HitLines : IBattleHitObserver
     private readonly Dictionary<long, (int Hp, int? HpMax)> enemyHp = [];
     private long lastHit = long.MinValue / 2;
     private long battle;
+    // The package the enemy list came from, 0 for none this battle.
+    private long listPackage;
+
+    /// <summary>Whether the enemy list numbers the enemies (<see cref="BattleFeature.BattleEnemyList"/>); off when
+    /// unset.</summary>
+    public Func<bool> ListOn { get; init; } = () => false;
+
+    /// <summary>Whether a hit says its number alone (<see cref="BattleFeature.BattleHitNumbers"/>); off when unset.
+    /// </summary>
+    public Func<bool> NumbersOnly { get; init; } = () => false;
+
+    /// <summary>Played before a number-only hit's line: the target's side, its place from 0 (an enemy's in the list,
+    /// a party member's slot) and how many places there are. Null plays nothing.</summary>
+    public Action<BattleSide, int, int>? SlotCue { get; init; }
+
+    /// <summary>The battle package's enemy list (#750): a new package starts a new battle with these enemies in list
+    /// order; the same one adds any enemy not yet known at the end, so a defeat, which shrinks the list, keeps every
+    /// ordinal. Ignored unless <see cref="ListOn"/>.</summary>
+    public void Enemies(long package, IReadOnlyList<long> records)
+    {
+        ArgumentNullException.ThrowIfNull(records);
+        if (!ListOn())
+        {
+            return;
+        }
+        lock (gate)
+        {
+            if (package != listPackage)
+            {
+                enemies.Clear();
+                enemyHp.Clear();
+                battle++;
+                listPackage = package;
+            }
+            foreach (var record in records.Where(record => !enemies.Contains(record)))
+            {
+                enemies.Add(record);
+            }
+            // The list belongs to this battle, so the quiet gap counts from it too.
+            lastHit = Now();
+        }
+    }
 
     /// <summary>Hits said through <paramref name="announcer"/>, timed by <paramref name="time"/>; party members named
     /// by <paramref name="memberName"/> from their unit number, or null when unknown; <paramref name="cue"/> is played
@@ -82,6 +148,7 @@ public sealed class HitLines : IBattleHitObserver
             return;
         }
         string line;
+        (int Index, int Count)? place;
         lock (gate)
         {
             var now = Now();
@@ -115,12 +182,23 @@ public sealed class HitLines : IBattleHitObserver
                 _ => "",
             };
             var change = Change(hit.HpChange) + (outcomesOn() ? outcome : "");
-            line = hit.Side switch
+            // Numbers only (#855): the place goes to a sound, so an area attack's lines stay short.
+            place = NumbersOnly() ? hit.Side switch
+            {
+                BattleSide.Enemy => (enemies.IndexOf(hit.Target), enemies.Count),
+                BattleSide.Ally when hit.Slot is { } at => (at, PartySlots),
+                _ => null,
+            } : null;
+            line = NumbersOnly() ? change : hit.Side switch
             {
                 BattleSide.Ally => hit.Slot is { } slot ? MemberSays(slot, hit.Unit, change) : $"Ally, {change}",
                 BattleSide.Enemy => $"{EnemyLabel(hit.Target)}, {change}",
                 _ => $"Target, {change}",
             };
+        }
+        if (place is var (index, count))
+        {
+            SlotCue?.Invoke(hit.Side, index, count);
         }
         cue?.Before(hit.Side);
         announcer.Announce(new Announcement(line, Interrupt: false));
@@ -131,7 +209,20 @@ public sealed class HitLines : IBattleHitObserver
     {
         lock (gate)
         {
-            return [.. enemies.Select(enemy => new KnownEnemy(EnemyLabel(enemy), enemyHp[enemy].Hp, enemyHp[enemy].HpMax, enemy))];
+            return [.. enemies.Where(enemyHp.ContainsKey)
+                .Select(enemy => new KnownEnemy(EnemyLabel(enemy), enemyHp[enemy].Hp, enemyHp[enemy].HpMax, enemy))];
+        }
+    }
+
+    /// <summary>Every enemy this battle knows, hit or not, in its order (the list's with <see cref="ListOn"/>), each
+    /// with the HP its last hit left, null before one (#750).</summary>
+    public IReadOnlyList<ListedEnemy> AllEnemies()
+    {
+        lock (gate)
+        {
+            return [.. enemies.Select(enemy => enemyHp.TryGetValue(enemy, out var hp)
+                ? new ListedEnemy(EnemyLabel(enemy), enemy, hp.Hp, hp.HpMax)
+                : new ListedEnemy(EnemyLabel(enemy), enemy, null, null))];
         }
     }
 

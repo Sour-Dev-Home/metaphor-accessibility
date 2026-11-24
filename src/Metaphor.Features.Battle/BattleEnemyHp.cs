@@ -21,8 +21,12 @@ namespace Metaphor.Features.Battle;
 /// the target cursor has no cursor manager and is told its slot only through a virtual call
 /// (docs/findings/battle-target-cursor-index-static.md), and how a slot maps to a hit's unit record isn't known. Until
 /// it is, the keys step through the known enemies, and each all-enemies press is logged (Debug builds) with each
-/// enemy's record address, to match against a target read in the next session.</remarks>
-[FeatureSetting<BattleFeature>(BattleFeature.BattleHits, BattleFeature.BattleEnemyKeys, BattleFeature.BattleEnemyPad)]
+/// enemy's record address, to match against a target read in the next session. With <see cref="ListOn"/> (#750, the
+/// maintainer's decision of 2026-11-23 on #253) the keys take in every enemy in the battle's list, hit or not, from the
+/// first in the list, since no read of the targeted enemy exists yet; starting from it is #253's.</remarks>
+[FeatureSetting<BattleFeature>(
+    BattleFeature.BattleHits, BattleFeature.BattleEnemyKeys, BattleFeature.BattleEnemyPad,
+    BattleFeature.BattleEnemyList)]
 public sealed class BattleEnemyHp
 {
     private const string NoEnemy = "No enemy hit yet";
@@ -88,39 +92,46 @@ public sealed class BattleEnemyHp
             pressed,
             hide: () => button(bindings()));
 
+    // The enemies the keys step through: every one in the list with ListOn, else those hit.
+    private IReadOnlyList<ListedEnemy> Enemies() => ListOn()
+        ? hits.AllEnemies()
+        : [.. hits.KnownEnemies().Select(enemy => new ListedEnemy(enemy.Label, enemy.Target, enemy.Hp, enemy.HpMax))];
+
     private void Step(int by)
     {
         var battle = hits.Battle;
-        var enemies = hits.KnownEnemies();
+        var enemies = Enemies();
         if (enemies.Count == 0)
         {
             Say(NoEnemy);
             return;
         }
-        KnownEnemy enemy;
+        int next;
         lock (gate)
         {
             var at = current is { } target && currentBattle == battle ? IndexOf(enemies, target) : -1;
-            var next = at < 0
+            next = at < 0
                 ? (by > 0 ? 0 : enemies.Count - 1)
                 : ((at + by) % enemies.Count + enemies.Count) % enemies.Count;
-            enemy = enemies[next];
-            current = enemy.Target;
+            current = enemies[next].Target;
             currentBattle = battle;
         }
-        Say(Hp(enemy));
+        // "n of total" only over the whole list, where the place means something (#750, speech.positions).
+        Say(ListOn() && SayPositions()
+            ? string.Create(CultureInfo.InvariantCulture, $"{Hp(enemies[next])}, {next + 1} of {enemies.Count}")
+            : Hp(enemies[next]));
     }
 
     private void All()
     {
-        var enemies = hits.KnownEnemies();
+        var enemies = Enemies();
         log?.Invoke(string.Create(CultureInfo.InvariantCulture, $"enemies={enemies.Count}") + string.Concat(
             enemies.Select(enemy => string.Create(CultureInfo.InvariantCulture,
-                $" {enemy.Label} record=0x{enemy.Target:x} hp={enemy.Hp} max={(enemy.HpMax is { } m ? m.ToString(CultureInfo.InvariantCulture) : "?")}"))));
+                $" {enemy.Label} record=0x{enemy.Target:x} hp={enemy.Hp} max={(enemy.HpMax is { } m ? m.ToString(CultureInfo.InvariantCulture) : "?")}{(Units is null ? "" : $" read={Units.Hp(enemy.Target)}")}"))));
         Say(enemies.Count == 0 ? NoEnemy : string.Join(". ", enemies.Select(Hp)));
     }
 
-    private static int IndexOf(IReadOnlyList<KnownEnemy> enemies, long target)
+    private static int IndexOf(IReadOnlyList<ListedEnemy> enemies, long target)
     {
         for (var i = 0; i < enemies.Count; i++)
         {
@@ -136,9 +147,24 @@ public sealed class BattleEnemyHp
     /// </summary>
     public Func<bool> SayMaxHp { get; init; } = () => true;
 
-    private string Hp(KnownEnemy enemy) => enemy.HpMax is { } max && SayMaxHp()
-        ? string.Create(CultureInfo.InvariantCulture, $"{enemy.Label}, {enemy.Hp} of {max}")
-        : string.Create(CultureInfo.InvariantCulture, $"{enemy.Label}, {enemy.Hp} left");
+    /// <summary>Whether the keys take in every enemy in the battle's list, hit or not (#750,
+    /// <see cref="BattleFeature.BattleEnemyList"/>); off when unset.</summary>
+    public Func<bool> ListOn { get; init; } = () => false;
+
+    /// <summary>Whether a step over the list ends in "n of total" (<c>speech.positions</c>); on when unset.</summary>
+    public Func<bool> SayPositions { get; init; } = () => true;
+
+    /// <summary>Reads an enemy's HP before a hit has shown it (#750); none when null.</summary>
+    public IBattleUnits? Units { get; init; }
+
+    // An enemy not yet hit has the HP its record holds, which the hit popup's getter reads for every target
+    // (docs/findings/battle-hit-result-hp-left-static.md); for enemies that is [NEEDS VERIFICATION] by ear.
+    private string Hp(ListedEnemy enemy) => (enemy.Hp ?? Units?.Hp(enemy.Target), enemy.HpMax) switch
+    {
+        ({ } hp, { } max) when SayMaxHp() => string.Create(CultureInfo.InvariantCulture, $"{enemy.Label}, {hp} of {max}"),
+        ({ } hp, _) => string.Create(CultureInfo.InvariantCulture, $"{enemy.Label}, {hp} left"),
+        _ => $"{enemy.Label}, not hit yet",
+    };
 
     private void Say(string text) => announcer.Announce(new Announcement(text, Interrupt: true));
 }
