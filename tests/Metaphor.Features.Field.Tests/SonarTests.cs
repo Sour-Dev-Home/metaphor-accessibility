@@ -111,6 +111,37 @@ public sealed class SonarTests
     }
 
     [Fact]
+    public void WithSoundFilesOnEachPingPlaysItsKindsFileAndOffItsTone()
+    {
+        var filesOn = true;
+        var samples = new NavSamples(NavSamplesTests.Shipped, () => filesOn);
+        var played = new ToneLog();
+        var withFiles = new Sonar(field, played, () => now, () => on, samples: samples);
+        field.Units = [new FieldUnit(FieldKind.Person, 300, 0, 0, Id: "a")];
+
+        // The first ping with the files on, then the next with them off.
+        for (var end = now + Sonar.OneAtATimeMilliseconds; now < end; now += 10)
+        {
+            withFiles.Tick();
+        }
+        Assert.Single(played.Held);
+        filesOn = false;
+        for (var end = now + Sonar.OneAtATimeMilliseconds; now < end; now += 10)
+        {
+            withFiles.Tick();
+        }
+
+        Assert.Collection(played.Held,
+            file =>
+            {
+                Assert.Same(NavSamplesTests.Shipped.Find("sonar-people.wav"), file.Sample);
+                Assert.False(file.Loops);
+                Assert.Equal(Sonar.Hertz(SonarKind.People), file.Hertz);
+            },
+            tone => Assert.Null(tone.Sample));
+    }
+
+    [Fact]
     public void OneAtATimeNeverSoundsTwoPingsTogether()
     {
         pings = 1;

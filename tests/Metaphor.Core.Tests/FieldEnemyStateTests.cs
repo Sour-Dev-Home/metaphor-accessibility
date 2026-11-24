@@ -27,6 +27,10 @@ public sealed class FieldEnemyStateTests
         FieldEnemyState.Describe(Enemy, address => pointers.TryGetValue(address, out var p) ? p : null,
             address => ints.TryGetValue(address, out var i) ? i : null);
 
+    private (int? State, int? Requested) Ai() =>
+        FieldEnemyState.Ai(Enemy, address => pointers.TryGetValue(address, out var p) ? p : null,
+            address => ints.TryGetValue(address, out var i) ? i : null);
+
     [Fact]
     public void ItSaysTheCurrentStateTheRequestedOneAndTheHp() =>
         Assert.Equal("aiState=8 aiNext=30 aiPending=1 hp=42", Describe());
@@ -43,6 +47,16 @@ public sealed class FieldEnemyStateTests
     {
         pointers.Remove(Enemy + FieldEnemyState.StatsOffset);
         Assert.Equal("aiState=8 aiNext=30 aiPending=1 hp=?", Describe());
+    }
+
+    [Fact]
+    public void ItsAiIsTheCurrentStateAndTheRequestOnlyWhilePending()
+    {
+        Assert.Equal((8, 30), Ai());
+        ints[Controller + FieldEnemyState.RequestedStateOffset] = 0x0000_001e;
+        Assert.Equal((8, (int?)null), Ai());
+        pointers[Enemy + FieldEnemyState.ControllerOffset] = 0;
+        Assert.Equal(((int?)null, (int?)null), Ai());
     }
 
     [Fact]

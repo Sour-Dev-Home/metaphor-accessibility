@@ -61,6 +61,40 @@ public sealed class RoutePingsTests
     }
 
     [Fact]
+    public void WithSoundFilesOnAPingPlaysItsKindsFileWholeThenStops()
+    {
+        var withFiles = new RoutePings(
+            field, cues, () => now, () => on, () => RoutePingLimits.Default,
+            samples: new NavSamples(NavSamplesTests.Shipped, () => true));
+        var file = NavSamplesTests.Shipped.Find(NavSamples.FileName(RoutePingKind.Straight))!;
+
+        withFiles.Focus(Place);
+        now += file.Milliseconds - 1;
+        withFiles.Tick();
+
+        // One hold of the whole file, its own gap in it, so no silence until it has played.
+        var tone = Assert.Single(cues.Held(ToneChannel.Route));
+        Assert.Same(file, tone.Sample);
+        Assert.False(tone.Loops);
+        Assert.NotNull(cues.Now(ToneChannel.Route));
+        now += 1;
+        withFiles.Tick();
+        Assert.Null(cues.Now(ToneChannel.Route));
+    }
+
+    [Fact]
+    public void WithoutItsFileAPingPlaysItsNotes()
+    {
+        var withoutFiles = new RoutePings(
+            field, cues, () => now, () => on, () => RoutePingLimits.Default,
+            samples: new NavSamples(SoundBank.Empty, () => true));
+
+        withoutFiles.Focus(Place);
+
+        Assert.Null(Assert.Single(cues.Held(ToneChannel.Route)).Sample);
+    }
+
+    [Fact]
     public void ARouteThatBendsPingsFromItsNextCorner()
     {
         // The route goes straight ahead first, then left to the place.

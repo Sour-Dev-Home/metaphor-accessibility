@@ -31,8 +31,11 @@ public enum ToneChannel
 
 /// <summary>A held tone: a sine at <paramref name="Hertz"/>, placed at <paramref name="Pan"/> from -1 (left) to +1
 /// (right), at <paramref name="Volume"/> from 0 to 100 within the sound cue volume. Values out of range are clamped.
-/// </summary>
-public readonly record struct HeldTone(double Hertz, double Pan, int Volume)
+/// With a <paramref name="Sample"/> (#841), that sound plays in place of the sine, at the same peak: from its start on
+/// each <see cref="ICuePlayer.Hold"/> and once through, or, when it <paramref name="Loops"/>, round and round, keeping its
+/// place while the same sound is held.</summary>
+public readonly record struct HeldTone(
+    double Hertz, double Pan, int Volume, CueSample? Sample = null, bool Loops = false)
 {
     /// <summary>The lowest pitch a held tone plays.</summary>
     public const double MinHertz = 40;
@@ -211,15 +214,18 @@ public sealed class CuePlayer : ICuePlayer, IDisposable
         var audible = !stopping && now.SoundCues && now.SoundCueVolume > 0;
         for (var i = 0; i < held.Length; i++)
         {
+            // A new request starts a sound that doesn't loop from its beginning (#841).
+            var fresh = false;
             if (Interlocked.Exchange(ref requests[i], null) is { } request)
             {
                 held[i] = request.Tone;
+                fresh = true;
             }
             // The master volume scaled by the tone's kind (#852).
             var kindVolume = now.SoundCueVolume * CueVolumes.For((ToneChannel)i, now) / 100;
             if (audible && kindVolume > 0 && held[i] is { } tone)
             {
-                mixer.Hold((ToneChannel)i, tone, kindVolume);
+                mixer.Hold((ToneChannel)i, tone, kindVolume, fresh);
             }
             else
             {
