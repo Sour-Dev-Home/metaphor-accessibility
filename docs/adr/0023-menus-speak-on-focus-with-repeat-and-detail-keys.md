@@ -11,8 +11,8 @@ Decided by the maintainer on 2026-11-23, after a by-ear session, so every menu f
 - **On opening a screen or switching a tab:** its name once, then the focused row.
 - **On demand, by context** (defaults; the player can rebind every key): repeat the focused row (`R`); read more,
   such as its description (`F`, `R3`); say where you are: screen, tab and position (`Shift+R`). In dialogue the
-  repeat key repeats the last line. Pad bindings for repeat and where-am-I are open: never a button the game uses on that screen (not
-  `X`, which combat uses).
+  repeat key repeats the last line. Pad bindings for repeat and where-am-I are open: never a button the game uses
+  on that screen (not `X`, which combat uses).
 - **Settings:** how much focus says (brief or full), the "n of total" suffix, and an optional tick per move.
 
 ## Considered options
