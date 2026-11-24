@@ -61,7 +61,7 @@ public enum DialogueFeature
 
     /// <summary>The context keys in dialogue (#879): stop the speech, who is speaking, the line on screen. Its own
     /// setting while it is tested.</summary>
-    [SettingKey("speech", "dialogueKeys", "Dialogue keys", Testing = true, Order = 1213, Description = "In " +
+    [SettingKey("speech", "dialogueKeys", "Dialogue keys", Order = 1213, Description = "In " +
         "dialogue, the keys that stop the speech, say who is speaking and say the line on screen, with the reader on " +
         "or off.")]
     DialogueKeys,

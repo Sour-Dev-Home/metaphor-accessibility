@@ -89,7 +89,7 @@ public enum BattleFeature
 
     /// <summary>An enemy's found affinities after its line on the enemy keys and the target cursor (#164, #255), from
     /// the game's enemy tables.</summary>
-    [SettingKey("speech", "battleAffinities", "Battle affinities", Testing = true, Order = 1043, Description =
+    [SettingKey("speech", "battleAffinities", "Battle affinities", Order = 1043, Description =
         "After an enemy's HP on `K`, `J` and the target cursor, says the affinities you have found by hitting it " +
         "with a skill: \"weak to Fire, resists Ice\". Needs `battleEnemyKeys` or `battleTargetSpeech`.")]
     BattleAffinities,

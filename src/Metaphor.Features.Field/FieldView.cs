@@ -31,7 +31,7 @@ public enum FieldKind
 /// request is pending; null otherwise, as <paramref name="AiState"/>.</param>
 /// <param name="Hp">For an enemy, its current HP (#696): the <c>u32</c> at <c>[enemy+0x34e0]+0xc</c>, which
 /// <c>FldEnemyIsDead</c> tests against 0 (docs/findings/field-enemy-strikes-and-notice-static.md, high confidence in
-/// code, unread live); null when unread, and always in a Release build, which doesn't read it yet.</param>
+/// code; the strike callouts passed by ear on 2026-11-24); null when unread. Read in every build.</param>
 public sealed record FieldUnit(
     FieldKind Kind, float X, float Y, float Z, string? Name = null, string Raw = "", string? Id = null,
     NearbyKind? Called = null, bool Stunned = false, int? AiState = null, int? AiRequested = null, int? Hp = null)

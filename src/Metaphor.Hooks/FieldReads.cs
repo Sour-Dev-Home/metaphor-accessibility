@@ -241,16 +241,16 @@ internal sealed class FieldMemory(
             }
             var (name, raw, id) = Identify(kind, unit);
             var stunned = kind == FieldKind.Enemy && EnemyStunned(unit);
-            int? aiState = null, aiRequested = null, hp = null;
+            int? aiState = null, aiRequested = null;
+            // Every build (#696): the strike callouts passed by ear on 2026-11-24 and read this HP in Release too.
+            var hp = kind == FieldKind.Enemy ? EnemyHp(unit) : null;
 #if DEBUG
-            // Debug builds only (#649, #696), as the log record below: the awareness cue and the strike callouts are
-            // tested in by-ear sessions, which run Debug builds, until a session settles which states are which and
-            // shows a strike lowers this HP.
+            // Debug builds only (#649), as the log record below: the awareness cue is tested in by-ear sessions, which
+            // run Debug builds, until a session settles which states are which.
             if (kind == FieldKind.Enemy)
             {
                 (aiState, aiRequested) = FieldEnemyState.Ai(unit, address => ModuleMemoryReader.ReadPointer((nint)address),
                     address => ModuleMemoryReader.ReadInt32((nint)address));
-                hp = EnemyHp(unit);
             }
 #endif
             units.Add(new FieldUnit(kind, at.X, at.Y, at.Z, name, raw, id, Stunned: stunned, AiState: aiState,
@@ -307,14 +307,13 @@ internal sealed class FieldMemory(
         }
     }
 
-#if DEBUG
     // The enemy's current HP, the u32 at [enemy+0x34e0]+0xc (fldChara::vf14, 0x645110, through 0x3e60f0, on game build
-    // 548ddc95, Steam 18330018; docs/findings/field-enemy-strikes-and-notice-static.md), or null when unreadable.
+    // 548ddc95, Steam 18330018; docs/findings/field-enemy-strikes-and-notice-static.md), or null when unreadable. The
+    // offsets are constants, compiled in, so Release calls no FieldEnemyState member (DebugOnlyFieldEnemyStateTests).
     private static int? EnemyHp(nint unit) =>
         ModuleMemoryReader.ReadPointer(unit + FieldEnemyState.StatsOffset) is { } stats && stats != 0
             ? ModuleMemoryReader.ReadInt32(stats + FieldEnemyState.HpOffset)
             : null;
-#endif
 
     // The break byte read whole; any value but 1 (or an unreadable one) is not stunned.
     private static bool EnemyStunned(nint unit)

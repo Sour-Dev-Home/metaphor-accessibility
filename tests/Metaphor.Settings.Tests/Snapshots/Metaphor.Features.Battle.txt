@@ -1,4 +1,4 @@
-speech.battleAffinities | Battle affinities | off | testing
+speech.battleAffinities | Battle affinities | on | done
 speech.battleAffinitiesFoundOnly | Battle affinities found only | on | done
 speech.battleBannerNames | Battle banner names | off | testing
 speech.battleBanners | Battle banners | on | done

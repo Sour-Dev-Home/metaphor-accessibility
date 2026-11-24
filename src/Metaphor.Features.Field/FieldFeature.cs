@@ -28,7 +28,7 @@ public enum FieldFeature
 
     /// <summary>The guidance beep pausing while the game has control and settling before it returns (#702, #709), not
     /// ending. Separate from the beep while it is tested.</summary>
-    [SettingKey("field", "guidancePause", "Guidance pause", Testing = true, Order = 2040, Description = "The beep " +
+    [SettingKey("field", "guidancePause", "Guidance pause", Order = 2040, Description = "The beep " +
         "pausing, not ending, while the game has control (a cutscene or a line), and coming back once free roam has " +
         "held. Needs `guidance`.")]
     GuidancePause,
@@ -45,7 +45,7 @@ public enum FieldFeature
 
     /// <summary>LB and RB held back in free roam until let go, then tapped to the game if no chord came (#811).
     /// </summary>
-    [SettingKey("field", "shoulderHold", "Shoulder hold or tap", Testing = true, Order = 2070, Description = "In " +
+    [SettingKey("field", "shoulderHold", "Shoulder hold or tap", Order = 2070, Description = "In " +
         "the field, LB and RB reach the game when you let go, so LB with RB (the reader) and LB with the D-pad open " +
         "neither the popularity ranking nor the map. Tapped alone, they still open them.")]
     ShoulderHold,
@@ -64,7 +64,7 @@ public enum FieldFeature
     Sonar,
 
     /// <summary>The wall tones ahead, behind, left and right of the camera (#830).</summary>
-    [SettingKey("field", "wallTones", "Wall tones", Testing = true, Order = 2100, Description = "A low steady tone " +
+    [SettingKey("field", "wallTones", "Wall tones", Order = 2100, Description = "A low steady tone " +
         "for each wall near you, ahead, behind, left and right of the screen, louder as the wall nears. Silent on maps " +
         "the mod has no walking map for, which it says once. The range and volume are in `limits`.")]
     WallTones,
@@ -89,19 +89,19 @@ public enum FieldFeature
     EnemyAwareness,
 
     /// <summary>"Guide me to the objective": the guidance beep toward the current objective's marker (#652).</summary>
-    [SettingKey("field", "objectiveGuidance", "Objective guidance", Testing = true, Order = 2140, Description = "O " +
+    [SettingKey("field", "objectiveGuidance", "Objective guidance", Order = 2140, Description = "O " +
         "starts the guidance beep toward the current objective's marker on this map, or a waypoint the mod's data " +
         "gives; G stops it. Says \"Objective guidance isn't ready for this area\" on a map the game gives no minimap, " +
         "where the mod can't place the marker.")]
     ObjectiveGuidance,
 
     /// <summary>The callouts when a strike of yours lands on a field enemy (#696).</summary>
-    [SettingKey("field", "fieldStrikes", "Field strike callouts", Testing = true, Order = 2150, Description = "\"Hit\" " +
+    [SettingKey("field", "fieldStrikes", "Field strike callouts", Order = 2150, Description = "\"Hit\" " +
         "when a strike of yours takes HP from a field enemy near you, and \"Defeated\" when it takes the last.")]
     FieldStrikes,
 
     /// <summary>The top-left corner advice from Gallica and the party (#587).</summary>
-    [SettingKey("field", "cornerAdvice", "Corner advice", Testing = true, Order = 2160, Description = "The advice " +
+    [SettingKey("field", "cornerAdvice", "Corner advice", Order = 2160, Description = "The advice " +
         "Gallica and the party give in the top-left corner as you roam, with the speaker's name, after the line " +
         "before it.")]
     CornerAdvice,
