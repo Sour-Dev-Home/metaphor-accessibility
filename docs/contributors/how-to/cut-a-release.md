@@ -60,7 +60,7 @@ A run by hand builds, attests and verifies a zip of `main`'s tip, and drafts not
    [Check a download](../../players/how-to/check-a-download.md#check-it-with-the-github-cli), with `VERSION` as the tag.
    The zip's SHA-256 must match `SHA256SUMS` and the run's summary. Verify the installer's attestation too, the same
    way as the zip's.
-3. Write the release notes (the first release's draft is
+3. Write the release notes, leading with the installer exe as the easiest way to install (the first release's draft is
    [release-notes-0.1.0.md](../reference/release-notes-0.1.0.md)), then publish the draft. The release PR updates
    [`CHANGELOG.md`](../../../CHANGELOG.md) in every release: run `bash scripts/release/join-changelog.sh 0.1.0 YYYY-MM-DD`, which joins the
    [fragments](../../../changelog.d/README.md) into a new version section and deletes them (lines still under

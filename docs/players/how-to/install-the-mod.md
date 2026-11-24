@@ -14,6 +14,12 @@ You need the game installed on PC (single-player only) and NVDA running. Downloa
 
 ## Install with the spoken installer
 
+**Easiest: the installer exe.** A release has a file ending in `-installer.exe`. Download it, press `Enter` on it in
+File Explorer (or in your browser's downloads), and choose `Run` if Windows asks. It unpacks the same installer to a
+temporary folder, checks its files, runs it in a window and deletes the folder afterwards. Everything after that is as
+in the steps below; skip the zip and its extracting. Windows warns about it, as for the launcher, because it isn't
+signed yet. `[NEEDS VERIFICATION]` by ear with NVDA.
+
 The zip holds two things: the mod's folder, `metaphor.accessibility`, and one file beside it,
 `Install Metaphor accessibility.cmd`, which starts the installer in that folder. The installer does every step on this
 page for you and says each one as it goes. It needs no clicks in Reloaded-II's window.
@@ -186,19 +192,26 @@ do. The other steps still run. Reloaded-II's settings file in your AppData folde
 
 ## Report a problem
 
-Use the Alpha feedback form on the project's issues page.
+Use the Alpha feedback form on the project's issues page. Everything is keyboard only; you need a free GitHub account
+to file it, and the mod itself sends nothing anywhere.
 
-1. Find `report-log.txt` in the `metaphor.accessibility` folder in your mods folder. The mod writes it fresh each time
-   the game starts, so copy it before you start the game again.
-2. Open the form and answer its three questions: what you were doing, roughly when you pressed the
-   [mark key](../reference/keys-and-speech.md#mark-key-note-a-moment-for-your-report), and the file: drag it into the
-   "Attach report-log.txt" box, or choose it with the file picker.
-3. The log holds what the mod did (whether it loaded, how many hooks went in, errors, and which lines and choices the
+1. When something goes wrong in the game, press `F8`, the
+   [mark key](../reference/keys-and-speech.md#mark-key-note-a-moment-for-your-report): two short clicks, and a marker
+   with the time goes into the log.
+2. Find `report-log.txt`. Press `Windows+R`, type `%LOCALAPPDATA%\Programs\Reloaded-II\Mods\metaphor.accessibility`
+   (the installer says this folder at its end; use your own mods folder if Reloaded-II is elsewhere) and press
+   `Enter`. Type `report-log` to jump to the file, then `Ctrl+C` and paste it somewhere safe with `Ctrl+V`. The mod
+   writes it fresh each time the game starts, so copy it before you start the game again.
+3. Open `https://github.com/Sour-Dev-Home/metaphor-accessibility/issues/new/choose`, move to "Alpha feedback" and
+   press `Enter`. The form has plain, labelled fields: what you were doing, roughly when you pressed `F8`, what you
+   heard, what you expected, your screen reader, and the log. In the log field paste the file's text with `Ctrl+V`,
+   or choose the file with the file picker. Write no name, email, phone number or folder path; none is needed.
+4. The log holds what the mod did (whether it loaded, how many hooks went in, errors, and which lines and choices the
    game asked for, by label such as `Title_System_08`), your mark key presses and the screens the mod said nothing
    for, never the game's text. Your user name is replaced with `<redacted>`, and the names you typed for your
    characters with `<name>`. Its first lines say how each part of the mod started. Read it in Notepad first if you
    want to check.
-4. If the game closed on its own, add Windows' record of the crash too:
+5. If the game closed on its own, add Windows' record of the crash too:
    [Find crash details](find-crash-details.md), no admin rights needed.
 
 ## Not checked by ear yet

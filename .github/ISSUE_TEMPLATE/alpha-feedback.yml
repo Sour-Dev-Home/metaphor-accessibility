@@ -18,7 +18,7 @@ body:
     id: heard
     attributes:
       label: What you heard
-      description: What the screen reader said, or that it said nothing. If the mod said nothing at all, run check-install.ps1 from the mod's folder first and paste what it says here.
+      description: What the screen reader said, or that it said nothing. If the mod said nothing at all, run the installer again (it ends with the install check) and paste what the check says here.
     validations:
       required: true
   - type: textarea

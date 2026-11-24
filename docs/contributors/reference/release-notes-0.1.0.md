@@ -11,10 +11,13 @@ Metaphor: ReFantazio on PC, single-player only.
 This is the first release. It reads the game's dialogue and reply choices aloud through your screen reader, with a
 spoken installer. It is early: most of the game is not read yet.
 
+- Easiest: download `metaphor-accessibility-v0.1.0-installer.exe`, press Enter on it and choose Run. It is the
+  spoken installer in one file, with no unzipping. The zip, `metaphor-accessibility-v0.1.0.zip`, holds the same
+  installer for anyone who prefers it.
 - Install it with [the install guide](https://github.com/Sour-Dev-Home/metaphor-accessibility/blob/main/docs/players/how-to/install-the-mod.md).
 - Check your download first with
   [the download check](https://github.com/Sour-Dev-Home/metaphor-accessibility/blob/main/docs/players/how-to/check-a-download.md).
-  The zip is `metaphor-accessibility-v0.1.0.zip`, next to `SHA256SUMS`.
+  The exe and the zip are listed in `SHA256SUMS`, and both are attested.
 - What changed is in the
   [CHANGELOG](https://github.com/Sour-Dev-Home/metaphor-accessibility/blob/main/CHANGELOG.md).
 
