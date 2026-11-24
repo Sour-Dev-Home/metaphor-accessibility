@@ -266,6 +266,7 @@ Describe 'onboard.ps1' {
 
         $first.ExitCode | Should -Be 0 -Because $first.Output
         git -C $clone config --local --get core.hooksPath | Should -Be 'scripts/githooks'
+        git -C $clone config --local --get merge.settings-reference.driver | Should -Be 'true'
         Get-Content (Join-Path $clone '.claude/pii-patterns.txt') | Should -Be 'private-pattern-for-tests'
         $calls = Get-Calls
         $calls | Should -Contain 'claude.ps1 plugin marketplace add mattpocock/skills'

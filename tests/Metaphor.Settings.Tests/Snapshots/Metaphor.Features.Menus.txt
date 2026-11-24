@@ -1,0 +1,29 @@
+report.markKey | Mark key | on | done
+report.silentScreens | Silent screen list | on | done
+speech.archetypeTree | Archetype Tree | off | testing
+speech.battleConfirms | Battle confirm prompts | off | testing
+speech.battleItemTabs | Battle item tabs | off | testing
+speech.battleListViews | Battle list views | on | done
+speech.battleLists | Battle lists | on | done
+speech.battleOrderMenu | Battle order menu | on | done
+speech.calendar | Calendar | on | done
+speech.equipmentMenu | Equipment menu | off | testing
+speech.followerList | Follower list | on | done
+speech.itemMenu | Item menu | on | done
+speech.keyHelp | Key help | off | testing
+speech.learnedSettingValues | Learned setting values | on | done
+speech.levelUpPoints | Level-up points | off | testing
+speech.menus | Menus | on | done
+speech.nameEntry | Name entry | on | done
+speech.nameReadBack | Name read-back | on | done
+speech.placeNames | Place names | on | done
+speech.questList | Quest list | on | done
+speech.returnToTitleQuestion | Return to title question | on | done
+speech.saveSlots | Save slots | on | done
+speech.settingsMenu | Settings menu | off | testing
+speech.shopMenu | Shop menu | on | done
+speech.skipSceneQuestion | Skip scene question | off | testing
+speech.systemMenu | System menu | on | done
+speech.travelMap | Travel map | on | done
+speech.tutorials | Tutorials | on | done
+speech.welcome | Welcome | on | done

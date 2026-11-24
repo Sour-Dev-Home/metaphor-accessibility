@@ -8,7 +8,9 @@ links the rule where it lives, so this page never drifts from it.
 2. **Branch from `origin/main`** after `git fetch origin`, unless the brief names an integration branch
    ([Start, step 1](workflow.md#start)). Leave `core.hooksPath` alone.
 3. **Test first**, with the `tdd` skill: the narrow test file while iterating, then `bash scripts/check.sh full` alone
-   in its own call, both summaries read ([Start, steps 2 to 5](workflow.md#start)).
+   in its own call, both summaries read ([Start, steps 2 to 5](workflow.md#start)). A new setting touches only its own
+   project's snapshot file and the regenerated settings page, also after merging `main`
+   ([how](../contributors/README.md#what-youll-deal-with)).
 4. **In the security-review scope** (`scripts/ci/security-stamp.sh`): run `security-reviewer` in the foreground and wait
    for its stamp before you commit. Never hand back staged, unstamped changes
    ([the guards](workflow.md#hook-loading-install-or-update-code-and-the-guards),

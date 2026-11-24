@@ -4,104 +4,35 @@ using Metaphor.SettingsReference;
 
 namespace Metaphor.Settings.Tests;
 
-/// <summary>Every setting as it stood before #784 moved them into their feature projects: key, spoken label, default
-/// with no file, and whether it is still being tested. Taken from the old central enum before the move; the move must
-/// leave every line as it is, and a later change to one is a change a reviewer sees here.</summary>
+/// <summary>Every setting as it stands: key, spoken label, default with no file, and whether it is still being tested.
+/// One snapshot file per project that declares settings, <c>Snapshots/&lt;assembly&gt;.txt</c>, so a feature PR edits
+/// only its own project's file and two projects never touch the same lines (#892). A change to a line is a change a
+/// reviewer sees there; an added, removed or changed setting, or a project with no file, fails.</summary>
 [Trait("Category", "Unit")]
 public sealed class SettingsSnapshotTests
 {
-    private static readonly string[] Expected =
-    [
-        "field.cameraTilt | Camera tilt | on | done",
-        "field.enemyAwareness | Enemy awareness | off | testing",
-        "field.fieldStrikes | Field strike callouts | off | testing",
-        "field.guidance | Guidance beep | on | done",
-        "field.guidancePause | Guidance pause | off | testing",
-        "field.nearby | Nearby list | on | done",
-        "field.nearbyCategories | Nearby categories | on | done",
-        "field.objectiveGuidance | Objective guidance | off | testing",
-        "field.reach | Reach callouts | on | done",
-        "field.routePings | Route pings | off | testing",
-        "field.shoulderHold | Shoulder hold or tap | off | testing",
-        "field.sonar | Sonar | off | testing",
-        "field.soundFiles | Navigation sound files | off | testing",
-        "field.stunCallouts | Stun callouts | on | done",
-        "field.wallTones | Wall tones | off | testing",
-        "field.whereAmI | Where am I | on | done",
-        "report.markKey | Mark key | on | done",
-        "report.silentScreens | Silent screen list | on | done",
-        "sounds.allyHit | Ally hit sound | on | done",
-        "sounds.enemyGaveUp | Enemy gave up sound | on | done",
-        "sounds.enemyHit | Enemy hit sound | on | done",
-        "sounds.enemyNoticed | Enemy noticed sound | on | done",
-        "sounds.mark | Mark sound | on | done",
-        "speech.archetypeTree | Archetype Tree | off | testing",
-        "speech.battleBannerNames | Battle banner names | off | testing",
-        "speech.battleBanners | Battle banners | on | done",
-        "speech.battleConfirms | Battle confirm prompts | off | testing",
-        "speech.battleEnd | Battle end | off | testing",
-        "speech.battleEnemyKeys | Battle enemy keys | on | done",
-        "speech.battleEnemyList | Battle enemy list | off | testing",
-        "speech.battleEnemyMaxHp | Battle enemy max HP | on | done",
-        "speech.battleEnemyPad | Battle enemy pad chords | off | testing",
-        "speech.battleEnemyTarget | Battle targeted enemy first | off | testing",
-        "speech.battleHitNumbers | Battle hit numbers only | off | testing",
-        "speech.battleHits | Battle hits | on | done",
-        "speech.battleHpMp | Battle HP and MP key | off | testing",
-        "speech.battleItemTabs | Battle item tabs | off | testing",
-        "speech.battleListViews | Battle list views | on | done",
-        "speech.battleLists | Battle lists | on | done",
-        "speech.battleNumberReset | Battle number reset | off | testing",
-        "speech.battleOrderMenu | Battle order menu | on | done",
-        "speech.battleOutcomes | Battle outcomes | on | done",
-        "speech.battleRewards | Battle rewards | off | testing",
-        "speech.battleStart | Battle start | on | done",
-        "speech.battleTargetSpeech | Battle target cursor | off | testing",
-        "speech.battleTurnLine | Battle turn line | off | testing",
-        "speech.buttonNames | Button names | on | done",
-        "speech.calendar | Calendar | on | done",
-        "speech.choiceCount | Choice count | on | done",
-        "speech.choiceDelay | Choice delay | on | done",
-        "speech.dialogue | Dialogue | on | done",
-        "speech.dialogueKeys | Dialogue keys | off | testing",
-        "speech.equipmentMenu | Equipment menu | off | testing",
-        "speech.followerList | Follower list | on | done",
-        "speech.itemMenu | Item menu | on | done",
-        "speech.keyHelp | Key help | off | testing",
-        "speech.learnedSettingValues | Learned setting values | on | done",
-        "speech.levelUpPoints | Level-up points | off | testing",
-        "speech.menus | Menus | on | done",
-        "speech.messageLog | Message log | off | testing",
-        "speech.moreTermNames | More term names | off | testing",
-        "speech.nameEntry | Name entry | on | done",
-        "speech.nameReadBack | Name read-back | on | done",
-        "speech.nameStandIn | Name stand-in | off | testing",
-        "speech.placeNames | Place names | on | done",
-        "speech.positions | Positions | on | done",
-        "speech.questList | Quest list | on | done",
-        "speech.returnToTitleQuestion | Return to title question | on | done",
-        "speech.saveSlots | Save slots | on | done",
-        "speech.settingsMenu | Settings menu | off | testing",
-        "speech.shopMenu | Shop menu | on | done",
-        "speech.skipSceneQuestion | Skip scene question | off | testing",
-        "speech.systemMenu | System menu | on | done",
-        "speech.termNames | Term names | on | done",
-        "speech.travelMap | Travel map | on | done",
-        "speech.tutorials | Tutorials | on | done",
-        "speech.updateNotice | Update notice | on | done",
-        "speech.welcome | Welcome | on | done",
-        "speech.windowCloseStop | Window close stop | on | done",
-    ];
+    private const string Folder = "tests/Metaphor.Settings.Tests/Snapshots";
 
     [Fact]
-    public void EverySettingKeepsItsKeyLabelDefaultAndTestingMark()
+    public void EveryProjectsSettingsKeepTheirKeyLabelDefaultAndTestingMark()
     {
-        var defaults = ModSettings.Defaults;
-        var features = AllFeatures.Catalogue().Features.Select(feature => Line(
-            SettingKey.Of(feature), defaults.IsOn(feature)));
-        var cues = Enum.GetValues<Cue>().Select(cue => Line(SettingKey.Of(cue), defaults.Sound(cue).On));
+        var actual = Actual();
+        var folder = Path.Combine(RepositoryRoot(), Folder);
+        var files = Directory.GetFiles(folder, "*.txt").Select(path => Path.GetFileNameWithoutExtension(path))
+            .Order(StringComparer.Ordinal).ToList();
+        var projects = actual.Keys.Order(StringComparer.Ordinal).ToList();
 
-        Assert.Equal(Expected, features.Concat(cues).Order(StringComparer.Ordinal));
+        Assert.True(
+            projects.SequenceEqual(files),
+            $"{Folder} needs one <assembly>.txt per project with settings: have [{string.Join(", ", files)}], need "
+            + $"[{string.Join(", ", projects)}]");
+        foreach (var (project, lines) in actual)
+        {
+            var expected = File.ReadAllLines(Path.Combine(folder, project + ".txt")).Where(line => line.Length > 0);
+            Assert.True(
+                expected.SequenceEqual(lines),
+                $"{Folder}/{project}.txt differs from the settings in code. It should read:\n{string.Join("\n", lines)}");
+        }
     }
 
     [Fact]
@@ -109,6 +40,36 @@ public sealed class SettingsSnapshotTests
         Assert.All(AllFeatures.Catalogue().Features,
             feature => Assert.True(ModSettings.Defaults.WithTesting(true).IsOn(feature)));
 
+    /// <summary>The snapshot lines of each project, by the assembly that declares the setting's enum.</summary>
+    private static Dictionary<string, List<string>> Actual()
+    {
+        var defaults = ModSettings.Defaults;
+        var settings = AllFeatures.Catalogue().Features.Concat(Enum.GetValues<Cue>().Select(cue => (Enum)cue));
+        return settings
+            .Select(setting => (Project: setting.GetType().Assembly.GetName().Name!, Setting: setting))
+            .GroupBy(entry => entry.Project, StringComparer.Ordinal)
+            .ToDictionary(
+                group => group.Key,
+                group => group.Select(entry => Line(SettingKey.Of(entry.Setting), IsOn(defaults, entry.Setting)))
+                    .Order(StringComparer.Ordinal).ToList(),
+                StringComparer.Ordinal);
+    }
+
+    private static bool IsOn(ModSettings defaults, Enum setting) =>
+        setting is Cue cue ? defaults.Sound(cue).On : defaults.IsOn(setting);
+
     private static string Line(SettingKey key, bool on) =>
         $"{key.Path} | {key.Spoken} | {(on ? "on" : "off")} | {(key.Testing ? "testing" : "done")}";
+
+    private static string RepositoryRoot()
+    {
+        for (var folder = new DirectoryInfo(AppContext.BaseDirectory); folder is not null; folder = folder.Parent)
+        {
+            if (File.Exists(Path.Combine(folder.FullName, "Metaphor.sln")))
+            {
+                return folder.FullName;
+            }
+        }
+        throw new DirectoryNotFoundException("no Metaphor.sln above the test folder");
+    }
 }
