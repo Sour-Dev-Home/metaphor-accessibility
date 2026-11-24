@@ -63,13 +63,21 @@ public sealed class FeatureModulesTests
     }
 
     // #809, by ear 2026-11-23 evening: the skip menu's animation 4768 is its close, so the question was said as the
-    // player left. Nothing asks for that layout's animations until an open signal is found.
+    // player left. Nothing asks for that layout's animations; the question hears the component's show request instead.
     [Fact]
     public void NoFeatureHearsTheSkipMenusClose()
     {
         var context = Register(withReport: false);
 
         Assert.False(context.Layouts.Wants(SkipSceneQuestion.Layout));
+    }
+
+    [Fact]
+    public void TheSkipQuestionHearsTheSkipMenusShowRequest()
+    {
+        var context = Register(withReport: false);
+
+        Assert.True(context.MoviePause.Any);
     }
 
     [Fact]

@@ -163,41 +163,49 @@ public sealed class ShoulderTapsTests
         Assert.Equal([LB, LB, LB, 0, 0], handed);
     }
 
-    // #835: held alone past the hold delay (300 ms by default), the shoulder is the game's from then until let go, so
-    // the game's own held paging works; its release is no tap.
+    // #835, the maintainer's decision of 2026-11-23: where a chord can happen, a held shoulder is never handed to the
+    // game however long it's held alone; let go with no chord, it is a tap, as after a short press.
     [Fact]
-    public void ALoneHoldPastTheDelayReachesTheGameAsAHoldUntilReleased()
+    public void ALoneShoulderHeldForAnyTimeIsKeptFromTheGameAndATapOnRelease()
     {
-        Assert.Equal(0, ReadAt(1000, LB));
-        Assert.Equal(0, ReadAt(1299, LB));
-        Assert.Equal(LB, ReadAt(1300, LB));
-        Assert.Equal(LB, ReadAt(1800, LB));
+        var handed = new List<int>();
+        for (var at = 1000L; at < 10000; at += 100)
+        {
+            handed.Add(ReadAt(at, LB));
+        }
 
-        Assert.Equal([0, 0, 0, 0], [ReadAt(1816, 0), ReadAt(1832, 0), ReadAt(1848, 0), ReadAt(1864, 0)]);
+        Assert.All(handed, buttons => Assert.Equal(0, buttons));
+        Assert.Equal([LB, LB, LB, LB, 0], [ReadAt(10000, 0), ReadAt(10016, 0), ReadAt(10032, 0), ReadAt(10048, 0),
+            ReadAt(10064, 0)]);
     }
 
+    // With no hand-over the controls see the shoulder for as long as it's held, so a chord can still form after a long
+    // lone hold, and then no tap follows.
     [Fact]
-    public void LetGoOnTheReadTheDelayEndsIsATap()
+    public void AChordFormsHoweverLongTheShoulderWasHeldAlone()
     {
-        ReadAt(1000, LB);
+        var seen = new List<int>();
+        var controls = new SeeingControls(seen, buttons => buttons == (LB | Down) ? LB : buttons);
+        var frame = new InputFrame(new NoGame(), new MenuScreens([]), [controls], null, null, null, taps: taps);
 
-        Assert.Equal(LB, ReadAt(1300, 0));
-    }
+        now = 1000;
+        Assert.Equal(0, frame.Pad(0, LB, made: true).Buttons);
+        now = 5000;
+        Assert.Equal(0, frame.Pad(0, LB, made: true).Buttons);
+        now = 5016;
+        Assert.Equal(0, frame.Pad(0, LB | Down, made: true).Buttons);
+        now = 5032;
+        Assert.Equal(0, frame.Pad(0, 0, made: true).Buttons);
+        now = 5048;
+        Assert.Equal(0, frame.Pad(0, 0, made: true).Buttons);
 
-    [Fact]
-    public void TheHoldDelayComesFromTheLimits()
-    {
-        limits = new(500, 50);
-
-        Assert.Equal(0, ReadAt(1000, LB));
-        Assert.Equal(0, ReadAt(1499, LB));
-        Assert.Equal(LB, ReadAt(1500, LB));
+        Assert.Equal([LB, LB, LB | Down, 0, 0], seen);
     }
 
     [Fact]
     public void TheTapLengthComesFromTheLimits()
     {
-        limits = new(300, 100);
+        limits = new(100);
         Read(LB);
         var handed = new List<int>();
         for (var i = 0; i < 10; i++)
@@ -210,96 +218,39 @@ public sealed class ShoulderTapsTests
         Assert.Equal(0, handed[^1]);
     }
 
+    // Asked again at the release: a shoulder whose context has gone during a long hold is no tap.
     [Fact]
-    public void AChordBeforeTheDelayKeepsTheShoulderFromTheGamePastIt()
-    {
-        ReadAt(1000, LB);
-        Assert.Equal(0, taps.Pad(0, LB | Down, LB, made: true));
-
-        Assert.Equal(0, ReadAt(1400, LB));
-        Assert.Equal(0, ReadAt(1416, 0));
-    }
-
-    // Asked again at the hand-over, as at the release: a shoulder whose context has gone stays kept back until let go.
-    [Fact]
-    public void AShoulderWhoseContextLeftIsNotHandedOver()
+    public void ALongHoldWhoseContextLeftIsNoTap()
     {
         ReadAt(1000, LB);
         held = 0;
 
-        Assert.Equal(0, ReadAt(1300, LB));
-        Assert.Equal(0, ReadAt(1316, 0));
+        Assert.Equal(0, ReadAt(3000, LB));
+        Assert.Equal(0, ReadAt(3016, 0));
     }
 
-    // Once handed over, the shoulders are the game's: the other one goes straight to the game too, and no tap follows.
+    // The old hold delay's key (#835) is no longer read: a settings file that still has it changes nothing.
     [Fact]
-    public void TheOtherShoulderDuringAHandOverReachesTheGameAtOnce()
-    {
-        held = LB | RB;
-        ReadAt(1000, LB);
-        Assert.Equal(LB, ReadAt(1300, LB));
-
-        Assert.Equal(LB | RB, ReadAt(1316, LB | RB));
-        Assert.Equal(RB, ReadAt(1332, RB));
-        Assert.Equal(0, ReadAt(1348, 0));
-        Assert.Equal(0, ReadAt(1364, 0));
-    }
-
-    [Fact]
-    public void EachPadTimesItsOwnHold()
-    {
-        ReadAt(1000, LB, pad: 0);
-        ReadAt(1200, LB, pad: 1);
-
-        Assert.Equal(LB, ReadAt(1300, LB, pad: 0));
-        Assert.Equal(0, ReadAt(1300, LB, pad: 1));
-        Assert.Equal(LB, ReadAt(1500, LB, pad: 1));
-    }
-
-    // After the hand-over the frame's controls no longer see the shoulder, so no mod chord on it can form: the D-pad
-    // goes to the game with it, as it would without the mod.
-    [Fact]
-    public void AfterTheHandOverTheControlsDontSeeTheShoulderSoNoChordForms()
-    {
-        var seen = new List<int>();
-        var controls = new SeeingControls(seen, buttons => buttons == (LB | Down) ? LB : buttons);
-        var frame = new InputFrame(new NoGame(), new MenuScreens([]), [controls], null, null, null, taps: taps);
-
-        now = 1000;
-        Assert.Equal(0, frame.Pad(0, LB, made: true).Buttons);
-        now = 1300;
-        Assert.Equal(LB, frame.Pad(0, LB, made: true).Buttons);
-        now = 1316;
-        Assert.Equal(LB | Down, frame.Pad(0, LB | Down, made: true).Buttons);
-        now = 1332;
-        Assert.Equal(0, frame.Pad(0, 0, made: true).Buttons);
-
-        Assert.Equal([LB, 0, Down, 0], seen);
-    }
-
-    [Fact]
-    public void TheLimitsComeFromTheSettingsFileWithinRange()
+    public void TheTapLengthComesFromTheSettingsFileWithinRange()
     {
         var parsed = ModSettings.Parse(
-            """{ "limits": { "shoulders": { "holdDelay": 5000, "tapLength": 30 } } }""", SettingCatalogue.Empty, _ => { });
+            """{ "limits": { "shoulders": { "holdDelay": 100, "tapLength": 500 } } }""", SettingCatalogue.Empty, _ => { });
 
-        Assert.Equal(new ShoulderTapLimits(1000, 30), ShoulderTapLimits.From(parsed));
-        Assert.Equal(new ShoulderTapLimits(300, 50), ShoulderTapLimits.From(ModSettings.Defaults));
+        Assert.Equal(new ShoulderTapLimits(200), ShoulderTapLimits.From(parsed));
+        Assert.Equal(new ShoulderTapLimits(50), ShoulderTapLimits.From(ModSettings.Defaults));
     }
 
-    // Ready for a slider in the settings menu (#754): each default is in range and on a step.
+    // Ready for a slider in the settings menu (#754): its default is in range and on a step.
     [Fact]
-    public void EachLimitIsASlider()
+    public void TheTapLengthIsASlider()
     {
-        foreach (var slider in new[] { ShoulderTapLimits.HoldDelay, ShoulderTapLimits.TapLength })
-        {
-            Assert.InRange(slider.Default, slider.Min, slider.Max);
-            Assert.True(slider.Step > 0);
-            Assert.Equal(0, (slider.Max - slider.Min) % slider.Step);
-            Assert.Equal(0, (slider.Default - slider.Min) % slider.Step);
-        }
-        Assert.Equal(("shoulders", "holdDelay"), (ShoulderTapLimits.HoldDelay.Group, ShoulderTapLimits.HoldDelay.Name));
-        Assert.Equal(("shoulders", "tapLength"), (ShoulderTapLimits.TapLength.Group, ShoulderTapLimits.TapLength.Name));
+        var slider = ShoulderTapLimits.TapLength;
+
+        Assert.InRange(slider.Default, slider.Min, slider.Max);
+        Assert.True(slider.Step > 0);
+        Assert.Equal(0, (slider.Max - slider.Min) % slider.Step);
+        Assert.Equal(0, (slider.Default - slider.Min) % slider.Step);
+        Assert.Equal(("shoulders", "tapLength"), (slider.Group, slider.Name));
     }
 
     [Fact]

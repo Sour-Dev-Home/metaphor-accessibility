@@ -340,7 +340,14 @@
     "section": ".ecode",
     "pattern": "40 53 48 81 EC 80 00 00 00 4D 8B D0 48 8B DA 48 89 4C 24 30 48 89 54 24 38 0F B6 84 24 B0 00 00 00 88 44 24 20 45 33 C0 49 8B D2 48 8B CB E8",
     "gameBuilds": ["548ddc955c176867f062c44f94c03dd9ac33caefb278a5ac388e792aedf09504"],
-    "evidence": "Our reading of the exe in Ghidra 12.2: the UI layouts' shared start-an-animation, 0xa70010, which 92 layouts' open functions reach (docs/findings/ui-component-open-points-static.md); one match on disk; installed in memory in the by-ear session of 2026-11-23 (mod 0c122d3 Debug), whose ui-anim records named MoviePauseLayout@ui@app anim=4768 as the cutscene skip menu opened (#809)"
+    "evidence": "Our reading of the exe in Ghidra 12.2: the UI layouts' shared start-an-animation, 0xa70010, which 92 layouts' open functions reach (docs/findings/ui-component-open-points-static.md); one match on disk; installed in memory in the by-ear session of 2026-11-23 (mod 0c122d3 Debug), whose ui-anim records named MoviePauseLayout@ui@app anim=4768 as the cutscene skip menu closed (#809, by ear 2026-11-23 evening)"
+  },
+  {
+    "name": "MoviePauseRequest",
+    "section": ".ecode",
+    "pattern": "40 53 48 83 EC 20 4C 8B C2 48 8B D9 48 8D 54 24 40 E8 ?? ?? ?? ?? 80 7C 24 41 00 74 29 80 7C 24 40 01 75 22 48 8B 4B 18 33 D2 48 8B 01 FF 90 F0 00 00 00 48 8B 4B 18 48 8B 01 48 83 C4 20 5B 48 FF A0 A8 00 00 00 48 8B 4B 18 48 8B 01 FF 90 E0 00 00 00 84 C0 74 13 48 8B 4B 18 48 8B 01 48 83 C4 20 5B 48 FF A0 A0 00 00 00 48 83 C4 20 5B C3",
+    "gameBuilds": ["548ddc955c176867f062c44f94c03dd9ac33caefb278a5ac388e792aedf09504"],
+    "evidence": "Our reading of the exe in Ghidra 12.2: the cutscene skip menu's request handler, UUIC_Common_MoviePause::vf5, 0xf737c0, whose request of 1 shows MoviePauseLayout with no animation and whose other path closes it with anim 4768 (docs/findings/movie-pause-open-static.md, #809); the whole function, one match on disk (tools/Metaphor.SignatureCheck/ui-component-probes.json); not yet checked in memory"
   },
   {
     "name": "EventItemGetOpen",

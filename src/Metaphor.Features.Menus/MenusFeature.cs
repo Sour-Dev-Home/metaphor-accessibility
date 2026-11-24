@@ -21,8 +21,7 @@ public enum MenusFeature
     /// <summary>The question and buttons of the "Skip?" menu in a 2D cutscene (#809). Separate from the menus while it
     /// is tested.</summary>
     [SettingKey("speech", "skipSceneQuestion", "Skip scene question", Testing = true, Order = 1015,
-        Description = "The question and its two buttons when the Menu button opens the skip menu in a cutscene. " +
-            "Silent for now: the mod can't yet tell when that menu opens.")]
+        Description = "The question and its two buttons when the Menu button opens the skip menu in a cutscene.")]
     SkipSceneQuestion,
 
     /// <summary>Battle's skill and item lists, row by row (#247). Separate from the menus.</summary>

@@ -49,10 +49,14 @@ public sealed class DevOnlyHookTests
 
     /// <summary>The layout animation hook ships to players, so the cutscene skip menu can be spoken (maintainer's
     /// decision, 2026-11-23, #809); it is in <c>.ecode</c>, not <c>.text1</c>, so rule 15 doesn't hold it back.</summary>
-    [Fact]
-    public void TheLayoutAnimationHookShipsInRelease()
+    /// <remarks>So does the skip menu's request hook, which says the menu's question as it opens (the maintainer's
+    /// decision of 2026-11-23 on #809, option (a)); it is in <c>.ecode</c> too.</remarks>
+    [Theory]
+    [InlineData("Metaphor.Hooks.LayoutAnimationListener")]
+    [InlineData("Metaphor.Hooks.MoviePauseRequestListener")]
+    public void TheLayoutAndSkipMenuHooksShipInRelease(string hook)
     {
-        var attribute = Scanned.Load(Rules.HookLayer).MainModule.GetType("Metaphor.Hooks.LayoutAnimationListener")
+        var attribute = Scanned.Load(Rules.HookLayer).MainModule.GetType(hook)
             .CustomAttributes.Single(a => a.AttributeType.FullName == "Metaphor.Hooks.GameHookAttribute");
 
         Assert.DoesNotContain(attribute.Properties, p => p.Name is "DevOnly" or "OptInFile");

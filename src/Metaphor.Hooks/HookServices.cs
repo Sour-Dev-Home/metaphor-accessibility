@@ -52,6 +52,10 @@ internal sealed record HookServices
     /// none unless a feature module asked.</summary>
     public LayoutAnimations Layouts { get; init; } = new();
 
+    /// <summary>Where the skip menu's request hook hands its requests (#809): none heard unless a feature module asked.
+    /// </summary>
+    public MoviePauseRequests MoviePause { get; init; } = new();
+
     /// <summary>Reads whether the game has its menus open (#268); the loader locates what it reads (#300).</summary>
     public MenusOpenRead MenusOpen { get; init; } = new();
 
@@ -333,6 +337,7 @@ internal sealed record HookServices
             DialogueHistory = history,
             MenuScreens = screens,
             Layouts = context.Layouts,
+            MoviePause = context.MoviePause,
             NameEntry = (INameEntryObserver?)nameEntry ?? new NoNameEntry(),
             KeyWatcher = nameEntry,
             PadWatcher = context.Find<IPadWatcher>(),

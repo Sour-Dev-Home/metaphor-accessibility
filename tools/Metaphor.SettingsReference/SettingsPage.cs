@@ -192,12 +192,10 @@ public static class SettingsPage
     // The limits made for a slider (#835), each with what it does; the range, step and default come from the limit.
     private static readonly (SliderLimit Limit, string Description)[] Sliders =
     [
-        (ShoulderTapLimits.HoldDelay,
-            "How long, in milliseconds, `LB` or `RB` held alone waits for a chord before the game gets it as a held "
-            + "button, in the field (`shoulderHold`) and in a battle. A shorter press reaches the game as a tap when "
-            + "you let go."),
         (ShoulderTapLimits.TapLength,
-            "How long, in milliseconds, that tap holds the button down for the game. Raise it if the game misses taps."),
+            "How long, in milliseconds, a lone `LB` or `RB` press holds the button down for the game when you let go, "
+            + "in the field (`shoulderHold`) and in a battle, where the mod keeps a held shoulder for its chords. "
+            + "Raise it if the game misses taps."),
         (CueVolumes.Sonar,
             "How loud the field sonar's pings are, as a share of `soundCueVolume` (the master). Wall tones and route "
             + "pings have their own, `field.wallVolume` and `field.routePingVolume`."),

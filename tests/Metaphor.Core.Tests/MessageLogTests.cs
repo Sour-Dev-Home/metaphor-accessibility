@@ -332,6 +332,21 @@ public sealed class MessageLogTests
         Assert.Equal($"9 ms ui-anim class=AutoSavingLayout@ui@app at=0x2a00 anim=758{Environment.NewLine}", text.ToString());
     }
 
+    // #809: the skip menu's request, its byte or ? when it held none or was unreadable.
+    [Fact]
+    public void RecordsAUiRequestWithItsValue()
+    {
+        var (log, text) = NewLog(now: 9);
+
+        log.UiRequested("UUIC_Common_MoviePause@ui@app", 0x3b00, 1);
+        log.UiRequested("UUIC_Common_MoviePause@ui@app", 0x3b00, null);
+
+        Assert.Equal(
+            $"9 ms ui-request class=UUIC_Common_MoviePause@ui@app at=0x3b00 value=1{Environment.NewLine}" +
+            $"9 ms ui-request class=UUIC_Common_MoviePause@ui@app at=0x3b00 value=?{Environment.NewLine}",
+            text.ToString());
+    }
+
     [Fact]
     public void AnUnreadableUiClassIsAQuestionMark()
     {

@@ -67,8 +67,7 @@ public readonly record struct KeysAnswer(IReadOnlyList<int> Keys, long? Window);
 /// them. A pad read the game reports as not made (#225) fires nothing and comes back unchanged. The answer only ever
 /// clears bits or drops keys from the read, so the hook's write-back can't add input the game didn't see, with one
 /// exception: the shoulder taps (#811, <see cref="ShoulderTaps"/>), applied after every control, hand on a tap of LB or
-/// RB for a few reads after the player let go of it, a press the game held back but did see, and a shoulder held past
-/// the hold delay from then on (#835). It keeps no state of its
+/// RB for a few reads after the player let go of it, a press the game held back but did see. It keeps no state of its
 /// own; the controls and the taps lock theirs, so any of the game's threads may call it.</summary>
 public sealed class InputFrame
 {
@@ -135,13 +134,12 @@ public sealed class InputFrame
         padWatcher?.Pad(pad, buttons, made);
         lastDevice?.Pad(buttons);
         var shoulders = taps?.Read(pad, buttons, made) ?? ShoulderRead.None;
-        var seen = shoulders.Controls(buttons);
-        var handed = seen;
+        var handed = buttons;
         foreach (var control in controls)
         {
             handed = control.Pad(pad, handed, made);
         }
-        handed &= seen;
+        handed &= buttons;
         return new(shoulders.Game(handed), window);
     }
 

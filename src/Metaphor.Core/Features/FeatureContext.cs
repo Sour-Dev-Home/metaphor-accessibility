@@ -63,6 +63,9 @@ public sealed class FeatureContext
     /// <summary>The animations of the layout classes a feature asks for (#809).</summary>
     public LayoutAnimations Layouts { get; init; } = new();
 
+    /// <summary>The cutscene skip menu's requests, for a feature that hears it open (#809).</summary>
+    public MoviePauseRequests MoviePause { get; init; } = new();
+
     /// <summary>The message files the game compiled.</summary>
     public required MessageLibrary Library { get; init; }
 

@@ -137,6 +137,11 @@ public sealed class MessageLog(TextWriter writer, Func<long> millisecondsSinceSt
     public void UiOpened(string? className, long at) =>
         Write(() => Line($"{millisecondsSinceStart()} ms ui-open class={className ?? "?"} at=0x{at:x}"));
 
+    /// <summary>A UI component got a request (#809): its class, its address and the request's value (null when it held
+    /// none or was unreadable). Identifiers and numbers, no game text.</summary>
+    public void UiRequested(string className, long at, int? value) => Write(() => Line(
+        $"{millisecondsSinceStart()} ms ui-request class={className} at=0x{at:x} value={value?.ToString(CultureInfo.InvariantCulture) ?? "?"}"));
+
     /// <summary>A UI layout started an animation (#691), which is how its open function shows it: the layout's class
     /// (null when unreadable), its address and the animation's number (null when unreadable). Identifiers and numbers,
     /// no game text.</summary>
