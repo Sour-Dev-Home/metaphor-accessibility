@@ -102,6 +102,26 @@ internal sealed class GameDataRead : IReadsGlobal
     /// <summary>The party's MAG, or null when unknown.</summary>
     public int? Mag() => Data() is { } data ? ModuleMemoryReader.ReadInt32(data + MagAt) : null;
 
+#if DEBUG
+    // The capture build's reads (CaptureProbes), Debug builds only. The follower ranks (#199): ints at G+0x24674, one
+    // per follower (docs/findings/money-follower-rank-and-shop-static.md). The flag banks (#949, #950): the pointer at
+    // G+0xac368, which 0x3b0b20 returns (Ghidra 12.2, decompile 0x3b0b20, 2026-11-24;
+    // docs/findings/field-gather-points-and-taken-state-static.md). Build 548ddc95… (Steam 18330018).
+    private const int FollowerRanksAt = 0x24674;
+    private const int FlagBanksAt = 0xac368;
+
+    /// <summary>The follower rank array's bytes, or null when unknown.</summary>
+    public byte[]? FollowerRanks()
+    {
+        var ranks = new byte[CaptureLines.FollowerRanksLength];
+        return Data() is { } data && ModuleMemoryReader.ReadBytes(data + FollowerRanksAt, ranks) ? ranks : null;
+    }
+
+    /// <summary>The flag banks object, or null when unknown.</summary>
+    public nint? FlagBanks() =>
+        Data() is { } data && ModuleMemoryReader.ReadPointer(data + FlagBanksAt) is { } banks && banks != 0 ? banks : null;
+#endif
+
     private nint? Data() =>
         global != 0 && ModuleMemoryReader.ReadPointer(global) is { } data && data != 0 ? data : null;
 }

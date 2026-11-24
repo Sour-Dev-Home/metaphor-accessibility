@@ -44,6 +44,9 @@ internal sealed class NameEntryInputHook : IGameHook, IObserves1WithResult
 
     public void Observe(nint entry, nint result)
     {
+#if DEBUG
+        CaptureEvents(entry);
+#endif
         if (ModuleMemoryReader.ReadPointer(entry + KeyboardOffset) is not { } keyboard || keyboard == 0 ||
             ModuleMemoryReader.ReadPointer(entry + OwnNameArrayOffset) is not { } nameArrayType || nameArrayType == 0 ||
             ModuleMemoryReader.ReadPointer(keyboard + TextArrayOffset) != nameArrayType ||
@@ -68,4 +71,25 @@ internal sealed class NameEntryInputHook : IGameHook, IObserves1WithResult
         }
         observer.Observe(frame);
     }
+
+#if DEBUG
+    // The capture build (#930): the keyboard object's event bits at +0xa0, which the typing state reads through vf20
+    // (0xe8c7e0; docs/findings/name-entry-static.md), logged when they change, so a session can line a real Enter
+    // press up with the bit it sets. Debug builds only.
+    private const int EventBitsOffset = 0xa0;
+    private readonly InputStateChanges events = new();
+
+    private void CaptureEvents(nint entry)
+    {
+        if (log is null || ModuleMemoryReader.ReadPointer(entry + KeyboardOffset) is not { } keyboard || keyboard == 0)
+        {
+            return;
+        }
+        var line = CaptureLines.NameEntryEvents(keyboard, ModuleMemoryReader.ReadInt32(keyboard + EventBitsOffset));
+        if (events.Changed("name-entry", line))
+        {
+            log.Capture(line);
+        }
+    }
+#endif
 }
