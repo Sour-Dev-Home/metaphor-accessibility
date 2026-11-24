@@ -41,5 +41,5 @@ body:
   - type: textarea
     id: log
     attributes:
-      label: Attach report-log.txt
-      description: Drag the report-log.txt file from the mod's folder into this box. The mod writes a new one each time the game starts, so attach it before you start the game again. It holds your mark key presses and the screens the mod said nothing for, but no game text. Check it holds nothing you want kept private first.
+      label: The report log
+      description: Paste the text of report-log.txt from the mod's folder here with Ctrl+V, or attach the file with the file picker below this box. If you restarted the game after the problem, use report-log.previous.txt instead. It holds your mark key presses and the screens the mod said nothing for, but no game text. Check it holds nothing you want kept private first. The steps are under Report a problem in the install guide.

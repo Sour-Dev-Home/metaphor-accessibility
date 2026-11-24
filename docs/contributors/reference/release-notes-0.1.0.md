@@ -28,6 +28,7 @@ spoken installer. It is early: most of the game is not read yet.
 - Battle and moving around the field are not read.
 - Tested with NVDA only. Other screen readers are untested.
 - Parts of the installer and the mod were written without a screen reader to hand and are being checked by ear.
-  If something is wrong, [open an issue](https://github.com/Sour-Dev-Home/metaphor-accessibility/issues).
+  If something is wrong, press `F8` when it happens, then follow
+  [report a problem](https://github.com/Sour-Dev-Home/metaphor-accessibility/blob/main/docs/players/how-to/install-the-mod.md#report-a-problem).
 
 Not affiliated with ATLUS or SEGA. Free for everyone.
