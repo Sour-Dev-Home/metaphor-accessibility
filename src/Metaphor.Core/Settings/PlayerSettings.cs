@@ -19,11 +19,17 @@ public abstract record PlayerSetting(string Section, string Spoken, string Descr
     public abstract string Value(ModSettings settings);
 
     /// <summary>The change moving it <paramref name="steps"/> along makes, right positive; null when it can't change
-    /// here (a key binding, or a number already at its end).</summary>
+    /// here (a key binding, or a setting already at that end). Every kind follows one rule (#959): left is off, the
+    /// first choice or less, right is on, the last choice or more, and a move never wraps past an end.</summary>
     public abstract SettingChange? Change(ModSettings settings, int steps);
+
+    /// <summary>The change Enter or A makes: a toggle turns over, a choice steps on and wraps round, a number moves one
+    /// step up. Null when it can't change.</summary>
+    public virtual SettingChange? Activate(ModSettings settings) => Change(settings, 1);
 }
 
-/// <summary>A setting that is <c>true</c> or <c>false</c>: any move turns it over.</summary>
+/// <summary>A setting that is <c>true</c> or <c>false</c>: left turns it off, right on (#959), and Enter turns it
+/// over.</summary>
 public sealed record ToggleSetting(
     string Section, string Spoken, string Description, IReadOnlyList<string> Path, Func<ModSettings, bool> Read)
     : PlayerSetting(Section, Spoken, Description)
@@ -31,11 +37,14 @@ public sealed record ToggleSetting(
     public override string Value(ModSettings settings) => Read(settings) ? "on" : "off";
 
     public override SettingChange? Change(ModSettings settings, int steps) =>
-        steps == 0 ? null : new(Path, Read(settings) ? "false" : "true");
+        steps == 0 || (steps > 0) == Read(settings) ? null : new(Path, steps > 0 ? "true" : "false");
+
+    public override SettingChange? Activate(ModSettings settings) => new(Path, Read(settings) ? "false" : "true");
 }
 
 /// <summary>A setting that is one of a few words (<paramref name="Names"/>, as the file writes them, said as
-/// <paramref name="SaidAs"/>): a move steps through them and wraps.</summary>
+/// <paramref name="SaidAs"/>): a move steps through them and stops at either end (#959); Enter steps on and wraps.
+/// </summary>
 public sealed record ChoiceSetting(
     string Section, string Spoken, string Description, IReadOnlyList<string> Path, IReadOnlyList<string> Names,
     IReadOnlyList<string> SaidAs, Func<ModSettings, int> Read)
@@ -45,13 +54,13 @@ public sealed record ChoiceSetting(
 
     public override SettingChange? Change(ModSettings settings, int steps)
     {
-        if (steps == 0)
-        {
-            return null;
-        }
-        var next = (((Read(settings) + Math.Sign(steps)) % Names.Count) + Names.Count) % Names.Count;
-        return new(Path, $"\"{Names[next]}\"");
+        var now = Read(settings);
+        var next = Math.Clamp(now + Math.Sign(steps), 0, Names.Count - 1);
+        return next == now ? null : new(Path, $"\"{Names[next]}\"");
     }
+
+    public override SettingChange? Activate(ModSettings settings) =>
+        new(Path, $"\"{Names[(Read(settings) + 1) % Names.Count]}\"");
 }
 
 /// <summary>A whole number from <paramref name="Min"/> to <paramref name="Max"/>, moved by <paramref name="Step"/>.

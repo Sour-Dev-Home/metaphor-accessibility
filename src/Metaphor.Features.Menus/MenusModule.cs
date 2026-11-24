@@ -241,7 +241,11 @@ public sealed class MenusModule : IFeatureModule
             () => settings.Current, editor.Set, settings.Speech(MenusFeature.SettingsMenu, context.Announcer),
             menuKeys, settings.Live(now => MenuBindings.From(now, 0, 0)),
             () => settings.Current.IsOn(MenusFeature.SettingsMenu),
-            () => settings.Current.IsOn(SpokenDetail.Positions));
+            () => settings.Current.IsOn(SpokenDetail.Positions))
+        {
+            // The layout line on opening, while tested (#927).
+            SayIntro = () => settings.Current.IsOn(MenusFeature.SettingsMenuIntro),
+        };
         var menuOpen = ShoulderTaps.MenuOpen(context.Screens, context.Cursors);
         var battle = context.BattleScene;
         var help = new KeyHelp(

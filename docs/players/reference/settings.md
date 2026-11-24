@@ -122,7 +122,8 @@ Each is `true` to speak or `false` to stay quiet, inside a `speech` object: `{ "
 | `messageLog` | The game's message log, the backlog of recent dialogue, saying its name and each line's position as you move through it. The lines' words are still to come. Still being tested. | testing, off |
 | `narration` | The day count ("1 day remains") and the narration that opens a place, said without a speaker, after the line being said rather than over it. Needs `dialogue`. Still being tested. | testing, off |
 | `welcome` | The welcome on the title screen the first time the game starts with the mod: the mod's version and the field keys. | `true` |
-| `settingsMenu` | The mod's own settings menu, opened with F2, or LT and RT held then View on the pad, on any screen. Up and Down move, Left and Right change the setting and save it at once, F or R3 says what it does, and Escape or B closes. While it is open the game gets no keys or buttons. | `true` |
+| `settingsMenu` | The mod's own settings menu, opened with F2, or LT and RT held then View on the pad, on any screen. Up and Down move, Left and Right change the setting and save it at once, Left for off or less and Right for on or more, Enter or A turns a setting over, F or R3 says what it does, and Escape or B closes. While it is open the game gets no keys or buttons. | `true` |
+| `settingsMenuIntro` | As the mod's settings menu opens, its sections and the keys that move between them. Needs `settingsMenu`. Still being tested. | testing, off |
 | `keyHelp` | The help key, F1, or LT and RT held then Y on the pad: says the mod's keys that work where you are now, with their current bindings. | `true` |
 
 ## Field
