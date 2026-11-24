@@ -10,17 +10,22 @@ speech.battleOrderMenu | Battle order menu | on | done
 speech.calendar | Calendar | on | done
 speech.equipmentMenu | Equipment menu | off | testing
 speech.followerList | Follower list | on | done
+speech.gearDescriptions | Item and gear descriptions | off | testing
 speech.itemMenu | Item menu | on | done
 speech.keyHelp | Key help | off | testing
 speech.learnedSettingValues | Learned setting values | on | done
 speech.levelUpPoints | Level-up points | off | testing
+speech.menuPrompts | Menu prompts | off | testing
 speech.menus | Menus | on | done
 speech.nameEntry | Name entry | on | done
 speech.nameReadBack | Name read-back | on | done
 speech.placeNames | Place names | on | done
 speech.questList | Quest list | on | done
+speech.quickMenuHelp | Quick menu help | off | testing
+speech.quickMenuHelpOnFocus | Quick menu help on focus | off | testing
 speech.returnToTitleQuestion | Return to title question | on | done
 speech.saveSlots | Save slots | on | done
+speech.settingsHelp | Settings help | off | testing
 speech.settingsMenu | Settings menu | off | testing
 speech.shopMenu | Shop menu | on | done
 speech.skipSceneQuestion | Skip scene question | off | testing

@@ -24,7 +24,7 @@ namespace Metaphor.Features.Menus;
 /// So any member or archetype fetched after a cursor record starts the next block, and a worn item fills the slot of its
 /// kind (<see cref="EquipmentKinds"/>), the slots' order.</remarks>
 [FeatureSetting<MenusFeature>(MenusFeature.EquipmentMenu)]
-public sealed class EquipmentFocus : IScreenObserver, ISerialResolveObserver, ICursorObserver
+public sealed class EquipmentFocus : IScreenObserver, ISerialResolveObserver, ICursorObserver, IScreenDetails
 {
     /// <summary>The character list, by its owner's class on build 548ddc95.</summary>
     public static Screen Characters { get; } = new("Equipment", "EquipCharaSelChoice@ope@ui@app");
@@ -50,6 +50,13 @@ public sealed class EquipmentFocus : IScreenObserver, ISerialResolveObserver, IC
     private const int MemberFlags = 9;
     private const int NameFlags = 8;
 
+    /// <summary>The flags a worn item's description is fetched with, after its name (#907,
+    /// docs/findings/item-equipment-menu-names-from-resolves.md).</summary>
+    public const int DescriptionFlags = 7;
+
+    /// <summary>Whether the details key says a worn item's description, from its setting; on when not given.</summary>
+    public Func<bool> DescriptionsOn { get; init; } = () => true;
+
     // The swap's question, MainMenu_Equip_25 (serial 1478, System_Message.msg), which the game fetches as the swap opens
     // (docs/raw-sources/menus-by-ear-session-message-log-2026-11-22.md). The characters' names aren't known yet.
     private const int SwapQuestionSerial = 1478;
@@ -59,6 +66,10 @@ public sealed class EquipmentFocus : IScreenObserver, ISerialResolveObserver, IC
     private readonly TextCleaner? cleaner;
     private readonly Lock gate = new();
     private readonly int?[] worn = new int?[SlotRows];
+
+    // The description fetched after each worn item's name (flags 7), and the slot whose name came last (#907).
+    private readonly int?[] wornDescriptions = new int?[SlotRows];
+    private int? lastWorn;
     private int? member;
     private int? archetype;
 
@@ -147,8 +158,34 @@ public sealed class EquipmentFocus : IScreenObserver, ISerialResolveObserver, IC
             else if (blockOpen && kind is { } slot && worn[slot] is null)
             {
                 worn[slot] = serial;
+                lastWorn = slot;
+            }
+            else if (blockOpen && resolve.Flags == DescriptionFlags && lastWorn is { } described
+                && serials.InFile(serial, MessageSerials.EquipmentDescriptions))
+            {
+                // A worn item's description comes right after its name (#907).
+                wornDescriptions[described] = serial;
+                lastWorn = null;
             }
         }
+    }
+
+    /// <summary>The description of the item worn in the focused slot, for the details key (#907): the one the game fetched
+    /// after its name. Null on another screen or row, for a slot with none, or when it is off. The slot's item list
+    /// names no row, so it has no description to say <c>[NEEDS VERIFICATION]</c>.</summary>
+    public string? Details(ScreenEvent focus)
+    {
+        ArgumentNullException.ThrowIfNull(focus);
+        if (serials is null || focus.Screen != Slots || !DescriptionsOn() || focus.Index < 1 || focus.Index > SlotRows)
+        {
+            return null;
+        }
+        int? description;
+        lock (gate)
+        {
+            description = wornDescriptions[focus.Index - 1];
+        }
+        return description is { } known ? serials.TextOf(known, cleaner!) : null;
     }
 
     /// <summary>Ends the block being fetched: the item list fetches equipment names too, which aren't worn.</summary>
@@ -166,6 +203,8 @@ public sealed class EquipmentFocus : IScreenObserver, ISerialResolveObserver, IC
         member = memberSerial;
         archetype = null;
         Array.Clear(worn);
+        Array.Clear(wornDescriptions);
+        lastWorn = null;
         blockOpen = true;
     }
 

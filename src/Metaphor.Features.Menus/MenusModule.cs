@@ -96,9 +96,24 @@ public sealed class MenusModule : IFeatureModule
         {
             ProtagonistName = Protagonist,
             SayPositions = SayPositions,
+            DescriptionsOn = () => settings.Current.IsOn(MenusFeature.GearDescriptions),
         };
         screens.Observe(itemFocus);
         events.ObserveSerials(itemFocus);
+        // The quick menu's help lines, on the details key, or after each row with the on-focus setting (#907).
+        var quickHelp = new QuickMenuHelp(serials, settings.Speech(MenusFeature.QuickMenuHelp, reader), cleaner)
+        {
+            On = () => settings.Current.IsOn(MenusFeature.QuickMenuHelp),
+            SayOnFocus = () => settings.Current.IsOn(MenusFeature.QuickMenuHelpOnFocus),
+        };
+        screens.Observe(quickHelp);
+        events.ObserveSerials(quickHelp);
+        // The game's own settings rows' help lines, on the details key (#560, #907).
+        var settingsHelp = new SettingsHelp(serials, cleaner)
+        {
+            On = () => settings.Current.IsOn(MenusFeature.SettingsHelp),
+        };
+        events.ObserveSerials(settingsHelp);
         // The shop and the Item list hear each cursor input before the slot screens hand it to the menu screens, so a
         // list's view is taken before its screen event is told.
         // The quest list's rows and an opened quest, by the names and text fetched from the quest files, while tested
@@ -125,6 +140,8 @@ public sealed class MenusModule : IFeatureModule
         screens.Observe(levelUp);
         context.Cursors.Observe(shopFocus);
         context.Cursors.Observe(itemFocus);
+        context.Cursors.Observe(quickHelp);
+        context.Cursors.Observe(settingsHelp);
         context.Cursors.Observe(questFocus);
         context.Cursors.Observe(followerFocus);
         screens.Observe(new CalendarFocus(settings.Speech(MenusFeature.Calendar, reader)));
@@ -133,10 +150,14 @@ public sealed class MenusModule : IFeatureModule
         var equipmentFocus = new EquipmentFocus(serials, settings.Speech(MenusFeature.EquipmentMenu, reader), cleaner)
         {
             ProtagonistName = Protagonist,
+            DescriptionsOn = () => settings.Current.IsOn(MenusFeature.GearDescriptions),
         };
         screens.Observe(equipmentFocus);
         events.ObserveSerials(equipmentFocus);
         context.Cursors.Observe(equipmentFocus);
+        // A sub-screen's prompt queues after its screen's own line, so it is heard after the Item and Equipment
+        // screens' focus (#907).
+        screens.Observe(new SubScreenPrompts(library, settings.Speech(MenusFeature.MenuPrompts, reader), cleaner));
         // The save and load slots (#622): their lists come unnamed, so the slot screens name them before the screens,
         // from the prompts the serial hook hands MessageEvents (2026-11-22 review, finding 5).
         var slots = new SlotScreens(screens);
@@ -178,7 +199,9 @@ public sealed class MenusModule : IFeatureModule
         // The details key reads a battle list's description (#247); on a screen shown outside the menus it answers only
         // while that screen's cursor is still called.
         // The level-up screen's details are its stat's description (#624).
-        IScreenDetails[] details = [.. battleLists, levelUp];
+        // The Item and Equipment screens', the quick menu's and the settings pages' are the row's description or help line
+        // the game fetched (#907, #560).
+        IScreenDetails[] details = [.. battleLists, levelUp, itemFocus, equipmentFocus, quickHelp, settingsHelp];
         var menuControls = new MenuControls(menuBindings, screens, reader, details, context.Cursors.CalledRecently);
         screens.Observe(menuControls);
         context.Cursors.Observe(slots);

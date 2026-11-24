@@ -24,6 +24,34 @@ public enum MenusFeature
         Description = "The question and its two buttons when the Menu button opens the skip menu in a cutscene.")]
     SkipSceneQuestion,
 
+    /// <summary>A sub-screen's prompt, said once when it opens (#907). Separate from the menus while it is tested.
+    /// </summary>
+    [SettingKey("speech", "menuPrompts", "Menu prompts", Testing = true, Order = 1016, Description =
+        "The prompt a menu screen shows when it opens, such as \"Which item?\" on the Item screen, said after the " +
+        "screen's name and the focused row. Needs `menus`.")]
+    MenuPrompts,
+
+    /// <summary>The quick menu row's help line on the details key (#907). Separate from the menus while it is tested.
+    /// </summary>
+    [SettingKey("speech", "quickMenuHelp", "Quick menu help", Testing = true, Order = 1017, Description =
+        "The quick menu's help line for the focused row, such as \"Use an item\", on the details key (F, or R3 on the " +
+        "pad). Needs `menus`.")]
+    QuickMenuHelp,
+
+    /// <summary>The quick menu's help line after the row, on each focus move (#907): the full way, where the details
+    /// key is the brief way.</summary>
+    [SettingKey("speech", "quickMenuHelpOnFocus", "Quick menu help on focus", Testing = true, Order = 1018,
+        Description = "The quick menu's help line said after each row as the focus moves, without pressing the details " +
+        "key. Off says the row alone. Needs `quickMenuHelp`.")]
+    QuickMenuHelpOnFocus,
+
+    /// <summary>An item's or worn gear's description on the details key (#907). Separate from the item and equipment
+    /// menus while it is tested.</summary>
+    [SettingKey("speech", "gearDescriptions", "Item and gear descriptions", Testing = true, Order = 1052,
+        Description = "The description of the focused row on the Item screen, and of the gear worn in a slot on the " +
+        "Equipment screen, on the details key (F, or R3 on the pad). Needs `menus`.")]
+    GearDescriptions,
+
     /// <summary>Battle's skill and item lists, row by row (#247). Separate from the menus.</summary>
     [SettingKey("speech", "battleLists", "Battle lists", Order = 1040, Description = "Battle's skill and item lists, " +
         "row by row. Separate from `menus`.")]
@@ -96,6 +124,13 @@ public enum MenusFeature
         Description = "The System rows whose setting the mod has not pinned saying their value on change, learned as " +
         "you change them. Needs `menus`.")]
     LearnedSettingValues,
+
+    /// <summary>The game's own settings rows' help line on the details key (#560, #907). Separate from the menus while it
+    /// is tested.</summary>
+    [SettingKey("speech", "settingsHelp", "Settings help", Testing = true, Order = 1095, Description =
+        "The game's help line for the focused row on a Settings page, on the details key (F, or R3 on the pad). The " +
+        "line is the one the game fetched for the row, so a row you have not moved to yet says no more. Needs `menus`.")]
+    SettingsHelp,
 
     /// <summary>The name entry screen (#585).</summary>
     [SettingKey("speech", "nameEntry", "Name entry", Order = 1100, Description = "The name entry screen: its title, " +
