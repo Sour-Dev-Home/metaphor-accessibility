@@ -11,8 +11,11 @@ check fails.
 ## Get a release
 
 1. Open the project's Releases page, `https://github.com/Sour-Dev-Home/metaphor-accessibility/releases`.
-2. Under the release you want, download two files: `metaphor-accessibility-` followed by the version and `.zip` (for
-   example `metaphor-accessibility-v1.2.3.zip`), and `SHA256SUMS`. Put them in one folder.
+2. Under the release you want, download the file you will install and `SHA256SUMS`: either `metaphor-accessibility-`
+   followed by the version and `.zip` (for example `metaphor-accessibility-v1.2.3.zip`), or the installer exe,
+   `metaphor-accessibility-` followed by the version and `-installer.exe`. Put them in one folder. A release's exe is
+   attested and listed in `SHA256SUMS` like the zip, so the checks below work on it with its file name in place of the
+   zip's; the hash line shown below is the zip's, the first line of `SHA256SUMS`.
 
 The version is the release's name, starting with `v`. Each release is built by its own workflow from that version's
 tag, on a commit already on `main`.
