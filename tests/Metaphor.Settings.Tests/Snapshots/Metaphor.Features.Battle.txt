@@ -19,6 +19,7 @@ speech.battleRewardExp | Battle reward EXP | off | testing
 speech.battleRewards | Battle rewards | off | testing
 speech.battleSkillCosts | Battle skill costs | off | testing
 speech.battleStart | Battle start | on | done
+speech.battleStartStun | Battle start stun | off | testing
 speech.battleSynthesis | Battle Synthesis list | off | testing
 speech.battleTargetSpeech | Battle target cursor | off | testing
 speech.battleTurnLine | Battle turn line | off | testing
