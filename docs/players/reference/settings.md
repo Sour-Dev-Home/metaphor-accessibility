@@ -197,7 +197,7 @@ Some features have a limit you can move, inside a `limits` object, then the feat
 | `field.wallRange` | How near a wall comes before its tone starts (`wallTones`), in the game's units, about 100 a step. 50 to 2000, in steps of 50. | `300` |
 | `field.wallVolume` | How loud a wall tone is right at the wall. 0 to 100, in steps of 5. | `50` |
 | `field.routePingVolume` | How loud a route ping is from a place in reach (`routePings`); farther places are quieter. 0 to 100, in steps of 5. | `90` |
-| `shoulders.tapLength` | How long, in milliseconds, a lone `LB` or `RB` press holds the button down for the game when you let go, in the field (`shoulderHold`) and in a battle, where the mod keeps a held shoulder for its chords, and a lone `LT` or `RT` press while `settingsMenu` or `keyHelp` holds them for its chord. Raise it if the game misses taps. 20 to 200, in steps of 10. | `50` |
+| `shoulders.tapLength` | How long, in milliseconds, a lone `LB` or `RB` press holds the button down for the game when you let go, in the field (`shoulderHold`) and in a battle, where the mod keeps a held shoulder for its chords, a lone `LT` or `RT` press while `settingsMenu` or `keyHelp` holds them for its chord, and an `L3` tap in a battle while `battleHits` holds it for its status read. Raise it if the game misses taps. 20 to 200, in steps of 10. | `50` |
 | `cues.sonarVolume` | How loud the field sonar's pings are, as a share of `soundCueVolume` (the master). Wall tones and route pings have their own, `field.wallVolume` and `field.routePingVolume`. 0 to 100, in steps of 5. | `100` |
 | `field.sonarPings` | How many things the field sonar (`sonar`) pings at a time. 1 plays one at a time, cycling through what's nearby, nearest first; more plays the nearest few in a row. 1 to 6, in steps of 1. | `1` |
 | `cues.guidanceVolume` | How loud the guidance beep is, as a share of `soundCueVolume`. 0 to 100, in steps of 5. | `100` |
@@ -232,7 +232,7 @@ DpadUp, DpadDown, DpadLeft and DpadRight.
 | `menus.nameReadBackKey` | With Ctrl held, reads back the name you typed, on the name entry screen. | `"R"` |
 | `menus.detailsButtons` | The same on the pad. | `"RS"` |
 | `battle.statusKey` | In a battle, says each party member's HP and the enemies hit so far. | `"H"` |
-| `battle.statusButtons` | The same on the pad. | `"LS"` |
+| `battle.statusButtons` | The same on the pad, held; a tap reaches the game (Retry on `LS`). | `"LS"` |
 | `battle.enemyNextKey` | In a battle, steps to the next enemy hit so far and says its HP (`battleEnemyKeys`). | `"K"` |
 | `battle.enemyPreviousKey` | The enemy before. | `"J"` |
 | `battle.enemyHpKey` | In a battle, says the HP of every enemy hit so far, in one line. | `"L"` |

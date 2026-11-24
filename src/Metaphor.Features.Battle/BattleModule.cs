@@ -97,9 +97,10 @@ public sealed class BattleModule : IFeatureModule
             BattleFeature.BattleNumberReset, new BattleEnds(hitLines, context.BattleScene, TimeProvider.System)));
         var battleBindings = settings.Live(BattleBindings.From);
         // The status key acts only in a battle (#631); a Debug build logs the scene each press read.
-        context.AddControls(settings.Input(
-            BattleFeature.BattleHits,
-            new BattleStatus(context.BattleParty, hitLines, context.BattleScene, battleSpeech, battleBindings)));
+        var status = new BattleStatus(context.BattleParty, hitLines, context.BattleScene, battleSpeech, battleBindings);
+        context.AddControls(settings.Input(BattleFeature.BattleHits, status));
+        // L3 is held back until it's let go, then tapped to the game (Retry) unless a hold spoke (#925).
+        context.AddShoulderHold(() => settings.Current.IsOn(BattleFeature.BattleHits) ? status.HeldButtons() : 0);
         // The HP and MP key (#692), testing, on top of the hits.
         context.AddControls(settings.Input(
             BattleFeature.BattleHits,

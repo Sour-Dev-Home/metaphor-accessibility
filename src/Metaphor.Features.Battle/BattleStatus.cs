@@ -6,18 +6,22 @@ using Metaphor.Core.Settings;
 
 namespace Metaphor.Features.Battle;
 
-/// <summary>The status key (#631, the maintainer's choice of 2026-11-21): in a battle, H on the keyboard or L3 on the
-/// pad, pressed alone, says every party member "name HP of max" ("of max" once a hit has shown it), then the enemies
-/// this battle has hit, as <see cref="HitLines"/> labels them, with the HP each had left, and the press is hidden from
-/// the game. Outside a battle the key does nothing and reaches the game: L3 recentres the world map's cursor (heard by
-/// the maintainer, 2026-11-21). Any other read, a chord with H or L3 included, reaches it unchanged. A press is an
-/// up-to-down edge on any pad or the keyboard, so a mirroring second pad can't fire it again; whether a battle is on is
-/// asked once, at that edge, and holds until every source lets go. Safe to call from any of the game's threads.
-/// </summary>
+/// <summary>The status key (#631, the maintainer's choice of 2026-11-21): in a battle, H on the keyboard pressed alone,
+/// or L3 on the pad held alone for <see cref="HoldMilliseconds"/>, says every party member "name HP of max" ("of max"
+/// once a hit has shown it), then the enemies this battle has hit, as <see cref="HitLines"/> labels them, with the HP
+/// each had left, and the press is hidden from the game. An L3 tap reaches the game (#925, the maintainer's decision of
+/// 2026-11-24: Retry is on L3): the shoulder taps (<see cref="ShoulderTaps"/>, #811) hold L3 back while
+/// <see cref="HeldButtons"/> says so and hand it on as a tap on release, of the shoulders' tap length, unless the hold
+/// spoke. Outside a battle the key does nothing and reaches the game: L3 recentres the world map's cursor (heard by the
+/// maintainer, 2026-11-21). Any other read, a chord with H or L3 included, says nothing. A press is an up-to-down edge
+/// on any pad or the keyboard, so a mirroring second pad can't fire it again; whether a battle is on is asked once, at
+/// that edge, and holds until every source lets go. A status button the taps can't hold back (not L3, a shoulder or a
+/// trigger) speaks as it goes down instead. Safe to call from any of the game's threads.</summary>
 /// <remarks>L3 is the game's mask bit <c>0x0002</c>, XInput's left thumb, and H is key code <c>0x48</c>, on build
-/// 548ddc95… (docs/raw-sources/pad-and-keyboard-state-2026-11-16.md). Whether the game uses either in battle is
-/// <c>[NEEDS VERIFICATION]</c> by ear: the battle inventory names the bottom bar's other buttons but not the one for
-/// its Status entry, which might be L3 (docs/raw-sources/battle-inventory-2026-11-17.md).</remarks>
+/// 548ddc95… (docs/raw-sources/pad-and-keyboard-state-2026-11-16.md). The game uses L3 in a battle for Retry, heard on
+/// that build in the by-ear session of 2026-11-24 (docs/findings/battle-retry-is-on-l3.md). The hold relies on the
+/// input frame asking the taps before the controls on each read (<see cref="InputFrame.Pad"/>), so a release after the
+/// hold spoke is dropped before the press is forgotten.</remarks>
 [FeatureSetting<BattleFeature>(BattleFeature.BattleHits)]
 public sealed class BattleStatus : IInputControls
 {
@@ -27,9 +31,23 @@ public sealed class BattleStatus : IInputControls
     /// <summary>The H key, the default status key.</summary>
     public const int KeyH = BattleBindings.KeyH;
 
+    /// <summary>How long L3 is held alone before it speaks rather than tap the game: 300 ms, the shoulders' old hold
+    /// delay (#835), whose setting went with #863. A guess the by-ear check on #925 tunes.</summary>
+    public const int HoldMilliseconds = 300;
+
     private readonly IBattleParty party;
     private readonly HitLines hits;
+    private readonly IBattleScene scene;
+    private readonly TimeProvider time;
+    private readonly Func<BattleBindings> bindings;
+    private readonly Action speak;
     private readonly BattleKey press;
+    private readonly Lock gate = new();
+    private readonly HashSet<int> holding = [];
+    private long heldFrom;
+    private bool inBattle;
+    private bool chord;
+    private bool spoke;
 
     /// <summary>The status key on the default bindings, H and L3.</summary>
     public BattleStatus(IBattleParty party, HitLines hits, IBattleScene scene, IAnnouncer announcer)
@@ -41,18 +59,62 @@ public sealed class BattleStatus : IInputControls
     /// and <c>statusButtons</c>.</summary>
     public BattleStatus(
         IBattleParty party, HitLines hits, IBattleScene scene, IAnnouncer announcer, Func<BattleBindings> bindings)
+        : this(party, hits, scene, announcer, bindings, TimeProvider.System)
+    {
+    }
+
+    /// <summary>The status key as above, its hold timed by <paramref name="time"/>.</summary>
+    public BattleStatus(
+        IBattleParty party, HitLines hits, IBattleScene scene, IAnnouncer announcer, Func<BattleBindings> bindings,
+        TimeProvider time)
     {
         ArgumentNullException.ThrowIfNull(bindings);
         ArgumentNullException.ThrowIfNull(party);
         ArgumentNullException.ThrowIfNull(hits);
         ArgumentNullException.ThrowIfNull(scene);
         ArgumentNullException.ThrowIfNull(announcer);
+        ArgumentNullException.ThrowIfNull(time);
         this.party = party;
         this.hits = hits;
-        press = new BattleKey(() => bindings().StatusButtons, () => bindings().StatusKey, scene, () => announcer.Announce(new Announcement(Status(), Interrupt: true)));
+        this.scene = scene;
+        this.time = time;
+        this.bindings = bindings;
+        speak = () => announcer.Announce(new Announcement(Status(), Interrupt: true));
+        press = new BattleKey(() => bindings().StatusButtons, () => bindings().StatusKey, scene, speak);
     }
 
-    public int Pad(int pad, int buttons, bool made) => press.Pad(pad, buttons, made);
+    /// <summary>The status buttons the shoulder taps hold back now (#925, <see cref="ShoulderTaps"/>): in a battle, a
+    /// status button they can hold, until a hold has spoken, which drops its tap; 0 otherwise.</summary>
+    public int HeldButtons()
+    {
+        var bound = bindings().StatusButtons;
+        if (!Holdable(bound))
+        {
+            return 0;
+        }
+        lock (gate)
+        {
+            if (spoke)
+            {
+                return 0;
+            }
+        }
+        return scene.InBattle() ? bound : 0;
+    }
+
+    public int Pad(int pad, int buttons, bool made)
+    {
+        var bound = bindings().StatusButtons;
+        if (!Holdable(bound))
+        {
+            return press.Pad(pad, buttons, made);
+        }
+        if (made && Hold(pad, buttons, bound))
+        {
+            speak();
+        }
+        return buttons;
+    }
 
     public IReadOnlyList<int> Keys(IReadOnlyList<int> keys) => press.Keys(keys);
 
@@ -66,5 +128,46 @@ public sealed class BattleStatus : IInputControls
             .Select(enemy => string.Create(CultureInfo.InvariantCulture, $"{enemy.Label}, {enemy.Hp}"));
         var parts = new[] { string.Join(", ", members) }.Where(part => part.Length > 0).Concat(enemies).ToList();
         return parts.Count > 0 ? string.Join(". ", parts) : "No party status";
+    }
+
+    private static bool Holdable(int bound) => bound != 0 && (bound & ~ShoulderTaps.Holdable) == 0;
+
+    // Whether this read is the one a hold speaks on.
+    private bool Hold(int source, int buttons, int bound)
+    {
+        var now = time.GetUtcNow().ToUnixTimeMilliseconds();
+        lock (gate)
+        {
+            var held = (buttons & bound) == bound;
+            var before = holding.Count > 0;
+            if (held)
+            {
+                holding.Add(source);
+            }
+            else
+            {
+                holding.Remove(source);
+            }
+            if (holding.Count == 0)
+            {
+                inBattle = false;
+                spoke = false;
+                return false;
+            }
+            if (!before)
+            {
+                heldFrom = now;
+                inBattle = scene.InBattle();
+                chord = false;
+                spoke = false;
+            }
+            chord |= held && buttons != bound;
+            if (!inBattle || chord || spoke || !held || now - heldFrom < HoldMilliseconds)
+            {
+                return false;
+            }
+            spoke = true;
+            return true;
+        }
     }
 }

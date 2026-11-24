@@ -1,15 +1,20 @@
 using Metaphor.Core.Announcements;
 using Metaphor.Core.Battle;
+using Metaphor.Core.Input;
+using Metaphor.Core.Menus;
 
 namespace Metaphor.Features.Battle.Tests;
 
-/// <summary>The status key (#631): in a battle, H or L3 pressed alone says the party's HP, then the enemies this battle
-/// has hit, and is hidden from the game; anything else, and the key outside a battle, reaches it. Made-up party and
-/// numbers only.</summary>
+/// <summary>The status key (#631): in a battle, H pressed alone, or L3 held alone (#925), says the party's HP, then the
+/// enemies this battle has hit, and is hidden from the game; an L3 tap reaches the game (Retry), and anything else, and
+/// the key outside a battle, reaches it. The pad reads go through an input frame with the shoulder taps, as in the
+/// game. Made-up party and numbers only.</summary>
 [Trait("Category", "Unit")]
 public sealed class BattleStatusTests
 {
     private const int A = 0x4000;
+    private const int L3 = BattleStatus.LeftThumb;
+    private const int Hold = BattleStatus.HoldMilliseconds;
 
     private readonly RecordingAnnouncer announcer = new();
     private readonly ManualTime time = new();
@@ -17,38 +22,104 @@ public sealed class BattleStatusTests
     private readonly Scene scene = new() { On = true };
     private readonly HitLines hits;
     private readonly BattleStatus status;
+    private readonly InputFrame frame;
 
     public BattleStatusTests()
     {
         hits = new HitLines(new SilentAnnouncer(), time, unit => unit == 3 ? "Rowan" : null);
-        status = new BattleStatus(party, hits, scene, announcer);
+        status = new BattleStatus(party, hits, scene, announcer, () => BattleBindings.Default, time);
+        var taps = new ShoulderTaps([status.HeldButtons], () => time.GetUtcNow().ToUnixTimeMilliseconds());
+        frame = new InputFrame(new NoGame(), new MenuScreens([]), [status], null, null, null, taps: taps);
     }
 
+    private int Game(int buttons, int pad = 0) => frame.Pad(pad, buttons, made: true).Buttons;
+
+    private List<string> Said() => [.. announcer.Said.Select(said => said.Text)];
+
     [Fact]
-    public void OutsideABattleL3AndHReachTheGameAndSayNothing()
+    public void OutsideABattleL3AndHReachTheGameAtOnceAndSayNothing()
     {
         scene.On = false;
         party.Now = [new PartyMember(0, 3, 89, 120)];
 
-        Assert.Equal(BattleStatus.LeftThumb, status.Pad(0, BattleStatus.LeftThumb, made: true));
+        Assert.Equal(L3, Game(L3));
+        time.Advance(Hold);
+        Assert.Equal(L3, Game(L3));
         Assert.Equal([BattleStatus.KeyH], status.Keys([BattleStatus.KeyH]));
 
         Assert.Empty(announcer.Said);
+    }
+
+    // #925: the game's Retry is on L3, so a tap reaches it, as the shoulders' taps do (#811).
+    [Fact]
+    public void InABattleAnL3TapReachesTheGameOnReleaseAndSaysNothing()
+    {
+        Assert.Equal(0, Game(L3));
+        time.Advance(16);
+        Assert.Equal(0, Game(L3));
+        time.Advance(16);
+
+        Assert.Equal(L3, Game(0));
+        Assert.Empty(Said());
+    }
+
+    [Fact]
+    public void InABattleL3HeldAloneSaysEachMemberThenTheEnemiesAndNeverReachesTheGame()
+    {
+        party.Now = [new PartyMember(0, 3, 89, 120), new PartyMember(1, 7, 40, null)];
+        hits.Observe(new BattleHit(0xa0, -5, 55, 1, BattleSide.Enemy));
+
+        Assert.Equal(0, Game(L3));
+        time.Advance(Hold - 1);
+        Assert.Equal(0, Game(L3));
+        Assert.Empty(Said());
+        time.Advance(1);
+        Assert.Equal(0, Game(L3));
+        Assert.Equal(["Rowan 89 of 120, Second ally, 40 HP. Enemy, 55"], Said());
+
+        time.Advance(16);
+        var released = new[] { Game(0), Game(0), Game(0) };
+        time.Advance(200);
+        Assert.Equal([0, 0, 0, 0], [.. released, Game(0)]);
+        Assert.Single(announcer.Said);
+    }
+
+    [Fact]
+    public void AnL3LetGoJustBeforeTheHoldTimeIsATap()
+    {
+        Assert.Equal(0, Game(L3));
+        time.Advance(Hold - 1);
+
+        Assert.Equal(L3, Game(0));
+        Assert.Empty(Said());
+    }
+
+    [Fact]
+    public void AfterAHoldTheNextTapReachesTheGame()
+    {
+        Game(L3);
+        time.Advance(Hold);
+        Game(L3);
+        Game(0);
+        time.Advance(500);
+        Game(0);
+
+        Game(L3);
+        time.Advance(16);
+        Assert.Equal(L3, Game(0));
+        Assert.Single(announcer.Said);
     }
 
     [Fact]
     public void APressKeepsWhereItStartedUntilReleased()
     {
         scene.On = false;
-        status.Pad(0, BattleStatus.LeftThumb, made: true);
+        Assert.Equal(L3, Game(L3));
         scene.On = true;
+        time.Advance(Hold);
 
-        Assert.Equal(BattleStatus.LeftThumb, status.Pad(0, BattleStatus.LeftThumb, made: true));
+        Assert.Equal(L3, Game(L3));
         Assert.Empty(announcer.Said);
-
-        status.Pad(0, 0, made: true);
-        Assert.Equal(0, status.Pad(0, BattleStatus.LeftThumb, made: true));
-        Assert.Single(announcer.Said);
     }
 
     [Fact]
@@ -61,52 +132,52 @@ public sealed class BattleStatusTests
     }
 
     [Fact]
-    public void TheSceneIsAskedOncePerPress()
-    {
-        status.Pad(0, BattleStatus.LeftThumb, made: true);
-        status.Pad(0, BattleStatus.LeftThumb, made: true);
-        status.Pad(0, 0, made: true);
-
-        Assert.Equal(1, scene.Asked);
-    }
-
-    [Fact]
-    public void L3AloneSaysEachMemberThenTheEnemiesAndIsHidden()
-    {
-        party.Now = [new PartyMember(0, 3, 89, 120), new PartyMember(1, 7, 40, null)];
-        hits.Observe(new BattleHit(0xa0, -5, 55, 1, BattleSide.Enemy));
-
-        Assert.Equal(0, status.Pad(0, BattleStatus.LeftThumb, made: true));
-
-        Assert.Equal(new Announcement("Rowan 89 of 120, Second ally, 40 HP. Enemy, 55", Interrupt: true), announcer.Said[^1]);
-    }
-
-    [Fact]
-    public void HAloneSaysItToo()
+    public void HAloneSaysItAtOnce()
     {
         party.Now = [new PartyMember(0, 3, 89, 120)];
 
         Assert.Empty(status.Keys([BattleStatus.KeyH]));
 
-        Assert.Equal(["Rowan 89 of 120"], announcer.Said.Select(said => said.Text));
+        Assert.Equal(["Rowan 89 of 120"], Said());
     }
 
     [Fact]
-    public void AChordWithTheKeyReachesTheGameAndSaysNothing()
+    public void AChordWithTheKeySaysNothing()
     {
-        Assert.Equal(BattleStatus.LeftThumb | A, status.Pad(0, BattleStatus.LeftThumb | A, made: true));
+        Game(L3 | A);
+        time.Advance(Hold);
+        Game(L3 | A);
         Assert.Equal([BattleStatus.KeyH, 0x41], status.Keys([BattleStatus.KeyH, 0x41]));
 
         Assert.Empty(announcer.Said);
     }
 
     [Fact]
-    public void AHeldKeyOrASecondPadMirroringItSpeaksOnce()
+    public void AHeldKeyOrASecondPadMirroringItSpeaksOnceAndNeitherTaps()
     {
-        status.Pad(0, BattleStatus.LeftThumb, made: true);
-        status.Pad(0, BattleStatus.LeftThumb, made: true);
-        status.Pad(1, BattleStatus.LeftThumb, made: true);
+        Game(L3);
+        Game(L3, pad: 1);
+        time.Advance(Hold);
+        Game(L3);
+        Game(L3, pad: 1);
+        time.Advance(16);
+        Game(L3);
+        Game(L3, pad: 1);
 
+        Assert.Equal([0, 0], new[] { Game(0), Game(0, pad: 1) });
+        Assert.Single(announcer.Said);
+    }
+
+    // A status button the taps can't hold back (not L3, a shoulder or a trigger) speaks as it goes down, as before.
+    [Fact]
+    public void AStatusButtonTheTapsCannotHoldSpeaksOnThePress()
+    {
+        const int back = 0x0020;
+        var rebound = new BattleStatus(
+            party, hits, scene, announcer, () => BattleBindings.Default with { StatusButtons = back }, time);
+
+        Assert.Equal(0, rebound.HeldButtons());
+        Assert.Equal(0, rebound.Pad(0, back, made: true));
         Assert.Single(announcer.Said);
     }
 
@@ -115,7 +186,7 @@ public sealed class BattleStatusTests
     {
         status.Keys([BattleStatus.KeyH]);
 
-        Assert.Equal(["No party status"], announcer.Said.Select(said => said.Text));
+        Assert.Equal(["No party status"], Said());
     }
 
     private sealed class Party : IBattleParty
@@ -129,12 +200,13 @@ public sealed class BattleStatusTests
     {
         public bool On { get; set; }
 
-        public int Asked { get; private set; }
+        public bool InBattle() => On;
+    }
 
-        public bool InBattle()
-        {
-            Asked++;
-            return On;
-        }
+    private sealed class NoGame : IGameInputState
+    {
+        public long? DialogueWindow() => null;
+
+        public bool MenusOpen() => false;
     }
 }
