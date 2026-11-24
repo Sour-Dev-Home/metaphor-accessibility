@@ -62,11 +62,30 @@ public sealed class CueMixer : IDisposable
     /// <param name="channel">The tone's channel.</param>
     /// <param name="tone">Its pitch, place and volume; values out of range are clamped.</param>
     /// <param name="masterVolume">The sound cue volume setting, 0 to 100.</param>
-    public void Hold(ToneChannel channel, HeldTone tone, int masterVolume)
+    /// <param name="restart">Whether this is a new hold: a tone's <see cref="HeldTone.Sample"/> that doesn't loop plays
+    /// from its start on a new hold, and only then; one that loops starts only when it isn't the sound held already.
+    /// </param>
+    public void Hold(ToneChannel channel, HeldTone tone, int masterVolume, bool restart = false)
     {
         var slot = channels[CueChannels + (int)channel];
         var (left, right) = CueWave.PanGains(tone.Pan);
         var peak = CueWave.Peak(Math.Clamp(masterVolume, 0, 100)) * Gain(tone.Volume);
+        if (tone.Sample is { } sample)
+        {
+            var playing = slot.Source as Sampled;
+            if (playing is null || playing.Sample != sample || (restart && !tone.Loops))
+            {
+                if (!restart && !tone.Loops)
+                {
+                    // A sound that has played through stays finished until it is held anew.
+                    return;
+                }
+                playing = new Sampled(sample, tone.Loops);
+                slot.Source = playing;
+            }
+            playing.Target(peak * left, peak * right);
+            return;
+        }
         var hertz = double.IsNaN(tone.Hertz)
             ? HeldTone.MinHertz
             : Math.Clamp(tone.Hertz, HeldTone.MinHertz, HeldTone.MaxHertz);
@@ -81,7 +100,7 @@ public sealed class CueMixer : IDisposable
     /// <summary>Fades the channel's tone out over one buffer, then leaves the channel idle.</summary>
     public void Silence(ToneChannel channel)
     {
-        if (channels[CueChannels + (int)channel].Source is Held held)
+        if (channels[CueChannels + (int)channel].Source is IHeld held)
         {
             held.FadeOut();
         }
@@ -209,7 +228,67 @@ public sealed class CueMixer : IDisposable
         }
     }
 
-    private sealed class Held : ISource
+    private interface IHeld : ISource
+    {
+        /// <summary>Glides to silence over the next buffer, then finishes.</summary>
+        void FadeOut();
+    }
+
+    // A recorded sound (#841), its gains gliding as a held tone's do: once through and then finished, or looping.
+    private sealed class Sampled(CueSample sample, bool loops) : IHeld
+    {
+        private int position;
+        private double left;
+        private double right;
+        private double targetLeft;
+        private double targetRight;
+        private bool stopping;
+        private bool silent = true;
+
+        public CueSample Sample => sample;
+
+        public void Target(double left, double right)
+        {
+            targetLeft = left;
+            targetRight = right;
+            stopping = false;
+        }
+
+        public void FadeOut()
+        {
+            targetLeft = 0;
+            targetRight = 0;
+            stopping = true;
+        }
+
+        public int Render(Span<short> buffer)
+        {
+            var samples = sample.Samples;
+            if ((stopping && silent) || (!loops && position >= samples.Length))
+            {
+                return 0;
+            }
+            var count = buffer.Length / 2;
+            if (!loops)
+            {
+                count = Math.Min(count, samples.Length - position);
+            }
+            for (var i = 0; i < count; i++)
+            {
+                var t = (i + 1) / (double)count;
+                var wave = samples[position];
+                buffer[2 * i] = (short)Math.Round(wave * (left + ((targetLeft - left) * t)));
+                buffer[(2 * i) + 1] = (short)Math.Round(wave * (right + ((targetRight - right) * t)));
+                position = loops && position + 1 == samples.Length ? 0 : position + 1;
+            }
+            left = targetLeft;
+            right = targetRight;
+            silent = left == 0 && right == 0;
+            return count;
+        }
+    }
+
+    private sealed class Held : IHeld
     {
         private double phase;
         private double hertz;

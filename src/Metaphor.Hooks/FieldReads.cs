@@ -241,7 +241,18 @@ internal sealed class FieldMemory(
             }
             var (name, raw, id) = Identify(kind, unit);
             var stunned = kind == FieldKind.Enemy && EnemyStunned(unit);
-            units.Add(new FieldUnit(kind, at.X, at.Y, at.Z, name, raw, id, Stunned: stunned));
+            int? aiState = null, aiRequested = null;
+#if DEBUG
+            // Debug builds only (#649), as the log record below: the awareness cue is tested in by-ear sessions, which
+            // run Debug builds, until a session settles which states are which.
+            if (kind == FieldKind.Enemy)
+            {
+                (aiState, aiRequested) = FieldEnemyState.Ai(unit, address => ModuleMemoryReader.ReadPointer((nint)address),
+                    address => ModuleMemoryReader.ReadInt32((nint)address));
+            }
+#endif
+            units.Add(new FieldUnit(kind, at.X, at.Y, at.Z, name, raw, id, Stunned: stunned, AiState: aiState,
+                AiRequested: aiRequested));
         }
     }
 
