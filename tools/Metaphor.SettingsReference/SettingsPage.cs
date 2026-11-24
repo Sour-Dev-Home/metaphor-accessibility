@@ -167,6 +167,9 @@ public static class SettingsPage
         | `field.categoryButton` | With the held button: the next nearby category. | `"none"` |
         | `field.objectiveKey` | Starts the guidance beep toward the current objective (testing: `objectiveGuidance`). | `"O"` |
         | `field.objectiveButton` | With the held button: the same. | `"none"` |
+        | `field.scanKey` | Says the nearest thing ahead, left, right and behind (testing: `stickScan`). | `"U"` |
+        | `field.walkKey` | Starts or stops auto-walk toward the guidance beep (testing: `autoWalk`). | `"H"` |
+        | `field.walkButton` | With the held button: the same. | `"Y"` |
         | `field.identifyKey` | Debug builds only: logs the nearest thing for the names table. | `"I"` |
         | `report.markKey` | Writes a marker to the report log. Keyboard only for now. | `"F8"` |
         | `menus.settingsMenuKey` | Opens or closes the mod's settings menu (testing: `settingsMenu`). | `"F2"` |

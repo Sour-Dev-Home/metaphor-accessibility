@@ -353,4 +353,66 @@ public sealed class InputFrameTests
 
         Assert.Same(read, Frame().Keys(read).Keys);
     }
+
+    // #701, #184: the sticks of a made read go to the controls that take them, in order, each handed what the one before
+    // left; a read not made comes back as the game read it.
+    [Fact]
+    public void TheSticksGoToTheStickControlsInOrder()
+    {
+        var first = new StickControls(sticks => sticks with { LeftX = 1 });
+        var second = new StickControls(sticks => sticks with { LeftY = sticks.LeftX + 1 });
+        var frame = new InputFrame(game, screens, [first, new Controls(), second], null, null, null);
+
+        var handed = frame.Sticks(0, A, PadSticks.Rest, made: true);
+
+        Assert.Equal(PadSticks.Rest with { LeftX = 1, LeftY = 2 }, handed);
+        Assert.Equal(["0 0x1000 128"], first.Sticked);
+        Assert.Equal(PadSticks.Rest, frame.Sticks(0, A, PadSticks.Rest, made: false));
+        Assert.Single(first.Sticked);
+    }
+
+    // #754: while the settings menu keeps the pad from the game, no stick a control changed reaches it.
+    [Fact]
+    public void WhileBlockedTheGameGetsTheSticksAsRead()
+    {
+        var block = new Block { BlocksPad = true };
+        var controls = new StickControls(sticks => sticks with { LeftX = 1 });
+        var frame = new InputFrame(game, screens, [controls], null, null, null, block: block);
+
+        Assert.Equal(PadSticks.Rest, frame.Sticks(0, 0, PadSticks.Rest, made: true));
+        Assert.Single(controls.Sticked);
+    }
+
+    // #701: a stick taken while a shoulder is held makes the hold a chord, so the shoulder isn't tapped on release; a
+    // stick left alone doesn't.
+    [Fact]
+    public void AStickTakenWhileAShoulderIsHeldMakesAChord()
+    {
+        const int RB = ShoulderTaps.RightShoulder;
+        var taps = new ShoulderTaps([() => RB], () => 0);
+        var take = true;
+        var controls = new StickControls(sticks => take ? sticks.RightAtRest() : sticks);
+        var frame = new InputFrame(game, screens, [controls], null, null, null, taps: taps);
+        var pushed = PadSticks.Rest with { RightX = 255 };
+
+        frame.Pad(0, RB, made: true);
+        frame.Sticks(0, RB, pushed, made: true);
+        Assert.Equal(0, frame.Pad(0, 0, made: true).Buttons);
+
+        take = false;
+        frame.Pad(0, RB, made: true);
+        frame.Sticks(0, RB, pushed, made: true);
+        Assert.Equal(RB, frame.Pad(0, 0, made: true).Buttons);
+    }
+
+    private sealed class StickControls(Func<PadSticks, PadSticks> onSticks) : Controls, IStickControls
+    {
+        public List<string> Sticked { get; } = [];
+
+        public PadSticks Sticks(int pad, int buttons, PadSticks sticks)
+        {
+            Sticked.Add($"{pad} 0x{buttons:x} {sticks.LeftX}");
+            return onSticks(sticks);
+        }
+    }
 }

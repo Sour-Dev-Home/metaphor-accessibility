@@ -125,6 +125,18 @@ public sealed class FieldModule : IFeatureModule
         context.AddControls(settings.Input(FieldFeature.CornerAdvice, cornerAdvice));
         context.Provide(cornerAdvice);
         context.AddControls(controls);
+        // Scan by direction (#701) and auto-walk (#184), testing: the only controls that take the pad's sticks. Each
+        // reads its setting on every read, as the stick reads skip settings.Input's gate.
+        var stickKeys = settings.Live(StickBindings.From);
+        var fieldKeys = settings.Live(FieldBindings.From);
+        context.AddControls(new StickScan(
+            field, settings.Speech(FieldFeature.StickScan, context.Announcer), feature => settings.Current.IsOn(feature),
+            () => stickKeys().ScanKey, () => Nearby.RadiusFrom(settings.Current), nearbyNames));
+        var guide = controls;
+        context.AddControls(new AutoWalk(
+            field, () => guide.GuideBearing, settings.Speech(FieldFeature.AutoWalk, context.Announcer),
+            () => settings.Current.IsOn(FieldFeature.AutoWalk),
+            () => new WalkBindings(stickKeys().WalkKey, fieldKeys().HoldButtons, stickKeys().WalkButton)));
         // The enemy awareness cues (#649), testing: their sounds through their own keys, the line through the setting's
         // gate; each enemy's AI state changes go to the Debug log.
         context.AddControls(new EnemyAwareness(

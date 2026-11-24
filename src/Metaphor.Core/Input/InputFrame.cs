@@ -81,7 +81,9 @@ public readonly record struct KeysAnswer(IReadOnlyList<int> Keys, long? Window, 
 /// them. A pad read the game reports as not made (#225) fires nothing and comes back unchanged. The answer only ever
 /// clears bits or drops keys from the read, so the hook's write-back can't add input the game didn't see, with one
 /// exception: the shoulder taps (#811, <see cref="ShoulderTaps"/>), applied after every control, hand on a tap of LB or
-/// RB for a few reads after the player let go of it, a press the game held back but did see. It keeps no state of its
+/// RB for a few reads after the player let go of it, a press the game held back but did see. The sticks are their own
+/// answer (<see cref="Sticks"/>): a control may hand the game a stick at rest, or the left stick pushed for auto-walk
+/// (#184), and never a button. It keeps no state of its
 /// own; the controls and the taps lock theirs, so any of the game's threads may call it.</summary>
 public sealed class InputFrame
 {
@@ -89,6 +91,7 @@ public sealed class InputFrame
     private readonly MenuScreens screens;
     private readonly IInputControls[] controls;
     private readonly IWindowInputControls[] windowControls;
+    private readonly IStickControls[] stickControls;
     private readonly IKeyWatcher? watcher;
     private readonly IPadWatcher? padWatcher;
     private readonly LastInputDevice? lastDevice;
@@ -139,6 +142,7 @@ public sealed class InputFrame
         this.screens = screens;
         this.controls = [.. controls];
         windowControls = [.. this.controls.OfType<IWindowInputControls>()];
+        stickControls = [.. this.controls.OfType<IStickControls>()];
         this.watcher = watcher;
         this.padWatcher = padWatcher;
         this.lastDevice = lastDevice;
@@ -159,6 +163,35 @@ public sealed class InputFrame
         }
         handed &= buttons;
         return made && block?.BlocksPad == true ? new(0, window) : new(shoulders.Game(handed), window);
+    }
+
+    /// <summary>Takes one read of <paramref name="pad"/>'s <paramref name="sticks"/>, after <see cref="Pad"/> took its
+    /// <paramref name="buttons"/> (as the game read them), and returns the sticks to hand the game (#701, #184): each
+    /// control that takes sticks (<see cref="IStickControls"/>) gets them in the controls' order, handed what the one
+    /// before left. A stick a control changed while a shoulder is held back makes that hold a chord, so the shoulder
+    /// isn't tapped to the game on release (<see cref="ShoulderTaps.Chord"/>). A read the game reports as not made, or
+    /// one while the block keeps the pad from the game (#754), comes back as the game read it, so nothing is added to
+    /// it.</summary>
+    public PadSticks Sticks(int pad, int buttons, PadSticks sticks, bool made)
+    {
+        if (!made)
+        {
+            return sticks;
+        }
+        var handed = sticks;
+        foreach (var control in stickControls)
+        {
+            handed = control.Sticks(pad, buttons, handed);
+        }
+        if (block?.BlocksPad == true)
+        {
+            return sticks;
+        }
+        if (handed != sticks)
+        {
+            taps?.Chord(pad);
+        }
+        return handed;
     }
 
     /// <summary>Takes one read of the keys held down and returns the keys to hand the game: <paramref name="keys"/>

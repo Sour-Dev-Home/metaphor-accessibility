@@ -117,6 +117,20 @@ public sealed class Beacon
     /// <summary>Whether the beacon is guiding.</summary>
     public bool Active => active;
 
+    /// <summary>Where the beep points, as last read: its bearing from the screen's facing (left positive, the next
+    /// corner of a route or the target itself), or null while idle, paused or before the first read. What auto-walk
+    /// steers by (#184).</summary>
+    public double? Bearing
+    {
+        get
+        {
+            lock (gate)
+            {
+                return active && polled && !paused ? bearing : null;
+            }
+        }
+    }
+
     /// <summary>Whether a thing already counts as reached: the game's reach test for its kind, or within
     /// <see cref="ArrivalDistance"/>.</summary>
     public static bool Arrived(NearbyThing thing)

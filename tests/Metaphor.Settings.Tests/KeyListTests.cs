@@ -26,7 +26,12 @@ public sealed class KeyListTests
     }
 
     [Fact]
-    public void TheFieldListsEveryKeyItReads() => AssertListed(FieldBindings.From, FieldKeys.All);
+    public void TheFieldListsEveryKeyItReads()
+    {
+        AssertListed(FieldBindings.From, FieldKeys.All);
+        // The stick features' keys (#701, #184).
+        AssertListed(StickBindings.From, FieldKeys.All);
+    }
 
     // The reader binding comes in from the dialogue's, so the menus' own read is the details and read-back keys.
     [Fact]
