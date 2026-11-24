@@ -1,3 +1,4 @@
+using Metaphor.Core.Cues;
 using Metaphor.Core.Features;
 using Metaphor.Core.Navigation;
 using Metaphor.Core.Settings;
@@ -11,6 +12,13 @@ namespace Metaphor.Features.Field;
 public sealed class FieldModule : IFeatureModule
 {
     public IEnumerable<Enum> Settings => Enum.GetValues<FieldFeature>().Select(feature => (Enum)feature);
+
+    // The field's sliders, and the volumes of the two kinds of sound only the field plays.
+    public IEnumerable<SliderLimit> Limits =>
+    [
+        TiltLimits.Down, TiltLimits.Up, TiltLimits.Margin, WallLimits.Range, WallLimits.Loudness,
+        RoutePingLimits.Loudness, CueVolumes.Sonar, Sonar.PingsPerSweep, CueVolumes.Guidance,
+    ];
 
     public void Register(FeatureContext context)
     {
@@ -77,6 +85,7 @@ public sealed class FieldModule : IFeatureModule
                 () => Sonar.PingsPerSweep.From(settings.Current)),
             walls, routePings);
         context.AddControls(controls);
+        context.AddKeys(FieldKeys.All);
         // LB and RB held back in free roam until let go, so the reader's and the list's chords open no screen (#811),
         // testing.
         var shoulders = new FieldShoulderHold(

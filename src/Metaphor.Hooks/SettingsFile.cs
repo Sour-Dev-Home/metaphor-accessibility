@@ -1,4 +1,5 @@
 using System.Diagnostics.CodeAnalysis;
+using System.Text;
 using Metaphor.Core.Settings;
 
 namespace Metaphor.Hooks;
@@ -6,7 +7,7 @@ namespace Metaphor.Hooks;
 /// <summary>Reads the settings file from the mod's user-config folder at start and again whenever it changes (#104),
 /// handing its text to a <see cref="SettingsReloader"/>. The parsing and the announcing are in Core; this is only the
 /// file system. Nothing here may throw into the game.</summary>
-internal sealed class SettingsFile : IDisposable
+internal sealed class SettingsFile : IDisposable, ISettingsStore
 {
     private readonly string path;
     private readonly SettingsReloader reloader;
@@ -59,6 +60,20 @@ internal sealed class SettingsFile : IDisposable
             log($"settings file: the welcome's flag wasn't written: {e.Message}");
         }
     }
+
+    /// <summary>Replaces the file for the settings menu (#754): written beside it and moved over it, which the watcher
+    /// sees as one change. Throws when it can't; the menu then says "Not saved".</summary>
+    public void Write(string text)
+    {
+        ArgumentNullException.ThrowIfNull(text);
+        var temporary = path + ".tmp";
+        File.WriteAllText(temporary, text, new UTF8Encoding(encoderShouldEmitUTF8Identifier: false));
+        File.Move(temporary, path, overwrite: true);
+    }
+
+    /// <summary>The file's text for the settings menu, null only when there is no file: one that exists but can't be
+    /// read throws, so a change is never written over a file the mod couldn't read.</summary>
+    string? ISettingsStore.Read() => File.Exists(path) ? File.ReadAllText(path, Encoding.UTF8) : null;
 
     [SuppressMessage("Design", "CA1031", Justification = "A settings problem must never stop the mod.")]
     private FileSystemWatcher? Watch(string folder)

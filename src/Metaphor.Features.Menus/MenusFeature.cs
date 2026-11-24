@@ -117,6 +117,19 @@ public enum MenusFeature
         "first time the game starts with the mod: the mod's version and the field keys.")]
     Welcome,
 
+    /// <summary>The mod's own spoken settings menu (#754).</summary>
+    [SettingKey("speech", "settingsMenu", "Settings menu", Testing = true, Order = 1230, Description = "The mod's " +
+        "own settings menu, opened with F2, or LT and RT held then View on the pad, on any screen. Up and Down move, " +
+        "Left and Right change the setting and save it at once, F or R3 says what it does, and Escape or B closes. " +
+        "While it is open the game gets no keys or buttons.")]
+    SettingsMenu,
+
+    /// <summary>The help key, which says the mod's keys for where the player is (#868).</summary>
+    [SettingKey("speech", "keyHelp", "Key help", Testing = true, Order = 1240, Description = "The help key, F1, or " +
+        "LT and RT held then Y on the pad: says the mod's keys that work where you are now, with their current " +
+        "bindings.")]
+    KeyHelp,
+
     /// <summary>The mark key, which writes a marker to the report log (#597).</summary>
     [SettingKey("report", "markKey", "Mark key", Order = 3000, Description = "The mark key, F8: writes a numbered " +
         "marker with the time to the report log and plays the mark sound. Off leaves F8 to the game.")]

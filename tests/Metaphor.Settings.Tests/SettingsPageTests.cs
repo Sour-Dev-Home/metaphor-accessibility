@@ -33,10 +33,21 @@ public sealed class SettingsPageTests
     [Fact]
     public void ASliderLimitsRowGivesItsRangeStepAndDefault()
     {
-        var limit = new SliderLimit("pad", "wait", 30, 10, 90, 5);
+        var limit = new SliderLimit("pad", "wait", 30, 10, 90, 5) { Description = "Waits." };
 
-        Assert.Equal(
-            "| `pad.wait` | Waits. 10 to 90, in steps of 5. | `30` |", SettingsPage.Row(limit, "Waits."));
+        Assert.Equal("| `pad.wait` | Waits. 10 to 90, in steps of 5. | `30` |", SettingsPage.Row(limit));
+    }
+
+    // #754: the modules' sliders are the page's limits, in their order, so the settings menu and the page share them.
+    [Fact]
+    public void TheLimitsAreTheModulesSlidersInTheirOrder()
+    {
+        var page = SettingsPage.Render(AllFeatures.Catalogue());
+
+        var down = page.IndexOf("| `field.cameraDownDegrees` |", StringComparison.Ordinal);
+        var tap = page.IndexOf("| `shoulders.tapLength` |", StringComparison.Ordinal);
+        var other = page.IndexOf("| `cues.otherVolume` |", StringComparison.Ordinal);
+        Assert.True(down > 0 && down < tap && tap < other, page);
     }
 
     [Fact]

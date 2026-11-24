@@ -84,5 +84,6 @@ public sealed class DialogueModule : IFeatureModule
             DialogueFeature.DialogueKeys,
             new DialogueContextKeys(
                 settings.Live(DialogueKeyBindings.From), shown, context.Announcer, context.Stoppable.StopAll)));
+        context.AddKeys(DialogueKeys.All);
     }
 }

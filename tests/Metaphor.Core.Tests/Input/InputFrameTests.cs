@@ -67,6 +67,34 @@ public sealed class InputFrameTests
         public void Pad(int pad, int buttons, bool made) => Seen.Add($"pad {pad} 0x{buttons:x} {made}");
     }
 
+    private sealed class Block : IInputBlock
+    {
+        public bool BlocksPad { get; set; }
+
+        public bool BlocksKeys { get; set; }
+    }
+
+    // #754: while the settings menu is open the controls still take each read, so the menu hears its keys, but the
+    // game gets nothing, the keyboard's fixed keys included.
+    [Fact]
+    public void WhileBlockedTheControlsTakeEachReadAndTheGameGetsNothing()
+    {
+        var block = new Block { BlocksPad = true, BlocksKeys = true };
+        var frame = new InputFrame(game, screens, [menus, dialogue], null, null, null, block: block);
+
+        var keys = frame.Keys([0x1B, 0x26]);
+        var pad = frame.Pad(0, A | B, made: true);
+
+        Assert.Equal(["keys 27,38", "pad 0 0x3000 True"], menus.Seen);
+        Assert.Empty(keys.Keys);
+        Assert.True(keys.Blocked);
+        Assert.Equal(0, pad.Buttons);
+        Assert.Equal(A, frame.Pad(0, A, made: false).Buttons);
+        block.BlocksPad = block.BlocksKeys = false;
+        Assert.False(frame.Keys([0x1B]).Blocked);
+        Assert.Equal(A, frame.Pad(0, A, made: true).Buttons);
+    }
+
     // #597: the mark key works on every screen, so its controls take each read before the menus', and what they drop
     // reaches neither the menus nor the game.
     [Fact]
