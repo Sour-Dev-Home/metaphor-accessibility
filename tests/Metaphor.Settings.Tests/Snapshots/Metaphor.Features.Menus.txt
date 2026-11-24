@@ -1,9 +1,9 @@
 report.markKey | Mark key | on | done
 report.silentScreens | Silent screen list | on | done
-speech.archetypeTree | Archetype Tree | off | testing
-speech.autosaveNotice | Autosave notice | off | testing
+speech.archetypeTree | Archetype Tree | on | done
+speech.autosaveNotice | Autosave notice | on | done
 speech.battleConfirms | Battle confirm prompts | off | testing
-speech.battleItemTabs | Battle item tabs | off | testing
+speech.battleItemTabs | Battle item tabs | on | done
 speech.battleListViews | Battle list views | on | done
 speech.battleLists | Battle lists | on | done
 speech.battleOrderMenu | Battle order menu | on | done
@@ -12,7 +12,7 @@ speech.equipmentMenu | Equipment menu | off | testing
 speech.followerList | Follower list | on | done
 speech.gearDescriptions | Item and gear descriptions | off | testing
 speech.itemMenu | Item menu | on | done
-speech.keyHelp | Key help | off | testing
+speech.keyHelp | Key help | on | done
 speech.learnedSettingValues | Learned setting values | on | done
 speech.levelUpPoints | Level-up points | off | testing
 speech.menuPrompts | Menu prompts | off | testing
@@ -25,8 +25,8 @@ speech.quickMenuHelp | Quick menu help | off | testing
 speech.quickMenuHelpOnFocus | Quick menu help on focus | off | testing
 speech.returnToTitleQuestion | Return to title question | on | done
 speech.saveSlots | Save slots | on | done
-speech.settingsHelp | Settings help | off | testing
-speech.settingsMenu | Settings menu | off | testing
+speech.settingsHelp | Settings help | on | done
+speech.settingsMenu | Settings menu | on | done
 speech.shopMenu | Shop menu | on | done
 speech.skipSceneQuestion | Skip scene question | off | testing
 speech.systemMenu | System menu | on | done

@@ -101,6 +101,26 @@ public sealed class FeatureDefaultsTests
         });
     }
 
+    // Passed by ear on 2026-11-24, so they ship on; battleAffinities ships untested on the maintainer's decision.
+    [Fact]
+    public void AFeatureThatPassedTheFourthByEarCheckIsOnByDefault()
+    {
+        Enum[] passed =
+        [
+            DialogueFeature.DialogueKeys, FieldFeature.CornerAdvice, FieldFeature.GuidancePause,
+            FieldFeature.ShoulderHold, FieldFeature.ObjectiveGuidance, FieldFeature.WallTones,
+            FieldFeature.FieldStrikes, MenusFeature.AutosaveNotice, MenusFeature.ArchetypeTree,
+            MenusFeature.SettingsMenu, MenusFeature.KeyHelp, MenusFeature.SettingsHelp, MenusFeature.BattleItemTabs,
+            BattleFeature.BattleAffinities,
+        ];
+
+        Assert.All(passed, feature =>
+        {
+            Assert.False(SettingKey.Of(feature).Testing);
+            Assert.True(ModSettings.Defaults.IsOn(feature));
+        });
+    }
+
     [Fact]
     public void AFeatureIsOffInANormalInstallExactlyWhenItsKeyMarksItTesting()
     {

@@ -2,7 +2,7 @@ speech.buttonNames | Button names | on | done
 speech.choiceCount | Choice count | on | done
 speech.choiceDelay | Choice delay | on | done
 speech.dialogue | Dialogue | on | done
-speech.dialogueKeys | Dialogue keys | off | testing
+speech.dialogueKeys | Dialogue keys | on | done
 speech.messageLog | Message log | off | testing
 speech.moreTermNames | More term names | off | testing
 speech.nameStandIn | Name stand-in | off | testing

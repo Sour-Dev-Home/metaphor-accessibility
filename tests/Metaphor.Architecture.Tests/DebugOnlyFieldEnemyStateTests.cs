@@ -41,6 +41,19 @@ public sealed class DebugOnlyFieldEnemyStateTests
         Assert.Equal(Rules.IsDebugBuild(hookLayer), CallsFieldEnemyState(hookLayer));
     }
 
+    // The strike callouts (#696) passed by ear, so the field enemy's HP is read in every build, Release included.
+    [Fact]
+    public void TheHookLayerReadsFieldEnemyHpInEveryBuild()
+    {
+        var memory = Scanned.Load(Rules.HookLayer).MainModule.GetType("Metaphor.Hooks.FieldMemory");
+
+        var readsHp = memory.Methods.Where(method => method.HasBody).SelectMany(method => method.Body.Instructions)
+            .Any(i => i.Operand is Mono.Cecil.MethodReference { Name: "EnemyHp" } called &&
+                called.DeclaringType.FullName == memory.FullName);
+
+        Assert.True(readsHp);
+    }
+
     private static bool CallsFieldEnemyState(Mono.Cecil.AssemblyDefinition assembly) =>
         assembly.MainModule.GetMemberReferences()
             .OfType<Mono.Cecil.MethodReference>()

@@ -114,8 +114,10 @@ public sealed class FeatureModulesTests
 
         Assert.IsType<SettingsMenu>(context.Find<IInputBlock>());
         var holds = () => context.ShoulderHolds.Aggregate(0, (held, hold) => held | hold());
+        // Both are on by default since 2026-11-24, so each is set here.
+        context.Settings.Load("""{ "speech": { "settingsMenu": false, "keyHelp": false } }""");
         Assert.Equal(0, holds() & ShoulderTaps.Triggers);
-        context.Settings.Load("""{ "speech": { "settingsMenu": true } }""");
+        context.Settings.Load("""{ "speech": { "settingsMenu": true, "keyHelp": false } }""");
         Assert.Equal(ShoulderTaps.Triggers, holds() & ShoulderTaps.Triggers);
     }
 

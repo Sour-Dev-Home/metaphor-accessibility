@@ -65,7 +65,7 @@ public enum MenusFeature
     BattleListViews,
 
     /// <summary>The battle item list's tab names (#851). Separate from the battle lists while it is tested.</summary>
-    [SettingKey("speech", "battleItemTabs", "Battle item tabs", Testing = true, Order = 1046, Description =
+    [SettingKey("speech", "battleItemTabs", "Battle item tabs", Order = 1046, Description =
         "The tab's name when the battle item list opens or you switch tabs with LB or RB. Needs `battleLists`.")]
     BattleItemTabs,
 
@@ -102,7 +102,7 @@ public enum MenusFeature
 
     /// <summary>The Archetype Tree's character pick and each archetype its cursor reaches (#220). Separate from the
     /// menus while it is tested; off, the pick says positions only.</summary>
-    [SettingKey("speech", "archetypeTree", "Archetype Tree", Testing = true, Order = 1068, Description =
+    [SettingKey("speech", "archetypeTree", "Archetype Tree", Order = 1068, Description =
         "On the Archetype Tree, each character on the pick, then each archetype the cursor reaches, with its line " +
         "and rank. Needs `menus`.")]
     ArchetypeTree,
@@ -127,7 +127,7 @@ public enum MenusFeature
 
     /// <summary>The game's own settings rows' help line on the details key (#560, #907). Separate from the menus while it
     /// is tested.</summary>
-    [SettingKey("speech", "settingsHelp", "Settings help", Testing = true, Order = 1095, Description =
+    [SettingKey("speech", "settingsHelp", "Settings help", Order = 1095, Description =
         "The game's help line for the focused row on a Settings page, on the details key (F, or R3 on the pad). The " +
         "line is the one the game fetched for the row, so a row you have not moved to yet says no more. Needs `menus`.")]
     SettingsHelp,
@@ -167,7 +167,7 @@ public enum MenusFeature
     PlaceNames,
 
     /// <summary>The field's autosave notice (#543).</summary>
-    [SettingKey("speech", "autosaveNotice", "Autosave notice", Testing = true, Order = 1155, Description =
+    [SettingKey("speech", "autosaveNotice", "Autosave notice", Order = 1155, Description =
         "\"Autosaving\" when the game autosaves in the field, after the dialogue or line before it.")]
     AutosaveNotice,
 
@@ -182,14 +182,14 @@ public enum MenusFeature
     Welcome,
 
     /// <summary>The mod's own spoken settings menu (#754).</summary>
-    [SettingKey("speech", "settingsMenu", "Settings menu", Testing = true, Order = 1230, Description = "The mod's " +
+    [SettingKey("speech", "settingsMenu", "Settings menu", Order = 1230, Description = "The mod's " +
         "own settings menu, opened with F2, or LT and RT held then View on the pad, on any screen. Up and Down move, " +
         "Left and Right change the setting and save it at once, F or R3 says what it does, and Escape or B closes. " +
         "While it is open the game gets no keys or buttons.")]
     SettingsMenu,
 
     /// <summary>The help key, which says the mod's keys for where the player is (#868).</summary>
-    [SettingKey("speech", "keyHelp", "Key help", Testing = true, Order = 1240, Description = "The help key, F1, or " +
+    [SettingKey("speech", "keyHelp", "Key help", Order = 1240, Description = "The help key, F1, or " +
         "LT and RT held then Y on the pad: says the mod's keys that work where you are now, with their current " +
         "bindings.")]
     KeyHelp,

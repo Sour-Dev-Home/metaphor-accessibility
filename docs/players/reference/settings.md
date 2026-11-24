@@ -76,10 +76,10 @@ Each is `true` to speak or `false` to stay quiet, inside a `speech` object: `{ "
 | `battleLists` | Battle's skill and item lists, row by row. Separate from `menus`. | `true` |
 | `battleSkillCosts` | Says what a skill costs after its name in the battle skill list and Synthesis list, such as "4 MP" or "15 percent HP". The Synthesis list says its turn icons too. Needs `battleLists`. Still being tested. | testing, off |
 | `battleSynthesis` | Says each Synthesis in battle by name with its position, and `F` reads its description. Needs `battleLists`. Still being tested. | testing, off |
-| `battleAffinities` | After an enemy's HP on `K`, `J` and the target cursor, says the affinities you have found by hitting it with a skill: "weak to Fire, resists Ice". Needs `battleEnemyKeys` or `battleTargetSpeech`. Still being tested. | testing, off |
+| `battleAffinities` | After an enemy's HP on `K`, `J` and the target cursor, says the affinities you have found by hitting it with a skill: "weak to Fire, resists Ice". Needs `battleEnemyKeys` or `battleTargetSpeech`. | `true` |
 | `battleAffinitiesFoundOnly` | The affinities line says only what you have found in play this session. Off reveals every affinity from the game's tables, found or not. Needs `battleAffinities`. | `true` |
 | `battleListViews` | Names the rows of battle's skill and item lists after a wrap to the bottom, not only their positions. Needs `battleLists`. | `true` |
-| `battleItemTabs` | The tab's name when the battle item list opens or you switch tabs with LB or RB. Needs `battleLists`. Still being tested. | testing, off |
+| `battleItemTabs` | The tab's name when the battle item list opens or you switch tabs with LB or RB. Needs `battleLists`. | `true` |
 | `battleOrderMenu` | Battle's Order menu, opened with LB, and its Tactics submenu. | `true` |
 | `battleConfirms` | Battle's Retry and confirm prompts: the question, then Yes or No. Still being tested. | testing, off |
 | `battlePartyScreen` | On the battle Order menu's Party screen, says each member's name, HP and MP with their position. Still being tested. | testing, off |
@@ -88,7 +88,7 @@ Each is `true` to speak or `false` to stay quiet, inside a `speech` object: `{ "
 | `calendar` | The Calendar's day grid. | `true` |
 | `questList` | Each quest's name on the quest list, and an opened quest's name and description. Needs `menus`. | `true` |
 | `followerList` | Each follower's name and archetype on the Followers list. Needs `menus`. | `true` |
-| `archetypeTree` | On the Archetype Tree, each character on the pick, then each archetype the cursor reaches, with its line and rank. Needs `menus`. Still being tested. | testing, off |
+| `archetypeTree` | On the Archetype Tree, each character on the pick, then each archetype the cursor reaches, with its line and rank. Needs `menus`. | `true` |
 | `levelUpPoints` | The level-up screen where you spend points: its heading and each stat's name, and the stat's description on the details key. Needs `menus`. Still being tested. | testing, off |
 | `battleBanners` | The short banner during a battle turn: a boss warning, a stat change. | `true` |
 | `battleBannerNames` | Says who a battle banner is about: "Bow Scourge Malmorta cannot move due to Stun!". Off leaves the name out. Needs `battleBanners`. Still being tested. | testing, off |
@@ -100,7 +100,7 @@ Each is `true` to speak or `false` to stay quiet, inside a `speech` object: `{ "
 | `battleRewardExp` | Adds the EXP and archetype EXP of the enemies you beat, from the game's enemy tables, to the rewards line: "Gained 240 money, 30 MAG, 160 EXP and 60 archetype EXP". Needs `battleRewards`. Still being tested. | testing, off |
 | `saveSlots` | The save and load screens' slots. | `true` |
 | `learnedSettingValues` | The System rows whose setting the mod has not pinned saying their value on change, learned as you change them. Needs `menus`. | `true` |
-| `settingsHelp` | The game's help line for the focused row on a Settings page, on the details key (F, or R3 on the pad). The line is the one the game fetched for the row, so a row you have not moved to yet says no more. Needs `menus`. Still being tested. | testing, off |
+| `settingsHelp` | The game's help line for the focused row on a Settings page, on the details key (F, or R3 on the pad). The line is the one the game fetched for the row, so a row you have not moved to yet says no more. Needs `menus`. | `true` |
 | `nameEntry` | The name entry screen: its title, each letter you type, and when a name is refused. | `true` |
 | `nameReadBack` | On the name entry screen, the details button (R3) saying the name typed so far. Needs `nameEntry`. | `true` |
 | `equipmentMenu` | The Equipment screen's slots and gear. Still being tested. | testing, off |
@@ -108,7 +108,7 @@ Each is `true` to speak or `false` to stay quiet, inside a `speech` object: `{ "
 | `systemMenu` | The System menu's rows. | `true` |
 | `shopMenu` | The shop's top menu and its Buy and Sell lists. | `true` |
 | `placeNames` | The place name the game shows as you arrive somewhere. | `true` |
-| `autosaveNotice` | "Autosaving" when the game autosaves in the field, after the dialogue or line before it. Still being tested. | testing, off |
+| `autosaveNotice` | "Autosaving" when the game autosaves in the field, after the dialogue or line before it. | `true` |
 | `updateNotice` | The title screen's notice of a newer version. The request itself is `checkForUpdates`. | `true` |
 | `tutorials` | Tutorial pop-ups: the title, the page count and each page. Off also leaves the repeat key to repeat dialogue, not the pop-up's page. | `true` |
 | `termNames` | The skill and condition names a line's tags stand for. Off says the tag's stand-in. | `true` |
@@ -118,12 +118,12 @@ Each is `true` to speak or `false` to stay quiet, inside a `speech` object: `{ "
 | `choiceCount` | A reply choice saying how many options there are, with each option said as the focus moves, rather than every option up front. Needs `dialogue`. | `true` |
 | `choiceDelay` | A reply choice's options waiting until they are on screen, not said straight after the prompt. Needs `dialogue`. | `true` |
 | `windowCloseStop` | A closed dialogue window stopping the line still being spoken. Needs `dialogue`. | `true` |
-| `dialogueKeys` | In dialogue, the keys that stop the speech, say who is speaking and say the line on screen, with the reader on or off. Still being tested. | testing, off |
+| `dialogueKeys` | In dialogue, the keys that stop the speech, say who is speaking and say the line on screen, with the reader on or off. | `true` |
 | `messageLog` | The game's message log, the backlog of recent dialogue, saying its name and each line's position as you move through it. The lines' words are still to come. Still being tested. | testing, off |
 | `narration` | The day count ("1 day remains") and the narration that opens a place, said without a speaker, after the line being said rather than over it. Needs `dialogue`. Still being tested. | testing, off |
 | `welcome` | The welcome on the title screen the first time the game starts with the mod: the mod's version and the field keys. | `true` |
-| `settingsMenu` | The mod's own settings menu, opened with F2, or LT and RT held then View on the pad, on any screen. Up and Down move, Left and Right change the setting and save it at once, F or R3 says what it does, and Escape or B closes. While it is open the game gets no keys or buttons. Still being tested. | testing, off |
-| `keyHelp` | The help key, F1, or LT and RT held then Y on the pad: says the mod's keys that work where you are now, with their current bindings. Still being tested. | testing, off |
+| `settingsMenu` | The mod's own settings menu, opened with F2, or LT and RT held then View on the pad, on any screen. Up and Down move, Left and Right change the setting and save it at once, F or R3 says what it does, and Escape or B closes. While it is open the game gets no keys or buttons. | `true` |
+| `keyHelp` | The help key, F1, or LT and RT held then Y on the pad: says the mod's keys that work where you are now, with their current bindings. | `true` |
 
 ## Field
 
@@ -136,19 +136,19 @@ the game.
 | `nearbyCategories` | The nearby list's categories: `]` and `[`, or the pad chord if you bind one. | `true` |
 | `whereAmI` | "Where am I": L, or LB with Left on the D-pad. | `true` |
 | `guidance` | The guidance beep toward a nearby thing: G, or LB with Right on the D-pad. | `true` |
-| `guidancePause` | The beep pausing, not ending, while the game has control (a cutscene or a line), and coming back once free roam has held. Needs `guidance`. Still being tested. | testing, off |
+| `guidancePause` | The beep pausing, not ending, while the game has control (a cutscene or a line), and coming back once free roam has held. Needs `guidance`. | `true` |
 | `reach` | The callout when a door or chest comes into reach: "Door, in reach". | `true` |
 | `stunCallouts` | The callout when a field enemy near you is stunned: "Enemy stunned". | `true` |
-| `shoulderHold` | In the field, LB and RB reach the game when you let go, so LB with RB (the reader) and LB with the D-pad open neither the popularity ranking nor the map. Tapped alone, they still open them. Still being tested. | testing, off |
+| `shoulderHold` | In the field, LB and RB reach the game when you let go, so LB with RB (the reader) and LB with the D-pad open neither the popularity ranking nor the map. Tapped alone, they still open them. | `true` |
 | `cameraTilt` | "Camera looking down" or "Camera looking up" when the camera tilts past a limit, "Camera level" when it comes back, and the camera's tilt at the end of "where am I". The limits are in `limits`. | `true` |
 | `sonar` | A short sound for the people, objects and exits nearby, one at a time, nearest first (`field.sonarPings` for more): a sound of its own for each kind, on the side it is on screen, louder when nearer. It waits while the guidance beep guides or a route ping sounds. Still being tested. | testing, off |
-| `wallTones` | A low steady tone for each wall near you, ahead, behind, left and right of the screen, louder as the wall nears. Silent on maps the mod has no walking map for, which it says once. The range and volume are in `limits`. Still being tested. | testing, off |
+| `wallTones` | A low steady tone for each wall near you, ahead, behind, left and right of the screen, louder as the wall nears. Silent on maps the mod has no walking map for, which it says once. The range and volume are in `limits`. | `true` |
 | `routePings` | A ping from the direction of each place the nearby list steps to: two high notes when the way is straight, two rising notes from the next corner when the way bends, one low note when there is no path. Its volume is in `limits`. Still being tested. | testing, off |
 | `soundFiles` | The sonar, wall tones and route pings play the mod's own sound files, in `data/sounds` in the mod folder, instead of plain tones. A missing or damaged file plays its plain tone. Still being tested. | testing, off |
 | `enemyAwareness` | A sharp sound from the enemy's side and "Enemy noticed you" when a field enemy near you notices you, and a softer falling sound when it gives up the search. Each sound has its own key in `sounds`. Still being tested. | testing, off |
-| `objectiveGuidance` | O starts the guidance beep toward the current objective's marker on this map, or a waypoint the mod's data gives; G stops it. Says "Objective guidance isn't ready for this area" on a map the game gives no minimap, where the mod can't place the marker. Still being tested. | testing, off |
-| `fieldStrikes` | "Hit" when a strike of yours takes HP from a field enemy near you, and "Defeated" when it takes the last. Still being tested. | testing, off |
-| `cornerAdvice` | The advice Gallica and the party give in the top-left corner as you roam, with the speaker's name, after the line before it. Still being tested. | testing, off |
+| `objectiveGuidance` | O starts the guidance beep toward the current objective's marker on this map, or a waypoint the mod's data gives; G stops it. Says "Objective guidance isn't ready for this area" on a map the game gives no minimap, where the mod can't place the marker. | `true` |
+| `fieldStrikes` | "Hit" when a strike of yours takes HP from a field enemy near you, and "Defeated" when it takes the last. | `true` |
+| `cornerAdvice` | The advice Gallica and the party give in the top-left corner as you roam, with the speaker's name, after the line before it. | `true` |
 | `behindMuffle` | The sonar, route pings, wall tones and guidance beep sound duller and a little quieter when they come from behind the screen's facing, so front and back differ. The angle is in `limits`. Still being tested. | testing, off |
 | `turnPings` | When you turn the camera, the sonar's last ping and a recent route ping play again from their new side, so turning tells you whether a sound is ahead or behind. The angle is in `limits`. Still being tested. | testing, off |
 | `heightPan` | The sonar, route pings and guidance beep sit nearer the centre the farther above or below you their source is. Still being tested. | testing, off |

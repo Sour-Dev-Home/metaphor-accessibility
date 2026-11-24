@@ -86,11 +86,11 @@ public sealed class FieldShoulderHoldTests
         Assert.Equal(LB, rebound.Held());
     }
 
-    // Not heard by ear yet, so it ships off.
+    // Passed by ear on 2026-11-24, so it ships on.
     [Fact]
-    public void TheFieldShoulderHoldIsStillTesting()
+    public void TheFieldShoulderHoldIsNoLongerTesting()
     {
-        Assert.True(SettingKey.Of(FieldFeature.ShoulderHold).Testing);
+        Assert.False(SettingKey.Of(FieldFeature.ShoulderHold).Testing);
     }
 
     private sealed class RoamField : IFieldReads
