@@ -183,8 +183,9 @@ public sealed class MenusModule : IFeatureModule
                 serials, battleListSpeech, cleaner, () => Environment.TickCount64, ListViewsOn,
                 name => additions.CostOf(name, turnIcons: true), additions.SynthesisOn),
             // The item list's tabs say their names behind their own setting while tested (#851).
+            // Each row's quantity, once the battle project has a source for it (#937).
             BattleListFocus.Items(serials, battleListSpeech, cleaner, () => Environment.TickCount64, ListViewsOn,
-                () => settings.Current.IsOn(MenusFeature.BattleItemTabs)),
+                () => settings.Current.IsOn(MenusFeature.BattleItemTabs), additions.QuantityOf),
         ];
         foreach (var list in battleLists)
         {

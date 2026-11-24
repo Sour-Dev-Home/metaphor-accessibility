@@ -10,6 +10,7 @@ public sealed class BattleListAdditions
 {
     private volatile Func<int, bool, string?>? cost;
     private volatile Func<bool>? synthesisOn;
+    private volatile Func<int, int?>? quantity;
 
     /// <summary>The cost said after the row whose name the list fetched by <paramref name="nameSerial"/>, such as
     /// "8 MP", with its turn icons when <paramref name="turnIcons"/> (the Synthesis list); null for none.</summary>
@@ -17,6 +18,20 @@ public sealed class BattleListAdditions
 
     /// <summary>Whether the Synthesis list speaks now.</summary>
     public bool SynthesisOn() => synthesisOn?.Invoke() == true;
+
+    /// <summary>How many of the item the party holds, for the item row whose name the list fetched by
+    /// <paramref name="nameSerial"/> (#937); null when it isn't known. Nothing adds a source yet: where the game keeps
+    /// the count a battle item row shows is <c>[NEEDS VERIFICATION]</c> (the bag counts in
+    /// docs/findings/money-follower-rank-and-shop-static.md are static only, category 0 only, and keyed by item ID, not
+    /// by name serial).</summary>
+    public int? QuantityOf(int nameSerial) => quantity?.Invoke(nameSerial);
+
+    /// <summary>Says where the item rows' quantities come from (#937).</summary>
+    public void AddQuantities(Func<int, int?> quantityOf)
+    {
+        ArgumentNullException.ThrowIfNull(quantityOf);
+        quantity = quantityOf;
+    }
 
     /// <summary>Says where the costs and the Synthesis list's setting come from.</summary>
     public void Add(Func<int, bool, string?> costOf, Func<bool> synthesis)
