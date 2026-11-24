@@ -120,10 +120,16 @@ The guards, why each may block you, and what to do:
 - **Build, tests or formatting** (pre-push, `full`): fix and rerun; a busy build slot:
   [recorded pass](reference/checks.md#recorded-pass), `bash scripts/check/check-status.sh` shows who holds it.
 - **A feature with no setting** (architecture rule 18): give it a member of its project's feature enum, mark it
-  `[FeatureSetting<TheFeatureEnum>(...)]` and regenerate [the settings reference](../players/reference/settings.md); the
-  rule is in [coding standards](../coding-standards.md#architecture-rules).
+  `[FeatureSetting<TheFeatureEnum>(...)]`, add its line to your own project's file in
+  `tests/Metaphor.Settings.Tests/Snapshots/` (one per project; the test's failure message prints what it should read),
+  and regenerate [the settings reference](../players/reference/settings.md); the rule is in
+  [coding standards](../coding-standards.md#architecture-rules). Never edit another project's snapshot file.
 - **Stale settings reference** (`Metaphor.Settings.Tests`): run
   `dotnet run --project tools/Metaphor.SettingsReference -c Release -v q` from the repository root and commit the page.
+  Do this after every merge of `main` too: `.gitattributes` marks the page `merge=settings-reference`, whose driver
+  (`scripts/setup/onboard.ps1` sets it in your clone; `git config merge.settings-reference.driver true` by hand) keeps
+  your side whole, so a local merge never leaves conflict markers in it, and the regenerate adds the other side's rows.
+  A merge GitHub makes ignores drivers and can still report a conflict in the page: take either side, then regenerate.
 - **Stale navigation sounds** (`NavSoundFilesTests`): run `dotnet run --project tools/Metaphor.NavSounds -c Release -v q`
   from the repository root and commit `data/sounds/`.
 - **Architecture tests:** a rule in [coding standards](../coding-standards.md#architecture-rules) was broken.

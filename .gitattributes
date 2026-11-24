@@ -6,3 +6,7 @@
 *.bat text eol=crlf
 # Generated sounds (#839) are bytes, compared exactly by their test: never converted.
 *.wav binary
+# The generated settings reference (tools/Metaphor.SettingsReference) is never merged by text (#892): a local merge keeps
+# this side whole through the clone-local driver that scripts/setup/onboard.ps1 sets, and you regenerate the page after.
+# GitHub's own merges ignore drivers; see "Stale settings reference" in docs/contributors/README.md for what to do then.
+docs/players/reference/settings.md merge=settings-reference

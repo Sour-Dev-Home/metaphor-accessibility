@@ -52,19 +52,41 @@ public sealed class FeatureModulesTests
     [Fact]
     public void ControlsTakeEachReadInTheOrderTheyDidBefore()
     {
-        var controls = Register(withReport: true).Controls;
+        // Each module's own controls, in its own order, with no count of anyone else's (#892): a new control in one
+        // module changes only that module's list.
+        var registered = Registered(withReport: true);
+        var controls = registered.Context.Controls;
 
-        // Seven since the battle's end check (#750), gated, before the battle keys; it only watches the reads. Eight
-        // since the enemy HP keys split into the keyboard's and the pad's, each its own testing feature (#767). Nine
-        // since the name entry's read-back (#585), gated, before the field. Ten since the battle's HP and MP key (#692),
-        // gated, before the enemy HP keys. Twelve since the help key (#868) and the settings menu (#754), gated, right
-        // after the mark key. Thirteen since the enemy awareness cues (#649), after the field; they only watch the reads.
-        // Fourteen since the dialogue's context keys (#879), gated, after the dialogue controls.
-        Assert.Equal(14, controls.Count);
-        Assert.IsType<MarkKey>(controls[0]);
-        Assert.IsType<FieldControls>(controls[^2]);
-        Assert.IsType<EnemyAwareness>(controls[^1]);
-        Assert.Equal(13, Register(withReport: false).Controls.Count);
+        // The list is the modules' lists end to end, in the hook layer's order.
+        Assert.Equal(
+            InHookOrder().SelectMany(module => registered.Added[module.GetType()]),
+            controls);
+        // The menus' module starts with the mark key, which is not gated, so before every other control.
+        Assert.IsType<MarkKey>(registered.Added[typeof(MenusModule)][0]);
+        // The field's controls end the field module's, with the enemy awareness cues, which only watch the reads,
+        // after them; the field takes its read after the mark key.
+        var field = registered.Added[typeof(FieldModule)];
+        Assert.IsType<FieldControls>(field[^2]);
+        Assert.IsType<EnemyAwareness>(field[^1]);
+        Assert.True(controls.ToList().FindIndex(control => control is MarkKey)
+            < controls.ToList().FindIndex(control => control is FieldControls));
+    }
+
+    // Only the mark key needs the report: without one that module has one control fewer and no other module changes.
+    [Fact]
+    public void WithoutAReportOnlyTheMarkKeyIsMissing()
+    {
+        var with = Registered(withReport: true);
+        var without = Registered(withReport: false);
+
+        Assert.Single(with.Context.Controls.OfType<MarkKey>());
+        Assert.Empty(without.Context.Controls.OfType<MarkKey>());
+        foreach (var module in InHookOrder())
+        {
+            var type = module.GetType();
+            var missing = type == typeof(MenusModule) ? 1 : 0;
+            Assert.Equal(with.Added[type].Count - missing, without.Added[type].Count);
+        }
     }
 
     // #754: the settings menu blocks the game's input through the frame, and holds the triggers for its chord only
@@ -118,10 +140,17 @@ public sealed class FeatureModulesTests
 
     // #166: with the hook layer's purse, the battle's rewards take the reads as a clock, gated.
     [Fact]
-    public void ThePurseAddsTheBattleRewardsControls() =>
-        Assert.Equal(
-            Register(withReport: true).Controls.Count + 1,
-            Register(withReport: true, purse: new NoPurse()).Controls.Count);
+    public void ThePurseAddsTheBattleRewardsControls()
+    {
+        var without = Registered(withReport: true);
+        var with = Registered(withReport: true, purse: new NoPurse());
+
+        Assert.Equal(without.Added[typeof(BattleModule)].Count + 1, with.Added[typeof(BattleModule)].Count);
+        foreach (var module in InHookOrder().Where(module => module is not BattleModule))
+        {
+            Assert.Equal(without.Added[module.GetType()].Count, with.Added[module.GetType()].Count);
+        }
+    }
 
     // #809, by ear 2026-11-23 evening: the skip menu's animation 4768 is its close, so the question was said as the
     // player left. Nothing asks for that layout's animations; the question hears the component's show request instead.
@@ -161,7 +190,13 @@ public sealed class FeatureModulesTests
         Assert.Equal(SettingsReference.AllFeatures.Modules().Select(module => module.GetType()), listed);
     }
 
-    private static FeatureContext Register(bool withReport, IBattlePurse? purse = null)
+    private static FeatureContext Register(bool withReport, IBattlePurse? purse = null) =>
+        Registered(withReport, purse).Context;
+
+    /// <summary>The context after every module registered, and the controls each module added to it.</summary>
+    private sealed record Registration(FeatureContext Context, Dictionary<Type, List<IInputControls>> Added);
+
+    private static Registration Registered(bool withReport, IBattlePurse? purse = null)
     {
         var announcer = new RecordingAnnouncer();
         var library = new MessageLibrary();
@@ -200,11 +235,14 @@ public sealed class FeatureModulesTests
         {
             context.Provide(purse);
         }
+        var added = new Dictionary<Type, List<IInputControls>>();
         foreach (var module in InHookOrder())
         {
+            var before = context.Controls.Count;
             module.Register(context);
+            added[module.GetType()] = [.. context.Controls.Skip(before)];
         }
-        return context;
+        return new(context, added);
     }
 
     private sealed class ByName : IComparer<Type>

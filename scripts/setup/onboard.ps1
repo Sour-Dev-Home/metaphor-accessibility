@@ -18,7 +18,8 @@ says that nothing changed.
    and offers no install. Then Pester at its pinned version, which the scripts' tests need (Windows PowerShell's
    Pester 3 doesn't count): it offers install-pester.ps1, which installs it for your user from the PowerShell Gallery
    only when its files carry the pinned publisher's signature, and a no stops.
-2. Git hooks: sets core.hooksPath to scripts/githooks for this clone.
+2. Git hooks: sets core.hooksPath to scripts/githooks for this clone, and the merge driver that keeps your side of the
+   generated settings page in a local merge (#892).
 3. Private patterns: creates the git-ignored .claude/pii-patterns.txt from the example, opens it in Notepad, and stops
    while it still holds the example lines. It never prints the file.
 4. Docs tools: runs scripts/setup/install-docs-tools.sh unless the pinned versions already run, and names any that don't.
@@ -395,6 +396,10 @@ try {
         }
         else { Add-Item 'git hooks' $false 'run: git config core.hooksPath scripts/githooks (in a git clone)' }
     }
+    # The generated settings page keeps your side in a local merge (.gitattributes, #892); you regenerate it after.
+    # `true` is git's own no-op driver: it exits 0 and leaves the file as it was.
+    & git config --local merge.settings-reference.driver true
+    & git config --local merge.settings-reference.name 'keep our side of the generated settings reference'
 
     # --- 3. Private patterns ------------------------------------------------------------------------------------------
     Write-Step 'Private patterns'
