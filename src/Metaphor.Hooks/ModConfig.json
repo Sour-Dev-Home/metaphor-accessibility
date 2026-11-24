@@ -2,7 +2,7 @@
   "ModId": "metaphor.accessibility",
   "ModName": "Metaphor Accessibility",
   "ModAuthor": "metaphor-accessibility contributors",
-  "ModVersion": "0.0.1-unstable.4",
+  "ModVersion": "0.0.1-unstable.5",
   "ModDescription": "Non-commercial, fan-made accessibility tool for blind and visually impaired players; not affiliated with or endorsed by ATLUS or SEGA. Early development: speaks story dialogue through your screen reader.",
   "ModDll": "Metaphor.Hooks.dll",
   "IsLibrary": false,
