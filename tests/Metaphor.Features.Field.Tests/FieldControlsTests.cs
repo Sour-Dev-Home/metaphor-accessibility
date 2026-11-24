@@ -389,6 +389,30 @@ public sealed class FieldControlsTests
         Assert.Equal([said], Said());
     }
 
+    // #700: compass points only while their testing setting is on; the list and the step both use them.
+    [Theory]
+    [InlineData(true, "1 nearby. Door, 5 steps west")]
+    [InlineData(false, "1 nearby. Door, 5 steps ahead")]
+    public void TheListSaysCompassPointsOnlyWhileTheirSettingIsOn(bool on, string said)
+    {
+        field.View = new FieldView(0, 0, 0, Math.PI / 2, [new(FieldKind.Door, 500, 0, 0)]);
+
+        Gated($$"""{ "field": { "compass": {{(on ? "true" : "false")}} } }""").Keys([KeyN]);
+
+        Assert.Equal([said], Said());
+    }
+
+    [Fact]
+    public void LbWithDownSaysCompassPointsWhileTheirSettingIsOn()
+    {
+        field.View = new FieldView(0, 0, 0, 0, [new(FieldKind.Door, -500, 0, 0)]);
+        var gated = Gated("""{ "field": { "compass": true } }""");
+
+        gated.Pad(0, Lb | Down, made: true);
+
+        Assert.Equal(["1 of 1. Door, 5 steps east"], Said());
+    }
+
     [Fact]
     public void LbWithDownSaysHeightWhileItsSettingIsOn()
     {

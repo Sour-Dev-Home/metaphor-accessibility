@@ -1,5 +1,6 @@
 field.behindMuffle | Behind muffle | off | testing
 field.cameraTilt | Camera tilt | on | done
+field.compass | Compass directions | off | testing
 field.cornerAdvice | Corner advice | on | done
 field.enemyAwareness | Enemy awareness | off | testing
 field.fieldStrikes | Field strike callouts | on | done

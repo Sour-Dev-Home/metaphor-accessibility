@@ -156,6 +156,7 @@ the game.
 | `turnPings` | When you turn the camera, the sonar's last ping and a recent route ping play again from their new side, so turning tells you whether a sound is ahead or behind. The angle is in `limits`. Still being tested. | testing, off |
 | `heightPan` | The sonar, route pings and guidance beep sit nearer the centre the farther above or below you their source is. Still being tested. | testing, off |
 | `nearbyHeight` | The nearby list says "above" or "below" after the direction of a thing well above or below you, such as on another floor. Still being tested. | testing, off |
+| `compass` | The nearby list says compass points, such as "north-east", from the map's own axes instead of directions from the screen, so they stay the same however the camera turns. North is the top of the game's map. Still being tested. | testing, off |
 
 ## Report
 

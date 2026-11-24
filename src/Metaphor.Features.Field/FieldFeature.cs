@@ -128,4 +128,10 @@ public enum FieldFeature
         "list says \"above\" or \"below\" after the direction of a thing well above or below you, such as on " +
         "another floor.")]
     NearbyHeight,
+
+    /// <summary>Compass points in the nearby list instead of directions from the screen (#700).</summary>
+    [SettingKey("field", "compass", "Compass directions", Testing = true, Order = 2210, Description = "The nearby " +
+        "list says compass points, such as \"north-east\", from the map's own axes instead of directions from the " +
+        "screen, so they stay the same however the camera turns. North is the top of the game's map.")]
+    Compass,
 }
