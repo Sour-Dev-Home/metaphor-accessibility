@@ -15,8 +15,8 @@ and objective have no field of their own. Batch files: [`docs/sessions/session-3
 | Data item | Best lead | Confidence |
 |---|---|---|
 | Date | day count `G+0x311e8` (`base+0x2cd78d8`), `int`; month, day and year computed from it | High for the field and the formula |
-| Weekday | `G+0x311ec` (`base+0x2cd78dc`), day count mod 5 | Medium: the Calendar shows 7 weekday names |
-| Time of day | `G+0x311f0` (`base+0x2cd78e0`), `int`, an index | High for the field; values unknown |
+| Weekday | `G+0x311ec` (`base+0x2cd78dc`), day count mod 5, five names | High: three samples match |
+| Time of day | `G+0x311f0` (`base+0x2cd78e0`), `int`, index 0 to 6 of `System_General_Time_01`–`_07` | High; 3 afternoon and 6 late night matched |
 | Quest state | `G+0x247b4 + id × 0x18` (`base+0x2ccaea4`), 135 records | High |
 | Quest days left | computed from the record's start day and the quest table's limit and date | High in code |
 | HUD deadline countdown | one accepted quest's days left | Low |
@@ -38,8 +38,13 @@ and objective have no field of their own. Batch files: [`docs/sessions/session-3
   is `[base+0x2ca3318]`; the getters take it and ignore it.
 
 **Weekday.** `GetCalendarDow` (`0x907850` to `0x72a140`) returns `d mod 5` (the divide by 5 is in the disassembly), and
-`SetDay` stores the same value at `G+0x311ec` through `0x3b0410`. The inventory saw 7 weekday names in the Calendar, so
-what this 5-day value names is `[NEEDS VERIFICATION]`; the session compares it with the HUD weekday.
+`SetDay` stores the same value at `G+0x311ec` through `0x3b0410`. The week has five days, not seven: the value is the
+weekday's index, `System_General_Week_01` + value (serial 9285 + value), in the Calendar grid's column order Flames,
+Waters, Arbors, Metals, Idols Day (`src/Metaphor.Features.Menus/CalendarFocus.cs`, heard 2026-11-22). Three samples
+agree: the 2026-11-23 live read (day 131, value 1, shown Watersday), and two save headers matched with the load list's
+2026-11-22 read-outs, day 124 (value 4, Idols Day, serial 9289 resolved) and day 1 (value 1, Waters Day)
+([save-slot note](save-slot-header-in-save-files.md), from #979). The 2026-11-17
+inventory's "7 weekday names" is taken for a miscount.
 
 ### 2. Time of day
 
@@ -50,6 +55,13 @@ month (`COMMON/scheduler/script/…`) and picks its entry by the time value from
 copies the time to `G+0x711fc` (`0x3b0480`) once run. So the time is a small index, one entry per time of day; how
 many and which is which comes from the session. `IsTimeProgressUI` (`0x90b2b0`) and `DateUI_ChangeTime`
 (`0x904aa0`) reach `.text1`.
+
+**Time index, matched 2026-11-24.** The index names `System_General_Time_01` + index (serial 9297 + index, seven
+labels, so 0 to 6). Index 3 is afternoon (the autosave row's header held 3, serial 9300 resolved and "afternoon"
+was shown) and 6 is late night (slot 4's header, shown late night); a new game starts at 3 (`0x3b2840`). The other
+five indexes' names are the game's own label text, read at run time, and which time each is stays
+`[NEEDS VERIFICATION]` by ear ([save-slot note](save-slot-header-in-save-files.md), section "Matched with the load
+list", from #979).
 
 ### 3. Quests
 
