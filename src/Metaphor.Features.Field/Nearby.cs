@@ -1,4 +1,5 @@
 using System.Globalization;
+using Metaphor.Core.Settings;
 
 namespace Metaphor.Features.Field;
 
@@ -50,6 +51,22 @@ public static class Nearby
     /// <summary>The list's radius: the maintainer's "about 30 m", as 30 steps until a metre is measured.</summary>
     public const double Radius = 30 * UnitsPerStep;
 
+    /// <summary>The longest radius the setting allows, in game units: what the hook layer reads units out to (#931).
+    /// </summary>
+    public const double MaxRadius = 60 * UnitsPerStep;
+
+    /// <summary>The list radius's slider (#931), in steps: 5 to 60, in steps of 5, and 30 by default, as
+    /// <see cref="Radius"/>.</summary>
+    public static SliderLimit RadiusSteps { get; } = new("field", "nearbyRadius", 30, 5, 60, 5)
+    {
+        Spoken = "Nearby list range",
+        Description = "How far the nearby list looks (`nearby`), in steps.",
+        Order = 140,
+    };
+
+    /// <summary>The list radius <paramref name="settings"/> give, in game units.</summary>
+    public static double RadiusFrom(ModSettings settings) => RadiusSteps.From(settings) * UnitsPerStep;
+
     // The reach tests of fldGmcDoor::vf44 (0x6992a0) and fldGimmick::vf44 (0x697d00), which chests keep, on game build
     // 548ddc95… (Steam build 18330018): ground distance below the limit, height difference below 300, and within 90°
     // of facing (docs/findings/field-interaction-prompt-static.md).
@@ -58,15 +75,17 @@ public static class Nearby
     private const double HeightReach = 300;
     private const double FacingReach = Math.PI / 2;
 
-    /// <summary>The things of <paramref name="view"/> within <see cref="Radius"/>, nearest first, at most
-    /// <see cref="MaxThings"/>.</summary>
-    public static IReadOnlyList<NearbyThing> List(FieldView view, NearbyCategory category = NearbyCategory.Everything)
+    /// <summary>The things of <paramref name="view"/> within <paramref name="radius"/> (<see cref="Radius"/> when null),
+    /// in game units, nearest first, at most <see cref="MaxThings"/>.</summary>
+    public static IReadOnlyList<NearbyThing> List(
+        FieldView view, NearbyCategory category = NearbyCategory.Everything, double? radius = null)
     {
         ArgumentNullException.ThrowIfNull(view);
+        var within = radius ?? Radius;
         return [.. view.Units
             .Where(unit => category == NearbyCategory.Everything || CategoryOf(unit.Says) == category)
             .Select(unit => Place(view, unit))
-            .Where(thing => thing.Distance <= Radius)
+            .Where(thing => thing.Distance <= within)
             .OrderBy(thing => thing.Distance)
             .Take(MaxThings)];
     }

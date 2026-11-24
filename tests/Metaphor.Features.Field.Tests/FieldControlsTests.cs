@@ -294,6 +294,33 @@ public sealed class FieldControlsTests
         Assert.Equal("Nothing nearby", Said().Single());
     }
 
+    [Fact]
+    public void TheNearbyRadiusSettingChangesTheList()
+    {
+        // #931: a thing 40 steps away is out of the default 30-step list, in a 50-step one, and a 10-step one drops a
+        // thing 20 steps away. The limit comes from the settings file, as the module reads it.
+        field.View = new FieldView(0, 0, 0, 0, [new(FieldKind.Enemy, 0, 0, 4000), new(FieldKind.Door, 0, 0, 2000)]);
+        FieldControls WithRadius(string json) => new(
+            () => FieldBindings.Default, _ => true, field, place, announcer, cues, () => now,
+            nearbyRadius: () => Nearby.RadiusFrom(Parse(json)));
+
+        var wide = Parse("""{ "limits": { "field": { "nearbyRadius": 50 } } }""");
+        var narrow = Parse("""{ "limits": { "field": { "nearbyRadius": 10 } } }""");
+
+        Assert.Equal(Nearby.Radius, Nearby.RadiusFrom(Parse("{}")));
+        Assert.Equal(Nearby.MaxRadius, Nearby.RadiusFrom(Parse("""{ "limits": { "field": { "nearbyRadius": 999 } } }""")));
+        Assert.Single(Nearby.List(field.View, radius: Nearby.RadiusFrom(Parse("{}"))));
+        Assert.Equal(2, Nearby.List(field.View, radius: Nearby.RadiusFrom(wide)).Count);
+
+        WithRadius("{}").Keys([KeyN]);
+        var defaultSaid = Said().Single();
+        WithRadius("""{ "limits": { "field": { "nearbyRadius": 50 } } }""").Keys([KeyN]);
+        Assert.NotEqual(defaultSaid, Said().ElementAt(1));
+        WithRadius("""{ "limits": { "field": { "nearbyRadius": 5 } } }""").Keys([KeyN]);
+        Assert.Equal("Nothing nearby", Said().ElementAt(2));
+        Assert.Empty(Nearby.List(field.View, radius: Nearby.RadiusFrom(narrow)));
+    }
+
     // Each half of the field controls has its own setting (#661): one off leaves its keys to the game, says nothing,
     // and leaves the other working.
     private static ModSettings Parse(string json) =>

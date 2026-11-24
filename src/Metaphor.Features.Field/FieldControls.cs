@@ -113,6 +113,7 @@ public sealed class FieldControls : IInputControls
     private readonly FieldPlace place;
     private readonly IAnnouncer announcer;
     private readonly Func<long> milliseconds;
+    private readonly Func<double> nearbyRadius;
     private readonly Action<string>? log;
     private readonly MissionLine? mission;
     private readonly Func<int, bool?>? storyFlag;
@@ -171,15 +172,18 @@ public sealed class FieldControls : IInputControls
     /// the list steps to (#831). The objective key starts the beacon toward <paramref name="objective"/>'s answer
     /// (#652) while <see cref="FieldFeature.ObjectiveGuidance"/> is on, and with a log "where am I" also writes its
     /// record. <paramref name="strikes"/>' check runs on each keyboard read when there is one (#696). The beep is placed
-    /// by <paramref name="placement"/> (#903, #650).</summary>
+    /// by <paramref name="placement"/> (#903, #650). <paramref name="nearbyRadius"/> gives the list's radius in game
+    /// units on each use (#931); <see cref="Nearby.Radius"/> when null.</summary>
     public FieldControls(
         Func<FieldBindings> bindings, Func<FieldFeature, bool> isOn, IFieldReads field, FieldPlace place,
         IAnnouncer announcer, ICuePlayer cues, Func<long> milliseconds, Action<string>? log = null,
         NamesTable? names = null, ReachCallouts? reach = null, MissionLine? mission = null,
         Func<int, bool?>? storyFlag = null, IRoutePlanner? routes = null, StunCallouts? stuns = null,
         TiltWarning? tilt = null, Sonar? sonar = null, WallTones? walls = null, RoutePings? routePings = null,
-        ObjectiveGuide? objective = null, FieldStrikes? strikes = null, CuePlacement? placement = null)
+        ObjectiveGuide? objective = null, FieldStrikes? strikes = null, CuePlacement? placement = null,
+        Func<double>? nearbyRadius = null)
     {
+        this.nearbyRadius = nearbyRadius ?? (() => Nearby.Radius);
         this.objective = objective;
         this.strikes = strikes;
         this.tilt = tilt;
@@ -209,6 +213,10 @@ public sealed class FieldControls : IInputControls
         this.stuns = stuns;
         roam = new FreeRoamGate(field);
     }
+
+    // The list within the radius setting (#931), read on each use.
+    private IReadOnlyList<NearbyThing> NearbyList(FieldView view, NearbyCategory category) =>
+        Nearby.List(view, category, nearbyRadius());
 
     private enum Press
     {
@@ -446,7 +454,7 @@ public sealed class FieldControls : IInputControls
             announcer.Announce(new Announcement("Can't read the field", Interrupt: true));
             return null;
         }
-        var things = Nearby.List(view, Category());
+        var things = NearbyList(view, Category());
         if (things.Count == 0)
         {
             announcer.Announce(new Announcement("Nothing nearby", Interrupt: true));
@@ -533,7 +541,7 @@ public sealed class FieldControls : IInputControls
         {
             return word;
         }
-        var things = Nearby.List(view, now);
+        var things = NearbyList(view, now);
         return things.Count == 0 ? $"{word}, none nearby" :
             string.Create(CultureInfo.InvariantCulture, $"{word}, {things.Count} nearby");
     }
@@ -548,7 +556,7 @@ public sealed class FieldControls : IInputControls
             log?.Invoke("identify unreadable");
             return "Can't read the field";
         }
-        if (Nearby.List(view, Category()) is not [var nearest, ..])
+        if (NearbyList(view, Category()) is not [var nearest, ..])
         {
             return "Nothing nearby";
         }
@@ -592,7 +600,7 @@ public sealed class FieldControls : IInputControls
             return "Can't read the field";
         }
         var shown = Category();
-        var things = Nearby.List(view, shown);
+        var things = NearbyList(view, shown);
         Log(view, things);
         if (things.Count == 0)
         {

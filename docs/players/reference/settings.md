@@ -204,6 +204,7 @@ Some features have a limit you can move, inside a `limits` object, then the feat
 | `cues.otherVolume` | How loud the one-shot sounds are (hits and the mark sound), as a share of `soundCueVolume`. 0 to 100, in steps of 5. | `100` |
 | `field.behindMuffleDegrees` | How far round from straight ahead, in degrees either way, a navigation sound must come from to be muffled as behind you (`behindMuffle`). 90 to 170, in steps of 5. | `100` |
 | `field.turnPingDegrees` | How far the camera must turn, in degrees, for the sonar's or a route ping's last sound to play again (`turnPings`). 10 to 90, in steps of 5. | `30` |
+| `field.nearbyRadius` | How far the nearby list looks (`nearby`), in steps. 5 to 60, in steps of 5. | `30` |
 
 ## Keys
 

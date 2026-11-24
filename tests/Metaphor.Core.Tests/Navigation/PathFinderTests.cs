@@ -172,10 +172,11 @@ public sealed class PathFinderTests
     [Fact]
     public void ThePlannerSaysWhyThereIsNoRoute()
     {
-        var walled = Graph(Wall(Open(), 4));
+        // Three blocked columns: the far side is more than the retry radius from any cell on the player's side.
+        var walled = Graph(Wall(Wall(Wall(Open(), 2), 3), 4));
         var pending = new TaskCompletionSource<WalkGraph?>();
         var from = new Vector3(15, 0, 15);
-        var to = new Vector3(65, 0, 15);
+        var to = new Vector3(75, 0, 15);
 
         Assert.Equal(RouteOutcome.NoNavMesh, Planner(walled).Plan(null, from, to).Outcome);
         Assert.Equal(RouteOutcome.NoNavMesh, Planner(null).Plan(12, from, to).Outcome);
@@ -185,6 +186,33 @@ public sealed class PathFinderTests
             new NavRoutePlanner(Files, (_, _) => pending.Task).Plan(12, from, to).Outcome);
         Assert.Equal(RouteOutcome.OffMesh, Planner(walled).Plan(12, new(5000, 0, 5000), to).Outcome);
         Assert.Equal(RouteOutcome.NoPath, Planner(walled).Plan(12, from, to).Outcome);
+    }
+
+    [Fact]
+    public void ATargetInAWallGetsAGoalOnThePlayersSide()
+    {
+        // #918: the door's own cell is blocked and its nearest walkable cell is across the wall, unreachable.
+        var graph = Graph(Wall(Open(), 4));
+
+        var plan = Planner(graph).Plan(12, new(15, 0, 15), new(48, 0, 15));
+
+        Assert.Equal(RouteOutcome.Found, plan.Outcome);
+        Assert.Contains("goal=0:3,1", plan.Detail, StringComparison.Ordinal);
+        Assert.Equal(new Vector3(48, 0, 15), plan.Corners[^1]);
+    }
+
+    [Fact]
+    public void ATargetOnARaisedFloorGetsAGoalAtItsOwnHeight()
+    {
+        // #919: a ramp up to a plateau, the target 16 cells from any cell near the player's height, and the target
+        // taking the player's height (0), as the guide gives it.
+        var ramp = Open() with { Heights = [.. Enumerable.Range(0, Size * Size).Select(i => (byte)((i % Size) * 2))] };
+        var graph = Graph(ramp, Open(1) with { Min = new(Size * 10, 16, 0) }, Open(2) with { Min = new(Size * 20, 16, 0) });
+
+        var plan = Planner(graph).Plan(12, new(15, 0, 15), new(235, 0, 15));
+
+        Assert.Equal(RouteOutcome.Found, plan.Outcome);
+        Assert.Contains("goalY=16", plan.Detail, StringComparison.Ordinal);
     }
 
     [Fact]

@@ -18,7 +18,7 @@ public sealed class FieldModule : IFeatureModule
     [
         TiltLimits.Down, TiltLimits.Up, TiltLimits.Margin, WallLimits.Range, WallLimits.Loudness,
         RoutePingLimits.Loudness, CueVolumes.Sonar, Sonar.PingsPerSweep, CueVolumes.Guidance,
-        CuePlacement.MuffleDegrees, TurnPings.Degrees,
+        CuePlacement.MuffleDegrees, TurnPings.Degrees, Nearby.RadiusSteps,
     ];
 
     public void Register(FeatureContext context)
@@ -113,7 +113,7 @@ public sealed class FieldModule : IFeatureModule
             new FieldStrikes(
                 field, settings.Speech(FieldFeature.FieldStrikes, context.Announcer), () => Environment.TickCount64,
                 log is null ? null : log.FieldRead),
-            placement);
+            placement, () => Nearby.RadiusFrom(settings.Current));
         // The corner advice (#587), testing: the report-open hook finds it by type and hands it each open's key; a
         // line opened outside free roam is said on a later input read, so it takes the read before the field's.
         var cornerAdvice = new CornerAdvice(
