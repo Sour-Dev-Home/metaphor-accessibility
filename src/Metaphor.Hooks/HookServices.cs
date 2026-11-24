@@ -163,6 +163,9 @@ internal sealed record HookServices
     /// once the hooks are in.</summary>
     public FieldTablesSource FieldTables { get; init; } = new();
 
+    /// <summary>Says the corner advice (#587): the report-open hook hands it each line's key; null for none.</summary>
+    public CornerAdvice? CornerAdvice { get; init; }
+
     /// <summary>Speaks tutorial pop-ups as they open (#118); silent unless built by <see cref="Speaking"/>.</summary>
     public TutorialPopups TutorialPopups { get; init; } =
         new(new MessageLibrary(), new SilentAnnouncer(), new TextCleaner(TextCleanerRules.None), () => null);
@@ -362,6 +365,7 @@ internal sealed record HookServices
             Voice = voiceLanguage,
             Tutorials = tutorials,
             FieldTables = context.Find<FieldTablesSource>() ?? new(),
+            CornerAdvice = context.Find<CornerAdvice>(),
             TutorialPopups = context.Find<TutorialPopups>() ?? throw Missing(nameof(TutorialPopups)),
             MenusOpen = menusOpen,
             DialogueWindow = window,

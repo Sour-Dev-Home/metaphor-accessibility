@@ -99,4 +99,10 @@ public enum FieldFeature
     [SettingKey("field", "fieldStrikes", "Field strike callouts", Testing = true, Order = 2150, Description = "\"Hit\" " +
         "when a strike of yours takes HP from a field enemy near you, and \"Defeated\" when it takes the last.")]
     FieldStrikes,
+
+    /// <summary>The top-left corner advice from Gallica and the party (#587).</summary>
+    [SettingKey("field", "cornerAdvice", "Corner advice", Testing = true, Order = 2160, Description = "The advice " +
+        "Gallica and the party give in the top-left corner as you roam, with the speaker's name, after the line " +
+        "before it.")]
+    CornerAdvice,
 }

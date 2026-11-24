@@ -1,6 +1,7 @@
 report.markKey | Mark key | on | done
 report.silentScreens | Silent screen list | on | done
 speech.archetypeTree | Archetype Tree | off | testing
+speech.autosaveNotice | Autosave notice | off | testing
 speech.battleConfirms | Battle confirm prompts | off | testing
 speech.battleItemTabs | Battle item tabs | off | testing
 speech.battleListViews | Battle list views | on | done

@@ -131,6 +131,11 @@ public enum MenusFeature
         "you arrive somewhere.")]
     PlaceNames,
 
+    /// <summary>The field's autosave notice (#543).</summary>
+    [SettingKey("speech", "autosaveNotice", "Autosave notice", Testing = true, Order = 1155, Description =
+        "\"Autosaving\" when the game autosaves in the field, after the dialogue or line before it.")]
+    AutosaveNotice,
+
     /// <summary>Tutorial pop-ups and the repeat of their page (#118).</summary>
     [SettingKey("speech", "tutorials", "Tutorials", Order = 1170, Description = "Tutorial pop-ups: the title, the " +
         "page count and each page. Off also leaves the repeat key to repeat dialogue, not the pop-up's page.")]

@@ -44,6 +44,9 @@ public sealed class FeatureModulesTests
         Assert.IsType<TargetLine>(Assert.IsType<TargetedEnemy>(context.Find<IBattleTargetObserver>()).Then);
         Assert.NotNull(context.Find<FieldPlace>());
         Assert.NotNull(context.Find<FieldTablesSource>());
+        // The report-open hook's corner advice (#587), and the autosave notice's layout (#543).
+        Assert.NotNull(context.Find<CornerAdvice>());
+        Assert.True(context.Layouts.Wants(AutosaveNotice.Layout));
     }
 
     // Before #784 the input frame took the mark key, the menus, the battle status key, the enemy HP key, the dialogue

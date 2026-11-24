@@ -364,6 +364,13 @@
     "evidence": "Our reading of the exe in Ghidra 12.2: the cutscene skip menu's request handler, UUIC_Common_MoviePause::vf5, 0xf737c0, whose request of 1 shows MoviePauseLayout with no animation and whose other path closes it with anim 4768 (docs/findings/movie-pause-open-static.md, #809); the whole function, one match on disk (tools/Metaphor.SignatureCheck/ui-component-probes.json); not yet checked in memory"
   },
   {
+    "name": "ReportMessageOpen",
+    "section": ".ecode",
+    "pattern": "48 89 5C 24 08 48 89 74 24 18 55 57 41 56 48 8B EC 48 83 EC 70 49 8B F1 49 8B D8 48 8B C2 4C 8B F1",
+    "gameBuilds": ["548ddc955c176867f062c44f94c03dd9ac33caefb278a5ac388e792aedf09504"],
+    "evidence": "Our reading of the exe in Ghidra 12.2: the report (corner advice) line open, 0xf81cd0, called by every fldReportJob kind, MsgReportOpenEx and MsgReportOpenType, its key a label or a 16-byte label hash (docs/findings/corner-advice-report-message-open-static.md, #587); its first 32 bytes, one match in .ecode on disk (tools/Metaphor.SignatureCheck/ui-component-probes.json); not yet checked in memory"
+  },
+  {
     "name": "EventItemGetOpen",
     "section": ".ecode",
     "pattern": "48 89 5C 24 08 48 89 74 24 10 48 89 7C 24 18 55 41 54 41 55 41 56 41 57 48 8D AC 24 D0 FD FF FF 48 81 EC 30 03 00 00 4C 8B FA 4C 8B E9 C7 44 24 28 05 00 00 00 48 8D 05",

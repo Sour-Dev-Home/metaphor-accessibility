@@ -1,4 +1,5 @@
 field.cameraTilt | Camera tilt | on | done
+field.cornerAdvice | Corner advice | off | testing
 field.enemyAwareness | Enemy awareness | off | testing
 field.fieldStrikes | Field strike callouts | off | testing
 field.guidance | Guidance beep | on | done
