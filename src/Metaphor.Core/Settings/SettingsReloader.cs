@@ -35,6 +35,9 @@ public sealed class SettingsReloader
     /// <summary>The settings in force now.</summary>
     public ModSettings Current => current;
 
+    /// <summary>The features' settings and sliders the file is read for, for the settings menu (#754).</summary>
+    public SettingCatalogue Catalogue => features;
+
     /// <summary>Applies the file as read at start (null when there is none), saying nothing.</summary>
     public void Load(string? json)
     {

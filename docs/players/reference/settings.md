@@ -98,6 +98,8 @@ Each is `true` to speak or `false` to stay quiet, inside a `speech` object: `{ "
 | `choiceDelay` | A reply choice's options waiting until they are on screen, not said straight after the prompt. Needs `dialogue`. | `true` |
 | `windowCloseStop` | A closed dialogue window stopping the line still being spoken. Needs `dialogue`. | `true` |
 | `welcome` | The welcome on the title screen the first time the game starts with the mod: the mod's version and the field keys. | `true` |
+| `settingsMenu` | The mod's own settings menu, opened with F2, or LT and RT held then View on the pad, on any screen. Up and Down move, Left and Right change the setting and save it at once, F or R3 says what it does, and Escape or B closes. While it is open the game gets no keys or buttons. Still being tested. | testing, off |
+| `keyHelp` | The help key, F1, or LT and RT held then Y on the pad: says the mod's keys that work where you are now, with their current bindings. Still being tested. | testing, off |
 
 ## Field
 
@@ -155,13 +157,13 @@ Some features have a limit you can move, inside a `limits` object, then the feat
 
 | Setting | What it does | Default |
 |---|---|---|
-| `field.cameraDownDegrees` | How far down the camera tilts, from level, before "Camera looking down" (`cameraTilt`). 1 to 89. | `40` |
-| `field.cameraUpDegrees` | How far up before "Camera looking up". 1 to 89. | `20` |
-| `field.cameraMarginDegrees` | How far back inside a limit the camera comes before "Camera level". 0 to 30. | `5` |
-| `field.wallRange` | How near a wall comes before its tone starts (`wallTones`), in the game's units, about 100 a step. 50 to 2000. | `300` |
-| `field.wallVolume` | How loud a wall tone is right at the wall. 0 to 100. | `50` |
-| `field.routePingVolume` | How loud a route ping is from a place in reach (`routePings`); farther places are quieter. 0 to 100. | `90` |
-| `shoulders.tapLength` | How long, in milliseconds, a lone `LB` or `RB` press holds the button down for the game when you let go, in the field (`shoulderHold`) and in a battle, where the mod keeps a held shoulder for its chords. Raise it if the game misses taps. 20 to 200, in steps of 10. | `50` |
+| `field.cameraDownDegrees` | How far down the camera tilts, from level, before "Camera looking down" (`cameraTilt`), in degrees. 1 to 89, in steps of 5. | `40` |
+| `field.cameraUpDegrees` | How far up before "Camera looking up", in degrees. 1 to 89, in steps of 5. | `20` |
+| `field.cameraMarginDegrees` | How far back inside a limit the camera comes before "Camera level", in degrees. 0 to 30, in steps of 1. | `5` |
+| `field.wallRange` | How near a wall comes before its tone starts (`wallTones`), in the game's units, about 100 a step. 50 to 2000, in steps of 50. | `300` |
+| `field.wallVolume` | How loud a wall tone is right at the wall. 0 to 100, in steps of 5. | `50` |
+| `field.routePingVolume` | How loud a route ping is from a place in reach (`routePings`); farther places are quieter. 0 to 100, in steps of 5. | `90` |
+| `shoulders.tapLength` | How long, in milliseconds, a lone `LB` or `RB` press holds the button down for the game when you let go, in the field (`shoulderHold`) and in a battle, where the mod keeps a held shoulder for its chords, and a lone `LT` or `RT` press while `settingsMenu` or `keyHelp` holds them for its chord. Raise it if the game misses taps. 20 to 200, in steps of 10. | `50` |
 | `cues.sonarVolume` | How loud the field sonar's pings are, as a share of `soundCueVolume` (the master). Wall tones and route pings have their own, `field.wallVolume` and `field.routePingVolume`. 0 to 100, in steps of 5. | `100` |
 | `field.sonarPings` | How many things the field sonar (`sonar`) pings at a time. 1 plays one at a time, cycling through what's nearby, nearest first; more plays the nearest few in a row. 1 to 6, in steps of 1. | `1` |
 | `cues.guidanceVolume` | How loud the guidance beep is, as a share of `soundCueVolume`. 0 to 100, in steps of 5. | `100` |
@@ -215,6 +217,11 @@ DpadUp, DpadDown, DpadLeft and DpadRight.
 | `field.categoryButton` | With the held button: the next nearby category. | `"none"` |
 | `field.identifyKey` | Debug builds only: logs the nearest thing for the names table. | `"I"` |
 | `report.markKey` | Writes a marker to the report log. Keyboard only for now. | `"F8"` |
+| `menus.settingsMenuKey` | Opens or closes the mod's settings menu (testing: `settingsMenu`). | `"F2"` |
+| `menus.chordButtons` | Held on the pad for the settings menu's and the help's buttons. | `"LT+RT"` |
+| `menus.settingsMenuButton` | With the held buttons: opens the settings menu. | `"Back"` |
+| `menus.helpKey` | Says the mod's keys that work where you are (testing: `keyHelp`). | `"F1"` |
+| `menus.helpButton` | With the held buttons: the same. | `"Y"` |
 
 A key the game also uses still reaches the game whenever the mod isn't using it, so choose one the game leaves free
 where you'll press it.

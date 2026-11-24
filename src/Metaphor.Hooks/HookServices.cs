@@ -44,6 +44,10 @@ internal sealed record HookServices
     /// feature module added a hold.</summary>
     public ShoulderTaps? ShoulderTaps { get; init; }
 
+    /// <summary>What keeps every read from the game while the settings menu is open (#754): the input hooks' frame asks
+    /// it after the controls; none unless a feature module provided one.</summary>
+    public IInputBlock? InputBlock { get; init; }
+
     /// <summary>The menu screens (#211): the input hooks' frame (#301) hands them each read of <see cref="MenusOpen"/>
     /// (#268) before the menu controls take the read.</summary>
     public required MenuScreens MenuScreens { get; init; }
@@ -186,7 +190,7 @@ internal sealed record HookServices
     /// keys through its own setting's gate (#661), read live, so a changed file applies without a restart.</remarks>
     public static HookServices Speaking(
         IReadOnlyList<IFeatureModule> modules, StoppableAnnouncer stoppable, ICuePlayer cues, SettingsReloader settings,
-        ReportLog? report, MessageLog? log, string modFolder, ModLog? modLog = null)
+        ReportLog? report, MessageLog? log, string modFolder, ModLog? modLog = null, ISettingsStore? store = null)
     {
         // Each unmapped value is written once a session, and each typed name read is cleaned from the logs (#824).
         var unknowns = modLog?.Unknowns ?? UnknownValues.None;
@@ -285,6 +289,7 @@ internal sealed record HookServices
             VoiceLanguage = voiceLanguage.Read,
             StoryFlag = gameData.StoryFlag,
             OpenArchive = OpenArchive,
+            SettingsStore = store ?? new NoSettingsStore(),
         };
         context.Provide<IFieldReads>(field);
         context.Provide<IBattleTurnIcons>(new BattleTurnIconsMemory(gameData));
@@ -331,6 +336,7 @@ internal sealed record HookServices
             BattleBanners = context.Find<BattleBanners>(),
             BattleScene = battleScene,
             Controls = context.Controls,
+            InputBlock = context.Find<IInputBlock>(),
             ShoulderTaps = context.ShoulderHolds.Count == 0
                 ? null
                 : new ShoulderTaps(
