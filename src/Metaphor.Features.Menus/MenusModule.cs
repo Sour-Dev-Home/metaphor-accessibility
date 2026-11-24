@@ -259,6 +259,9 @@ public sealed class MenusModule : IFeatureModule
         {
             // The layout line on opening, while tested (#927).
             SayIntro = () => settings.Current.IsOn(MenusFeature.SettingsMenuIntro),
+            // The game's volume lowered while open, through Windows' per-app volume, while tested (#927).
+            QuietGame = () => settings.Current.IsOn(MenusFeature.SettingsMenuQuietGame),
+            Volume = context.GameVolume,
         };
         var menuOpen = ShoulderTaps.MenuOpen(context.Screens, context.Cursors);
         var battle = context.BattleScene;

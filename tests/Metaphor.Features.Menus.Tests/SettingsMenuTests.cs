@@ -47,9 +47,13 @@ public sealed class SettingsMenuTests
         () => SettingsMenuBindings.Default, () => MenuBindings.Default, () => true, () => positions)
     {
         SayIntro = () => sayIntro,
+        QuietGame = () => quietGame,
+        Volume = volume,
     };
 
     private bool sayIntro;
+    private bool quietGame;
+    private readonly CountingDuck volume = new();
 
     private string Last => said.Said[^1].Text;
 
@@ -198,6 +202,58 @@ public sealed class SettingsMenuTests
             Menu.Pad(0, 0, made: true);
             Assert.False(Menu.IsOpen);
         }
+    }
+
+    // #927: the game is quieter while the menu is open, by every way of closing it.
+    [Fact]
+    public void OpeningQuietsTheGameAndEveryCloseBringsItBack()
+    {
+        quietGame = true;
+
+        Press(F2);
+        Assert.Equal((1, 0), (volume.Ducks, volume.Restores));
+        Press(Escape);
+        Assert.Equal((1, 1), (volume.Ducks, volume.Restores));
+
+        Press(F2);
+        Menu.Pad(0, PadB, made: true);
+        Menu.Pad(0, 0, made: true);
+        Assert.Equal((2, 2), (volume.Ducks, volume.Restores));
+
+        Press(F2);
+        Press(F2);
+        Assert.Equal((3, 3), (volume.Ducks, volume.Restores));
+    }
+
+    [Fact]
+    public void WithItsSettingOffOpeningLeavesTheVolume()
+    {
+        Press(F2);
+
+        Assert.Equal(0, volume.Ducks);
+    }
+
+    [Fact]
+    public void ClosingRestoresTheVolumeEvenIfTheSettingWentOffWhileOpen()
+    {
+        quietGame = true;
+        Press(F2);
+        quietGame = false;
+
+        Press(Escape);
+
+        Assert.Equal(1, volume.Restores);
+    }
+
+    private sealed class CountingDuck : Metaphor.Core.Audio.IVolumeDuck
+    {
+        public int Ducks { get; private set; }
+
+        public int Restores { get; private set; }
+
+        public void Duck() => Ducks++;
+
+        public void Restore() => Restores++;
     }
 
     // #927: the layout line, while its setting is on.

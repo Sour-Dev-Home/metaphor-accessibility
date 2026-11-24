@@ -212,6 +212,14 @@ public enum MenusFeature
         "As the mod's settings menu opens, its sections and the keys that move between them. Needs `settingsMenu`.")]
     SettingsMenuIntro,
 
+    /// <summary>The game's volume lowered while the settings menu is open (#927).</summary>
+    [SettingKey("speech", "settingsMenuQuietGame", "Settings menu quiets the game", Testing = true, Order = 1236,
+        Description = "While the mod's settings menu is open, the game's own volume drops to about a third, so the " +
+        "menu is easier to hear, and comes back when it closes. The mod's sounds drop with it; your screen reader " +
+        "doesn't. If the game ends while it is lower, the next start puts it back; after removing the mod, the " +
+        "Windows volume mixer resets it. Needs `settingsMenu`.")]
+    SettingsMenuQuietGame,
+
     /// <summary>The help key, which says the mod's keys for where the player is (#868).</summary>
     [SettingKey("speech", "keyHelp", "Key help", Order = 1240, Description = "The help key, F1, or " +
         "LT and RT held then Y on the pad: says the mod's keys that work where you are now, with their current " +
