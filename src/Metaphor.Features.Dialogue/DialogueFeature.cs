@@ -73,6 +73,13 @@ public enum DialogueFeature
         "said rather than over it. Needs `dialogue`.")]
     Narration,
 
+    /// <summary>The subtitles of animated cutscenes, said as the movie shows them (#888). Its own setting while it is
+    /// tested.</summary>
+    [SettingKey("speech", "movieSubtitles", "Movie subtitles", Testing = true, Order = 1218, Description = "The " +
+        "subtitles of animated cutscenes, such as the opening movie, said without a speaker, after the line being " +
+        "said rather than over it. Needs `dialogue`.")]
+    MovieSubtitles,
+
     /// <summary>The game's message log read line by line as the player moves through it (#685). Its own setting while
     /// it is tested.</summary>
     [SettingKey("speech", "messageLog", "Message log", Testing = true, Order = 1215, Description = "The game's " +
