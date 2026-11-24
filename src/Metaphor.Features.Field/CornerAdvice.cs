@@ -20,6 +20,9 @@ public sealed class CornerAdvice : IInputControls
     /// <summary>How long a line opened outside free roam waits for it before it is dropped.</summary>
     public const long HoldMilliseconds = 10_000;
 
+    /// <summary>Two matches this close, in milliseconds, are one event: the second is not said (#926).</summary>
+    public const long SameEventMilliseconds = 5;
+
     // A few lines at most queue in the game's corner at once; more waiting means free roam is long gone.
     private const int MostHeld = 4;
 
@@ -31,6 +34,7 @@ public sealed class CornerAdvice : IInputControls
     private readonly Action<string>? log;
     private readonly Queue<(long At, string Line)> held = new();
     private readonly Lock heldGate = new();
+    private long? lastTaken;
 
     /// <param name="messages">The compiled message files, report files among them.</param>
     /// <param name="cleaner">Cleans the line and the name for speech.</param>
@@ -66,6 +70,11 @@ public sealed class CornerAdvice : IInputControls
             return;
         }
         log?.Invoke($"corner advice: matched label {message.Label}");
+        if (SameEvent())
+        {
+            log?.Invoke($"corner advice: {message.Label} is the same event as the line before, not said");
+            return;
+        }
         var text = cleaner.Clean(message.Text);
         if (text.Length == 0)
         {
@@ -100,6 +109,22 @@ public sealed class CornerAdvice : IInputControls
     {
         SayHeld();
         return keys;
+    }
+
+    // The scripted and the party bark for one event are opened a millisecond apart (#926: 17 pairs in the 2026-11-24
+    // session); only the first of a pair is said. Compares with the last line taken, not the last one dropped.
+    private bool SameEvent()
+    {
+        var now = milliseconds();
+        lock (heldGate)
+        {
+            var same = lastTaken is { } at && now - at >= 0 && now - at <= SameEventMilliseconds;
+            if (!same)
+            {
+                lastTaken = now;
+            }
+            return same;
+        }
     }
 
     private void SayHeld()

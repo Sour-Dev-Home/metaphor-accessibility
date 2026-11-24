@@ -96,6 +96,31 @@ public sealed class CornerAdviceTests
     }
 
     [Fact]
+    public void TwoMatchesForOneEventSayTheFirstOnly()
+    {
+        // #926: the labels the 2026-11-24 log shows, one millisecond apart, then again later.
+        library.Compiled("""
+            @MES_D00_01_found_001
+            {
+            <NS>Soldier<NE>They're after us! Run for it!
+            }
+            @Dpv_PC_Gallica_found_01
+            {
+            <NS>Gallica<NE>They found us! Get ready, everyone!
+            }
+            """);
+
+        advice.Opened("MES_D00_01_found_001", null);
+        now += 1;
+        advice.Opened("Dpv_PC_Gallica_found_01", null);
+        Assert.Equal(["Soldier: They're after us! Run for it!"], Said());
+
+        now += 5000;
+        advice.Opened("Dpv_PC_Gallica_found_01", null);
+        Assert.Equal(2, Said().Length);
+    }
+
+    [Fact]
     public void ALineHeldTooLongIsDropped()
     {
         field.Roaming = false;

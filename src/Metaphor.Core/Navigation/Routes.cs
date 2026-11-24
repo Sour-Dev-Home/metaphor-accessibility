@@ -56,6 +56,14 @@ public sealed class NavRoutePlanner : IRoutePlanner
     /// </summary>
     public const int GoalRadiusCells = 12;
 
+    /// <summary>How far from the target, in cells, other cells are tried as the goal when the nearest one has no path
+    /// from the player (a door in a wall snapped to its far side, #918) [NEEDS VERIFICATION by ear].</summary>
+    public const int GoalRetryRadiusCells = 5;
+
+    /// <summary>The most goal cells tried for one route; each failed try searches the player's whole connected area.
+    /// </summary>
+    public const int MaxGoalTries = 12;
+
     private readonly Func<int, (int A, int B)?> fileFor;
     private readonly Func<int, int, Task<WalkGraph?>?> load;
 
@@ -99,12 +107,23 @@ public sealed class NavRoutePlanner : IRoutePlanner
             return RoutePlan.Failed(RouteOutcome.OffMesh, player + " cell=none");
         }
         var cells = Text($"{player} cell={Cell(graph, first)}");
-        if (graph.NearestCell(target, vertical, GoalRadiusCells) is not { } goal)
+        var goals = GoalCells(graph, target, vertical).Take(MaxGoalTries).ToList();
+        if (goals.Count == 0)
         {
             return RoutePlan.Failed(RouteOutcome.OffMesh, cells + " goal=none");
         }
-        cells = Text($"{cells} goal={Cell(graph, goal)}");
-        if (PathFinder.Path(graph, first, goal) is not { } path)
+        var goal = goals[0];
+        IReadOnlyList<NavCell>? path = null;
+        foreach (var candidate in goals)
+        {
+            goal = candidate;
+            if ((path = PathFinder.Path(graph, first, candidate)) is not null)
+            {
+                break;
+            }
+        }
+        cells = Text($"{cells} goal={Cell(graph, goal)} goalY={graph.Centre(goal).Y:0.#} tried={goals.IndexOf(goal) + 1}");
+        if (path is null)
         {
             return RoutePlan.Failed(RouteOutcome.NoPath, cells + " path=none");
         }
@@ -118,6 +137,30 @@ public sealed class NavRoutePlanner : IRoutePlanner
             corners[^1] = target;
         }
         return new(RouteOutcome.Found, corners, Text($"{cells} path={path.Count} corners={corners.Count}"));
+    }
+
+    // The cells to try as the route's goal, best first (#918, #919). The nearest cell at about the target's height comes
+    // first, as before. A door or chest in a wall may snap to the wall's far side, so then the cells within
+    // GoalRetryRadiusCells of the target on any side follow. A target whose height matches no floor (the guide takes the
+    // player's own height for a point the game gives only across the ground) then takes the nearest cells at any height.
+    private static IEnumerable<NavCell> GoalCells(WalkGraph graph, Vector3 target, float vertical)
+    {
+        var seen = new HashSet<NavCell>();
+        var first = graph.CellsNear(target, vertical, GoalRadiusCells).Take(1);
+        foreach (var cell in first.Concat(graph.CellsNear(target, vertical, GoalRetryRadiusCells)))
+        {
+            if (seen.Add(cell))
+            {
+                yield return cell;
+            }
+        }
+        foreach (var cell in graph.CellsNear(target, float.PositiveInfinity, GoalRadiusCells))
+        {
+            if (seen.Add(cell))
+            {
+                yield return cell;
+            }
+        }
     }
 
     // How far above or below a position its cell's floor may be: the agent's height, or 200 units when the file gives

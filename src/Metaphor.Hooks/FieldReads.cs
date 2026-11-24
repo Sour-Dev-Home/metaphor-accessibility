@@ -234,8 +234,8 @@ internal sealed class FieldMemory(
             }
             var dx = at.X - player.X;
             var dz = at.Z - player.Z;
-            // Only what the list can say: names are read for units within its radius.
-            if (dx * dx + dz * dz > Nearby.Radius * Nearby.Radius)
+            // Only what the list can say: names are read for units within its longest radius (the setting, #931).
+            if (dx * dx + dz * dz > Nearby.MaxRadius * Nearby.MaxRadius)
             {
                 continue;
             }

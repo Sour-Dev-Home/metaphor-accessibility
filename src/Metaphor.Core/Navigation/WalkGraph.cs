@@ -111,37 +111,45 @@ public sealed class WalkGraph
     /// <paramref name="radiusCells"/> cells across (searched in rings outward, at most 32), or null.</summary>
     public NavCell? NearestCell(Vector3 position, float maxVertical, int radiusCells)
     {
+        foreach (var cell in CellsNear(position, maxVertical, radiusCells))
+        {
+            return cell;
+        }
+        return null;
+    }
+
+    /// <summary>Every walkable cell <see cref="NearestCell"/> would look at, nearest first: ring by ring outward from
+    /// <paramref name="position"/>'s column (at most <paramref name="radiusCells"/>, capped at 32), each ring's cells by
+    /// their centre's distance across the ground. One cell per column, the one whose floor is nearest the position's
+    /// height and within <paramref name="maxVertical"/> (pass infinity for no limit). For a goal that may sit across a
+    /// wall (#918) or on another floor (#919): the caller tries them in turn.</summary>
+    public IEnumerable<NavCell> CellsNear(Vector3 position, float maxVertical, int radiusCells)
+    {
         if (Column(position.X, file.Origin.X, round: false) is not { } column ||
             Column(position.Z, file.Origin.Z, round: false) is not { } row)
         {
-            return null;
+            yield break;
         }
+        var flat = new Vector2(position.X, position.Z);
         for (var r = 0; r <= Math.Clamp(radiusCells, 0, 32); r++)
         {
-            NavCell? best = null;
-            var bestDistance = float.MaxValue;
+            var ring = new List<(NavCell Cell, float Distance)>();
             for (var dz = -r; dz <= r; dz++)
             {
                 for (var dx = -r; dx <= r; dx++)
                 {
-                    if (Math.Max(Math.Abs(dx), Math.Abs(dz)) != r ||
-                        Nearest(column + dx, row + dz, position.Y, maxVertical, except: -1) is not { } cell)
+                    if (Math.Max(Math.Abs(dx), Math.Abs(dz)) == r &&
+                        Nearest(column + dx, row + dz, position.Y, maxVertical, except: -1) is { } cell)
                     {
-                        continue;
-                    }
-                    var distance = Vector2.DistanceSquared(Flat(Centre(cell)), new(position.X, position.Z));
-                    if (distance < bestDistance)
-                    {
-                        (best, bestDistance) = (cell, distance);
+                        ring.Add((cell, Vector2.DistanceSquared(Flat(Centre(cell)), flat)));
                     }
                 }
             }
-            if (best is not null)
+            foreach (var (cell, _) in ring.OrderBy(c => c.Distance))
             {
-                return best;
+                yield return cell;
             }
         }
-        return null;
     }
 
     /// <summary>The middle of <paramref name="cell"/>'s floor, in world units.</summary>
