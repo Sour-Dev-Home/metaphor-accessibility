@@ -2414,6 +2414,30 @@ test_stamp_touches_each_guard_file_but_not_docs() {
   expect 1
 }
 
+# `touches` and the commit hook ask the same question (#875): a change `touches` lists needs a stamp at commit, and one
+# it doesn't list doesn't. `touches` printed nothing either way, so silence was misread as "not in scope".
+test_stamp_touches_lists_what_the_hook_requires_a_stamp_for() {
+  local file
+  for file in scripts/never-listed.sh src/Metaphor.Hooks/NeverListed.cs tests/check/never-listed.sh; do
+    review_repo "$file"
+    out="$(bash "$STAMP" touches)" code=$?
+    expect 0 "$file"
+    commit "feat: unreviewed"
+    expect 1 "no matching stamp"
+  done
+}
+
+test_stamp_touches_prints_nothing_for_what_the_hook_lets_through() {
+  review_repo notes.txt
+  out="$(bash "$STAMP" touches)" code=$?
+  expect 1
+  code=0
+  [ -z "$out" ] || { out="touches printed: $out" code=1; }
+  expect 0
+  commit "chore: notes"
+  expect 0
+}
+
 # What decides dotnet restore, and so the lock files the security job audits (issues #322, #324): MSBuild's
 # auto-imported files in any folder, the SDK pin (global.json in any folder too) and the package sources. A change to
 # one could hide a vulnerable package.

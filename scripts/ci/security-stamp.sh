@@ -7,8 +7,9 @@
 #   (none)                         stamp the staged scope (the security-reviewer agent's last step)
 #   hash [COMMIT]                  print the scope hash of the index, or of COMMIT's tree
 #   accepted COMMIT                print each hash a Security-Review trailer on COMMIT may carry
-#   touches [COMMIT | BASE..HEAD]  exit 0 when the staged changes (or COMMIT, against its first parent, or the range
-#                                  from its merge base) touch the scope
+#   touches [COMMIT | BASE..HEAD]  exit 0 when the staged changes (or COMMIT, against each parent, or the range
+#                                  from its merge base) touch the scope, listing the scope paths that changed; exit 1,
+#                                  printing nothing, when they don't. The commit hook asks this same command.
 #   stamped                        exit 0 when the stamp matches the staged scope
 #   clean-merge [COMMIT]           exit 0 when the merge being committed (or COMMIT) is a clean merge from main, which
 #                                  needs no stamp (docs/adr/0012-review-trailer-covers-clean-merges.md)
@@ -107,16 +108,17 @@ merge_heads() {
 # differs from any parent, so keeping one side with `-s ours` still counts (ADR 0012).
 touches() {
   local status base head parents merge_heads
+  touched_paths=""
   if [[ "${1:-}" == *..* ]]; then
     # A range BASE..HEAD (or BASE...HEAD) counts from their merge base, so merge commits can't hide a change.
     base="${1%%..*}" head="${1#*..}"
-    git diff --quiet "$base...${head#.}" -- "${scope[@]}"
+    touched_paths="$(git diff --exit-code --name-only "$base...${head#.}" -- "${scope[@]}")"
     status=$?
   elif [ -n "${1:-}" ]; then
     read_parents "$1"
     [ "${#parents[@]}" -gt 0 ] || parents=("$empty_tree")
     for base in "${parents[@]}"; do
-      git diff-tree --quiet -r "$base" "$1" -- "${scope[@]}"
+      touched_paths="$(git diff-tree --exit-code --name-only -r "$base" "$1" -- "${scope[@]}")"
       status=$?
       [ "$status" -eq 0 ] || break
     done
@@ -125,7 +127,7 @@ touches() {
     git rev-parse -q --verify HEAD > /dev/null || base="$empty_tree"
     merge_heads
     for base in "$base" "${merge_heads[@]}"; do
-      git diff --cached --quiet "$base" -- "${scope[@]}"
+      touched_paths="$(git diff --cached --exit-code --name-only "$base" -- "${scope[@]}")"
       status=$?
       [ "$status" -eq 0 ] || break
     done
@@ -221,7 +223,13 @@ case "${1:-}" in
       1) ;;
       *) die "could not tell whether $2 changes the guards" ;;
     esac ;;
-  touches) touches "${2:-}" ;;
+  touches)
+    # The answer is the exit code (0 yes, 1 no), the same call the commit hook makes (#875). Silence used to read as
+    # "nothing in scope", so a yes now lists the scope paths that changed, and a no prints nothing.
+    touches "${2:-}"
+    status=$?
+    [ "$status" -ne 0 ] || printf '%s\n' "$touched_paths"
+    exit "$status" ;;
   stamped)
     hash="$(scope_hash)" || exit 2
     [ -f "$stamp_file" ] && [ "$(tr -d '\r\n' < "$stamp_file")" = "$hash" ] ;;
