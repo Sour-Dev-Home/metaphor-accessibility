@@ -30,12 +30,28 @@ public sealed class BattleModule : IFeatureModule
             NumbersOnly = () => settings.Current.IsOn(BattleFeature.BattleHitNumbers),
             SlotCue = new PlacedHitCue(context.Cues).Play,
         };
-        context.Provide<IBattleHitObserver>(hitLines);
-        context.Provide<IBattleEnemyObserver>(hitLines);
         var units = context.Find<IBattleUnits>();
+        // The enemy tables from the player's own archive (#164, #166), read off the game's thread on the first input
+        // read with affinities or reward EXP on; each enemy's affinities found in play, tracked this game session.
+        var enemyTables = new EnemyTableSource(context.OpenArchive, line => log?.Requested("EnemyTables", line));
+        var tableLoad = new EnemyTableLoad(enemyTables);
+        context.AddControls(settings.Input(BattleFeature.BattleAffinities, tableLoad));
+        context.AddControls(settings.Input(BattleFeature.BattleRewardExp, tableLoad));
+        var serials = context.Serials;
+        var affinities = new EnemyAffinities(
+            () => enemyTables.Tables, () => hitLines.Battle, () => Environment.TickCount64,
+            serial => serials.InFile(serial, MessageSerials.EnemyNames) ? serials.FindBySerial(serial)?.Label : null)
+        {
+            On = () => settings.Current.IsOn(BattleFeature.BattleAffinities),
+            FoundOnly = () => settings.Current.IsOn(BattleFeature.BattleAffinitiesFoundOnly),
+            Units = units,
+            Log = log is null ? null : text => log.Requested("EnemyAffinities", text),
+        };
+        // The hit lines hear each hit first, so a new battle's number is in place when the affinities hear it.
+        context.Provide<IBattleHitObserver>(new BattleHitFanOut(hitLines, affinities));
+        context.Provide<IBattleEnemyObserver>(hitLines);
         // The in-turn situation banner, queued behind the hit lines (#692), behind `speech.battleBanners` (#661).
         // The banner's subject (#739), testing: a party member's or enemy's name serial, or a name's text.
-        var serials = context.Serials;
         context.Provide(new BattleBanners(
             context.FilePositions, settings.Speech(BattleFeature.BattleBanners, reader), context.Cleaner,
             () => Environment.TickCount64)
@@ -45,6 +61,8 @@ public sealed class BattleModule : IFeatureModule
                     ? serials.TextOf(serial, context.Cleaner)
                     : null,
             NamesOn = () => settings.Current.IsOn(BattleFeature.BattleBannerNames),
+            Moved = affinities.Move,
+            Subject = affinities.Named,
         });
         // The turn line (#252), polled on each input read from the game data's turn icons, and the ambushed start
         // (#626) and the battle's end (#166) from the layouts' animations, each its own testing setting.
@@ -65,7 +83,12 @@ public sealed class BattleModule : IFeatureModule
         if (context.Find<IBattlePurse>() is { } purse)
         {
             var rewards = new BattleRewards(
-                purse, settings.Speech(BattleFeature.BattleRewards, reader), TimeProvider.System);
+                purse, settings.Speech(BattleFeature.BattleRewards, reader), TimeProvider.System)
+            {
+                TableRewards = () => affinities.Rewards(hitLines.AllEnemies()),
+                ExpOn = () => settings.Current.IsOn(BattleFeature.BattleRewardExp),
+                Log = log is null ? null : text => log.Requested("BattleRewards", text),
+            };
             context.Layouts.Observe(rewards);
             context.AddControls(settings.Input(BattleFeature.BattleRewards, rewards));
         }
@@ -97,6 +120,7 @@ public sealed class BattleModule : IFeatureModule
             SayMaxHp = () => settings.Current.IsOn(BattleFeature.BattleEnemyMaxHp),
             SayPositions = () => settings.Current.IsOn(SpokenDetail.Positions),
             Units = units,
+            Affinities = affinities.Says,
         };
         var targeted = new TargetedEnemy(hitLines) { Then = targetLine };
         context.Provide<IBattleTargetObserver>(targeted);
@@ -110,6 +134,7 @@ public sealed class BattleModule : IFeatureModule
             TargetOn = () => settings.Current.IsOn(BattleFeature.BattleEnemyTarget),
             SayPositions = () => settings.Current.IsOn(SpokenDetail.Positions),
             Units = units,
+            Affinities = affinities.Says,
         };
         context.AddControls(settings.Input(
             BattleFeature.BattleHits, settings.Input(BattleFeature.BattleEnemyKeys, enemyHp.Keyboard)));
@@ -122,6 +147,16 @@ public sealed class BattleModule : IFeatureModule
             settings.Current.IsOn(BattleFeature.BattleHits) && settings.Current.IsOn(BattleFeature.BattleEnemyPad)
                 ? enemyHp.HeldShoulders()
                 : 0);
+    }
+
+    // Each hit to the hit lines, then to the affinities (#164).
+    private sealed class BattleHitFanOut(IBattleHitObserver first, IBattleHitObserver then) : IBattleHitObserver
+    {
+        public void Observe(BattleHit hit)
+        {
+            first.Observe(hit);
+            then.Observe(hit);
+        }
     }
 
     // The skill lists' costs (#692 (b)) and the Synthesis list (#260), which the menus' battle lists speak; the Party

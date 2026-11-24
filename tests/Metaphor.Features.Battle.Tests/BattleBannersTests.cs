@@ -54,6 +54,24 @@ public sealed class BattleBannersTests
     }
 
     [Fact]
+    public void AMoveBannersSkillAndASituationsSubjectSerialAreHeardEvenWithNamesOff()
+    {
+        var moves = new List<int>();
+        var subjects = new List<int>();
+        var heard = new BattleBanners(files, announcer, new TextCleaner(TextCleanerRules.None), () => now)
+        {
+            Moved = moves.Add,
+            Subject = subjects.Add,
+        };
+
+        heard.Shown(BattleBanners.MoveKind, 42);
+        heard.Shown(Situation, 1, new Metaphor.Core.Battle.BannerName(500, null));
+
+        Assert.Equal([42], moves);
+        Assert.Equal([500], subjects);
+    }
+
+    [Fact]
     public void ANameTheModCannotFillIsLeftOut()
     {
         banners.Shown(Situation, 1);

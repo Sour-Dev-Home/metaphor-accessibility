@@ -73,6 +73,8 @@ Each is `true` to speak or `false` to stay quiet, inside a `speech` object: `{ "
 | `battleLists` | Battle's skill and item lists, row by row. Separate from `menus`. | `true` |
 | `battleSkillCosts` | Says what a skill costs after its name in the battle skill list and Synthesis list, such as "4 MP" or "15 percent HP". The Synthesis list says its turn icons too. Needs `battleLists`. Still being tested. | testing, off |
 | `battleSynthesis` | Says each Synthesis in battle by name with its position, and `F` reads its description. Needs `battleLists`. Still being tested. | testing, off |
+| `battleAffinities` | After an enemy's HP on `K`, `J` and the target cursor, says the affinities you have found by hitting it with a skill: "weak to Fire, resists Ice". Needs `battleEnemyKeys` or `battleTargetSpeech`. Still being tested. | testing, off |
+| `battleAffinitiesFoundOnly` | The affinities line says only what you have found in play this session. Off reveals every affinity from the game's tables, found or not. Needs `battleAffinities`. | `true` |
 | `battleListViews` | Names the rows of battle's skill and item lists after a wrap to the bottom, not only their positions. Needs `battleLists`. | `true` |
 | `battleItemTabs` | The tab's name when the battle item list opens or you switch tabs with LB or RB. Needs `battleLists`. Still being tested. | testing, off |
 | `battleOrderMenu` | Battle's Order menu, opened with LB, and its Tactics submenu. | `true` |
@@ -91,6 +93,7 @@ Each is `true` to speak or `false` to stay quiet, inside a `speech` object: `{ "
 | `battleEnd` | Says "Victory", "Escaped" or "Defeated" as a battle ends. Still being tested. | testing, off |
 | `battleRewards` | After a won battle, says the money and MAG it gained: "Gained 240 money and 30 MAG". Still being tested. | testing, off |
 | `battleFormation` | In a battle, says "row changed" with the member when a party member moves between the front and back row. Still being tested. | testing, off |
+| `battleRewardExp` | Adds the EXP and archetype EXP of the enemies you beat, from the game's enemy tables, to the rewards line: "Gained 240 money, 30 MAG, 160 EXP and 60 archetype EXP". Needs `battleRewards`. Still being tested. | testing, off |
 | `saveSlots` | The save and load screens' slots. | `true` |
 | `learnedSettingValues` | The System rows whose setting the mod has not pinned saying their value on change, learned as you change them. Needs `menus`. | `true` |
 | `nameEntry` | The name entry screen: its title, each letter you type, and when a name is refused. | `true` |

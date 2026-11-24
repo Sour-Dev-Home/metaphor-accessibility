@@ -1,3 +1,5 @@
+speech.battleAffinities | Battle affinities | off | testing
+speech.battleAffinitiesFoundOnly | Battle affinities found only | on | done
 speech.battleBannerNames | Battle banner names | off | testing
 speech.battleBanners | Battle banners | on | done
 speech.battleEnd | Battle end | off | testing
@@ -13,6 +15,7 @@ speech.battleHpMp | Battle HP and MP key | off | testing
 speech.battleNumberReset | Battle number reset | off | testing
 speech.battleOutcomes | Battle outcomes | on | done
 speech.battlePartyScreen | Battle party screen | off | testing
+speech.battleRewardExp | Battle reward EXP | off | testing
 speech.battleRewards | Battle rewards | off | testing
 speech.battleSkillCosts | Battle skill costs | off | testing
 speech.battleStart | Battle start | on | done
