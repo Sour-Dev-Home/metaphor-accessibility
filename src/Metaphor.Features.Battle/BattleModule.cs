@@ -49,7 +49,18 @@ public sealed class BattleModule : IFeatureModule
         };
         // The hit lines hear each hit first, so a new battle's number is in place when the affinities hear it.
         context.Provide<IBattleHitObserver>(new BattleHitFanOut(hitLines, affinities));
-        context.Provide<IBattleEnemyObserver>(hitLines);
+        // The enemies stunned as a battle starts (#772, #626), testing, from the same list.
+        if (units is not null)
+        {
+            var startStun = new BattleStartStun(
+                units, settings.Speech(BattleFeature.BattleStartStun, reader), () => Environment.TickCount64);
+            context.Layouts.Observe(startStun);
+            context.Provide<IBattleEnemyObserver>(new BattleEnemyFanOut(hitLines, startStun));
+        }
+        else
+        {
+            context.Provide<IBattleEnemyObserver>(hitLines);
+        }
         // The in-turn situation banner, queued behind the hit lines (#692), behind `speech.battleBanners` (#661).
         // The banner's subject (#739), testing: a party member's or enemy's name serial, or a name's text.
         context.Provide(new BattleBanners(
@@ -157,6 +168,16 @@ public sealed class BattleModule : IFeatureModule
         {
             first.Observe(hit);
             then.Observe(hit);
+        }
+    }
+
+    // Each enemy list to the hit lines, then to the start stun (#772).
+    private sealed class BattleEnemyFanOut(IBattleEnemyObserver first, IBattleEnemyObserver then) : IBattleEnemyObserver
+    {
+        public void Enemies(long package, IReadOnlyList<long> records)
+        {
+            first.Enemies(package, records);
+            then.Enemies(package, records);
         }
     }
 

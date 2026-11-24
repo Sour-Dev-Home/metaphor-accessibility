@@ -24,6 +24,14 @@ public interface IBattleUnits
 
     /// <summary>The unit record's MP now, or null when unreadable.</summary>
     int? Mp(long record);
+
+    /// <summary>An enemy record's <c>Enemy.TBL</c> row id (#921), or null when unreadable or not read: the <c>u32</c> at
+    /// <c>+0x8</c> on build 548ddc95… (docs/findings/battle-enemy-record-table-id-and-start-stun.md).</summary>
+    int? TableId(long record) => null;
+
+    /// <summary>A unit record's condition bits (#772), or null when unreadable or not read: the <c>u32</c> at
+    /// <c>+0x1c</c> on build 548ddc95… (docs/findings/enemy-stun-break-and-battle-condition-static.md).</summary>
+    int? Conditions(long record) => null;
 }
 
 /// <summary>Walks the battle package's enemy list (#750), as kept here so it is tested without the game. On build

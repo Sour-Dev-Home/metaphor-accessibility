@@ -144,10 +144,17 @@ public enum BattleFeature
         "won battle, says the money and MAG it gained: \"Gained 240 money and 30 MAG\".")]
     BattleRewards,
 
-    /// <summary>The EXP and archetype EXP of the defeated enemies by the game's enemy tables, added to the rewards line
-    /// (#166). Whether the results screen scales them is <c>[NEEDS VERIFICATION]</c>.</summary>
-    [SettingKey("speech", "battleRewardExp", "Battle reward EXP", Testing = true, Order = 1079, Description = "Adds " +
-        "the EXP and archetype EXP of the enemies you beat, from the game's enemy tables, to the rewards line: " +
-        "\"Gained 240 money, 30 MAG, 160 EXP and 60 archetype EXP\". Needs `battleRewards`.")]
+    /// <summary>The EXP and archetype EXP of the defeated enemies by the game's enemy tables, said as "Victory" plays
+    /// (#166, #921). Whether the results screen scales them is <c>[NEEDS VERIFICATION]</c>.</summary>
+    [SettingKey("speech", "battleRewardExp", "Battle reward EXP", Testing = true, Order = 1079, Description = "As " +
+        "a battle is won, says the EXP and archetype EXP of the enemies you beat, from the game's enemy tables: " +
+        "\"Gained 160 EXP and 60 archetype EXP\". Needs `battleRewards`.")]
     BattleRewardExp,
+
+    /// <summary>How many enemies start a battle stunned (#772, #626), from their condition bits as the start wipe
+    /// plays.</summary>
+    [SettingKey("speech", "battleStartStun", "Battle start stun", Testing = true, Order = 1075, Description = "As " +
+        "a battle starts, says how many enemies are stunned: \"All 3 enemies stunned\" or \"1 of 3 enemies " +
+        "stunned\".")]
+    BattleStartStun,
 }

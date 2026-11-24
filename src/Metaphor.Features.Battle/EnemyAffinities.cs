@@ -6,7 +6,8 @@ using Metaphor.Core.Settings;
 namespace Metaphor.Features.Battle;
 
 /// <summary>Each battle enemy's affinities and table rewards from the enemy tables (#164, #255, #166): which enemy id a
-/// unit is (<see cref="EnemyTables.Identify"/>: its max HP, narrowed by the enemy names this battle's banners said), and
+/// unit is (its record's table id, #921, unless a hit's max HP contradicts it; else <see cref="EnemyTables.Identify"/>:
+/// its max HP, narrowed by the enemy names this battle's banners said), and
 /// the affinities the player has found, said after an enemy's HP line ("weak to Fire, resists Ice"). With
 /// <see cref="FoundOnly"/> off, every affinity in the table is said. Safe to call from several threads.</summary>
 /// <remarks>
@@ -245,15 +246,21 @@ public sealed class EnemyAffinities : IBattleHitObserver
         {
             return known;
         }
-        if ((max ?? (maxHp.TryGetValue(record, out var seen) ? seen : null)) is not { } hp ||
-            read.Identify(hp, namesSeen) is not { } identity)
+        var hpKnown = max ?? (maxHp.TryGetValue(record, out var seen) ? seen : null);
+        EnemyIdentity? identity;
+        // The record's own table id (#921), unless a max HP a hit showed says it is another row.
+        if (Units?.TableId(record) is { } id && read.Row(id) is { } row && (hpKnown is null || hpKnown == row.MaxHp))
+        {
+            identity = new EnemyIdentity(id, "table", 1);
+        }
+        else if (hpKnown is not { } hp || (identity = read.Identify(hp, namesSeen)) is null)
         {
             return null;
         }
         identified[record] = identity;
         // Joins the Debug log's BtlPackageUpdate head= line by record, to check whether the record holds the id.
         Log?.Invoke(string.Create(CultureInfo.InvariantCulture,
-            $"enemy record=0x{record:x} id={identity.Id} by={identity.By} hp={hp} candidates={identity.Candidates} names={namesSeen.Count}"));
+            $"enemy record=0x{record:x} id={identity.Id} by={identity.By} hp={hpKnown} candidates={identity.Candidates} names={namesSeen.Count}"));
         return identity;
     }
 }

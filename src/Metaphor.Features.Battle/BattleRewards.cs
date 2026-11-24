@@ -11,7 +11,8 @@ namespace Metaphor.Features.Battle;
 /// start wipe plays and again after "Victory"; what rose is said, queued, once both have held for
 /// <see cref="SettleMilliseconds"/>. The results screen's numbers aren't drawn through anything the mod reads (the
 /// 2026-11-23 review on #166), so the purse stands in for them. With <see cref="ExpOn"/> the defeated enemies' table EXP and archetype EXP
-/// join the line (<see cref="TableRewards"/>); spoils aren't read yet. Takes each input read
+/// (<see cref="TableRewards"/>) are said as "Victory" plays, since the purse rises only as the results close, 43 s
+/// later in the 2026-11-24 session (#921); spoils aren't read yet. Takes each input read
 /// only as a clock, at most once every <see cref="ReadEveryMilliseconds"/>, and only for
 /// <see cref="WaitMilliseconds"/> after a win. Every read reaches the game unchanged. Safe to call from several
 /// threads.</summary>
@@ -77,15 +78,36 @@ public sealed class BattleRewards : ILayoutAnimationObserver, IInputControls
                 or BattleEndLine.DefeatedAnimation)
         {
             var won = played.Animation == BattleEndLine.VictoryAnimation;
-            // The defeated enemies' table values, taken as "Victory" plays, before the battle's enemies are forgotten.
+            // The defeated enemies' table values, taken as "Victory" plays, before the battle's enemies are forgotten,
+            // and said at once: the purse rises only as the results close (#921).
             var table = won && ExpOn() ? TableRewards?.Invoke() : null;
             lock (gate)
             {
                 wonAt = won && atStart is not null ? Now() : null;
                 changed = null;
+                // Kept for the Debug log beside the purse, to check whether the results screen scales them.
                 atVictory = table;
             }
+            if (table is { } values && ExpSays(values.Exp, values.ArchetypeExp) is { } exp)
+            {
+                announcer.Announce(new Announcement(exp, Interrupt: false));
+            }
         }
+    }
+
+    /// <summary>What the table's EXP says, or null when none.</summary>
+    public static string? ExpSays(int exp, int archetypeExp)
+    {
+        var parts = new List<string>();
+        if (exp > 0)
+        {
+            parts.Add(string.Create(CultureInfo.InvariantCulture, $"{exp} EXP"));
+        }
+        if (archetypeExp > 0)
+        {
+            parts.Add(string.Create(CultureInfo.InvariantCulture, $"{archetypeExp} archetype EXP"));
+        }
+        return parts.Count == 0 ? null : "Gained " + string.Join(" and ", parts);
     }
 
     /// <summary>The defeated enemies' EXP, archetype EXP, money and magla by the enemy tables (#166), or null when
@@ -111,9 +133,8 @@ public sealed class BattleRewards : ILayoutAnimationObserver, IInputControls
         return keys;
     }
 
-    /// <summary>What a rise in the purse says, with the table's EXP and archetype EXP when above 0, or null when nothing
-    /// rose.</summary>
-    public static string? Says(int money, int mag, int exp = 0, int archetypeExp = 0)
+    /// <summary>What a rise in the purse says, or null when nothing rose.</summary>
+    public static string? Says(int money, int mag)
     {
         var parts = new List<string>();
         if (money > 0)
@@ -124,21 +145,7 @@ public sealed class BattleRewards : ILayoutAnimationObserver, IInputControls
         {
             parts.Add(string.Create(CultureInfo.InvariantCulture, $"{mag} MAG"));
         }
-        if (parts.Count == 0)
-        {
-            return null;
-        }
-        if (exp > 0)
-        {
-            parts.Add(string.Create(CultureInfo.InvariantCulture, $"{exp} EXP"));
-        }
-        if (archetypeExp > 0)
-        {
-            parts.Add(string.Create(CultureInfo.InvariantCulture, $"{archetypeExp} archetype EXP"));
-        }
-        return "Gained " + (parts.Count == 1
-            ? parts[0]
-            : string.Join(", ", parts.Take(parts.Count - 1)) + " and " + parts[^1]);
+        return parts.Count == 0 ? null : "Gained " + string.Join(" and ", parts);
     }
 
     private void Tick()
@@ -174,7 +181,7 @@ public sealed class BattleRewards : ILayoutAnimationObserver, IInputControls
                 return;
             }
             var table = atVictory;
-            said = Says(current.Money - start.Money, current.Mag - start.Mag, table?.Exp ?? 0, table?.ArchetypeExp ?? 0);
+            said = Says(current.Money - start.Money, current.Mag - start.Mag);
             logged = string.Create(CultureInfo.InvariantCulture,
                 $"purse money={current.Money - start.Money} mag={current.Mag - start.Mag} table exp={table?.Exp} aexp={table?.ArchetypeExp} money={table?.Money} magla={table?.Magla}");
             wonAt = null;

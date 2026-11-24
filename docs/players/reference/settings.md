@@ -94,10 +94,11 @@ Each is `true` to speak or `false` to stay quiet, inside a `speech` object: `{ "
 | `battleBannerNames` | Says who a battle banner is about: "Bow Scourge Malmorta cannot move due to Stun!". Off leaves the name out. Needs `battleBanners`. | `true` |
 | `battleTurnLine` | Says "Your turn" with the actions left, or "Enemy turn", as each side's turn starts in a battle. Still being tested. | testing, off |
 | `battleStart` | Says "Ambushed" when a battle starts with the enemy striking first. | `true` |
+| `battleStartStun` | As a battle starts, says how many enemies are stunned: "All 3 enemies stunned" or "1 of 3 enemies stunned". Still being tested. | testing, off |
 | `battleEnd` | Says "Victory", "Escaped" or "Defeated" as a battle ends. Still being tested. | testing, off |
 | `battleRewards` | After a won battle, says the money and MAG it gained: "Gained 240 money and 30 MAG". Still being tested. | testing, off |
 | `battleFormation` | In a battle, says "row changed" with the member when a party member moves between the front and back row. Still being tested. | testing, off |
-| `battleRewardExp` | Adds the EXP and archetype EXP of the enemies you beat, from the game's enemy tables, to the rewards line: "Gained 240 money, 30 MAG, 160 EXP and 60 archetype EXP". Needs `battleRewards`. Still being tested. | testing, off |
+| `battleRewardExp` | As a battle is won, says the EXP and archetype EXP of the enemies you beat, from the game's enemy tables: "Gained 160 EXP and 60 archetype EXP". Needs `battleRewards`. Still being tested. | testing, off |
 | `saveSlots` | The save and load screens' slots. | `true` |
 | `learnedSettingValues` | The System rows whose setting the mod has not pinned saying their value on change, learned as you change them. Needs `menus`. | `true` |
 | `settingsHelp` | The game's help line for the focused row on a Settings page, on the details key (F, or R3 on the pad). The line is the one the game fetched for the row, so a row you have not moved to yet says no more. Needs `menus`. | `true` |
