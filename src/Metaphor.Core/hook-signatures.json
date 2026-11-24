@@ -273,6 +273,13 @@
     "evidence": "Our reading of the exe in Ghidra 12.2: the battle package's per-frame update, in .ecode at rva 0x21e1c0, a full function body whose first argument is the package (docs/findings/battle-enemy-list-order-and-update-hook-static.md); hooked in memory through three fights of capture session 6 (docs/raw-sources/battle-state-session6-2026-11-17.md)"
   },
   {
+    "name": "BattleTargetCursorFocus",
+    "section": ".ecode",
+    "pattern": "48 8B 49 18 48 85 C9 0F 85 ?? ?? ?? ?? C3 CC CC 48 8B 49 18 48 85 C9 74 0A 48 8B 01 48 FF A0 A0 00 00 00 C3 CC CC CC CC CC CC CC CC CC CC CC CC B8 06 00 00 00 C3",
+    "gameBuilds": ["548ddc955c176867f062c44f94c03dd9ac33caefb278a5ac388e792aedf09504"],
+    "evidence": "Our reading of the exe in Ghidra 12.2: UUIC_Battle_TargetCursor's vtable slot 4 (vtable 0x2250280 in .udata), in .ecode at rva 0xf26ec0, which focuses the target slot it is given; its three neighbours anchor the 13 bytes; one match on disk (tools/Metaphor.SignatureCheck/battle-turn-probes.json, docs/findings/battle-target-cursor-index-static.md); not yet checked in memory"
+  },
+  {
     "name": "TutorialWindowUpdate",
     "section": ".ecode",
     "pattern": "41 56 48 83 EC 30 83 79 18 03 4C 8B F1 0F 84 ?? ?? ?? ?? 48 8B 01 FF 50 08 84 C0 0F 84 ?? ?? ?? ?? 41 8B 4E 18 48 89 5C 24 50",

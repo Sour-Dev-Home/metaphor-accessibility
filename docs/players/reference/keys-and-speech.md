@@ -93,6 +93,8 @@ anywhere.
 - Testing, with `battleEnemyList` on: the keys know every enemy in the battle from its start, hit or not, and a step
   ends with its place, such as "First enemy, 840 of 1320, 1 of 3". An enemy not hit yet says the HP the game holds for
   it, or "not hit yet".
+- Testing, with `battleEnemyTarget` on as well: after the target cursor moves, the next step says the enemy the cursor
+  is on, and `L` starts from it. With no target yet in this battle, they start from the first enemy.
 - Testing, with `battleHpMp` on: `M` says each party member's HP and MP.
 - In a battle the game keeps `F` (Wield Arms) and the right stick press (auto-battle).
 - `[NEEDS VERIFICATION]` By ear, and whether holding `LB` in a battle does the game's own `LB` action first.

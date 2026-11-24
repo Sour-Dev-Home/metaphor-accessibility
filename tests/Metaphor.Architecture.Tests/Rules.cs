@@ -694,7 +694,8 @@ internal static class Rules
             "CallerAddress: walks this thread's own stack within its limits and stops early instead of faulting",
         ["kernel32.dll!GetCurrentThreadStackLimits"] = "CallerAddress: reads no address it is given",
         ["kernel32.dll!WriteProcessMemory"] =
-            "PadReadHook, KeyboardReadHook: writes through the kernel, which fails instead of faulting (ADR 0007)",
+            "PadReadHook, KeyboardReadHook, BattleTargetCursorHook: writes through the kernel, which fails instead " +
+            "of faulting (ADR 0007)",
         // ADR 0019: WaveOutHandle passes only its own handle and the headers and buffers it keeps pinned until close.
         ["winmm.dll!waveOutOpen"] = "WaveOutHandle: reads the format on its own stack, writes the handle (ADR 0019)",
         ["winmm.dll!waveOutPrepareHeader"] = "WaveOutHandle: the mod's own pinned header and buffer (ADR 0019)",
