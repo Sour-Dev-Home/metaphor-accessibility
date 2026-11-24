@@ -96,6 +96,7 @@ Each is `true` to speak or `false` to stay quiet, inside a `speech` object: `{ "
 | `systemMenu` | The System menu's rows. | `true` |
 | `shopMenu` | The shop's top menu and its Buy and Sell lists. | `true` |
 | `placeNames` | The place name the game shows as you arrive somewhere. | `true` |
+| `autosaveNotice` | "Autosaving" when the game autosaves in the field, after the dialogue or line before it. Still being tested. | testing, off |
 | `updateNotice` | The title screen's notice of a newer version. The request itself is `checkForUpdates`. | `true` |
 | `tutorials` | Tutorial pop-ups: the title, the page count and each page. Off also leaves the repeat key to repeat dialogue, not the pop-up's page. | `true` |
 | `termNames` | The skill and condition names a line's tags stand for. Off says the tag's stand-in. | `true` |
@@ -134,6 +135,7 @@ the game.
 | `enemyAwareness` | A sharp sound from the enemy's side and "Enemy noticed you" when a field enemy near you notices you, and a softer falling sound when it gives up the search. Each sound has its own key in `sounds`. Still being tested. | testing, off |
 | `objectiveGuidance` | O starts the guidance beep toward the current objective's marker on this map, or a waypoint the mod's data gives; G stops it. Says "Objective guidance isn't ready for this area" where the mod can't place the marker yet, which for now is everywhere. Still being tested. | testing, off |
 | `fieldStrikes` | "Hit" when a strike of yours takes HP from a field enemy near you, and "Defeated" when it takes the last. Still being tested. | testing, off |
+| `cornerAdvice` | The advice Gallica and the party give in the top-left corner as you roam, with the speaker's name, after the line before it. Still being tested. | testing, off |
 
 ## Report
 

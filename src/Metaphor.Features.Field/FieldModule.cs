@@ -102,6 +102,16 @@ public sealed class FieldModule : IFeatureModule
             new FieldStrikes(
                 field, settings.Speech(FieldFeature.FieldStrikes, context.Announcer), () => Environment.TickCount64,
                 log is null ? null : log.FieldRead));
+        // The corner advice (#587), testing: the report-open hook finds it by type and hands it each open's key; a
+        // line opened outside free roam is said on a later input read, so it takes the read before the field's.
+        var cornerAdvice = new CornerAdvice(
+            context.Library, cleaner, settings.Speech(FieldFeature.CornerAdvice, context.Reader), new FreeRoamGate(field),
+            () => Environment.TickCount64, log is null ? null : log.FieldRead)
+        {
+            Wanted = () => settings.Current.IsOn(FieldFeature.CornerAdvice),
+        };
+        context.AddControls(settings.Input(FieldFeature.CornerAdvice, cornerAdvice));
+        context.Provide(cornerAdvice);
         context.AddControls(controls);
         // The enemy awareness cues (#649), testing: their sounds through their own keys, the line through the setting's
         // gate; each enemy's AI state changes go to the Debug log.

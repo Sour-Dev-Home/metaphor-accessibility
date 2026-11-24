@@ -69,6 +69,8 @@ public sealed class MenusModule : IFeatureModule
         context.MoviePause.Observe(new SkipSceneQuestion(
             settings.Speech(MenusFeature.SkipSceneQuestion, reader), context.LastDevice),
             () => settings.Current.IsOn(MenusFeature.SkipSceneQuestion));
+        // The field's autosave notice (#543) is its layout's show animation, while tested.
+        context.Layouts.Observe(new AutosaveNotice(settings.Speech(MenusFeature.AutosaveNotice, reader)));
         screens.Observe(new DifficultyFocus(library, menuSpeech, cleaner));
         screens.Observe(new SettingsFocus(library, menuSpeech, cleaner)
         {
