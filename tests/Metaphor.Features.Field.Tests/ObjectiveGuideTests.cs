@@ -1,3 +1,6 @@
+using Metaphor.Core.Navigation;
+using Metaphor.Core.Tests.Navigation;
+
 namespace Metaphor.Features.Field.Tests;
 
 /// <summary>"Guide me to the objective" (#652): the current field objective's row picks its markers on the map's field,
@@ -17,10 +20,17 @@ public sealed class ObjectiveGuideTests
     private IMapToWorld conversion = FittedMapToWorld.Empty;
     private List<ObjectiveWaypoint> waypoints = [];
     private Func<Func<FieldIconPoints?>, Task<FieldIconPoints?>> run = MapIconPointsTests.Inline;
+    private WalkGraph? graph;
 
     private ObjectiveGuide Guide() => new(
         flag => set.Contains(flag), () => rows, map => map == Map ? (1, 2) : null,
-        new MapIconPointSource(path => archive.GetValueOrDefault(path), _ => { }, run), conversion, waypoints);
+        new MapIconPointSource(path => archive.GetValueOrDefault(path), _ => { }, run), conversion, waypoints,
+        (a, b) => (a, b) == (1, 2) ? graph : null);
+
+    // Map 7's minimap record, as the default conversion: x = 1000 - 10 px, z = 2000 - 10 py.
+    private static MiniMapFrameSource Minimap(Func<Action, Task>? run = null) => new(
+        () => (MiniMapFramesTests.Sets((Map, [(5, 0)])), MiniMapFramesTests.Data((5, 1000, 2000, 10))), _ => { },
+        run ?? MiniMapFramesTests.Inline);
 
     private void Points(params (int X, int Y, int Kind, int Index)[] points) =>
         archive[MapIconPoints.ArchivePath(1, 2, 0)] = MapIconPointsTests.File(points);
@@ -50,6 +60,90 @@ public sealed class ObjectiveGuideTests
         Points((100, 100, 4, 1));
 
         Assert.Equal(new ObjectiveAnswer(null, ObjectiveGuide.NotReadyText), Guide().Find(Map, At(0, 0)));
+    }
+
+    [Fact]
+    public void TheMapsMinimapRecordPlacesItsMarkersByDefault()
+    {
+        Points((10, 20, 4, 1));
+        conversion = new OverriddenMapToWorld(FittedMapToWorld.Empty, Minimap());
+
+        var unit = Guide().Find(Map, At(0, 0)).Target!.Unit;
+
+        Assert.Equal((900f, 1800f), (unit.X, unit.Z));
+    }
+
+    [Fact]
+    public void AnOverrideForTheFieldWinsOverTheRecord()
+    {
+        Points((10, 20, 4, 1));
+        conversion = new OverriddenMapToWorld(Fit(0, 0, 1, 1), Minimap());
+
+        var unit = Guide().Find(Map, At(5000, 5000)).Target!.Unit;
+
+        Assert.Equal((10f, 20f), (unit.X, unit.Z));
+    }
+
+    [Fact]
+    public void AMapWithNoRecordIsNotReady()
+    {
+        Points((10, 20, 4, 1));
+        conversion = new OverriddenMapToWorld(FittedMapToWorld.Empty, new MiniMapFrameSource(
+            () => (MiniMapFramesTests.Sets((Map + 1, [(5, 0)])), MiniMapFramesTests.Data((5, 1000, 2000, 10))), _ => { },
+            MiniMapFramesTests.Inline));
+
+        Assert.Equal(new ObjectiveAnswer(null, ObjectiveGuide.NotReadyText), Guide().Find(Map, At(0, 0)));
+    }
+
+    [Fact]
+    public void FramesStillLoadingAreSaid()
+    {
+        Points((10, 20, 4, 1));
+        var gate = new TaskCompletionSource();
+        conversion = Minimap(_ => gate.Task);
+
+        Assert.Equal(ObjectiveGuide.LoadingText, Guide().Find(Map, At(0, 0)).Text);
+    }
+
+    [Fact]
+    public void PollStartsTheFramesRead()
+    {
+        var started = 0;
+        conversion = Minimap(load =>
+        {
+            started++;
+            return MiniMapFramesTests.Inline(load);
+        });
+
+        Guide().Poll(() => null, 0);
+
+        Assert.Equal(1, started);
+    }
+
+    [Fact]
+    public void DescribeLogsEachMarkersWorldPointAndItsDistanceToTheMesh()
+    {
+        // Two 4 x 4 tiles of 10-unit cells, x 0 to 80, z 0 to 40: marker (97, 198) is at (30, 20), a cell corner, 7
+        // units from each of its cells' middles; (0, 0) is at (1000, 2000), off the mesh and past the search.
+        graph = new WalkGraph(NavMeshFile.Parse(NavBytes.File(
+            [NavBytes.Layer.Open(0, 0).Entry(), NavBytes.Layer.Open(1, 0).Entry()], climb: 2))!);
+        Points((97, 198, 4, 1), (0, 0, 4, 1), (5, 5, 4, 2));
+        conversion = Minimap();
+
+        var line = Guide().Describe("key", Map, new FieldPose(0, 0, 0, 0));
+
+        Assert.EndsWith(" conversion=minimap:5(1000,2000,10) waypoints=0 variant1=False " +
+            "points=(97,198 k=4 i=1) (0,0 k=4 i=1) (5,5 k=4 i=2) world=(97,198)->(30,20)r=7 (0,0)->(1000,2000)r=far",
+            line, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void DescribeSaysTheMeshIsStillLoading()
+    {
+        Points((97, 198, 4, 1));
+        conversion = Minimap();
+
+        Assert.EndsWith(" world=(97,198)->(30,20)r=?", Guide().Describe("key", Map, null), StringComparison.Ordinal);
     }
 
     [Fact]
@@ -134,11 +228,12 @@ public sealed class ObjectiveGuideTests
         var line = Guide().Describe("place", Map, new FieldPose(-2269.44f, 24, 8609.8f, 0));
 
         Assert.Equal("objective place map=7 field=f_0001_002 player=(-2269.4,24,8609.8) row=1 flag=0x1166 " +
-            "conversion=False waypoints=1 variant1=False points=(1478,1025 k=4 i=1) (7,8 k=5 i=0)", line);
+            "conversion=none waypoints=1 variant1=False points=(1478,1025 k=4 i=1) (7,8 k=5 i=0) " +
+            "world=(1478,1025)->none", line);
     }
 
     [Fact]
     public void DescribeSaysWhatIsUnknown() =>
-        Assert.Equal("objective key map=? field=? player=? row=1 flag=0x1166 conversion=False waypoints=0 " +
-            "variant1=False points=no field", Guide().Describe("key", null, null));
+        Assert.Equal("objective key map=? field=? player=? row=1 flag=0x1166 conversion=none waypoints=0 " +
+            "variant1=False points=no field world=none", Guide().Describe("key", null, null));
 }

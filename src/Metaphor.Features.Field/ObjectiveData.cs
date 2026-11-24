@@ -3,16 +3,36 @@ using System.Text.RegularExpressions;
 
 namespace Metaphor.Features.Field;
 
-/// <summary>Turns a field's 2D icon-point position into world <c>x, z</c> (#652). How the game does it is
-/// [NEEDS VERIFICATION] (docs/findings/objective-map-icon-points-static.md). The note's candidate is
-/// <c>COMMON/ui/map/MiniMap_Data.bin</c>: 1,500 records of a <c>u16</c> id and three floats that would fit an origin and
-/// a scale per 2D map, but which record a field uses, and the formula, are unknown, so it isn't read. Until a marker
-/// walk fits it, the conversion is <see cref="FittedMapToWorld"/>'s per-field values, our own data.</summary>
+/// <summary>Turns a field's 2D icon-point position into world <c>x, z</c> (#652). By default each map's minimap record
+/// (<see cref="MiniMapFrameSource"/>, docs/findings/minimap-data-converts-map-points-to-world.md); a field in
+/// <c>map-to-world.json</c> (<see cref="FittedMapToWorld"/>) overrides it (<see cref="OverriddenMapToWorld"/>).
+/// </summary>
 public interface IMapToWorld
 {
-    /// <summary>World <c>x, z</c> for point <paramref name="x"/>, <paramref name="y"/> on field
-    /// <paramref name="field"/> (<c>f_0001_001</c>), or null when there is no conversion for that field.</summary>
-    (float X, float Z)? ToWorld(string field, int x, int y);
+    /// <summary>Whether the conversion is still being read; asking starts the read if it hasn't started.</summary>
+    bool Loading { get; }
+
+    /// <summary>World <c>x, z</c> for point <paramref name="x"/>, <paramref name="y"/> at <paramref name="spot"/>, or
+    /// null when there is no conversion there.</summary>
+    (float X, float Z)? ToWorld(MapSpot spot, int x, int y);
+
+    /// <summary>Which conversion <paramref name="spot"/> gets, for the Debug log: numbers and words, no spaces.</summary>
+    string Describe(MapSpot spot);
+}
+
+/// <summary>The hand-fitted fields of <paramref name="overrides"/> first, then <paramref name="frames"/> (#652).
+/// </summary>
+public sealed class OverriddenMapToWorld(FittedMapToWorld overrides, IMapToWorld frames) : IMapToWorld
+{
+    /// <inheritdoc/>
+    public bool Loading => frames.Loading;
+
+    /// <inheritdoc/>
+    public (float X, float Z)? ToWorld(MapSpot spot, int x, int y) =>
+        overrides.ToWorld(spot, x, y) ?? frames.ToWorld(spot, x, y);
+
+    /// <inheritdoc/>
+    public string Describe(MapSpot spot) => overrides.Has(spot.Field) ? overrides.Describe(spot) : frames.Describe(spot);
 }
 
 /// <summary>One field's fitted conversion (#652): world <c>x = OriginX + ScaleX × x</c> and
@@ -20,7 +40,8 @@ public interface IMapToWorld
 public sealed record MapConversion(double OriginX, double OriginZ, double ScaleX, double ScaleZ);
 
 /// <summary>The per-field conversions a contributor fitted from a marker walk, from
-/// <c>data/objectives/map-to-world.json</c> (#652). Empty by default: no field has guidance until one is fitted.</summary>
+/// <c>data/objectives/map-to-world.json</c> (#652): an override for a field whose minimap record turns out wrong. Empty
+/// by default.</summary>
 public sealed class FittedMapToWorld(IReadOnlyDictionary<string, MapConversion> fields) : IMapToWorld
 {
     /// <summary>No conversion for any field.</summary>
@@ -30,10 +51,19 @@ public sealed class FittedMapToWorld(IReadOnlyDictionary<string, MapConversion> 
     public int Count => fields.Count;
 
     /// <inheritdoc/>
-    public (float X, float Z)? ToWorld(string field, int x, int y) =>
-        fields.TryGetValue(field, out var fit)
+    public bool Loading => false;
+
+    /// <summary>Whether field <paramref name="field"/> has one.</summary>
+    public bool Has(string field) => fields.ContainsKey(field);
+
+    /// <inheritdoc/>
+    public (float X, float Z)? ToWorld(MapSpot spot, int x, int y) =>
+        fields.TryGetValue(spot.Field, out var fit)
             ? ((float)(fit.OriginX + (fit.ScaleX * x)), (float)(fit.OriginZ + (fit.ScaleZ * y)))
             : null;
+
+    /// <inheritdoc/>
+    public string Describe(MapSpot spot) => Has(spot.Field) ? "override" : "none";
 }
 
 /// <summary>A hand-written waypoint for an objective with no marker on a field (#652, ADR 0016): our own data.</summary>
@@ -44,7 +74,7 @@ public sealed class FittedMapToWorld(IReadOnlyDictionary<string, MapConversion> 
 public sealed record ObjectiveWaypoint(string Field, int Row, float X, float Z);
 
 /// <summary>The objective guidance's own data (#652), both under <c>data/objectives/</c> in the mod folder and both
-/// empty for now: <c>map-to-world.json</c>, each field's fitted conversion, and <c>waypoints.json</c>, the hand-written
+/// empty for now: <c>map-to-world.json</c>, fitted conversions that override the minimap records, and <c>waypoints.json</c>, the hand-written
 /// waypoints. The format is in docs/contributors/how-to/fit-objective-markers.md. A file outside the schema is left out
 /// and its problem logged, so the other still loads.</summary>
 public sealed partial class ObjectiveData

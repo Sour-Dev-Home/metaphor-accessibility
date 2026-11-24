@@ -143,7 +143,7 @@ the game.
 | `routePings` | A ping from the direction of each place the nearby list steps to: two high notes when the way is straight, two rising notes from the next corner when the way bends, one low note when there is no path. Its volume is in `limits`. Still being tested. | testing, off |
 | `soundFiles` | The sonar, wall tones and route pings play the mod's own sound files, in `data/sounds` in the mod folder, instead of plain tones. A missing or damaged file plays its plain tone. Still being tested. | testing, off |
 | `enemyAwareness` | A sharp sound from the enemy's side and "Enemy noticed you" when a field enemy near you notices you, and a softer falling sound when it gives up the search. Each sound has its own key in `sounds`. Still being tested. | testing, off |
-| `objectiveGuidance` | O starts the guidance beep toward the current objective's marker on this map, or a waypoint the mod's data gives; G stops it. Says "Objective guidance isn't ready for this area" where the mod can't place the marker yet, which for now is everywhere. Still being tested. | testing, off |
+| `objectiveGuidance` | O starts the guidance beep toward the current objective's marker on this map, or a waypoint the mod's data gives; G stops it. Says "Objective guidance isn't ready for this area" on a map the game gives no minimap, where the mod can't place the marker. Still being tested. | testing, off |
 | `fieldStrikes` | "Hit" when a strike of yours takes HP from a field enemy near you, and "Defeated" when it takes the last. Still being tested. | testing, off |
 | `cornerAdvice` | The advice Gallica and the party give in the top-left corner as you roam, with the speaker's name, after the line before it. Still being tested. | testing, off |
 
