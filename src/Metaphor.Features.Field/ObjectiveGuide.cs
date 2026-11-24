@@ -1,4 +1,6 @@
 using System.Globalization;
+using System.Numerics;
+using Metaphor.Core.Navigation;
 using Metaphor.Core.Settings;
 
 namespace Metaphor.Features.Field;
@@ -13,10 +15,10 @@ public sealed record ObjectiveAnswer(BeaconTarget? Target, string? Text);
 /// field's markers for the row (<see cref="MapIconPoints"/>) converted to world <c>x, z</c> by
 /// <see cref="IMapToWorld"/>, and the hand-written waypoints for the row (our own data, ADR 0016); the nearest of
 /// them. Its key is in <see cref="FieldControls"/>. On game build 548ddc95… (Steam build 18330018)
-/// (docs/findings/objective-map-icon-points-static.md); the conversion and the row join are [NEEDS VERIFICATION] until
-/// a marker walk fits them, so the conversion file is empty and every field says <see cref="NotReadyText"/>. In a Debug
-/// build each press of the key and of "where am I" logs what the walk needs (<see cref="Describe"/>). Safe to call from
-/// several threads.</summary>
+/// (docs/findings/objective-map-icon-points-static.md, docs/findings/minimap-data-converts-map-points-to-world.md); a
+/// map with no minimap record and no override says <see cref="NotReadyText"/>. The row join is
+/// [NEEDS VERIFICATION] until a marker stop confirms it. In a Debug build each press of the key and of "where am I"
+/// logs what the check needs (<see cref="Describe"/>). Safe to call from several threads.</summary>
 [FeatureSetting<FieldFeature>(FieldFeature.ObjectiveGuidance)]
 public sealed class ObjectiveGuide
 {
@@ -41,23 +43,32 @@ public sealed class ObjectiveGuide
     /// <summary>How often <see cref="Poll"/> starts the current field's read, at most.</summary>
     public const long PollMilliseconds = 1000;
 
+    /// <summary>How far a converted marker may be from a walkable cell for the log to measure it: 32 cells, the walk
+    /// graph's widest search.</summary>
+    public const int ResidualCells = 32;
+
     private readonly Func<int, bool?> storyFlag;
     private readonly Func<IReadOnlyList<MainMissionRow>?> objectives;
     private readonly Func<int, (int A, int B)?> fieldOf;
     private readonly MapIconPointSource points;
     private readonly IMapToWorld toWorld;
     private readonly IReadOnlyList<ObjectiveWaypoint> waypoints;
+    private readonly Func<int, int, WalkGraph?>? mesh;
     private readonly Lock gate = new();
     private long? polledAt;
 
     /// <summary>A guide that reads the story flags through <paramref name="storyFlag"/>, the field objective table
     /// through <paramref name="objectives"/> (null while it loads), each map's field file numbers through
     /// <paramref name="fieldOf"/>, the field's markers from <paramref name="points"/>, converts them with
-    /// <paramref name="toWorld"/>, and adds <paramref name="waypoints"/>.</summary>
+    /// <paramref name="toWorld"/>, and adds <paramref name="waypoints"/>. The Debug log measures each converted marker
+    /// against field <c>f_&lt;a&gt;_&lt;b&gt;</c>'s walk graph from <paramref name="mesh"/> (null while it loads).
+    /// </summary>
     public ObjectiveGuide(
         Func<int, bool?> storyFlag, Func<IReadOnlyList<MainMissionRow>?> objectives, Func<int, (int A, int B)?> fieldOf,
-        MapIconPointSource points, IMapToWorld toWorld, IReadOnlyList<ObjectiveWaypoint> waypoints)
+        MapIconPointSource points, IMapToWorld toWorld, IReadOnlyList<ObjectiveWaypoint> waypoints,
+        Func<int, int, WalkGraph?>? mesh = null)
     {
+        this.mesh = mesh;
         ArgumentNullException.ThrowIfNull(storyFlag);
         ArgumentNullException.ThrowIfNull(objectives);
         ArgumentNullException.ThrowIfNull(fieldOf);
@@ -86,6 +97,7 @@ public sealed class ObjectiveGuide
             }
             polledAt = now;
         }
+        _ = toWorld.Loading;
         if (map() is { } id && fieldOf(id) is { } file)
         {
             _ = points.For(file.A, file.B);
@@ -114,16 +126,17 @@ public sealed class ObjectiveGuide
             return new(null, LoadingText);
         }
         var markers = Markers(loaded, row).ToList();
+        var spot = new MapSpot(id, field, pose.Y);
         foreach (var marker in markers)
         {
-            if (toWorld.ToWorld(field, marker.X, marker.Y) is { } world)
+            if (toWorld.ToWorld(spot, marker.X, marker.Y) is { } world)
             {
                 places.Add(world);
             }
         }
         if (places.Count == 0)
         {
-            return new(null, markers.Count > 0 ? NotReadyText : NoMarkerText);
+            return new(null, markers.Count == 0 ? NoMarkerText : toWorld.Loading ? LoadingText : NotReadyText);
         }
         var (x, z) = places.MinBy(place => Ground(pose, place.X, place.Z));
         if (Beacon.Arrived(Math.Sqrt(Ground(pose, x, z)), inReach: false))
@@ -147,13 +160,39 @@ public sealed class ObjectiveGuide
         var loaded = file is { } read ? points.For(read.A, read.B) : null;
         var state = file is not { } asked ? "no field" : loaded is not null ? MapIconPoints.Describe(loaded.Points) :
             points.Loading(asked.A, asked.B) ? "loading" : "unreadable";
-        var converts = file is not null && toWorld.ToWorld(field, 0, 0) is not null;
+        MapSpot? spot = map is { } mapId && file is not null ? new(mapId, field, pose?.Y) : null;
+        var conversion = spot is { } where ? toWorld.Describe(where) : "none";
         var written = waypoints.Count(waypoint => waypoint.Field == field && waypoint.Row == row);
         var player = pose is { } p
             ? string.Create(CultureInfo.InvariantCulture, $"({p.X:0.#},{p.Y:0.#},{p.Z:0.#})")
             : "?";
+        var world = spot is { } converted && file is { } walked && row is { } current
+            ? World(converted, walked, Markers(loaded, current), pose?.Y ?? 0)
+            : "none";
         return string.Create(CultureInfo.InvariantCulture,
-            $"objective {why} map={map?.ToString(CultureInfo.InvariantCulture) ?? "?"} field={field} player={player} row={row?.ToString(CultureInfo.InvariantCulture) ?? "?"} flag={flag} conversion={converts} waypoints={written} variant1={loaded?.HasVariant == true} points={state}");
+            $"objective {why} map={map?.ToString(CultureInfo.InvariantCulture) ?? "?"} field={field} player={player} row={row?.ToString(CultureInfo.InvariantCulture) ?? "?"} flag={flag} conversion={conversion} waypoints={written} variant1={loaded?.HasVariant == true} points={state} world={world}");
+    }
+
+    // Each marker's world point and its distance to the nearest walkable cell's middle: (1045,295)->(-3,16589)r=12,
+    // r=? while the walk graph loads, r=far past ResidualCells; "none" with no marker.
+    private string World(MapSpot spot, (int A, int B) file, IEnumerable<MapIconPoint> markers, float height)
+    {
+        var graph = mesh?.Invoke(file.A, file.B);
+        var entries = markers.Select(marker =>
+        {
+            var point = string.Create(CultureInfo.InvariantCulture, $"({marker.X},{marker.Y})->");
+            if (toWorld.ToWorld(spot, marker.X, marker.Y) is not { } at)
+            {
+                return point + "none";
+            }
+            var residual = graph is null ? "?"
+                : graph.NearestCell(new Vector3(at.X, height, at.Z), float.MaxValue, ResidualCells) is { } cell
+                    ? Vector2.Distance(new(at.X, at.Z), new(graph.Centre(cell).X, graph.Centre(cell).Z))
+                        .ToString("0", CultureInfo.InvariantCulture)
+                    : "far";
+            return point + string.Create(CultureInfo.InvariantCulture, $"({at.X:0.#},{at.Z:0.#})r={residual}");
+        }).ToList();
+        return entries.Count == 0 ? "none" : string.Join(' ', entries);
     }
 
     private static IEnumerable<MapIconPoint> Markers(FieldIconPoints? loaded, int row) =>

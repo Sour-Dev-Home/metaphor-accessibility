@@ -896,7 +896,7 @@ public sealed class FieldControlsTests
 
         Assert.Contains(log, line => line.StartsWith(
             "objective place map=3 field=f_0001_001 player=(0,0,0) row=1 flag=0x1166 ", StringComparison.Ordinal) &&
-            line.EndsWith("points=(1478,1025 k=4 i=1)", StringComparison.Ordinal));
+            line.EndsWith("points=(1478,1025 k=4 i=1) world=(1478,1025)->none", StringComparison.Ordinal));
         Assert.Contains(log, line => line.StartsWith("objective key map=3 ", StringComparison.Ordinal));
     }
 }
