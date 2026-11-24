@@ -108,8 +108,25 @@ public sealed class BattleListFocus : IScreenObserver, ISerialResolveObserver, I
     /// <summary>Battle's item list, by its owner's class on build 548ddc95 (#247).</summary>
     public static Screen ItemList { get; } = new("Items", "BTL_ItemSelect@ope@ui@app", OutsideMenus: true);
 
+    /// <summary>Battle's Synthesis list, by its owner's class on build 548ddc95 (#260), which fetches its rows' names and
+    /// descriptions as the skill list does (docs/findings/battle-synthesis-list-static.md).</summary>
+    public static Screen SynthesisList { get; } =
+        new("Synthesis", "BTL_SyentesisSkillList@ope@ui@app", OutsideMenus: true);
+
+    // The battle lists: backing out of one to battle's commands tells nothing, so another stays current until its own
+    // cursor settles.
+    private static readonly Screen[] BattleLists = [SkillList, ItemList, SynthesisList];
+
     /// <summary>The screen this one speaks.</summary>
     public Screen Screen { get; }
+
+    /// <summary>The cost said after a row's name, by the row's name serial (#692 (b)), or null for none; read at each
+    /// line. Null, no cost is said.</summary>
+    public Func<int, string?>? RowCost { get; init; }
+
+    /// <summary>Whether the list speaks now (#260: the Synthesis list's own setting); read at each line and details
+    /// press. Null, always.</summary>
+    public Func<bool>? On { get; init; }
 
     /// <summary>The name of the tab a focus is on (#851), said on entering and on a tab switch before the row, or null
     /// when it isn't known; read at each focus. Null, a switch with the cursor where it was says nothing, as before the
@@ -122,11 +139,27 @@ public sealed class BattleListFocus : IScreenObserver, ISerialResolveObserver, I
     /// <summary>The skill list, its names from the skill names file, timed by <paramref name="millisecondsNow"/>;
     /// <paramref name="viewsOn"/> says whether a whole view fetched again names its rows (#737,
     /// <see cref="MenusFeature.BattleListViews"/>), on when null.</summary>
+    /// <remarks><paramref name="rowCost"/> is <see cref="RowCost"/>.</remarks>
     public static BattleListFocus Skills(
         MessageSerials serials, IAnnouncer announcer, TextCleaner cleaner, Func<long> millisecondsNow,
-        Func<bool>? viewsOn = null) =>
+        Func<bool>? viewsOn = null, Func<int, string?>? rowCost = null) =>
         new(SkillList, MessageSerials.SkillNames, MessageSerials.SkillDescriptions, serials, announcer, cleaner,
-            millisecondsNow, viewsOn);
+            millisecondsNow, viewsOn)
+        {
+            RowCost = rowCost,
+        };
+
+    /// <summary>The Synthesis list (#260), its names and descriptions from the skill files, as <see cref="Skills"/>,
+    /// speaking only while <paramref name="on"/> (<see cref="On"/>).</summary>
+    public static BattleListFocus Synthesis(
+        MessageSerials serials, IAnnouncer announcer, TextCleaner cleaner, Func<long> millisecondsNow,
+        Func<bool>? viewsOn, Func<int, string?>? rowCost, Func<bool> on) =>
+        new(SynthesisList, MessageSerials.SkillNames, MessageSerials.SkillDescriptions, serials, announcer, cleaner,
+            millisecondsNow, viewsOn)
+        {
+            RowCost = rowCost,
+            On = on,
+        };
 
     /// <summary>The item list's tab names, <c>CommandBattle_IT_CATEGORY_01</c> to <c>_05</c>, which the list fetches as
     /// it opens; tab n is the n-th, <c>[NEEDS VERIFICATION]</c> (docs/findings/battle-item-list-tab-index-static.md).
@@ -168,6 +201,10 @@ public sealed class BattleListFocus : IScreenObserver, ISerialResolveObserver, I
     public string? Details(ScreenEvent focus)
     {
         ArgumentNullException.ThrowIfNull(focus);
+        if (On is { } on && !on())
+        {
+            return null;
+        }
         int? serial = null;
         lock (gate)
         {
@@ -198,7 +235,7 @@ public sealed class BattleListFocus : IScreenObserver, ISerialResolveObserver, I
                 {
                     Forget();
                     onList = false;
-                    var otherList = change.Screen == SkillList || change.Screen == ItemList;
+                    var otherList = change.Screen is { } shownList && BattleLists.Contains(shownList);
                     Volatile.Write(ref otherScreen, !otherList);
                 }
                 else if (change.Change == ScreenChange.Left)
@@ -279,7 +316,7 @@ public sealed class BattleListFocus : IScreenObserver, ISerialResolveObserver, I
         }
         if (said is not null)
         {
-            announcer.Announce(said);
+            Say(said);
         }
     }
 
@@ -359,7 +396,7 @@ public sealed class BattleListFocus : IScreenObserver, ISerialResolveObserver, I
         }
         if (said is not null)
         {
-            announcer.Announce(said);
+            Say(said);
         }
     }
 
@@ -544,15 +581,27 @@ public sealed class BattleListFocus : IScreenObserver, ISerialResolveObserver, I
     }
 
     // The line for a focus whose row's name has been fetched, or null while it hasn't. Called under the gate.
+    // A row's cost is said only with its name: one said by its position has no name serial to go by.
     private Announcement? LineFor(ScreenEvent focus) =>
-        rows.TryGetValue(focus.Index, out var row) ? Line(focus, serials.TextOf(row, cleaner)) : null;
+        rows.TryGetValue(focus.Index, out var row) && serials.TextOf(row, cleaner) is var name
+            ? Line(focus, name, name is null ? null : RowCost?.Invoke(row))
+            : null;
 
     // The line for a focus whose row's name can't be told: its position alone.
-    private Announcement PositionLine(ScreenEvent focus) => Line(focus, null);
+    private Announcement PositionLine(ScreenEvent focus) => Line(focus, null, null);
 
-    private Announcement Line(ScreenEvent focus, string? name)
+    // Speaks a line, unless the list is off.
+    private void Say(Announcement line)
     {
-        var item = spokenTab is { } tab ? $"{tab}, {focus.Positioned(name)}" : focus.Positioned(name);
+        if (On?.Invoke() != false)
+        {
+            announcer.Announce(line);
+        }
+    }
+
+    private Announcement Line(ScreenEvent focus, string? name, string? cost)
+    {
+        var item = spokenTab is { } tab ? $"{tab}, {focus.Positioned(name, cost)}" : focus.Positioned(name, cost);
         return new Announcement(focus.Change == ScreenChange.Entered ? $"{Screen.Name}, {item}" : item, Interrupt: true);
     }
 }

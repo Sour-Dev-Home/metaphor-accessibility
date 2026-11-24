@@ -1,3 +1,4 @@
+using Metaphor.Core.Battle;
 using Metaphor.Core.Menus;
 
 namespace Metaphor.Features.Menus;
@@ -8,8 +9,8 @@ public static class KnownScreens
 {
     /// <summary>
     /// The title menu, the main menu, a yes/no dialog, New Game's difficulty list, a dialogue's reply choice, the
-    /// Settings list and pages, the field's quick menu, battle's skill and item lists, and the save and load
-    /// screens' slot lists.
+    /// Settings list and pages, the field's quick menu, battle's skill, item and Synthesis lists, its Order menu and
+    /// Party screen, and the save and load screens' slot lists.
     /// </summary>
     public static IReadOnlyList<Screen> All { get; } =
     [
@@ -31,7 +32,10 @@ public static class KnownScreens
         .. EquipmentFocus.Screens,
         BattleListFocus.SkillList,
         BattleListFocus.ItemList,
+        BattleListFocus.SynthesisList,
         .. BattleOrderFocus.Screens,
+        // Spoken by the battle project's party screen (#258).
+        BattleScreens.Party,
         .. BattleConfirmFocus.Screens,
         SaveSlotFocus.Load,
         SaveSlotFocus.Save,

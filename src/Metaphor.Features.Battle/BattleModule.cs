@@ -115,11 +115,54 @@ public sealed class BattleModule : IFeatureModule
             BattleFeature.BattleHits, settings.Input(BattleFeature.BattleEnemyKeys, enemyHp.Keyboard)));
         context.AddControls(settings.Input(
             BattleFeature.BattleHits, settings.Input(BattleFeature.BattleEnemyPad, enemyHp.Pad)));
+        RegisterListsAndParty(context, hitLines);
         context.AddKeys(BattleKeys.All);
         // The chords' LB is held back until it's let go, then tapped to the game if no chord came (#811).
         context.AddShoulderHold(() =>
             settings.Current.IsOn(BattleFeature.BattleHits) && settings.Current.IsOn(BattleFeature.BattleEnemyPad)
                 ? enemyHp.HeldShoulders()
                 : 0);
+    }
+
+    // The skill lists' costs (#692 (b)) and the Synthesis list (#260), which the menus' battle lists speak; the Party
+    // screen (#258) and the Formation watch (#259). Each its own testing setting.
+    private static void RegisterListsAndParty(FeatureContext context, HitLines hitLines)
+    {
+        var settings = context.Settings;
+        var log = context.Log;
+        var serials = context.Serials;
+        // The skill tables come from the player's own archive, read-only, off the game's thread, on the first input
+        // read with the costs on, so a game the hooks didn't load into never reads it.
+        var costSource = new SkillCostSource(
+            context.OpenArchive, line => log?.Requested("SkillCosts", line));
+        var costs = new SkillCostLines(
+            serial => serials.FindBySerial(serial)?.Label, costSource.CostOf,
+            () => settings.Current.IsOn(BattleFeature.BattleSkillCosts))
+        {
+            Log = log is null ? null : text => log.Requested("SkillCost", text),
+        };
+        context.AddControls(settings.Input(BattleFeature.BattleSkillCosts, new SkillCostLoad(costSource)));
+        context.Find<BattleListAdditions>()?.Add(
+            costs.CostOf, () => settings.Current.IsOn(BattleFeature.BattleSynthesis));
+        var partyScreen = new PartyScreenFocus(
+            serials, context.Cleaner, context.BattleParty,
+            settings.Speech(BattleFeature.BattlePartyScreen, context.Reader), () => Environment.TickCount64)
+        {
+            ProtagonistName = () => context.Names.Typed(TypedName.Hero),
+            Log = log is null ? null : text => log.Requested("BattlePartyScreen", text),
+        };
+        context.Screens.Observe(partyScreen);
+        context.Events.ObserveSerials(partyScreen);
+        context.AddControls(settings.Input(
+            BattleFeature.BattleFormation,
+            new FormationWatch(
+                context.BattleParty, context.BattleScene,
+                settings.Speech(BattleFeature.BattleFormation, context.Reader), TimeProvider.System,
+                (slot, unit, rest) => partyScreen.NameOf(unit) is { } name
+                    ? $"{name}, {rest}"
+                    : hitLines.MemberSays(slot, unit, rest))
+            {
+                Log = log is null ? null : text => log.Requested("BattleFormation", text),
+            }));
     }
 }

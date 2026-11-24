@@ -31,6 +31,9 @@ internal sealed class BattlePartyMemory(GameDataRead data) : IBattleParty, IBatt
     // (docs/findings/battle-hit-result-hp-left-static.md).
     private const int HpAt = 0x0C;
     private const int MpAt = 0x10;
+    // The flags word whose bit 22 FormationSet (0xf03f20) and FormationGet (0xf32ed0) write and read (#259,
+    // docs/findings/battle-party-swap-and-formation-static.md, build 548ddc95…). Read only.
+    private const int FlagsAt = 0x0;
 
     private readonly ConcurrentDictionary<long, int> maxByUnit = new();
 
@@ -43,7 +46,7 @@ internal sealed class BattlePartyMemory(GameDataRead data) : IBattleParty, IBatt
                 ModuleMemoryReader.ReadInt32(address + HpAt) is { } hp)
             {
                 members.Add(new PartyMember(slot, unit, hp, maxByUnit.TryGetValue(address, out var max) ? max : null,
-                    ModuleMemoryReader.ReadInt32(address + MpAt)));
+                    ModuleMemoryReader.ReadInt32(address + MpAt), ModuleMemoryReader.ReadInt32(address + FlagsAt)));
             }
         }
         return members;

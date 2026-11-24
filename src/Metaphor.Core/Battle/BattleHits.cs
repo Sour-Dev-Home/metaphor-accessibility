@@ -46,8 +46,19 @@ public sealed class NoBattleHits : IBattleHitObserver
 }
 
 /// <summary>A party member as the game data holds it now (#247): its slot from 0, its unit number, its HP, its max
-/// HP when a hit has shown it, else null, and its MP when read (#692).</summary>
-public sealed record PartyMember(int Slot, int Unit, int Hp, int? HpMax, int? Mp = null);
+/// HP when a hit has shown it, else null, its MP when read (#692), and its unit's flags word at <c>+0x0</c> when read
+/// (#259), whose bit 22 (<see cref="BackRowBit"/>) is the Formation row.</summary>
+public sealed record PartyMember(int Slot, int Unit, int Hp, int? HpMax, int? Mp = null, int? Flags = null)
+{
+    /// <summary>The Formation bit of <see cref="Flags"/>: <c>0x400000</c>, which <c>FormationSet</c> (<c>0xf03f20</c>)
+    /// writes and <c>FormationGet</c> (<c>0xf32ed0</c>) reads on build 548ddc95…
+    /// (docs/findings/battle-party-swap-and-formation-static.md). Which value is the back row is
+    /// <c>[NEEDS VERIFICATION]</c> by ear.</summary>
+    public const int BackRowBit = 0x400000;
+
+    /// <summary>The Formation bit, or null when the flags weren't read.</summary>
+    public bool? RowBit => Flags is { } flags ? (flags & BackRowBit) != 0 : null;
+}
 
 /// <summary>Reads the party's members and HP from the game data; empty when it can't.</summary>
 public interface IBattleParty

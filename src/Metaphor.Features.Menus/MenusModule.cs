@@ -1,3 +1,4 @@
+using Metaphor.Core.Battle;
 using Metaphor.Core.Cues;
 using Metaphor.Core.Features;
 using Metaphor.Core.Input;
@@ -147,9 +148,18 @@ public sealed class MenusModule : IFeatureModule
         var battleListSpeech = settings.Speech(MenusFeature.BattleLists, reader);
         // A whole view fetched again, as after a wrap, names its rows behind its own setting while tested (#737).
         bool ListViewsOn() => settings.Current.IsOn(MenusFeature.BattleListViews);
+        // The battle module, after this one, adds each skill's cost (#692 (b)) and the Synthesis list's setting (#260),
+        // each its own battle setting.
+        var additions = new BattleListAdditions();
+        context.Provide(additions);
         BattleListFocus[] battleLists =
         [
-            BattleListFocus.Skills(serials, battleListSpeech, cleaner, () => Environment.TickCount64, ListViewsOn),
+            BattleListFocus.Skills(
+                serials, battleListSpeech, cleaner, () => Environment.TickCount64, ListViewsOn,
+                name => additions.CostOf(name, turnIcons: false)),
+            BattleListFocus.Synthesis(
+                serials, battleListSpeech, cleaner, () => Environment.TickCount64, ListViewsOn,
+                name => additions.CostOf(name, turnIcons: true), additions.SynthesisOn),
             // The item list's tabs say their names behind their own setting while tested (#851).
             BattleListFocus.Items(serials, battleListSpeech, cleaner, () => Environment.TickCount64, ListViewsOn,
                 () => settings.Current.IsOn(MenusFeature.BattleItemTabs)),
