@@ -14,7 +14,8 @@ Most issues need your own copy of the game, but many don't. Claim first, so two 
 - **No game needed:** every open issue without `needs-game` or `needs-game-session`
   ([filter](https://github.com/Sour-Dev-Home/metaphor-accessibility/issues?q=is%3Aopen+-label%3Aneeds-game+-label%3Aneeds-game-session)).
   Docs, check scripts, tests and anything the unit tests cover live here. `gh issue list --search "-label:needs-game"`
-  gives the same list.
+  gives the same list. A feature whose game event a finding already pins can be built and tested this way too:
+  [build a feature without the game](how-to/build-a-feature-without-the-game.md).
 - **Start small:** [`good first issue`](https://github.com/Sour-Dev-Home/metaphor-accessibility/issues?q=is%3Aopen+label%3A%22good+first+issue%22)
   marks a small issue with clear acceptance criteria.
 - **Ready to build:** `ready-for-agent` and `ready-for-human` mean fully specified; skip `needs-triage` and `needs-info`
@@ -211,7 +212,8 @@ How-tos: [set up a clone](how-to/set-up-a-clone.md), [add a hook](how-to/add-a-h
 [merge main into a draft PR](how-to/merge-main-into-a-draft-pr.md),
 [run a game session](how-to/run-a-game-session.md), [a check or CI failed](how-to/a-check-or-ci-failed.md),
 [write a finding or save a raw source](how-to/write-a-finding.md),
-[add a feature project](how-to/add-a-feature-project.md), [handle a game update](how-to/handle-a-game-update.md),
+[add a feature project](how-to/add-a-feature-project.md),
+[build a feature without the game](how-to/build-a-feature-without-the-game.md), [handle a game update](how-to/handle-a-game-update.md),
 [write a player doc](how-to/write-a-player-doc.md), [plan a chapter](how-to/plan-a-chapter.md),
 [scrub a chapter](how-to/scrub-a-chapter.md), [name a nearby thing](how-to/name-a-nearby-thing.md),
 [fit the objective markers](how-to/fit-objective-markers.md),

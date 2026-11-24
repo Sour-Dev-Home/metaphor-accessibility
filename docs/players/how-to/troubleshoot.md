@@ -47,7 +47,14 @@ You heard "Metaphor accessibility couldn't start; the mod is off", or the game s
    with `startup:` say how each part of the mod started.
 3. If Windows blocked the installer or its files, see
    [If Windows says the file is from the internet](install-the-mod.md#if-windows-says-the-file-is-from-the-internet).
-4. [Report it](#report-it).
+4. Your antivirus may have quarantined one of the mod's files, which stops the mod from loading. On Windows 11, open
+   Windows Security (press `Windows`, type `Windows Security`, press `Enter`), choose "Virus and threat protection",
+   then "Protection history". Look for an entry naming `metaphor.accessibility` or Reloaded-II. If you downloaded the
+   mod from the releases page and checked it ([Check a download](check-a-download.md)), open the entry and choose
+   "Restore" from its Actions. With another antivirus, look in its quarantine list instead. Then run the installer
+   again so the install check confirms every file is back, and [report it](#report-it) so we can ask the antivirus
+   maker to fix the false alarm. Don't turn your antivirus off or add exclusions for the mod.
+5. [Report it](#report-it).
 
 ## The mod went quiet after a game update
 

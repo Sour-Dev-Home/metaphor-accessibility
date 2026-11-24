@@ -4,11 +4,14 @@
 > Some details have not been checked by ear with a screen reader yet; they are listed in
 > [Not checked by ear yet](#not-checked-by-ear-yet). If a step is wrong, say so in an issue.
 
+**What you need:** the game installed on PC (single-player only), NVDA running, and the mod's download. That's all. You
+don't install Reloaded-II, the mod loader, yourself: the installer sets it up for you, and asks before each download.
+
 This guide installs the mod with its spoken installer: one file to open after extracting the zip. The installer sets up
 Reloaded-II, the program that loads the mod into the game, adds the game and the mod to it, and makes a desktop shortcut
 that starts the game with the mod. It is written for NVDA. Each step says what you should hear.
 
-You need the game installed on PC (single-player only) and NVDA running. Download the zip from the
+Download the zip from the
 [releases page](https://github.com/Sour-Dev-Home/metaphor-accessibility/releases) and check it first
 ([Check a download](check-a-download.md)).
 
