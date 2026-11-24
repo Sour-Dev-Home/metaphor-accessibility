@@ -223,6 +223,7 @@ public sealed class MenuScreensTests
 
     [Theory]
     [InlineData("TitleChoice@ope@ui@app", 0x4a8)]
+    [InlineData("BTL_ItemSelect@ope@ui@app", 0x44b8)]
     [InlineData("RootMenuChoice@ope@ui@app", null)]
     [InlineData(null, null)]
     public void OnlyAChoiceKnownToServeTwoListsHasAModeField(string? screenClass, int? offset)

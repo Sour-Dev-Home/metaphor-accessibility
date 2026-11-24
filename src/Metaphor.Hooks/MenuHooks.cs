@@ -72,6 +72,7 @@ internal sealed class MenuCursorHook : IGameHook, IObserves4WithResult
     private readonly MessageLog? log;
     private readonly ChangedBytes settingsCopies = new();
     private readonly ChangedBytes keyConfigStates = new();
+    private readonly ChangedBytes ownerStates = new();
 
     public MenuCursorHook(HookServices services)
     {
@@ -110,6 +111,30 @@ internal sealed class MenuCursorHook : IGameHook, IObserves4WithResult
             copy is { } read ? SettingValues.Of(read.Bytes) : null));
         LogSettingsCopy(copy);
         LogKeyConfigState(manager, screenClass);
+        LogOwnerStates(manager, screenClass);
+    }
+
+    // Debug builds only (the log is null in Release): the fields OwnerStates names for the screen's choice, each span
+    // when it changed since the choice's last input, so a session checks a static reading before a feature reads it
+    // (#806, #624, #219, #851). One bounded read per span through ModuleMemoryReader, capped at OwnerStates.MaxLength;
+    // nothing when the owner is unknown or a read fails.
+    private void LogOwnerStates(nint manager, string? screenClass)
+    {
+        if (log is null || screenClass is null || OwnerStates.Of(screenClass) is not { Count: > 0 } spans
+            || screenClasses.Owners.OwnerOf(manager) is not { } owner)
+        {
+            return;
+        }
+        foreach (var span in spans)
+        {
+            // An array, not stackalloc: a stack buffer's loads are raw-memory reads outside the reader (rule 10).
+            var bytes = new byte[Math.Min(span.Length, OwnerStates.MaxLength)];
+            if (ModuleMemoryReader.ReadBytes((nint)(owner + span.Offset), bytes)
+                && ownerStates.Changed(owner + span.Offset, bytes) is { } hex)
+            {
+                log.OwnerState(screenClass, owner, span.Offset, hex);
+            }
+        }
     }
 
     // A settings page's working copy (#560), read so the page's rows can say their values (#96): only on one of the four

@@ -20,6 +20,8 @@ public static class KnownScreens
         UnknownScreenFocus.DialogueChoice,
         .. QuestFocus.Screens,
         FollowerFocus.List,
+        ArchetypeTreeFocus.CharacterPick,
+        LevelUpFocus.Screen,
         SystemMenuFocus.Screen,
         .. ShopFocus.Screens,
         .. SettingsFocus.Screens,
