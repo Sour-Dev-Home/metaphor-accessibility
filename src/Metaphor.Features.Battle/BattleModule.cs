@@ -64,12 +64,17 @@ public sealed class BattleModule : IFeatureModule
         // The enemy HP keys (#767): K, J and L, and LB with the D-pad, each its own testing feature on top of the hits,
         // so the game keeps F and R3; the menu controls take a key first while a battle list is shown. A Debug build
         // logs each all-enemies press's enemy records for the target read.
+        // The target cursor's enemy (#253), testing, which the keys start from.
+        var targeted = new TargetedEnemy(hitLines);
+        context.Provide<IBattleTargetObserver>(targeted);
         var enemyHp = new BattleEnemyHp(
             battleBindings, hitLines, context.BattleScene, battleSpeech,
             log is null ? null : text => log.Requested("BattleDetails", text))
         {
             SayMaxHp = () => settings.Current.IsOn(BattleFeature.BattleEnemyMaxHp),
             ListOn = () => settings.Current.IsOn(BattleFeature.BattleEnemyList),
+            Target = targeted,
+            TargetOn = () => settings.Current.IsOn(BattleFeature.BattleEnemyTarget),
             SayPositions = () => settings.Current.IsOn(SpokenDetail.Positions),
             Units = units,
         };

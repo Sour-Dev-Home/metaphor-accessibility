@@ -30,6 +30,13 @@ public enum BattleFeature
         "`L` take in every enemy, hit or not. Needs `battleHits`.")]
     BattleEnemyList,
 
+    /// <summary>The enemy HP keys starting from the enemy the target cursor is on (#253), read through the cursor's
+    /// vtable slot.</summary>
+    [SettingKey("speech", "battleEnemyTarget", "Battle targeted enemy first", Testing = true, Order = 1033,
+        Description = "After the target cursor moves to an enemy, `K` or `J` says that enemy first, then steps on " +
+        "from it, and `L` starts from it. Needs `battleEnemyList`.")]
+    BattleEnemyTarget,
+
     /// <summary>Enemy numbering started afresh when a battle ends (#750). Separate from the hits while it is tested.
     /// </summary>
     [SettingKey("speech", "battleNumberReset", "Battle number reset", Testing = true, Order = 1035, Description =

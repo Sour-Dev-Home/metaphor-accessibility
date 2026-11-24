@@ -21,8 +21,22 @@ public static class RttiName
         ArgumentNullException.ThrowIfNull(readPointer);
         ArgumentNullException.ThrowIfNull(readInt32);
         ArgumentNullException.ThrowIfNull(readAnsi);
+        return readPointer(instance) is { } vtable
+            ? OfVtable(vtable, moduleBase, moduleSize, readPointer, readInt32, readAnsi)
+            : null;
+    }
+
+    /// <summary>The class of the vtable at <paramref name="vtable"/>, as <see cref="Of"/> names an object's (#253).
+    /// </summary>
+    public static string? OfVtable(
+        long vtable, long moduleBase, long moduleSize, Func<long, long?> readPointer, Func<long, int?> readInt32,
+        Func<long, string?> readAnsi)
+    {
+        ArgumentNullException.ThrowIfNull(readPointer);
+        ArgumentNullException.ThrowIfNull(readInt32);
+        ArgumentNullException.ThrowIfNull(readAnsi);
         bool InModule(long address) => address >= moduleBase && address - moduleBase < moduleSize;
-        if (readPointer(instance) is not { } vtable || !InModule(vtable) ||
+        if (!InModule(vtable) ||
             readPointer(vtable - 8) is not { } locator || !InModule(locator) ||
             readInt32(locator) != 1 || readInt32(locator + 0x14) != locator - moduleBase ||
             readInt32(locator + 0x0C) is not { } descriptorRva || !InModule(moduleBase + descriptorRva) ||

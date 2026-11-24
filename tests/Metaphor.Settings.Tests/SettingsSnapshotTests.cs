@@ -35,6 +35,7 @@ public sealed class SettingsSnapshotTests
         "speech.battleEnemyList | Battle enemy list | off | testing",
         "speech.battleEnemyMaxHp | Battle enemy max HP | on | done",
         "speech.battleEnemyPad | Battle enemy pad chords | off | testing",
+        "speech.battleEnemyTarget | Battle targeted enemy first | off | testing",
         "speech.battleHitNumbers | Battle hit numbers only | off | testing",
         "speech.battleHits | Battle hits | on | done",
         "speech.battleHpMp | Battle HP and MP key | off | testing",

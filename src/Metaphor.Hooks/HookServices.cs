@@ -141,6 +141,9 @@ internal sealed record HookServices
     /// <summary>Where the battle package hook reports the enemy list (#750).</summary>
     public IBattleEnemyObserver BattleEnemies { get; init; } = new NoBattleEnemies();
 
+    /// <summary>Where the target cursor hook reports each slot the cursor focuses (#253).</summary>
+    public IBattleTargetObserver BattleTarget { get; init; } = new NoBattleTarget();
+
     /// <summary>Says the battle's situation banners (#692): the banner hooks hand it each one shown; null for none.
     /// </summary>
     public BattleBanners? BattleBanners { get; init; }
@@ -323,6 +326,7 @@ internal sealed record HookServices
             Serials = serials,
             BattleHits = context.Find<IBattleHitObserver>() ?? new NoBattleHits(),
             BattleEnemies = context.Find<IBattleEnemyObserver>() ?? new NoBattleEnemies(),
+            BattleTarget = context.Find<IBattleTargetObserver>() ?? new NoBattleTarget(),
             BattleParty = party,
             BattleBanners = context.Find<BattleBanners>(),
             BattleScene = battleScene,

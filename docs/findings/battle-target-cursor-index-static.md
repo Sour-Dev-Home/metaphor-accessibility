@@ -6,6 +6,9 @@
   [`battle-turn-icons-and-ui-components-static.md`](battle-turn-icons-and-ui-components-static.md),
   [`battle-state-session6-2026-11-17.md`](../raw-sources/battle-state-session6-2026-11-17.md),
   [`menu-values-session5-2026-11-17.md`](../raw-sources/menu-values-session5-2026-11-17.md)
+- **Functions:**
+  - BattleTargetCursorFocus | 0xf26ec0 | .ecode | Battle | hooked | `UUIC_Battle_TargetCursor` slot 4: focuses target slot `index`.
+  - UUIC_Battle_TargetCursor vtable | 0x2250280 | .udata | Battle | hooked | 14 slots; slot 4 at `+0x20` is swapped (#253).
 
 `UUIC_Battle_TargetCursor` (vtable `0x2250280`) holds no `CursorManager`, so the shared cursor hook never sees it
 (#247, 2026-11-20). Its slot 4, `0xf26ec0` (`BattleTargetCursorFocus`, our name), takes `(this, uint index)` and
@@ -32,6 +35,30 @@ passes it to its layout: that index is the targeted slot. Which enemy a slot is,
   mod would locate it and swap the vtable's slot 4 (`0x2250280 + 0x20`), which is data, not code. That is a new kind
   of patch, so it needs the maintainer's yes and a hook-loader build check like every other.
 
+## The vtable swap (#253)
+
+Added 2026-11-24 for the swap the maintainer decided on 2026-11-23 (#253).
+
+- **Where the slot is.** The vtable is at rva `0x2250280` in `.udata`, which the section table marks initialised,
+  readable, not writable (`0x40000040`); slot 4 is the 8 bytes at `0x22502a0`, holding `0x140f26ec0` on disk. The
+  8 bytes before the vtable (`0x2250278`) hold `0x14248cfa0`, its RTTI complete object locator, whose class is
+  `UUIC_Battle_TargetCursor@ui@app` (Ghidra's `vtable` query). `rtti 0xf26ec0` finds the function in this one vtable
+  only, and its only reference is that data slot, so every call to it goes through slot 4.
+- **No code to patch, no `.text1`.** `0xf26ec0` and `0xaea700` are in `.ecode`. The vtable's slots 0 and 1 jump into
+  `.text1` (`0xf7a63a0`, `0xf7a9930`) and the constructor isn't in analysed code (`global 0x2250280` finds no
+  instruction), so the mod can't locate the vtable from a load; it takes the rva for this build and checks it
+  (below). Nothing in `.text1` is touched.
+- **What the index indexes.** `[layout+0x60]` is a `fw::StaticArray<TargetCursorLayout::MeshInfo, N>`: two such
+  vtables follow the cursor's, `N = 6` (`0x2250348`) and `N = 10` (`0x2250320`), and the two constant functions
+  after slot 4 are their slot 3. So the index is a cursor mesh, one per possible target position, among 6 or 10.
+  That mesh `i` is enemy `i` of the battle package's list is a guess `[NEEDS VERIFICATION]`: six is the encounter
+  record's enemy slot count, and the list skips empty ones
+  ([order note](battle-enemy-list-order-and-update-hook-static.md)), so a formation with a gap would shift it. Which
+  cursor (enemy side or ally side) a call is for isn't known either.
+- **What the mod checks before writing.** The loader's build check and the slot-4 signature matching once; then
+  that slot 4 holds that signature's address, and that the locator before the vtable names
+  `UUIC_Battle_TargetCursor@ui@app`. Otherwise it writes nothing.
+
 ## Steps
 
 Ghidra 12.2 shared project (`scripts/dev/ghidra.ps1`,
@@ -40,5 +67,18 @@ Ghidra 12.2 shared project (`scripts/dev/ghidra.ps1`,
 1. `vtable 0x2250280`; `decompile 0xf26ec0` and `0xf27a50`.
 2. `dotnet run --project tools/Metaphor.SignatureCheck -c Release -- --bytes <exe> 0xf26ec0 96`: the jump and the two
    constants. Then `--probes <exe> tools/Metaphor.SignatureCheck/battle-turn-probes.json`.
+
+For the swap, 2026-11-24, the same project and build, through `scripts/dev/ghidra.ps1 batch <file>` (4 runs, 22
+queries):
+
+3. `vtable 0x2250280`, `global 0x2250280`, `disasm 0xf26ec0`, `rtti 0xf26ec0`; `disasm 0xf26e60`, `0xf26f40`,
+   `0xf26f20`, `callers 0xf26e60`.
+4. `rtti` and `disasm` of `0xf26ed0` to `0xf26f00`, `decompile 0xaea700`, `callers 0xaea700`,
+   `vtable app::ui::UUIC_Parts_Base`; `rtti 0xaea700`, `vtable app::ui::TargetCursorLayout`, `vtable 0x2250348`,
+   `vtable 0x2250320`.
+5. `--bytes <exe> 0x2250278 0x78`: the locator pointer and the 14 slots, slot 4 `0x140f26ec0`; `--probes` again:
+   `BattleTargetCursorFocus` one match at rva `0xf26ec0`.
+6. The section table from the exe's PE header: `.ecode` `0x1000`-`0x17c0000`, `.udata` from `0x17c0000`
+   (`0xf69000` long, characteristics `0x40000040`).
 
 Nothing in `.text1`, `.xcode` or `.xtext` was decompiled.

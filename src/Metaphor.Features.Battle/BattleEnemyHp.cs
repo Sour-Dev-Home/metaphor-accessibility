@@ -23,10 +23,11 @@ namespace Metaphor.Features.Battle;
 /// it is, the keys step through the known enemies, and each all-enemies press is logged (Debug builds) with each
 /// enemy's record address, to match against a target read in the next session. With <see cref="ListOn"/> (#750, the
 /// maintainer's decision of 2026-11-23 on #253) the keys take in every enemy in the battle's list, hit or not, from the
-/// first in the list, since no read of the targeted enemy exists yet; starting from it is #253's.</remarks>
+/// first in the list. With <see cref="TargetOn"/> too (#253), a step after the target cursor moves says the enemy it is
+/// on, and the all-enemies key starts from it; with no target in this battle they start from the first.</remarks>
 [FeatureSetting<BattleFeature>(
     BattleFeature.BattleHits, BattleFeature.BattleEnemyKeys, BattleFeature.BattleEnemyPad,
-    BattleFeature.BattleEnemyList)]
+    BattleFeature.BattleEnemyList, BattleFeature.BattleEnemyTarget)]
 public sealed class BattleEnemyHp
 {
     private const string NoEnemy = "No enemy hit yet";
@@ -39,6 +40,7 @@ public sealed class BattleEnemyHp
     private readonly Lock gate = new();
     private long? current;
     private long currentBattle;
+    private long stepMoves;
 
     /// <summary>The keys on the bindings in force, read on each input read (#661); <paramref name="log"/> hears each
     /// all-enemies press's candidate fields, or null for none.</summary>
@@ -106,13 +108,23 @@ public sealed class BattleEnemyHp
             Say(NoEnemy);
             return;
         }
+        var targeted = Targeted(enemies);
         int next;
         lock (gate)
         {
             var at = current is { } target && currentBattle == battle ? IndexOf(enemies, target) : -1;
-            next = at < 0
-                ? (by > 0 ? 0 : enemies.Count - 1)
-                : ((at + by) % enemies.Count + enemies.Count) % enemies.Count;
+            // The cursor moved since the last step (#253): start at its enemy, whichever way the key steps.
+            if (targeted is { } cursor && (cursor.Moves != stepMoves || at < 0))
+            {
+                next = cursor.Index;
+                stepMoves = cursor.Moves;
+            }
+            else
+            {
+                next = at < 0
+                    ? (by > 0 ? 0 : enemies.Count - 1)
+                    : ((at + by) % enemies.Count + enemies.Count) % enemies.Count;
+            }
             current = enemies[next].Target;
             currentBattle = battle;
         }
@@ -122,9 +134,16 @@ public sealed class BattleEnemyHp
             : Hp(enemies[next]));
     }
 
+    // The targeted enemy's place in the list the keys step through, with TargetOn over the whole list only (#253).
+    private (int Index, long Moves)? Targeted(IReadOnlyList<ListedEnemy> enemies) =>
+        Target is { } target && TargetOn() && ListOn() ? target.In(enemies.Count) : null;
+
     private void All()
     {
-        var enemies = Enemies();
+        var listed = Enemies();
+        // From the targeted enemy round to the one before it (#253).
+        var from = Targeted(listed)?.Index ?? 0;
+        var enemies = listed.Skip(from).Concat(listed.Take(from)).ToList();
         log?.Invoke(string.Create(CultureInfo.InvariantCulture, $"enemies={enemies.Count}") + string.Concat(
             enemies.Select(enemy => string.Create(CultureInfo.InvariantCulture,
                 $" {enemy.Label} record=0x{enemy.Target:x} hp={enemy.Hp} max={(enemy.HpMax is { } m ? m.ToString(CultureInfo.InvariantCulture) : "?")}{(Units is null ? "" : $" read={Units.Hp(enemy.Target)}")}"))));
@@ -150,6 +169,13 @@ public sealed class BattleEnemyHp
     /// <summary>Whether the keys take in every enemy in the battle's list, hit or not (#750,
     /// <see cref="BattleFeature.BattleEnemyList"/>); off when unset.</summary>
     public Func<bool> ListOn { get; init; } = () => false;
+
+    /// <summary>Where the target cursor is (#253); none when null.</summary>
+    public TargetedEnemy? Target { get; init; }
+
+    /// <summary>Whether the keys start from the targeted enemy (#253, <see cref="BattleFeature.BattleEnemyTarget"/>),
+    /// over the whole list only (<see cref="ListOn"/>); off when unset.</summary>
+    public Func<bool> TargetOn { get; init; } = () => false;
 
     /// <summary>Whether a step over the list ends in "n of total" (<c>speech.positions</c>); on when unset.</summary>
     public Func<bool> SayPositions { get; init; } = () => true;
