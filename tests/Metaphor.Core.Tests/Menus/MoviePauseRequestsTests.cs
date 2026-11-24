@@ -21,6 +21,23 @@ public sealed class MoviePauseRequestsTests
     }
 
     [Fact]
+    public void AnObserverWhoseSettingIsOffIsNotWantedAndHearsNothing()
+    {
+        var on = false;
+        requests.Observe(observer, () => on);
+
+        Assert.False(requests.Any);
+        requests.Requested(MoviePauseRequests.Show);
+        Assert.Equal(0, observer.Opens);
+
+        on = true;
+
+        Assert.True(requests.Any);
+        requests.Requested(MoviePauseRequests.Show);
+        Assert.Equal(1, observer.Opens);
+    }
+
+    [Fact]
     public void AShowRequestIsTheOpen()
     {
         requests.Observe(observer);

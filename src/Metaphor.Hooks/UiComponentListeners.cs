@@ -71,8 +71,8 @@ internal sealed class LayoutAnimationListener : IGameHook, IObserves5
 /// (docs/findings/movie-pause-open-static.md). It hands the value to <see cref="MoviePauseRequests"/>, so the skip
 /// menu's question is said as it opens (#809, the maintainer's decision of 2026-11-23: option (a), a read-only Release
 /// hook). Only reads: the loader's adapter guards Observe and calls the original unchanged (rule 14). A Debug build
-/// also logs each request. In a Release build with no feature hearing the menu it reads nothing; otherwise it reads two
-/// bytes a request. How often the game sends one is <c>[NEEDS VERIFICATION]</c>: no analysed code calls the handler, which is
+/// also logs each request. In a Release build with no feature hearing the menu (its setting off) it reads nothing;
+/// otherwise it reads the request's first <c>0x41</c> bytes in one call (#864). How often the game sends one is <c>[NEEDS VERIFICATION]</c>: no analysed code calls the handler, which is
 /// reached through the component's vtable from <c>.xcode</c>.</summary>
 [GameHook(GameBuilds.Steam18330018)]
 internal sealed class MoviePauseRequestListener : IGameHook, IObserves3

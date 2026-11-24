@@ -114,4 +114,40 @@ public sealed class FieldTablesTests
         Assert.Equal("field tables: can't read the archive: IOException", said);
         Assert.Null(source.MapNameHash(1));
     }
+
+    [Fact]
+    public async Task AFailedLoadGoesToTheErrorSinkNotTheOrdinaryOne()
+    {
+        string? said = null;
+        string? error = null;
+
+        await new FieldTablesSource().LoadInBackground(
+            () => throw new IOException("stand-in"), line => said = line, line => error = line);
+
+        Assert.Null(said);
+        Assert.Equal("field tables: can't read the archive: IOException", error);
+    }
+
+    [Fact]
+    public async Task ALoadThatFindsNoTablesIsAFailedLoadToo()
+    {
+        string? said = null;
+        string? error = null;
+
+        await new FieldTablesSource().LoadInBackground(() => new MemoryStream(), line => said = line, line => error = line);
+
+        Assert.Null(said);
+        Assert.Matches("^field tables: no maps, no objectives in [0-9]+ ms$", error);
+    }
+
+    [Fact]
+    public async Task TheMapsAreLoadedOnlyOnceTheTableHasBeenRead()
+    {
+        var source = new FieldTablesSource();
+        Assert.False(source.MapsLoaded);
+
+        await source.LoadInBackground(() => new MemoryStream(), _ => { });
+
+        Assert.False(source.MapsLoaded); // read, but it held no map table
+    }
 }

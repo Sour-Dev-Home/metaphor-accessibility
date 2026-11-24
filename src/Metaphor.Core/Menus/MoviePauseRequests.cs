@@ -18,16 +18,31 @@ public sealed class MoviePauseRequests
     /// <summary>The request's value that shows the menu.</summary>
     public const int Show = 1;
 
-    private readonly List<IMoviePauseObserver> observers = [];
+    private readonly List<(IMoviePauseObserver Observer, Func<bool> Wanted)> observers = [];
 
-    /// <summary>Whether any feature hears the menu: none, and the hook reads nothing in a Release build.</summary>
-    public bool Any => observers.Count > 0;
+    /// <summary>Whether any feature hears the menu right now: none (or each one's setting off), and the hook reads
+    /// nothing in a Release build (#864).</summary>
+    public bool Any
+    {
+        get
+        {
+            foreach (var (_, wanted) in observers)
+            {
+                if (wanted())
+                {
+                    return true;
+                }
+            }
+            return false;
+        }
+    }
 
-    /// <summary>Adds an observer of the menu's open.</summary>
-    public void Observe(IMoviePauseObserver observer)
+    /// <summary>Adds an observer of the menu's open, which hears it only while <paramref name="wanted"/> says so (always,
+    /// when null): the feature's setting, which can change while the game runs.</summary>
+    public void Observe(IMoviePauseObserver observer, Func<bool>? wanted = null)
     {
         ArgumentNullException.ThrowIfNull(observer);
-        observers.Add(observer);
+        observers.Add((observer, wanted ?? (() => true)));
     }
 
     /// <summary>A request with <paramref name="value"/>, null when it held none or was unreadable: on
@@ -38,9 +53,12 @@ public sealed class MoviePauseRequests
         {
             return;
         }
-        foreach (var observer in observers)
+        foreach (var (observer, wanted) in observers)
         {
-            observer.Opened();
+            if (wanted())
+            {
+                observer.Opened();
+            }
         }
     }
 }

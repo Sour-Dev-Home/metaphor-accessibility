@@ -1,4 +1,5 @@
 using Metaphor.Core.Announcements;
+using Metaphor.Core.Logging;
 using Metaphor.Core.Messages;
 
 namespace Metaphor.Features.Field;
@@ -25,6 +26,8 @@ public sealed class FieldPlace : IMessageFileObserver
 
     private readonly TextCleaner cleaner;
     private readonly Func<int, string?> mapNameHash;
+    private readonly UnknownValues unknowns;
+    private readonly Func<bool> tablesLoaded;
     private readonly Lock gate = new();
     private readonly List<int> labels = [];
     private GameMessage[] names = [];
@@ -32,12 +35,17 @@ public sealed class FieldPlace : IMessageFileObserver
     private int? map;
 
     /// <summary>A place that cleans names with <paramref name="cleaner"/> and finds a map's own name's label hash with
-    /// <paramref name="mapNameHash"/> (null, or a null hash, when unknown).</summary>
-    public FieldPlace(TextCleaner cleaner, Func<int, string?>? mapNameHash = null)
+    /// <paramref name="mapNameHash"/> (null, or a null hash, when unknown). A map id with no name in the table is
+    /// reported to <paramref name="unknowns"/> once per id, but only while <paramref name="tablesLoaded"/> says the table
+    /// has loaded: until then every map reads as unknown (#843).</summary>
+    public FieldPlace(
+        TextCleaner cleaner, Func<int, string?>? mapNameHash = null, UnknownValues? unknowns = null, Func<bool>? tablesLoaded = null)
     {
         ArgumentNullException.ThrowIfNull(cleaner);
         this.cleaner = cleaner;
         this.mapNameHash = mapNameHash ?? (_ => null);
+        this.unknowns = unknowns ?? UnknownValues.None;
+        this.tablesLoaded = tablesLoaded ?? (() => false);
     }
 
     /// <summary>Keeps <c>MapName.msg</c>'s messages in file order when the game compiles it.</summary>
@@ -108,7 +116,12 @@ public sealed class FieldPlace : IMessageFileObserver
                     .Select(label => cleaner.Clean(names[label].Text))
                     .Where(text => text is { Length: > 0 })
                     .ToList();
-            if ((mapId ?? map) is { } id && mapNameHash(id) is { } hash && byHash.TryGetValue(hash, out var own) &&
+            var ownHash = (mapId ?? map) is { } id ? mapNameHash(id) : null;
+            if (ownHash is null && (mapId ?? map) is { } unknownId && tablesLoaded())
+            {
+                unknowns.Report("map", unknownId.ToString(System.Globalization.CultureInfo.InvariantCulture));
+            }
+            if (ownHash is { } hash && byHash.TryGetValue(hash, out var own) &&
                 cleaner.Clean(own.Text) is { Length: > 0 } area && said.Count < MaxNames && !said.Contains(area))
             {
                 said.Add(area);

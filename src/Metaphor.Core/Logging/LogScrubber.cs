@@ -25,11 +25,27 @@ public sealed class LogScrubber
 
     private const string ShortName = @"[^\\/\s~]{1,7}~[0-9]+(?:\.[^\\/\s.]{1,3})?";
 
-    /// <summary>Sixteen or more bytes written as hex pairs with a separator, as a memory dump prints them, or one hex run
-    /// longer than a SHA-256's 64 digits, so the commit and game build hashes stay.</summary>
+    /// <summary>The fewest bytes written as hex pairs with a separator that count as a memory dump (#843).</summary>
+    private const int MinSeparatedBytes = 8;
+
+    /// <summary>The fewest hex digits in an unseparated run that can be a memory dump: 17 bytes. A run of up to 32 digits
+    /// stays, since a message label's MD5 is 32 and the logs name those.</summary>
+    private const int MinRunDigits = 34;
+
+    /// <summary>The longest unseparated run that is judged by its length; a longer one is always a dump.</summary>
+    private const int Sha256Digits = 64;
+
+    /// <summary>Eight or more bytes written as hex pairs with a separator, as a memory dump prints them, or an
+    /// unseparated hex run of 34 digits or more (<see cref="IsDump"/> says which of those it is), a candidate for a
+    /// dump of 17 bytes or more.</summary>
     private static readonly Regex Dump = new(
-        @"(?<![0-9A-Fa-f])(?:[0-9A-Fa-f]{2}(?:[ ,:\-][0-9A-Fa-f]{2}){15,}|[0-9A-Fa-f]{65,})(?![0-9A-Fa-f])",
+        $@"(?<![0-9A-Fa-f])(?:[0-9A-Fa-f]{{2}}(?:[ ,:\-][0-9A-Fa-f]{{2}}){{{MinSeparatedBytes - 1},}}|[0-9A-Fa-f]{{{MinRunDigits},}})(?![0-9A-Fa-f])",
         RegexOptions.CultureInvariant, MatchTimeout);
+
+    /// <summary>Whether a hex run the pattern found is a dump: any separated one, and an unseparated one of an even number
+    /// of digits other than a commit's 40 and a SHA-256's 64, or any longer than that.</summary>
+    private static bool IsDump(string run, int digits) =>
+        run.Any(c => !char.IsAsciiHexDigit(c)) || digits > Sha256Digits || (digits % 2 == 0 && digits is not (40 or 64));
 
     private readonly Regex[] redacted;
     private readonly Lock gate = new();
@@ -47,7 +63,9 @@ public sealed class LogScrubber
     public static LogScrubber None() => new([]);
 
     /// <summary>Adds a name the player typed (the protagonist's, or their own at the guide prompt), so every later line
-    /// says <see cref="Name"/> for it. Matched as a whole word in any case; blank names are ignored.</summary>
+    /// says <see cref="Name"/> for it. Matched as a whole word in any case; blank names are ignored. A name is replaced
+    /// only after the mod has read it in this session, and only as a whole word: a line written before the mod read it,
+    /// or a name inside a longer word, keeps it (#843).</summary>
     public void AddName(string? name)
     {
         var trimmed = name?.Trim();
@@ -76,9 +94,13 @@ public sealed class LogScrubber
         {
             var text = redacted.Aggregate(line ?? "", (current, pattern) => pattern.Replace(current, Redacted));
             text = names.Aggregate(text, (current, pattern) => pattern.Replace(current, Name));
-            return Dump.Replace(text, match => string.Create(
-                System.Globalization.CultureInfo.InvariantCulture,
-                $"<memory dump, {match.Value.Count(char.IsAsciiHexDigit) / 2} bytes>"));
+            return Dump.Replace(text, match =>
+            {
+                var digits = match.Value.Count(char.IsAsciiHexDigit);
+                return IsDump(match.Value, digits)
+                    ? string.Create(System.Globalization.CultureInfo.InvariantCulture, $"<memory dump, {digits / 2} bytes>")
+                    : match.Value;
+            });
         }
         catch (RegexMatchTimeoutException)
         {

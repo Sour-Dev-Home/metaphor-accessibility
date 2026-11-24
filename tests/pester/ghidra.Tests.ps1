@@ -244,6 +244,22 @@ exit 0
         ($work[0] -split "`t")[0] | Should -Match 'disasm-0x1000\.txt$'
     }
 
+    It 'reads a relative batch file from the caller''s current folder, from any folder (#799)' {
+        New-BatchFile 'disasm 0x1000' | Out-Null
+        $sub = New-Item -ItemType Directory -Force (Join-Path $root 'sub')
+        Set-Content -LiteralPath (Join-Path $sub 'q.txt') -Value 'offset 0x48 Cursor'
+        Push-Location $root
+        try {
+            $plain = Invoke-Query 'batch', 'queries.txt'
+            $nested = Invoke-Query 'batch', ('.' + [IO.Path]::DirectorySeparatorChar + 'sub' + [IO.Path]::DirectorySeparatorChar + 'q.txt')
+        }
+        finally { Pop-Location }
+        $plain.ExitCode | Should -Be 0 -Because $plain.Output
+        $plain.Output | Should -Match '# disasm 0x1000 answered'
+        $nested.ExitCode | Should -Be 0 -Because $nested.Output
+        $nested.Output | Should -Match '# offset 0x48 answered'
+    }
+
     It 'prints each answer under a separator naming its query, and keeps each answer file' {
         $file = New-BatchFile 'disasm 0x1000', 'offset 0x48 Cursor'
         $result = Invoke-Query 'batch', $file

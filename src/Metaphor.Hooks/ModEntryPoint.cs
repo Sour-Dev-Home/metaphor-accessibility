@@ -204,10 +204,13 @@ public sealed class ModEntryPoint : IMod
             // its startup result.
             if (status.HooksLoaded > 0 && Path.GetDirectoryName(Environment.ProcessPath) is { Length: > 0 } gameFolder)
             {
+                // A failed load is an error line, on disk before the game goes on (#843).
                 _ = services.Tutorials.LoadInBackground(
-                    () => File.OpenRead(Path.Combine(gameFolder, "base.cpk")), line => log.Result(line));
+                    () => File.OpenRead(Path.Combine(gameFolder, "base.cpk")), line => log.Result(line),
+                    line => log.Result(line, failed: true));
                 _ = services.FieldTables.LoadInBackground(
-                    () => File.OpenRead(Path.Combine(gameFolder, "base.cpk")), line => log.Result(line));
+                    () => File.OpenRead(Path.Combine(gameFolder, "base.cpk")), line => log.Result(line),
+                    line => log.Result(line, failed: true));
             }
 #if DEBUG
             // After the hooks, so its reads never race their installation; read-only, so the build check isn't needed.

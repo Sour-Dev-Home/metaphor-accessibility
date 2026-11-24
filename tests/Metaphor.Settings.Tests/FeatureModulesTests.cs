@@ -77,6 +77,9 @@ public sealed class FeatureModulesTests
     {
         var context = Register(withReport: false);
 
+        // Testing and off by default: the hook reads nothing (#864); on, it is wanted.
+        Assert.False(context.MoviePause.Any);
+        context.Settings.Load("""{ "speech": { "skipSceneQuestion": true } }""");
         Assert.True(context.MoviePause.Any);
     }
 

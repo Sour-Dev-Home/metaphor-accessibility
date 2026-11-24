@@ -1345,8 +1345,24 @@ test_pre_push_reuses_a_recorded_pass_without_taking_the_lock() {
 MERGE_GATE="$WORK/merge-gate"
 mkdir -p "$MERGE_GATE/bin" "$MERGE_GATE/ci" "$MERGE_GATE/check" "$MERGE_GATE/setup"
 cp "$ROOT/scripts/ci/what-runs.sh" "$MERGE_GATE/ci/"
-cp "$ROOT/scripts/check/live-log.sh" "$ROOT/scripts/check/merge.sh" "$MERGE_GATE/check/"
-printf '#!/usr/bin/env bash\necho "dotnet $*" >> "$MERGE_LOG"\n[ -z "${DOTNET_FAIL:-}" ]\n' > "$MERGE_GATE/bin/dotnet"
+cp "$ROOT/scripts/check/live-log.sh" "$ROOT/scripts/check/merge.sh" "$ROOT/scripts/check/dotnet-test.sh" "$MERGE_GATE/check/"
+# The dotnet stand-in logs each call. `test` prints a summary line per run: a failed one when a test file under tests/
+# holds the PLANTED_FAILURE marker (it exits non-zero, or 0 with DOTNET_MASK=1: the failure only in the summary), else a
+# passed one. DOTNET_FAIL=1 fails every call.
+cat > "$MERGE_GATE/bin/dotnet" << 'EOF'
+#!/usr/bin/env bash
+echo "dotnet $*" >> "$MERGE_LOG"
+[ -z "${DOTNET_FAIL:-}" ] || exit 1
+if [ "$1" = test ] && [ -z "${DOTNET_SILENT:-}" ]; then
+  if grep -rqs PLANTED_FAILURE tests --include='*.cs'; then
+    echo "Failed!  - Failed:     1, Passed:     9, Skipped:     0, Total:    10, Duration: 1 s - Planted.Tests.dll (net9.0)"
+    [ -n "${DOTNET_MASK:-}" ] || exit 1
+  else
+    echo "Passed!  - Failed:     0, Passed:    10, Skipped:     0, Total:    10, Duration: 1 s - Planted.Tests.dll (net9.0)"
+  fi
+fi
+exit 0
+EOF
 for stand_in in check/run-pester.sh check/run-check-suites.sh setup/install-docs-tools.sh; do
   printf '#!/usr/bin/env bash\necho "%s" >> "$MERGE_LOG"\n' "$stand_in" > "$MERGE_GATE/$stand_in"
 done
@@ -1485,6 +1501,48 @@ test_full_on_a_merge_running_nothing_records_its_pass_under_a_slot() {
   expect 0 "waiting for another build check"
   out="$(cat "$(git rev-parse --absolute-git-dir)/check-pass-cache")"
   expect_absent "merge"
+}
+
+# plant_failing_test [amend]: a failing test in a feature test project of the current fixture repo (#858), committed (or
+# amended into the HEAD commit).
+plant_failing_test() {
+  mkdir -p tests/A.Tests
+  printf 'class Planted { void T() { /* PLANTED_FAILURE */ } }\n' > tests/A.Tests/Planted.cs
+  git add -A
+  if [ "${1:-}" = amend ]; then git commit -q --amend --no-verify --no-edit; else git commit -q --no-verify -m "test: plant a failure"; fi
+}
+
+# A failing test must fail full whatever the path: a plain run, a masked exit code, and a merge that reuses both parents'
+# passes (#858). The fixture is a temporary repository; the real suite is never touched.
+test_full_fails_when_a_planted_test_fails() {
+  pass_merge_repo CHANGELOG.md src/A/A.cs none # no recorded passes: a plain full runs everything
+  git reset -q --hard HEAD~1 # off the merge
+  plant_failing_test
+  run_merge_full
+  expect 1 "tests: Unit or RoundTrip tests failed"
+  expect_absent "reused the recorded pass"
+}
+
+test_full_fails_when_the_summary_reports_a_failure_but_dotnet_exits_zero() {
+  pass_merge_repo CHANGELOG.md src/A/A.cs none
+  git reset -q --hard HEAD~1
+  plant_failing_test
+  DOTNET_MASK=1 run_merge_full
+  expect 1 "exited 0 but its summary reports failed tests" "tests: Unit or RoundTrip tests failed"
+}
+
+test_full_fails_when_dotnet_test_runs_nothing() {
+  pass_merge_repo CHANGELOG.md src/A/A.cs none
+  git reset -q --hard HEAD~1
+  DOTNET_SILENT=1 run_merge_full
+  expect 1 "printed no test summary, so no tests ran"
+}
+
+test_full_on_a_merge_fails_when_a_test_the_merge_reaches_fails() {
+  pass_merge_repo src/A/More.cs src/A/A.cs # both sides reach project A, whose tests run
+  plant_failing_test amend # folded into the merge commit: still a merge of the same two parents
+  run_merge_full
+  expect 1 "tests: tests/A.Tests/A.Tests.csproj failed"
 }
 
 test_full_in_ci_never_narrows_a_merge() {

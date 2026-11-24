@@ -158,7 +158,10 @@ printf '#!/usr/bin/env bash\necho "ran $*" >> "$SUITES_LOG"\nexit "${SUITES_CODE
   > "$GATE/scripts/check/run-check-suites.sh"
 printf '#!/usr/bin/env bash\nexit 0\n' > "$GATE/scripts/check/run-pester.sh"
 printf '#!/usr/bin/env bash\necho "docs tools $*" >> "$DOCS_LOG"\n' > "$GATE/scripts/setup/install-docs-tools.sh"
-printf '#!/usr/bin/env bash\nexit 0\n' > "$WORK/bin/dotnet"
+printf '#!/usr/bin/env bash
+[ "$1" != test ] || echo "Passed!  - Failed: 0, Passed: 1, Total: 1 - S.dll"
+exit 0
+' > "$WORK/bin/dotnet"
 chmod +x "$WORK/bin/dotnet"
 export PATH="$WORK/bin:$PATH" SUITES_LOG="$WORK/suites.log" DOCS_LOG="$WORK/docs-tools.log" METAPHOR_CHECK_LOCK="$WORK/lock"
 

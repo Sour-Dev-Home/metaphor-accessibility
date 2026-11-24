@@ -229,6 +229,8 @@ if ($Command -eq 'build') {
 }
 
 if (-not $Target) { Stop-Start $(if ($Command -eq 'batch') { 'batch needs a file of queries, one per line' } else { "$Command needs a target" }) }
+# A relative batch file is the caller's current folder's, not the script's or the .NET process's (#799).
+if ($Command -eq 'batch') { $Target = [IO.Path]::GetFullPath($Target, (Get-Location).ProviderPath) }
 if ($Command -eq 'batch' -and -not (Test-Path -LiteralPath $Target -PathType Leaf)) { Stop-Start 'no batch file: give a file of queries, one per line' }
 if (-not (Test-Path -LiteralPath (Join-Path $project $readyFile))) {
     Stop-Start "no complete project for build $($build.Sha256.Substring(0, 16)): run scripts/dev/ghidra.ps1 build"
