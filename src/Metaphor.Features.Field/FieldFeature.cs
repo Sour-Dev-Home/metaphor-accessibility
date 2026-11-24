@@ -122,4 +122,10 @@ public enum FieldFeature
     [SettingKey("field", "heightPan", "Height pan", Testing = true, Order = 2190, Description = "The sonar, route " +
         "pings and guidance beep sit nearer the centre the farther above or below you their source is.")]
     HeightPan,
+
+    /// <summary>"Above" or "below" in the nearby list for a thing on another level (#650).</summary>
+    [SettingKey("field", "nearbyHeight", "Nearby height", Testing = true, Order = 2200, Description = "The nearby " +
+        "list says \"above\" or \"below\" after the direction of a thing well above or below you, such as on " +
+        "another floor.")]
+    NearbyHeight,
 }

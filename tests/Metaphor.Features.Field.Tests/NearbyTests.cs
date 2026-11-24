@@ -27,6 +27,35 @@ public sealed class NearbyTests
         Assert.Equal(["Chest, 4 steps ahead", "Door, 10 steps ahead"], texts);
     }
 
+    // #650: "above" or "below" from the game's reach height, 300 units, and only when asked for.
+    [Theory]
+    [InlineData(300, "Door, 5 steps ahead, above")]
+    [InlineData(-300, "Door, 5 steps ahead, below")]
+    [InlineData(299, "Door, 5 steps ahead")]
+    [InlineData(-299, "Door, 5 steps ahead")]
+    public void HeightIsSaidPastTheReachHeight(double y, string said)
+    {
+        var view = Facing(0, At(FieldKind.Door, 0, 5 * Step, y));
+
+        Assert.Equal(said, Nearby.List(view).Single().Text(sayHeight: true));
+    }
+
+    [Fact]
+    public void HeightIsFromThePlayersHeight()
+    {
+        var view = new FieldView(0, 1000, 0, 0, [At(FieldKind.Door, 0, 5 * Step, 1000 - Nearby.HeightThreshold)]);
+
+        Assert.Equal("Door, 5 steps ahead, below", Nearby.List(view).Single().Text(sayHeight: true));
+    }
+
+    [Fact]
+    public void HeightIsLeftOutUnlessAskedFor()
+    {
+        var view = Facing(0, At(FieldKind.Door, 0, 5 * Step, 1000));
+
+        Assert.Equal("Door, 5 steps ahead", Nearby.List(view).Single().Text());
+    }
+
     [Fact]
     public void InReachKeepsAChestBehindEightNearerPeople()
     {

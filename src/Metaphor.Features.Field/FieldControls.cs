@@ -609,8 +609,9 @@ public sealed class FieldControls : IInputControls
         if (press == Press.List)
         {
             var heading = shown == NearbyCategory.Everything ? "" : Nearby.CategoryWord(shown) + ", ";
+            var height = isOn(FieldFeature.NearbyHeight);
             return string.Create(CultureInfo.InvariantCulture, $"{heading}{things.Count} nearby. ") +
-                string.Join(". ", things.Select(thing => thing.Text()));
+                string.Join(". ", things.Select(thing => thing.Text(height)));
         }
         int at;
         lock (gate)
@@ -625,7 +626,8 @@ public sealed class FieldControls : IInputControls
             current = new BeaconTarget(things[at].Unit, view.DoorReachValue);
         }
         routePings?.Focus(things[at].Unit);
-        return string.Create(CultureInfo.InvariantCulture, $"{at + 1} of {things.Count}. {things[at].Text()}");
+        return string.Create(CultureInfo.InvariantCulture,
+            $"{at + 1} of {things.Count}. {things[at].Text(isOn(FieldFeature.NearbyHeight))}");
     }
 
     private void Log(FieldView view, IReadOnlyList<NearbyThing> things)

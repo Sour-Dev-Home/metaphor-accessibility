@@ -152,6 +152,7 @@ the game.
 | `behindMuffle` | The sonar, route pings, wall tones and guidance beep sound duller and a little quieter when they come from behind the screen's facing, so front and back differ. The angle is in `limits`. Still being tested. | testing, off |
 | `turnPings` | When you turn the camera, the sonar's last ping and a recent route ping play again from their new side, so turning tells you whether a sound is ahead or behind. The angle is in `limits`. Still being tested. | testing, off |
 | `heightPan` | The sonar, route pings and guidance beep sit nearer the centre the farther above or below you their source is. Still being tested. | testing, off |
+| `nearbyHeight` | The nearby list says "above" or "below" after the direction of a thing well above or below you, such as on another floor. Still being tested. | testing, off |
 
 ## Report
 

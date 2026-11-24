@@ -376,6 +376,30 @@ public sealed class FieldControlsTests
         Assert.Equal(new Announcement("Camera looking down", Interrupt: false), announcer.Said.Single());
     }
 
+    // #650: the list says "above" and "below" only while its testing setting is on.
+    [Theory]
+    [InlineData(true, "1 nearby. Door, 5 steps ahead, above")]
+    [InlineData(false, "1 nearby. Door, 5 steps ahead")]
+    public void TheListSaysHeightOnlyWhileItsSettingIsOn(bool on, string said)
+    {
+        field.View = new FieldView(0, 0, 0, 0, [new(FieldKind.Door, 0, 500, 500)]);
+
+        Gated($$"""{ "field": { "nearbyHeight": {{(on ? "true" : "false")}} } }""").Keys([KeyN]);
+
+        Assert.Equal([said], Said());
+    }
+
+    [Fact]
+    public void LbWithDownSaysHeightWhileItsSettingIsOn()
+    {
+        field.View = new FieldView(0, 0, 0, 0, [new(FieldKind.Door, 0, -500, 500)]);
+        var gated = Gated("""{ "field": { "nearbyHeight": true } }""");
+
+        gated.Pad(0, Lb | Down, made: true);
+
+        Assert.Equal(["1 of 1. Door, 5 steps ahead, below"], Said());
+    }
+
     [Fact]
     public void EachKeyboardReadMovesTheSonarOn()
     {
