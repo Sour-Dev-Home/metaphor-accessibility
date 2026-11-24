@@ -20,10 +20,16 @@ namespace Metaphor.Features.Menus;
 /// (flags 9), a run of small serials (2 to 21), then the eight tab names (serials 1369 to 1379, flags 2) in tab order;
 /// the item name groups per tab are in docs/raw-sources/menus-by-ear-session-message-log-2026-11-22.md.</remarks>
 [FeatureSetting<MenusFeature>(MenusFeature.ItemMenu)]
-public sealed class ItemFocus : IScreenObserver, ISerialResolveObserver, ICursorObserver
+public sealed class ItemFocus : IScreenObserver, ISerialResolveObserver, ICursorObserver, IScreenDetails
 {
     /// <summary>The flags the list fetches a row's name with.</summary>
     public const int NameFlags = 9;
+
+    /// <summary>The flags the list fetches a row's description with.</summary>
+    public const int DescriptionFlags = 7;
+
+    /// <summary>Whether the details key says a row's description, from its setting; on when not given.</summary>
+    public Func<bool> DescriptionsOn { get; init; } = () => true;
 
     // The tab names, Item_Tab_01 to _11, in System_Message.msg (item-equipment-menu-names-from-resolves.md), and the
     // eight the list shows in tab order: Use, Exchange, Key Items, Information, Weapons, Armour, Gear, Accessories.
@@ -54,6 +60,10 @@ public sealed class ItemFocus : IScreenObserver, ISerialResolveObserver, ICursor
     private string? tabToSay;
     private readonly List<int> party = [];
     private bool partyOpen;
+
+    // Each row's description by its name's serial, and the name fetched last, for the next description to pair with.
+    private readonly Dictionary<int, int> descriptions = [];
+    private int? lastName;
 
     /// <summary>The Item screens spoken by position alone.</summary>
     public ItemFocus(IAnnouncer announcer)
@@ -126,11 +136,53 @@ public sealed class ItemFocus : IScreenObserver, ISerialResolveObserver, ICursor
         {
             rows.Marked();
         }
+        else if (resolve.Flags == DescriptionFlags && (serials.InFile(resolve.Serial, MessageSerials.ItemDescriptions)
+            || serials.InFile(resolve.Serial, MessageSerials.EquipmentDescriptions)))
+        {
+            // The row's description comes right after its name; one after no name (a help line fetched again) is no row's.
+            lock (gate)
+            {
+                if (lastName is { } name)
+                {
+                    descriptions[name] = resolve.Serial;
+                    lastName = null;
+                }
+            }
+        }
         else if (resolve.Flags == NameFlags && (serials.InFile(resolve.Serial, MessageSerials.ItemNames)
             || (resolve.Serial >= FirstRowSerial && !InSystemFiles(resolve.Serial))))
         {
             rows.Fetched(resolve.Serial);
+            lock (gate)
+            {
+                lastName = resolve.Serial;
+            }
         }
+    }
+
+    /// <summary>The focused row's description for the details key (#907): the description the game fetched right after the
+    /// row's name, an item's or a piece of equipment's. Null on another screen, for a row with none, or when it is
+    /// off.</summary>
+    /// <remarks>On build 548ddc95 (Steam build 18330018) the list's opening batch fetches each row's name (flags 9) and
+    /// then its description (flags 7), top row first
+    /// (docs/findings/item-equipment-menu-names-from-resolves.md). Whether a step that scrolls the view by one row fetches
+    /// the new row's description too is <c>[NEEDS VERIFICATION]</c>; one that doesn't says no more.</remarks>
+    public string? Details(ScreenEvent focus)
+    {
+        ArgumentNullException.ThrowIfNull(focus);
+        if (serials is null || focus.Screen != List || !DescriptionsOn() || rows.SerialAt(focus.Index) is not { } name)
+        {
+            return null;
+        }
+        int description;
+        lock (gate)
+        {
+            if (!descriptions.TryGetValue(name, out description))
+            {
+                return null;
+            }
+        }
+        return serials.TextOf(description, cleaner!);
     }
 
     /// <summary>Takes the list's view from each settled cursor input, before the menu screens tell it, and says a tab

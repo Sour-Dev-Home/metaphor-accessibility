@@ -86,6 +86,34 @@ public sealed class SkillCostLines
     }
 }
 
+/// <summary>Starts reading the enemy tables (#164, #166) on the first input read it gets, as
+/// <see cref="SkillCostLoad"/> does; every read reaches the game unchanged.</summary>
+[FeatureSetting<BattleFeature>(BattleFeature.BattleAffinities, BattleFeature.BattleRewardExp)]
+public sealed class EnemyTableLoad(EnemyTableSource source) : IInputControls
+{
+    private int started;
+
+    public int Pad(int pad, int buttons, bool made)
+    {
+        Start();
+        return buttons;
+    }
+
+    public IReadOnlyList<int> Keys(IReadOnlyList<int> keys)
+    {
+        Start();
+        return keys;
+    }
+
+    private void Start()
+    {
+        if (Volatile.Read(ref started) == 0 && Interlocked.Exchange(ref started, 1) == 0)
+        {
+            _ = source.Start();
+        }
+    }
+}
+
 /// <summary>Starts reading the skill tables (#692 (b)) on the first input read it gets, which only a game the hooks went
 /// into sends; every read reaches the game unchanged.</summary>
 [FeatureSetting<BattleFeature>(BattleFeature.BattleSkillCosts)]

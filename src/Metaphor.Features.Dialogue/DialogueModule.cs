@@ -50,7 +50,9 @@ public sealed class DialogueModule : IFeatureModule
             windowSpeech, popup is null ? null : () => popup.Said,
             () => settings.Current.IsOn(DialogueFeature.WindowCloseStop));
         // Lines and choices name each speaker as the screen shows it (#81).
-        var (lines, choices) = DialogueSpeech.Shown(library, names, dialogue);
+        var (lines, choices) = DialogueSpeech.Shown(
+            library, names, dialogue,
+            () => settings.Current.IsOn(DialogueFeature.Dialogue) && settings.Current.IsOn(DialogueFeature.Narration));
         events.ObserveLines(lines);
         events.ObserveShownLines(lines);
         events.ObserveShownLines(gameOver);

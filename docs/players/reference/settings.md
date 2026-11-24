@@ -59,6 +59,9 @@ Each is `true` to speak or `false` to stay quiet, inside a `speech` object: `{ "
 | `menus` | The title menu, the main menu, the quick menu, Settings, the difficulty list, yes or no questions and any other menu. Off also leaves the details key to the game. | `true` |
 | `returnToTitleQuestion` | The question the quick menu's Return to title asks before Yes and No. Needs `menus`. | `true` |
 | `skipSceneQuestion` | The question and its two buttons when the Menu button opens the skip menu in a cutscene. Still being tested. | testing, off |
+| `menuPrompts` | The prompt a menu screen shows when it opens, such as "Which item?" on the Item screen, said after the screen's name and the focused row. Needs `menus`. Still being tested. | testing, off |
+| `quickMenuHelp` | The quick menu's help line for the focused row, such as "Use an item", on the details key (F, or R3 on the pad). Needs `menus`. Still being tested. | testing, off |
+| `quickMenuHelpOnFocus` | The quick menu's help line said after each row as the focus moves, without pressing the details key. Off says the row alone. Needs `quickMenuHelp`. Still being tested. | testing, off |
 | `battleHits` | Each battle hit as it lands, the battle status key and the enemy HP keys. Off also leaves those keys to the game. | `true` |
 | `battleOutcomes` | "Knocked out", "defeated" or "revived" after a battle hit's number. Needs `battleHits`. | `true` |
 | `battleTargetSpeech` | As the target cursor moves to an enemy, says it with its HP: "Second enemy, 840 of 1320, 2 of 3". Needs `battleHits` and `battleEnemyList`. Still being tested. | testing, off |
@@ -73,12 +76,15 @@ Each is `true` to speak or `false` to stay quiet, inside a `speech` object: `{ "
 | `battleLists` | Battle's skill and item lists, row by row. Separate from `menus`. | `true` |
 | `battleSkillCosts` | Says what a skill costs after its name in the battle skill list and Synthesis list, such as "4 MP" or "15 percent HP". The Synthesis list says its turn icons too. Needs `battleLists`. Still being tested. | testing, off |
 | `battleSynthesis` | Says each Synthesis in battle by name with its position, and `F` reads its description. Needs `battleLists`. Still being tested. | testing, off |
+| `battleAffinities` | After an enemy's HP on `K`, `J` and the target cursor, says the affinities you have found by hitting it with a skill: "weak to Fire, resists Ice". Needs `battleEnemyKeys` or `battleTargetSpeech`. Still being tested. | testing, off |
+| `battleAffinitiesFoundOnly` | The affinities line says only what you have found in play this session. Off reveals every affinity from the game's tables, found or not. Needs `battleAffinities`. | `true` |
 | `battleListViews` | Names the rows of battle's skill and item lists after a wrap to the bottom, not only their positions. Needs `battleLists`. | `true` |
 | `battleItemTabs` | The tab's name when the battle item list opens or you switch tabs with LB or RB. Needs `battleLists`. Still being tested. | testing, off |
 | `battleOrderMenu` | Battle's Order menu, opened with LB, and its Tactics submenu. | `true` |
 | `battleConfirms` | Battle's Retry and confirm prompts: the question, then Yes or No. Still being tested. | testing, off |
 | `battlePartyScreen` | On the battle Order menu's Party screen, says each member's name, HP and MP with their position. Still being tested. | testing, off |
 | `itemMenu` | The Item screen's rows and its party-member list. | `true` |
+| `gearDescriptions` | The description of the focused row on the Item screen, and of the gear worn in a slot on the Equipment screen, on the details key (F, or R3 on the pad). Needs `menus`. Still being tested. | testing, off |
 | `calendar` | The Calendar's day grid. | `true` |
 | `questList` | Each quest's name on the quest list, and an opened quest's name and description. Needs `menus`. | `true` |
 | `followerList` | Each follower's name and archetype on the Followers list. Needs `menus`. | `true` |
@@ -91,8 +97,10 @@ Each is `true` to speak or `false` to stay quiet, inside a `speech` object: `{ "
 | `battleEnd` | Says "Victory", "Escaped" or "Defeated" as a battle ends. Still being tested. | testing, off |
 | `battleRewards` | After a won battle, says the money and MAG it gained: "Gained 240 money and 30 MAG". Still being tested. | testing, off |
 | `battleFormation` | In a battle, says "row changed" with the member when a party member moves between the front and back row. Still being tested. | testing, off |
+| `battleRewardExp` | Adds the EXP and archetype EXP of the enemies you beat, from the game's enemy tables, to the rewards line: "Gained 240 money, 30 MAG, 160 EXP and 60 archetype EXP". Needs `battleRewards`. Still being tested. | testing, off |
 | `saveSlots` | The save and load screens' slots. | `true` |
 | `learnedSettingValues` | The System rows whose setting the mod has not pinned saying their value on change, learned as you change them. Needs `menus`. | `true` |
+| `settingsHelp` | The game's help line for the focused row on a Settings page, on the details key (F, or R3 on the pad). The line is the one the game fetched for the row, so a row you have not moved to yet says no more. Needs `menus`. Still being tested. | testing, off |
 | `nameEntry` | The name entry screen: its title, each letter you type, and when a name is refused. | `true` |
 | `nameReadBack` | On the name entry screen, the details button (R3) saying the name typed so far. Needs `nameEntry`. | `true` |
 | `equipmentMenu` | The Equipment screen's slots and gear. Still being tested. | testing, off |
@@ -112,6 +120,7 @@ Each is `true` to speak or `false` to stay quiet, inside a `speech` object: `{ "
 | `windowCloseStop` | A closed dialogue window stopping the line still being spoken. Needs `dialogue`. | `true` |
 | `dialogueKeys` | In dialogue, the keys that stop the speech, say who is speaking and say the line on screen, with the reader on or off. Still being tested. | testing, off |
 | `messageLog` | The game's message log, the backlog of recent dialogue, saying its name and each line's position as you move through it. The lines' words are still to come. Still being tested. | testing, off |
+| `narration` | The day count ("1 day remains") and the narration that opens a place, said without a speaker, after the line being said rather than over it. Needs `dialogue`. Still being tested. | testing, off |
 | `welcome` | The welcome on the title screen the first time the game starts with the mod: the mod's version and the field keys. | `true` |
 | `settingsMenu` | The mod's own settings menu, opened with F2, or LT and RT held then View on the pad, on any screen. Up and Down move, Left and Right change the setting and save it at once, F or R3 says what it does, and Escape or B closes. While it is open the game gets no keys or buttons. Still being tested. | testing, off |
 | `keyHelp` | The help key, F1, or LT and RT held then Y on the pad: says the mod's keys that work where you are now, with their current bindings. Still being tested. | testing, off |
@@ -137,7 +146,7 @@ the game.
 | `routePings` | A ping from the direction of each place the nearby list steps to: two high notes when the way is straight, two rising notes from the next corner when the way bends, one low note when there is no path. Its volume is in `limits`. Still being tested. | testing, off |
 | `soundFiles` | The sonar, wall tones and route pings play the mod's own sound files, in `data/sounds` in the mod folder, instead of plain tones. A missing or damaged file plays its plain tone. Still being tested. | testing, off |
 | `enemyAwareness` | A sharp sound from the enemy's side and "Enemy noticed you" when a field enemy near you notices you, and a softer falling sound when it gives up the search. Each sound has its own key in `sounds`. Still being tested. | testing, off |
-| `objectiveGuidance` | O starts the guidance beep toward the current objective's marker on this map, or a waypoint the mod's data gives; G stops it. Says "Objective guidance isn't ready for this area" where the mod can't place the marker yet, which for now is everywhere. Still being tested. | testing, off |
+| `objectiveGuidance` | O starts the guidance beep toward the current objective's marker on this map, or a waypoint the mod's data gives; G stops it. Says "Objective guidance isn't ready for this area" on a map the game gives no minimap, where the mod can't place the marker. Still being tested. | testing, off |
 | `fieldStrikes` | "Hit" when a strike of yours takes HP from a field enemy near you, and "Defeated" when it takes the last. Still being tested. | testing, off |
 | `cornerAdvice` | The advice Gallica and the party give in the top-left corner as you roam, with the speaker's name, after the line before it. Still being tested. | testing, off |
 | `behindMuffle` | The sonar, route pings, wall tones and guidance beep sound duller and a little quieter when they come from behind the screen's facing, so front and back differ. The angle is in `limits`. Still being tested. | testing, off |

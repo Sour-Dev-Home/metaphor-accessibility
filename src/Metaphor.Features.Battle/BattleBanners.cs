@@ -47,6 +47,16 @@ public sealed partial class BattleBanners
     [GeneratedRegex(@"<V 0>")]
     private static partial Regex SubjectTag();
 
+    /// <summary>The banner kind that names a move: its id is the skill's <c>Skill.TBL</c> id, 0 for a basic attack
+    /// (docs/findings/battle-affinity-discovery-from-move-banner.md).</summary>
+    public const int MoveKind = 0;
+
+    /// <summary>Told each move banner's skill id (#164); none when null.</summary>
+    public Action<int>? Moved { get; init; }
+
+    /// <summary>Told each situation banner's subject serial (#164); none when null.</summary>
+    public Action<int>? Subject { get; init; }
+
     /// <summary>A name serial's text, or null when it isn't a name the mod knows. None, when not set.</summary>
     public Func<int, string?> SerialName { get; init; } = _ => null;
 
@@ -83,6 +93,15 @@ public sealed partial class BattleBanners
     /// </summary>
     public string? Shown(int kind, int id, BannerName? subject = null)
     {
+        // Heard whether or not banners speak: the move banner's skill id and the subject's serial (#164).
+        if (kind == MoveKind)
+        {
+            Moved?.Invoke(id);
+        }
+        else if (kind == SituationKind && subject?.Serial is { } named)
+        {
+            Subject?.Invoke(named);
+        }
         if (kind != SituationKind || !enabled())
         {
             return null;

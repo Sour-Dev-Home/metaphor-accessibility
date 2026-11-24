@@ -78,10 +78,13 @@ public sealed class TargetLine : IBattleTargetObserver
             return;
         }
         var said = BattleEnemyHp.Line(enemies[index], Units, SayMaxHp());
+        var line = SayPositions()
+            ? string.Create(CultureInfo.InvariantCulture, $"{said}, {index + 1} of {enemies.Count}")
+            : said;
         announcer.Announce(new Announcement(
-            SayPositions()
-                ? string.Create(CultureInfo.InvariantCulture, $"{said}, {index + 1} of {enemies.Count}")
-                : said,
-            Interrupt: true));
+            Affinities?.Invoke(enemies[index]) is { } affinities ? $"{line}, {affinities}" : line, Interrupt: true));
     }
+
+    /// <summary>What an enemy's affinities add after its line (#164), or null for nothing; none when unset.</summary>
+    public Func<ListedEnemy, string?>? Affinities { get; init; }
 }

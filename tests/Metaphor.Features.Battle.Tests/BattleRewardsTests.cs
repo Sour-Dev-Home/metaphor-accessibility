@@ -49,6 +49,30 @@ public sealed class BattleRewardsTests
     }
 
     [Fact]
+    public void WithRewardExpOnTheTablesExpTakenAtVictoryJoinsTheLine()
+    {
+        var table = ((int Exp, int ArchetypeExp, int Money, int Magla)?)(160, 60, 125, 350);
+        var withExp = new BattleRewards(purse, announcer, time)
+        {
+            TableRewards = () => table,
+            ExpOn = () => true,
+        };
+        withExp.Played(new LayoutAnimation(BattleStartLine.Layout, 906));
+        withExp.Played(new LayoutAnimation(BattleEndLine.Layout, BattleEndLine.VictoryAnimation));
+        // The battle's enemies are forgotten after the win; what Victory took is said.
+        table = null;
+        purse.MoneyNow = 1240;
+        purse.MagNow = 80;
+        for (var waited = 0L; waited < BattleRewards.SettleMilliseconds * 3; waited += 50)
+        {
+            time.Advance(50);
+            withExp.Keys([]);
+        }
+
+        Assert.Equal(["Gained 240 money, 30 MAG, 160 EXP and 60 archetype EXP"], Said());
+    }
+
+    [Fact]
     public void OnlyWhatRoseIsSaidAndOnlyOnce()
     {
         Start();

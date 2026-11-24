@@ -129,10 +129,15 @@ public sealed class BattleEnemyHp
             currentBattle = battle;
         }
         // "n of total" only over the whole list, where the place means something (#750, speech.positions).
-        Say(ListOn() && SayPositions()
+        var line = ListOn() && SayPositions()
             ? string.Create(CultureInfo.InvariantCulture, $"{Hp(enemies[next])}, {next + 1} of {enemies.Count}")
-            : Hp(enemies[next]));
+            : Hp(enemies[next]);
+        Say(Affinities?.Invoke(enemies[next]) is { } affinities ? $"{line}, {affinities}" : line);
     }
+
+    /// <summary>What an enemy's affinities add after a step's line (#164), or null for nothing; none when unset.
+    /// </summary>
+    public Func<ListedEnemy, string?>? Affinities { get; init; }
 
     // The targeted enemy's place in the list the keys step through, with TargetOn over the whole list only (#253).
     private (int Index, long Moves)? Targeted(IReadOnlyList<ListedEnemy> enemies) =>

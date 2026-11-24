@@ -12,8 +12,8 @@ public sealed class ObjectiveDataTests
             { "maps": [ { "field": "f_0001_001", "originX": -100, "originZ": 50.5, "scaleX": 2, "scaleZ": -0.5 } ] }
             """);
 
-        Assert.Equal((1900f, 0.5f), fitted.ToWorld("f_0001_001", 1000, 100));
-        Assert.Null(fitted.ToWorld("f_0001_002", 1000, 100));
+        Assert.Equal((1900f, 0.5f), fitted.ToWorld(new(1, "f_0001_001", null), 1000, 100));
+        Assert.Null(fitted.ToWorld(new(1, "f_0001_002", null), 1000, 100));
     }
 
     [Fact]
