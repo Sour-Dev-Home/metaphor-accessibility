@@ -17,8 +17,10 @@ namespace Metaphor.Hooks;
 /// constructor isn't in analysed code, so the rva is this build's, and nothing is written unless the loader's build
 /// check passed, the slot-4 signature matched once, slot 4 holds that signature's address and the vtable's RTTI names
 /// <c>UUIC_Battle_TargetCursor@ui@app</c> (docs/findings/battle-target-cursor-index-static.md). The one write is the
-/// slot's 8 bytes, through <c>WriteProcessMemory</c>, which fails instead of faulting and writes through the read-only
-/// page; it is read back, and the original pointer goes back on any failure and when the process exits
+/// slot's 8 bytes, through <c>WriteProcessMemory</c>, which fails instead of faulting. That call alone is refused on the
+/// read-only page (error 998 in game, 2026-11-24), so <see cref="ReadOnlyPageWrite"/> makes the page writable with
+/// <c>VirtualProtect</c> around it and puts the old protection back (the maintainer's decision of 2026-11-24 on #253);
+/// it is read back, and the original pointer goes back on any failure and when the process exits
 /// (<see cref="VtableSwap"/>). The mod can't be unloaded (<c>CanUnload</c> is false). Every call hands the slot to the
 /// feature and then calls the original function, always. Nothing in <c>.text1</c> is read as code or touched.</summary>
 [GameHook(GameBuilds.Steam18330018)]
@@ -96,8 +98,21 @@ internal sealed class BattleTargetCursorHook : IGameHook, IChangesBehaviour
     [return: MarshalAs(UnmanagedType.Bool)]
     private static extern bool WriteProcessMemory(nint process, nint address, byte[] buffer, nuint size, out nuint written);
 
-    // One aligned pointer into the vtable the swap has checked, never an address from the game.
-    private static bool WritePointer(long address, long value)
+    // https://learn.microsoft.com/windows/win32/api/memoryapi/nf-memoryapi-virtualprotect
+    [DllImport("kernel32.dll", ExactSpelling = true)]
+    [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static extern bool VirtualProtect(nint address, nuint size, uint protection, out uint old);
+
+    // One aligned pointer into the vtable the swap has checked, never an address from the game: its page is made
+    // writable only for the write.
+    private static bool WritePointer(long address, long value) =>
+        ReadOnlyPageWrite.WritePointer(address, value, Protect, WriteBytes);
+
+    private static uint? Protect(long address, uint protection) =>
+        VirtualProtect((nint)address, sizeof(long), protection, out var old) ? old : null;
+
+    private static bool WriteBytes(long address, long value)
     {
         var bytes = new byte[sizeof(long)];
         BinaryPrimitives.WriteInt64LittleEndian(bytes, value);

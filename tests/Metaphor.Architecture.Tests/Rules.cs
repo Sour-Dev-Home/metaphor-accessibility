@@ -696,6 +696,9 @@ internal static class Rules
         ["kernel32.dll!WriteProcessMemory"] =
             "PadReadHook, KeyboardReadHook, BattleTargetCursorHook: writes through the kernel, which fails instead " +
             "of faulting (ADR 0007)",
+        ["kernel32.dll!VirtualProtect"] =
+            "BattleTargetCursorHook: makes the one checked vtable slot's read-only page writable for its write and " +
+            "puts the old protection back (ReadOnlyPageWrite); fails instead of faulting (#253, decided 2026-11-24)",
         // ADR 0019: WaveOutHandle passes only its own handle and the headers and buffers it keeps pinned until close.
         ["winmm.dll!waveOutOpen"] = "WaveOutHandle: reads the format on its own stack, writes the handle (ADR 0019)",
         ["winmm.dll!waveOutPrepareHeader"] = "WaveOutHandle: the mod's own pinned header and buffer (ADR 0019)",
