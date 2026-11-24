@@ -45,6 +45,7 @@ public sealed class SettingsSnapshotTests
         "speech.battleOrderMenu | Battle order menu | on | done",
         "speech.battleOutcomes | Battle outcomes | on | done",
         "speech.battleStart | Battle start | on | done",
+        "speech.battleTargetSpeech | Battle target cursor | off | testing",
         "speech.battleTurnLine | Battle turn line | off | testing",
         "speech.buttonNames | Button names | on | done",
         "speech.calendar | Calendar | on | done",

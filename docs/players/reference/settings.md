@@ -61,6 +61,7 @@ Each is `true` to speak or `false` to stay quiet, inside a `speech` object: `{ "
 | `skipSceneQuestion` | The question and its two buttons when the Menu button opens the skip menu in a cutscene. Still being tested. | testing, off |
 | `battleHits` | Each battle hit as it lands, the battle status key and the enemy HP keys. Off also leaves those keys to the game. | `true` |
 | `battleOutcomes` | "Knocked out", "defeated" or "revived" after a battle hit's number. Needs `battleHits`. | `true` |
+| `battleTargetSpeech` | As the target cursor moves to an enemy, says it with its HP: "Second enemy, 840 of 1320, 2 of 3". Needs `battleHits` and `battleEnemyList`. Still being tested. | testing, off |
 | `battleHitNumbers` | Each battle hit says only its number, and the hit sound plays from the left for the first enemy or party member through to the right for the last, so an attack on every enemy stays short. Needs `battleHits`. Still being tested. | testing, off |
 | `battleEnemyTarget` | After the target cursor moves to an enemy, `K` or `J` says that enemy first, then steps on from it, and `L` starts from it. Needs `battleEnemyList`. Still being tested. | testing, off |
 | `battleEnemyList` | Numbers a battle's enemies from its start, so the first hit already says "Second enemy", and `K`, `J` and `L` take in every enemy, hit or not. Needs `battleHits`. Still being tested. | testing, off |
