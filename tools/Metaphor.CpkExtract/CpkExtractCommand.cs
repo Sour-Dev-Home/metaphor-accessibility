@@ -10,8 +10,9 @@ public static class CpkExtractCommand
 {
     private const string Usage =
         "usage: cpk-extract list <cpk> [filter]\n" +
-        "       cpk-extract extract <cpk> <path-in-archive>... --out extracted/<dir>\n" +
-        "  <cpk> is a file name such as base.cpk, found beside the game exe named by METAPHOR_GAME_EXE.";
+        "       cpk-extract extract <cpk> <path-in-archive>... --out extracted/<dir> [--force]\n" +
+        "  <cpk> is a file name such as base.cpk, found beside the game exe named by METAPHOR_GAME_EXE.\n" +
+        "  --force overwrites files already in the output folder; without it, extract refuses.";
 
     /// <summary>Runs the command; returns the exit code (0 done, 1 a file couldn't be read, 2 usage or a refused
     /// path).</summary>
@@ -35,13 +36,24 @@ public static class CpkExtractCommand
             error.WriteLine("refused: " + refused.Message);
             return 2;
         }
-        catch (Exception e) when (e is IOException or UnauthorizedAccessException)
+        catch (Exception e) when (e is IOException or UnauthorizedAccessException or ArgumentException or NotSupportedException)
         {
-            // Only the exception's kind: its message can hold a local path, and this output goes into issues.
+            // Only the exception's kind, never its message or stack trace: either can hold a local path, and this output
+            // goes into issues (#899).
             error.WriteLine($"could not read or write a file ({e.GetType().Name})");
             return 1;
         }
     }
+
+    // An archive's names come from the file: a control character in one could rewrite the terminal (#899).
+    private static string Printable(string name) =>
+        string.Create(name.Length, name, (span, text) =>
+        {
+            for (var i = 0; i < text.Length; i++)
+            {
+                span[i] = char.IsControl(text[i]) ? '?' : text[i];
+            }
+        });
 
     private static int List(FileStream archive, string? filter, TextWriter output, TextWriter error)
     {
@@ -57,7 +69,7 @@ public static class CpkExtractCommand
                 var packed = entry.ExtractSize != entry.Size
                     ? string.Create(CultureInfo.InvariantCulture, $"\t(compressed; {entry.ExtractSize} bytes unpacked, not extractable)")
                     : "";
-                output.WriteLine(string.Create(CultureInfo.InvariantCulture, $"{entry.Size}\t{entry.Path}{packed}"));
+                output.WriteLine(string.Create(CultureInfo.InvariantCulture, $"{entry.Size}\t{Printable(entry.Path)}{packed}"));
             }
             return 0;
         }
@@ -66,10 +78,15 @@ public static class CpkExtractCommand
     private static int Extract(string[] args, Func<string, string?> environment, string currentDirectory, TextWriter output, TextWriter error)
     {
         string? outFolder = null;
+        var force = false;
         var paths = new List<string>();
         for (var i = 2; i < args.Length; i++)
         {
-            if (args[i] == "--out")
+            if (args[i] == "--force")
+            {
+                force = true;
+            }
+            else if (args[i] == "--out")
             {
                 if (i + 1 >= args.Length || outFolder is not null)
                 {
@@ -95,6 +112,10 @@ public static class CpkExtractCommand
         foreach (var target in targets)
         {
             OutputGuard.EnsureInside(folder, target.File);
+            if (!force && (File.Exists(target.File) || Directory.Exists(target.File)))
+            {
+                throw new RefusedPathException($"{target.Archive} is already in the output folder; add --force to overwrite it");
+            }
         }
         using var archive = OpenArchive(args[1], environment);
         var failed = 0;
@@ -108,8 +129,7 @@ public static class CpkExtractCommand
                 continue;
             }
             Directory.CreateDirectory(Path.GetDirectoryName(file)!);
-            OutputGuard.EnsureInside(folder, file);
-            File.WriteAllBytes(file, bytes);
+            OutputGuard.WriteNew(folder, file, bytes, force);
             output.WriteLine(string.Create(CultureInfo.InvariantCulture, $"{bytes.Length}\t{path}"));
         }
         return failed == 0 ? 0 : 1;

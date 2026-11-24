@@ -62,16 +62,53 @@ public static class OutputGuard
     }
 
     /// <summary>The path inside an archive, as <c>DIR/NAME</c> with forward slashes: relative, no <c>..</c>, no empty,
-    /// drive or stream-looking parts. Returns it normalised, or throws <see cref="RefusedPathException"/>.</summary>
+    /// drive or stream-looking parts, no Windows device name (<c>NUL</c>, <c>CON</c>, <c>COM1</c>, …, with or without an
+    /// extension) and none of the characters Windows can't put in a name (<c>&lt;&gt;"|?*</c>, control characters).
+    /// Returns it normalised, or throws <see cref="RefusedPathException"/>.</summary>
     public static string ArchivePath(string path)
     {
         var parts = path.Replace('\\', '/').Split('/');
-        if (path.Length == 0 || path.Contains('\0') || path.Contains(':') ||
+        if (path.Length == 0 || path.Contains(':') ||
             parts.Any(p => p.Length == 0 || p is "." or ".." || p.TrimEnd('.', ' ').Length != p.Length))
         {
             throw new RefusedPathException("an archive path must be relative, like DIR/NAME, with no '..', ':' or empty parts");
         }
+        if (path.Any(c => char.IsControl(c) || "<>\"|?*".Contains(c)))
+        {
+            throw new RefusedPathException("an archive path must not contain <, >, \", |, ?, * or a control character");
+        }
+        if (parts.Any(IsDeviceName))
+        {
+            throw new RefusedPathException("an archive path must not name a Windows device, such as NUL, CON or COM1");
+        }
         return string.Join('/', parts);
+    }
+
+    // A Windows device name: the part before its first dot, trailing spaces dropped, is CON, PRN, AUX, NUL, COM0-9,
+    // LPT0-9, or COM or LPT with a superscript digit (Windows 11 reserves those too).
+    private static bool IsDeviceName(string part)
+    {
+        var stem = part.Split('.')[0].TrimEnd(' ').ToUpperInvariant();
+        return stem is "CON" or "PRN" or "AUX" or "NUL" ||
+            (stem.Length == 4 && (stem.StartsWith("COM", StringComparison.Ordinal) || stem.StartsWith("LPT", StringComparison.Ordinal)) &&
+                (char.IsAsciiDigit(stem[3]) || stem[3] is '¹' or '²' or '³'));
+    }
+
+    /// <summary>Writes <paramref name="bytes"/> to <paramref name="file"/> inside <paramref name="folder"/>, opening it
+    /// only as a new file, so nothing that appeared after the checks (a file, or a link to one elsewhere) is written
+    /// through. With <paramref name="force"/>, a plain file already there is deleted first; a link there is refused,
+    /// never followed. The way there is checked again once the file is open, before any byte is written.</summary>
+    public static void WriteNew(string folder, string file, byte[] bytes, bool force)
+    {
+        ArgumentNullException.ThrowIfNull(bytes);
+        EnsureInside(folder, file);
+        if (force && File.Exists(file))
+        {
+            File.Delete(file);
+        }
+        using var stream = new FileStream(file, FileMode.CreateNew, FileAccess.Write, FileShare.None);
+        EnsureInside(folder, file);
+        stream.Write(bytes);
     }
 
     private static bool IsInside(string folder, string path)
