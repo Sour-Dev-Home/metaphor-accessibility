@@ -127,6 +127,8 @@ the game.
 | `sonar` | A short sound for the people, objects and exits nearby, one at a time, nearest first (`field.sonarPings` for more): a sound of its own for each kind, on the side it is on screen, louder when nearer. It waits while the guidance beep guides or a route ping sounds. Still being tested. | testing, off |
 | `wallTones` | A low steady tone for each wall near you, ahead, behind, left and right of the screen, louder as the wall nears. Silent on maps the mod has no walking map for, which it says once. The range and volume are in `limits`. Still being tested. | testing, off |
 | `routePings` | A ping from the direction of each place the nearby list steps to: two high notes when the way is straight, two rising notes from the next corner when the way bends, one low note when there is no path. Its volume is in `limits`. Still being tested. | testing, off |
+| `soundFiles` | The sonar, wall tones and route pings play the mod's own sound files, in `data/sounds` in the mod folder, instead of plain tones. A missing or damaged file plays its plain tone. Still being tested. | testing, off |
+| `enemyAwareness` | A sharp sound from the enemy's side and "Enemy noticed you" when a field enemy near you notices you, and a softer falling sound when it gives up the search. Each sound has its own key in `sounds`. Still being tested. | testing, off |
 
 ## Report
 
@@ -153,6 +155,8 @@ from 0 to 100 that is a share of `soundCueVolume`: 50 plays it at half the sound
 | `allyHit` | Someone in your party was hit. | on, volume 100 |
 | `enemyHit` | An enemy was hit. | on, volume 100 |
 | `mark` | The mark key wrote a marker. | on, volume 100 |
+| `enemyNoticed` | A field enemy noticed you, from its side. Needs `field.enemyAwareness`. | on, volume 100 |
+| `enemyGaveUp` | A field enemy gave up the search, from its side. Needs `field.enemyAwareness`. | on, volume 100 |
 
 ## Limits
 

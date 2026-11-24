@@ -74,4 +74,17 @@ public enum FieldFeature
         "direction of each place the nearby list steps to: two high notes when the way is straight, two rising notes " +
         "from the next corner when the way bends, one low note when there is no path. Its volume is in `limits`.")]
     RoutePings,
+
+    /// <summary>The sonar, wall tones and route pings playing the mod's sound files instead of plain tones (#841).
+    /// </summary>
+    [SettingKey("field", "soundFiles", "Navigation sound files", Testing = true, Order = 2120, Description = "The " +
+        "sonar, wall tones and route pings play the mod's own sound files, in `data/sounds` in the mod folder, instead " +
+        "of plain tones. A missing or damaged file plays its plain tone.")]
+    SoundFiles,
+
+    /// <summary>The sound and line when a field enemy notices you, and the sound when it gives up (#649).</summary>
+    [SettingKey("field", "enemyAwareness", "Enemy awareness", Testing = true, Order = 2130, Description = "A sharp " +
+        "sound from the enemy's side and \"Enemy noticed you\" when a field enemy near you notices you, and a softer " +
+        "falling sound when it gives up the search. Each sound has its own key in `sounds`.")]
+    EnemyAwareness,
 }

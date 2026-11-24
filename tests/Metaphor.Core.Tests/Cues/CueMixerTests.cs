@@ -209,6 +209,83 @@ public sealed class CueMixerTests
         Assert.Equal(["sound cue failed to play (no device); later failures are not logged"], logged);
     }
 
+    [Fact]
+    public void AHeldSamplePlaysInPlaceOfTheSineAtTheSamePeakAndThenFinishes()
+    {
+        var device = new FakeWaveDevice();
+        using var mixer = new CueMixer(device, logged.Add);
+        // Two and a half buffers of a sound whose every sample is at its peak.
+        var frames = (CueMixer.FramesPerSlot * 5) / 2;
+        var sample = TestWav.Sample([.. Enumerable.Repeat((short)1000, frames)]);
+
+        mixer.Hold(ToneChannel.Sonar, new HeldTone(440, -1, 100, sample), 100, restart: true);
+        mixer.Pump();
+        var output = device.Opened.Single();
+
+        // Fully left at the sine's peak once the fade-in buffer is past, and three writes: the last one the half left.
+        Assert.Equal(3, output.Buffers.Count);
+        Assert.All(Left(output.Buffers[1]), s => Assert.InRange(s, CueWave.Peak(100) - 1, CueWave.Peak(100) + 1));
+        Assert.All(Right(output.Buffers[1]), s => Assert.Equal(0, s));
+        Assert.Equal(CueMixer.FramesPerSlot, output.Buffers[2].Length);
+
+        // Played through, the same hold doesn't start it again; a new hold does.
+        output.Finish(CueMixer.Slots);
+        Assert.False(mixer.Pump());
+        mixer.Hold(ToneChannel.Sonar, new HeldTone(440, -1, 100, sample), 100);
+        Assert.False(mixer.Pump());
+        mixer.Hold(ToneChannel.Sonar, new HeldTone(440, -1, 100, sample), 100, restart: true);
+        Assert.True(mixer.Pump());
+        Assert.Equal(6, output.Buffers.Count);
+    }
+
+    [Fact]
+    public void ALoopingSampleGoesRoundWithoutRestartingWhileTheSameSoundIsHeld()
+    {
+        var device = new FakeWaveDevice();
+        using var mixer = new CueMixer(device, logged.Add);
+        // A ramp a third of a buffer long, so a loop's seam lands inside each buffer.
+        var length = CueMixer.FramesPerSlot / 3;
+        var sample = TestWav.Sample([.. Enumerable.Range(1, length).Select(i => (short)i)]);
+        var tone = new HeldTone(0, 0, 100, sample, Loops: true);
+
+        mixer.Hold(ToneChannel.Wall, tone, 100, restart: true);
+        mixer.Pump();
+        mixer.Hold(ToneChannel.Wall, tone, 100, restart: true);
+        var output = device.Opened.Single();
+        output.Finish(CueMixer.Slots);
+        mixer.Pump();
+
+        // The ramp repeats at its own length across every buffer, the second hold included.
+        var left = Left(output.Frames);
+        Assert.True(left.Length > 4 * length);
+        for (var i = CueMixer.FramesPerSlot; i + length < left.Length; i++)
+        {
+            Assert.Equal(left[i], left[i + length]);
+        }
+    }
+
+    [Fact]
+    public void ASilencedSampleFadesOutAndASineTakesItsChannelBack()
+    {
+        var device = new FakeWaveDevice();
+        using var mixer = new CueMixer(device, logged.Add);
+        var sample = TestWav.Sample(TestWav.Sine(CueWave.SampleRate));
+        mixer.Hold(ToneChannel.Route, new HeldTone(0, 0, 100, sample, Loops: true), 100, restart: true);
+        mixer.Pump();
+        var output = device.Opened.Single();
+
+        mixer.Silence(ToneChannel.Route);
+        output.Finish(CueMixer.Slots);
+        Assert.True(mixer.Pump());
+        Assert.InRange(Math.Abs((int)output.Frames[^1]), 0, 1);
+        output.Finish(CueMixer.Slots);
+        Assert.False(mixer.Pump());
+
+        mixer.Hold(ToneChannel.Route, new HeldTone(440, 0, 100), 100);
+        Assert.True(mixer.Pump());
+        Assert.InRange(Crossings(Left(output.Buffers[^1])), 15, 25);
+    }
+
     private static short[] Rendered(Cue cue, double pan) =>
         CueWave.Stereo(CueWave.Samples(CueCatalogue.For(cue), 100), pan);
 

@@ -234,6 +234,30 @@ public sealed class WallTonesTests
         return Math.Min(maxDistance, Math.Min(alongX, alongZ));
     }
 
+    [Fact]
+    public void WithSoundFilesOnEachWallLoopsItsFileAndTurningThemOffGoesBackToTheTone()
+    {
+        var filesOn = true;
+        var withFiles = new WallTones(field, cues, announcer, () => now, () => on, () => Limits, _ => edges,
+            samples: new NavSamples(NavSamplesTests.Shipped, () => filesOn));
+
+        withFiles.Tick();
+        foreach (var direction in Enum.GetValues<WallDirection>())
+        {
+            var tone = cues.Now(WallTones.Channel(direction))!.Value;
+            Assert.Same(NavSamplesTests.Shipped.Find(NavSamples.FileName(direction)), tone.Sample);
+            Assert.True(tone.Loops);
+        }
+        AssertTone(WallDirection.Left, 200, -1);
+
+        // The volume hasn't changed, but the sound has, so it reaches the player.
+        filesOn = false;
+        now += WallTones.ProbeMilliseconds;
+        withFiles.Tick();
+        Assert.All(Enum.GetValues<WallDirection>(), direction =>
+            Assert.Null(cues.Now(WallTones.Channel(direction))!.Value.Sample));
+    }
+
     private void AssertTone(WallDirection direction, double distance, double pan)
     {
         var tone = cues.Now(WallTones.Channel(direction));

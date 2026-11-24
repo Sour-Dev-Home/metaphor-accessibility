@@ -13,10 +13,10 @@ namespace Metaphor.Features.Field;
 /// compiled, so it is the game's own words. [NEEDS VERIFICATION] in memory: that the label is the box's title. The
 /// objective under it (#743) is the row of the highest set flag in the field objective table, which starts each
 /// objective with the same flags (docs/findings/field-map-and-objective-tables-static.md); [NEEDS VERIFICATION] that the
-/// box picks it so. A title's trailing colon is dropped when no objective follows. A new mission is spoken once, in
-/// free roam, looked for at most once a second; the first one seen is not, since it is the mission the game was loaded
-/// on. It belongs to "where am I" (<see cref="FieldFeature.WhereAmI"/>): with that setting off, it says nothing. Safe
-/// to call from several threads.</summary>
+/// box picks it so. A title's trailing colon is dropped, and the objective follows as a sentence of its own. A new
+/// mission is spoken once, in free roam, looked for at most once a second; the first one seen is not, since it is the
+/// mission the game was loaded on. It belongs to "where am I" (<see cref="FieldFeature.WhereAmI"/>): with that setting
+/// off, it says nothing. Safe to call from several threads.</summary>
 [FeatureSetting<FieldFeature>(FieldFeature.WhereAmI)]
 public sealed class MissionLine
 {
@@ -133,7 +133,8 @@ public sealed class MissionLine
 
     private MainMissionRow? Read() => rows() is { } table ? MainMissionFlags.Current(storyFlag, table) : null;
 
-    // The title, then the objective after a colon when one is known; the title's own trailing colon is dropped.
+    // The title, then the objective as a sentence of its own when one is known, so no colon is read out between them
+    // (#743's by-ear check); the title's own trailing colon is dropped.
     private string? Title(MainMissionRow row)
     {
         if (Text(row.LabelHash) is not { } title)
@@ -143,7 +144,7 @@ public sealed class MissionLine
         title = title.TrimEnd().TrimEnd(':').TrimEnd();
         return objectives() is { } table && MainMissionFlags.Current(storyFlag, table) is { } objective &&
             Text(objective.LabelHash) is { } then
-            ? $"{title}: {then}"
+            ? $"{title}. {then}"
             : title;
     }
 
