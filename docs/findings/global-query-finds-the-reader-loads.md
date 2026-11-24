@@ -5,6 +5,11 @@
 - **Sources:** [`menus-open-session6-2026-11-17.md`](../raw-sources/menus-open-session6-2026-11-17.md),
   [`dialogue-window-flag-2026-11-16.md`](../raw-sources/dialogue-window-flag-2026-11-16.md),
   [`squirrel-script-functions-all-2026-11-16.md`](../raw-sources/squirrel-script-functions-all-2026-11-16.md)
+- **Functions:**
+  - CampStatusIsOpenBody | 0x51fad0 | .ecode | Menus | read | Loads the menus' handle global at its offset 9; the signature's single match.
+  - MsgIsSelectWindowOpenedBody | 0x9ea970 | .ecode | Dialogue | read | Loads the select window global `W` with its first instruction.
+  - Menus handle | 0x2ee7338 | .debug | Menus | read | The global holding the menus' handle, loaded by `CampStatusIsOpenBody`.
+  - W | 0x2f04960 | .debug | Dialogue | read | The select window global, loaded by `MsgIsSelectWindowOpenedBody`.
 
 `pwsh scripts/dev/ghidra.ps1 global <rva>` (#304) lists the RIP-relative load in each reader that `hook-signatures.json`
 uses to find the menus' handle global (#268) and the message window global (#232).

@@ -9,6 +9,9 @@
   [`recast-detour-navmesh-layout-2026-11-19.md`](../raw-sources/recast-detour-navmesh-layout-2026-11-19.md),
   [`field-navigation-accessibility-mods-2026-11-16.md`](../raw-sources/field-navigation-accessibility-mods-2026-11-16.md),
   [`squirrel-script-functions-all-2026-11-16.md`](../raw-sources/squirrel-script-functions-all-2026-11-16.md)
+- **Functions:**
+  - FldPlayerWalkToPos | 0x8e9120 | .ecode | Field | known only | Script function that walks the player; it reaches `.text1` through a stub, so it is off-limits.
+  - FldPlayerWalkToDoor | 0x8e8de0 | .ecode | Field | known only | Script function that walks the player to a door, like `FldPlayerWalkToPos`.
 
 Spike #179, extending [`field-navmesh-and-path-queries-static.md`](field-navmesh-and-path-queries-static.md), whose
 runtime reads (game session 4, #499) never ran. **Verdict: the path data exists in the files, high confidence; using

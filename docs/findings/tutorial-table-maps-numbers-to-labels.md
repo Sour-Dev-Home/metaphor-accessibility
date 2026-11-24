@@ -6,6 +6,7 @@
   guards. The live check is our own Reloaded-II mod's message log.
 - **Sources:** [`cri-cpk-table-layout-2026-11-21.md`](../raw-sources/cri-cpk-table-layout-2026-11-21.md),
   [`tutorial-popup-by-ear-2026-11-21.md`](../raw-sources/tutorial-popup-by-ear-2026-11-21.md)
+- **Functions:** none
 
 For #118: `COMMON/ui/tutorial/TutorialIDPC.bin` holds one entry per tutorial number, and each entry holds the MD5 of
 its title's label and of up to four page labels. Every hash names a label of `System_Tutorial_1.msg` (titles) or

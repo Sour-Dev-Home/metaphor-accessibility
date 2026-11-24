@@ -4,6 +4,7 @@
 - **Method:** Opening the shipped executable in a disassembler as-is, accepting that protected parts may be unreadable
 - **Sources:** none, see Steps; builds on
   [`message-serials-from-file-positions.md`](message-serials-from-file-positions.md)
+- **Functions:** none
 
 The exe's message-file table gives each file a range test. For the four item and skill files they are: names
 `Item_Message_1.msg` 5143–5915 (773), descriptions `Item_Message_2.msg` 5916–6748 (833), `Skill_Message_1.msg`

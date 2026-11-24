@@ -6,6 +6,13 @@
   [`field-interaction-prompt-static.md`](field-interaction-prompt-static.md),
   [`field-units-names-exits-static.md`](field-units-names-exits-static.md),
   [`field-position-facing-map-static.md`](field-position-facing-map-static.md)
+- **Functions:**
+  - FieldNavmeshSnap | 0x576410 | .ecode | Field | read | The navmesh snap that loads the `fldWorld` global.
+  - FieldSceneRootRead | 0x522db0 | .ecode | Field | read | The only reader of the `fldScene_Root` global.
+  - FieldDatabaseRead | 0x5767f0 | .ecode | Field | read | Loads the `fldDatabase` global.
+  - ResourceTablesLoaded | 0x89b3b0 | .ecode | Field | read | Loads the `NpcID.bin` table pointer.
+  - fldWorld | 0x2ee7510 | .debug | Field | read | The global holding the field world.
+  - fldDatabase | 0x2ee7368 | .debug | Field | read | The global holding the field database.
 
 For #181. The mod locates the field's three singletons by a `mov rcx,[rip+disp32]` (7 bytes) in an `.ecode` function
 that reads each, as it does its other globals (#300), and the person table by the third `lea` of

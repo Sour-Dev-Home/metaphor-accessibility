@@ -4,6 +4,7 @@
 - **Method:** Our own Reloaded-II mod reading the running game's memory and hooking its functions, as those community
   mods do
 - **Sources:** [`game-session-1-2026-11-20.md`](../raw-sources/game-session-1-2026-11-20.md)
+- **Functions:** none
 
 The scene after the opening cutscene, from `EN/message/event/e01_002_001.msg` and `e01_004_001.msg`, shows its lines
 in a message window, but none of them is requested through `MsgRequestByName`. The dialogue reader only hears that

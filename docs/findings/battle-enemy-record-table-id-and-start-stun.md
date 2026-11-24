@@ -7,6 +7,7 @@
   [`battle-enemy-list-maps-hits-to-slots-static.md`](battle-enemy-list-maps-hits-to-slots-static.md),
   [`enemy-tables-affinities-exp-drops.md`](enemy-tables-affinities-exp-drops.md) and
   [`enemy-stun-break-and-battle-condition-static.md`](enemy-stun-break-and-battle-condition-static.md)
+- **Functions:** none
 
 For #921, #772 and #626. An enemy's unit record (the one the battle package's enemy list and each hit name) keeps its
 `Enemy.TBL` row id as a `u32` at `+0x8`, and an enemy that starts a battle stunned has bit `0x40000` set in the

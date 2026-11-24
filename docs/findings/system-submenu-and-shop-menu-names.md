@@ -5,6 +5,7 @@
   mods do
 - **Sources:** [`shop-buy-sell-resolves-session-c-2026-11-22.md`](../raw-sources/shop-buy-sell-resolves-session-c-2026-11-22.md);
   the maintainer's by-ear report on #733 and the session's message log (grep, serials and labels of short UI words only)
+- **Functions:** none
 
 For #733, #736 and #197. Both menus fetch text by serial through `GetMessageBySerial`, which the mod logs as `resolve`.
 

@@ -5,6 +5,7 @@
   `docs/findings/field-navmesh-files-tile-cache-static.md` (#639) does; nothing extracted or kept
 - **Sources:** [`fastlz-and-recast-layer-cells-2026-11-21.md`](../raw-sources/fastlz-and-recast-layer-cells-2026-11-21.md),
   `recast-tile-cache-set-and-atl-header-2026-11-21.md` (#639)
+- **Functions:** none
 
 `NavMeshFile` (`src/Metaphor.Core/Navigation/`, #179) reads all 374 `.NAV` files in `COMMON/model/field/navi/`, and
 every tile of each file's first run decodes: 433,629 tiles, none skipped. The five files where #639's throwaway decoder

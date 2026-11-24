@@ -5,6 +5,7 @@
 - **Sources:** none, see Steps; builds on [`item-skill-message-serials-static.md`](item-skill-message-serials-static.md),
   [`field-nearby-unit-names-static.md`](field-nearby-unit-names-static.md) and
   [`item-equipment-menu-names-from-resolves.md`](item-equipment-menu-names-from-resolves.md)
+- **Functions:** none
 
 The exe's message-file table gives `Equip_Message_1.msg` (weapon, armour, gear and accessory names) serials 2442–3646
 (1205), `Equip_Message_2.msg` 3647–4852 (1206), `CharaName.msg` 0–121 (122) and `ATCategoryName.msg` (the archetype

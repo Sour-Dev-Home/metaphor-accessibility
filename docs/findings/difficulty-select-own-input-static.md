@@ -5,6 +5,10 @@
 - **Sources:** [`squirrel-script-functions-all-2026-11-16.md`](../raw-sources/squirrel-script-functions-all-2026-11-16.md),
   [`chapter1-opening-inventory-own-capture-2026-11-20.md`](../raw-sources/chapter1-opening-inventory-own-capture-2026-11-20.md)
   (row 13)
+- **Functions:**
+  - DifficultySelectStart | 0x904ca0 | .ecode | Menus | known only | Script function that opens the difficulty select component through a thunk.
+  - UUIC_Common_DifficultySelect vtable | 0x2251798 | .udata | Menus | known only | The difficulty select component, which handles its own input.
+  - DifficultySelectUpdate | 0xf50130 | .ecode | Menus | hooked | Slot 13: the component's update, which moves its list through the input reader.
 
 **Corrected:** the list does reach `CursorManagerInput`, through the manager at its `+0x28`; see
 [`difficulty-select-shared-cursor.md`](difficulty-select-shared-cursor.md).

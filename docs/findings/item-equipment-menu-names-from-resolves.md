@@ -5,6 +5,7 @@
   mods do
 - **Sources:** [`item-equipment-menus-message-log-2026-11-22.md`](../raw-sources/item-equipment-menus-message-log-2026-11-22.md);
   the serial ranges are in [`message-serials-from-file-positions.md`](message-serials-from-file-positions.md)
+- **Functions:** none
 
 For #216 and #217. Neither menu's text panes hold readable text, but both fetch every name they draw through
 `GetMessageBySerial`, which the mod already logs as `resolve`. The Item menu fetches the visible rows' names top first,

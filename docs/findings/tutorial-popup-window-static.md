@@ -4,6 +4,9 @@
 - **Method:** Opening the shipped executable in a disassembler as-is, accepting that protected parts may be unreadable
 - **Sources:** none, see Steps; follows [`tutorial-popups-route.md`](tutorial-popups-route.md) and
   [`title-names-voice-tutorials-static.md`](title-names-voice-tutorials-static.md)
+- **Functions:**
+  - Tutorial window update | 0xfaed70 | .ecode | Menus | known only | Slot `vf13` of the pop-up: a state machine on `+0x18` (3 means ended).
+  - Tutorial controller vtable | 0x2257790 | .udata | Menus | known only | The controller that opens a pop-up by tutorial number; its `vf13` is at `0xfaf0c0`.
 
 For #118: the pop-up is `UUIC_Common_TutorialWindow@ui@app`, driven by `UUIC_Common_TutorialWindow_Controller`. The
 controller opens it with a **tutorial number** (`0xfae440` loops over numbers below `0xce`, so probably 206 of

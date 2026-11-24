@@ -5,6 +5,12 @@
 - **Sources:** [`squirrel-script-functions-all-2026-11-16.md`](../raw-sources/squirrel-script-functions-all-2026-11-16.md),
   [`community-survey-calendar-quests-shops-followers-2026-11-19.md`](../raw-sources/community-survey-calendar-quests-shops-followers-2026-11-19.md),
   [`metaphor-010-templates-shop-follower-quest-2026-11-19.md`](../raw-sources/metaphor-010-templates-shop-follower-quest-2026-11-19.md)
+- **Functions:**
+  - FldFollowerIsAbsence | 0x8de190 | .ecode | Field | known only | Script function returning the absence byte of a follower's 40-byte copy.
+  - FldFollowerGetRankupStatus | 0x8de150 | .ecode | Field | known only | Script function returning the rank-up status of the same copy.
+  - FldFollowerIsLayoutForFollowerScenario | 0x8de1b0 | .ecode | Field | known only | Script function returning a layout byte of the same copy.
+  - FldFollowerUpdateLayoutInfo | 0x8de250 | .ecode | Field | known only | Script function that loops over the follower map keyed by follower ID.
+  - DateUI_ChangeTime | 0x904aa0 | .ecode | Field | known only | Script function that walks the same map layout for its own map at `+0x188`.
 
 Static prep (#494) for what the [money note](money-follower-rank-and-shop-static.md) (#405) left open in #196: follower
 availability and location, and the shop's stock list. Read in Ghidra only, not yet run against the game: every

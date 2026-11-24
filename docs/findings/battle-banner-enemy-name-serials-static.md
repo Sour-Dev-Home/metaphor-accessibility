@@ -6,6 +6,8 @@
 - **Sources:** none, see Steps; builds on
   [`battle-banner-name-variable-static.md`](battle-banner-name-variable-static.md) and
   [`equipment-character-archetype-serials-static.md`](equipment-character-archetype-serials-static.md)
+- **Functions:**
+  - Banner queue | 0x326e70 | .ecode | Battle | known only | Takes the name serial for each banner from the unit, for an enemy or a party member.
 
 For #739. The message files between `CharaName.msg` (serials 0–121) and `System_Message.msg` (from 1142) are
 `EnemyName.msg`, `MapName.msg` and `ClassName.msg`, in the message-file table's order, and their compiled counts (421,

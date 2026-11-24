@@ -6,6 +6,12 @@
   [`field-nearby-session6-2026-11-17.md`](../raw-sources/field-nearby-session6-2026-11-17.md),
   [`field-inventory-2026-11-17.md`](../raw-sources/field-inventory-2026-11-17.md),
   [`squirrel-script-functions-all-2026-11-16.md`](../raw-sources/squirrel-script-functions-all-2026-11-16.md)
+- **Functions:**
+  - FldHitCollisGetLinkPosID | 0x8df940 | .ecode | Field | known only | Script function that walks the hit list by id to find a link position.
+  - FldDoorGetUidByClosestOnPlayer | 0x8dad90 | .ecode | Field | known only | Script function that finds the door closest to the player.
+  - FldNpcGetCharaID body | 0x67a380 | .ecode | Field | known only | Looks the NpcID index up in the NpcID table and returns the entry's character id.
+  - FldDoorGetLinkFlag_ED | 0x8dabb0 | .ecode | Field | known only | Script function that returns a door's link row flag.
+  - FldDoorGetType | 0x698c10 | .ecode | Field | known only | Returns the door's type.
 
 Static prep (#495) for #178 and #176 in game session 4 (#499). The session-6 reader (`FieldWatch`, branch
 `capture-kit-2`) isn't on `main`, so this restates its paths as inspector commands and adds what it lacked. Every

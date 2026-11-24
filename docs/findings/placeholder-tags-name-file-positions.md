@@ -6,6 +6,7 @@
   parts may be unreadable
 - **Sources:** none, see Steps; tag counts in
   [`message-listening-run-2026-11-16.md`](../raw-sources/message-listening-run-2026-11-16.md)
+- **Functions:** none
 
 For #108 and #109. In `<SKILL n f>` and `<CONDITION n f>`, `n` is the message's position in
 `message/system/Skill_Message_1.msg` and `message/system/BadStatus_Message_1.msg`, and form `f` 2 shows the name. An

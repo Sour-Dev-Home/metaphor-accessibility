@@ -4,6 +4,8 @@
 - **Method:** Our own Reloaded-II mod reading the running game's memory and hooking its functions, as those community
   mods do
 - **Sources:** [`game-session-1-2026-11-20.md`](../raw-sources/game-session-1-2026-11-20.md)
+- **Functions:**
+  - UUIC_Common_TutorialWindow vtable | 0x22576a0 | .udata | Menus | known only | The tutorial window component, a lead for how a page's text reaches the window.
 
 For #118: the pop-ups' text took none of the routes the mod listens to. No `GetMessageBySerial` call asked for a tutorial
 serial (10256 to 10859), no line was requested by name, and no text pane held the text. What the log does show is
