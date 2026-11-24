@@ -76,7 +76,11 @@ public sealed class DialogueAnnouncer
     /// <summary>Announces a line as the game stores it, with its speaker as the game stores it (null when none). A line
     /// that cleans to nothing, such as one made only of tags, has nothing to say and isn't announced; a speaker that
     /// cleans to nothing is left out. An unvoiced line is always said in full.</summary>
-    public void Show(string? speaker, string line)
+    public void Show(string? speaker, string line) => Show(speaker, line, interrupt: true);
+
+    /// <summary>As <see cref="Show(string?, string)"/>, with the choice of cutting off what is being said:
+    /// <paramref name="interrupt"/> false queues the line behind it, as for a narration notice (#908).</summary>
+    public void Show(string? speaker, string line, bool interrupt)
     {
         ArgumentNullException.ThrowIfNull(line);
         var text = cleaner.Clean(line);
@@ -115,7 +119,7 @@ public sealed class DialogueAnnouncer
                 }
                 return;
             default:
-                announcer.Announce(new Announcement(said, Interrupt: true));
+                announcer.Announce(new Announcement(said, Interrupt: interrupt));
                 return;
         }
     }

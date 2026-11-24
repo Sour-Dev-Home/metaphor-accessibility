@@ -6,5 +6,6 @@ speech.dialogueKeys | Dialogue keys | off | testing
 speech.messageLog | Message log | off | testing
 speech.moreTermNames | More term names | off | testing
 speech.nameStandIn | Name stand-in | off | testing
+speech.narration | Narration | off | testing
 speech.termNames | Term names | on | done
 speech.windowCloseStop | Window close stop | on | done

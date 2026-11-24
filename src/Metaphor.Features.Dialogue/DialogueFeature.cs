@@ -66,6 +66,13 @@ public enum DialogueFeature
         "or off.")]
     DialogueKeys,
 
+    /// <summary>The game's day-count lines and arrival narration, spoken when the window shows them (#908). Its own
+    /// setting while it is tested.</summary>
+    [SettingKey("speech", "narration", "Narration", Testing = true, Order = 1217, Description = "The day count " +
+        "(\"1 day remains\") and the narration that opens a place, said without a speaker, after the line being " +
+        "said rather than over it. Needs `dialogue`.")]
+    Narration,
+
     /// <summary>The game's message log read line by line as the player moves through it (#685). Its own setting while
     /// it is tested.</summary>
     [SettingKey("speech", "messageLog", "Message log", Testing = true, Order = 1215, Description = "The game's " +

@@ -112,6 +112,7 @@ Each is `true` to speak or `false` to stay quiet, inside a `speech` object: `{ "
 | `windowCloseStop` | A closed dialogue window stopping the line still being spoken. Needs `dialogue`. | `true` |
 | `dialogueKeys` | In dialogue, the keys that stop the speech, say who is speaking and say the line on screen, with the reader on or off. Still being tested. | testing, off |
 | `messageLog` | The game's message log, the backlog of recent dialogue, saying its name and each line's position as you move through it. The lines' words are still to come. Still being tested. | testing, off |
+| `narration` | The day count ("1 day remains") and the narration that opens a place, said without a speaker, after the line being said rather than over it. Needs `dialogue`. Still being tested. | testing, off |
 | `welcome` | The welcome on the title screen the first time the game starts with the mod: the mod's version and the field keys. | `true` |
 | `settingsMenu` | The mod's own settings menu, opened with F2, or LT and RT held then View on the pad, on any screen. Up and Down move, Left and Right change the setting and save it at once, F or R3 says what it does, and Escape or B closes. While it is open the game gets no keys or buttons. Still being tested. | testing, off |
 | `keyHelp` | The help key, F1, or LT and RT held then Y on the pad: says the mod's keys that work where you are now, with their current bindings. Still being tested. | testing, off |
