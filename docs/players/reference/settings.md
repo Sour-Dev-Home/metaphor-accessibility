@@ -71,10 +71,13 @@ Each is `true` to speak or `false` to stay quiet, inside a `speech` object: `{ "
 | `battleEnemyMaxHp` | The "of max HP" in an enemy's HP line: "840 of 1200". Off says only "840 left". Needs `battleEnemyKeys`. | `true` |
 | `battleHpMp` | In a battle, `M` says each party member's HP and MP. Needs `battleHits`. Still being tested. | testing, off |
 | `battleLists` | Battle's skill and item lists, row by row. Separate from `menus`. | `true` |
+| `battleSkillCosts` | Says what a skill costs after its name in the battle skill list and Synthesis list, such as "4 MP" or "15 percent HP". The Synthesis list says its turn icons too. Needs `battleLists`. Still being tested. | testing, off |
+| `battleSynthesis` | Says each Synthesis in battle by name with its position, and `F` reads its description. Needs `battleLists`. Still being tested. | testing, off |
 | `battleListViews` | Names the rows of battle's skill and item lists after a wrap to the bottom, not only their positions. Needs `battleLists`. | `true` |
 | `battleItemTabs` | The tab's name when the battle item list opens or you switch tabs with LB or RB. Needs `battleLists`. Still being tested. | testing, off |
 | `battleOrderMenu` | Battle's Order menu, opened with LB, and its Tactics submenu. | `true` |
 | `battleConfirms` | Battle's Retry and confirm prompts: the question, then Yes or No. Still being tested. | testing, off |
+| `battlePartyScreen` | On the battle Order menu's Party screen, says each member's name, HP and MP with their position. Still being tested. | testing, off |
 | `itemMenu` | The Item screen's rows and its party-member list. | `true` |
 | `calendar` | The Calendar's day grid. | `true` |
 | `questList` | Each quest's name on the quest list, and an opened quest's name and description. Needs `menus`. | `true` |
@@ -87,6 +90,7 @@ Each is `true` to speak or `false` to stay quiet, inside a `speech` object: `{ "
 | `battleStart` | Says "Ambushed" when a battle starts with the enemy striking first. | `true` |
 | `battleEnd` | Says "Victory", "Escaped" or "Defeated" as a battle ends. Still being tested. | testing, off |
 | `battleRewards` | After a won battle, says the money and MAG it gained: "Gained 240 money and 30 MAG". Still being tested. | testing, off |
+| `battleFormation` | In a battle, says "row changed" with the member when a party member moves between the front and back row. Still being tested. | testing, off |
 | `saveSlots` | The save and load screens' slots. | `true` |
 | `learnedSettingValues` | The System rows whose setting the mod has not pinned saying their value on change, learned as you change them. Needs `menus`. | `true` |
 | `nameEntry` | The name entry screen: its title, each letter you type, and when a name is refused. | `true` |

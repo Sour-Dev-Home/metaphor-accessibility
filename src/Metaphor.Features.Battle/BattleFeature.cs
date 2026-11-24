@@ -74,6 +74,30 @@ public enum BattleFeature
         "battle, `M` says each party member's HP and MP. Needs `battleHits`.")]
     BattleHpMp,
 
+    /// <summary>A skill's HP or MP cost after its name in the battle skill and Synthesis lists (#692 (b), #260), from
+    /// the game's skill tables.</summary>
+    [SettingKey("speech", "battleSkillCosts", "Battle skill costs", Testing = true, Order = 1041, Description =
+        "Says what a skill costs after its name in the battle skill list and Synthesis list, such as \"4 MP\" or " +
+        "\"15 percent HP\". The Synthesis list says its turn icons too. Needs `battleLists`.")]
+    BattleSkillCosts,
+
+    /// <summary>The battle Synthesis list's rows, as the skill list's (#260).</summary>
+    [SettingKey("speech", "battleSynthesis", "Battle Synthesis list", Testing = true, Order = 1042, Description =
+        "Says each Synthesis in battle by name with its position, and `F` reads its description. Needs " +
+        "`battleLists`.")]
+    BattleSynthesis,
+
+    /// <summary>The Order menu's Party screen (#258): each battle member's name, HP and MP.</summary>
+    [SettingKey("speech", "battlePartyScreen", "Battle party screen", Testing = true, Order = 1049, Description =
+        "On the battle Order menu's Party screen, says each member's name, HP and MP with their position.")]
+    BattlePartyScreen,
+
+    /// <summary>"Row changed" when a party member's Formation row changes in battle (#259).</summary>
+    [SettingKey("speech", "battleFormation", "Battle formation", Testing = true, Order = 1078, Description =
+        "In a battle, says \"row changed\" with the member when a party member moves between the front and back " +
+        "row.")]
+    BattleFormation,
+
     /// <summary>The in-turn situation banner: a boss warning, a stat change (#692, #661).</summary>
     [SettingKey("speech", "battleBanners", "Battle banners", Order = 1070, Description = "The short " +
         "banner during a battle turn: a boss warning, a stat change.")]

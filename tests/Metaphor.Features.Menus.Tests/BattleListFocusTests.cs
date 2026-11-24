@@ -29,8 +29,12 @@ public sealed class BattleListFocusTests
     private readonly MenuScreens screens = new(KnownScreens.All);
     private readonly BattleListFocus skills;
     private readonly BattleListFocus items;
+    private readonly BattleListFocus synthesis;
+    // Each skill row's cost by its name serial (#692 (b)): none unless a test adds one.
+    private readonly Dictionary<int, string> costs = [];
     private long now = 50_000;
     private bool viewsOn = true;
+    private bool synthesisOn = true;
 
     public BattleListFocusTests()
     {
@@ -46,13 +50,19 @@ public sealed class BattleListFocusTests
         // A battle: the menus read closed.
         screens.MenusRead(open: false);
         cursors.Observe(screens);
-        skills = BattleListFocus.Skills(serials, announcer, cleaner, () => now);
+        skills = BattleListFocus.Skills(serials, announcer, cleaner, () => now, rowCost: costs.GetValueOrDefault);
         items = BattleListFocus.Items(serials, announcer, cleaner, () => now, () => viewsOn);
+        synthesis = BattleListFocus.Synthesis(
+            serials, announcer, cleaner, () => now, viewsOn: null, name => costs.GetValueOrDefault(name) is { } cost
+                ? $"1 turn icon, {cost}"
+                : null, () => synthesisOn);
         screens.Observe(skills);
         screens.Observe(items);
+        screens.Observe(synthesis);
         screens.Observe(new UnknownScreenFocus(announcer));
         messages.ObserveSerials(skills);
         messages.ObserveSerials(items);
+        messages.ObserveSerials(synthesis);
         messages.Compiled(new MessageFileCompiled("EN/message/system/Skill_Message_1.msg", 20,
             Source("Skill", "Spark", "Gust", "Frost <COLOR 3>")));
         messages.Compiled(new MessageFileCompiled("EN/message/system/Item_Message_1.msg", 21,
@@ -598,5 +608,83 @@ public sealed class BattleListFocusTests
         Assert.Contains(BattleListFocus.ItemList, KnownScreens.All);
         Assert.True(BattleListFocus.SkillList.OutsideMenus);
         Assert.True(BattleListFocus.ItemList.OutsideMenus);
+    }
+
+    private const string SynthesisClass = "BTL_SyentesisSkillList@ope@ui@app";
+
+    [Fact]
+    public void ASkillRowSaysItsCostAfterItsName()
+    {
+        costs[SkillFirst] = "4 MP";
+        Fetched(SkillFirst, SkillFirst + 1);
+
+        Cursor(SkillClass, 0, count: 2);
+        Cursor(SkillClass, 1, count: 2);
+
+        Assert.Equal(["Skills, Spark, 4 MP, 1 of 2", "Gust, 2 of 2"], Said());
+    }
+
+    [Fact]
+    public void ARowSaidByItsPositionHasNoCost()
+    {
+        costs[SkillFirst] = "4 MP";
+        Fetched(SkillFirst);
+        Cursor(SkillClass, 0, count: 3);
+        // A jump with no name fetched: the row can't be told.
+        Cursor(SkillClass, 2, count: 3);
+
+        Assert.Equal(["Skills, Spark, 4 MP, 1 of 3", "3 of 3"], Said());
+    }
+
+    [Fact]
+    public void TheSynthesisListIsHeadedAndNamesItsRowsWithTheirCostsAndDescriptions()
+    {
+        // #260: four names (flags 9) and descriptions (flags 7), one pair per row, before its cursor.
+        costs[SkillFirst + 1] = "12 MP";
+        Fetched(SkillFirst + 1);
+        Described(SkillDescriptionFirst);
+        Fetched(SkillFirst + 2);
+        Described(SkillDescriptionFirst + 1);
+
+        Cursor(SynthesisClass, 0, count: 2, manager: 0xd0);
+        Cursor(SynthesisClass, 1, count: 2, manager: 0xd0);
+
+        Assert.Equal(["Synthesis, Gust, 1 turn icon, 12 MP, 1 of 2", "Frost, 2 of 2"], Said());
+        Assert.Equal("Burns one foe", synthesis.Details(Focus(SynthesisClass, 0)));
+        Assert.Null(skills.Details(Focus(SynthesisClass, 0)));
+    }
+
+    [Fact]
+    public void TheSynthesisListIsSilentWithItsSettingOff()
+    {
+        synthesisOn = false;
+        Fetched(SkillFirst);
+        Described(SkillDescriptionFirst);
+
+        Cursor(SynthesisClass, 0, count: 1, manager: 0xd0);
+
+        Assert.Empty(Said());
+        Assert.Null(synthesis.Details(Focus(SynthesisClass, 0)));
+    }
+
+    [Fact]
+    public void TheSkillListOpenedAfterTheSynthesisListNamesItsOwnRows()
+    {
+        // Backing out of Synthesis to the commands tells nothing; the skill list's own fetches are still heard.
+        Fetched(SkillFirst + 2);
+        Cursor(SynthesisClass, 0, count: 1, manager: 0xd0);
+        now += 80_000;
+        Fetched(SkillFirst, SkillFirst + 1);
+
+        Cursor(SkillClass, 0, count: 2);
+
+        Assert.Equal(["Synthesis, Frost, 1 of 1", "Skills, Spark, 1 of 2"], Said());
+    }
+
+    [Fact]
+    public void TheSynthesisListIsAKnownScreenShownOutsideTheMenus()
+    {
+        Assert.Contains(BattleListFocus.SynthesisList, KnownScreens.All);
+        Assert.True(BattleListFocus.SynthesisList.OutsideMenus);
     }
 }

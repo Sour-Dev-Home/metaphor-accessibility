@@ -46,6 +46,19 @@ public sealed class FeatureModulesTests
         Assert.NotNull(context.Find<FieldTablesSource>());
     }
 
+    // The menus speak the battle lists; the battle module, after them, says whether the Synthesis list speaks (#260).
+    [Fact]
+    public void TheBattleModuleGatesTheMenusSynthesisListOnItsOwnSetting()
+    {
+        var context = Register(withReport: false);
+        var additions = Assert.IsType<BattleListAdditions>(context.Find<BattleListAdditions>());
+
+        Assert.False(additions.SynthesisOn());
+        context.Settings.Load("""{ "speech": { "battleSynthesis": true } }""");
+        Assert.True(additions.SynthesisOn());
+        Assert.Null(additions.CostOf(1, turnIcons: false));
+    }
+
     // Before #784 the input frame took the mark key, the menus, the battle status key, the enemy HP key, the dialogue
     // and the field, in that order (InputHooks.Frame). The mark key and the field controls aren't gated, so their
     // types show; the four between are gated by their settings.

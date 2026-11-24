@@ -6,12 +6,16 @@ speech.battleEnemyList | Battle enemy list | off | testing
 speech.battleEnemyMaxHp | Battle enemy max HP | on | done
 speech.battleEnemyPad | Battle enemy pad chords | off | testing
 speech.battleEnemyTarget | Battle targeted enemy first | off | testing
+speech.battleFormation | Battle formation | off | testing
 speech.battleHitNumbers | Battle hit numbers only | off | testing
 speech.battleHits | Battle hits | on | done
 speech.battleHpMp | Battle HP and MP key | off | testing
 speech.battleNumberReset | Battle number reset | off | testing
 speech.battleOutcomes | Battle outcomes | on | done
+speech.battlePartyScreen | Battle party screen | off | testing
 speech.battleRewards | Battle rewards | off | testing
+speech.battleSkillCosts | Battle skill costs | off | testing
 speech.battleStart | Battle start | on | done
+speech.battleSynthesis | Battle Synthesis list | off | testing
 speech.battleTargetSpeech | Battle target cursor | off | testing
 speech.battleTurnLine | Battle turn line | off | testing
