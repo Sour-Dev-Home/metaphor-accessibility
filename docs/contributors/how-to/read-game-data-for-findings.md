@@ -30,13 +30,14 @@ dotnet run --project tools/Metaphor.CpkExtract -c Release -v q -- extract base.c
 ```
 
 Each file lands under `--out` at its archive path (`extracted/mapdata/COMMON/init/data/MapData.bin`). Run it from inside
-the repository.
+the repository. A file already there is left alone and the run refused; add `--force` to overwrite it.
 
 ## What it refuses
 
 - An `--out` that isn't inside `extracted/`: `..`, another folder, another drive, the repository root.
 - A symlink or junction on the way to the output, so a link can't lead out of `extracted/`.
-- An archive path that isn't plain relative `DIR/NAME` (`..`, a drive, a `:` stream, an empty part).
+- An archive path that isn't plain relative `DIR/NAME` (`..`, a drive, a `:` stream, an empty part), names a Windows
+  device (`NUL`, `CON`, `COM1`, …) or holds a character Windows can't put in a name (`<>"|?*`, a control character).
 - An archive named with a path, or anything but `.cpk`.
 
 Refusals exit 2 before anything is opened or written. The archive is only ever opened for reading, and the tool uses no

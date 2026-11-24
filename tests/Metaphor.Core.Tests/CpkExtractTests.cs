@@ -220,6 +220,116 @@ public sealed class CpkExtractTests : IDisposable
         Assert.Contains("usage:", error);
     }
 
+    // #899, the security review's hardening of #895.
+
+    [Theory]
+    [InlineData("NUL")]
+    [InlineData("a/CON.txt")]
+    [InlineData("com1")]
+    [InlineData("data/LPT9.bin")]
+    [InlineData("aux .bin")]
+    [InlineData("a/b?.bin")]
+    [InlineData("a/b*.bin")]
+    [InlineData("x<y.bin")]
+    [InlineData("x>y.bin")]
+    [InlineData("x|y.bin")]
+    [InlineData("x\"y.bin")]
+    [InlineData("x\ty.bin")]
+    public void ExtractRefusesADeviceNameOrACharacterWindowsCannotName(string path)
+    {
+        var (code, output, error) = Run("extract", "base.cpk", path, "--out", Path.Combine(repo, "extracted"));
+        Assert.Equal(2, code);
+        Assert.StartsWith("refused:", error);
+        Assert.Equal("", output);
+    }
+
+    [Theory]
+    [InlineData("CONSOLE.bin")]
+    [InlineData("a/null.txt")]
+    [InlineData("COM10.bin")]
+    public void ANameThatOnlyStartsLikeADeviceIsAllowed(string path) =>
+        Assert.Equal(path, OutputGuard.ArchivePath(path));
+
+    [Fact]
+    public void AnUnexpectedErrorSaysItsKindOnlyNeverAStackTraceOrPath()
+    {
+        var output = new StringWriter();
+        var error = new StringWriter();
+        var code = CpkExtractCommand.Run(["list", "base.cpk"], _ => "bad\0path", repo, output, error);
+        Assert.Equal(1, code);
+        Assert.Equal("could not read or write a file (ArgumentException)", error.ToString().Trim());
+        Assert.DoesNotContain(" at ", error.ToString());
+    }
+
+    [Fact]
+    public void ExtractRefusesToOverwriteAFileUnlessForced()
+    {
+        var target = Path.Combine(repo, "extracted", "top.bin");
+        Directory.CreateDirectory(Path.GetDirectoryName(target)!);
+        File.WriteAllText(target, "mine");
+
+        var (code, output, error) = Run("extract", "base.cpk", "top.bin", "--out", Path.Combine(repo, "extracted"));
+        Assert.Equal(2, code);
+        Assert.StartsWith("refused:", error);
+        Assert.Contains("--force", error);
+        Assert.Equal("", output);
+        Assert.Equal("mine", File.ReadAllText(target));
+
+        (code, _, error) = Run("extract", "base.cpk", "top.bin", "--out", Path.Combine(repo, "extracted"), "--force");
+        Assert.True(code == 0, error);
+        Assert.Equal("root", File.ReadAllText(target));
+    }
+
+    [Fact]
+    public void AFileThatAppearsAfterTheChecksIsNotWrittenOver()
+    {
+        // The write opens the file only if it isn't there, so nothing that appeared after the checks (a file, or a link
+        // to one elsewhere) is written through.
+        var folder = Path.Combine(repo, "extracted");
+        var target = Path.Combine(folder, "late.bin");
+        Directory.CreateDirectory(folder);
+        File.WriteAllText(target, "planted");
+
+        Assert.ThrowsAny<IOException>(() => OutputGuard.WriteNew(folder, target, [1, 2, 3], force: false));
+        Assert.Equal("planted", File.ReadAllText(target));
+
+        OutputGuard.WriteNew(folder, target, [1, 2, 3], force: true);
+        Assert.Equal([1, 2, 3], File.ReadAllBytes(target));
+    }
+
+    [Fact]
+    public void AForcedWriteNeverFollowsALinkAtTheFile()
+    {
+        var folder = Path.Combine(repo, "extracted");
+        Directory.CreateDirectory(folder);
+        var victim = Path.Combine(temp, "victim.bin");
+        File.WriteAllText(victim, "safe");
+        var link = Path.Combine(folder, "link.bin");
+        try
+        {
+            File.CreateSymbolicLink(link, victim);
+        }
+        catch (Exception e) when (e is UnauthorizedAccessException or IOException)
+        {
+            return; // No permission to make a file symlink on this machine; nothing to test.
+        }
+
+        Assert.Throws<RefusedPathException>(() => OutputGuard.WriteNew(folder, link, [1], force: true));
+        Assert.Equal("safe", File.ReadAllText(victim));
+    }
+
+    [Fact]
+    public void ListStripsControlCharactersFromNames()
+    {
+        using var archive = CpkArchiveTests.Archive(("dir\u001b[2J", "a\rb\u0007.bin", Encoding.ASCII.GetBytes("x"), 1));
+        File.WriteAllBytes(Path.Combine(game, "odd.cpk"), archive.ToArray());
+
+        var (code, output, _) = Run("list", "odd.cpk");
+
+        Assert.Equal(0, code);
+        Assert.Equal("1\tdir?[2J/a?b?.bin\n", Slash(output));
+    }
+
     // A symlink, or on Windows without the privilege a junction; false when neither can be made here.
     private static bool MakeLink(string link, string target)
     {

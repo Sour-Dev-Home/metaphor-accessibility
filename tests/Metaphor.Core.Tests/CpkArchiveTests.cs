@@ -290,4 +290,21 @@ public sealed class CpkArchiveTests
         using var cut = new MemoryStream(new byte[8]);
         Assert.Null(CpkArchive.List(cut));
     }
+
+    // #899: a table of contents claiming many rows, none of them a file, allocates for what it lists, not for the count.
+    [Fact]
+    public void AListAllocatesForTheFilesItFindsNotTheRowCount()
+    {
+        var toc = Table([new("FileSize", 4, PerRow: true)], [.. Enumerable.Range(0, 100_000).Select(_ => new object[] { 1 })]);
+        var header = Table([new("TocOffset", 6, PerRow: true)], [[0x100]]);
+        var bytes = new byte[0x100 + 16 + toc.Length];
+        Container("CPK ", header).CopyTo(bytes, 0);
+        Container("TOC ", toc).CopyTo(bytes, 0x100);
+
+        var entries = CpkArchive.List(new MemoryStream(bytes));
+
+        var list = Assert.IsType<List<CpkEntry>>(entries);
+        Assert.Empty(list);
+        Assert.True(list.Capacity < 100_000, $"capacity {list.Capacity}");
+    }
 }

@@ -16,6 +16,9 @@ public static class CpkArchive
 
     private const int ContainerSize = 16;
 
+    // The most entries List preallocates for before it has read a row.
+    private const int MaxPreallocatedEntries = 4096;
+
     /// <summary>The bytes of the file at <paramref name="path"/> (<c>DIR/NAME</c>, as the table of contents names it),
     /// or null when the archive has no such file, it is compressed or bigger than <paramref name="maxSize"/>, or the
     /// archive isn't one this reads. Never throws on a damaged archive; the stream's own failures propagate.</summary>
@@ -78,7 +81,10 @@ public static class CpkArchive
         {
             return null;
         }
-        var entries = new List<CpkEntry>(toc.RowCount);
+        // Room for the rows up to a cap, not for whatever the count says: a damaged count of millions of rows that name
+        // no file would otherwise allocate for all of them (#899). The list grows past the cap for an archive that has
+        // more files.
+        var entries = new List<CpkEntry>(Math.Min(toc.RowCount, MaxPreallocatedEntries));
         for (var row = 0; row < toc.RowCount; row++)
         {
             if (toc.Text(row, "FileName") is { } name && toc.Number(row, "FileSize") is { } size &&
