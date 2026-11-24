@@ -35,6 +35,9 @@ public static class FieldKeys
         new(KeyPlaces.Field, FieldFeature.Guidance, new(
             "Start or stop the guidance beep", new("field", "guideKey", Defaults.GuideKey),
             new("field", "guideButton", Defaults.GuideButton), Hold)),
+        new(KeyPlaces.Field, FieldFeature.ObjectiveGuidance, new(
+            "Guide me to the objective", new("field", "objectiveKey", Defaults.ObjectiveKey),
+            new("field", "objectiveButton", Defaults.ObjectiveButton), Hold)),
         new(KeyPlaces.Field, FieldFeature.Nearby, new(
             "Log the nearest thing for the names table", new("field", "identifyKey", Defaults.IdentifyKey))
         {

@@ -87,4 +87,16 @@ public enum FieldFeature
         "sound from the enemy's side and \"Enemy noticed you\" when a field enemy near you notices you, and a softer " +
         "falling sound when it gives up the search. Each sound has its own key in `sounds`.")]
     EnemyAwareness,
+
+    /// <summary>"Guide me to the objective": the guidance beep toward the current objective's marker (#652).</summary>
+    [SettingKey("field", "objectiveGuidance", "Objective guidance", Testing = true, Order = 2140, Description = "O " +
+        "starts the guidance beep toward the current objective's marker on this map, or a waypoint the mod's data " +
+        "gives; G stops it. Says \"Objective guidance isn't ready for this area\" where the mod can't place the marker " +
+        "yet, which for now is everywhere.")]
+    ObjectiveGuidance,
+
+    /// <summary>The callouts when a strike of yours lands on a field enemy (#696).</summary>
+    [SettingKey("field", "fieldStrikes", "Field strike callouts", Testing = true, Order = 2150, Description = "\"Hit\" " +
+        "when a strike of yours takes HP from a field enemy near you, and \"Defeated\" when it takes the last.")]
+    FieldStrikes,
 }

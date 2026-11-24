@@ -176,6 +176,10 @@ select_runs() {
     if [[ "$f" == data/names/* ]]; then
       mark tests/Metaphor.Features.Field.Tests/Metaphor.Features.Field.Tests.csproj "$f changed (the names table, which these tests check)"
     fi
+    # So do the objective guidance's data files (#652).
+    if [[ "$f" == data/objectives/* ]]; then
+      mark tests/Metaphor.Features.Field.Tests/Metaphor.Features.Field.Tests.csproj "$f changed (the objective data, which these tests check)"
+    fi
     # The settings reference is generated from the settings in code (#784, ADR 0022); these tests check it is current.
     if [[ "$f" == docs/players/reference/settings.md ]]; then
       mark tests/Metaphor.Settings.Tests/Metaphor.Settings.Tests.csproj "$f changed (generated, which these tests check)"

@@ -77,6 +77,11 @@ list's radius five times a second and logs every change of its state or pending 
 at=(x,z) distance=<d>`. Its cue takes state 30 (current or requested) as "noticed" and the return to the calm state
 as "gave up"; both are guesses until such a log, beside the screen, settles them. `[NEEDS VERIFICATION]`
 
+A Debug build also reads each nearby enemy's HP ten times a second for the testing setting `fieldStrikes` (#696), which
+says "Hit" on a drop and "Defeated" at 0, and logs `strike hp=<before>-><after> distance=<d> bearing=<b> heightDiff=<h>
+stunned=<bool>` per drop: the player's reach at a hit, for #186's strike-range tick. An enemy let go within a second of
+a hit logs `strike lost lastHp=<hp>`: a defeat the HP didn't show, or a command battle. `[NEEDS VERIFICATION]`
+
 ## Capture checklist (next session, first dungeon, Debug build)
 
 1. Stand where an enemy patrols, unseen: press `N`. Note `aiState` and `hp`.

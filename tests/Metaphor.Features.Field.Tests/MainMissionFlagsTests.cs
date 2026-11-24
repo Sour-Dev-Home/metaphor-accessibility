@@ -48,6 +48,18 @@ public sealed class MainMissionFlagsTests
         Assert.Null(MainMissionFlags.Current(_ => true, []));
     }
 
+    // #652: the icon points name the field objective table's row by its position from 0.
+    [Fact]
+    public void TheCurrentIndexIsTheFirstRowWithTheHighestSetFlag()
+    {
+        HashSet<int> set = [0x1166, 0x1169];
+        MainMissionRow[] rows = [new(0x1166, "AA"), new(0x1169, "BB"), new(0x1169, "CC"), new(0x116b, "DD")];
+
+        Assert.Equal(1, MainMissionFlags.CurrentIndex(flag => set.Contains(flag), rows));
+        Assert.Null(MainMissionFlags.CurrentIndex(flag => flag == 0x1166 ? null : false, rows));
+        Assert.Null(MainMissionFlags.CurrentIndex(_ => false, rows));
+    }
+
     [Fact]
     public void DescribesFlagsAsHexForTheLog()
     {

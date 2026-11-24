@@ -241,18 +241,20 @@ internal sealed class FieldMemory(
             }
             var (name, raw, id) = Identify(kind, unit);
             var stunned = kind == FieldKind.Enemy && EnemyStunned(unit);
-            int? aiState = null, aiRequested = null;
+            int? aiState = null, aiRequested = null, hp = null;
 #if DEBUG
-            // Debug builds only (#649), as the log record below: the awareness cue is tested in by-ear sessions, which
-            // run Debug builds, until a session settles which states are which.
+            // Debug builds only (#649, #696), as the log record below: the awareness cue and the strike callouts are
+            // tested in by-ear sessions, which run Debug builds, until a session settles which states are which and
+            // shows a strike lowers this HP.
             if (kind == FieldKind.Enemy)
             {
                 (aiState, aiRequested) = FieldEnemyState.Ai(unit, address => ModuleMemoryReader.ReadPointer((nint)address),
                     address => ModuleMemoryReader.ReadInt32((nint)address));
+                hp = EnemyHp(unit);
             }
 #endif
             units.Add(new FieldUnit(kind, at.X, at.Y, at.Z, name, raw, id, Stunned: stunned, AiState: aiState,
-                AiRequested: aiRequested));
+                AiRequested: aiRequested, Hp: hp));
         }
     }
 
@@ -304,6 +306,15 @@ internal sealed class FieldMemory(
                 return (null, "", null);
         }
     }
+
+#if DEBUG
+    // The enemy's current HP, the u32 at [enemy+0x34e0]+0xc (fldChara::vf14, 0x645110, through 0x3e60f0, on game build
+    // 548ddc95, Steam 18330018; docs/findings/field-enemy-strikes-and-notice-static.md), or null when unreadable.
+    private static int? EnemyHp(nint unit) =>
+        ModuleMemoryReader.ReadPointer(unit + FieldEnemyState.StatsOffset) is { } stats && stats != 0
+            ? ModuleMemoryReader.ReadInt32(stats + FieldEnemyState.HpOffset)
+            : null;
+#endif
 
     // The break byte read whole; any value but 1 (or an unreadable one) is not stunned.
     private static bool EnemyStunned(nint unit)

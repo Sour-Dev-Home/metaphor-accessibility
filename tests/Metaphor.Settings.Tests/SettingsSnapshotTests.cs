@@ -14,10 +14,12 @@ public sealed class SettingsSnapshotTests
     [
         "field.cameraTilt | Camera tilt | on | done",
         "field.enemyAwareness | Enemy awareness | off | testing",
+        "field.fieldStrikes | Field strike callouts | off | testing",
         "field.guidance | Guidance beep | on | done",
         "field.guidancePause | Guidance pause | off | testing",
         "field.nearby | Nearby list | on | done",
         "field.nearbyCategories | Nearby categories | on | done",
+        "field.objectiveGuidance | Objective guidance | off | testing",
         "field.reach | Reach callouts | on | done",
         "field.routePings | Route pings | off | testing",
         "field.shoulderHold | Shoulder hold or tap | off | testing",

@@ -56,6 +56,11 @@ check "a names-table file runs the field tests, which check its schema" has \
 check "a names-table file compiles" has "compile data/names/7.json changed"
 check "a names-table file skips the other feature's tests" lacks "Menus.Tests"
 
+out="$(sel data/objectives/waypoints.json)"
+check "an objective data file runs the field tests, which check its schema" has \
+  "dotnet tests/Metaphor.Features.Field.Tests/Metaphor.Features.Field.Tests.csproj data/objectives/waypoints.json changed (the objective data"
+check "an objective data file skips the other feature's tests" lacks "Menus.Tests"
+
 out="$(sel docs/players/reference/settings.md)"
 check "the generated settings reference runs the tests that check it" has \
   "dotnet tests/Metaphor.Settings.Tests/Metaphor.Settings.Tests.csproj docs/players/reference/settings.md changed (generated"

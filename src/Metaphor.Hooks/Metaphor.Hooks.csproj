@@ -48,6 +48,9 @@
     <!-- The nearby list's names table (#687), one file per map, read from data/names/ in the mod folder. -->
     <None Include="../../data/names/*.json" Link="data/names/%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest"
           CopyToPublishDirectory="PreserveNewest" />
+    <!-- The objective guidance's map-to-world conversions and hand-written waypoints (#652), read from data/objectives/. -->
+    <None Include="../../data/objectives/*.json" Link="data/objectives/%(Filename)%(Extension)"
+          CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
     <!-- The generated navigation sounds (#839, #841), our own work from tools/Metaphor.NavSounds, read from
          data/sounds/ in the mod folder. -->
     <None Include="../../data/sounds/*.wav" Link="data/sounds/%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest"
