@@ -19,6 +19,21 @@ public static class CameraFrame
     /// </summary>
     public static double Pan(double bearing) => -Math.Sin(bearing);
 
+    /// <summary>The stereo pan of a source at <paramref name="bearing"/> and <paramref name="elevation"/> (#650): the
+    /// side component of its direction, <c>-sin(bearing)·cos(elevation)</c>, so a source far above or below sits nearer
+    /// the centre. Geometric; docs/contributors/explanation/elevation-and-front-back-cues.md, step 5.</summary>
+    public static double Pan(double bearing, double elevation) => -Math.Sin(bearing) * Math.Cos(elevation);
+
+    /// <summary>The elevation of the point (<paramref name="x"/>, <paramref name="y"/>, <paramref name="z"/>) seen from
+    /// the listener at <paramref name="pose"/>, in radians, up positive, in [−π/2, π/2]: its height above the player
+    /// against its ground distance. Y is up (docs/raw-sources/field-position-camera-session6-2026-11-17.md).</summary>
+    public static double Elevation(FieldPose pose, double x, double y, double z)
+    {
+        var dx = x - pose.X;
+        var dz = z - pose.Z;
+        return Math.Atan2(y - pose.Y, Math.Sqrt((dx * dx) + (dz * dz)));
+    }
+
     /// <summary>The camera's ground heading and pitch from its <paramref name="eye"/> to its <paramref name="lookAt"/>
     /// point (docs/raw-sources/field-position-camera-session6-2026-11-17.md): the heading as
     /// <see cref="FieldPose.CameraHeading"/>, null when it looks straight up or down; the pitch as

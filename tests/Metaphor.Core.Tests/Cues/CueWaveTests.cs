@@ -117,4 +117,70 @@ public sealed class CueWaveTests
     {
         Assert.Throws<ArgumentOutOfRangeException>(() => CueWave.Samples(CueCatalogue.For(Cue.AllyHit), volume));
     }
+
+    [Fact]
+    public void TheMuffleKeepsTheLowBandAndTakesTheHighBandDown()
+    {
+        // #903: a one-pole low-pass at the muffle's cutoff passes 200 Hz almost whole and cuts 8 kHz to under a fifth.
+        var coefficient = CueWave.LowPassCoefficient(CueWave.MuffleHertz);
+
+        Assert.Equal(1 - Math.Exp(-2 * Math.PI * CueWave.MuffleHertz / CueWave.SampleRate), coefficient, 12);
+        Assert.InRange(Filtered(200, coefficient), 0.95, 1.0);
+        Assert.InRange(Filtered(8000, coefficient), 0.1, 0.2);
+    }
+
+    [Fact]
+    public void AnOpenFilterPassesTheWaveExactly()
+    {
+        var state = 0.3;
+
+        Assert.Equal(1, CueWave.LowPassCoefficient(CueWave.SampleRate));
+        Assert.Equal(0.7, CueWave.LowPass(0.7, 1, ref state));
+        Assert.Equal(0.7, state);
+    }
+
+    [Fact]
+    public void ABroadbandToneCarriesHarmonicsUpToTwelveKilohertzWithoutPeakingAboveItsSine()
+    {
+        // #839: every harmonic up to 12 kHz, capped for low tones; one partial is the sine itself.
+        Assert.Equal(18, CueWave.Partials(659));
+        Assert.Equal(CueWave.MaxPartials, CueWave.Partials(131));
+        Assert.Equal(1, CueWave.Partials(20000));
+        Assert.Equal(Math.Sin(1.1), CueWave.Broadband(1.1, 1));
+
+        var wave = Enumerable.Range(0, 4410).Select(i => CueWave.Broadband(2 * Math.PI * 659 * i / CueWave.SampleRate, 18))
+            .ToArray();
+        Assert.All(wave, sample => Assert.InRange(sample, -1, 1));
+        // The 9th harmonic, near 6 kHz, is there at about 1/9 of the fundamental (a sine has none).
+        Assert.InRange(Amplitude(wave, 659 * 9) / Amplitude(wave, 659), 0.09, 0.13);
+    }
+
+    // The steady amplitude of a unit sine at hertz after the filter, from the last of 0.1 s.
+    private static double Filtered(double hertz, double coefficient)
+    {
+        var state = 0.0;
+        var peak = 0.0;
+        for (var i = 0; i < CueWave.SampleRate / 10; i++)
+        {
+            var output = CueWave.LowPass(Math.Sin(2 * Math.PI * hertz * i / CueWave.SampleRate), coefficient, ref state);
+            if (i > CueWave.SampleRate / 20)
+            {
+                peak = Math.Max(peak, Math.Abs(output));
+            }
+        }
+        return peak;
+    }
+
+    // The amplitude of one frequency in the samples, by correlation with its sine and cosine.
+    private static double Amplitude(double[] samples, double hertz)
+    {
+        var (sin, cos) = (0.0, 0.0);
+        for (var i = 0; i < samples.Length; i++)
+        {
+            var angle = 2 * Math.PI * hertz * i / CueWave.SampleRate;
+            sin += samples[i] * Math.Sin(angle);
+            cos += samples[i] * Math.Cos(angle);
+        }
+        return 2 * Math.Sqrt((sin * sin) + (cos * cos)) / samples.Length;
+    }
 }

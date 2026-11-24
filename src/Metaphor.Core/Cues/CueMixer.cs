@@ -84,6 +84,7 @@ public sealed class CueMixer : IDisposable
                 slot.Source = playing;
             }
             playing.Target(peak * left, peak * right);
+            playing.Filter.Target(tone.Muffled);
             return;
         }
         var hertz = double.IsNaN(tone.Hertz)
@@ -94,7 +95,8 @@ public sealed class CueMixer : IDisposable
             held = new Held();
             slot.Source = held;
         }
-        held.Target(hertz, peak * left, peak * right);
+        held.Target(hertz, peak * left, peak * right, tone.Broadband ? CueWave.Partials(hertz) : 1);
+        held.Filter.Target(tone.Muffled);
     }
 
     /// <summary>Fades the channel's tone out over one buffer, then leaves the channel idle.</summary>
@@ -234,6 +236,26 @@ public sealed class CueMixer : IDisposable
         void FadeOut();
     }
 
+    // A held sound's muffle (#903): a one-pole low-pass on the mono wave before it is panned, so both ears hear the
+    // same filter. Its coefficient glides across a buffer as the gains do, so muffling in or out never clicks; fully
+    // open, the wave passes exactly.
+    private sealed class Muffle
+    {
+        private static readonly double Closed = CueWave.LowPassCoefficient(CueWave.MuffleHertz);
+        private double target = 1;
+        private double from = 1;
+        private double state;
+
+        public void Target(bool muffled) => target = muffled ? Closed : 1;
+
+        // The wave at t, 0 to 1 of the way through this buffer.
+        public double Apply(double wave, double t) =>
+            CueWave.LowPass(wave, t >= 1 ? target : from + ((target - from) * t), ref state);
+
+        // Called after each buffer: the next one starts where this one's glide ended.
+        public void End() => from = target;
+    }
+
     // A recorded sound (#841), its gains gliding as a held tone's do: once through and then finished, or looping.
     private sealed class Sampled(CueSample sample, bool loops) : IHeld
     {
@@ -246,6 +268,8 @@ public sealed class CueMixer : IDisposable
         private bool silent = true;
 
         public CueSample Sample => sample;
+
+        public Muffle Filter { get; } = new();
 
         public void Target(double left, double right)
         {
@@ -276,11 +300,12 @@ public sealed class CueMixer : IDisposable
             for (var i = 0; i < count; i++)
             {
                 var t = (i + 1) / (double)count;
-                var wave = samples[position];
+                var wave = Filter.Apply(samples[position], t);
                 buffer[2 * i] = (short)Math.Round(wave * (left + ((targetLeft - left) * t)));
                 buffer[(2 * i) + 1] = (short)Math.Round(wave * (right + ((targetRight - right) * t)));
                 position = loops && position + 1 == samples.Length ? 0 : position + 1;
             }
+            Filter.End();
             left = targetLeft;
             right = targetRight;
             silent = left == 0 && right == 0;
@@ -298,10 +323,14 @@ public sealed class CueMixer : IDisposable
         private double targetRight;
         private bool stopping;
         private bool silent = true;
+        private int partials = 1;
 
-        public void Target(double hertz, double left, double right)
+        public Muffle Filter { get; } = new();
+
+        public void Target(double hertz, double left, double right, int partials)
         {
             this.hertz = hertz;
+            this.partials = partials;
             targetLeft = left;
             targetRight = right;
             stopping = false;
@@ -327,11 +356,12 @@ public sealed class CueMixer : IDisposable
             {
                 // The gains move linearly across the buffer, from where the last one ended to the target.
                 var t = (i + 1) / (double)count;
-                var wave = Math.Sin(phase);
+                var wave = Filter.Apply(CueWave.Broadband(phase, partials), t);
                 buffer[2 * i] = (short)Math.Round(wave * (left + ((targetLeft - left) * t)));
                 buffer[(2 * i) + 1] = (short)Math.Round(wave * (right + ((targetRight - right) * t)));
                 phase += step;
             }
+            Filter.End();
             phase %= 2 * Math.PI;
             left = targetLeft;
             right = targetRight;

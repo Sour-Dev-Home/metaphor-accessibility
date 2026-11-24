@@ -33,9 +33,13 @@ public enum ToneChannel
 /// (right), at <paramref name="Volume"/> from 0 to 100 within the sound cue volume. Values out of range are clamped.
 /// With a <paramref name="Sample"/> (#841), that sound plays in place of the sine, at the same peak: from its start on
 /// each <see cref="ICuePlayer.Hold"/> and once through, or, when it <paramref name="Loops"/>, round and round, keeping its
-/// place while the same sound is held.</summary>
+/// place while the same sound is held. A <paramref name="Muffled"/> tone, one behind the listener (#903), passes
+/// through a low-pass at <see cref="CueWave.MuffleHertz"/>, the same in both ears, gliding in and out over a buffer.
+/// A <paramref name="Broadband"/> sine carries harmonics up to <see cref="CueWave.BroadbandHertz"/> (#839), so the
+/// muffle and the ear have a high band to work on.</summary>
 public readonly record struct HeldTone(
-    double Hertz, double Pan, int Volume, CueSample? Sample = null, bool Loops = false)
+    double Hertz, double Pan, int Volume, CueSample? Sample = null, bool Loops = false, bool Muffled = false,
+    bool Broadband = false)
 {
     /// <summary>The lowest pitch a held tone plays.</summary>
     public const double MinHertz = 40;

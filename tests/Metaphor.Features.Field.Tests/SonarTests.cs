@@ -252,6 +252,64 @@ public sealed class SonarTests
         Assert.Equal(1, cues.Silenced);
     }
 
+    [Theory]
+    [InlineData(40, 30, 2)]
+    [InlineData(-40, 30, 2)]
+    [InlineData(20, 30, 1)]
+    [InlineData(40, null, 1)]
+    public void ACameraTurnPastTheAngleSoundsTheLastPingAgainFromItsNewSide(
+        double turnDegrees, int? angle, int expected)
+    {
+        // #827, step 4: a thing on the left, then the camera turns before the next one-at-a-time ping is due.
+        var turning = new Sonar(field, cues, () => now, () => on, pings: () => 1, turnDegrees: () => angle);
+        field.Units = [new FieldUnit(FieldKind.Person, 300, 0, 0)];
+        turning.Tick();
+        now += Sonar.PingGapMilliseconds;
+
+        field.Pose = field.Pose with { CameraHeading = turnDegrees * Math.PI / 180 };
+        for (var end = now + Sonar.OneAtATimeMilliseconds - Sonar.PingGapMilliseconds - 10; now < end; now += 10)
+        {
+            turning.Tick();
+        }
+
+        Assert.Equal(expected, cues.Held.Count);
+        if (expected == 2)
+        {
+            Assert.Equal(CameraFrame.Pan(CameraFrame.Bearing(field.Pose, 300, 0)), cues.Held[^1].Pan, 6);
+        }
+    }
+
+    [Fact]
+    public void ATurnSoundsThePingAgainOnlyOncePerAngle()
+    {
+        var turning = new Sonar(field, cues, () => now, () => on, pings: () => 1, turnDegrees: () => 30);
+        field.Units = [new FieldUnit(FieldKind.Person, 300, 0, 0)];
+        turning.Tick();
+        now += Sonar.PingGapMilliseconds;
+        field.Pose = field.Pose with { CameraHeading = 0.6 };
+        turning.Tick();
+        now += Sonar.PingGapMilliseconds;
+        turning.Tick();
+
+        Assert.Equal(2, cues.Held.Count);
+    }
+
+    [Fact]
+    public void APingBehindIsMuffledWhileTheMuffleIsOn()
+    {
+        // #903: the thing is straight behind the camera.
+        var muffled = new Sonar(
+            field, cues, () => now, () => on, pings: () => 1, placement: new CuePlacement(() => true, () => 100, () => false));
+        field.Units = [new FieldUnit(FieldKind.Person, 0, 0, -300)];
+
+        muffled.Tick();
+
+        var ping = Assert.Single(cues.Held);
+        Assert.True(ping.Muffled);
+        Assert.True(ping.Broadband);
+        Assert.Equal(Sonar.Volume(300) * CuePlacement.MuffledShare / 100, ping.Volume);
+    }
+
     private sealed class SonarField : IFieldReads
     {
         public bool Roaming { get; set; } = true;

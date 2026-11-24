@@ -18,6 +18,7 @@ public sealed class FieldModule : IFeatureModule
     [
         TiltLimits.Down, TiltLimits.Up, TiltLimits.Margin, WallLimits.Range, WallLimits.Loudness,
         RoutePingLimits.Loudness, CueVolumes.Sonar, Sonar.PingsPerSweep, CueVolumes.Guidance,
+        CuePlacement.MuffleDegrees, TurnPings.Degrees,
     ];
 
     public void Register(FeatureContext context)
@@ -59,16 +60,24 @@ public sealed class FieldModule : IFeatureModule
         var samples = new NavSamples(
             SoundBank.Load(Path.Combine(context.ModFolder, "data", "sounds"), problem => log?.FieldRead("sounds: " + problem)),
             () => settings.Current.IsOn(FieldFeature.SoundFiles));
+        // Where the positional sounds come from (#903, #650) and the turn re-pings (#827, #831), all testing; their
+        // settings and angles are read on each sound.
+        var placement = new CuePlacement(
+            () => settings.Current.IsOn(FieldFeature.BehindMuffle), () => CuePlacement.MuffleDegrees.From(settings.Current),
+            () => settings.Current.IsOn(FieldFeature.HeightPan));
+        Func<int?> turnDegrees = () =>
+            settings.Current.IsOn(FieldFeature.TurnPings) ? TurnPings.Degrees.From(settings.Current) : null;
         // The wall tones (#830) and route pings (#831), testing; their limits are read on each probe and ping.
         var edges = new MapEdges(navFiles, navMeshes.Load);
         var walls = new WallTones(
             field, context.Cues, settings.Speech(FieldFeature.WallTones, context.Announcer),
             () => Environment.TickCount64, () => settings.Current.IsOn(FieldFeature.WallTones),
-            () => WallLimits.From(settings.Current), edges.For, floor, log is null ? null : log.FieldRead, samples);
+            () => WallLimits.From(settings.Current), edges.For, floor, log is null ? null : log.FieldRead, samples,
+            placement);
         var routePings = new RoutePings(
             field, context.Cues, () => Environment.TickCount64, () => settings.Current.IsOn(FieldFeature.RoutePings),
             () => RoutePingLimits.From(settings.Current), routes, floor: floor,
-            log: log is null ? null : log.FieldRead, samples: samples);
+            log: log is null ? null : log.FieldRead, samples: samples, placement: placement, turnDegrees: turnDegrees);
         // "Guide me to the objective" (#652), testing: the field's icon points read from the archive per field, off the
         // game's thread; the map-to-world conversion and the hand-written waypoints ship as data/objectives/*.json,
         // both empty until a marker walk fits them (a bad file is left out, said in the dev log).
@@ -96,12 +105,13 @@ public sealed class FieldModule : IFeatureModule
             new Sonar(
                 field, context.Cues, () => Environment.TickCount64, () => settings.Current.IsOn(FieldFeature.Sonar),
                 log is null ? null : log.FieldRead, nearbyNames, floor,
-                () => Sonar.PingsPerSweep.From(settings.Current), samples),
+                () => Sonar.PingsPerSweep.From(settings.Current), samples, placement, turnDegrees),
             walls, routePings, objective,
             // Field strike callouts (#696), testing: said through their own setting's gate.
             new FieldStrikes(
                 field, settings.Speech(FieldFeature.FieldStrikes, context.Announcer), () => Environment.TickCount64,
-                log is null ? null : log.FieldRead));
+                log is null ? null : log.FieldRead),
+            placement);
         // The corner advice (#587), testing: the report-open hook finds it by type and hands it each open's key; a
         // line opened outside free roam is said on a later input read, so it takes the read before the field's.
         var cornerAdvice = new CornerAdvice(

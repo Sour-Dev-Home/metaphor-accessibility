@@ -217,6 +217,64 @@ public sealed class RoutePingsTests
         Assert.Equal(RoutePingLimits.Default, RoutePingLimits.From(ModSettings.Defaults));
     }
 
+    [Theory]
+    [InlineData(45, 1000, 2)]
+    [InlineData(-45, 1000, 2)]
+    [InlineData(20, 1000, 1)]
+    [InlineData(45, TurnPings.RouteWindowMilliseconds + 10, 1)]
+    public void ACameraTurnSoonAfterAStepPingsThePlaceAgainFromItsNewSide(double turnDegrees, long after, int expected)
+    {
+        // #831, step 4: the ping has played through, then the camera turns.
+        var turning = new RoutePings(
+            field, cues, () => now, () => on, () => RoutePingLimits.Default, turnDegrees: () => 30);
+        turning.Focus(Place);
+        for (var end = now + after; now < end; now += 10)
+        {
+            turning.Tick();
+        }
+        Assert.Null(cues.Now(ToneChannel.Route));
+        var played = cues.Held(ToneChannel.Route).Count();
+
+        field.Pose = field.Pose!.Value with { CameraHeading = turnDegrees * Math.PI / 180 };
+        turning.Tick();
+
+        // A new ping starts with its first note, from where the place now is.
+        var held = cues.Held(ToneChannel.Route).ToList();
+        Assert.Equal(expected - 1, held.Count - played);
+        if (expected == 2)
+        {
+            Assert.Equal(RoutePings.Steps(RoutePingKind.Straight)[0].Hertz, held[^1].Hertz);
+            Assert.Equal(CameraFrame.Pan(CameraFrame.Bearing(field.Pose!.Value, Place.X, Place.Z)), held[^1].Pan, 6);
+        }
+    }
+
+    [Fact]
+    public void WithoutTheTurnSettingATurnPingsNothing()
+    {
+        var plain = Make(null);
+        plain.Focus(Place);
+        for (var end = now + 1000; now < end; now += 10)
+        {
+            plain.Tick();
+        }
+        var count = cues.Calls.Count;
+
+        field.Pose = field.Pose!.Value with { CameraHeading = 1.5 };
+        plain.Tick();
+
+        Assert.Equal(count, cues.Calls.Count);
+    }
+
+    [Fact]
+    public void TheTurnAngleIsTheShortWayRound()
+    {
+        Assert.True(TurnPings.Turned(0, 0.6, 30));
+        Assert.True(TurnPings.Turned(0.6, 0, 30));
+        Assert.False(TurnPings.Turned(3.1, -3.1, 30));
+        Assert.True(TurnPings.Turned(3.1, -2.5, 30));
+        Assert.Equal("field.turnPingDegrees", TurnPings.Degrees.Path);
+    }
+
     private RoutePings Make(IRoutePlanner? planner) => new(
         field, cues, () => now, () => on, () => RoutePingLimits.Default, planner,
         run: work => slow ?? Task.FromResult(work()), floor: floor, log: logged.Add);

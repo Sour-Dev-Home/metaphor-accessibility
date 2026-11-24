@@ -105,4 +105,21 @@ public enum FieldFeature
         "Gallica and the party give in the top-left corner as you roam, with the speaker's name, after the line " +
         "before it.")]
     CornerAdvice,
+
+    /// <summary>The navigation sounds muffled when they come from behind the camera (#903).</summary>
+    [SettingKey("field", "behindMuffle", "Behind muffle", Testing = true, Order = 2170, Description = "The sonar, " +
+        "route pings, wall tones and guidance beep sound duller and a little quieter when they come from behind " +
+        "the screen's facing, so front and back differ. The angle is in `limits`.")]
+    BehindMuffle,
+
+    /// <summary>The sonar's and route ping's last sound playing again when the camera turns (#827, #831).</summary>
+    [SettingKey("field", "turnPings", "Turn pings", Testing = true, Order = 2180, Description = "When you turn the " +
+        "camera, the sonar's last ping and a recent route ping play again from their new side, so turning tells you " +
+        "whether a sound is ahead or behind. The angle is in `limits`.")]
+    TurnPings,
+
+    /// <summary>The navigation sounds moving toward the centre the farther above or below you they are (#650).</summary>
+    [SettingKey("field", "heightPan", "Height pan", Testing = true, Order = 2190, Description = "The sonar, route " +
+        "pings and guidance beep sit nearer the centre the farther above or below you their source is.")]
+    HeightPan,
 }

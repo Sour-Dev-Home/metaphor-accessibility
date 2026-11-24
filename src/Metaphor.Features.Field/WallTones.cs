@@ -93,8 +93,8 @@ public sealed class WallTones
     private readonly NavFloor? floor;
     private readonly Action<string>? log;
     private readonly FreeRoamGate roam;
-    private readonly int[] playing = new int[Directions.Length];
-    private readonly CueSample?[] sounds = new CueSample?[Directions.Length];
+    private readonly HeldTone?[] playing = new HeldTone?[Directions.Length];
+    private readonly CuePlacement placement;
     private readonly NavSamples samples;
     private readonly HashSet<int> saidNone = [];
     private int? loggedMap;
@@ -108,13 +108,15 @@ public sealed class WallTones
     /// <paramref name="on"/> says so, read <paramref name="limits"/> on each probe, take each map's navmesh from
     /// <paramref name="edges"/>, give way as <paramref name="floor"/> says when there is one, and write each map's
     /// navmesh outcome to <paramref name="log"/> when there is one (Debug builds). Each direction loops its sound from
-    /// <paramref name="samples"/> in place of its tone when it gives one (#841).</summary>
+    /// <paramref name="samples"/> in place of its tone when it gives one (#841), placed by <paramref name="placement"/>
+    /// (#903).</summary>
     public WallTones(
         IFieldReads field, ICuePlayer cues, IAnnouncer announcer, Func<long> milliseconds, Func<bool> on,
         Func<WallLimits> limits, Func<int, Task<NavEdges?>> edges, NavFloor? floor = null,
-        Action<string>? log = null, NavSamples? samples = null)
+        Action<string>? log = null, NavSamples? samples = null, CuePlacement? placement = null)
     {
         this.samples = samples ?? NavSamples.None;
+        this.placement = placement ?? CuePlacement.Plain;
         ArgumentNullException.ThrowIfNull(field);
         ArgumentNullException.ThrowIfNull(cues);
         ArgumentNullException.ThrowIfNull(announcer);
@@ -277,17 +279,20 @@ public sealed class WallTones
     private void Set(WallDirection direction, int volume)
     {
         var i = (int)direction;
-        var sample = volume > 0 ? samples.For(direction) : null;
-        if (playing[i] == volume && sounds[i] == sample)
+        // The wall behind is muffled while the behind-muffle is on (#903).
+        HeldTone? tone = volume > 0
+            ? placement.Place(
+                new HeldTone(Hertz(direction), 0, volume, samples.For(direction), Loops: true, Broadband: true),
+                Bearing(direction))
+            : null;
+        if (playing[i] == tone)
         {
             return;
         }
-        playing[i] = volume;
-        sounds[i] = sample;
-        if (volume > 0)
+        playing[i] = tone;
+        if (tone is { } held)
         {
-            cues.Hold(Channel(direction),
-                new HeldTone(Hertz(direction), CameraFrame.Pan(Bearing(direction)), volume, sample, Loops: true));
+            cues.Hold(Channel(direction), held);
         }
         else
         {

@@ -170,14 +170,15 @@ public sealed class FieldControls : IInputControls
     /// <paramref name="walls"/> tick on each keyboard read too (#830), and <paramref name="routePings"/> ping each place
     /// the list steps to (#831). The objective key starts the beacon toward <paramref name="objective"/>'s answer
     /// (#652) while <see cref="FieldFeature.ObjectiveGuidance"/> is on, and with a log "where am I" also writes its
-    /// record. <paramref name="strikes"/>' check runs on each keyboard read when there is one (#696).</summary>
+    /// record. <paramref name="strikes"/>' check runs on each keyboard read when there is one (#696). The beep is placed
+    /// by <paramref name="placement"/> (#903, #650).</summary>
     public FieldControls(
         Func<FieldBindings> bindings, Func<FieldFeature, bool> isOn, IFieldReads field, FieldPlace place,
         IAnnouncer announcer, ICuePlayer cues, Func<long> milliseconds, Action<string>? log = null,
         NamesTable? names = null, ReachCallouts? reach = null, MissionLine? mission = null,
         Func<int, bool?>? storyFlag = null, IRoutePlanner? routes = null, StunCallouts? stuns = null,
         TiltWarning? tilt = null, Sonar? sonar = null, WallTones? walls = null, RoutePings? routePings = null,
-        ObjectiveGuide? objective = null, FieldStrikes? strikes = null)
+        ObjectiveGuide? objective = null, FieldStrikes? strikes = null, CuePlacement? placement = null)
     {
         this.objective = objective;
         this.strikes = strikes;
@@ -202,7 +203,8 @@ public sealed class FieldControls : IInputControls
         this.storyFlag = storyFlag;
         this.names = names ?? NamesTable.Empty;
         beacon = new Beacon(
-            field, cues, announcer, milliseconds, log, routes, pauseOn: () => this.isOn(FieldFeature.GuidancePause));
+            field, cues, announcer, milliseconds, log, routes, pauseOn: () => this.isOn(FieldFeature.GuidancePause),
+            placement: placement);
         this.reach = reach;
         this.stuns = stuns;
         roam = new FreeRoamGate(field);
