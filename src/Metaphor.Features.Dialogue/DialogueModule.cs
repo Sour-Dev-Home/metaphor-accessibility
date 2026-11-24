@@ -5,7 +5,8 @@ using Metaphor.Core.Settings;
 namespace Metaphor.Features.Dialogue;
 
 /// <summary>The dialogue project's wiring and settings (#784, ADR 0022): lines and choices (#58, #95, #541), the
-/// dialogue controls (#58), and the game-over screen's words (#623). It registers after the menus' and the battle's, so
+/// dialogue controls (#58) and context keys (#879), the game's message log (#685), and the game-over screen's words
+/// (#623). It registers after the menus' and the battle's, so
 /// its controls take what theirs leave, and it reads the menus' <see cref="PopupOnScreen"/>.</summary>
 public sealed class DialogueModule : IFeatureModule
 {
@@ -26,10 +27,12 @@ public sealed class DialogueModule : IFeatureModule
         // The window's lines, choices and repeat stop when the window closes (#676), while still the last thing said.
         var windowSpeech = context.Stoppable.Source();
         var dialogueSpeech = settings.Speech(DialogueFeature.Dialogue, reader);
+        // The line on screen, recorded spoken or not, for the context keys (#879).
+        var shown = new ShownLine();
         var dialogue = new DialogueAnnouncer(
             windowSpeech.Through(dialogueSpeech), cleaner, history, () => settings.Current.VoicedLines,
             context.VoiceLanguage, () => settings.Current.IsOn(DialogueFeature.ChoiceCount),
-            choiceDelayOn: () => settings.Current.IsOn(DialogueFeature.ChoiceDelay));
+            choiceDelayOn: () => settings.Current.IsOn(DialogueFeature.ChoiceDelay), shown: shown);
         // The game-over screen's words follow its voiced line once the window closes (#623); they go through the
         // dialogue's setting like the line before them.
         var gameOver = new GameOverScreen(new ShownSpeakers(library, names), dialogue, dialogueSpeech, context.LastDevice);
@@ -70,9 +73,17 @@ public sealed class DialogueModule : IFeatureModule
         // choice with no options (#744, #814).
         events.ObserveSelects(choices);
         context.Cursors.Observe(choiceFocus);
+        // The game's message log, by position until its lines' words are found (#685).
+        context.Cursors.Observe(new MessageLogFocus(settings.Speech(DialogueFeature.MessageLog, context.Announcer)));
         // The input frame (#301) hands the controls each read and, with it, the dialogue window's message pointer
         // (#232).
         context.AddControls(settings.Input(DialogueFeature.Dialogue, controls));
+        // The context keys (#879) take what the dialogue controls leave; who and the line are said outside the reader
+        // switch, and stop cuts all speech.
+        context.AddControls(settings.Input(
+            DialogueFeature.DialogueKeys,
+            new DialogueContextKeys(
+                settings.Live(DialogueKeyBindings.From), shown, context.Announcer, context.Stoppable.StopAll)));
         context.AddKeys(DialogueKeys.All);
     }
 }

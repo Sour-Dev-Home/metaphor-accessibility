@@ -75,7 +75,8 @@ public sealed class ChoiceFocus : IChoiceRequestObserver, ILineRequestObserver, 
     public void Observe(CursorInput input)
     {
         ArgumentNullException.ThrowIfNull(input);
-        if (input.IsMove)
+        // The message log's cursor (#685) is never a choice's, even opened while a choice waits for its cursor.
+        if (input.IsMove || input.ScreenClass == MessageLogFocus.ScreenClass)
         {
             return;
         }

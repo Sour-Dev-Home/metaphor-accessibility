@@ -8,8 +8,10 @@ namespace Metaphor.Features.Dialogue;
 public static class DialogueKeys
 {
     private static readonly DialogueBindings Defaults = DialogueBindings.Default;
+    private static readonly DialogueKeyBindings Context = DialogueKeyBindings.Default;
 
-    /// <summary>Every key the project lists, all in dialogue, behind the dialogue's setting.</summary>
+    /// <summary>Every key the project lists, all in dialogue: the repeat and reader keys behind the dialogue's setting,
+    /// the context keys behind <see cref="DialogueFeature.DialogueKeys"/>.</summary>
     public static IReadOnlyList<KeyEntry> All { get; } =
     [
         new(KeyPlaces.Dialogue, DialogueFeature.Dialogue, new(
@@ -18,5 +20,16 @@ public static class DialogueKeys
         new(KeyPlaces.Dialogue, DialogueFeature.Dialogue, new(
             "Turn the reader on or off",
             new("dialogue", "readerKey", Defaults.ReaderKey), new("dialogue", "readerButtons", Defaults.ReaderButtons))),
+        // The context keys (#879), behind their own setting; DialogueKeyBindings.From reads each.
+        new(KeyPlaces.Dialogue, DialogueFeature.DialogueKeys, new(
+            "Stop the speech",
+            new("dialogue", "stopKey", Context.StopKey), new("dialogue", "stopButtons", Context.StopButtons))),
+        new(KeyPlaces.Dialogue, DialogueFeature.DialogueKeys, new(
+            "Say who is speaking",
+            new("dialogue", "speakerKey", Context.SpeakerKey),
+            new("dialogue", "speakerButtons", Context.SpeakerButtons))),
+        new(KeyPlaces.Dialogue, DialogueFeature.DialogueKeys, new(
+            "Say the line on screen",
+            new("dialogue", "lineKey", Context.LineKey), new("dialogue", "lineButtons", Context.LineButtons))),
     ];
 }

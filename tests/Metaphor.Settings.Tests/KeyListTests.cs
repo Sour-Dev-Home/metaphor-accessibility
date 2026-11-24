@@ -18,7 +18,12 @@ public sealed class KeyListTests
     public void TheBattleListsEveryKeyItReads() => AssertListed(BattleBindings.From, BattleKeys.All);
 
     [Fact]
-    public void TheDialogueListsEveryKeyItReads() => AssertListed(DialogueBindings.From, DialogueKeys.All);
+    public void TheDialogueListsEveryKeyItReads()
+    {
+        AssertListed(DialogueBindings.From, DialogueKeys.All);
+        // The context keys (#879).
+        AssertListed(DialogueKeyBindings.From, DialogueKeys.All);
+    }
 
     [Fact]
     public void TheFieldListsEveryKeyItReads() => AssertListed(FieldBindings.From, FieldKeys.All);

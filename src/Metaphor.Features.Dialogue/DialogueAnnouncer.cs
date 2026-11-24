@@ -18,6 +18,7 @@ public sealed class DialogueAnnouncer
     private readonly DialogueHistory history;
     private readonly Func<VoicedLinesMode> voicedLines;
     private readonly Func<VoiceLanguage> voiceLanguage;
+    private readonly ShownLine? shown;
     private readonly Lock gate = new();
     private readonly TimeProvider time;
     private bool started;
@@ -45,6 +46,8 @@ public sealed class DialogueAnnouncer
     /// omitted.</param>
     /// <param name="choiceDelayOn">Whether a choice's options wait for the select window
     /// (<see cref="DialogueFeature.ChoiceDelay"/>) rather than follow the prompt at once; on when omitted.</param>
+    /// <param name="shown">Where each line is recorded as the one on screen, spoken or not (#879); none when
+    /// omitted.</param>
     public DialogueAnnouncer(
         IAnnouncer announcer,
         TextCleaner cleaner,
@@ -53,8 +56,10 @@ public sealed class DialogueAnnouncer
         Func<VoiceLanguage>? voiceLanguage = null,
         Func<bool>? choiceCountOn = null,
         TimeProvider? timeProvider = null,
-        Func<bool>? choiceDelayOn = null)
+        Func<bool>? choiceDelayOn = null,
+        ShownLine? shown = null)
     {
+        this.shown = shown;
         this.choiceDelayOn = choiceDelayOn ?? (() => true);
         time = timeProvider ?? TimeProvider.System;
         this.choiceCountOn = choiceCountOn ?? (() => true);
@@ -84,6 +89,7 @@ public sealed class DialogueAnnouncer
         // Recorded before the mode is applied, so the history holds the full line even if it goes unspoken (#126).
         // The history keeps the name on every line, so the replay key always says name and line (#539).
         history.Add(full);
+        shown?.Record(name, text);
         // The name is said on a conversation's first line and when the speaker changes (#539), not before every window
         // a speaker goes on across (#873). Idea only, from Arcana (https://github.com/ChipsAhoiMcCoy/arcana,
         // ChipsAhoiMcCoy, Zlib; v0.6.0 release notes, tag commit 73db802); no code copied (CREDITS.md).

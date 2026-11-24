@@ -134,6 +134,10 @@ public static class SettingsPage
         | `dialogue.repeatButtons` | The same on the pad. | `"X"` |
         | `dialogue.readerKey` | Turns the dialogue reader on or off, in dialogue and in menus. | `"T"` |
         | `dialogue.readerButtons` | The same on the pad. | `"LB+RB"` |
+        | `dialogue.stopKey` | In dialogue, stops the speech (testing: `dialogueKeys`). | `"P"` |
+        | `dialogue.speakerKey` | In dialogue, says who is speaking, reader on or off (testing: `dialogueKeys`). | `"O"` |
+        | `dialogue.lineKey` | In dialogue, says the line on screen without its speaker (testing: `dialogueKeys`). | `"U"` |
+        | `dialogue.stopButtons`, `dialogue.speakerButtons`, `dialogue.lineButtons` | The same three on the pad. | `"none"` |
         | `menus.detailsKey` | Reads the rest of the focused menu item's details. | `"F"` |
         | `menus.nameReadBackKey` | With Ctrl held, reads back the name you typed, on the name entry screen. | `"R"` |
         | `menus.detailsButtons` | The same on the pad. | `"RS"` |

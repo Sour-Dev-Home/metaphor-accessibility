@@ -58,4 +58,18 @@ public enum DialogueFeature
     [SettingKey("speech", "windowCloseStop", "Window close stop", Order = 1210, Description = "A " +
         "closed dialogue window stopping the line still being spoken. Needs `dialogue`.")]
     WindowCloseStop,
+
+    /// <summary>The context keys in dialogue (#879): stop the speech, who is speaking, the line on screen. Its own
+    /// setting while it is tested.</summary>
+    [SettingKey("speech", "dialogueKeys", "Dialogue keys", Testing = true, Order = 1213, Description = "In " +
+        "dialogue, the keys that stop the speech, say who is speaking and say the line on screen, with the reader on " +
+        "or off.")]
+    DialogueKeys,
+
+    /// <summary>The game's message log read line by line as the player moves through it (#685). Its own setting while
+    /// it is tested.</summary>
+    [SettingKey("speech", "messageLog", "Message log", Testing = true, Order = 1215, Description = "The game's " +
+        "message log, the backlog of recent dialogue, saying its name and each line's position as you move through " +
+        "it. The lines' words are still to come.")]
+    MessageLog,
 }

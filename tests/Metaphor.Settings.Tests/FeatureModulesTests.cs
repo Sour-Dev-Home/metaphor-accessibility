@@ -59,11 +59,12 @@ public sealed class FeatureModulesTests
         // since the name entry's read-back (#585), gated, before the field. Ten since the battle's HP and MP key (#692),
         // gated, before the enemy HP keys. Twelve since the help key (#868) and the settings menu (#754), gated, right
         // after the mark key. Thirteen since the enemy awareness cues (#649), after the field; they only watch the reads.
-        Assert.Equal(13, controls.Count);
+        // Fourteen since the dialogue's context keys (#879), gated, after the dialogue controls.
+        Assert.Equal(14, controls.Count);
         Assert.IsType<MarkKey>(controls[0]);
         Assert.IsType<FieldControls>(controls[^2]);
         Assert.IsType<EnemyAwareness>(controls[^1]);
-        Assert.Equal(12, Register(withReport: false).Controls.Count);
+        Assert.Equal(13, Register(withReport: false).Controls.Count);
     }
 
     // #754: the settings menu blocks the game's input through the frame, and holds the triggers for its chord only

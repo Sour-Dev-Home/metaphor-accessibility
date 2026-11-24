@@ -104,6 +104,8 @@ Each is `true` to speak or `false` to stay quiet, inside a `speech` object: `{ "
 | `choiceCount` | A reply choice saying how many options there are, with each option said as the focus moves, rather than every option up front. Needs `dialogue`. | `true` |
 | `choiceDelay` | A reply choice's options waiting until they are on screen, not said straight after the prompt. Needs `dialogue`. | `true` |
 | `windowCloseStop` | A closed dialogue window stopping the line still being spoken. Needs `dialogue`. | `true` |
+| `dialogueKeys` | In dialogue, the keys that stop the speech, say who is speaking and say the line on screen, with the reader on or off. Still being tested. | testing, off |
+| `messageLog` | The game's message log, the backlog of recent dialogue, saying its name and each line's position as you move through it. The lines' words are still to come. Still being tested. | testing, off |
 | `welcome` | The welcome on the title screen the first time the game starts with the mod: the mod's version and the field keys. | `true` |
 | `settingsMenu` | The mod's own settings menu, opened with F2, or LT and RT held then View on the pad, on any screen. Up and Down move, Left and Right change the setting and save it at once, F or R3 says what it does, and Escape or B closes. While it is open the game gets no keys or buttons. Still being tested. | testing, off |
 | `keyHelp` | The help key, F1, or LT and RT held then Y on the pad: says the mod's keys that work where you are now, with their current bindings. Still being tested. | testing, off |
@@ -199,6 +201,10 @@ DpadUp, DpadDown, DpadLeft and DpadRight.
 | `dialogue.repeatButtons` | The same on the pad. | `"X"` |
 | `dialogue.readerKey` | Turns the dialogue reader on or off, in dialogue and in menus. | `"T"` |
 | `dialogue.readerButtons` | The same on the pad. | `"LB+RB"` |
+| `dialogue.stopKey` | In dialogue, stops the speech (testing: `dialogueKeys`). | `"P"` |
+| `dialogue.speakerKey` | In dialogue, says who is speaking, reader on or off (testing: `dialogueKeys`). | `"O"` |
+| `dialogue.lineKey` | In dialogue, says the line on screen without its speaker (testing: `dialogueKeys`). | `"U"` |
+| `dialogue.stopButtons`, `dialogue.speakerButtons`, `dialogue.lineButtons` | The same three on the pad. | `"none"` |
 | `menus.detailsKey` | Reads the rest of the focused menu item's details. | `"F"` |
 | `menus.nameReadBackKey` | With Ctrl held, reads back the name you typed, on the name entry screen. | `"R"` |
 | `menus.detailsButtons` | The same on the pad. | `"RS"` |
