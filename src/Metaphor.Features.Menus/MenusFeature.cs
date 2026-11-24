@@ -46,6 +46,11 @@ public enum MenusFeature
         "Battle's Order menu, opened with LB, and its Tactics submenu.")]
     BattleOrderMenu,
 
+    /// <summary>Battle's Retry and other confirm prompts (#262, #257), their question and Yes or No.</summary>
+    [SettingKey("speech", "battleConfirms", "Battle confirm prompts", Testing = true, Order = 1048, Description =
+        "Battle's Retry and confirm prompts: the question, then Yes or No.")]
+    BattleConfirms,
+
     /// <summary>The Item screen's focus (#216). Separate from the menus while it is tested.</summary>
     [SettingKey("speech", "itemMenu", "Item menu", Order = 1050, Description = "The Item screen's " +
         "rows and its party-member list.")]

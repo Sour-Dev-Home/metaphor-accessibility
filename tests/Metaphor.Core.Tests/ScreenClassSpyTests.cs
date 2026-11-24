@@ -171,6 +171,46 @@ public sealed class ScreenClassSpyTests
         Assert.Null(owners.OwnerOf(0));
     }
 
+    // The recorded sequence of #732 (docs/findings/stale-cursor-owner-names-a-reused-manager.md): the System menu's
+    // manager, then the same address for the load list once the menu's choice was destroyed and reads SingleChoiceBase.
+    [Fact]
+    public void AReusedManagersDeadOwnerIsForgottenSoTheNewScreenIsNotNamedForIt()
+    {
+        var owners = new CursorOwners();
+        var classes = new Dictionary<long, string?> { [0x100] = "SystemMenuChoice@ope@ui@app" };
+        owners.Saw(owner: 0x100, manager: 0x5450);
+        Assert.Equal("SystemMenuChoice@ope@ui@app", owners.ClassOf(0x5450, owner => classes[owner]));
+
+        classes[0x100] = CursorOwners.DestroyedOwnerClass;
+
+        Assert.Null(owners.ClassOf(0x5450, owner => classes[owner]));
+        Assert.Null(owners.OwnerOf(0x5450));
+    }
+
+    [Fact]
+    public void ANewOwnerOfAReusedManagerIsNamedAfterTheDeadOneIsForgotten()
+    {
+        var owners = new CursorOwners();
+        owners.Saw(owner: 0x100, manager: 0x5450);
+        Assert.Null(owners.ClassOf(0x5450, _ => CursorOwners.DestroyedOwnerClass));
+
+        owners.Saw(owner: 0x200, manager: 0x5450);
+
+        Assert.Equal("LoadChoice", owners.ClassOf(0x5450, owner => owner == 0x200 ? "LoadChoice" : null));
+    }
+
+    [Fact]
+    public void AnUnreadableOrUnseenOwnerHasNoClassAndIsKept()
+    {
+        var owners = new CursorOwners();
+        owners.Saw(owner: 0x100, manager: 0xa0);
+
+        Assert.Null(owners.ClassOf(0xa0, _ => null));
+        Assert.Equal(0x100, owners.OwnerOf(0xa0));
+        Assert.Null(owners.ClassOf(0xc0, _ => "X"));
+        Assert.Throws<ArgumentNullException>("classOf", () => owners.ClassOf(0xa0, null!));
+    }
+
     [Fact]
     public void AManagerIsOwnedByTheLastChoiceThatHandedItOut()
     {

@@ -31,6 +31,7 @@ public sealed class SettingsSnapshotTests
         "sounds.mark | Mark sound | on | done",
         "speech.archetypeTree | Archetype Tree | off | testing",
         "speech.battleBanners | Battle banners | on | done",
+        "speech.battleConfirms | Battle confirm prompts | off | testing",
         "speech.battleEnd | Battle end | off | testing",
         "speech.battleEnemyKeys | Battle enemy keys | on | done",
         "speech.battleEnemyList | Battle enemy list | off | testing",

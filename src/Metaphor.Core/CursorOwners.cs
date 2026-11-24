@@ -34,6 +34,36 @@ public sealed class CursorOwners
         }
     }
 
+    /// <summary>The class a destroyed choice's freed memory reads as: its destructor leaves the abstract base's vtable, so
+    /// no live owner has it (docs/findings/stale-cursor-owner-names-a-reused-manager.md, build 548ddc95).</summary>
+    public const string DestroyedOwnerClass = "SingleChoiceBase@ope@ui@app";
+
+    /// <summary>The class of <paramref name="manager"/>'s owner, read by <paramref name="classOf"/> from the owner's
+    /// address, or null when no owner was seen or its class is unreadable. An owner that now reads
+    /// <see cref="DestroyedOwnerClass"/> is gone and its manager's address reused (#732): it is forgotten, so the new
+    /// screen on that manager isn't named for the dead one.</summary>
+    public string? ClassOf(long manager, Func<long, string?> classOf)
+    {
+        ArgumentNullException.ThrowIfNull(classOf);
+        if (OwnerOf(manager) is not { } owner || classOf(owner) is not { } name)
+        {
+            return null;
+        }
+        if (name != DestroyedOwnerClass)
+        {
+            return name;
+        }
+        lock (gate)
+        {
+            // Only the owner just read: another choice may have taken the manager since.
+            if (ownerByManager.TryGetValue(manager, out var current) && current == owner)
+            {
+                ownerByManager.TryRemove(manager, out _);
+            }
+        }
+        return null;
+    }
+
     /// <summary>The choice that last handed out <paramref name="manager"/>, or null if none has been seen to.</summary>
     public long? OwnerOf(long manager) => ownerByManager.TryGetValue(manager, out var owner) ? owner : null;
 }
