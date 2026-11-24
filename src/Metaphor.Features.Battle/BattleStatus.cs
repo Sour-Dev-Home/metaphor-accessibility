@@ -31,9 +31,22 @@ public sealed class BattleStatus : IInputControls
     /// <summary>The H key, the default status key.</summary>
     public const int KeyH = BattleBindings.KeyH;
 
-    /// <summary>How long L3 is held alone before it speaks rather than tap the game: 300 ms, the shoulders' old hold
-    /// delay (#835), whose setting went with #863. A guess the by-ear check on #925 tunes.</summary>
+    /// <summary>How long L3 is held alone before it speaks rather than tap the game, by default: 300 ms, the shoulders'
+    /// old hold delay (#835), whose setting went with #863. A guess the by-ear check on #925 tunes.</summary>
     public const int HoldMilliseconds = 300;
+
+    /// <summary>The hold time as a slider (#941): 300 ms, 100 to 1,000 in steps of 50.</summary>
+    public static SliderLimit HoldLimit { get; } = new("battle", "statusHold", HoldMilliseconds, 100, 1000, 50)
+    {
+        Spoken = "Status hold time",
+        Description = "How long, in milliseconds, `L3` is held alone in a battle before it says the party's HP " +
+            "(`battleHits`) instead of reaching the game as a tap (Retry). Raise it if a quick press says the " +
+            "status.",
+        Order = 75,
+    };
+
+    /// <summary>The hold time now, read at each pad read (<see cref="HoldLimit"/>); the default when unset.</summary>
+    public Func<int> HoldTime { get; init; } = () => HoldMilliseconds;
 
     private readonly IBattleParty party;
     private readonly HitLines hits;
@@ -162,7 +175,7 @@ public sealed class BattleStatus : IInputControls
                 spoke = false;
             }
             chord |= held && buttons != bound;
-            if (!inBattle || chord || spoke || !held || now - heldFrom < HoldMilliseconds)
+            if (!inBattle || chord || spoke || !held || now - heldFrom < HoldTime())
             {
                 return false;
             }

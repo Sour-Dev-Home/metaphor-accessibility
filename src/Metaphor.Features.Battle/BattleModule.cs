@@ -12,6 +12,8 @@ public sealed class BattleModule : IFeatureModule
 {
     public IEnumerable<Enum> Settings => Enum.GetValues<BattleFeature>().Select(feature => (Enum)feature);
 
+    public IEnumerable<SliderLimit> Limits => [BattleStatus.HoldLimit];
+
     public void Register(FeatureContext context)
     {
         ArgumentNullException.ThrowIfNull(context);
@@ -97,7 +99,12 @@ public sealed class BattleModule : IFeatureModule
             BattleFeature.BattleNumberReset, new BattleEnds(hitLines, context.BattleScene, TimeProvider.System)));
         var battleBindings = settings.Live(BattleBindings.From);
         // The status key acts only in a battle (#631); a Debug build logs the scene each press read.
-        var status = new BattleStatus(context.BattleParty, hitLines, context.BattleScene, battleSpeech, battleBindings);
+        var status = new BattleStatus(
+            context.BattleParty, hitLines, context.BattleScene, battleSpeech, battleBindings, TimeProvider.System)
+        {
+            // The L3 hold time (#941), read on each pad read so a changed file applies at once.
+            HoldTime = () => BattleStatus.HoldLimit.From(settings.Current),
+        };
         context.AddControls(settings.Input(BattleFeature.BattleHits, status));
         // L3 is held back until it's let go, then tapped to the game (Retry) unless a hold spoke (#925).
         context.AddShoulderHold(() => settings.Current.IsOn(BattleFeature.BattleHits) ? status.HeldButtons() : 0);

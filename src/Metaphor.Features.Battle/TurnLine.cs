@@ -6,11 +6,11 @@ using Metaphor.Core.Settings;
 
 namespace Metaphor.Features.Battle;
 
-/// <summary>The turn line (#252): "Your turn, 4 actions" as the player's turn starts, with ", 1 half" for half icons,
-/// and "Enemy turn" as the enemy's does, cutting off any hit lines still queued: queued, it came behind 17 of them by ear
-/// on 2026-11-23 (build 4d936b2 Debug, Steam 18330018). A turn starts when the side changes or the full icons rise, as a
-/// new turn refills them. Any other change in the player's icons is said, queued, as the new count ("2 actions, 3
-/// half", #695) once it has held for <see cref="SettleMilliseconds"/>. The idea of speaking turn-economy changes comes
+/// <summary>The turn line (#252): "Your turn, 4 actions" as the player's turn starts, with ", 1 half action" for half
+/// icons, and "Enemy turn" as the enemy's does, cutting off any hit lines still queued: queued, it came behind 17 of them
+/// by ear on 2026-11-23 (build 4d936b2 Debug, Steam 18330018). A turn starts when the side changes or the full icons
+/// rise, as a new turn refills them. Any other change in the player's icons is said, queued, as the new count ("2
+/// actions, 3 half actions", #695, #936) once it has held for <see cref="SettleMilliseconds"/>. The idea of speaking turn-economy changes comes
 /// from Arcana, the Persona 3 Reload accessibility mod (ChipsAhoiMcCoy/arcana, Zlib, <c>main</c> at
 /// <c>ed3b005f86b1cde27e30ab299ae91af3d974c988</c>, <c>src/screens/battle.cpp</c>); no code was copied (CREDITS.md). Takes each input read only as a clock: it asks <see cref="IBattleScene"/> at
 /// most once every <see cref="AskSceneEveryMilliseconds"/>, and while that says battle reads the icons at most once
@@ -84,10 +84,7 @@ public sealed class TurnLine : IInputControls
         {
             return "Enemy turn";
         }
-        var actions = turn.Full == 1 ? "1 action" : string.Create(CultureInfo.InvariantCulture, $"{turn.Full} actions");
-        return turn.Half > 0
-            ? string.Create(CultureInfo.InvariantCulture, $"Your turn, {actions}, {turn.Half} half")
-            : $"Your turn, {actions}";
+        return $"Your turn, {Count(turn)}";
     }
 
     private void Tick()
@@ -150,11 +147,16 @@ public sealed class TurnLine : IInputControls
         }
     }
 
-    /// <summary>What a mid-turn change in the player's icons says: "3 actions, 3 half".</summary>
+    /// <summary>What a mid-turn change in the player's icons says: "3 actions, 1 half action", a half action counted as
+    /// its own unit (#936).</summary>
     public static string Count(TurnIcons turn)
     {
         ArgumentNullException.ThrowIfNull(turn);
-        var actions = turn.Full == 1 ? "1 action" : string.Create(CultureInfo.InvariantCulture, $"{turn.Full} actions");
-        return turn.Half > 0 ? string.Create(CultureInfo.InvariantCulture, $"{actions}, {turn.Half} half") : actions;
+        var actions = Units(turn.Full, "action");
+        return turn.Half > 0 ? $"{actions}, {Units(turn.Half, "half action")}" : actions;
     }
+
+    private static string Units(int count, string unit) => count == 1
+        ? $"1 {unit}"
+        : string.Create(CultureInfo.InvariantCulture, $"{count} {unit}s");
 }
