@@ -1,4 +1,5 @@
 using Metaphor.Core.Announcements;
+using Metaphor.Core.Audio;
 using Metaphor.Core.Battle;
 using Metaphor.Core.Cues;
 using Metaphor.Core.Input;
@@ -111,6 +112,10 @@ public sealed class FeatureContext
 
     /// <summary>The settings file, for the settings menu to change (#754); none unless the hook layer has one.</summary>
     public ISettingsStore SettingsStore { get; init; } = new NoSettingsStore();
+
+    /// <summary>The game's own volume, for the settings menu to lower while open (#927); none unless the hook layer
+    /// has one.</summary>
+    public IVolumeDuck GameVolume { get; init; } = NoVolumeDuck.Instance;
 
     /// <summary>Every mod key the modules registered, in the order they were added (<see cref="AddKeys"/>).</summary>
     public IReadOnlyList<KeyEntry> Keys => keys;

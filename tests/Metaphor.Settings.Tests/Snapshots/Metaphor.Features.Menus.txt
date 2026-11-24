@@ -29,6 +29,7 @@ speech.saveSlots | Save slots | on | done
 speech.settingsHelp | Settings help | on | done
 speech.settingsMenu | Settings menu | on | done
 speech.settingsMenuIntro | Settings menu layout | off | testing
+speech.settingsMenuQuietGame | Settings menu quiets the game | off | testing
 speech.shopMenu | Shop menu | on | done
 speech.skipSceneQuestion | Skip scene question | off | testing
 speech.systemMenu | System menu | on | done

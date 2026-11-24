@@ -2,6 +2,7 @@ using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using Metaphor.Core;
 using Metaphor.Core.Announcements;
+using Metaphor.Core.Audio;
 using Metaphor.Core.Cues;
 using Metaphor.Core.Logging;
 using Metaphor.Core.Menus;
@@ -99,6 +100,8 @@ public sealed class ModEntryPoint : IMod
     private SettingsFile? settingsFile;
     // The sound cue player and its background thread, for the same reason; never disposed, like the watcher.
     private ICuePlayer? cues;
+    // The game volume's thread (#927), for the same reason.
+    private VolumeThread? gameVolume;
 #if DEBUG
     // The live inspector (#291), Debug and opt-in only; kept for the same reason.
     private LiveInspector? liveInspector;
@@ -155,8 +158,12 @@ public sealed class ModEntryPoint : IMod
             // ADR 0019).
             cues = new CuePlayer(new WaveOutDevice(), () => settings.Current, log.ErrorsFor(LogArea.Sounds));
             log.Result(settings.Current.SoundCues ? "sounds: on" : "sounds: off in the settings");
+            // The game's own volume, which the settings menu lowers while open (#927); its thread first puts back a
+            // level a run that ended while ducked left behind, whatever the settings say.
+            gameVolume = new VolumeThread(
+                new VolumeDuck(new GameSessionVolume(), configFolder), log.ErrorsFor(LogArea.Sounds));
             var services = HookServices.Speaking(
-                modules, announcer, cues, settings, report, messageLog, folder, log, store: file);
+                modules, announcer, cues, settings, report, messageLog, folder, log, store: file, gameVolume: gameVolume);
             // Before the hooks, so the title screen's first events reach it; its outcome is logged in Debug builds only.
 #if DEBUG
             var updateLog = log.For(LogArea.Updates);

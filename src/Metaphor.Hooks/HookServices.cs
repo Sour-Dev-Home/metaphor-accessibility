@@ -1,5 +1,6 @@
 using Metaphor.Core;
 using Metaphor.Core.Announcements;
+using Metaphor.Core.Audio;
 using Metaphor.Core.Battle;
 using Metaphor.Core.Cues;
 using Metaphor.Core.Features;
@@ -193,7 +194,8 @@ internal sealed record HookServices
     /// keys through its own setting's gate (#661), read live, so a changed file applies without a restart.</remarks>
     public static HookServices Speaking(
         IReadOnlyList<IFeatureModule> modules, StoppableAnnouncer stoppable, ICuePlayer cues, SettingsReloader settings,
-        ReportLog? report, MessageLog? log, string modFolder, ModLog? modLog = null, ISettingsStore? store = null)
+        ReportLog? report, MessageLog? log, string modFolder, ModLog? modLog = null, ISettingsStore? store = null,
+        IVolumeDuck? gameVolume = null)
     {
         // Each unmapped value is written once a session, and each typed name read is cleaned from the logs (#824).
         var unknowns = modLog?.Unknowns ?? UnknownValues.None;
@@ -295,6 +297,7 @@ internal sealed record HookServices
             StoryFlag = gameData.StoryFlag,
             OpenArchive = OpenArchive,
             SettingsStore = store ?? new NoSettingsStore(),
+            GameVolume = gameVolume ?? NoVolumeDuck.Instance,
         };
         context.Provide<IFieldReads>(field);
         context.Provide<IBattleTurnIcons>(new BattleTurnIconsMemory(gameData));

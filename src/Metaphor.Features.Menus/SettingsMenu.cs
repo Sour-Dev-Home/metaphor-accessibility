@@ -1,5 +1,6 @@
 using System.Globalization;
 using Metaphor.Core.Announcements;
+using Metaphor.Core.Audio;
 using Metaphor.Core.Input;
 using Metaphor.Core.Settings;
 
@@ -291,10 +292,21 @@ public sealed class SettingsMenu : IWindowInputControls, IInputBlock
         var reading = window is { } message && message != 0;
         var intro = SayIntro() ? $" {Intro()}" : "";
         Say($"{Name}.{intro} {Rows[index].Section}. {Line(index)}", interrupt: !reading);
+        if (QuietGame())
+        {
+            Volume.Duck();
+        }
     }
 
     /// <summary>Whether opening says the layout first (#927), read at each opening; off by default.</summary>
     public Func<bool> SayIntro { get; init; } = () => false;
+
+    /// <summary>Whether opening lowers the game's volume (#927), read at each opening; off by default. Closing puts it
+    /// back whatever this says now.</summary>
+    public Func<bool> QuietGame { get; init; } = () => false;
+
+    /// <summary>The game's volume, lowered while open (#927).</summary>
+    public IVolumeDuck Volume { get; init; } = NoVolumeDuck.Instance;
 
     // "6 sections: General, Speech, ... Page Down and Page Up, or RB and LB, move between them. ..." (#927).
     private string Intro()
@@ -309,6 +321,7 @@ public sealed class SettingsMenu : IWindowInputControls, IInputBlock
     private void Close()
     {
         open = false;
+        Volume.Restore();
         Say("Settings closed.");
     }
 

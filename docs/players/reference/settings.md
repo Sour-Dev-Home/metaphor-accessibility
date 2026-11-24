@@ -130,6 +130,7 @@ Each is `true` to speak or `false` to stay quiet, inside a `speech` object: `{ "
 | `welcome` | The welcome on the title screen the first time the game starts with the mod: the mod's version and the field keys. | `true` |
 | `settingsMenu` | The mod's own settings menu, opened with F2, or LT and RT held then View on the pad, on any screen. Up and Down move, Left and Right change the setting and save it at once, Left for off or less and Right for on or more, Enter or A turns a setting over, F or R3 says what it does, and Escape or B closes. While it is open the game gets no keys or buttons. | `true` |
 | `settingsMenuIntro` | As the mod's settings menu opens, its sections and the keys that move between them. Needs `settingsMenu`. Still being tested. | testing, off |
+| `settingsMenuQuietGame` | While the mod's settings menu is open, the game's own volume drops to about a third, so the menu is easier to hear, and comes back when it closes. The mod's sounds drop with it; your screen reader doesn't. If the game ends while it is lower, the next start puts it back; after removing the mod, the Windows volume mixer resets it. Needs `settingsMenu`. Still being tested. | testing, off |
 | `keyHelp` | The help key, F1, or LT and RT held then Y on the pad: says the mod's keys that work where you are now, with their current bindings. | `true` |
 
 ## Field
