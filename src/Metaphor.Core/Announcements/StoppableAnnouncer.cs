@@ -33,6 +33,16 @@ public sealed class StoppableAnnouncer : IAnnouncer
         }
     }
 
+    /// <summary>Stops whatever is being said, from any source: the player asked for silence (#879's stop key).</summary>
+    public void StopAll()
+    {
+        lock (gate)
+        {
+            last = null;
+            stop();
+        }
+    }
+
     /// <summary>A new source whose speech can be stopped.</summary>
     public SpeechSource Source() => new(this);
 

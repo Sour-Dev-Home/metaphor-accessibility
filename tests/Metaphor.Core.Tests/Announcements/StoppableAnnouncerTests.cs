@@ -124,4 +124,30 @@ public sealed class StoppableAnnouncerTests
 
         Assert.Equal(0, stops);
     }
+
+    // #879: the stop key cuts whatever is being said, from any source.
+    [Fact]
+    public void StopAllStopsSpeechFromAnySource()
+    {
+        var speech = Start();
+        speech.Announce(Line("Main menu"));
+
+        speech.StopAll();
+
+        Assert.Equal(1, stops);
+    }
+
+    [Fact]
+    public void AfterStopAllASourcesLineIsNotStoppedAgain()
+    {
+        var speech = Start();
+        var source = speech.Source();
+        source.Through(speech).Announce(Line("line"));
+        source.Shown();
+        speech.StopAll();
+
+        source.StopSpeaking();
+
+        Assert.Equal(1, stops);
+    }
 }

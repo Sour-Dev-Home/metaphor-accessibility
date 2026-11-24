@@ -59,8 +59,8 @@ public sealed class DialogueControls : IWindowInputControls
     private readonly SpeechSource? windowSpeech;
     private readonly Func<bool>? stopOn;
     private readonly Func<string?>? onScreen;
-    private readonly Binding repeat = new();
-    private readonly Binding toggle = new();
+    private readonly HeldBinding repeat = new();
+    private readonly HeldBinding toggle = new();
     private bool open;
     // The last read of the window found it readable, open or closed: the field is the closed case (#769).
     private bool readable;
@@ -218,26 +218,27 @@ public sealed class DialogueControls : IWindowInputControls
         }
         return (repeating, inDialogue);
     }
+}
 
-    /// <summary>One binding's state across sources: which hold it now.</summary>
-    private sealed class Binding
+/// <summary>One binding's state across sources (each pad, and the keyboard): which hold it now. Not thread-safe; its
+/// owner locks around it.</summary>
+internal sealed class HeldBinding
+{
+    private readonly HashSet<int> holding = [];
+
+    /// <summary>Records whether <paramref name="source"/> holds the binding, and says whether that made it go from held
+    /// nowhere to held somewhere.</summary>
+    public bool Update(int source, bool held)
     {
-        private readonly HashSet<int> holding = [];
-
-        /// <summary>Records whether <paramref name="source"/> holds the binding, and says whether that made it go from
-        /// held nowhere to held somewhere.</summary>
-        public bool Update(int source, bool held)
+        var before = holding.Count > 0;
+        if (held)
         {
-            var before = holding.Count > 0;
-            if (held)
-            {
-                holding.Add(source);
-            }
-            else
-            {
-                holding.Remove(source);
-            }
-            return !before && holding.Count > 0;
+            holding.Add(source);
         }
+        else
+        {
+            holding.Remove(source);
+        }
+        return !before && holding.Count > 0;
     }
 }

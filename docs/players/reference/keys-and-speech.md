@@ -14,6 +14,9 @@ usual job in the game.
 | What it does | Keyboard | Controller | When it works |
 |---|---|---|---|
 | Repeat the last dialogue line in full | `R` | `X` | A dialogue window is open |
+| Stop the speech (testing) | `P` | none | A dialogue window is open |
+| Say who is speaking, even with the reader off (testing) | `O` | none | A dialogue window is open |
+| Say the line on screen, without its speaker, even with the reader off (testing) | `U` | none | A dialogue window is open |
 | Turn the mod's speech on or off | `T` | `LB` and `RB` held together | A dialogue window or a menu is open |
 | Say what is near, nearest first | `N` | none | Walking in the field |
 | Step to the next thing on that list | `K` | `LB` held, then D-pad `Down` | Walking in the field |
@@ -52,6 +55,11 @@ anywhere.
   the settings message.
 - `R` or `X` with no line yet says "No dialogue to repeat". `T` or `LB` and `RB` says "Dialogue reader on" or
   "Dialogue reader off".
+- Testing, with `dialogueKeys` on: `P` stops whatever the mod is saying. `O` says the speaker's name, or "No speaker",
+  and `U` the line without its speaker; with no line on screen, both say "No line on screen". Whether the game uses
+  `P`, `O` or `U` in dialogue is `[NEEDS VERIFICATION]`; you can move them in the settings file.
+- Testing, with `messageLog` on: opening the game's message log says "Message log, line 29 of 29", and each move the
+  new line's position, such as "Line 28 of 29". The lines' words aren't read yet.
 - Reply choices: when they appear, "Choice, N options" and not the options themselves, or with the `choiceCount` setting off, "Choose:" and the options. Moving the cursor speaks the option and its position, such
   as "Option, 2 of 3".
 - Lines the voice actors speak follow your voiced-lines setting: the speaker only, the full line, or nothing. The default
