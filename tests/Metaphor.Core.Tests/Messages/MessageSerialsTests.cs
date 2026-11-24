@@ -155,6 +155,10 @@ public sealed class MessageSerialsTests
     }
 
     [Fact]
+    public void TheBuildsTableHoldsTheEnemyNamesFileRightAfterTheCharacterNames() =>
+        Assert.Contains(new SerialRange(MessageSerials.EnemyNames, 122, 421), MessageSerials.Steam18330018);
+
+    [Fact]
     public void ASerialIsInAFileByItsRangeEvenBeforeTheFileIsCompiled()
     {
         var serials = Serials();

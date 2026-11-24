@@ -45,6 +45,25 @@ public sealed class TurnLineTests
     }
 
     [Fact]
+    public void ADebugLogGetsEachReadThatDiffersFromTheOneBefore()
+    {
+        // #254: by ear on 2026-11-23 a mid-turn gain was never said; the log shows what the icons read.
+        var logged = new List<string>();
+        var logging = new TurnLine(icons, scene, announcer, time) { Log = logged.Add };
+        icons.Now = new TurnIcons(0, 3, 2);
+        for (var frame = 0; frame < 6; frame++)
+        {
+            time.Advance(50);
+            logging.Keys([]);
+        }
+        icons.Now = new TurnIcons(0, 2, 3);
+        time.Advance(150);
+        logging.Keys([]);
+
+        Assert.Equal(["icons side=0 full=3 half=2", "icons side=0 full=2 half=3"], logged);
+    }
+
+    [Fact]
     public void AChangeInThePlayersIconsMidTurnSaysTheNewCountOnceSettled()
     {
         icons.Now = new TurnIcons(0, 3, 2);

@@ -31,10 +31,13 @@ public sealed class MessageSerials : IMessageBySerial, IMessageFileObserver
     /// them with those counts is <c>[NEEDS VERIFICATION]</c>, and a file that doesn't is dropped. The equipment,
     /// character and archetype name files' ranges are read from the same table and match their compiled counts in a
     /// Debug log (docs/findings/equipment-character-archetype-serials-static.md), as do the quest files'
-    /// (docs/findings/quest-message-serials-static.md).</summary>
+    /// (docs/findings/quest-message-serials-static.md). The enemy names file's range test is in protected code, so its
+    /// first serial comes from the files' contiguity and its compiled count
+    /// (docs/findings/battle-banner-enemy-name-serials-static.md).</summary>
     public static IReadOnlyList<SerialRange> Steam18330018 { get; } =
     [
         new(CharacterNames, 0, 122),
+        new(EnemyNames, 122, 421),
         new("message/system/System_Message.msg", 1142, 790),
         new(EquipmentNames, 2442, 1205),
         new(EquipmentDescriptions, 3647, 1206),
@@ -51,6 +54,9 @@ public sealed class MessageSerials : IMessageBySerial, IMessageFileObserver
     /// <summary>The character names file: the Item and Equipment screens fetch party members' names from it (#216,
     /// #217).</summary>
     public const string CharacterNames = "message/CharaName.msg";
+
+    /// <summary>The enemy names file: a battle banner names an enemy by a serial in it (#739).</summary>
+    public const string EnemyNames = "message/EnemyName.msg";
 
     /// <summary>The weapon, armour, gear and accessory names file (#216, #217, #736).</summary>
     public const string EquipmentNames = "message/system/Equip_Message_1.msg";

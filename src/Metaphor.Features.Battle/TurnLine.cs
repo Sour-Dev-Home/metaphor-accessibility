@@ -60,6 +60,10 @@ public sealed class TurnLine : IInputControls
         this.time = time;
     }
 
+    /// <summary>A Debug build's log of each icon read that differs from the one before (#254): by ear on 2026-11-23 a
+    /// mid-turn gain was never said, and this shows whether the icons read changed. None, when not set.</summary>
+    public Action<string>? Log { get; init; }
+
     public int Pad(int pad, int buttons, bool made)
     {
         Tick();
@@ -111,6 +115,11 @@ public sealed class TurnLine : IInputControls
             var started = (last is not { } before || turn.Side != before.Side || turn.Full > before.Full) &&
                 (turn.Side == TurnIcons.EnemySide || turn.Full + turn.Half > 0);
             var changed = last is { } previous && previous != turn;
+            if (last != turn)
+            {
+                Log?.Invoke(string.Create(CultureInfo.InvariantCulture,
+                    $"icons side={turn.Side} full={turn.Full} half={turn.Half}"));
+            }
             last = turn;
             if (started)
             {

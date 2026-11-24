@@ -90,6 +90,18 @@ internal sealed class GameDataRead : IReadsGlobal
             : null;
     }
 
+    // Money and MAG (#166), in the same block: GetMoney's 0x3b0c30 returns the int at G+0x22c58, which session 5 saw
+    // match the shop's money box (docs/findings/money-follower-rank-and-shop-static.md); MAG is the int at G+0x233fc
+    // (docs/findings/menu-values-party-unit-static.md). Build 548ddc95… (Steam 18330018).
+    private const int MoneyAt = 0x22c58;
+    private const int MagAt = 0x233fc;
+
+    /// <summary>The party's money, or null when unknown.</summary>
+    public int? Money() => Data() is { } data ? ModuleMemoryReader.ReadInt32(data + MoneyAt) : null;
+
+    /// <summary>The party's MAG, or null when unknown.</summary>
+    public int? Mag() => Data() is { } data ? ModuleMemoryReader.ReadInt32(data + MagAt) : null;
+
     private nint? Data() =>
         global != 0 && ModuleMemoryReader.ReadPointer(global) is { } data && data != 0 ? data : null;
 }

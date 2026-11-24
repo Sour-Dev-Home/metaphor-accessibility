@@ -73,6 +73,13 @@ public enum BattleFeature
         "banner during a battle turn: a boss warning, a stat change.")]
     BattleBanners,
 
+    /// <summary>The name in a banner such as "Bow Scourge Malmorta cannot move due to Stun!" (#739), from message
+    /// variable slot 0.</summary>
+    [SettingKey("speech", "battleBannerNames", "Battle banner names", Testing = true, Order = 1071, Description =
+        "Says who a battle banner is about: \"Bow Scourge Malmorta cannot move due to Stun!\". Off leaves the name " +
+        "out. Needs `battleBanners`.")]
+    BattleBannerNames,
+
     /// <summary>"Your turn, 4 actions" or "Enemy turn" as each side's turn starts (#252).</summary>
     [SettingKey("speech", "battleTurnLine", "Battle turn line", Testing = true, Order = 1072, Description = "Says " +
         "\"Your turn\" with the actions left, or \"Enemy turn\", as each side's turn starts in a battle.")]
@@ -87,4 +94,9 @@ public enum BattleFeature
     [SettingKey("speech", "battleEnd", "Battle end", Testing = true, Order = 1076, Description = "Says " +
         "\"Victory\", \"Escaped\" or \"Defeated\" as a battle ends.")]
     BattleEnd,
+
+    /// <summary>"Gained 240 money and 30 MAG" after a won battle (#166), from the purse at its start and end.</summary>
+    [SettingKey("speech", "battleRewards", "Battle rewards", Testing = true, Order = 1077, Description = "After a " +
+        "won battle, says the money and MAG it gained: \"Gained 240 money and 30 MAG\".")]
+    BattleRewards,
 }

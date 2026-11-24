@@ -58,8 +58,7 @@ internal sealed class DialogueWindowPointer : IReadsGlobal
 
     /// <summary>Fills <paramref name="into"/> from the start of message variable <paramref name="slot"/> (0 to 4).
     /// False when the global is unknown, the manager doesn't exist yet, the slot is out of range, the buffer is longer
-    /// than a slot or a read failed. For a Debug build's probe of a banner's name (#739); nothing reads it for players.
-    /// </summary>
+    /// than a slot or a read failed. For a battle banner's subject (#739).</summary>
     public bool ReadMessageVariable(int slot, Span<byte> into)
     {
         if (slot is < 0 or >= VariableCount || into.Length > VariableLength || windowGlobal == 0
