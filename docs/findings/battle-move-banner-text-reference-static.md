@@ -4,6 +4,10 @@
 - **Method:** Opening the shipped executable in a disassembler as-is, accepting that protected parts may be unreadable
 - **Sources:** none, see Steps; builds on
   [`battle-turn-icons-and-ui-components-static.md`](battle-turn-icons-and-ui-components-static.md)
+- **Functions:**
+  - BattleMessageShow | 0xf187d0 | .ecode | Battle | hooked | `UUIC_Battle_Message`'s show: turns an id and kind pair into a message file and index.
+  - BattleMessageRequestShow | 0xf185d0 | .ecode | Battle | hooked | The component's other show entry, called from the battle-side request.
+  - BattleBannerRequest | 0x324c50 | .ecode | Battle | known only | A battle-side request that builds the banner pair and calls a show function.
 
 The banner that names a move (an enemy skill in #247's 2026-11-20 run) is `UUIC_Battle_Message`. Its show function
 `0xf187d0` (`BattleMessageShow`, our name) turns a `{ id, kind }` pair into a message file and an index, builds a text

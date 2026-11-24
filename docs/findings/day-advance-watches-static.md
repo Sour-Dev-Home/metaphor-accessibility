@@ -4,6 +4,8 @@
 - **Method:** Opening the shipped executable in a disassembler as-is, accepting that protected parts may be unreadable
 - **Sources:** [`squirrel-script-functions-all-2026-11-16.md`](../raw-sources/squirrel-script-functions-all-2026-11-16.md),
   [`calendar-hud-inventory-2026-11-17.md`](../raw-sources/calendar-hud-inventory-2026-11-17.md)
+- **Functions:**
+  - CounterGet | 0x3b07e0 | .ecode | Field | known only | Reads a counter from the game-data block's counter region.
 
 Static prep (#494) for #190, #192 and #200: what to watch so that ending the day in game session 3 (#498, stop 5)
 shows what changes. The code that moves to the next day is not readable: the only analysed writers of the day count

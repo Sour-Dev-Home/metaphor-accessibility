@@ -4,6 +4,10 @@
 - **Method:** Opening the shipped executable in a disassembler as-is, accepting that protected parts may be unreadable
 - **Sources:** [`mission-line-message-log-2026-11-21.md`](../raw-sources/mission-line-message-log-2026-11-21.md); none
   else, see Steps
+- **Functions:**
+  - FieldMissionLayout vtable | 0x21ab1e8 | .udata | Field | known only | The mission box layout, `app::ui::FieldMissionLayout`.
+  - FieldMissionLayout::vf19 | 0xc99d70 | .ecode | Field | known only | The refresh: reads the main mission id, marks it seen and fills the box's three texts.
+  - MainMission::vf18 | 0xc998e0 | .ecode | Field | known only | Sets the mission title text on `font_rect_C4_mission_title`.
 
 Static follow-up on #658 (PR #665). The mission box is `app::ui::FieldMissionLayout` (vtable `0x21ab1e8`). It holds a
 `MainMission` part at `+0x260` and two sub-mission parts, and fills each part's text from a function keyed on a

@@ -5,6 +5,11 @@
 - **Sources:** [`field-units-names-exits-static.md`](field-units-names-exits-static.md),
   [`field-nearby-unit-names-static.md`](field-nearby-unit-names-static.md),
   [`field-nearby-session6-2026-11-17.md`](../raw-sources/field-nearby-session6-2026-11-17.md)
+- **Functions:**
+  - fldGmcDoor::vf44 | 0x6992a0 | .ecode | Field | known only | The door's reach test: distance, height and facing angle to the player.
+  - fldGimmick::vf44 | 0x697d00 | .ecode | Field | known only | The gimmick's reach test, the same with fixed limits.
+  - fldChara::vf44 | 0x644b10 | .ecode | Field | known only | The reach test shared by `fldNpc`, `fldEnemy`, `fldMember` and `fldPlayer`.
+  - FldNpcIsCanOnTalk | 0x8e3260 | .ecode | Field | known only | Script function on whether an NPC can be talked to.
 
 For #178 and #181. The prompt the player sees near a door or chest is the UI part `UUIC_Field_ActionGuide`, fed by the
 field singleton `fldActGuide`. Both sit behind `.text1`: the UI's slots and `fldActGuide`'s only virtual are jump

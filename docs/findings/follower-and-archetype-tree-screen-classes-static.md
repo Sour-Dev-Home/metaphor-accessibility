@@ -6,6 +6,7 @@
   message logs of earlier play sessions, read only)
 - **Sources:** [`archetype-screen-classes-session5-2026-11-17.md`](../raw-sources/archetype-screen-classes-session5-2026-11-17.md),
   [`archetype-tree-class-session6-2026-11-17.md`](../raw-sources/archetype-tree-class-session6-2026-11-17.md)
+- **Functions:** none
 
 For #199 and #227. The exe's type descriptors name every `ope` choice class; the ones a Followers screen can be are
 `CooperationMenuChoice@ope@ui@app`, `CooperationDetailChoice@ope@ui@app` and `CooperationSkillMenuChoice@ope@ui@app`

@@ -6,6 +6,7 @@
   protected parts may be unreadable (only its RTTI names and a data table were read)
 - **Sources:** [`atlus-evt-ecs-format-community-2026-11-24.md`](../raw-sources/atlus-evt-ecs-format-community-2026-11-24.md),
   [`modding-tools-survey-2026-11-13.md`](../raw-sources/modding-tools-survey-2026-11-13.md) (Squirrel `.cnut`)
+- **Functions:** none
 
 For #960. Each in-engine scene is an unencrypted `COMMON/event/**/<id>.EVT` with an `.ECS` beside it, in Persona 5's
 EVT/ECS layout with larger records. The EVT lists the scene's objects (characters, props, field, camera) and a timeline

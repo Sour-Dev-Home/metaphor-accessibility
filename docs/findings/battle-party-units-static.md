@@ -5,6 +5,10 @@
 - **Sources:** none, see Steps; builds on
   [`battle-turn-icons-and-ui-components-static.md`](battle-turn-icons-and-ui-components-static.md) and
   [`battle-hit-result-hp-left-static.md`](battle-hit-result-hp-left-static.md)
+- **Functions:**
+  - StoryFlagTest | 0x3b0ab0 | .ecode | Field | read | The story-flag test; it loads the game data block pointer `G`.
+  - Party slot getter | 0x3b0e30 | .ecode | Battle | known only | Returns the unit number held by party slot `s`.
+  - Party unit getter | 0x3b0eb0 | .ecode | Battle | known only | Returns the address of party unit `n` in the game data block.
 
 Party slot `s` holds a unit number at `G+0x1c748 + s × 4`, 0 for an empty slot. Unit `n` is at `G+0x228 + n × 0x16A8`.
 `G` is the same block the mod's story-flag read already uses. So a hit's target is a party member exactly when its unit

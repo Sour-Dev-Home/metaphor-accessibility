@@ -5,6 +5,7 @@
   mods do
 - **Sources:** none, see Steps; builds on
   [`battle-target-cursor-index-static.md`](battle-target-cursor-index-static.md)
+- **Functions:** none
 
 In the 2026-11-22 session's message log (Debug build of #631), moving the target cursor over the enemies logged only pad
 reads: no `cursor`, `selected` or other record names the targeted enemy, as the static note expects of a cursor with no

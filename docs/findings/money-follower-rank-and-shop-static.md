@@ -6,6 +6,12 @@
   [`menu-values-session5-2026-11-17.md`](../raw-sources/menu-values-session5-2026-11-17.md),
   [`squirrel-script-functions-all-2026-11-16.md`](../raw-sources/squirrel-script-functions-all-2026-11-16.md),
   [`menus-open-session6-2026-11-17.md`](../raw-sources/menus-open-session6-2026-11-17.md)
+- **Functions:**
+  - GetMoney | 0x90a510 | .ecode | Menus | known only | Script function that returns the money `int` at `G+0x22c58`.
+  - FollowerSetRank | 0x9074c0 | .ecode | Menus | known only | Script function that sets a follower's rank in the game-data block.
+  - FollowerGetFriendship | 0x907460 | .ecode | Menus | known only | Script function that reads a follower's friendship points.
+  - GetBagItem | 0x907810 | .ecode | Menus | known only | Script function that reads a bag count by item id.
+  - FclShopGetSelectedMenu | 0x906810 | .ecode | Menus | known only | Script function that reads the shop menu selection from a counter.
 
 Static prep for #196, read in Ghidra only and not yet run against the game. The community has no live addresses (the
 survey). The game's own script getters lead straight to them: most live in one block, `G`, and the shop's focused item

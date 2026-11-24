@@ -6,6 +6,9 @@
   maintainer's local Debug logs, grep only)
 - **Sources:** [`battle-inventory-2026-11-17.md`](../raw-sources/battle-inventory-2026-11-17.md) (rows 47, 80, 91);
   builds on [`battle-command-panel-static.md`](battle-command-panel-static.md)
+- **Functions:**
+  - BattleCommandOpenSub | 0xf10ba0 | .ecode | Battle | known only | Opens a screen for each command code of the battle command panel; none of them is Assist.
+  - btl::InfoSupport vtable | 0x17e2608 | .udata | Battle | known only | The navigator's support model, 46 slots, holding the Assist thinking state.
 
 For #263. **Not found.** The battle inventory already says Assist (RT) is "not used in a command battle" (row 80): it
 is on the bottom bar, and RT assists in real-time field combat (row 91). The exe agrees as far as static reading goes:

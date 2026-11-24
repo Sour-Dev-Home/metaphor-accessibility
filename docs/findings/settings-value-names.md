@@ -5,6 +5,7 @@
   maintainer's confirmation of what the screen shows
 - **Sources:** [`settings-value-names-confirmation-2026-11-22.md`](../raw-sources/settings-value-names-confirmation-2026-11-22.md),
   [`settings-values-sessions-2026-11-21.md`](../raw-sources/settings-values-sessions-2026-11-21.md)
+- **Functions:** none
 
 On the System page, Message Speed (value ID 17) has values 0, 1, 2 for Normal, Fast and Display All, named by the
 messages `System_Option_82`, `System_Option_83` and `System_Option_84`. Skip Selections (value ID 18) has 0 for Off and 1

@@ -4,6 +4,10 @@
 - **Method:** Opening the shipped executable in a disassembler as-is, accepting that protected parts may be unreadable
 - **Sources:** none, see Steps; the script function names are from
   [`squirrel-script-functions-all-2026-11-16.md`](../raw-sources/squirrel-script-functions-all-2026-11-16.md)
+- **Functions:**
+  - UUIC_Parts_Base vtable | 0x224e950 | .udata | Menus | known only | The UI components' base; slot 5 takes a request.
+  - UUIC_Common_EventItemGet::vf5 | 0xf55f60 | .ecode | Menus | known only | Takes the item-get banner's request.
+  - UUIC_Common_Saving::vf5 | 0xf8a6f0 | .ecode | Field | known only | Starts with a jump into `.text1`, so it is off-limits.
 
 No single hookable point sees every `UUIC_*` component open: they are created, registered and sent their requests from
 `.xcode` and `.text1`. Their layouts' opens do share one function in `.ecode`, `0xa70010`, which starts an animation on

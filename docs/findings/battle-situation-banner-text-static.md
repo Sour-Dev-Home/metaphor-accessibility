@@ -5,6 +5,9 @@
 - **Sources:** none, see Steps; builds on
   [`battle-move-banner-text-reference-static.md`](battle-move-banner-text-reference-static.md) and
   [`field-nearby-unit-names-static.md`](field-nearby-unit-names-static.md)
+- **Functions:**
+  - BattleMessageShow | 0xf187d0 | .ecode | Battle | hooked | Shows a banner; kind 2 picks the situation file's position.
+  - BattleMessageRequestShow | 0xf185d0 | .ecode | Battle | hooked | The second show function, called only from the battle-side request.
 
 For #692, #626 and #695. `UUIC_Battle_Message`'s banners of kind 2 are the situation messages ("Attack rose!", "Not
 enough MP!", "`<V 0>` is powering up!", "Gained one Turn Icon!"): message-file table entry 9,

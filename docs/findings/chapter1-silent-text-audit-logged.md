@@ -10,6 +10,7 @@
   [`settings-screens-inventory-static.md`](settings-screens-inventory-static.md),
   [`battle-move-banner-text-reference-static.md`](battle-move-banner-text-reference-static.md) and
   [`tutorial-table-maps-numbers-to-labels.md`](tutorial-table-maps-numbers-to-labels.md)
+- **Functions:** none
 
 For #546. In the 12 sessions of 2026-11-21 to 2026-11-23, while the player was on a chapter 1 map, the game showed or
 fetched **915 distinct labels**. The mod spoke **407** of them (2 have no words to match). Of the **506** it never

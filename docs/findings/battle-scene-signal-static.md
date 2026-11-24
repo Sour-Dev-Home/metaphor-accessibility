@@ -4,6 +4,9 @@
 - **Method:** Opening the shipped executable in a disassembler as-is, accepting that protected parts may be unreadable
 - **Sources:** [`field-state-map-session6-2026-11-17.md`](../raw-sources/field-state-map-session6-2026-11-17.md),
   [`field-state-and-map-2026-11-16.md`](../raw-sources/field-state-and-map-2026-11-16.md)
+- **Functions:**
+  - FieldSceneRootRead | 0x522db0 | .ecode | Battle | read | Loads the `fldScene_Root` global; the load locates the battle's scene.
+  - fldScene_Root | 0x2ee7348 | .debug | Field | read | The global holding the field's scene root, which names a battle.
 
 A battle is on while the class of `[[[fldScene_Root]+0x10]+0x10]` is `fldScene_CmdBattle@fld@app`. `fldScene_Root` is
 the global at `0x2ee7348`, loaded by the `mov rcx,[rip+disp32]` at `+0xd` of `0x522db0`, in `.ecode`. The status key

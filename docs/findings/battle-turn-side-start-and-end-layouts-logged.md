@@ -6,6 +6,7 @@
 - **Sources:** none, see Steps; builds on
   [`battle-turn-icons-and-ui-components-static.md`](battle-turn-icons-and-ui-components-static.md) and
   [`battle-start-and-turn-notice-layouts-static.md`](battle-start-and-turn-notice-layouts-static.md)
+- **Functions:** none
 
 For #252, #626 and #166. Four Debug session logs (2026-11-22 and 2026-11-23) confirm three leads: the int at `G+0x25460`
 is 0 on the player's turn and 1 on the enemy's, with the full icons at `+0x25464`; `BattleCutInWipeLayout` opens with

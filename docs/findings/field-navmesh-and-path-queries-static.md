@@ -6,6 +6,11 @@
   [`field-actors-2026-11-16.md`](../raw-sources/field-actors-2026-11-16.md),
   [`field-navigation-accessibility-mods-2026-11-16.md`](../raw-sources/field-navigation-accessibility-mods-2026-11-16.md),
   [`chapter1-interaction-inventory-2026-11-20.md`](../raw-sources/chapter1-interaction-inventory-2026-11-20.md)
+- **Functions:**
+  - Path query | 0x13f19b0 | .ecode | Field | known only | Finds the nearest polygons, then a path, into a caller's path buffer.
+  - Walk-line test | 0x13eeac0 | .ecode | Field | known only | Finds the nearest polygons, then raycasts the navmesh and reads the hit height.
+  - FieldNavmeshSnap nearest point | 0x13f2930 | .ecode | Field | known only | The nearest walkable point, called each idle frame on the player.
+  - findNearestPoly | 0x1543a30 | .ecode | Field | known only | The one function that builds a `dtFindNearestPolyQuery` on its stack.
 
 Static prep (#495) for #179, feeding guidance (#183) and auto-walk (#184) in game session 4 (#499). **Verdict: usable,
 high confidence that the data exists, medium that we can use it as planned.** The exe links Recast/Detour, each map

@@ -4,6 +4,8 @@
 - **Method:** Our own Reloaded-II mod reading the running game's memory and hooking its functions, as those community
   mods do; opening the shipped executable in a disassembler as-is, accepting that protected parts may be unreadable
 - **Sources:** none, see Steps
+- **Functions:**
+  - SaveLoadLayoutBase vtable | 0x21b6da0 | .udata | Menus | known only | The save and load slot lists' base layout class.
 
 For #622. The slot lists' cursors come with no screen class (`screen=?`): no choice hands out their manager. Each
 opening fetches its prompt by serial about 10 ms before its new manager's first cursor: serial 1634 (`System_Option_12`,

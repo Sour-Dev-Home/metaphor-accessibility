@@ -6,6 +6,7 @@
 - **Sources:** none, see Steps; builds on
   [`equipment-character-archetype-serials-static.md`](equipment-character-archetype-serials-static.md) and
   [`follower-and-archetype-tree-screen-classes-static.md`](follower-and-archetype-tree-screen-classes-static.md)
+- **Functions:** none
 
 For #857, #220 and #851. `ClassName.msg` holds the specific archetypes (60 messages, three to five per line, labelled
 `ClassName_<line>_<rank>`, where `<line>` is the `ATCategoryName_<line>` the archetype belongs to); its range is

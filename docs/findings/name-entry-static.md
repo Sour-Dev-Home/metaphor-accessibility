@@ -4,6 +4,10 @@
 - **Method:** Opening the shipped executable in a disassembler as-is, accepting that protected parts may be unreadable
 - **Sources:** none, see Steps; builds on [`yes-no-dialog-labels-2026-11-20.md`](../raw-sources/yes-no-dialog-labels-2026-11-20.md)
   and [`msg-window-show-line-2026-11-20.md`](../raw-sources/msg-window-show-line-2026-11-20.md)
+- **Functions:**
+  - fclNameEntry vtable | 0x17f66d0 | .udata | Menus | known only | The name entry screen's vtable.
+  - fclNameEntry::vf2 | 0x4ff900 | .ecode | Menus | known only | The screen's update: switches on the state at `+0x18`.
+  - fclNameEntry typing state | 0x4fef10 | .ecode | Menus | known only | Runs every frame while the player types and picks the title by the flag at `+0x481`.
 
 For #585. The name entry screen is `fclNameEntry` (vtable `0x17f66d0`). Its `+0x481` byte is the script's
 `isPlayerNameEntry` flag: set, the screen names the player and its title is `System_NameEntry_07`; clear, it names the

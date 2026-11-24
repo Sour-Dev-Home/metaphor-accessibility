@@ -5,6 +5,10 @@
 - **Sources:** none, see Steps; builds on
   [`battle-turn-icons-and-ui-components-static.md`](battle-turn-icons-and-ui-components-static.md),
   [`battle-inventory-2026-11-17.md`](../raw-sources/battle-inventory-2026-11-17.md)
+- **Functions:**
+  - UUIC_Battle_Command vtable | 0x224ed40 | .udata | Battle | known only | The per-turn command buttons, one state machine, not a list.
+  - BattleCommandUpdate | 0xf11290 | .ecode | Battle | known only | Slot 13: switches on the panel's state at `+0x50`.
+  - BattleCommandOpenSub | 0xf10ba0 | .ecode | Battle | known only | Takes a command code and creates that command's screen.
 
 The per-turn command buttons are `UUIC_Battle_Command` (vtable `0x224ed40`), not a list, which is why no shared cursor
 moves on them (#247, 2026-11-20). Its update keeps a state at `+0x50`; choosing a command calls `0xf10ba0`

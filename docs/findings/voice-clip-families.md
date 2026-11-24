@@ -5,6 +5,7 @@
   tables. No ADR 0002 row covers data files, which no protection guards; the maintainer approved this survey on
   2026-11-20 (#551). The six sightings come from our own Reloaded-II mod's message log.
 - **Sources:** none, see Steps
+- **Functions:** none
 
 For #551: of the 37,040 messages with a `<VOICE "…">` tag in the English message files, the clip speaks the whole line
 only when its name starts `v_e<n>`, `v_f<n>`, `v_BE_`, `v_du_`, `v_br_` or `v_tr_nar`. Every other family (`v_co_`,

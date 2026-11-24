@@ -6,6 +6,7 @@
 - **Sources:** none, see Steps; builds on [`field-nearby-unit-names-static.md`](field-nearby-unit-names-static.md),
   [`field-npc-kinds-objects-static.md`](field-npc-kinds-objects-static.md) and
   [`field-units-names-exits-static.md`](field-units-names-exits-static.md)
+- **Functions:** none
 
 For #687. The names the contributors' table (`data/names/<map>.json`, `src/Metaphor.Features.Field/NamesTable.cs`)
 fills by hand are mostly in the game's own files. People: `COMMON/field/source/layout/npc/f_<a>_<b>.npc` has one row

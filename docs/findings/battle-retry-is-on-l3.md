@@ -5,6 +5,7 @@
   mods do (played by ear with the mod loaded)
 - **Sources:** none, see Steps; answers the `[NEEDS VERIFICATION]` on whether the game uses L3 in a battle, from
   [`battle-inventory-2026-11-17.md`](../raw-sources/battle-inventory-2026-11-17.md)
+- **Functions:** none
 
 The game uses L3 in a battle: it is the button for Retry, which turns back the clock (#262). So the mod's status read
 (#631) keeping L3 from the game took Retry away from pad players (#925).

@@ -6,6 +6,7 @@
   data files, which no protection guards. The live check is our own Reloaded-II mod's message log.
 - **Sources:** none, see Steps; follows [`field-map-region-area-name-static.md`](field-map-region-area-name-static.md)
   and [`mission-title-from-the-mission-table.md`](mission-title-from-the-mission-table.md)
+- **Functions:** none
 
 For "where am I" (#742): `MapData.bin` has one `0x2c`-byte row per map id. Its `u16` at `+0x6` indexes `AreaName.bin`,
 whose row starts with the `MapName.msg` position of the region; that is the one label the game looked up by position

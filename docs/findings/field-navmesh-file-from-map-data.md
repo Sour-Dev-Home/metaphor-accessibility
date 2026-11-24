@@ -6,6 +6,7 @@
   covers data files, which no protection guards); nothing extracted or kept
 - **Sources:** none, see Steps; the table read is
   [`field-position-facing-map-static.md`](field-position-facing-map-static.md)'s `MapData` (`+0x10 + id × 0x2c`)
+- **Functions:** none
 
 Issue #741. In the 2026-11-22 session no route was ever planned because `NavMapFiles.Guess` (`f_<id/1000>_<id%1000>`)
 named files the archive doesn't have: `f_0000_001`, `f_0000_138`, `f_0000_371` and `f_0000_372` are not among the 374

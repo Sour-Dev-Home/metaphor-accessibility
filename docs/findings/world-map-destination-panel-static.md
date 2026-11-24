@@ -6,6 +6,11 @@
   [`squirrel-script-functions-all-2026-11-16.md`](../raw-sources/squirrel-script-functions-all-2026-11-16.md),
   [`menu-hook-counts-2026-11-17.md`](../raw-sources/menu-hook-counts-2026-11-17.md),
   [`field-map-region-area-name-static.md`](field-map-region-area-name-static.md)
+- **Functions:**
+  - sortie::map::Detail::vf17 | 0xcca910 | .ecode | Menus | known only | The destination panel's setup: binds `font_rect_C5_name` to the text.
+  - sortie::map::Detail::vf20 | 0xcc7f10 | .ecode | Menus | known only | Plays the panel's animations and clears `Detail+0xc08`.
+  - SortieMapUI_GetPointID | 0x911600 | .ecode | Menus | known only | Script function that reads the map point id.
+  - SortieMapUI_MoveAutoCursor | 0x911be0 | .ecode | Menus | known only | Script function that moves the map cursor automatically.
 
 Static prep for #545, after the 2026-11-20 by-ear run found no cursor records and only five fixed serial lookups on
 the world map. The exe has two map screens with a destination panel. The sortie map (the travel map the `SortieMapUI_*`

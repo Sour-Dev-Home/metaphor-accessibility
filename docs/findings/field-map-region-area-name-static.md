@@ -5,6 +5,11 @@
 - **Sources:** [`field-position-facing-map-static.md`](field-position-facing-map-static.md),
   [`field-notices-and-map-travel-static.md`](field-notices-and-map-travel-static.md),
   [`menu-hook-counts-2026-11-17.md`](../raw-sources/menu-hook-counts-2026-11-17.md)
+- **Functions:**
+  - field::map::Name vtable | 0x21a9c08 | .udata | Field | known only | The field map's name strip layout class.
+  - Name strip id setter | 0xc93070 | .ecode | Field | known only | Stores a map id in the layout at `+0x7e8`.
+  - Name strip text composer | 0xc94130 | .ecode | Field | known only | Turns the stored id into a text object through the region and area name list.
+  - Name serial list builder | 0xefe180 | .ecode | Field | known only | Builds the list of three message serials: region, separator and area name.
 
 Static prep for #586, also for "where am I" (#181, #192). The field map's name strip is the layout
 `app::ui::layout::field::map::Name`, which `FieldMapNameLayout` extends. `0xc93070` stores an id in the layout at

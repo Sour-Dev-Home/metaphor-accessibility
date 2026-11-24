@@ -7,6 +7,8 @@
   [`field-map-region-area-name-static.md`](field-map-region-area-name-static.md),
   [`message-serials-from-file-positions.md`](message-serials-from-file-positions.md),
   [`game-text-hooks-community-2026-11-15.md`](../raw-sources/game-text-hooks-community-2026-11-15.md)
+- **Functions:**
+  - title::menu::ExitBtn::vf18 | 0xd3bde0 | .ecode | Menus | known only | Shows the whole route: resolves a label to a pair and stores it on the travel map panel.
 
 For #545 and #586. The `0x1c`-byte text that `0xcccf50` copies into the travel map's panel is a message reference:
 two `u32`s set from a label's lookup. In play they are the id the compile hook saw the file compiled under, and the

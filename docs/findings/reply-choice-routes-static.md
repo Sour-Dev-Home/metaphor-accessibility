@@ -6,6 +6,9 @@
   [`msg-window-show-line-2026-11-20.md`](../raw-sources/msg-window-show-line-2026-11-20.md),
   [`squirrel-script-functions-all-2026-11-16.md`](../raw-sources/squirrel-script-functions-all-2026-11-16.md),
   [`select-window-reply-choice-2026-11-20.md`](../raw-sources/select-window-reply-choice-2026-11-20.md)
+- **Functions:**
+  - MsgRequestSelectByName | 0x9f8d70 | .ecode | Dialogue | hooked | The choice hook's function; it sits in front of only one of four routes.
+  - MsgWindowShowLine | 0x9ed360 | .ecode | Dialogue | hooked | Shows the prompt with a line block that carries the prompt's hash.
 
 Static prep for #541, read in Ghidra only. Every reply choice reaches the window through `0x9eb890`, which four
 functions call. The choice hook (`MsgRequestSelectByName`, `0x9f8d70`) sits in front of only one of them, and only for

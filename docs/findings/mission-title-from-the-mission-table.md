@@ -3,6 +3,9 @@
 - **Game build:** `548ddc955c176867f062c44f94c03dd9ac33caefb278a5ac388e792aedf09504` (Steam build 18330018)
 - **Method:** Opening the shipped executable in a disassembler as-is, accepting that protected parts may be unreadable
 - **Sources:** none, see Steps; follows [`mission-box-text-source-static.md`](mission-box-text-source-static.md)
+- **Functions:**
+  - MissionTableRow | 0x3c5c80 | .ecode | Field | read | The row search: matches the story flag against the mission rows' `+0x20`.
+  - Mission::vf1 | 0x3c64e0 | .ecode | Field | known only | Builds the mission rows once the four files are read.
 
 The main mission table the mission box reads (#658) is built from `Mission_Main_Data.bin` into rows of `0x30` bytes. A
 row's first 16 bytes are copied from the file and its next 16 are the MD5 of no bytes, the empty label. The message

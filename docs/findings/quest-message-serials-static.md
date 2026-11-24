@@ -6,6 +6,7 @@
   message log of an earlier play session, read only)
 - **Sources:** [`menus-by-ear-session-message-log-2026-11-22.md`](../raw-sources/menus-by-ear-session-message-log-2026-11-22.md),
   none else, see Steps
+- **Functions:** none
 
 For #194. The exe's message-file table gives `message/quest/Quest_1.msg` serials 9508–9643 (136 messages) and
 `message/quest/Quest_2.msg` 9644–10100 (457). The quest list's 95xx and 96xx serials, unlabelled until now, are quest

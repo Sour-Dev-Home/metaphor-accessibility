@@ -7,6 +7,8 @@
 - **Sources:** [`metaphor-010-templates-tables-2026-11-17.md`](../raw-sources/metaphor-010-templates-tables-2026-11-17.md);
   follows [`menu-values-party-unit-static.md`](menu-values-party-unit-static.md) and
   [`item-skill-message-serials-static.md`](item-skill-message-serials-static.md)
+- **Functions:**
+  - SkillSelectDecide | 0xd77810 | .ecode | Battle | known only | Reads the focused row's skill id from the component.
 
 For #692 (b). **Found, as data with no hook.** The battle skill list already names each row by the serial it fetches
 from `Skill_Message_1.msg` (#247). That serial's label (`SkillName_FireMagic_01`), hashed with MD5, equals the 16 bytes

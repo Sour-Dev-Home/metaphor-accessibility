@@ -5,6 +5,8 @@
   bytes on disk at three constants
 - **Sources:** [`pad-and-keyboard-state-2026-11-16.md`](../raw-sources/pad-and-keyboard-state-2026-11-16.md) (the button
   mask, and "the sticks follow"), [`input-route-2026-11-16.md`](../raw-sources/input-route-2026-11-16.md) (`PadRead`)
+- **Functions:**
+  - PadRead | 0x10d0a00 | .ecode | Settings | hooked | Fills the pad state as five 16-bit values after `XInputGetState`; the sticks are centred on 128.
 
 `PadRead` (`0x10d0a00`) fills its second argument as five 16-bit values after `XInputGetState`. The button mask at `+0`
 is in the raw source above; the sticks are new here (#701, #184).

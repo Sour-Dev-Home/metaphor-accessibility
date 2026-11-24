@@ -8,6 +8,10 @@
   [`metaphor-010-templates-shop-follower-quest-2026-11-19.md`](../raw-sources/metaphor-010-templates-shop-follower-quest-2026-11-19.md);
   adds to [`calendar-date-time-and-quests-static.md`](calendar-date-time-and-quests-static.md) and to #665's
   main-mission table note
+- **Functions:**
+  - app::ui::CalendarLayout vtable | 0x2172fe0 | .udata | Menus | known only | The Calendar's layout class; its slot 17 draws text.
+  - CampQuestChoice vtable | 0x21e1150 | .udata | Menus | known only | The quest list's choice, with the layout `app::ui::CampQuestLayout`.
+  - CampQuestChoice::vf16 | 0xde9520 | .ecode | Menus | known only | Fills the quest list rows through a helper shared with two other callers.
 
 Spike #191 for #193 (Calendar) and #194 (quest list). The Calendar builds a `MultiLineCursorManager` grid of 5 columns
 and 6 rows (7 in month 12), so the cursor index is the day of the month minus one and the column picks the weekday
