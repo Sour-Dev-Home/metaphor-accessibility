@@ -18,7 +18,9 @@ namespace Metaphor.Features.Menus;
 /// That the fetch order is the cursor order on these lists is <c>[NEEDS VERIFICATION]</c> by ear.</para>
 /// <para>A page fetched more than <see cref="RunGapMilliseconds"/> after the list's last focus or fetch, then entered or
 /// focused at its top, starts the rows afresh, so a list opened again, for another member or on another tab, starts
-/// afresh even though the game fetches its names before its cursor settles. On a move by one row the game fetches the
+/// afresh even though the game fetches its names before its cursor settles. Entering takes only the names fetched since
+/// the last such gap: the Analyze screen fetches enemies' skill names with the same flags while no list is open, and
+/// those are none of its rows (#920, by-ear session of 2026-11-24, Steam build 18330018). On a move by one row the game fetches the
 /// row the move scrolled in along with rows it redraws, some of the page and not always all of it: the row brought in is
 /// the last name fetched going down (docs/raw-sources/battle-item-list-scroll-by-ear-2026-11-22.md). Going up it is
 /// taken as the first, as on the settings pages (docs/raw-sources/settings-ok-and-rows-by-ear-2026-11-21.md); for the
@@ -65,6 +67,9 @@ public sealed class BattleListFocus : IScreenObserver, ISerialResolveObserver, I
     private readonly List<int> pending = [];
     // Where each fetch burst begins in pending, and when the last name was fetched (#737).
     private readonly List<int> bursts = [];
+    // Where the names fetched after the last gap begin in pending: those before came from something else, such as the
+    // Analyze screen (#920), when the list is entered.
+    private int sinceGap;
     private long lastNameAt = long.MinValue / 2;
     // Each row's description by its name's serial, and the name fetched last, for the next description to pair with.
     private readonly Dictionary<int, int> descriptions = [];
@@ -120,8 +125,8 @@ public sealed class BattleListFocus : IScreenObserver, ISerialResolveObserver, I
     /// <summary>The screen this one speaks.</summary>
     public Screen Screen { get; }
 
-    /// <summary>The cost said after a row's name, by the row's name serial (#692 (b)), or null for none; read at each
-    /// line. Null, no cost is said.</summary>
+    /// <summary>What is said after a row's name, by the row's name serial: a skill's cost (#692 (b)) or how many of an
+    /// item the party holds (#937), or null for none; read at each line. Null, nothing is said.</summary>
     public Func<int, string?>? RowCost { get; init; }
 
     /// <summary>Whether the list speaks now (#260: the Synthesis list's own setting); read at each line and details
@@ -179,9 +184,12 @@ public sealed class BattleListFocus : IScreenObserver, ISerialResolveObserver, I
     /// <summary>The item list as <see cref="Items(MessageSerials, IAnnouncer, TextCleaner, Func{long}, Func{bool}?)"/>,
     /// whose tabs say their names while <paramref name="tabsOn"/> (#851): the tab the list's tab field
     /// (<see cref="ScreenEvent.Mode"/>, <see cref="ScreenModes"/>) holds, by <see cref="FirstItemTabSerial"/>.</summary>
+    /// <remarks><paramref name="rowQuantity"/> is how many of a row's item the party holds, by the row's name serial, or
+    /// null when it isn't known (#937), said as "you have n" after the name; read at each line. Null, none is said.
+    /// </remarks>
     public static BattleListFocus Items(
         MessageSerials serials, IAnnouncer announcer, TextCleaner cleaner, Func<long> millisecondsNow,
-        Func<bool>? viewsOn, Func<bool>? tabsOn) =>
+        Func<bool>? viewsOn, Func<bool>? tabsOn, Func<int, int?>? rowQuantity = null) =>
         new(ItemList, MessageSerials.ItemNames, MessageSerials.ItemDescriptions, serials, announcer, cleaner,
             millisecondsNow, viewsOn)
         {
@@ -189,6 +197,8 @@ public sealed class BattleListFocus : IScreenObserver, ISerialResolveObserver, I
                 : focus => tabsOn() && focus.Mode is { } tab && tab is >= 0 and < ItemTabs
                     ? serials.TextOf(FirstItemTabSerial + tab, cleaner)
                     : null,
+            RowCost = rowQuantity is null ? null
+                : name => rowQuantity(name) is { } held ? $"you have {held}" : null,
         };
 
     /// <summary>The focused row's description for the details key (#247): the description fetched from the list's
@@ -263,7 +273,7 @@ public sealed class BattleListFocus : IScreenObserver, ISerialResolveObserver, I
                 // Names fetched after this visit's last focus belong to the next visit, which fetched them already.
                 if (pending.Count > 0)
                 {
-                    StartRun(pending);
+                    StartRun(pending.Skip(sinceGap));
                 }
                 else if (runStep < focusStep)
                 {
@@ -379,6 +389,10 @@ public sealed class BattleListFocus : IScreenObserver, ISerialResolveObserver, I
                 {
                     pendingAfterGap = gap;
                 }
+                else if (gap)
+                {
+                    sinceGap = pending.Count;
+                }
                 if (pending.Count < MaxRows)
                 {
                     if (pending.Count == 0 || newBurst)
@@ -440,8 +454,13 @@ public sealed class BattleListFocus : IScreenObserver, ISerialResolveObserver, I
             runOpen = false;
             pageSize = rows.Count;
         }
-        if (pending.Count > 0
-            && (focus.Change == ScreenChange.Entered || (!byOne && focus.Index == 0 && (pendingAfterGap || otherLength))))
+        if (pending.Count > 0 && focus.Change == ScreenChange.Entered)
+        {
+            // The list fetches its names just before its cursor settles: only those after the last gap are its own.
+            StartRun(pending.Skip(sinceGap));
+            return;
+        }
+        if (pending.Count > 0 && !byOne && focus.Index == 0 && (pendingAfterGap || otherLength))
         {
             StartRun(pending);
             return;
@@ -476,6 +495,7 @@ public sealed class BattleListFocus : IScreenObserver, ISerialResolveObserver, I
     {
         pending.Clear();
         bursts.Clear();
+        sinceGap = 0;
     }
 
     // A move on another tab whose own switch the game reported no focus for, as its cursor stayed on the top row with
