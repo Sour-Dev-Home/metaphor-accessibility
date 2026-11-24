@@ -84,7 +84,9 @@ public sealed class DialogueAnnouncer
         // Recorded before the mode is applied, so the history holds the full line even if it goes unspoken (#126).
         // The history keeps the name on every line, so the replay key always says name and line (#539).
         history.Add(full);
-        // The name is said on a conversation's first line and when the speaker changes (#539).
+        // The name is said on a conversation's first line and when the speaker changes (#539), not before every window
+        // a speaker goes on across (#873). Idea only, from Arcana (https://github.com/ChipsAhoiMcCoy/arcana,
+        // ChipsAhoiMcCoy, Zlib; v0.6.0 release notes, tag commit 73db802); no code copied (CREDITS.md).
         bool changed;
         lock (gate)
         {

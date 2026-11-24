@@ -21,6 +21,9 @@ public sealed class ReportLog(TextWriter writer, Func<long> millisecondsSinceSta
     /// <summary>The log's file name in the mod's folder.</summary>
     public const string FileName = "report-log.txt";
 
+    /// <summary>The previous session's log, kept beside the new one (#872).</summary>
+    public const string PreviousFileName = "report-log.previous.txt";
+
     /// <summary>The longest label written; anything longer is counted instead.</summary>
     private const int MaxLabelLength = 64;
 
@@ -106,6 +109,28 @@ public sealed class ReportLog(TextWriter writer, Func<long> millisecondsSinceSta
 
     /// <summary>The longest <see cref="Error"/> waits for the disk.</summary>
     public static readonly TimeSpan ErrorWriteTimeout = TimeSpan.FromMilliseconds(500);
+
+    /// <summary>Keeps the last session's log as <see cref="PreviousFileName"/>, replacing an older one, before a new
+    /// log is written over it (#872). The file is only moved, never read or changed: it was scrubbed when written
+    /// (#824). A missing log is fine, and a move that fails leaves the old files as they are. Idea only, from
+    /// Arcana (https://github.com/ChipsAhoiMcCoy/arcana, ChipsAhoiMcCoy, Zlib; v0.6.0 release notes, tag commit
+    /// 73db802); no code copied (CREDITS.md).</summary>
+    [SuppressMessage("Design", "CA1031", Justification = "A report log must never stop the mod.")]
+    public static void KeepPrevious(string folder)
+    {
+        try
+        {
+            var current = Path.Combine(folder, FileName);
+            if (File.Exists(current))
+            {
+                File.Move(current, Path.Combine(folder, PreviousFileName), overwrite: true);
+            }
+        }
+        catch (Exception)
+        {
+            // Keeping the old log is a courtesy; the new one is still written.
+        }
+    }
 
     /// <summary>What a report log redacts: <see cref="LogScrubber.PathsToRedact"/>.</summary>
     public static IReadOnlyList<string> PathsToRedact(

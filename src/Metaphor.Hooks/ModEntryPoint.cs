@@ -44,6 +44,7 @@ public sealed class ModEntryPoint : IMod
     {
         try
         {
+            ReportLog.KeepPrevious(folder); // the last session's log, scrubbed when written, before this one replaces it (#872)
             var stream = new FileStream(
                 Path.Combine(folder, ReportLog.FileName), FileMode.Create, FileAccess.Write, FileShare.Read);
             var started = Process.GetCurrentProcess().StartTime;

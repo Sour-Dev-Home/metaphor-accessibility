@@ -198,10 +198,12 @@ to file it, and the mod itself sends nothing anywhere.
 1. When something goes wrong in the game, press `F8`, the
    [mark key](../reference/keys-and-speech.md#mark-key-note-a-moment-for-your-report): two short clicks, and a marker
    with the time goes into the log.
-2. Find `report-log.txt`. Press `Windows+R`, type `%LOCALAPPDATA%\Programs\Reloaded-II\Mods\metaphor.accessibility`
+2. Find `report-log.txt`, and `report-log.previous.txt` beside it, which is the log of the game start before. If you
+   restarted the game after the problem, attach the previous one. Press `Windows+R`, type `%LOCALAPPDATA%\Programs\Reloaded-II\Mods\metaphor.accessibility`
    (the installer says this folder at its end; use your own mods folder if Reloaded-II is elsewhere) and press
    `Enter`. Type `report-log` to jump to the file, then `Ctrl+C` and paste it somewhere safe with `Ctrl+V`. The mod
-   writes it fresh each time the game starts, so copy it before you start the game again.
+   writes `report-log.txt` fresh each time the game starts and keeps the one before as `report-log.previous.txt`
+   (only the last one), so copy what you need before you start the game a second time.
 3. Open `https://github.com/Sour-Dev-Home/metaphor-accessibility/issues/new/choose`, move to "Alpha feedback" and
    press `Enter`. The form has plain, labelled fields: what you were doing, roughly when you pressed `F8`, what you
    heard, what you expected, your screen reader, and the log. In the log field paste the file's text with `Ctrl+V`,

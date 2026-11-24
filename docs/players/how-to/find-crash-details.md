@@ -5,8 +5,8 @@ Windows 10 and 11 computer has, Reliability Monitor and Event Viewer, without ad
 report. Do this as well as attaching `report-log.txt` ([Report a problem](install-the-mod.md#report-a-problem)): the
 mod's log stops where the game stopped, and the Windows record says which part of the game or the mod failed.
 
-Each step names the keys to press, with no mouse. Copy `report-log.txt` first, before you start the game
-again, as the mod writes it fresh each game start.
+Each step names the keys to press, with no mouse. If the game has already started again, the log of the run that
+closed is `report-log.previous.txt`; otherwise copy `report-log.txt` first, as the mod writes it fresh each game start.
 
 ## With Reliability Monitor
 
