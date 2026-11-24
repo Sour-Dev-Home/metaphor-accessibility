@@ -34,7 +34,7 @@ set -uo pipefail
 # other scripts read this list as text.
 set -f
 scope=(scripts/ src/Metaphor.Hooks/ src/Metaphor.Features.Updates/ installer/ .github/workflows/ tests/check/ tests/bash/
-  tools/docs/ tools/slow/ .config/dotnet-tools.json .claude/agents/security-reviewer.md
+  tools/docs/ tools/slow/ tools/Metaphor.CpkExtract/ .config/dotnet-tools.json .claude/agents/security-reviewer.md
   *Directory.Build.* *Directory.Packages.props *Directory.Solution.* *.sln.targets *global.json
   *nuget.config *NuGet.config *NuGet.Config)
 set +f
