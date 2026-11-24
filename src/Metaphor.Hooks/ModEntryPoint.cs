@@ -105,6 +105,8 @@ public sealed class ModEntryPoint : IMod
 #if DEBUG
     // The live inspector (#291), Debug and opt-in only; kept for the same reason.
     private LiveInspector? liveInspector;
+    // The capture build's probes (CaptureProbes), Debug only; kept for the same reason.
+    private CaptureProbes? captureProbes;
 #endif
 
     public Action Disposing => () => { };
@@ -225,6 +227,9 @@ public sealed class ModEntryPoint : IMod
             // After the hooks, so its reads never race their installation; read-only, so the build check isn't needed.
             liveInspector = LiveInspector.StartIfOptedIn(
                 folder, log.For(LogArea.Inspector), log.ErrorsFor(LogArea.Inspector));
+            // The capture build's poll, read-only like the inspector and started after the hooks for the same reason; only
+            // on a known build, whose globals the loader located.
+            captureProbes = status.HooksLoaded > 0 ? CaptureProbes.Start(services) : null;
 #endif
         }
         catch (Exception)

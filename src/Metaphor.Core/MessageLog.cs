@@ -47,6 +47,11 @@ public sealed class MessageLog(TextWriter writer, Func<long> millisecondsSinceSt
     public void MenuNote(string text) =>
         Write(() => Line($"{millisecondsSinceStart()} ms menu {text}"));
 
+    /// <summary>A capture-build probe's line (<see cref="CaptureLines"/>), as the probe formatted it: numbers and class
+    /// names only.</summary>
+    public void Capture(string text) =>
+        Write(() => Line($"{millisecondsSinceStart()} ms capture {text}"));
+
     /// <summary>A function the game registered for its scripts: its script name, and where the native function is in
     /// the game module. <paramref name="viaUserdata"/> says the address came from the userdata the game pushed (a game
     /// function behind a shared trampoline) and not from the registered function itself.</summary>

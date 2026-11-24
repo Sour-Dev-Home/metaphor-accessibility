@@ -51,7 +51,19 @@ internal sealed class TextPaneDrawListener : IGameHook, IObserves3
             found = Probe((nint)drawn.Element, "elem");
         }
         log.PaneDrawn(drawn, found.At, found.Text);
+#if DEBUG
+        // The capture build (#253): each text element's class, once, so the battle target labels' owners are named.
+        if (drawn.Element != 0 && owners.Changed(drawn.Element, ReadOnlySpan<byte>.Empty))
+        {
+            log.Capture(CaptureLines.PaneOwner(drawn.Element, classes.Of((nint)drawn.Element)));
+        }
+#endif
     }
+
+#if DEBUG
+    private readonly ChangeGate owners = new();
+    private readonly ClassNames classes = new();
+#endif
 
     private static (string? At, string? Text) Probe(nint target, string name)
     {

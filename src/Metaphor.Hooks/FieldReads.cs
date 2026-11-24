@@ -56,8 +56,9 @@ internal sealed class FieldMemory(
     MenusOpenRead menus, DialogueWindowPointer window) : IFieldReads
 {
     private const string IdleScene = "fldScene_Idle@fld@app";
-    private const int Manager = 0x20;
-    private const int Position = 0x80;
+    // Manager, Position, MaxPerList and GimmickLayout are internal for the capture build's reads (CaptureProbes).
+    internal const int Manager = 0x20;
+    internal const int Position = 0x80;
     private const int Facing = 0x90;
     private const int CameraManager = 0x10;
     private const int CameraEye = 0x60;
@@ -65,12 +66,14 @@ internal sealed class FieldMemory(
     private const int MapIdOffset = 0x48;
     // 0x5ab030 returns this int when it isn't -1; otherwise it reads a table through .text1, which stays unread.
     private const int DoorReachOffset = 0x58;
-    private const int MaxPerList = 1024;
+    internal const int MaxPerList = 1024;
 
     // Each list's begin offset in M; its end is 8 bytes on (docs/raw-sources/field-actors-2026-11-16.md).
+    internal const int EnemyList = 0x18;
+    internal const int ChestList = 0x118;
     private static readonly (FieldKind Kind, int Begin)[] Lists =
     [
-        (FieldKind.Enemy, 0x18), (FieldKind.Person, 0x98), (FieldKind.Chest, 0x118), (FieldKind.Door, 0x158),
+        (FieldKind.Enemy, EnemyList), (FieldKind.Person, 0x98), (FieldKind.Chest, ChestList), (FieldKind.Door, 0x158),
     ];
 
     // fldNpc: the NpcID kind at +0x3630 and, for kind 7, the NpcID index at +0x365c (FldNpcGetCharaID's 0x67a650).
@@ -84,7 +87,7 @@ internal sealed class FieldMemory(
     // A gimmick's layout index (doors and chests), which FldGimmickLayoutName (0x697a70) looks up
     // (docs/raw-sources/field-actors-2026-11-16.md): the names table's object id. Stable across loads is [NEEDS
     // VERIFICATION].
-    private const int GimmickLayout = 0x2888;
+    internal const int GimmickLayout = 0x2888;
     // NpcID.bin: 0x20-byte entries, up to 0x99d, the CharaID index a u16 at +0x4 (0xffff for none).
     private const int NpcEntrySize = 0x20;
     private const int NpcLast = 0x99d;

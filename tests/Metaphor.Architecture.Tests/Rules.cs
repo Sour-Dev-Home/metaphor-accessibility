@@ -146,7 +146,8 @@ internal static class Rules
 
     /// <summary>The debug-only types: diagnostics that read more of the game than a feature needs, logged to settle a
     /// finding in a session, never shipped to players.</summary>
-    public static readonly IReadOnlyList<string> DebugOnlyTypes = ["Metaphor.Core.FieldEnemyState"]; // #649
+    public static readonly IReadOnlyList<string> DebugOnlyTypes =
+        ["Metaphor.Core.FieldEnemyState", "Metaphor.Core.CaptureLines"]; // #649; the capture build's probes
 
     /// <summary>No Release assembly calls a <see cref="DebugOnlyTypes"/> member from outside that type, so that logging
     /// is compiled into Debug builds only.</summary>

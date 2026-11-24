@@ -178,7 +178,27 @@ internal sealed class PadReadHook : IGameHook, IChangesBehaviour
         {
             log!.InputChanged(source, text);
         }
+#if DEBUG
+        // The capture build (#809, #263, #257, #262): a named line for each watched button's press, as the game read it.
+        if (pad is < 0 or > MaxCapturedPad)
+        {
+            return;
+        }
+        var before = lastButtons.TryGetValue(pad, out var last) ? last : 0;
+        lastButtons[pad] = buttons;
+        if (CaptureLines.Presses(pad, before, buttons) is { } pressed)
+        {
+            log!.Capture(pressed);
+        }
+#endif
     }
+
+#if DEBUG
+    // Each pad's buttons at its last read, for the press lines. The pad number comes from the game's caller, so only
+    // pads 0 to 7 are kept.
+    private const int MaxCapturedPad = 7;
+    private readonly System.Collections.Concurrent.ConcurrentDictionary<int, int> lastButtons = new();
+#endif
 }
 
 /// <summary>The keyboard read: <c>(32-bit value, pointer to the game's 15-byte keyboard state) → al</c>; it writes a
@@ -259,6 +279,13 @@ internal sealed class KeyboardReadHook : IGameHook, IChangesBehaviour
                     var hide = nameEntryUp();
                     var text = string.Create(CultureInfo.InvariantCulture,
                         $"keys=0x{ModuleMemoryReader.ReadInt32(state) ?? 0:x8} held={Codes(keys, hide)} handed={Codes(handed, hide)} returned={result & 0xFF}");
+#if DEBUG
+                    // The capture build (#930): on name entry, whether Enter's code is held, without the other keys.
+                    if (hide)
+                    {
+                        text += " " + CaptureLines.Enter(keys);
+                    }
+#endif
                     if (changes.Changed("keyboard", text))
                     {
                         log.InputChanged("keyboard", text);
