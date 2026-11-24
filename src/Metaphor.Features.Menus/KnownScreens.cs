@@ -24,6 +24,7 @@ public static class KnownScreens
         ArchetypeTreeFocus.CharacterPick,
         LevelUpFocus.Screen,
         SystemMenuFocus.Screen,
+        TutorialListFocus.Screen,
         .. ShopFocus.Screens,
         .. SettingsFocus.Screens,
         QuickMenuFocus.Screen,

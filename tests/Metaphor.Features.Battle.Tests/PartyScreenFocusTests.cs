@@ -99,6 +99,48 @@ public sealed class PartyScreenFocusTests
     }
 
     [Fact]
+    public void TheLeftRowsNameFetchedWithAMoveNeverNamesTheRowLandedOn()
+    {
+        // The 2026-11-24 log (#922): a move fetches the row left behind in the same millisecond, 8 ms before the
+        // landing; the landed row's own name follows 77 ms after it.
+        Fetched(1);
+        Cursor(ScreenChange.Entered, 1);
+        now += 2_700;
+        Fetched(1);
+        now += 8;
+        Cursor(ScreenChange.FocusMoved, 2);
+        now += 77;
+        Fetched(2);
+        now += 1_000;
+        Cursor(ScreenChange.FocusMoved, 1);
+        now += 500;
+        Fetched(1);
+        now += 8;
+        Cursor(ScreenChange.FocusMoved, 2);
+
+        Assert.Equal(
+            ["Party, Ally Two, 120 HP, 40 MP, 2 of 4", "90 HP, 3 of 4", "Ally Three, 90 HP, 3 of 4",
+             "Ally Two, 120 HP, 40 MP, 2 of 4", "Ally Three, 90 HP, 3 of 4"],
+            Said());
+        Assert.Equal("Ally Three", focus.NameOf(8));
+    }
+
+    [Fact]
+    public void ALandingsOwnNameReplacesAWrongOneKept()
+    {
+        Cursor(ScreenChange.Entered, 1);
+        now += 20;
+        Fetched(2);
+        now += 1_000;
+        Cursor(ScreenChange.FocusMoved, 1);
+        now += 70;
+        Fetched(1);
+
+        Assert.Equal("Ally Two", focus.NameOf(5));
+        Assert.Equal("Ally Two, 120 HP, 40 MP, 2 of 4", Said()[^1]);
+    }
+
+    [Fact]
     public void ARowWithNoMemberIsSaidByItsPosition()
     {
         Cursor(ScreenChange.Entered, 3);

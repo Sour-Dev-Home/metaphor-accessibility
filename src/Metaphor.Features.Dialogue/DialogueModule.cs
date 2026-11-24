@@ -5,7 +5,7 @@ using Metaphor.Core.Settings;
 namespace Metaphor.Features.Dialogue;
 
 /// <summary>The dialogue project's wiring and settings (#784, ADR 0022): lines and choices (#58, #95, #541), the
-/// dialogue controls (#58) and context keys (#879), the game's message log (#685), and the game-over screen's words
+/// dialogue controls (#58) and context keys (#879), the game's message log (#685), animated cutscenes' subtitles (#888), and the game-over screen's words
 /// (#623). It registers after the menus' and the battle's, so
 /// its controls take what theirs leave, and it reads the menus' <see cref="PopupOnScreen"/>.</summary>
 public sealed class DialogueModule : IFeatureModule
@@ -56,6 +56,14 @@ public sealed class DialogueModule : IFeatureModule
         events.ObserveLines(lines);
         events.ObserveShownLines(lines);
         events.ObserveShownLines(gameOver);
+        // Animated cutscenes' subtitles reach no dialogue hook: their event file and the subtitle layout's fades say
+        // them (#888).
+        var subtitles = new MovieSubtitles(
+            dialogue,
+            () => settings.Current.IsOn(DialogueFeature.Dialogue)
+                && settings.Current.IsOn(DialogueFeature.MovieSubtitles));
+        events.ObserveFiles(subtitles);
+        context.Layouts.Observe(subtitles);
         // A choice's prompt, spoken as it opens, isn't spoken again when the window shows it (#541).
         events.ObserveChoices(lines);
         events.ObserveChoices(choices);

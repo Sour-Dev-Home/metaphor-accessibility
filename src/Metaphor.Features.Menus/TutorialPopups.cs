@@ -131,6 +131,10 @@ public sealed class TutorialPopups
 
     private readonly record struct Shown(int Number, long Model, int? Page, string? Said, long Spoken, long Updated);
 
+    /// <summary>The help key's bindings, said after a pop-up's last page (#806), since a tutorial may ask for a button
+    /// the mod takes or a menu the player needs the mod's keys for; null, the default, says nothing.</summary>
+    public Func<string?> KeyHint { get; init; } = () => null;
+
     private string Opened(TutorialEntry? entry, int page)
     {
         if (entry is null)
@@ -140,13 +144,26 @@ public sealed class TutorialPopups
         var title = Text(entry.TitleHash) ?? Untitled;
         var pages = entry.PageHashes.Count;
         var said = string.Create(CultureInfo.InvariantCulture, $"{title}, {pages} {(pages == 1 ? "page" : "pages")}");
-        return page >= 0 && page < pages && Text(entry.PageHashes[page]) is { } shown ? $"{said}. {shown}" : said;
+        return page >= 0 && page < pages && Text(entry.PageHashes[page]) is { } shown
+            ? WithHint($"{said}. {shown}", entry, page)
+            : said;
     }
 
     private string Turned(TutorialEntry entry, int page)
     {
         var said = string.Create(CultureInfo.InvariantCulture, $"Page {page + 1} of {entry.PageHashes.Count}");
-        return Text(entry.PageHashes[page]) is { } shown ? $"{said}. {shown}" : said;
+        return WithHint(Text(entry.PageHashes[page]) is { } shown ? $"{said}. {shown}" : said, entry, page);
+    }
+
+    // The last page ends with the hint, when there is one: "For the mod's keys here, press F1, or ...".
+    private string WithHint(string said, TutorialEntry entry, int page)
+    {
+        if (page != entry.PageHashes.Count - 1 || KeyHint() is not { Length: > 0 } keys)
+        {
+            return said;
+        }
+        var stop = said.EndsWith('.') || said.EndsWith('!') || said.EndsWith('?') ? "" : ".";
+        return $"{said}{stop} For the mod's keys here, press {keys}.";
     }
 
     private string? Text(string labelHash) =>

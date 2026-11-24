@@ -14,7 +14,7 @@ namespace Metaphor.Features.Field;
 /// objective under it (#743) is the row of the highest set flag in the field objective table, which starts each
 /// objective with the same flags (docs/findings/field-map-and-objective-tables-static.md); [NEEDS VERIFICATION] that the
 /// box picks it so. A title's trailing colon is dropped, and the objective follows as a sentence of its own. A new
-/// mission is spoken once, in free roam, looked for at most once a second; the first one seen is not, since it is the
+/// mission, or a new objective under the same one, is spoken once, in free roam, looked for at most once a second; the first one seen is not, since it is the
 /// mission the game was loaded on. It belongs to "where am I" (<see cref="FieldFeature.WhereAmI"/>): with that setting
 /// off, it says nothing. Safe to call from several threads.</summary>
 [FeatureSetting<FieldFeature>(FieldFeature.WhereAmI)]
@@ -36,6 +36,8 @@ public sealed class MissionLine
     private readonly Lock gate = new();
     private long? lastPoll;
     private MainMissionRow? seen;
+    private MainMissionRow? seenObjective;
+    private bool objectivesRead;
 
     /// <summary>A mission line that reads the flags through <paramref name="storyFlag"/> and the main mission table
     /// through <paramref name="rows"/> (null when it can't be read), finds titles in <paramref name="messages"/> and
@@ -109,19 +111,26 @@ public sealed class MissionLine
         {
             return null;
         }
+        // A new objective under the same main mission is a change too (#658's by-ear check of 2026-11-24). The objective
+        // table loads after the first look, so an objective is compared only once one has been read.
+        var table = objectives();
+        var objective = table is null ? null : MainMissionFlags.Current(storyFlag, table);
         bool first;
+        bool missionChanged;
         lock (gate)
         {
-            if (row == seen)
+            missionChanged = row != seen;
+            var objectiveChanged = table is not null && objectivesRead && objective != seenObjective;
+            if (!missionChanged && !objectiveChanged)
             {
+                RecordObjective(table, objective);
                 return null;
             }
             first = seen is null;
             seen = row;
+            RecordObjective(table, objective);
         }
-        var message = messages.FindByLabelHash(row.LabelHash);
-        log?.Invoke(string.Create(CultureInfo.InvariantCulture,
-            $"mission flag=0x{row.Flag:x} label={(message is null ? "(unknown) hash=" + row.LabelHash : message.Label)} changed"));
+        LogChange(missionChanged ? row : objective, missionChanged ? "mission" : "objective");
         if (first || Title(row) is not { } title)
         {
             return null;
@@ -129,6 +138,32 @@ public sealed class MissionLine
         var said = Spoken(title);
         announcer.Announce(new Announcement(said, Interrupt: false));
         return said;
+    }
+
+    // Under the gate: the objective last seen, once the table could be read.
+    private void RecordObjective(IReadOnlyList<MainMissionRow>? table, MainMissionRow? objective)
+    {
+        if (table is not null)
+        {
+            seenObjective = objective;
+            objectivesRead = true;
+        }
+    }
+
+    private void LogChange(MainMissionRow? row, string what)
+    {
+        if (log is null)
+        {
+            return;
+        }
+        if (row is null)
+        {
+            log(what + " none changed");
+            return;
+        }
+        var message = messages.FindByLabelHash(row.LabelHash);
+        log(string.Create(CultureInfo.InvariantCulture,
+            $"{what} flag=0x{row.Flag:x} label={(message is null ? "(unknown) hash=" + row.LabelHash : message.Label)} changed"));
     }
 
     private MainMissionRow? Read() => rows() is { } table ? MainMissionFlags.Current(storyFlag, table) : null;

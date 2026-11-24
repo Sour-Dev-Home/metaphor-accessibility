@@ -76,13 +76,15 @@ public static class MenuKeys
         new("Close the settings menu") { Fixed = "Escape, or B on the pad" },
     ];
 
+    /// <summary>The help key (#868), as the help says it and as a tutorial pop-up's hint names it (#806).</summary>
+    public static ModKey Help { get; } = new("Say the keys for where you are", HelpKey, HelpButton, ChordButtons);
+
     /// <summary>Every key the project lists, by where it works.</summary>
     public static IReadOnlyList<KeyEntry> All { get; } =
     [
         new(KeyPlaces.Anywhere, MenusFeature.SettingsMenu,
             new("Open the mod's settings", SettingsKey, SettingsButton, ChordButtons)),
-        new(KeyPlaces.Anywhere | KeyPlaces.SettingsMenu, MenusFeature.KeyHelp,
-            new("Say the keys for where you are", HelpKey, HelpButton, ChordButtons)),
+        new(KeyPlaces.Anywhere | KeyPlaces.SettingsMenu, MenusFeature.KeyHelp, Help),
         new(KeyPlaces.Anywhere | KeyPlaces.SettingsMenu, MenusFeature.MarkKey,
             new("Write a marker to the report log", MarkKey)),
         new(KeyPlaces.Menu, MenusFeature.Menus, new("Read the focused item's details", DetailsKey, DetailsButtons)),

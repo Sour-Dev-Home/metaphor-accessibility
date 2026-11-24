@@ -111,7 +111,7 @@ public sealed class FeatureDefaultsTests
             FieldFeature.ShoulderHold, FieldFeature.ObjectiveGuidance, FieldFeature.WallTones,
             FieldFeature.FieldStrikes, MenusFeature.AutosaveNotice, MenusFeature.ArchetypeTree,
             MenusFeature.SettingsMenu, MenusFeature.KeyHelp, MenusFeature.SettingsHelp, MenusFeature.BattleItemTabs,
-            BattleFeature.BattleAffinities,
+            BattleFeature.BattleAffinities, BattleFeature.BattleBannerNames,
         ];
 
         Assert.All(passed, feature =>

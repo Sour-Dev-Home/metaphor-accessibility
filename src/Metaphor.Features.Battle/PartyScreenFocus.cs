@@ -10,14 +10,16 @@ namespace Metaphor.Features.Battle;
 /// <summary>Speaks the battle Order menu's Party screen (#258): on entering "Party, Junah, 120 HP, 40 MP, 2 of 4", then
 /// on each focus move the row alone, each cutting off the last. A row is the party slot at its index, its HP and MP read
 /// from the unit record (<see cref="IBattleParty"/>); its name is the <c>CharaName</c> message the screen fetched by
-/// serial (flags 9) as the cursor first landed on it, kept by the slot's character, so a later visit or a swap keeps
+/// serial (flags 9) just after the cursor landed on it, kept by the slot's character, so a later visit or a swap keeps
 /// it. The protagonist, for whom no name is fetched, is said by his typed name. Safe to call from several threads.
 /// </summary>
 /// <remarks>From the static note on build 548ddc95 (docs/findings/battle-party-swap-and-formation-static.md) and the
 /// maintainer's 2026-11-23 evening log (Debug, Steam 18330018): as the screen opened at index 1 the game fetched
-/// <c>CharaName_PC05_Junus</c>, and on the first landing on index 2 <c>CharaName_PC08_Basilio</c>. Not yet checked:
-/// that the screen's index is the party slot, that a name is fetched within <see cref="NameMilliseconds"/> of its
-/// landing (before or after), and that character 1 is the protagonist (the 010 templates' <c>CharacterID</c>,
+/// <c>CharaName_PC05_Junus</c>, and on the first landing on index 2 <c>CharaName_PC08_Basilio</c>. The 2026-11-24 log
+/// (same build, #922's evidence) showed a move fetching the name of the row it leaves in the same millisecond as the
+/// move, about 8 ms before the landing, and the landed row's own name about 77 ms after it; only the screen's opening
+/// fetches its row's name before the landing. Not yet checked: that the screen's index is the party slot, and that
+/// character 1 is the protagonist (the 010 templates' <c>CharacterID</c>,
 /// docs/raw-sources/metaphor-010-templates-tables-2026-11-17.md), all <c>[NEEDS VERIFICATION]</c>; a Debug build logs
 /// each focus's read for the by-ear check.</remarks>
 [FeatureSetting<BattleFeature>(BattleFeature.BattlePartyScreen)]
@@ -96,23 +98,27 @@ public sealed class PartyScreenFocus : IScreenObserver, ISerialResolveObserver
         }
         var member = party.Members().FirstOrDefault(each => each.Slot == change.Index);
         var now = millisecondsNow();
+        bool named;
         lock (gate)
         {
             focus = change;
             focusUnit = member?.Unit;
             focusAt = now;
-            // A name fetched just before the cursor landed is this row's.
-            if (fetched is { } serial && now - fetchedAt <= NameMilliseconds)
+            // A name fetched just before the screen opened is its first row's. One fetched just before a move's landing
+            // is the row left behind, fetched with the move itself (#922), so the landing waits for its own.
+            focusNamed = false;
+            if (change.Change == ScreenChange.Entered && fetched is { } serial && now - fetchedAt <= NameMilliseconds)
             {
                 Name(serial);
+                focusNamed = true;
             }
             fetched = null;
-            focusNamed = member is not null && names.ContainsKey(member.Unit);
+            named = member is not null && names.ContainsKey(member.Unit);
         }
         Log?.Invoke(member is null
             ? string.Create(CultureInfo.InvariantCulture, $"index={change.Index} count={change.Count} member=none")
             : string.Create(CultureInfo.InvariantCulture,
-                $"index={change.Index} count={change.Count} unit={member.Unit} hp={member.Hp} mp={member.Mp} flags=0x{member.Flags ?? 0:x} named={focusNamed}"));
+                $"index={change.Index} count={change.Count} unit={member.Unit} hp={member.Hp} mp={member.Mp} flags=0x{member.Flags ?? 0:x} named={named}"));
         announcer.Announce(Line(change, member));
     }
 
@@ -129,12 +135,16 @@ public sealed class PartyScreenFocus : IScreenObserver, ISerialResolveObserver
         {
             if (focus is { } current && now - focusAt <= NameMilliseconds)
             {
-                // Just after a landing the name is that row's; one already named keeps its name.
-                if (focusUnit is not null && !focusNamed)
+                // The first name just after a landing is that row's, and replaces one kept from before; the row is said
+                // again only when its name changed.
+                if (focusUnit is { } unit && !focusNamed)
                 {
-                    Name(resolve.Serial);
                     focusNamed = true;
-                    again = current;
+                    if (!names.TryGetValue(unit, out var kept) || kept != resolve.Serial)
+                    {
+                        Name(resolve.Serial);
+                        again = current;
+                    }
                 }
             }
             else
@@ -151,14 +161,13 @@ public sealed class PartyScreenFocus : IScreenObserver, ISerialResolveObserver
         }
     }
 
-    // Gives the focused row's character the name fetched, once: a row already named keeps its name. Called under the
-    // gate.
+    // Gives the focused row's character the name fetched. Called under the gate.
     private void Name(int serial)
     {
         fetched = null;
         if (focusUnit is { } unit)
         {
-            names.TryAdd(unit, serial);
+            names[unit] = serial;
         }
     }
 
