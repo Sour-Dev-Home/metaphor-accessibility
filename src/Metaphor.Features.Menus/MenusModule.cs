@@ -27,7 +27,8 @@ public sealed class MenusModule : IFeatureModule
     {
         ArgumentNullException.ThrowIfNull(context);
         var settings = context.Settings;
-        var reader = context.Reader;
+        // A prompt is not cut off by the row line after it (#923): every menu line goes through the hold.
+        var reader = new PromptHold(context.Reader, () => Environment.TickCount64);
         var library = context.Library;
         var cleaner = context.Cleaner;
         var screens = context.Screens;
@@ -157,7 +158,7 @@ public sealed class MenusModule : IFeatureModule
         context.Cursors.Observe(equipmentFocus);
         // A sub-screen's prompt queues after its screen's own line, so it is heard after the Item and Equipment
         // screens' focus (#907).
-        screens.Observe(new SubScreenPrompts(library, settings.Speech(MenusFeature.MenuPrompts, reader), cleaner));
+        screens.Observe(new SubScreenPrompts(library, settings.Speech(MenusFeature.MenuPrompts, reader.Prompts), cleaner));
         // The save and load slots (#622): their lists come unnamed, so the slot screens name them before the screens,
         // from the prompts the serial hook hands MessageEvents (2026-11-22 review, finding 5).
         var slots = new SlotScreens(screens);
