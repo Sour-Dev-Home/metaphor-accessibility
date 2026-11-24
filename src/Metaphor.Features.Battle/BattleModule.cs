@@ -12,6 +12,8 @@ public sealed class BattleModule : IFeatureModule
 {
     public IEnumerable<Enum> Settings => Enum.GetValues<BattleFeature>().Select(feature => (Enum)feature);
 
+    public IEnumerable<SliderLimit> Limits => [BattleStatus.HoldLimit];
+
     public void Register(FeatureContext context)
     {
         ArgumentNullException.ThrowIfNull(context);
@@ -61,6 +63,15 @@ public sealed class BattleModule : IFeatureModule
         {
             context.Provide<IBattleEnemyObserver>(hitLines);
         }
+        // The skill tables come from the player's own archive, read-only, off the game's thread, on the first input
+        // read with the costs or the move names on, so a game the hooks didn't load into never reads it.
+        var costSource = new SkillCostSource(
+            context.OpenArchive, line => log?.Requested("SkillCosts", line));
+        var costLoad = new SkillCostLoad(costSource);
+        context.AddControls(settings.Input(BattleFeature.BattleMoveNames, costLoad));
+        // The move banner's skill by name (#954), testing, queued behind the hit lines.
+        var moveNames = new MoveNames(
+            costSource.LabelHashOf, serials, context.Cleaner, settings.Speech(BattleFeature.BattleMoveNames, reader));
         // The in-turn situation banner, queued behind the hit lines (#692), behind `speech.battleBanners` (#661).
         // The banner's subject (#739), testing: a party member's or enemy's name serial, or a name's text.
         context.Provide(new BattleBanners(
@@ -72,7 +83,11 @@ public sealed class BattleModule : IFeatureModule
                     ? serials.TextOf(serial, context.Cleaner)
                     : null,
             NamesOn = () => settings.Current.IsOn(BattleFeature.BattleBannerNames),
-            Moved = affinities.Move,
+            Moved = skill =>
+            {
+                affinities.Move(skill);
+                moveNames.Moved(skill);
+            },
             Subject = affinities.Named,
         });
         // The turn line (#252), polled on each input read from the game data's turn icons, and the ambushed start
@@ -108,7 +123,12 @@ public sealed class BattleModule : IFeatureModule
             BattleFeature.BattleNumberReset, new BattleEnds(hitLines, context.BattleScene, TimeProvider.System)));
         var battleBindings = settings.Live(BattleBindings.From);
         // The status key acts only in a battle (#631); a Debug build logs the scene each press read.
-        var status = new BattleStatus(context.BattleParty, hitLines, context.BattleScene, battleSpeech, battleBindings);
+        var status = new BattleStatus(
+            context.BattleParty, hitLines, context.BattleScene, battleSpeech, battleBindings, TimeProvider.System)
+        {
+            // The L3 hold time (#941), read on each pad read so a changed file applies at once.
+            HoldTime = () => BattleStatus.HoldLimit.From(settings.Current),
+        };
         context.AddControls(settings.Input(BattleFeature.BattleHits, status));
         // L3 is held back until it's let go, then tapped to the game (Retry) unless a hold spoke (#925).
         context.AddShoulderHold(() => settings.Current.IsOn(BattleFeature.BattleHits) ? status.HeldButtons() : 0);
@@ -152,7 +172,7 @@ public sealed class BattleModule : IFeatureModule
             BattleFeature.BattleHits, settings.Input(BattleFeature.BattleEnemyKeys, enemyHp.Keyboard)));
         context.AddControls(settings.Input(
             BattleFeature.BattleHits, settings.Input(BattleFeature.BattleEnemyPad, enemyHp.Pad)));
-        RegisterListsAndParty(context, hitLines);
+        RegisterListsAndParty(context, hitLines, costSource, costLoad);
         context.AddKeys(BattleKeys.All);
         // The chords' LB is held back until it's let go, then tapped to the game if no chord came (#811).
         context.AddShoulderHold(() =>
@@ -183,22 +203,19 @@ public sealed class BattleModule : IFeatureModule
 
     // The skill lists' costs (#692 (b)) and the Synthesis list (#260), which the menus' battle lists speak; the Party
     // screen (#258) and the Formation watch (#259). Each its own testing setting.
-    private static void RegisterListsAndParty(FeatureContext context, HitLines hitLines)
+    private static void RegisterListsAndParty(
+        FeatureContext context, HitLines hitLines, SkillCostSource costSource, SkillCostLoad costLoad)
     {
         var settings = context.Settings;
         var log = context.Log;
         var serials = context.Serials;
-        // The skill tables come from the player's own archive, read-only, off the game's thread, on the first input
-        // read with the costs on, so a game the hooks didn't load into never reads it.
-        var costSource = new SkillCostSource(
-            context.OpenArchive, line => log?.Requested("SkillCosts", line));
         var costs = new SkillCostLines(
             serial => serials.FindBySerial(serial)?.Label, costSource.CostOf,
             () => settings.Current.IsOn(BattleFeature.BattleSkillCosts))
         {
             Log = log is null ? null : text => log.Requested("SkillCost", text),
         };
-        context.AddControls(settings.Input(BattleFeature.BattleSkillCosts, new SkillCostLoad(costSource)));
+        context.AddControls(settings.Input(BattleFeature.BattleSkillCosts, costLoad));
         context.Find<BattleListAdditions>()?.Add(
             costs.CostOf, () => settings.Current.IsOn(BattleFeature.BattleSynthesis));
         var partyScreen = new PartyScreenFocus(
@@ -210,6 +227,12 @@ public sealed class BattleModule : IFeatureModule
         };
         context.Screens.Observe(partyScreen);
         context.Events.ObserveSerials(partyScreen);
+        // The reserve list it swaps from (#922), with the same setting.
+        var reserveScreen = new ReserveScreenFocus(
+            serials, context.Cleaner, settings.Speech(BattleFeature.BattlePartyScreen, context.Reader),
+            () => Environment.TickCount64);
+        context.Screens.Observe(reserveScreen);
+        context.Events.ObserveSerials(reserveScreen);
         context.AddControls(settings.Input(
             BattleFeature.BattleFormation,
             new FormationWatch(

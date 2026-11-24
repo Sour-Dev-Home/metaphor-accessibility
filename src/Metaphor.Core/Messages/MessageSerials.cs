@@ -160,6 +160,38 @@ public sealed class MessageSerials : IMessageBySerial, IMessageFileObserver
         return null;
     }
 
+    /// <summary>The serial of the message in <paramref name="file"/> whose label hashes to <paramref name="labelHash"/>
+    /// (<see cref="MessageLibrary.LabelHash"/>, any case), or null when that file isn't kept or holds no such label.
+    /// </summary>
+    public int? FindByLabelHash(string file, string labelHash)
+    {
+        ArgumentNullException.ThrowIfNull(file);
+        ArgumentNullException.ThrowIfNull(labelHash);
+        var index = Array.FindIndex(ranges, range => string.Equals(range.File, file, StringComparison.OrdinalIgnoreCase));
+        if (index < 0)
+        {
+            return null;
+        }
+        GameMessage[]? messages;
+        lock (gate)
+        {
+            messages = files[index];
+        }
+        if (messages is null)
+        {
+            return null;
+        }
+        for (var position = 0; position < messages.Length; position++)
+        {
+            if (string.Equals(MessageLibrary.LabelHash(messages[position].Label), labelHash,
+                StringComparison.OrdinalIgnoreCase))
+            {
+                return ranges[index].First + position;
+            }
+        }
+        return null;
+    }
+
     /// <summary>The message's text as <paramref name="cleaner"/> says it, or null when it is unknown or empty.</summary>
     public string? TextOf(int serial, TextCleaner cleaner)
     {

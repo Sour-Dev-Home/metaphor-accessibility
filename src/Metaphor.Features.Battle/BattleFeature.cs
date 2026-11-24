@@ -103,7 +103,8 @@ public enum BattleFeature
 
     /// <summary>The Order menu's Party screen (#258): each battle member's name, HP and MP.</summary>
     [SettingKey("speech", "battlePartyScreen", "Battle party screen", Testing = true, Order = 1049, Description =
-        "On the battle Order menu's Party screen, says each member's name, HP and MP with their position.")]
+        "On the battle Order menu's Party screen, says each member's name, HP and MP with their position, and the " +
+        "name of each reserve ally you can swap in.")]
     BattlePartyScreen,
 
     /// <summary>"Row changed" when a party member's Formation row changes in battle (#259).</summary>
@@ -111,6 +112,11 @@ public enum BattleFeature
         "In a battle, says \"row changed\" with the member when a party member moves between the front and back " +
         "row.")]
     BattleFormation,
+
+    /// <summary>The skill a move banner shows, by name (#954), from the game's skill tables.</summary>
+    [SettingKey("speech", "battleMoveNames", "Battle move names", Testing = true, Order = 1073, Description = "Says " +
+        "the skill a battle's move banner shows as it is used, such as an enemy's spell, before its hits.")]
+    BattleMoveNames,
 
     /// <summary>The in-turn situation banner: a boss warning, a stat change (#692, #661).</summary>
     [SettingKey("speech", "battleBanners", "Battle banners", Order = 1070, Description = "The short " +

@@ -2,6 +2,7 @@ using Metaphor.Core.Announcements;
 using Metaphor.Core.Battle;
 using Metaphor.Core.Input;
 using Metaphor.Core.Menus;
+using Metaphor.Core.Settings;
 
 namespace Metaphor.Features.Battle.Tests;
 
@@ -92,6 +93,38 @@ public sealed class BattleStatusTests
 
         Assert.Equal(L3, Game(0));
         Assert.Empty(Said());
+    }
+
+    // #941: the hold time is a setting; a changed value moves the tap/hold boundary.
+    [Fact]
+    public void ALongerHoldTimeMakesTheOldHoldATap()
+    {
+        var holdTime = Hold;
+        var timed = new BattleStatus(party, hits, scene, announcer, () => BattleBindings.Default, time)
+        {
+            HoldTime = () => holdTime,
+        };
+        var taps = new ShoulderTaps([timed.HeldButtons], () => time.GetUtcNow().ToUnixTimeMilliseconds());
+        var timedFrame = new InputFrame(new NoGame(), new MenuScreens([]), [timed], null, null, null, taps: taps);
+        int Press(int buttons) => timedFrame.Pad(0, buttons, made: true).Buttons;
+        holdTime = 600;
+
+        Press(L3);
+        time.Advance(Hold);
+        Press(L3);
+        Assert.Empty(Said());
+        time.Advance(600 - Hold);
+        Press(L3);
+
+        Assert.Single(announcer.Said);
+    }
+
+    [Fact]
+    public void TheHoldTimeLimitDefaultsToTheOldFixedValueAndStaysInRange()
+    {
+        Assert.Equal(Hold, BattleStatus.HoldLimit.From(ModSettings.Defaults));
+        Assert.Equal(("battle", 300), (BattleStatus.HoldLimit.Group, BattleStatus.HoldLimit.Default));
+        Assert.True(BattleStatus.HoldLimit.Min > 0 && BattleStatus.HoldLimit.Max >= 1000);
     }
 
     [Fact]

@@ -50,4 +50,8 @@ public static class BattleScreens
     /// <summary>The Order menu's Party screen, the four battle members, by its owner's class on build 548ddc95
     /// (docs/findings/battle-party-swap-and-formation-static.md).</summary>
     public static Screen Party { get; } = new("Party", "BTL_OrderPartyBattleMember@ope@ui@app", OutsideMenus: true);
+
+    /// <summary>The reserve members the Party screen swaps in (#922), by its owner's class in the maintainer's
+    /// 2026-11-24 log (Debug, Steam 18330018): it opens as a battle member is picked, three rows.</summary>
+    public static Screen Reserve { get; } = new("Reserve", "BTL_OrderPartyReserve@ope@ui@app", OutsideMenus: true);
 }

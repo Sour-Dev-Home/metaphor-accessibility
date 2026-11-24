@@ -37,6 +37,7 @@ public static class KnownScreens
         .. BattleOrderFocus.Screens,
         // Spoken by the battle project's party screen (#258).
         BattleScreens.Party,
+        BattleScreens.Reserve,
         .. BattleConfirmFocus.Screens,
         SaveSlotFocus.Load,
         SaveSlotFocus.Save,

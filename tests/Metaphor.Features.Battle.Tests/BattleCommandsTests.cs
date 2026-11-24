@@ -72,7 +72,7 @@ public sealed class BattleCommandsTests
         icons.Now = new TurnIcons(0, 3, 1);
         Frames(turn, TurnLine.SettleMilliseconds + 200);
 
-        Assert.Equal(["Your turn, 4 actions", "Test banner 210", "3 actions, 1 half"], Said());
+        Assert.Equal(["Your turn, 4 actions", "Test banner 210", "3 actions, 1 half action"], Said());
     }
 
     private void Frames(TurnLine turn, long milliseconds)

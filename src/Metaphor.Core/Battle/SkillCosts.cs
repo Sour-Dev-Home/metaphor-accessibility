@@ -65,13 +65,19 @@ public sealed class SkillCosts
     private static readonly string NoHash = new('0', HashSize * 2);
 
     private readonly Dictionary<string, SkillCost?> byName;
+    private readonly string?[] nameById;
 
-    private SkillCosts(Dictionary<string, SkillCost?> byName, int skills, int costs)
+    private SkillCosts(Dictionary<string, SkillCost?> byName, string?[] nameById, int costs)
     {
         this.byName = byName;
-        Skills = skills;
+        this.nameById = nameById;
+        Skills = nameById.Length;
         CostRecords = costs;
     }
+
+    /// <summary>The name label hash of skill <paramref name="id"/> (32 hex digits), the one a move banner shows
+    /// (#954, docs/findings/battle-affinity-discovery-from-move-banner.md), or null for an id with no name.</summary>
+    public string? LabelHashOf(int id) => id >= 0 && id < nameById.Length ? nameById[id] : null;
 
     /// <summary>How many records the skill table held.</summary>
     public int Skills { get; }
@@ -102,6 +108,7 @@ public sealed class SkillCosts
         var skills = skillTable.Length / SkillRecordSize;
         var costs = costTable.Length / CostRecordSize;
         Dictionary<string, SkillCost?> byName = [];
+        var nameById = new string?[skills];
         // Names whose records with a cost disagree: no cost is said for them.
         HashSet<string> ambiguous = [];
         for (var id = 0; id < skills; id++)
@@ -111,6 +118,7 @@ public sealed class SkillCosts
             {
                 continue;
             }
+            nameById[id] = hash;
             var cost = id < costs ? Read(id, costTable.Slice(id * CostRecordSize, CostRecordSize)) : null;
             if (cost is not { Costs: true })
             {
@@ -130,7 +138,7 @@ public sealed class SkillCosts
         {
             byName[hash] = null;
         }
-        return new SkillCosts(byName, skills, costs);
+        return new SkillCosts(byName, nameById, costs);
     }
 
     private static bool Whole(ReadOnlySpan<byte> table, int recordSize) =>
@@ -168,6 +176,10 @@ public sealed class SkillCostSource
     /// <summary>The cost of the skill whose name label hashes to <paramref name="labelHash"/>, or null while the
     /// tables load, when they couldn't be read, or when it has none.</summary>
     public SkillCost? CostOf(string labelHash) => costs?.CostOf(labelHash);
+
+    /// <summary>Skill <paramref name="id"/>'s name label hash, or null while not loaded
+    /// (<see cref="SkillCosts.LabelHashOf"/>).</summary>
+    public string? LabelHashOf(int id) => costs?.LabelHashOf(id);
 
     /// <summary>Whether the tables have loaded.</summary>
     public bool Loaded => costs is not null;
