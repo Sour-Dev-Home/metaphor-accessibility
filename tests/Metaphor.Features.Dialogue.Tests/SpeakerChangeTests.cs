@@ -39,6 +39,18 @@ public sealed class SpeakerChangeTests
     }
 
     [Fact]
+    public void ManyWindowsBySameSpeakerNameThemOnce()
+    {
+        var dialogue = Dialogue();
+        dialogue.Show("Ada", "One.");
+        dialogue.Show("Ada", "Two.");
+        dialogue.Show("Ada", "Three.");
+        dialogue.Show("Ada", "Four.");
+
+        Assert.Equal(["Ada: One.", "Two.", "Three.", "Four."], Said);
+    }
+
+    [Fact]
     public void ASpeakerChangeSaysTheNewName()
     {
         var dialogue = Dialogue();
