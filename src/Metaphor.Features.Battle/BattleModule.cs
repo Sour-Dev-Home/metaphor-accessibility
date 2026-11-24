@@ -51,7 +51,18 @@ public sealed class BattleModule : IFeatureModule
         };
         // The hit lines hear each hit first, so a new battle's number is in place when the affinities hear it.
         context.Provide<IBattleHitObserver>(new BattleHitFanOut(hitLines, affinities));
-        context.Provide<IBattleEnemyObserver>(hitLines);
+        // The enemies stunned as a battle starts (#772, #626), testing, from the same list.
+        if (units is not null)
+        {
+            var startStun = new BattleStartStun(
+                units, settings.Speech(BattleFeature.BattleStartStun, reader), () => Environment.TickCount64);
+            context.Layouts.Observe(startStun);
+            context.Provide<IBattleEnemyObserver>(new BattleEnemyFanOut(hitLines, startStun));
+        }
+        else
+        {
+            context.Provide<IBattleEnemyObserver>(hitLines);
+        }
         // The skill tables come from the player's own archive, read-only, off the game's thread, on the first input
         // read with the costs or the move names on, so a game the hooks didn't load into never reads it.
         var costSource = new SkillCostSource(
@@ -177,6 +188,16 @@ public sealed class BattleModule : IFeatureModule
         {
             first.Observe(hit);
             then.Observe(hit);
+        }
+    }
+
+    // Each enemy list to the hit lines, then to the start stun (#772).
+    private sealed class BattleEnemyFanOut(IBattleEnemyObserver first, IBattleEnemyObserver then) : IBattleEnemyObserver
+    {
+        public void Enemies(long package, IReadOnlyList<long> records)
+        {
+            first.Enemies(package, records);
+            then.Enemies(package, records);
         }
     }
 

@@ -170,6 +170,44 @@ public sealed class EnemyAffinitiesTests
     }
 
     [Fact]
+    public void AnEnemyRecordsTableIdTellsItApartWithNoNameOrHp()
+    {
+        // #921: the 2026-11-24 battle's third enemy was never told apart by name or HP, so its rewards were none.
+        var units = new TableIds { [Bone] = 1, [Slime] = 3 };
+        var withIds = new EnemyAffinities(
+            Tables, () => hits.Battle, () => time.GetUtcNow().ToUnixTimeMilliseconds(), _ => null)
+        {
+            On = () => true,
+            FoundOnly = () => false,
+            Units = units,
+        };
+
+        Assert.Equal((250, 125, 0, 0), withIds.Rewards(hits.AllEnemies()));
+        Assert.Equal("weak to Fire, resists Ice, nulls Electric", withIds.Says(hits.AllEnemies()[0]));
+    }
+
+    [Fact]
+    public void ATableIdTheHitsMaxHpContradictsIsNotTrusted()
+    {
+        var units = new TableIds { [Bone] = 2 };
+        var withIds = new EnemyAffinities(
+            Tables, () => hits.Battle, () => time.GetUtcNow().ToUnixTimeMilliseconds(),
+            serial => serial == BoneSerial ? "EnemyName_Bone" : null)
+        {
+            On = () => true,
+            FoundOnly = () => false,
+            Units = units,
+        };
+        withIds.Named(BoneSerial);
+        var hit = new BattleHit(Bone, -10, 1430, Number, BattleSide.Enemy, HpMax: 1440);
+        hits.Observe(hit);
+        withIds.Observe(hit);
+
+        // Id 2 has 1,320 HP; the hit showed 1,440, so the name and HP tell it apart as id 1.
+        Assert.Equal("weak to Fire, resists Ice, nulls Electric", withIds.Says(hits.AllEnemies()[0]));
+    }
+
+    [Fact]
     public void TheEnemyKeysAndTheTargetLineAddTheAffinities()
     {
         affinities.Named(BoneSerial);
@@ -210,5 +248,15 @@ public sealed class EnemyAffinitiesTests
     private sealed class AlwaysInBattle : IBattleScene
     {
         public bool InBattle() => true;
+    }
+
+    // Each record's table id, as the hook reads it at record +0x8; no HP read.
+    private sealed class TableIds : Dictionary<long, int>, IBattleUnits
+    {
+        public int? Hp(long record) => null;
+
+        public int? Mp(long record) => null;
+
+        public int? TableId(long record) => TryGetValue(record, out var id) ? id : null;
     }
 }

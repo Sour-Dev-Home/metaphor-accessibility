@@ -49,7 +49,7 @@ public sealed class BattleRewardsTests
     }
 
     [Fact]
-    public void WithRewardExpOnTheTablesExpTakenAtVictoryJoinsTheLine()
+    public void WithRewardExpOnTheTablesExpIsSaidAtVictoryAndThePurseAfter()
     {
         var table = ((int Exp, int ArchetypeExp, int Money, int Magla)?)(160, 60, 125, 350);
         var withExp = new BattleRewards(purse, announcer, time)
@@ -59,7 +59,9 @@ public sealed class BattleRewardsTests
         };
         withExp.Played(new LayoutAnimation(BattleStartLine.Layout, 906));
         withExp.Played(new LayoutAnimation(BattleEndLine.Layout, BattleEndLine.VictoryAnimation));
-        // The battle's enemies are forgotten after the win; what Victory took is said.
+        // #921: the purse rose 43 s after "Victory", as the results closed; the EXP is said as they open.
+        Assert.Equal(["Gained 160 EXP and 60 archetype EXP"], Said());
+        Assert.False(announcer.Said[0].Interrupt);
         table = null;
         purse.MoneyNow = 1240;
         purse.MagNow = 80;
@@ -69,7 +71,29 @@ public sealed class BattleRewardsTests
             withExp.Keys([]);
         }
 
-        Assert.Equal(["Gained 240 money, 30 MAG, 160 EXP and 60 archetype EXP"], Said());
+        Assert.Equal(["Gained 160 EXP and 60 archetype EXP", "Gained 240 money and 30 MAG"], Said());
+    }
+
+    [Fact]
+    public void RewardExpOffOrUnknownSaysNoExpLine()
+    {
+        var off = new BattleRewards(purse, announcer, time)
+        {
+            TableRewards = () => (160, 60, 125, 350),
+            ExpOn = () => false,
+        };
+        var unknown = new BattleRewards(purse, announcer, time)
+        {
+            TableRewards = () => null,
+            ExpOn = () => true,
+        };
+        foreach (var each in new[] { off, unknown })
+        {
+            each.Played(new LayoutAnimation(BattleStartLine.Layout, 906));
+            each.Played(new LayoutAnimation(BattleEndLine.Layout, BattleEndLine.VictoryAnimation));
+        }
+
+        Assert.Empty(Said());
     }
 
     [Fact]
