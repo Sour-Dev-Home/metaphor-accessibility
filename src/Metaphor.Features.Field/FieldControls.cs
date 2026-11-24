@@ -150,14 +150,15 @@ public sealed class FieldControls : IInputControls
     /// <paramref name="mission"/>'s current mission when there is one (#658). With a log and
     /// <paramref name="storyFlag"/>, its record also lists the main-mission flags (<see cref="MainMissionFlags"/>).
     /// The beacon guides along routes from <paramref name="routes"/> when given (#690). <paramref name="stuns"/>' check
-    /// runs on each keyboard read when there is one (#772).</summary>
+    /// runs on each keyboard read when there is one (#772). Every feature is on but the compass words (#700), which
+    /// replace the screen's directions rather than add to them.</summary>
     public FieldControls(
         FieldBindings bindings, IFieldReads field, FieldPlace place, IAnnouncer announcer, ICuePlayer cues,
         Func<long> milliseconds, Action<string>? log = null, NamesTable? names = null, ReachCallouts? reach = null,
         MissionLine? mission = null, Func<int, bool?>? storyFlag = null, IRoutePlanner? routes = null,
         StunCallouts? stuns = null, TiltWarning? tilt = null, Sonar? sonar = null, WallTones? walls = null,
         RoutePings? routePings = null, ObjectiveGuide? objective = null, FieldStrikes? strikes = null)
-        : this(() => bindings, _ => true, field, place, announcer, cues, milliseconds, log, names, reach, mission,
+        : this(() => bindings, feature => feature != FieldFeature.Compass, field, place, announcer, cues, milliseconds, log, names, reach, mission,
             storyFlag, routes, stuns, tilt, sonar, walls, routePings, objective, strikes)
     {
         ArgumentNullException.ThrowIfNull(bindings);
@@ -610,8 +611,9 @@ public sealed class FieldControls : IInputControls
         {
             var heading = shown == NearbyCategory.Everything ? "" : Nearby.CategoryWord(shown) + ", ";
             var height = isOn(FieldFeature.NearbyHeight);
+            var compass = isOn(FieldFeature.Compass);
             return string.Create(CultureInfo.InvariantCulture, $"{heading}{things.Count} nearby. ") +
-                string.Join(". ", things.Select(thing => thing.Text(height)));
+                string.Join(". ", things.Select(thing => thing.Text(height, compass)));
         }
         int at;
         lock (gate)
@@ -627,7 +629,7 @@ public sealed class FieldControls : IInputControls
         }
         routePings?.Focus(things[at].Unit);
         return string.Create(CultureInfo.InvariantCulture,
-            $"{at + 1} of {things.Count}. {things[at].Text(isOn(FieldFeature.NearbyHeight))}");
+            $"{at + 1} of {things.Count}. {things[at].Text(isOn(FieldFeature.NearbyHeight), isOn(FieldFeature.Compass))}");
     }
 
     private void Log(FieldView view, IReadOnlyList<NearbyThing> things)

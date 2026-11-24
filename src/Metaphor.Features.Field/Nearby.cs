@@ -11,18 +11,22 @@ namespace Metaphor.Features.Field;
 /// <param name="InReach">Whether the game's own reach test for its kind passes, from the player's facing.</param>
 /// <param name="Height">Its height above the player, in the game's units, up positive (#650).</param>
 /// <param name="Ways">How many listed exits it stands for, the nearest of them (#956); 1 for anything else.</param>
+/// <param name="Ahead">The ground heading <paramref name="Bearing"/> is taken from (#700), so
+/// <c>Bearing + Ahead</c> is its heading on the map's own axes.</param>
 public sealed record NearbyThing(
-    FieldUnit Unit, double Distance, double Bearing, bool InReach, double Height = 0, int Ways = 1)
+    FieldUnit Unit, double Distance, double Bearing, bool InReach, double Height = 0, int Ways = 1, double Ahead = 0)
 {
     /// <summary>"Chest, 4 steps ahead-left, in reach": its name or kind, distance and direction, and with
     /// <paramref name="sayHeight"/> "above" or "below" past <see cref="Nearby.HeightThreshold"/> (#650). Exits merged
-    /// into one row say how many ways there are: "Dorm, 2 ways, nearest 3 steps ahead" (#956).</summary>
-    public string Text(bool sayHeight = false)
+    /// into one row say how many ways there are: "Dorm, 2 ways, nearest 3 steps ahead" (#956). With
+    /// <paramref name="compass"/> the direction is a compass point instead (#700, <see cref="Nearby.Compass"/>).</summary>
+    public string Text(bool sayHeight = false, bool compass = false)
     {
         var steps = Nearby.Steps(Distance);
         var ways = Ways > 1 ? string.Create(CultureInfo.InvariantCulture, $" {Ways} ways, nearest") : "";
+        var direction = compass ? Nearby.Compass(Bearing + Ahead) : Nearby.Direction(Bearing);
         var text = string.Create(CultureInfo.InvariantCulture,
-            $"{Unit.Name ?? Nearby.KindWord(Unit.Says)},{ways} {steps} {(steps == 1 ? "step" : "steps")} {Nearby.Direction(Bearing)}");
+            $"{Unit.Name ?? Nearby.KindWord(Unit.Says)},{ways} {steps} {(steps == 1 ? "step" : "steps")} {direction}");
         if (sayHeight && Nearby.HeightWord(Height) is { } height)
         {
             text += ", " + height;
@@ -215,6 +219,29 @@ public static class Nearby
         };
     }
 
+    /// <summary>One of eight compass points for a heading on the map's own axes (#700): north is +Z and west +X, the
+    /// minimap's up and left (a minimap point's world <c>x</c> falls as it moves right and its <c>z</c> as it moves down,
+    /// docs/findings/minimap-data-converts-map-points-to-world.md), which fits headings growing counter-clockwise seen
+    /// from above (<see cref="CameraFrame"/>). The idea of a fixed compass frame comes from Arcana, the Persona 3 Reload
+    /// accessibility mod (<c>ChipsAhoiMcCoy/arcana</c>, Zlib, <c>main</c> at
+    /// <c>ed3b005f86b1cde27e30ab299ae91af3d974c988</c>, README "Top-down exploration"); no code is copied, and the
+    /// camera is never changed.</summary>
+    public static string Compass(double heading)
+    {
+        var sector = (int)Math.Round(Normalised(heading) / (Math.PI / 4));
+        return sector switch
+        {
+            0 => "north",
+            1 => "north-west",
+            2 => "west",
+            3 => "south-west",
+            -1 => "north-east",
+            -2 => "east",
+            -3 => "south-east",
+            _ => "south",
+        };
+    }
+
     /// <summary>The ground reach of <paramref name="kind"/> by the game's test, or null when the game has none for it
     /// that the mod can read (people's isn't found, enemies aren't used). A door's is 150 when the field database's value
     /// is 1 or 2 and 300 otherwise; unknown is taken as 150, so "in reach" is never said too early.</summary>
@@ -280,7 +307,8 @@ public static class Nearby
     {
         var pose = view.Pose;
         var (distance, _, inReach) = Measure(pose, unit, view.DoorReachValue, slack, facingSlack, rangeScale);
-        return new(unit, distance, CameraFrame.Bearing(pose, unit.X, unit.Z), inReach, unit.Y - pose.Y);
+        return new(unit, distance, CameraFrame.Bearing(pose, unit.X, unit.Z), inReach, unit.Y - pose.Y,
+            Ahead: CameraFrame.Ahead(pose));
     }
 
     /// <summary><paramref name="angle"/> wrapped into (−π, π], as <see cref="CameraFrame.Normalised"/>.</summary>

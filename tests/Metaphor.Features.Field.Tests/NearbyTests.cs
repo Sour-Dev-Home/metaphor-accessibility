@@ -109,6 +109,33 @@ public sealed class NearbyTests
         Assert.Equal($"Door, 5 steps {direction}", Nearby.List(view).Single().Text());
     }
 
+    // #700: compass points from the map's own axes, whatever the camera and facing: north is +Z, west +X (the minimap's
+    // up and left, docs/findings/minimap-data-converts-map-points-to-world.md).
+    [Theory]
+    [InlineData(0, 1, "north")]
+    [InlineData(1, 1, "north-west")]
+    [InlineData(1, 0, "west")]
+    [InlineData(1, -1, "south-west")]
+    [InlineData(0, -1, "south")]
+    [InlineData(-1, -1, "south-east")]
+    [InlineData(-1, 0, "east")]
+    [InlineData(-1, 1, "north-east")]
+    public void CompassPointsAreFromTheMapsAxes(double x, double z, string direction)
+    {
+        var view = new FieldView(0, 0, 0, Math.PI / 2, [At(FieldKind.Door, x * 5 * Step, z * 5 * Step)],
+            CameraHeading: 2.5);
+
+        Assert.EndsWith($" steps {direction}", Nearby.List(view).Single().Text(compass: true), StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void CompassPointsIgnoreAnUnreadCamera()
+    {
+        var view = new FieldView(0, 0, 0, Math.PI, [At(FieldKind.Door, -5 * Step, 0)]);
+
+        Assert.Equal("Door, 5 steps east", Nearby.List(view).Single().Text(compass: true));
+    }
+
     [Fact]
     public void DirectionsFallBackToTheFacingWhenTheCameraIsUnread()
     {
