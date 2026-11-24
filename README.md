@@ -12,7 +12,8 @@ Mods, tools and reverse-engineering notes for Metaphor: ReFantazio on PC.
 Status: early development. The newest download is the pre-release `v0.0.1-unstable.5` on the
 [releases page](https://github.com/Sour-Dev-Home/metaphor-accessibility/releases); there is no stable release yet. The mod
 reads the game's dialogue window aloud through a screen reader, with a spoken installer and a setting for voiced lines;
-menu reading is in progress. Start with [the player docs](docs/players/README.md).
+menu reading is in progress. Start with [the player docs](docs/players/README.md). Something wrong or silent? Follow
+[report a problem](docs/players/how-to/install-the-mod.md#report-a-problem): a keyboard-only form, no contact details.
 
 ## What's here, and what isn't
 

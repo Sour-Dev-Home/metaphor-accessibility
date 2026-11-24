@@ -6,6 +6,8 @@ so pages here are drafts for testers. Start with [Install the mod](how-to/instal
 [`../README.md`](../README.md) says which type of page goes in which folder.
 
 - [Install the mod](how-to/install-the-mod.md) (draft): the spoken installer, the game, the mod and a desktop shortcut.
+- [Report a problem](how-to/install-the-mod.md#report-a-problem) (draft): the mark key, which log to attach and what
+  it holds, and the Alpha feedback form, all by keyboard.
 - [Troubleshoot the mod](how-to/troubleshoot.md) (draft): no speech, the mod did not load, and the mod gone quiet
   after a game update, with where to report each.
 - [Find crash details](how-to/find-crash-details.md) (draft): Windows' own record of why the game closed, from
