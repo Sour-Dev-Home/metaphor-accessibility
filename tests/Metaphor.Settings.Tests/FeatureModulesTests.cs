@@ -40,6 +40,8 @@ public sealed class FeatureModulesTests
         Assert.NotNull(context.Find<IPadWatcher>());
         Assert.NotNull(context.Find<IBattleHitObserver>());
         Assert.NotNull(context.Find<BattleBanners>());
+        // The target cursor's one observer passes each report on to the target line (#253).
+        Assert.IsType<TargetLine>(Assert.IsType<TargetedEnemy>(context.Find<IBattleTargetObserver>()).Then);
         Assert.NotNull(context.Find<FieldPlace>());
         Assert.NotNull(context.Find<FieldTablesSource>());
     }

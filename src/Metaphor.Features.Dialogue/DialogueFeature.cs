@@ -20,6 +20,13 @@ public enum DialogueFeature
         "condition names a line's tags stand for. Off says the tag's stand-in.")]
     TermNames,
 
+    /// <summary>Archetype, enemy and Royal Virtue names said for their tags in a line (#108, #83), pinned by the lines
+    /// around them but not yet heard. Separate from the term names while it is tested.</summary>
+    [SettingKey("speech", "moreTermNames", "More term names", Testing = true, Order = 1181, Description = "The " +
+        "Archetype, enemy and Royal Virtue names a line's tags stand for. Off, an Archetype says its stand-in and the " +
+        "others are left out. Needs `termNames`.")]
+    MoreTermNames,
+
     /// <summary>A name tag whose name can't be read saying "name", reported in Debug builds, rather than being dropped
     /// (#107). Separate from the dialogue while it is tested.</summary>
     [SettingKey("speech", "nameStandIn", "Name stand-in", Testing = true, Order = 1183, Description = "A name a " +

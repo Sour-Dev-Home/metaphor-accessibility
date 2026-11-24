@@ -13,6 +13,10 @@ public sealed class TargetedEnemy(HitLines hits) : IBattleTargetObserver
     private long battle;
     private long moves;
 
+    /// <summary>Told each report after this has noted it, such as the target line (#253); none when null. The cursor
+    /// hook has one observer, so the battle's others hang off this one.</summary>
+    public IBattleTargetObserver? Then { get; init; }
+
     public void Focused(long cursor, int slot)
     {
         var now = hits.Battle;
@@ -25,6 +29,7 @@ public sealed class TargetedEnemy(HitLines hits) : IBattleTargetObserver
                 moves++;
             }
         }
+        Then?.Focused(cursor, slot);
     }
 
     /// <summary>The targeted enemy's index among <paramref name="enemies"/> (this battle's list) and the count of

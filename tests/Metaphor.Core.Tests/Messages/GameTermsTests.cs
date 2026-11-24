@@ -198,6 +198,119 @@ public sealed class GameTermsTests
         Assert.Equal("Hold button to dash", new TextCleaner(GameTerms.Rules, terms.Placeholder).Clean("Hold <PAD_ICON 7> to dash"));
     }
 
+    // More term names (#108, #83): docs/findings/placeholder-tags-name-file-positions.md pins a class tag's number as
+    // its place in ClassName.msg counted from 1, an enemy's as its place in EnemyName.msg and a virtue's as its place
+    // in PcParam_Message.msg. The text is made up.
+    private const string Classes = """
+        @ClassName_01_01
+        {
+        Wanderer
+        <WAIT>
+        }
+
+        @ClassName_01_02
+        {
+        Far Wanderer
+        <WAIT>
+        }
+        """;
+
+    private const string Enemies = """
+        @EnemyName_A
+        {
+        Mudling
+        <WAIT>
+        }
+
+        @EnemyName_B
+        {
+        Ashwing
+        <WAIT>
+        }
+        """;
+
+    private const string Virtues = """
+        @PcParam_01
+        {
+        Grit
+        <WAIT>
+        }
+
+        @PcParam_01_Lv01
+        {
+        Timid
+        <WAIT>
+        }
+        """;
+
+    private static readonly IReadOnlyList<MessageFileShape> MoreShapes =
+    [
+        .. Shapes,
+        new("message/ClassName.msg", 2),
+        new("message/EnemyName.msg", 2),
+        new("message/system/PcParam_Message.msg", 2),
+    ];
+
+    private static (TextCleaner Cleaner, List<string> Missing) MoreCleaner(bool moreTerms)
+    {
+        var files = new MessageFilePositions(MoreShapes);
+        files.Observe(new MessageFileCompiled("EN/message/ClassName.msg", 5, Classes));
+        files.Observe(new MessageFileCompiled("EN/message/EnemyName.msg", 3, Enemies));
+        files.Observe(new MessageFileCompiled("EN/message/system/PcParam_Message.msg", 11, Virtues));
+        var missing = new List<string>();
+        var terms = new GameTerms(files, (tag, args) => missing.Add($"{tag} {args}"), moreTerms: () => moreTerms);
+        return (new TextCleaner(GameTerms.Rules, terms.Placeholder), missing);
+    }
+
+    [Theory]
+    [InlineData("the <CLASS 1 2> Archetype", "the Wanderer Archetype")]
+    [InlineData("the <CLASS 2 2> Archetype", "the Far Wanderer Archetype")]
+    [InlineData("slay the <ENEMY_NAME 1> at dawn", "slay the Ashwing at dawn")]
+    [InlineData("Your Royal Virtue of <CHAR_PARAM 0 2> increased", "Your Royal Virtue of Grit increased")]
+    [InlineData("Increases <CHAR_PARAM 0 0>", "Increases Grit")]
+    public void WithMoreTermNamesOnAClassEnemyOrVirtueTagSaysItsName(string text, string spoken)
+    {
+        var (cleaner, missing) = MoreCleaner(moreTerms: true);
+
+        Assert.Equal(spoken, cleaner.Clean(text));
+        Assert.Empty(missing);
+    }
+
+    [Theory]
+    [InlineData("the <CLASS 0 2> Archetype", "the class Archetype", "CLASS 0 2")]
+    [InlineData("the <CLASS 3 2> Archetype", "the class Archetype", "CLASS 3 2")]
+    [InlineData("channel the <CLASS 65535 0>", "channel the class", "CLASS 65535 0")]
+    [InlineData("slay the <ENEMY_NAME 9>", "slay the enemy", "ENEMY_NAME 9")]
+    [InlineData("my <CHAR_PARAM 5 2>", "my virtue", "CHAR_PARAM 5 2")]
+    [InlineData("my <CHAR_PARAM 0 1>", "my virtue", "CHAR_PARAM 0 1")]
+    [InlineData("were <CHAR_PARAM_LEVEL 4 3>...", "were virtue level...", "CHAR_PARAM_LEVEL 4 3")]
+    public void WithMoreTermNamesOnAnUnknownOneSaysItsKindAndIsReported(string text, string spoken, string reported)
+    {
+        var (cleaner, missing) = MoreCleaner(moreTerms: true);
+
+        Assert.Equal(spoken, cleaner.Clean(text));
+        Assert.Equal([reported], missing);
+    }
+
+    [Theory]
+    [InlineData("the <CLASS 1 2> Archetype", "the class Archetype")]
+    [InlineData("slay the <ENEMY_NAME 1> at dawn", "slay the at dawn")]
+    [InlineData("Virtue of <CHAR_PARAM 0 2> increased", "Virtue of increased")]
+    public void WithMoreTermNamesOffTheTagsSpeakAsBefore(string text, string spoken)
+    {
+        var (cleaner, _) = MoreCleaner(moreTerms: false);
+
+        Assert.Equal(spoken, cleaner.Clean(text));
+    }
+
+    [Fact]
+    public void TheMoreTermFilesAreKeptAtTheirCountsOnThisBuild()
+    {
+        Assert.Contains(new MessageFileShape("message/ClassName.msg", 60), GameTerms.Steam18330018);
+        Assert.Contains(new MessageFileShape("message/EnemyName.msg", 421), GameTerms.Steam18330018);
+        Assert.Contains(new MessageFileShape("message/system/PcParam_Message.msg", 40), GameTerms.Steam18330018);
+    }
+
     [Fact]
     public void TheRulesCombineWithTheNameTags()
     {
