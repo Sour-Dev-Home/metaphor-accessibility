@@ -23,7 +23,7 @@ public sealed class FieldModule : IFeatureModule
         // The map and objective tables load from the archive later; until then a place is its lookups alone and a
         // mission its title (#742, #743).
         var fieldTables = new FieldTablesSource();
-        var place = new FieldPlace(cleaner, fieldTables.MapNameHash);
+        var place = new FieldPlace(cleaner, fieldTables.MapNameHash, context.Unknowns, () => fieldTables.MapsLoaded);
         context.Events.ObserveFiles(place);
         // The current main mission (#658): the top story flag's row in the mission table names its title's label, whose
         // text the library holds. Spoken through the reader like the other automatic field speech.

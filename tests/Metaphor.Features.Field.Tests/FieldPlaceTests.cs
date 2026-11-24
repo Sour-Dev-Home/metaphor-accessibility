@@ -1,4 +1,5 @@
 using Metaphor.Core.Announcements;
+using Metaphor.Core.Logging;
 using Metaphor.Core.Messages;
 
 namespace Metaphor.Features.Field.Tests;
@@ -129,5 +130,41 @@ public sealed class FieldPlaceTests
         Assert.Null(tabled.Name(4));
         Assert.Equal("Lower Testwood", tabled.Name(5));
         Assert.Equal("Lower Testwood", tabled.Name(null));
+    }
+
+    // Map 9 is named; map 5 has no row in the table.
+    private FieldPlace WithUnknowns(bool loaded)
+    {
+        var tabled = new FieldPlace(
+            new TextCleaner(TextCleanerRules.None), map => map == 9 ? MessageLibrary.LabelHash("Map_02") : null,
+            new UnknownValues(reported.Add), () => loaded);
+        tabled.Observe(new MessageFileCompiled("EN/message/MapName.msg", 4, Source));
+        return tabled;
+    }
+
+    private readonly List<string> reported = [];
+
+    [Fact]
+    public void AMapTheLoadedTableDoesntKnowIsReportedOncePerId()
+    {
+        var tabled = WithUnknowns(loaded: true);
+
+        tabled.Name(5);
+        tabled.Name(5);
+        tabled.Name(6);
+        tabled.Name(9);
+
+        Assert.Equal(["map 5", "map 6"], reported);
+    }
+
+    [Fact]
+    public void NoMapIsReportedBeforeTheTablesHaveLoaded()
+    {
+        var tabled = WithUnknowns(loaded: false);
+
+        tabled.Name(5);
+        tabled.Name(9);
+
+        Assert.Empty(reported);
     }
 }

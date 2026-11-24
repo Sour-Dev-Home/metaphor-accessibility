@@ -23,6 +23,7 @@ mkdir -p "$WORK/bin"
 cat > "$WORK/bin/dotnet" <<'STUB'
 #!/usr/bin/env bash
 case ",${DOTNET_FAIL_ON:-}," in *",$1,"*) exit 1 ;; esac
+[ "$1" != test ] || echo "Passed!  - Failed:     0, Passed:     1, Skipped:     0, Total:     1 - Stand.Tests.dll (net9.0)"
 exit 0
 STUB
 chmod +x "$WORK/bin/dotnet"

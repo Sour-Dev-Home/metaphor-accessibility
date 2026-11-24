@@ -61,7 +61,8 @@ public sealed class MenusModule : IFeatureModule
         // The cutscene's skip menu (#809) says its question on its component's show request, not on its layout's one
         // animation, which is the close, while tested.
         context.MoviePause.Observe(new SkipSceneQuestion(
-            settings.Speech(MenusFeature.SkipSceneQuestion, reader), context.LastDevice));
+            settings.Speech(MenusFeature.SkipSceneQuestion, reader), context.LastDevice),
+            () => settings.Current.IsOn(MenusFeature.SkipSceneQuestion));
         screens.Observe(new DifficultyFocus(library, menuSpeech, cleaner));
         screens.Observe(new SettingsFocus(library, menuSpeech, cleaner)
         {

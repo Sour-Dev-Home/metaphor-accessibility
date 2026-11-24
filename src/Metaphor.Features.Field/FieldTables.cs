@@ -49,6 +49,9 @@ public sealed class FieldTables
     /// <summary>The field objectives, or null when their table couldn't be read.</summary>
     public IReadOnlyList<MainMissionRow>? Objectives { get; }
 
+    /// <summary>Whether the map table was read.</summary>
+    public bool HasMaps => maps is not null;
+
     /// <summary>The label hash of map <paramref name="map"/>'s own name, or null when the table hasn't one.</summary>
     public string? MapNameHash(int map) => maps is not null && map >= 0 && map < maps.Count ? maps[map] : null;
 
@@ -123,17 +126,26 @@ public sealed class FieldTablesSource
     /// <summary>The field objectives, or null while they load or when they couldn't be read.</summary>
     public IReadOnlyList<MainMissionRow>? Objectives => tables?.Objectives;
 
+    /// <summary>Whether the map table has loaded: until it has, every map id reads as unknown (#843).</summary>
+    public bool MapsLoaded => tables?.HasMaps == true;
+
     /// <summary>Reads the tables from the archive <paramref name="open"/> opens, on the thread pool, and tells
-    /// <paramref name="done"/> what came of it: a line for the log naming no folder.</summary>
-    public Task LoadInBackground(Func<Stream> open, Action<string> done)
+    /// <paramref name="done"/> what came of it: a line for the log naming no folder. A load that failed (the archive
+    /// can't be read, or a table is missing) goes to <paramref name="failed"/> instead when it is given: the error
+    /// log, which is on disk before the game goes on (#843).</summary>
+    public Task LoadInBackground(Func<Stream> open, Action<string> done, Action<string>? failed = null)
     {
         ArgumentNullException.ThrowIfNull(open);
         ArgumentNullException.ThrowIfNull(done);
-        return Task.Run(() => done(Load(open)));
+        return Task.Run(() =>
+        {
+            var (line, ok) = Load(open);
+            (ok ? done : failed ?? done)(line);
+        });
     }
 
     [SuppressMessage("Design", "CA1031", Justification = "A failed read leaves the tables empty; it must not reach the game.")]
-    private string Load(Func<Stream> open)
+    private (string Line, bool Ok) Load(Func<Stream> open)
     {
         var started = StepTimer.Start();
         try
@@ -141,11 +153,11 @@ public sealed class FieldTablesSource
             using var archive = open();
             var read = FieldTables.From(path => CpkArchive.ReadFile(archive, path, FieldTables.MaxSize));
             tables = read;
-            return $"{read.Describe()} {StepTimer.Took(started)}";
+            return ($"{read.Describe()} {StepTimer.Took(started)}", read.HasMaps && read.Objectives is not null);
         }
         catch (Exception e)
         {
-            return $"field tables: can't read the archive: {e.GetType().Name}";
+            return ($"field tables: can't read the archive: {e.GetType().Name}", false);
         }
     }
 }

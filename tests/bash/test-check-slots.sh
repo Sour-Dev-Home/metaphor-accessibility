@@ -34,6 +34,7 @@ cat > "$WORK/bin/dotnet" <<'STUB'
 for d in "$METAPHOR_CHECK_LOCK" "$METAPHOR_CHECK_LOCK.2" "$METAPHOR_CHECK_LOCK.3"; do
   [ -f "$d/pid" ] && [ "$(cat "$d/pid")" != "$HOLDER" ] && [ "$(cat "$d/pid")" != "$HOLDER2" ] && echo "${d##*/}" >> "$SEEN"
 done
+[ "$1" != test ] || echo "Passed!  - Failed:     0, Passed:     1, Skipped:     0, Total:     1 - Stand.Tests.dll (net9.0)"
 exit 0
 STUB
 chmod +x "$WORK/bin/dotnet"

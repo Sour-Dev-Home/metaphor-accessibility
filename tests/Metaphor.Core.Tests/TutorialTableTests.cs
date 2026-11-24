@@ -119,6 +119,23 @@ public sealed class TutorialTableTests
     }
 
     [Fact]
+    public async Task AFailedLoadGoesToTheErrorSinkWhenThereIsOne()
+    {
+        string? said = null;
+        string? error = null;
+
+        await new TutorialTableSource().LoadInBackground(
+            () => throw new IOException("made up"), line => said = line, line => error = line);
+        await new TutorialTableSource().LoadInBackground(
+            () => new MemoryStream([1, 2, 3]), line => said = line, line => error += "|" + line);
+
+        Assert.Null(said);
+        Assert.Equal(
+            $"tutorial table: can't read the archive: IOException|tutorial table: no readable {TutorialTable.ArchivePath} in the archive",
+            error);
+    }
+
+    [Fact]
     public async Task AFailedOpenIsReportedNotThrown()
     {
         var source = new TutorialTableSource();

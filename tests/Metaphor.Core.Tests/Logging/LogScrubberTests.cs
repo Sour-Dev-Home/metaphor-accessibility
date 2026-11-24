@@ -55,6 +55,43 @@ public sealed class LogScrubberTests
         Assert.Equal("<memory dump, 40 bytes>", LogScrubber.None().Scrub(new string('a', 80)));
     }
 
+    [Theory]
+    [InlineData("48 8B 05 11 22 33 44 55", 8)]
+    [InlineData("48-8b-05-11-22-33-44-55-66-77-88", 11)]
+    [InlineData("48:8b:05:11:22:33:44:55:66:77:88:99:aa:bb:cc", 15)]
+    public void AShortSeparatedDumpIsAMemoryDump(string bytes, int count)
+    {
+        Assert.Equal($"read <memory dump, {count} bytes> at 0x10", LogScrubber.None().Scrub($"read {bytes} at 0x10"));
+    }
+
+    [Theory]
+    [InlineData(34, 17)]
+    [InlineData(48, 24)]
+    [InlineData(62, 31)]
+    public void AnUnseparatedRunOfSeventeenBytesOrMoreIsAMemoryDump(int digits, int bytes)
+    {
+        Assert.Equal($"<memory dump, {bytes} bytes>", LogScrubber.None().Scrub(new string('a', digits)));
+    }
+
+    [Fact]
+    public void ALabelHashAndTheCommitAndBuildHashesAreNotDumps()
+    {
+        // 32 digits: a message label's MD5; 40: a commit; 64: a game build's SHA-256.
+        foreach (var digits in new[] { 32, 40, 64 })
+        {
+            var run = new string('c', digits);
+            Assert.Equal($"label {run}", LogScrubber.None().Scrub($"label {run}"));
+        }
+    }
+
+    [Fact]
+    public void SevenSeparatedBytesStay()
+    {
+        const string line = "bytes 48 8B 05 11 22 33 44 then";
+
+        Assert.Equal(line, LogScrubber.None().Scrub(line));
+    }
+
     [Fact]
     public void BuildHashesAndShortByteRunsStay()
     {

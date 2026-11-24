@@ -123,15 +123,16 @@ run_selected_tests() {
   local solution="$1" unknown="$2" selection="$3" kind proj reason ran=0
   if whole_solution "$unknown"; then
     echo "tests: all suites (change set unknown, CI, or METAPHOR_FULL_TESTS)"
-    timed_step tests dotnet test "$solution" -c Release --no-build -v q --filter "$(category_filter)" ||
-      report "tests: Unit or RoundTrip tests failed"
+    timed_step tests bash "$check_dir/check/dotnet-test.sh" --expect-tests "$solution" -c Release --no-build -v q \
+      --filter "$(category_filter)" || report "tests: Unit or RoundTrip tests failed"
     return 0
   fi
   while read -r kind proj reason; do
     [ "$kind" = dotnet ] || continue
     ran=1
     echo "tests: $proj because $reason"
-    timed_step "tests:$(basename "$proj" .csproj)" dotnet test "$proj" -c Release --no-build -v q --filter "$(category_filter)" ||
+    timed_step "tests:$(basename "$proj" .csproj)" bash "$check_dir/check/dotnet-test.sh" "$proj" -c Release \
+      --no-build -v q --filter "$(category_filter)" ||
       report "tests: $proj failed"
   done <<< "$selection"
   [ "$ran" -eq 1 ] || grep -q '^pester ' <<< "$selection" || echo "tests: no test project is affected by this change"
@@ -228,8 +229,9 @@ full_dotnet_checks() {
   timed_step restore dotnet restore "$solution" "${restore_flags[@]}" -v q ||
     report "build: restore failed, see the errors above"
   timed_step build dotnet build "$solution" -c Release --no-restore -v q || report "build: failed, see the errors above"
-  timed_step tests dotnet test "$solution" -c Release --no-build -v q --filter "$(category_filter)" ||
-    report "tests: Unit or RoundTrip tests failed"
+  # dotnet-test.sh also fails a run whose summary shows a failed test, or that ran none, whatever dotnet's exit code (#858).
+  timed_step tests bash "$check_dir/check/dotnet-test.sh" --expect-tests "$solution" -c Release --no-build -v q \
+    --filter "$(category_filter)" || report "tests: Unit or RoundTrip tests failed"
   timed_step format dotnet format whitespace "$solution" --verify-no-changes ||
     report "format: files need formatting (run: dotnet format whitespace Metaphor.sln)"
   # The scripts' own Pester tests, against the stand-in game (no game needed). Pester 5 or later, every

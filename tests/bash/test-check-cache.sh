@@ -23,6 +23,7 @@ mkdir -p "$WORK/bin"
 cat > "$WORK/bin/dotnet" <<'EOF'
 #!/usr/bin/env bash
 echo "$1" >> "$DOTNET_LOG"
+[ "$1" != test ] || echo "Passed!  - Failed:     0, Passed:     1, Skipped:     0, Total:     1 - Stand.Tests.dll (net9.0)"
 [ -z "${DOTNET_FAIL:-}" ]
 EOF
 chmod +x "$WORK/bin/dotnet"

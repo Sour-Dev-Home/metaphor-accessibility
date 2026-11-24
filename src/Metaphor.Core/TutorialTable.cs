@@ -88,16 +88,22 @@ public sealed class TutorialTableSource
     public TutorialTable? Table => table;
 
     /// <summary>Reads the table from the archive <paramref name="open"/> opens, on the thread pool, and tells
-    /// <paramref name="done"/> what came of it: a line for the log naming the file, never its folder.</summary>
-    public Task LoadInBackground(Func<Stream> open, Action<string> done)
+    /// <paramref name="done"/> what came of it: a line for the log naming the file, never its folder. A load that failed
+    /// goes to <paramref name="failed"/> instead when it is given: the error log, which is on disk before the game goes
+    /// on (#843).</summary>
+    public Task LoadInBackground(Func<Stream> open, Action<string> done, Action<string>? failed = null)
     {
         ArgumentNullException.ThrowIfNull(open);
         ArgumentNullException.ThrowIfNull(done);
-        return Task.Run(() => done(Load(open)));
+        return Task.Run(() =>
+        {
+            var (line, ok) = Load(open);
+            (ok ? done : failed ?? done)(line);
+        });
     }
 
     [SuppressMessage("Design", "CA1031", Justification = "A failed read leaves tutorials untitled; it must not reach the game.")]
-    private string Load(Func<Stream> open)
+    private (string Line, bool Ok) Load(Func<Stream> open)
     {
         var started = StepTimer.Start();
         try
@@ -105,12 +111,12 @@ public sealed class TutorialTableSource
             using var archive = open();
             table = TutorialTable.FromArchive(archive);
             return table is { } read
-                ? $"tutorial table: {read.Count} tutorials {StepTimer.Took(started)}"
-                : $"tutorial table: no readable {TutorialTable.ArchivePath} in the archive";
+                ? ($"tutorial table: {read.Count} tutorials {StepTimer.Took(started)}", true)
+                : ($"tutorial table: no readable {TutorialTable.ArchivePath} in the archive", false);
         }
         catch (Exception e)
         {
-            return $"tutorial table: can't read the archive: {e.GetType().Name}";
+            return ($"tutorial table: can't read the archive: {e.GetType().Name}", false);
         }
     }
 }
