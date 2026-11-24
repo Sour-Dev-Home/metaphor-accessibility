@@ -83,7 +83,7 @@ internal sealed class ScreenClassLookup
 
     /// <summary>The screen class of <paramref name="manager"/>'s owner, or null when no owner was seen or its class is
     /// unreadable.</summary>
-    public string? Of(long manager) => Owners.OwnerOf(manager) is { } owner ? names.Of((nint)owner) : null;
+    public string? Of(long manager) => Owners.ClassOf(manager, owner => names.Of((nint)owner));
 
     /// <summary>The mode field of <paramref name="manager"/>'s owner, whose class is <paramref name="screenClass"/>
     /// (<see cref="ScreenModes"/>, #210), or null when the class has none, no owner was seen, or it is unreadable.

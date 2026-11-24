@@ -74,6 +74,7 @@ Each is `true` to speak or `false` to stay quiet, inside a `speech` object: `{ "
 | `battleListViews` | Names the rows of battle's skill and item lists after a wrap to the bottom, not only their positions. Needs `battleLists`. | `true` |
 | `battleItemTabs` | The tab's name when the battle item list opens or you switch tabs with LB or RB. Needs `battleLists`. Still being tested. | testing, off |
 | `battleOrderMenu` | Battle's Order menu, opened with LB, and its Tactics submenu. | `true` |
+| `battleConfirms` | Battle's Retry and confirm prompts: the question, then Yes or No. Still being tested. | testing, off |
 | `itemMenu` | The Item screen's rows and its party-member list. | `true` |
 | `calendar` | The Calendar's day grid. | `true` |
 | `questList` | Each quest's name on the quest list, and an opened quest's name and description. Needs `menus`. | `true` |

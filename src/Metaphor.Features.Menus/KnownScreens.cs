@@ -32,6 +32,7 @@ public static class KnownScreens
         BattleListFocus.SkillList,
         BattleListFocus.ItemList,
         .. BattleOrderFocus.Screens,
+        .. BattleConfirmFocus.Screens,
         SaveSlotFocus.Load,
         SaveSlotFocus.Save,
     ];
