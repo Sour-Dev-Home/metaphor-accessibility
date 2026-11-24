@@ -26,6 +26,10 @@ public sealed class EquipmentSlotNamesTests
     private const int Sword = 2500;
     private const int Mail = 2501;
     private const int SlotLabel = 1511;
+    private const int FirstClass = 1082;
+    private const int Hacker = FirstClass + 1;
+    private const int Unused = FirstClass + 2;
+    private const int Sharpshooter = FirstClass + 3;
 
     private readonly RecordingAnnouncer announcer = new();
     private readonly CursorEvents cursors = new();
@@ -39,6 +43,7 @@ public sealed class EquipmentSlotNamesTests
             new SerialRange(MessageSerials.CharacterNames, 0, 4),
             new SerialRange(MessageSerials.EquipmentNames, Sword, 2),
             new SerialRange(MessageSerials.ArchetypeNames, Seeker, 7),
+            new SerialRange(MessageSerials.ClassNames, FirstClass, 4),
         ]);
         messages.ObserveFiles(serials);
         var source = string.Join("\n\n", Enumerable.Range(0, Count).Select(at => Entry($"System_General_{at:00}", $"Text {at + First}")));
@@ -50,6 +55,10 @@ public sealed class EquipmentSlotNamesTests
             string.Join("\n\n", Entry("WeaponName_SSWORD_01", "Sword"), Entry("ArmorName_Heavy_01", "Mail"))));
         messages.Compiled(new MessageFileCompiled("EN/message/ATCategoryName.msg", 30, string.Join("\n\n",
             Enumerable.Range(0, 7).Select(at => Entry($"ATCategoryName_{at + 1:00}", at == 0 ? "Seeker" : at == 6 ? "Gunner" : $"Lineage {at}")))));
+        // Made-up classes: two in the Seeker line, one unused slot, one in the Gunner line.
+        messages.Compiled(new MessageFileCompiled("EN/message/ClassName.msg", 5, string.Join("\n\n",
+            Entry("ClassName_01_01", "Seeker"), Entry("ClassName_01_03", "Hacker"),
+            Entry("ClassName_01_04", "@ClassName_01_04"), Entry("ClassName_07_02", "Sharpshooter"))));
         var screens = new MenuScreens(KnownScreens.All);
         screens.MenusRead(open: true);
         var focus = new EquipmentFocus(serials, announcer, new TextCleaner(TextCleanerRules.None))
@@ -227,6 +236,75 @@ public sealed class EquipmentSlotNamesTests
         Cursor(SlotsClass, 1, count: 5);
 
         Assert.Equal(["Seeker, 1 of 8", "Text 1511, 2 of 5"], Said().Skip(1));
+    }
+
+    // The list's entry fetches each row's current archetype, in row order, with the member flags, before its first
+    // cursor record (2026-11-23 evening session, docs/findings/class-name-and-battle-item-tab-serials.md).
+    private void Classes(params int[] each)
+    {
+        foreach (var serial in each)
+        {
+            messages.Resolved(new SerialResolved(serial, 9));
+        }
+    }
+
+    // #857: the list said the base archetype ("Seeker") for a character on a specific one.
+    [Fact]
+    public void ACharacterRowSaysTheirCurrentSpecificArchetype()
+    {
+        Classes(Hacker, Sharpshooter);
+        Block(null, Seeker);
+        Cursor(CharactersClass, 0, count: 8);
+        Block(Strohl, Gunner);
+        Cursor(CharactersClass, 1, count: 8);
+
+        Assert.Equal(["Equipment, Hacker, 1 of 8", "Strohl, Sharpshooter, 2 of 8"], Said());
+    }
+
+    [Fact]
+    public void TheArchetypeSlotRowSaysTheCharactersSpecificArchetype()
+    {
+        Classes(Hacker, Sharpshooter);
+        Cursor(CharactersClass, 0, count: 8);
+        Block(Strohl, Gunner);
+        Cursor(CharactersClass, 1, count: 8);
+        Cursor(SlotsClass, 0, count: 5);
+
+        Assert.Equal("Sharpshooter, 1 of 5", Said().Last());
+    }
+
+    // A class outside the line fetched for the row is another row's: the line is said instead.
+    [Fact]
+    public void AClassOutsideTheRowsLineLeavesTheLine()
+    {
+        Classes(Sharpshooter, Hacker);
+        Block(null, Seeker);
+        Cursor(CharactersClass, 0, count: 8);
+
+        Assert.Equal(["Equipment, Seeker, 1 of 8"], Said());
+    }
+
+    [Fact]
+    public void AnUnusedClassSlotLeavesTheLine()
+    {
+        Classes(Unused);
+        Block(null, Seeker);
+        Cursor(CharactersClass, 0, count: 8);
+
+        Assert.Equal(["Equipment, Seeker, 1 of 8"], Said());
+    }
+
+    // A fetch after a cursor record is a new run: the list fetched again, row 0 first.
+    [Fact]
+    public void ClassesFetchedAgainReplaceTheRun()
+    {
+        Classes(Sharpshooter);
+        Cursor(CharactersClass, 1, count: 8);
+        Classes(Hacker);
+        Block(null, Seeker);
+        Cursor(CharactersClass, 0, count: 8);
+
+        Assert.Equal("Hacker, 1 of 8", Said().Last());
     }
 
     // A slot's item list fetches equipment names too; they aren't what the character wears.

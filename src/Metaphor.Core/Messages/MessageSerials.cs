@@ -31,14 +31,16 @@ public sealed class MessageSerials : IMessageBySerial, IMessageFileObserver
     /// them with those counts is <c>[NEEDS VERIFICATION]</c>, and a file that doesn't is dropped. The equipment,
     /// character and archetype name files' ranges are read from the same table and match their compiled counts in a
     /// Debug log (docs/findings/equipment-character-archetype-serials-static.md), as do the quest files'
-    /// (docs/findings/quest-message-serials-static.md). The enemy names file's range test is in protected code, so its
-    /// first serial comes from the files' contiguity and its compiled count
-    /// (docs/findings/battle-banner-enemy-name-serials-static.md).</summary>
+    /// (docs/findings/quest-message-serials-static.md). The class names' and battle commands' ranges are from their
+    /// compiled counts and their neighbours' ranges (docs/findings/class-name-and-battle-item-tab-serials.md); the
+    /// enemy names' range the same way (docs/findings/battle-banner-enemy-name-serials-static.md).</summary>
     public static IReadOnlyList<SerialRange> Steam18330018 { get; } =
     [
         new(CharacterNames, 0, 122),
         new(EnemyNames, 122, 421),
+        new(ClassNames, 1082, 60),
         new("message/system/System_Message.msg", 1142, 790),
+        new(BattleCommandMessages, 1932, 159),
         new(EquipmentNames, 2442, 1205),
         new(EquipmentDescriptions, 3647, 1206),
         new(ItemNames, 5143, 773),
@@ -67,6 +69,16 @@ public sealed class MessageSerials : IMessageBySerial, IMessageFileObserver
     /// <summary>The archetype names file, one name per archetype line (Seeker, Mage, ...): the Equipment screen fetches
     /// each character's from it (#217).</summary>
     public const string ArchetypeNames = "message/ATCategoryName.msg";
+
+    /// <summary>The specific archetypes file, <c>ClassName_&lt;line&gt;_&lt;rank&gt;</c> under each archetype line (Soul
+    /// Hacker under Seeker): the Equipment list and the Archetype Tree fetch the current or focused one from it (#857,
+    /// #220). Its range is from a Debug log, not the exe, whose range test for it is in <c>.text1</c>
+    /// (docs/findings/class-name-and-battle-item-tab-serials.md).</summary>
+    public const string ClassNames = "message/ClassName.msg";
+
+    /// <summary>Battle's command texts, the item list's tab names among them (#851); range from a Debug log
+    /// (docs/findings/class-name-and-battle-item-tab-serials.md).</summary>
+    public const string BattleCommandMessages = "message/system/CommandBattle_Message.msg";
 
     /// <summary>The quest names file, <c>QuestName_None</c> then one name per quest (#194): the quest list fetches its
     /// rows' names from it (docs/findings/quest-message-serials-static.md).</summary>

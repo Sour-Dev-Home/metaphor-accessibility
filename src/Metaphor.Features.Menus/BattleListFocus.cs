@@ -111,6 +111,14 @@ public sealed class BattleListFocus : IScreenObserver, ISerialResolveObserver, I
     /// <summary>The screen this one speaks.</summary>
     public Screen Screen { get; }
 
+    /// <summary>The name of the tab a focus is on (#851), said on entering and on a tab switch before the row, or null
+    /// when it isn't known; read at each focus. Null, a switch with the cursor where it was says nothing, as before the
+    /// list's tab field was read.</summary>
+    public Func<ScreenEvent, string?>? TabName { get; private init; }
+
+    // The tab said with the current focus's line, or null.
+    private string? spokenTab;
+
     /// <summary>The skill list, its names from the skill names file, timed by <paramref name="millisecondsNow"/>;
     /// <paramref name="viewsOn"/> says whether a whole view fetched again names its rows (#737,
     /// <see cref="MenusFeature.BattleListViews"/>), on when null.</summary>
@@ -120,13 +128,35 @@ public sealed class BattleListFocus : IScreenObserver, ISerialResolveObserver, I
         new(SkillList, MessageSerials.SkillNames, MessageSerials.SkillDescriptions, serials, announcer, cleaner,
             millisecondsNow, viewsOn);
 
+    /// <summary>The item list's tab names, <c>CommandBattle_IT_CATEGORY_01</c> to <c>_05</c>, which the list fetches as
+    /// it opens; tab n is the n-th, <c>[NEEDS VERIFICATION]</c> (docs/findings/battle-item-list-tab-index-static.md).
+    /// </summary>
+    public const int FirstItemTabSerial = 2085;
+
+    /// <summary>How many item tabs there are.</summary>
+    public const int ItemTabs = 5;
+
     /// <summary>The item list, its names from the item names file, timed by <paramref name="millisecondsNow"/>;
     /// <paramref name="viewsOn"/> as for <see cref="Skills"/>.</summary>
     public static BattleListFocus Items(
         MessageSerials serials, IAnnouncer announcer, TextCleaner cleaner, Func<long> millisecondsNow,
         Func<bool>? viewsOn = null) =>
+        Items(serials, announcer, cleaner, millisecondsNow, viewsOn, tabsOn: null);
+
+    /// <summary>The item list as <see cref="Items(MessageSerials, IAnnouncer, TextCleaner, Func{long}, Func{bool}?)"/>,
+    /// whose tabs say their names while <paramref name="tabsOn"/> (#851): the tab the list's tab field
+    /// (<see cref="ScreenEvent.Mode"/>, <see cref="ScreenModes"/>) holds, by <see cref="FirstItemTabSerial"/>.</summary>
+    public static BattleListFocus Items(
+        MessageSerials serials, IAnnouncer announcer, TextCleaner cleaner, Func<long> millisecondsNow,
+        Func<bool>? viewsOn, Func<bool>? tabsOn) =>
         new(ItemList, MessageSerials.ItemNames, MessageSerials.ItemDescriptions, serials, announcer, cleaner,
-            millisecondsNow, viewsOn);
+            millisecondsNow, viewsOn)
+        {
+            TabName = tabsOn is null ? null
+                : focus => tabsOn() && focus.Mode is { } tab && tab is >= 0 and < ItemTabs
+                    ? serials.TextOf(FirstItemTabSerial + tab, cleaner)
+                    : null,
+        };
 
     /// <summary>The focused row's description for the details key (#247): the description fetched from the list's
     /// descriptions file right after the row's name. Null on another screen or for a row with none.</summary>
@@ -178,7 +208,17 @@ public sealed class BattleListFocus : IScreenObserver, ISerialResolveObserver, I
                 return;
             }
             Volatile.Write(ref otherScreen, false);
+            // A tab switch the list's tab field told (#851): its cursor stays where it was with another tab.
+            var tabSwitched = change.Change == ScreenChange.FocusMoved && lastFocus is { Mode: { } was }
+                && change.Mode is { } shown && shown != was;
+            var tab = change.Change == ScreenChange.Entered || tabSwitched ? TabName?.Invoke(change) : null;
+            if (tabSwitched && change.Index == lastFocus!.Index && tab is null)
+            {
+                // Without its name a switch is told as before the tab field was read: by the next move.
+                return;
+            }
             waiting = null;
+            spokenTab = tab;
             if (change.Change == ScreenChange.Left)
             {
                 onList = false;
@@ -201,7 +241,22 @@ public sealed class BattleListFocus : IScreenObserver, ISerialResolveObserver, I
             {
                 Forget();
             }
-            Place(change);
+            if (tabSwitched)
+            {
+                // The rows known are the last tab's: the names fetched with the switch, if any, are this tab's page.
+                if (pending.Count > 0)
+                {
+                    StartRun(pending);
+                }
+                else
+                {
+                    Forget();
+                }
+            }
+            else
+            {
+                Place(change);
+            }
             onList = true;
             lastActivity = now;
             lastFocus = change;
@@ -212,7 +267,7 @@ public sealed class BattleListFocus : IScreenObserver, ISerialResolveObserver, I
                 // Before any row is known the list's first names are still to come. Past them a row whose name can't
                 // be told is said by its position, never left silent: a name fetched after its focus can't be told
                 // from the next move's.
-                if (rows.Count > 0)
+                if (rows.Count > 0 || tabSwitched)
                 {
                     said = PositionLine(change);
                 }
@@ -497,7 +552,7 @@ public sealed class BattleListFocus : IScreenObserver, ISerialResolveObserver, I
 
     private Announcement Line(ScreenEvent focus, string? name)
     {
-        var item = focus.Positioned(name);
+        var item = spokenTab is { } tab ? $"{tab}, {focus.Positioned(name)}" : focus.Positioned(name);
         return new Announcement(focus.Change == ScreenChange.Entered ? $"{Screen.Name}, {item}" : item, Interrupt: true);
     }
 }

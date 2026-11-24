@@ -72,11 +72,14 @@ Each is `true` to speak or `false` to stay quiet, inside a `speech` object: `{ "
 | `battleHpMp` | In a battle, `M` says each party member's HP and MP. Needs `battleHits`. Still being tested. | testing, off |
 | `battleLists` | Battle's skill and item lists, row by row. Separate from `menus`. | `true` |
 | `battleListViews` | Names the rows of battle's skill and item lists after a wrap to the bottom, not only their positions. Needs `battleLists`. | `true` |
+| `battleItemTabs` | The tab's name when the battle item list opens or you switch tabs with LB or RB. Needs `battleLists`. Still being tested. | testing, off |
 | `battleOrderMenu` | Battle's Order menu, opened with LB, and its Tactics submenu. | `true` |
 | `itemMenu` | The Item screen's rows and its party-member list. | `true` |
 | `calendar` | The Calendar's day grid. | `true` |
 | `questList` | Each quest's name on the quest list, and an opened quest's name and description. Needs `menus`. | `true` |
 | `followerList` | Each follower's name and archetype on the Followers list. Needs `menus`. | `true` |
+| `archetypeTree` | On the Archetype Tree, each character on the pick, then each archetype the cursor reaches, with its line and rank. Needs `menus`. Still being tested. | testing, off |
+| `levelUpPoints` | The level-up screen where you spend points: its heading and each stat's name, and the stat's description on the details key. Needs `menus`. Still being tested. | testing, off |
 | `battleBanners` | The short banner during a battle turn: a boss warning, a stat change. | `true` |
 | `battleBannerNames` | Says who a battle banner is about: "Bow Scourge Malmorta cannot move due to Stun!". Off leaves the name out. Needs `battleBanners`. Still being tested. | testing, off |
 | `battleTurnLine` | Says "Your turn" with the actions left, or "Enemy turn", as each side's turn starts in a battle. Still being tested. | testing, off |

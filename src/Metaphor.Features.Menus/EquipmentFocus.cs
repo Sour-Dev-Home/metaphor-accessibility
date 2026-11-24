@@ -8,7 +8,7 @@ namespace Metaphor.Features.Menus;
 /// <summary>Speaks the camp Equipment screen's focus (#217): on entering the character list, "Equipment" and the
 /// position, then each move's position ("n of total", or "n" when the game's count can't be read), each cutting off the
 /// last, on the characters, the slots, a slot's items and the swap's characters. A character row adds the member's name
-/// and archetype, row 0 the protagonist's typed name (<see cref="ProtagonistName"/>), since his isn't a message; slot row
+/// and archetype, the specific one when the list fetched it (<see cref="ClassNames"/>, #857), row 0 the protagonist's typed name (<see cref="ProtagonistName"/>), since his isn't a message; slot row
 /// 0 says the archetype, rows 1 to 4 their label and the item worn in it; entering the swap says its question first.
 /// Names come from the block the game fetches for the focused character between the move's cursor records. The item
 /// list's names, the "equipped" mark, the sort key and the swap's character are not spoken: where the worn row sits in
@@ -65,6 +65,14 @@ public sealed class EquipmentFocus : IScreenObserver, ISerialResolveObserver, IC
     // Whether a block is being fetched: from its first member or archetype until the next cursor record.
     private bool blockOpen;
 
+    // Each row's current archetype, as the character list fetches them all in row order before a cursor record, each
+    // from ClassName.msg with the member flags (#857, docs/findings/class-name-and-battle-item-tab-serials.md).
+    private readonly List<int> classes = [];
+    private bool classRunOpen;
+
+    // The character row last focused, whose slots the slot list shows.
+    private int character;
+
     public EquipmentFocus(IAnnouncer announcer)
     {
         ArgumentNullException.ThrowIfNull(announcer);
@@ -113,7 +121,16 @@ public sealed class EquipmentFocus : IScreenObserver, ISerialResolveObserver, IC
         var kind = resolve.Flags == NameFlags ? EquipmentKinds.Of(serials, serial) : null;
         lock (gate)
         {
-            if (resolve.Flags == MemberFlags && serials.InFile(serial, MessageSerials.CharacterNames))
+            if (resolve.Flags == MemberFlags && serials.InFile(serial, MessageSerials.ClassNames))
+            {
+                if (!classRunOpen)
+                {
+                    classes.Clear();
+                    classRunOpen = true;
+                }
+                classes.Add(serial);
+            }
+            else if (resolve.Flags == MemberFlags && serials.InFile(serial, MessageSerials.CharacterNames))
             {
                 StartBlock(serial);
             }
@@ -140,6 +157,7 @@ public sealed class EquipmentFocus : IScreenObserver, ISerialResolveObserver, IC
         lock (gate)
         {
             blockOpen = false;
+            classRunOpen = false;
         }
     }
 
@@ -159,15 +177,27 @@ public sealed class EquipmentFocus : IScreenObserver, ISerialResolveObserver, IC
             return change.Positioned();
         }
         int?[] names;
+        string? current = null;
         lock (gate)
         {
-            names = change.Screen == Characters ? [change.Index == 0 ? null : member, archetype]
-                : change.Screen != Slots ? []
-                : change.Index == 0 ? [archetype]
+            if (change.Screen == Characters)
+            {
+                character = change.Index;
+            }
+            var archetypeRow = change.Screen == Characters || (change.Screen == Slots && change.Index == 0);
+            if (archetypeRow)
+            {
+                // The row's own archetype when its line is the one fetched for it, else the line (#857).
+                current = ClassNames.Current(
+                    serials, character < classes.Count ? classes[character] : null, archetype, cleaner!);
+            }
+            names = change.Screen == Characters ? [change.Index == 0 ? null : member]
+                : change.Screen != Slots || change.Index == 0 ? []
                 : change.Index <= SlotRows ? [FirstSlotSerial + change.Index - 1, worn[change.Index - 1]]
                 : [];
         }
         var protagonist = change.Screen == Characters && change.Index == 0 ? ProtagonistName?.Invoke() : null;
-        return change.Positioned([protagonist, .. names.Select(serial => serial is { } known ? serials.TextOf(known, cleaner!) : null)]);
+        string?[] said = [protagonist, .. names.Select(serial => serial is { } known ? serials.TextOf(known, cleaner!) : null)];
+        return change.Positioned([.. said, current]);
     }
 }
