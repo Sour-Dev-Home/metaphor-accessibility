@@ -5,6 +5,7 @@ speech.dialogue | Dialogue | on | done
 speech.dialogueKeys | Dialogue keys | on | done
 speech.messageLog | Message log | off | testing
 speech.moreTermNames | More term names | off | testing
+speech.movieSubtitles | Movie subtitles | off | testing
 speech.nameStandIn | Name stand-in | off | testing
 speech.narration | Narration | off | testing
 speech.termNames | Term names | on | done
