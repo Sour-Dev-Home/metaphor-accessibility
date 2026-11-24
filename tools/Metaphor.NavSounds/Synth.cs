@@ -3,6 +3,21 @@ using Metaphor.Core.Cues;
 
 namespace Metaphor.NavSounds;
 
+/// <summary>A generated sound's tone colour (#839). The broadband ones reach about 12 kHz, where the outer ear's height
+/// and front/back cues lie and where the behind-muffle (#903) cuts
+/// (docs/contributors/explanation/elevation-and-front-back-cues.md, step 1).</summary>
+public enum Timbre
+{
+    /// <summary>A plain sine.</summary>
+    Sine,
+
+    /// <summary>Every harmonic at 1/n, a band-limited sawtooth: bright and buzzy.</summary>
+    Bright,
+
+    /// <summary>The odd harmonics at 1/n, a band-limited square: hollow, like a clarinet.</summary>
+    Hollow,
+}
+
 /// <summary>The generator's synthesis (#839): sines, noise bursts and a WAV writer, built from IEEE additions,
 /// multiplications and divisions only, so the same parameters give the same bytes on every machine. The runtime
 /// libraries' <c>Math.Sin</c> and <c>Math.Cos</c> may differ in the last bit between platforms, so a Taylor series
@@ -14,6 +29,14 @@ public static class Synth
 
     // Each note's fade in and out, as the cue player's.
     private const int RampMilliseconds = 5;
+
+    // A struck note's burst of noise: how long it falls to nothing, and its level against the note's.
+    private const int StrikeMilliseconds = 12;
+    private const double StrikeLevel = 0.3;
+
+    // The bound of the partial sums of sin(nx)/n, the Wilbraham-Gibbs constant Si(π); half of it bounds the odd
+    // harmonics' sums (a square wave's).
+    private const double SawBound = 1.8519370519824662;
 
     /// <summary>The sine of <paramref name="turns"/> whole turns (1 is 2π): folded into a quarter turn, then a Taylor
     /// series to the 15th power, within 1e-11 of the true value.</summary>
@@ -54,10 +77,16 @@ public static class Synth
     }
 
     /// <summary>Notes one after another (a 0 Hz note is a gap), each faded in and out, at <paramref name="volume"/> (0
-    /// to 100) as the cue player scales it, as mono samples in -1 to 1 of the peak.</summary>
-    public static double[] Notes(IEnumerable<ToneStep> steps, int volume)
+    /// to 100) as the cue player scales it, as mono samples in -1 to 1 of the peak, in <paramref name="timbre"/>. With
+    /// <paramref name="struck"/> each note starts with a short burst of noise from <paramref name="seed"/>, a strike
+    /// that reaches the whole band.</summary>
+    public static double[] Notes(
+        IEnumerable<ToneStep> steps, int volume, Timbre timbre = Timbre.Sine, bool struck = false, uint seed = 1)
     {
+        ArgumentNullException.ThrowIfNull(steps);
         var peak = CueWave.Peak(volume) / short.MaxValue;
+        var random = new Noise(seed);
+        var strike = StrikeMilliseconds * SampleRate / 1000;
         var samples = new List<double>();
         foreach (var step in steps)
         {
@@ -67,23 +96,51 @@ public static class Synth
             {
                 var edge = Math.Min(i, length - 1 - i);
                 var envelope = edge >= ramp ? 1.0 : Square(Sin(edge / (4.0 * ramp)));
-                samples.Add(step.Hertz <= 0 ? 0 : peak * envelope * Sin(step.Hertz * i / SampleRate));
+                var wave = Wave(timbre, step.Hertz, i);
+                if (struck && i < strike)
+                {
+                    wave += StrikeLevel * (1 - ((double)i / strike)) * random.Next();
+                }
+                samples.Add(step.Hertz <= 0 ? 0 : peak * envelope * wave);
             }
         }
         return [.. samples];
     }
 
-    /// <summary>A tone that loops without a seam: <paramref name="seconds"/> of a whole-number pitch, so every loop
-    /// ends on a whole cycle, with no fade.</summary>
-    public static double[] Loop(int hertz, int seconds, int volume)
+    /// <summary>A tone that loops without a seam: <paramref name="seconds"/> of a whole-number pitch in
+    /// <paramref name="timbre"/>, whose partials are whole-number multiples of it, so every loop ends on a whole cycle,
+    /// with no fade.</summary>
+    public static double[] Loop(int hertz, int seconds, int volume, Timbre timbre = Timbre.Sine)
     {
         var peak = CueWave.Peak(volume) / short.MaxValue;
         var samples = new double[seconds * SampleRate];
         for (var i = 0; i < samples.Length; i++)
         {
-            samples[i] = peak * Sin((double)hertz * i / SampleRate);
+            samples[i] = peak * Wave(timbre, hertz, i);
         }
         return samples;
+    }
+
+    /// <summary>Sample <paramref name="i"/> of a wave at <paramref name="hertz"/> in <paramref name="timbre"/>, from -1
+    /// to 1: a sine, or the sum of its harmonics up to <see cref="CueWave.BroadbandHertz"/>, each at 1/n, scaled by the
+    /// bound of its partial sums so it never peaks above the sine (#839).</summary>
+    public static double Wave(Timbre timbre, double hertz, int i)
+    {
+        if (hertz <= 0)
+        {
+            return 0;
+        }
+        if (timbre == Timbre.Sine)
+        {
+            return Sin(hertz * i / SampleRate);
+        }
+        var step = timbre == Timbre.Hollow ? 2 : 1;
+        var sum = 0.0;
+        for (var n = 1; n * hertz <= CueWave.BroadbandHertz || n == 1; n += step)
+        {
+            sum += Sin(n * hertz * i / SampleRate) / n;
+        }
+        return sum / (timbre == Timbre.Hollow ? SawBound / 2 : SawBound);
     }
 
     /// <summary>One second of short bursts, looping without a seam: each burst <paramref name="burstMilliseconds"/>

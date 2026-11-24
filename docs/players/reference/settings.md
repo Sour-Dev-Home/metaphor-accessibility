@@ -149,6 +149,9 @@ the game.
 | `objectiveGuidance` | O starts the guidance beep toward the current objective's marker on this map, or a waypoint the mod's data gives; G stops it. Says "Objective guidance isn't ready for this area" on a map the game gives no minimap, where the mod can't place the marker. Still being tested. | testing, off |
 | `fieldStrikes` | "Hit" when a strike of yours takes HP from a field enemy near you, and "Defeated" when it takes the last. Still being tested. | testing, off |
 | `cornerAdvice` | The advice Gallica and the party give in the top-left corner as you roam, with the speaker's name, after the line before it. Still being tested. | testing, off |
+| `behindMuffle` | The sonar, route pings, wall tones and guidance beep sound duller and a little quieter when they come from behind the screen's facing, so front and back differ. The angle is in `limits`. Still being tested. | testing, off |
+| `turnPings` | When you turn the camera, the sonar's last ping and a recent route ping play again from their new side, so turning tells you whether a sound is ahead or behind. The angle is in `limits`. Still being tested. | testing, off |
+| `heightPan` | The sonar, route pings and guidance beep sit nearer the centre the farther above or below you their source is. Still being tested. | testing, off |
 
 ## Report
 
@@ -199,6 +202,8 @@ Some features have a limit you can move, inside a `limits` object, then the feat
 | `field.sonarPings` | How many things the field sonar (`sonar`) pings at a time. 1 plays one at a time, cycling through what's nearby, nearest first; more plays the nearest few in a row. 1 to 6, in steps of 1. | `1` |
 | `cues.guidanceVolume` | How loud the guidance beep is, as a share of `soundCueVolume`. 0 to 100, in steps of 5. | `100` |
 | `cues.otherVolume` | How loud the one-shot sounds are (hits and the mark sound), as a share of `soundCueVolume`. 0 to 100, in steps of 5. | `100` |
+| `field.behindMuffleDegrees` | How far round from straight ahead, in degrees either way, a navigation sound must come from to be muffled as behind you (`behindMuffle`). 90 to 170, in steps of 5. | `100` |
+| `field.turnPingDegrees` | How far the camera must turn, in degrees, for the sonar's or a route ping's last sound to play again (`turnPings`). 10 to 90, in steps of 5. | `30` |
 
 ## Keys
 

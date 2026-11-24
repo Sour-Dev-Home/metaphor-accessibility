@@ -32,21 +32,26 @@ public static class NavSoundSet
     /// <summary>Every sound, in name order.</summary>
     public static IReadOnlyList<NavSound> Render()
     {
+        // Each kind broadband up to about 12 kHz (#839, for the ear's front/back and height cues and the behind-muffle,
+        // #903), and each family its own colour besides its pitch and rhythm: the sonar bright, the walls hollow, the
+        // route pings bright and struck.
         var sounds = new List<NavSound>();
         foreach (var kind in Enum.GetValues<SonarKind>())
         {
             var note = new ToneStep(Sonar.Hertz(kind), (int)Sonar.PingMilliseconds);
-            sounds.Add(new(NavSamples.FileName(kind), Synth.Wav(Synth.Notes([note], Sonar.NearVolume), 0)));
+            sounds.Add(new(NavSamples.FileName(kind),
+                Synth.Wav(Synth.Notes([note], Sonar.NearVolume, Timbre.Bright), 0)));
         }
         foreach (var direction in Enum.GetValues<WallDirection>())
         {
-            var loop = Synth.Loop((int)WallTones.Hertz(direction), 1, WallLimits.Default.Volume);
+            var loop = Synth.Loop((int)WallTones.Hertz(direction), 1, WallLimits.Default.Volume, Timbre.Hollow);
             var pan = CameraFrame.Pan(WallTones.Bearing(direction));
             sounds.Add(new(NavSamples.FileName(direction), Synth.Wav(loop, Math.Round(pan, 12))));
         }
         foreach (var kind in Enum.GetValues<RoutePingKind>())
         {
-            var notes = Synth.Notes(RoutePings.Steps(kind), RoutePingLimits.Default.Volume);
+            var notes = Synth.Notes(
+                RoutePings.Steps(kind), RoutePingLimits.Default.Volume, Timbre.Bright, struck: true, Seed + 2);
             sounds.Add(new(NavSamples.FileName(kind), Synth.Wav(notes, 0)));
         }
         // A steady sizzle pitched at 260 Hz, 80 bursts a second, on either side; and irregular bursts, about 35 a

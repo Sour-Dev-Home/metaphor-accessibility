@@ -31,6 +31,24 @@ public sealed class BeaconTests
         Assert.Equal(pan, Beacon.Pan(bearing), 6);
 
     [Fact]
+    public void WithThePlacementOnABeepBehindIsMuffledAndOneAboveSitsNearerTheCentre()
+    {
+        // #903 and #650: one target behind, one to the left and 60° up.
+        var placed = new Beacon(
+            field, cues, announcer, () => now, placement: new CuePlacement(() => true, () => 100, () => true));
+
+        placed.Start(Person(0, -1000));
+        placed.Tick();
+        placed.Start(new BeaconTarget(new FieldUnit(FieldKind.Person, 1000, 1000 * MathF.Sqrt(3), 0, "Testa"), null));
+        placed.Tick();
+
+        Assert.True(cues.Held[0].Muffled);
+        Assert.Equal(Beacon.Volume * CuePlacement.MuffledShare / 100, cues.Held[0].Volume);
+        Assert.False(cues.Held[^1].Muffled);
+        Assert.Equal(-0.5, cues.Held[^1].Pan, 4);
+    }
+
+    [Fact]
     public void PitchIsHighAheadAndLowBehind()
     {
         Assert.Equal(Beacon.AheadHertz, Beacon.Hertz(0), 6);

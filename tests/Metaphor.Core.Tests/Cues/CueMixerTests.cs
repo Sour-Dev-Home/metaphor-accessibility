@@ -286,6 +286,51 @@ public sealed class CueMixerTests
         Assert.InRange(Crossings(Left(output.Buffers[^1])), 15, 25);
     }
 
+    [Fact]
+    public void AMuffledSoundLosesItsHighBandInBothEarsAndGlidesBackOpen()
+    {
+        // #903: a looping 8 kHz sound held behind comes through the muffle at under a fifth, the same in both ears.
+        var device = new FakeWaveDevice();
+        using var mixer = new CueMixer(device, logged.Add);
+        var sample = TestWav.Sample(TestWav.Sine(CueMixer.FramesPerSlot * 4, 8000, 10000));
+        var muffled = new HeldTone(440, 0, 100, sample, Loops: true, Muffled: true);
+
+        mixer.Hold(ToneChannel.WallBehind, muffled, 100, restart: true);
+        mixer.Pump();
+        var output = device.Opened.Single();
+        var open = CueWave.Peak(100) * Math.Sqrt(0.5);
+
+        Assert.InRange(Peak(Left(output.Buffers[2])), open * 0.1, open * 0.2);
+        Assert.All(Left(output.Buffers[2]).Zip(Right(output.Buffers[2])), ears => Assert.InRange(ears.First - ears.Second, -1, 1));
+
+        // Held again unmuffled, it glides open over one buffer and is whole after it.
+        output.Finish(CueMixer.Slots);
+        mixer.Hold(ToneChannel.WallBehind, muffled with { Muffled = false }, 100);
+        mixer.Pump();
+        Assert.InRange(Peak(Left(output.Buffers[^1])), open - 2, open + 2);
+    }
+
+    [Fact]
+    public void ABroadbandHeldToneIsNotAPlainSineAndStaysWithinItsPeak()
+    {
+        var device = new FakeWaveDevice();
+        using var mixer = new CueMixer(device, logged.Add);
+        mixer.Hold(ToneChannel.Sonar, new HeldTone(659, 0, 100, Broadband: true), 100);
+        mixer.Hold(ToneChannel.Route, new HeldTone(659, 0, 100), 100);
+        mixer.Pump();
+
+        var broadband = Left(device.Opened[0].Buffers[1]);
+        var sine = Left(device.Opened[1].Buffers[1]);
+        var open = CueWave.Peak(100) * Math.Sqrt(0.5);
+        Assert.NotEqual(sine, broadband);
+        Assert.All(broadband, s => Assert.InRange(s, -open - 1, open + 1));
+        // A sawtooth crosses zero once a cycle as a sine does, but its steepest step is many times the sine's.
+        Assert.True(MaxStep(broadband) > 4 * MaxStep(sine));
+    }
+
+    private static int MaxStep(short[] samples) =>
+        Enumerable.Range(1, samples.Length - 1).Max(i => Math.Abs(samples[i] - samples[i - 1]));
+
     private static short[] Rendered(Cue cue, double pan) =>
         CueWave.Stereo(CueWave.Samples(CueCatalogue.For(cue), 100), pan);
 

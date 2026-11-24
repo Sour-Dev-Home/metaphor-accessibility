@@ -77,6 +77,49 @@ public sealed class NavSoundFilesTests
         Assert.Equal(0, BinaryPrimitives.ReadInt16LittleEndian(left.AsSpan(frame + 2)));
     }
 
+    [Fact]
+    public void TheKitsSoundsReachTwelveKilohertzEachFamilyInItsOwnColour()
+    {
+        // #839: a pure sine has nothing above its pitch for the ear or the behind-muffle (#903) to work on.
+        var sounds = NavSoundSet.Render().ToDictionary(sound => sound.Name, sound => Left(sound.Wav));
+        var people = sounds["sonar-people.wav"];
+        var wall = sounds["wall-ahead.wav"];
+        var peopleHertz = Sonar.Hertz(SonarKind.People);
+        var wallHertz = WallTones.Hertz(WallDirection.Ahead);
+
+        // The sonar is bright: every harmonic, the 15th (near 10 kHz) at about 1/15.
+        Assert.InRange(Amplitude(people, peopleHertz * 15) / Amplitude(people, peopleHertz), 0.04, 0.1);
+        Assert.InRange(Amplitude(people, peopleHertz * 2) / Amplitude(people, peopleHertz), 0.4, 0.6);
+        // The walls are hollow: odd harmonics only, the 45th (near 11.8 kHz) still there.
+        Assert.InRange(Amplitude(wall, wallHertz * 45) / Amplitude(wall, wallHertz), 0.015, 0.03);
+        Assert.InRange(Amplitude(wall, wallHertz * 2) / Amplitude(wall, wallHertz), 0, 0.005);
+        Assert.All(sounds.Values, samples => Assert.DoesNotContain(samples, s => Math.Abs((int)s) >= short.MaxValue));
+    }
+
+    [Fact]
+    public void ARoutePingIsStruckANoiseBurstAtEachNotesStartOnly()
+    {
+        var steps = RoutePings.Steps(RoutePingKind.Straight);
+        var plain = Synth.Notes(steps, 90, Timbre.Bright);
+        var struck = Synth.Notes(steps, 90, Timbre.Bright, struck: true, seed: 7);
+        var strike = 12 * Synth.SampleRate / 1000;
+        var starts = new List<int>();
+        var at = 0;
+        foreach (var step in steps)
+        {
+            if (step.Hertz > 0)
+            {
+                starts.Add(at);
+            }
+            at += step.Milliseconds * Synth.SampleRate / 1000;
+        }
+
+        var changed = Enumerable.Range(0, plain.Length).Where(i => plain[i] != struck[i]).ToList();
+        Assert.All(changed, i => Assert.Contains(starts, start => i >= start && i < start + strike));
+        Assert.All(starts, start => Assert.Contains(changed, i => i >= start && i < start + strike));
+        Assert.Equal(struck, Synth.Notes(steps, 90, Timbre.Bright, struck: true, seed: 7));
+    }
+
     [Theory]
     [InlineData(0)]
     [InlineData(0.1)]
@@ -87,6 +130,23 @@ public sealed class NavSoundFilesTests
     [InlineData(-2.3)]
     public void TheGeneratorsSineIsTheSine(double turns) =>
         Assert.Equal(Math.Sin(2 * Math.PI * turns), Synth.Sin(turns), 10);
+
+    // A file's left channel.
+    private static short[] Left(byte[] wav) =>
+        [.. Enumerable.Range(0, (wav.Length - 44) / 4).Select(i => BinaryPrimitives.ReadInt16LittleEndian(wav.AsSpan(44 + (i * 4))))];
+
+    // The amplitude of one frequency in the samples, by correlation with its sine and cosine.
+    private static double Amplitude(short[] samples, double hertz)
+    {
+        var (sin, cos) = (0.0, 0.0);
+        for (var i = 0; i < samples.Length; i++)
+        {
+            var angle = 2 * Math.PI * hertz * i / Synth.SampleRate;
+            sin += samples[i] * Math.Sin(angle);
+            cos += samples[i] * Math.Cos(angle);
+        }
+        return 2 * Math.Sqrt((sin * sin) + (cos * cos)) / samples.Length;
+    }
 
     private static string RepositoryRoot()
     {

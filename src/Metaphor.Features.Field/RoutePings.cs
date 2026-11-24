@@ -87,22 +87,34 @@ public sealed class RoutePings
     private IReadOnlyList<ToneStep> steps = [];
     private int step = -1;
     private long stepEndsAt;
-    private double pan;
+    private double bearing;
+    private double elevation;
     private int volume;
     private CueSample? sample;
+    private readonly CuePlacement placement;
+    private readonly Func<int?> turnDegrees;
+    private FieldUnit? lastPlace;
+    private Task<RoutePlan>? lastPlan;
+    private long lastFocusAt;
+    private double lastHeading;
 
     /// <summary>Route pings that read <paramref name="field"/>, play on <paramref name="cues"/>' route channel, keep time
     /// by <paramref name="milliseconds"/>, play only while <paramref name="on"/> says so, read <paramref name="limits"/>
     /// on each ping, plan with <paramref name="routes"/> when given, inside <paramref name="run"/> (the thread pool
     /// unless given), take the floor through <paramref name="floor"/> when there is one, and write each ping to
     /// <paramref name="log"/> when there is one (Debug builds). Each ping plays its kind's sound from
-    /// <paramref name="samples"/> in place of its notes when it gives one (#841).</summary>
+    /// <paramref name="samples"/> in place of its notes when it gives one (#841), placed by <paramref name="placement"/>
+    /// (#903, #650). While <paramref name="turnDegrees"/> gives an angle (#831, testing), a camera turn of that many
+    /// degrees within <see cref="TurnPings.RouteWindowMilliseconds"/> of the step sounds the ping again.</summary>
     public RoutePings(
         IFieldReads field, ICuePlayer cues, Func<long> milliseconds, Func<bool> on, Func<RoutePingLimits> limits,
         IRoutePlanner? routes = null, Func<Func<RoutePlan>, Task<RoutePlan>>? run = null, NavFloor? floor = null,
-        Action<string>? log = null, NavSamples? samples = null)
+        Action<string>? log = null, NavSamples? samples = null, CuePlacement? placement = null,
+        Func<int?>? turnDegrees = null)
     {
         this.samples = samples ?? NavSamples.None;
+        this.placement = placement ?? CuePlacement.Plain;
+        this.turnDegrees = turnDegrees ?? (() => null);
         ArgumentNullException.ThrowIfNull(field);
         ArgumentNullException.ThrowIfNull(cues);
         ArgumentNullException.ThrowIfNull(milliseconds);
@@ -176,6 +188,7 @@ public sealed class RoutePings
                 {
                     place = null;
                     plan = null;
+                    lastPlace = null;
                     Quiet();
                     return;
                 }
@@ -183,8 +196,15 @@ public sealed class RoutePings
                 if (place is { } unit && (plan is null or { IsCompleted: true } || now - focusedAt >= PlanWaitMilliseconds))
                 {
                     place = null;
+                    lastFocusAt = focusedAt;
                     Start(unit, plan, now);
                     plan = null;
+                }
+                else if (steps.Count == 0 && place is null && lastPlace is { } again &&
+                    now - lastFocusAt <= TurnPings.RouteWindowMilliseconds && turnDegrees() is { } degrees &&
+                    field.ReadPose() is { } pose && TurnPings.Turned(lastHeading, CameraFrame.Ahead(pose), degrees))
+                {
+                    Start(again, lastPlan, now);
                 }
                 Play(now);
             }
@@ -234,8 +254,12 @@ public sealed class RoutePings
         steps = sample is null ? Steps(kind) : [new ToneStep(Steps(kind)[0].Hertz, sample.Milliseconds)];
         step = -1;
         stepEndsAt = now;
-        pan = CameraFrame.Pan(CameraFrame.Bearing(pose, aim.X, aim.Z));
+        bearing = CameraFrame.Bearing(pose, aim.X, aim.Z);
+        elevation = CameraFrame.Elevation(pose, aim.X, aim.Y, aim.Z);
         volume = Volume(distance, limits());
+        lastPlace = unit;
+        lastPlan = planned;
+        lastHeading = CameraFrame.Ahead(pose);
         floor?.Hold();
         log?.Invoke(string.Create(CultureInfo.InvariantCulture,
             $"route ping kind={kind} outcome={outcome?.Outcome.ToString() ?? "none"} aim=({aim.X:0.#},{aim.Z:0.#}) distance={distance:0.#}"));
@@ -262,7 +286,8 @@ public sealed class RoutePings
         }
         else
         {
-            cues.Hold(ToneChannel.Route, new HeldTone(note.Hertz, pan, volume, sample));
+            cues.Hold(ToneChannel.Route,
+                placement.Place(new HeldTone(note.Hertz, 0, volume, sample, Broadband: true), bearing, elevation));
         }
     }
 

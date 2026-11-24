@@ -80,6 +80,8 @@ public sealed class Beacon
     private long polledAt;
     private double distance;
     private double bearing;
+    private double elevation;
+    private readonly CuePlacement placement;
     private bool sounding;
     private long pulseEndsAt;
     private long nextPulseAt;
@@ -89,12 +91,15 @@ public sealed class Beacon
     /// player's positions, as numbers, to <paramref name="log"/> on a start and an arrival when there is one (Debug
     /// builds), with each route's outcome and what it read. With <paramref name="routes"/> it guides along routes that
     /// <paramref name="run"/> plans (on the thread pool unless given). <paramref name="pauseOn"/> says whether leaving
-    /// free roam pauses the beep (<see cref="FieldFeature.GuidancePause"/>, on when null) rather than ending it.</summary>
+    /// free roam pauses the beep (<see cref="FieldFeature.GuidancePause"/>, on when null) rather than ending it. Each beep
+    /// is placed by <paramref name="placement"/> (#903, #650), the plain frame when null.</summary>
     public Beacon(
         IFieldReads field, ICuePlayer cues, IAnnouncer announcer, Func<long> milliseconds, Action<string>? log = null,
-        IRoutePlanner? routes = null, Func<Func<RoutePlan>, Task<RoutePlan>>? run = null, Func<bool>? pauseOn = null)
+        IRoutePlanner? routes = null, Func<Func<RoutePlan>, Task<RoutePlan>>? run = null, Func<bool>? pauseOn = null,
+        CuePlacement? placement = null)
     {
         this.pauseOn = pauseOn ?? (() => true);
+        this.placement = placement ?? CuePlacement.Plain;
         this.routes = routes;
         this.run = run ?? Task.Run;
         ArgumentNullException.ThrowIfNull(field);
@@ -252,9 +257,10 @@ public sealed class Beacon
                     distance = far;
                     // The beep's direction is from what is ahead on screen, the camera-relative frame (maintainer, by
                     // ear 2026-11-21 on PR #667); the facing, which the reach test needs, stands in when it isn't read.
-                    bearing = Aim(guided.Unit, pose, now, ref straight) is { } corner
-                        ? CameraFrame.Bearing(pose, corner.X, corner.Z)
-                        : CameraFrame.Bearing(pose, guided.Unit.X, guided.Unit.Z);
+                    var aim = Aim(guided.Unit, pose, now, ref straight) ??
+                        new Vector3(guided.Unit.X, guided.Unit.Y, guided.Unit.Z);
+                    bearing = CameraFrame.Bearing(pose, aim.X, aim.Z);
+                    elevation = CameraFrame.Elevation(pose, aim.X, aim.Y, aim.Z);
                 }
                 if (paused)
                 {
@@ -267,7 +273,8 @@ public sealed class Beacon
                 }
                 if (now >= nextPulseAt)
                 {
-                    cues.Hold(ToneChannel.Guidance, new HeldTone(Hertz(bearing), Pan(bearing), Volume));
+                    // Placed by the shared frame: muffled behind and narrowed by height while those are on (#903, #650).
+                    cues.Hold(ToneChannel.Guidance, placement.Place(new HeldTone(Hertz(bearing), 0, Volume), bearing, elevation));
                     sounding = true;
                     pulseEndsAt = now + PulseMilliseconds;
                     nextPulseAt = now + IntervalMilliseconds(distance);

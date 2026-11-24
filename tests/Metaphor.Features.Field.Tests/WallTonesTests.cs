@@ -258,6 +258,30 @@ public sealed class WallTonesTests
             Assert.Null(cues.Now(WallTones.Channel(direction))!.Value.Sample));
     }
 
+    [Fact]
+    public void WithTheMuffleOnOnlyTheWallBehindIsMuffledAndTurningItOffReachesThePlayer()
+    {
+        // #903: the wall behind is always behind; the muffle setting changing alone is a change the player hears.
+        var muffle = true;
+        var muffled = new WallTones(field, cues, announcer, () => now, () => on, () => Limits, _ => edges,
+            placement: new CuePlacement(() => muffle, () => 100, () => false));
+
+        muffled.Tick();
+        var behind = cues.Now(WallTones.Channel(WallDirection.Behind))!.Value;
+        Assert.True(behind.Muffled);
+        Assert.Equal(WallTones.Volume(250, Limits) * CuePlacement.MuffledShare / 100, behind.Volume);
+        Assert.All(Enum.GetValues<WallDirection>().Where(direction => direction != WallDirection.Behind), direction =>
+            Assert.False(cues.Now(WallTones.Channel(direction))!.Value.Muffled));
+        Assert.All(Enum.GetValues<WallDirection>(), direction =>
+            Assert.True(cues.Now(WallTones.Channel(direction))!.Value.Broadband));
+
+        muffle = false;
+        now += WallTones.ProbeMilliseconds;
+        muffled.Tick();
+        AssertTone(WallDirection.Behind, 250, 0);
+        Assert.False(cues.Now(WallTones.Channel(WallDirection.Behind))!.Value.Muffled);
+    }
+
     private void AssertTone(WallDirection direction, double distance, double pan)
     {
         var tone = cues.Now(WallTones.Channel(direction));

@@ -81,6 +81,10 @@ public sealed class Sonar
     private readonly HashSet<string> cycled = new(StringComparer.Ordinal);
     private readonly Func<int> pings;
     private readonly NavSamples samples;
+    private readonly CuePlacement placement;
+    private readonly Func<int?> turnDegrees;
+    private FieldUnit? last;
+    private double lastHeading;
     private int? heardMap;
     private bool swept;
     private long nextSweepAt;
@@ -93,13 +97,18 @@ public sealed class Sonar
     /// <paramref name="on"/> says so, and writes each thing's first ping to <paramref name="log"/> when there is one
     /// (Debug builds). It holds its sweeps while <paramref name="floor"/> says another sound has the floor, and reads
     /// how many things a sweep pings from <paramref name="pings"/> on each sweep (<see cref="PingsPerSweep"/>'s default
-    /// when not given). Each ping plays its kind's sound from <paramref name="samples"/> when it gives one.</summary>
+    /// when not given). Each ping plays its kind's sound from <paramref name="samples"/> when it gives one, placed by
+    /// <paramref name="placement"/> (#903, #650). While <paramref name="turnDegrees"/> gives an angle (#827, testing),
+    /// a camera turn of that many degrees since the last ping sounds it again from where it now is.</summary>
     public Sonar(
         IFieldReads field, ICuePlayer cues, Func<long> milliseconds, Func<bool> on, Action<string>? log = null,
-        NamesTable? names = null, NavFloor? floor = null, Func<int>? pings = null, NavSamples? samples = null)
+        NamesTable? names = null, NavFloor? floor = null, Func<int>? pings = null, NavSamples? samples = null,
+        CuePlacement? placement = null, Func<int?>? turnDegrees = null)
     {
         this.floor = floor;
         this.samples = samples ?? NavSamples.None;
+        this.placement = placement ?? CuePlacement.Plain;
+        this.turnDegrees = turnDegrees ?? (() => null);
         this.pings = pings ?? (() => PingsPerSweep.Default);
         ArgumentNullException.ThrowIfNull(field);
         ArgumentNullException.ThrowIfNull(cues);
@@ -169,6 +178,11 @@ public sealed class Sonar
                 {
                     Ping(queue.Dequeue(), now);
                 }
+                else if (last is { } again && now >= nextPingAt && turnDegrees() is { } degrees &&
+                    field.ReadPose() is { } pose && TurnPings.Turned(lastHeading, CameraFrame.Ahead(pose), degrees))
+                {
+                    Ping(again, now);
+                }
             }
             catch (Exception)
             {
@@ -194,12 +208,18 @@ public sealed class Sonar
             heardMap = view.MapId;
             heard.Clear();
             cycled.Clear();
+            last = null;
         }
         var things = Nearby.List(view)
             .Where(thing => KindOf(thing.Unit.Says) is not null)
             .Take(MaxPings)
             .Select(thing => thing.Unit)
             .ToList();
+        if (things.Count == 0)
+        {
+            // Nothing in range: nothing to sound again on a turn.
+            last = null;
+        }
         if (count > 1)
         {
             foreach (var unit in things.Take(count))
@@ -247,8 +267,10 @@ public sealed class Sonar
         var dz = unit.Z - pose.Z;
         var distance = Math.Sqrt(dx * dx + dz * dz);
         var sample = samples.For(kind);
-        cues.Hold(ToneChannel.Sonar,
-            new HeldTone(Hertz(kind), CameraFrame.Pan(CameraFrame.Bearing(pose, unit.X, unit.Z)), Volume(distance), sample));
+        cues.Hold(ToneChannel.Sonar, placement.Toward(
+            new HeldTone(Hertz(kind), 0, Volume(distance), sample, Broadband: true), pose, unit.X, unit.Y, unit.Z));
+        last = unit;
+        lastHeading = CameraFrame.Ahead(pose);
         sounding = true;
         pingEndsAt = now + (sample?.Milliseconds ?? PingMilliseconds);
         if (log is not null && heard.Add(Key(unit)))
@@ -263,6 +285,7 @@ public sealed class Sonar
     {
         queue.Clear();
         swept = false;
+        last = null;
         if (sounding)
         {
             sounding = false;

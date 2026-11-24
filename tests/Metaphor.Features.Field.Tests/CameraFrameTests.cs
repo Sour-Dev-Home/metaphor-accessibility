@@ -74,4 +74,29 @@ public sealed class CameraFrameTests
 
         Assert.Equal(new FieldPose(1, 2, 3, 0.5, 1.5, -0.25), view.Pose);
     }
+
+    [Theory]
+    [InlineData(Math.PI / 2, 0, -1)]
+    [InlineData(Math.PI / 2, Math.PI / 3, -0.5)]
+    [InlineData(-Math.PI / 2, -Math.PI / 3, 0.5)]
+    [InlineData(-Math.PI / 2, Math.PI / 2, 0)]
+    [InlineData(Math.PI / 6, Math.PI / 4, -0.35355339)]
+    public void HeightNarrowsThePanByTheCosineOfTheElevation(double bearing, double elevation, double pan)
+    {
+        // #650: pan = -sin(bearing)·cos(elevation); level, it is the plain pan.
+        Assert.Equal(pan, CameraFrame.Pan(bearing, elevation), 6);
+        Assert.Equal(CameraFrame.Pan(bearing), CameraFrame.Pan(bearing, 0), 12);
+    }
+
+    [Theory]
+    [InlineData(300, 600, 400, Math.PI / 4)]
+    [InlineData(300, 100, 400, 0)]
+    [InlineData(0, -400, 0, -Math.PI / 2)]
+    [InlineData(-300, 100 + (500 * 1.7320508075688772), 400, Math.PI / 3)]
+    public void TheElevationIsTheHeightAboveThePlayerAgainstTheGroundDistance(double x, double y, double z, double elevation)
+    {
+        var pose = new FieldPose(0, 100, 0, 0, CameraHeading: 0);
+
+        Assert.Equal(elevation, CameraFrame.Elevation(pose, x, y, z), 6);
+    }
 }
