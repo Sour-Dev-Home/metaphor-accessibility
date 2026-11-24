@@ -71,12 +71,8 @@ public sealed class QuestFocus : IScreenObserver, ISerialResolveObserver, ICurso
         }
         if (change.Screen == List)
         {
-            var line = ListFocus.Position(change);
-            if (on() && rows.SerialAt(change.Index) is { } serial && serials.TextOf(serial, cleaner) is { } name)
-            {
-                line = $"{name}, {line}";
-            }
-            announcer.Announce(new Announcement(line, Interrupt: true));
+            var name = on() && rows.SerialAt(change.Index) is { } serial ? serials.TextOf(serial, cleaner) : null;
+            announcer.Announce(new Announcement(change.Positioned(name), Interrupt: true));
         }
         else if (change.Screen == Detail && change.Change == ScreenChange.Entered)
         {

@@ -136,6 +136,7 @@ public static class SettingsPage
         | `dialogue.readerKey` | Turns the dialogue reader on or off, in dialogue and in menus. | `"T"` |
         | `dialogue.readerButtons` | The same on the pad. | `"LB+RB"` |
         | `menus.detailsKey` | Reads the rest of the focused menu item's details. | `"F"` |
+        | `menus.nameReadBackKey` | With Ctrl held, reads back the name you typed, on the name entry screen. | `"R"` |
         | `menus.detailsButtons` | The same on the pad. | `"RS"` |
         | `battle.statusKey` | In a battle, says each party member's HP and the enemies hit so far. | `"H"` |
         | `battle.statusButtons` | The same on the pad. | `"LS"` |
@@ -195,6 +196,11 @@ public static class SettingsPage
             + "you let go."),
         (ShoulderTapLimits.TapLength,
             "How long, in milliseconds, that tap holds the button down for the game. Raise it if the game misses taps."),
+        (CueVolumes.Sonar,
+            "How loud the field sonar's pings are, as a share of `soundCueVolume` (the master). Wall tones and route "
+            + "pings have their own, `field.wallVolume` and `field.routePingVolume`."),
+        (CueVolumes.Guidance, "How loud the guidance beep is, as a share of `soundCueVolume`."),
+        (CueVolumes.Other, "How loud the one-shot sounds are (hits and the mark sound), as a share of `soundCueVolume`."),
     ];
 
     /// <summary>A slider limit's row: its range and step after its description.</summary>

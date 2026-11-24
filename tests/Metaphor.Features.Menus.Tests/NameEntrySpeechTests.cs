@@ -1,6 +1,7 @@
 using Metaphor.Core.Announcements;
 using Metaphor.Core.Menus;
 using Metaphor.Core.Messages;
+using Metaphor.Core.Settings;
 
 namespace Metaphor.Features.Menus.Tests;
 
@@ -254,14 +255,71 @@ public sealed class NameEntrySpeechTests
     }
 
     [Fact]
-    public void ANonLetterDetailsKeyReadsTheNameBackOnTheKeyboard()
+    public void CtrlRReadsTheNameBackOnTheKeyboardAndIsHiddenFromTheGame()
     {
         var said = new RecordingAnnouncer();
-        var readBack = new NameReadBack(speech.ReadBack, said, () => MenuBindings.Default with { DetailsKey = 0x72 });
+        var readBack = new NameReadBack(speech.ReadBack, said, () => MenuBindings.Default);
         Frame("Ada");
 
-        Assert.Equal([0x41], readBack.Keys([0x41, 0x72]));
+        // Left Ctrl and R together (#585); the letter alone is typing, which only the game sees.
+        Assert.Equal([0xA2], readBack.Keys([0xA2, 0x52]));
         Assert.Equal([new Announcement("Ada", Interrupt: true, Private: true)], said.Said);
+    }
+
+    [Theory]
+    [InlineData(0xA2)]
+    [InlineData(0xA3)]
+    [InlineData(0x11)]
+    public void EitherCtrlWorks(int ctrl)
+    {
+        var said = new RecordingAnnouncer();
+        var readBack = new NameReadBack(speech.ReadBack, said, () => MenuBindings.Default);
+        Frame("Ada");
+
+        Assert.Equal([ctrl], readBack.Keys([ctrl, 0x52]));
+        Assert.Single(said.Said);
+    }
+
+    [Fact]
+    public void RAloneIsTypingAndReadsNothingBack()
+    {
+        var said = new RecordingAnnouncer();
+        var readBack = new NameReadBack(speech.ReadBack, said, () => MenuBindings.Default);
+        Frame("Ada");
+
+        Assert.Equal([0x52], readBack.Keys([0x52]));
+        Assert.Equal([0x46], readBack.Keys([0x46]));
+        Assert.Empty(said.Said);
+    }
+
+    [Fact]
+    public void CtrlRAwayFromTheScreenReachesTheGame()
+    {
+        var said = new RecordingAnnouncer();
+        var readBack = new NameReadBack(speech.ReadBack, said, () => MenuBindings.Default);
+
+        Assert.Equal([0xA2, 0x52], readBack.Keys([0xA2, 0x52]));
+        Assert.Empty(said.Said);
+    }
+
+    [Fact]
+    public void TheReadBackKeyIsReboundInTheFile()
+    {
+        var settings = ModSettings.Parse(
+            """{ "keys": { "menus": { "nameReadBackKey": "N" } } }""", SettingCatalogue.Empty, _ => { });
+
+        Assert.Equal(0x52, MenuBindings.From(ModSettings.Defaults, 0, 0).NameReadBackKey);
+        Assert.Equal(0x4E, MenuBindings.From(settings, 0, 0).NameReadBackKey);
+    }
+
+    [Fact]
+    public void ALastNameIsKeptAfterTheScreenStopsUpdating()
+    {
+        Frame("Ada");
+        now += NameEntrySpeech.OnScreenMilliseconds * 10;
+
+        Assert.Null(speech.ReadBack());
+        Assert.Equal("Ada", speech.LastName());
     }
 
     [Fact]

@@ -156,7 +156,9 @@ public sealed class SettingsFocus : IScreenObserver
             {
                 return null;
             }
-            var item = Join(CategoryText(change.Index), $"{change.Index + 1} of {CategoryCount}");
+            var item = change.SayPositions
+                ? Join(CategoryText(change.Index), $"{change.Index + 1} of {CategoryCount}")
+                : CategoryText(change.Index) ?? $"{change.Index + 1}";
             return change.Change == ScreenChange.Entered ? $"{ListName}, {item}" : item;
         }
         if (change.Screen == KeyConfig)
@@ -200,13 +202,12 @@ public sealed class SettingsFocus : IScreenObserver
     // "<name>, <value>, n of total" (#96), each part left out when it isn't known.
     private string Row(int page, ScreenEvent change)
     {
-        var position = change.Total is { } total ? $"{change.Index + 1} of {total}" : $"{change.Index + 1}";
         var pageRows = PageRows(page, change.Total);
         lock (gate)
         {
             lastValue = Value(pageRows, change);
         }
-        return Join(RowText(pageRows, change.Index), Join(ValueText(pageRows, change.Index, lastValue), position));
+        return change.Positioned(RowText(pageRows, change.Index), ValueText(pageRows, change.Index, lastValue));
     }
 
     // Only the focused row's new value (#96's "on change"), said once it has been still (#735), so always null here; a
@@ -339,10 +340,10 @@ public sealed class SettingsFocus : IScreenObserver
     {
         if (change.Grid is not { } grid)
         {
-            return change.Total is { } total ? $"{change.Index + 1} of {total}" : $"{change.Index + 1}";
+            return change.Position();
         }
         var row = $"row {grid.Row + 1}";
-        if (grid.Page == 0 && change.Total is { } cells)
+        if (change.SayPositions && grid.Page == 0 && change.Total is { } cells)
         {
             row += $" of {(cells + grid.Columns - 1) / grid.Columns}";
         }

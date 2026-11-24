@@ -117,6 +117,17 @@ public sealed class NameEntrySpeech : INameEntryObserver, ILineShownObserver, IK
         }
     }
 
+    /// <summary>The name last typed, as typed, or null when none: what the name confirmation's <c>&lt;V 0&gt;</c> stands
+    /// for (#850). It outlasts the screen, which stops updating once the confirmation opens, until the next visit.
+    /// </summary>
+    public string? LastName()
+    {
+        lock (gate)
+        {
+            return text.Length == 0 ? null : text;
+        }
+    }
+
     /// <summary>What is said for the name read back while the box is empty.</summary>
     public const string EmptyName = "Empty";
 

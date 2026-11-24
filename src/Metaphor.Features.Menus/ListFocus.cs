@@ -20,8 +20,9 @@ internal static class ListFocus
         {
             return null;
         }
-        var position = $"{change.Index + 1} of {count}";
-        var item = label(change.Index) is { } text ? $"{text}, {position}" : position;
+        // The count here is the caller's own, which may differ from the game's (change.Total).
+        var position = change.SayPositions ? $"{change.Index + 1} of {count}" : $"{change.Index + 1}";
+        var item = label(change.Index) is { } text ? change.SayPositions ? $"{text}, {position}" : text : position;
         return new Announcement(
             change.Change == ScreenChange.Entered && !string.IsNullOrEmpty(heading) ? $"{heading}{Joiner(heading)}{item}" : item,
             Interrupt: true);
@@ -32,7 +33,7 @@ internal static class ListFocus
     public static string Position(ScreenEvent change)
     {
         ArgumentNullException.ThrowIfNull(change);
-        return change.Total is { } total ? $"{change.Index + 1} of {total}" : $"{change.Index + 1}";
+        return change.Position();
     }
 
     // A heading that ends a sentence, such as a dialog's question (#569), is followed by a space, not a comma.

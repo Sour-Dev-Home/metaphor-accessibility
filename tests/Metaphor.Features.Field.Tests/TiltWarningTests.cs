@@ -1,4 +1,5 @@
 using Metaphor.Core.Announcements;
+using Metaphor.Core.Input;
 using Metaphor.Core.Settings;
 
 namespace Metaphor.Features.Field.Tests;
@@ -24,6 +25,36 @@ public sealed class TiltWarningTests
         field.Pitch = degrees * Math.PI / 180;
         now += TiltWarning.CheckIntervalMilliseconds;
         warning.Check();
+    }
+
+    // #828, confirmed by ear 2026-11-23 (build 4d936b2): the right stick's press recenters the field camera. The
+    // keyboard's equivalent isn't known, so only the controller's wording is added.
+    [Theory]
+    [InlineData(InputDevice.Controller, "Camera looking down, press right stick to recenter")]
+    [InlineData(InputDevice.Keyboard, "Camera looking down")]
+    public void ACrossingSaysHowToRecenterOnlyForTheController(InputDevice device, string expected)
+    {
+        var pad = new TiltWarning(field, announcer, () => now, () => limits, () => device);
+        field.Pitch = -50 * Math.PI / 180;
+        now += TiltWarning.CheckIntervalMilliseconds;
+
+        pad.Check();
+
+        Assert.Equal([expected], Said());
+    }
+
+    [Fact]
+    public void ReturningToLevelNeverSaysHowToRecenter()
+    {
+        var pad = new TiltWarning(field, announcer, () => now, () => limits, () => InputDevice.Controller);
+        field.Pitch = -50 * Math.PI / 180;
+        now += TiltWarning.CheckIntervalMilliseconds;
+        pad.Check();
+        field.Pitch = 0;
+        now += TiltWarning.CheckIntervalMilliseconds;
+        pad.Check();
+
+        Assert.Equal(["Camera looking down, press right stick to recenter", "Camera level"], Said());
     }
 
     [Fact]

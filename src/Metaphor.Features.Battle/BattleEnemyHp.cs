@@ -132,7 +132,11 @@ public sealed class BattleEnemyHp
         return -1;
     }
 
-    private static string Hp(KnownEnemy enemy) => enemy.HpMax is { } max
+    /// <summary>Whether a line says "of max HP" when the maximum is known (#854); on by default, read at each line.
+    /// </summary>
+    public Func<bool> SayMaxHp { get; init; } = () => true;
+
+    private string Hp(KnownEnemy enemy) => enemy.HpMax is { } max && SayMaxHp()
         ? string.Create(CultureInfo.InvariantCulture, $"{enemy.Label}, {enemy.Hp} of {max}")
         : string.Create(CultureInfo.InvariantCulture, $"{enemy.Label}, {enemy.Hp} left");
 

@@ -48,11 +48,8 @@ public sealed class SystemMenuFocus : IScreenObserver
         {
             return;
         }
-        var line = change.Total is { } total ? $"{change.Index + 1} of {total}" : $"{change.Index + 1}";
-        if (change.Index < RowSerials.Length && serials.TextOf(RowSerials[change.Index], cleaner) is { } name)
-        {
-            line = $"{name}, {line}";
-        }
+        var name = change.Index < RowSerials.Length ? serials.TextOf(RowSerials[change.Index], cleaner) : null;
+        var line = change.Positioned(name);
         var heading = change.Change == ScreenChange.Entered ? $"{Screen.Name}, " : "";
         announcer.Announce(new Announcement(heading + line, Interrupt: true));
     }

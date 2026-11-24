@@ -26,6 +26,7 @@ public sealed class YesNoDialogFocusTests
     private readonly MessageEvents messages = new();
     private readonly CursorEvents cursors = new();
     private readonly MenuScreens screens = new([YesNoDialogFocus.Screen]);
+    private string? typedName;
 
     public YesNoDialogFocusTests()
     {
@@ -33,7 +34,10 @@ public sealed class YesNoDialogFocusTests
         screens.MenusRead(open: true);
         messages.ObserveFiles(library);
         cursors.Observe(screens);
-        var focus = new YesNoDialogFocus(library, announcer, new TextCleaner(TextCleanerRules.None));
+        var focus = new YesNoDialogFocus(library, announcer, new TextCleaner(TextCleanerRules.None))
+        {
+            TypedName = () => typedName,
+        };
         screens.Observe(focus);
         messages.ObserveChoices(focus);
         messages.ObserveSelects(focus);
@@ -126,6 +130,33 @@ public sealed class YesNoDialogFocusTests
                 new Announcement("Aye, 1 of 2", Interrupt: true),
             ],
             announcer.Said);
+    }
+
+    // #850: the confirmation's <V 0> is the name just typed, said in its place and recorded by its length only.
+    [Fact]
+    public void TheNameConfirmationSaysTheTypedNameForItsValueTag()
+    {
+        SystemFileCompiled();
+        typedName = "Ada";
+
+        SelectOpened("System_NameEntry_08");
+        Cursor(Settle, row: 0, top: 1);
+
+        Assert.Equal(
+            [new Announcement("Is the name Ada? Note: Settled *later. Nay, 2 of 2", Interrupt: true, Private: true)],
+            announcer.Said);
+    }
+
+    [Fact]
+    public void WithoutAKnownNameTheTagIsLeftOutAsBefore()
+    {
+        SystemFileCompiled();
+
+        SelectOpened("System_NameEntry_08");
+        Cursor(Settle, row: 0, top: 1);
+
+        Assert.Equal("Is the name? Note: Settled *later. Nay, 2 of 2", announcer.Said[0].Text);
+        Assert.False(announcer.Said[0].Private);
     }
 
     // #569's second case: the difficulty list's confirmation.

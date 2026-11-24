@@ -43,7 +43,6 @@ public sealed class UnknownScreenFocus : IScreenObserver
         {
             return;
         }
-        var position = change.Total is { } total ? $"{change.Index + 1} of {total}" : $"{change.Index + 1}";
-        announcer.Announce(new Announcement(position, Interrupt: true));
+        announcer.Announce(new Announcement(change.Position(), Interrupt: true));
     }
 }

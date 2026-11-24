@@ -153,7 +153,9 @@ public sealed class InputFrame
         var window = ReadState();
         watcher?.Keys(keys);
         lastDevice?.Keys(keys);
-        var typed = typing?.Invoke() == true;
+        // A Ctrl chord isn't typing (#585's Ctrl+R): with Ctrl held the letters reach the controls, and the game gets
+        // only what they hand on.
+        var typed = typing?.Invoke() == true && !keys.Any(IsControl);
         var handed = typed && keys.Any(TypesACharacter)
             ? keys.Where(key => !TypesACharacter(key)).ToList()
             : keys;
@@ -166,6 +168,10 @@ public sealed class InputFrame
 
     /// <summary>Whether a key types a character in a name: the letters, the digits and the brackets, the bindable keys
     /// that do (the settings file's key names, <see cref="Settings.BindingNames"/>, #661). F1 to F12 don't.</summary>
+    // Either Ctrl's virtual-key code: the game's key list holds the left and right ones (0xA2, 0xA3) and skips 0x11
+    // (docs/raw-sources/pad-and-keyboard-state-2026-11-16.md, build 548ddc95).
+    private static bool IsControl(int key) => key is 0x11 or 0xA2 or 0xA3;
+
     private static bool TypesACharacter(int key) =>
         key is (>= 0x30 and <= 0x39) or (>= 0x41 and <= 0x5A) or 0xDB or 0xDD;
 

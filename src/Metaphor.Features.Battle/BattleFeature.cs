@@ -36,9 +36,15 @@ public enum BattleFeature
         "opens Tactics when you let go. Needs `battleHits`.")]
     BattleEnemyPad,
 
-    /// <summary>The in-turn situation banner: a boss warning, a stat change, "Not enough MP!" (#692, #661).</summary>
+    /// <summary>The "of &lt;max HP&gt;" in an enemy's HP line ("840 of 1200") when a hit has shown the maximum (#854).
+    /// Off says the current HP alone, "840 left".</summary>
+    [SettingKey("speech", "battleEnemyMaxHp", "Battle enemy max HP", Order = 1038, Description = "The \"of max HP\" " +
+        "in an enemy's HP line: \"840 of 1200\". Off says only \"840 left\". Needs `battleEnemyKeys`.")]
+    BattleEnemyMaxHp,
+
+    /// <summary>The in-turn situation banner: a boss warning, a stat change (#692, #661).</summary>
     [SettingKey("speech", "battleBanners", "Battle banners", Order = 1070, Description = "The short " +
-        "banner during a battle turn: a boss warning, a stat change, \"Not enough MP!\".")]
+        "banner during a battle turn: a boss warning, a stat change.")]
     BattleBanners,
 
     /// <summary>"Your turn, 4 actions" or "Enemy turn" as each side's turn starts (#252).</summary>

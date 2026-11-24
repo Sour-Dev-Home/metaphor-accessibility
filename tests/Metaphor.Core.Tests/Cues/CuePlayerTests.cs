@@ -84,6 +84,58 @@ public sealed class CuePlayerTests
         Assert.Equal(Expected(Cue.EnemyHit, 30, 0), device.Opened.Single().Frames);
     }
 
+    // #852: one volume per kind of sound under the master; the one-shot cues' is limits.cues.otherVolume.
+    [Fact]
+    public void TheOtherCuesVolumeScalesTheOneShotCuesUnderTheMaster()
+    {
+        var device = new FakeWaveDevice { Instant = true };
+        var settings = ModSettings.Parse(
+            """{ "soundCueVolume": 60, "limits": { "cues": { "otherVolume": 50 } } }""", SettingCatalogue.Empty,
+            logged.Add);
+        using (var player = new CuePlayer(device, () => settings, logged.Add))
+        {
+            player.Play(Cue.EnemyHit);
+        }
+
+        Assert.Equal(Expected(Cue.EnemyHit, 30, 0), device.Opened.Single().Frames);
+    }
+
+    [Fact]
+    public void ASonarVolumeOfZeroSilencesOnlyTheSonar()
+    {
+        var device = new FakeWaveDevice { Instant = true };
+        var settings = ModSettings.Parse(
+            """{ "limits": { "cues": { "sonarVolume": 0 } } }""", SettingCatalogue.Empty, logged.Add);
+        using var player = new CuePlayer(device, () => settings, logged.Add);
+
+        player.Hold(ToneChannel.Sonar, new HeldTone(440, 0, 100));
+        player.Hold(ToneChannel.Guidance, new HeldTone(440, 0, 100));
+
+        Assert.True(device.Writes.Wait(Wait));
+        Assert.Single(device.Opened);
+    }
+
+    [Theory]
+    [InlineData(ToneChannel.Sonar, 70)]
+    [InlineData(ToneChannel.Guidance, 40)]
+    [InlineData(ToneChannel.Wall, 100)]
+    [InlineData(ToneChannel.Route, 100)]
+    public void EachKindsVolumeComesFromItsOwnLimit(ToneChannel channel, int expected)
+    {
+        var settings = ModSettings.Parse(
+            """{ "limits": { "cues": { "sonarVolume": 70, "guidanceVolume": 40, "otherVolume": 10 } } }""",
+            SettingCatalogue.Empty, logged.Add);
+
+        Assert.Equal(expected, CueVolumes.For(channel, settings));
+        Assert.Equal(10, CueVolumes.Other.From(settings));
+    }
+
+    [Fact]
+    public void EveryKindDefaultsToTheMasterVolumeSoNothingChanges() =>
+        Assert.All(
+            [CueVolumes.Sonar, CueVolumes.Guidance, CueVolumes.Other],
+            limit => Assert.Equal(100, limit.From(ModSettings.Defaults)));
+
     [Fact]
     public void VolumeZeroPlaysNothing()
     {

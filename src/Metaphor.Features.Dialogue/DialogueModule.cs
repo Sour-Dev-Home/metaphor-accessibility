@@ -1,5 +1,6 @@
 using Metaphor.Core.Features;
 using Metaphor.Core.Messages;
+using Metaphor.Core.Settings;
 
 namespace Metaphor.Features.Dialogue;
 
@@ -55,7 +56,10 @@ public sealed class DialogueModule : IFeatureModule
         events.ObserveChoices(choices);
         // A choice's count waits for its first option, when the options are on screen (#814).
         var choiceFocus = new ChoiceFocus(
-            library, settings.Speech(DialogueFeature.Dialogue, context.Announcer), cleaner, dialogue.Release);
+            library, settings.Speech(DialogueFeature.Dialogue, context.Announcer), cleaner, dialogue.Release)
+        {
+            SayPositions = () => settings.Current.IsOn(SpokenDetail.Positions),
+        };
         events.ObserveChoices(choiceFocus);
         events.ObserveLines(choiceFocus);
         // A reply choice opened outside the scripts reaches only the select window call (#541).

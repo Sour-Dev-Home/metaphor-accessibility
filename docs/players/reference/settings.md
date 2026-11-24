@@ -54,6 +54,7 @@ Each is `true` to speak or `false` to stay quiet, inside a `speech` object: `{ "
 
 | Setting | What it speaks | Default |
 |---|---|---|
+| `positions` | The "of total" after a list item's number, in lists, menus and choices: "Tonic, 3 of 37". Off says just the name. | `true` |
 | `dialogue` | Dialogue lines and reply choices. Off also leaves the repeat and reader keys to the game in dialogue. | `true` |
 | `menus` | The title menu, the main menu, the quick menu, Settings, the difficulty list, yes or no questions and any other menu. Off also leaves the details key to the game. | `true` |
 | `returnToTitleQuestion` | The question the quick menu's Return to title asks before Yes and No. Needs `menus`. | `true` |
@@ -63,6 +64,7 @@ Each is `true` to speak or `false` to stay quiet, inside a `speech` object: `{ "
 | `battleNumberReset` | Numbers each battle's enemies from "First enemy", not on from the battle before. Needs `battleHits`. Still being tested. | testing, off |
 | `battleEnemyKeys` | In a battle, `K` and `J` step to the next or previous enemy hit and say its HP; `L` says every one's. Needs `battleHits`. | `true` |
 | `battleEnemyPad` | In a battle, `LB` held with D-pad `Down`, `Up` or `Left` does what `K`, `J` and `L` do. `LB` tapped alone opens Tactics when you let go. Needs `battleHits`. Still being tested. | testing, off |
+| `battleEnemyMaxHp` | The "of max HP" in an enemy's HP line: "840 of 1200". Off says only "840 left". Needs `battleEnemyKeys`. | `true` |
 | `battleLists` | Battle's skill and item lists, row by row. Separate from `menus`. | `true` |
 | `battleListViews` | Names the rows of battle's skill and item lists after a wrap to the bottom, not only their positions. Needs `battleLists`. | `true` |
 | `battleOrderMenu` | Battle's Order menu, opened with LB, and its Tactics submenu. | `true` |
@@ -70,7 +72,7 @@ Each is `true` to speak or `false` to stay quiet, inside a `speech` object: `{ "
 | `calendar` | The Calendar's day grid. | `true` |
 | `questList` | Each quest's name on the quest list, and an opened quest's name and description. Needs `menus`. | `true` |
 | `followerList` | Each follower's name and archetype on the Followers list. Needs `menus`. | `true` |
-| `battleBanners` | The short banner during a battle turn: a boss warning, a stat change, "Not enough MP!". | `true` |
+| `battleBanners` | The short banner during a battle turn: a boss warning, a stat change. | `true` |
 | `battleTurnLine` | Says "Your turn" with the actions left, or "Enemy turn", as each side's turn starts in a battle. Still being tested. | testing, off |
 | `battleStart` | Says "Ambushed" when a battle starts with the enemy striking first. | `true` |
 | `battleEnd` | Says "Victory", "Escaped" or "Defeated" as a battle ends. Still being tested. | testing, off |
@@ -157,6 +159,9 @@ Some features have a limit you can move, inside a `limits` object, then the feat
 | `field.routePingVolume` | How loud a route ping is from a place in reach (`routePings`); farther places are quieter. 0 to 100. | `90` |
 | `shoulders.holdDelay` | How long, in milliseconds, `LB` or `RB` held alone waits for a chord before the game gets it as a held button, in the field (`shoulderHold`) and in a battle. A shorter press reaches the game as a tap when you let go. 100 to 1000, in steps of 50. | `300` |
 | `shoulders.tapLength` | How long, in milliseconds, that tap holds the button down for the game. Raise it if the game misses taps. 20 to 200, in steps of 10. | `50` |
+| `cues.sonarVolume` | How loud the field sonar's pings are, as a share of `soundCueVolume` (the master). Wall tones and route pings have their own, `field.wallVolume` and `field.routePingVolume`. 0 to 100, in steps of 5. | `100` |
+| `cues.guidanceVolume` | How loud the guidance beep is, as a share of `soundCueVolume`. 0 to 100, in steps of 5. | `100` |
+| `cues.otherVolume` | How loud the one-shot sounds are (hits and the mark sound), as a share of `soundCueVolume`. 0 to 100, in steps of 5. | `100` |
 
 ## Keys
 
@@ -178,6 +183,7 @@ DpadUp, DpadDown, DpadLeft and DpadRight.
 | `dialogue.readerKey` | Turns the dialogue reader on or off, in dialogue and in menus. | `"T"` |
 | `dialogue.readerButtons` | The same on the pad. | `"LB+RB"` |
 | `menus.detailsKey` | Reads the rest of the focused menu item's details. | `"F"` |
+| `menus.nameReadBackKey` | With Ctrl held, reads back the name you typed, on the name entry screen. | `"R"` |
 | `menus.detailsButtons` | The same on the pad. | `"RS"` |
 | `battle.statusKey` | In a battle, says each party member's HP and the enemies hit so far. | `"H"` |
 | `battle.statusButtons` | The same on the pad. | `"LS"` |

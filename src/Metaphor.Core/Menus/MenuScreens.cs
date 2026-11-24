@@ -33,11 +33,30 @@ public enum ScreenChange
 /// the focus is off the list's items (<see cref="CursorInput.OffList"/>), as on a settings page's OK button, where
 /// <paramref name="Index"/> reads 0. <paramref name="Grid"/> is the focus's cell on a grid cursor
 /// (<see cref="CursorInput.Grid"/>, #563), null on any other. <paramref name="Values"/> is a settings page's values
-/// (<see cref="CursorInput.Values"/>, #96), null on any other screen.</summary>
+/// (<see cref="CursorInput.Values"/>, #96), null on any other screen. <paramref name="SayPositions"/> is whether
+/// the "of total" is spoken after an item (#664); on unless the player turned it off.</summary>
 public sealed record ScreenEvent(
     ScreenChange Change, Screen? Screen, string ScreenClass, int Index, int? Count = null, int? Mode = null,
-    bool OffList = false, GridCursor? Grid = null, SettingValues? Values = null)
+    bool OffList = false, GridCursor? Grid = null, SettingValues? Values = null, bool SayPositions = true)
 {
+    /// <summary>The focus's position as a screen says it: "n of total", or "n" when the game's count can't be read or
+    /// <see cref="SayPositions"/> is off (#664: the "of total" is left out).</summary>
+    public string Position() => SayPositions && Total is { } total ? $"{Index + 1} of {total}" : $"{Index + 1}";
+
+    /// <summary>The <paramref name="names"/> that are known, then the position: "Tonic, 3 of 37". With
+    /// <see cref="SayPositions"/> off the names alone (#664); with none known, the position alone, never silence.
+    /// </summary>
+    public string Positioned(params string?[] names)
+    {
+        ArgumentNullException.ThrowIfNull(names);
+        var said = names.OfType<string>().ToList();
+        if (said.Count == 0 || SayPositions)
+        {
+            said.Add(Position());
+        }
+        return string.Join(", ", said);
+    }
+
     /// <summary>The longest list taken as a count (#289). The longest seen in session 6 had 145 items
     /// (docs/raw-sources/list-count-session6-2026-11-17.md); a larger value is a screen whose field isn't the count, as
     /// far as we know (<c>[NEEDS VERIFICATION]</c>: whether any list is longer).</summary>
@@ -93,11 +112,16 @@ public sealed class MenuScreens : ICursorObserver
     private SettingValues? currentValues;
     private bool menusOpen;
 
-    /// <summary>A module that tags each screen whose class is one of <paramref name="knownScreens"/>' with it.</summary>
-    public MenuScreens(IEnumerable<Screen> knownScreens)
+    private readonly Func<bool> sayPositions;
+
+    /// <summary>A module that tags each screen whose class is one of <paramref name="knownScreens"/>' with it.
+    /// <paramref name="sayPositions"/> says whether each event speaks "of total" (#664), asked at each event; null is
+    /// always.</summary>
+    public MenuScreens(IEnumerable<Screen> knownScreens, Func<bool>? sayPositions = null)
     {
         ArgumentNullException.ThrowIfNull(knownScreens);
         known = knownScreens.ToDictionary(screen => screen.ScreenClass, StringComparer.Ordinal);
+        this.sayPositions = sayPositions ?? (() => true);
     }
 
     /// <summary>Adds an observer of screen changes, after those already added.</summary>
@@ -227,11 +251,11 @@ public sealed class MenuScreens : ICursorObserver
     // The current focus as a change to screenClass; called under the gate.
     private ScreenEvent Current(ScreenChange change, string screenClass) =>
         new(change, known.GetValueOrDefault(screenClass), screenClass, currentIndex, currentCount, currentMode,
-            currentOffList, currentGrid, currentValues);
+            currentOffList, currentGrid, currentValues, sayPositions());
 
     private ScreenEvent Change(ScreenChange change, string screenClass, CursorInput input, SettingValues? values) =>
         new(change, known.GetValueOrDefault(screenClass), screenClass, input.Index, input.Count, input.Mode,
-            input.OffList, input.Grid, values);
+            input.OffList, input.Grid, values, sayPositions());
 
     [SuppressMessage("Design", "CA1031", Justification = "One observer's failure must not keep the change from the others, or reach the game.")]
     private static void TellEach(IScreenObserver[] observers, ScreenEvent change)

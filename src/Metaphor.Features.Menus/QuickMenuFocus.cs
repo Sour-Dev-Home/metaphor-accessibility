@@ -69,7 +69,7 @@ public sealed class QuickMenuFocus : IScreenObserver
         var ours = count is ItemCount or ItemCount + 1 && change.Index < count;
         var said = ours
             ? ListFocus.Of(change, Screen, heading: null, count, index => Name(index, count))
-            : new Announcement(change.Total is { } total ? $"{change.Index + 1} of {total}" : $"{change.Index + 1}", Interrupt: true);
+            : new Announcement(change.Position(), Interrupt: true);
         if (said is not null)
         {
             announcer.Announce(said);

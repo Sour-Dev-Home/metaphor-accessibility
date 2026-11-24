@@ -153,7 +153,10 @@ public sealed class ItemFocus : IScreenObserver, ISerialResolveObserver, ICursor
         var tab = view.Tabbed && tabs.Showing(view.Rows) is { } shown ? serials.TextOf(TabSerials[shown], cleaner!) : null;
         if (view.SameRow)
         {
-            var change = new ScreenEvent(ScreenChange.FocusMoved, List, List.ScreenClass, input.Index, input.Count);
+            var change = new ScreenEvent(ScreenChange.FocusMoved, List, List.ScreenClass, input.Index, input.Count)
+            {
+                SayPositions = SayPositions(),
+            };
             announcer.Announce(new Announcement(RowLine(tab, change), Interrupt: true));
             return;
         }
@@ -167,32 +170,30 @@ public sealed class ItemFocus : IScreenObserver, ISerialResolveObserver, ICursor
     /// says it, since his name isn't a message.</summary>
     public Func<string?>? ProtagonistName { get; init; }
 
+    /// <summary>Whether a row says "of total" (#664), for the events this class makes itself; on by default.</summary>
+    public Func<bool> SayPositions { get; init; } = () => true;
+
     // "<member>, n of total": row 0 is the protagonist, by his typed name, and row n the n-th party member the list last
     // fetched.
     private string TargetLine(ScreenEvent change)
     {
-        var line = ListFocus.Position(change);
         if (change.Index == 0)
         {
-            return ProtagonistName?.Invoke() is { } protagonist ? $"{protagonist}, {line}" : line;
+            return change.Positioned(ProtagonistName?.Invoke());
         }
         int? member;
         lock (gate)
         {
             member = change.Index >= 1 && change.Index <= party.Count ? party[change.Index - 1] : null;
         }
-        return member is { } serial && serials?.TextOf(serial, cleaner!) is { } name ? $"{name}, {line}" : line;
+        return change.Positioned(member is { } serial ? serials?.TextOf(serial, cleaner!) : null);
     }
 
     // "<tab>, <row>, n of total", each name left out when it isn't known.
     private string RowLine(string? tab, ScreenEvent change)
     {
-        var line = ListFocus.Position(change);
-        if (rows.SerialAt(change.Index) is { } serial && serials?.TextOf(serial, cleaner!) is { } name)
-        {
-            line = $"{name}, {line}";
-        }
-        return tab is null ? line : $"{tab}, {line}";
+        var name = rows.SerialAt(change.Index) is { } serial ? serials?.TextOf(serial, cleaner!) : null;
+        return change.Positioned(tab, name);
     }
 
     // The tab a row name says: Exchange for CASH, Key Items for Scenario, Insects and Follower, Information for Info, Use

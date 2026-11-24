@@ -1,4 +1,3 @@
-using System.Globalization;
 using Metaphor.Core.Announcements;
 using Metaphor.Core.Menus;
 using Metaphor.Core.Messages;
@@ -498,10 +497,7 @@ public sealed class BattleListFocus : IScreenObserver, ISerialResolveObserver, I
 
     private Announcement Line(ScreenEvent focus, string? name)
     {
-        var position = focus.Total is { } total
-            ? string.Create(CultureInfo.InvariantCulture, $"{focus.Index + 1} of {total}")
-            : string.Create(CultureInfo.InvariantCulture, $"{focus.Index + 1}");
-        var item = name is not null ? $"{name}, {position}" : position;
+        var item = focus.Positioned(name);
         return new Announcement(focus.Change == ScreenChange.Entered ? $"{Screen.Name}, {item}" : item, Interrupt: true);
     }
 }
