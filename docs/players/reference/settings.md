@@ -56,7 +56,7 @@ Each is `true` to speak or `false` to stay quiet, inside a `speech` object: `{ "
 |---|---|---|
 | `dialogue` | Dialogue lines and reply choices. Off also leaves the repeat and reader keys to the game in dialogue. | `true` |
 | `menus` | The title menu, the main menu, the quick menu, Settings, the difficulty list, yes or no questions and any other menu. Off also leaves the details key to the game. | `true` |
-| `returnToTitleQuestion` | The question the quick menu's Return to title asks before Yes and No. Needs `menus`. Still being tested. | testing, off |
+| `returnToTitleQuestion` | The question the quick menu's Return to title asks before Yes and No. Needs `menus`. | `true` |
 | `skipSceneQuestion` | The question and its two buttons when the Menu button opens the skip menu in a cutscene. Still being tested. | testing, off |
 | `battleHits` | Each battle hit as it lands, the battle status key and the enemy HP keys. Off also leaves those keys to the game. | `true` |
 | `battleOutcomes` | "Knocked out", "defeated" or "revived" after a battle hit's number. Needs `battleHits`. | `true` |
@@ -64,20 +64,20 @@ Each is `true` to speak or `false` to stay quiet, inside a `speech` object: `{ "
 | `battleEnemyKeys` | In a battle, `K` and `J` step to the next or previous enemy hit and say its HP; `L` says every one's. Needs `battleHits`. | `true` |
 | `battleEnemyPad` | In a battle, `LB` held with D-pad `Down`, `Up` or `Left` does what `K`, `J` and `L` do. `LB` tapped alone opens Tactics when you let go. Needs `battleHits`. Still being tested. | testing, off |
 | `battleLists` | Battle's skill and item lists, row by row. Separate from `menus`. | `true` |
-| `battleListViews` | Names the rows of battle's skill and item lists after a wrap to the bottom, not only their positions. Needs `battleLists`. Still being tested. | testing, off |
-| `battleOrderMenu` | Battle's Order menu, opened with LB, and its Tactics submenu. Still being tested. | testing, off |
-| `itemMenu` | The Item screen's rows and its party-member list. Still being tested. | testing, off |
+| `battleListViews` | Names the rows of battle's skill and item lists after a wrap to the bottom, not only their positions. Needs `battleLists`. | `true` |
+| `battleOrderMenu` | Battle's Order menu, opened with LB, and its Tactics submenu. | `true` |
+| `itemMenu` | The Item screen's rows and its party-member list. | `true` |
 | `calendar` | The Calendar's day grid. | `true` |
-| `questList` | Each quest's name on the quest list, and an opened quest's name and description. Needs `menus`. Still being tested. | testing, off |
-| `followerList` | Each follower's name and archetype on the Followers list. Needs `menus`. Still being tested. | testing, off |
-| `battleBanners` | The short banner during a battle turn: a boss warning, a stat change, "Not enough MP!". Still being tested. | testing, off |
+| `questList` | Each quest's name on the quest list, and an opened quest's name and description. Needs `menus`. | `true` |
+| `followerList` | Each follower's name and archetype on the Followers list. Needs `menus`. | `true` |
+| `battleBanners` | The short banner during a battle turn: a boss warning, a stat change, "Not enough MP!". | `true` |
 | `battleTurnLine` | Says "Your turn" with the actions left, or "Enemy turn", as each side's turn starts in a battle. Still being tested. | testing, off |
-| `battleStart` | Says "Ambushed" when a battle starts with the enemy striking first. Still being tested. | testing, off |
+| `battleStart` | Says "Ambushed" when a battle starts with the enemy striking first. | `true` |
 | `battleEnd` | Says "Victory", "Escaped" or "Defeated" as a battle ends. Still being tested. | testing, off |
 | `saveSlots` | The save and load screens' slots. | `true` |
 | `learnedSettingValues` | The System rows whose setting the mod has not pinned saying their value on change, learned as you change them. Needs `menus`. | `true` |
 | `nameEntry` | The name entry screen: its title, each letter you type, and when a name is refused. | `true` |
-| `nameReadBack` | On the name entry screen, the details button (R3) saying the name typed so far. Needs `nameEntry`. Still being tested. | testing, off |
+| `nameReadBack` | On the name entry screen, the details button (R3) saying the name typed so far. Needs `nameEntry`. | `true` |
 | `equipmentMenu` | The Equipment screen's slots and gear. Still being tested. | testing, off |
 | `travelMap` | Each destination on the travel map. | `true` |
 | `systemMenu` | The System menu's rows. | `true` |
@@ -87,9 +87,9 @@ Each is `true` to speak or `false` to stay quiet, inside a `speech` object: `{ "
 | `tutorials` | Tutorial pop-ups: the title, the page count and each page. Off also leaves the repeat key to repeat dialogue, not the pop-up's page. | `true` |
 | `termNames` | The skill and condition names a line's tags stand for. Off says the tag's stand-in. | `true` |
 | `nameStandIn` | A name a line's tag stands for that the mod can't read said as "name", rather than left out. Still being tested. | testing, off |
-| `buttonNames` | A button icon in a line said as the controller button it shows, where known, or as "key" after keyboard input. Needs `termNames`. Still being tested. | testing, off |
+| `buttonNames` | A button icon in a line said as the controller button it shows, where known, or as "key" after keyboard input. Needs `termNames`. | `true` |
 | `choiceCount` | A reply choice saying how many options there are, with each option said as the focus moves, rather than every option up front. Needs `dialogue`. | `true` |
-| `choiceDelay` | A reply choice's options waiting until they are on screen, not said straight after the prompt. Needs `dialogue`. Still being tested. | testing, off |
+| `choiceDelay` | A reply choice's options waiting until they are on screen, not said straight after the prompt. Needs `dialogue`. | `true` |
 | `windowCloseStop` | A closed dialogue window stopping the line still being spoken. Needs `dialogue`. | `true` |
 | `welcome` | The welcome on the title screen the first time the game starts with the mod: the mod's version and the field keys. | `true` |
 
@@ -108,7 +108,7 @@ the game.
 | `reach` | The callout when a door or chest comes into reach: "Door, in reach". | `true` |
 | `stunCallouts` | The callout when a field enemy near you is stunned: "Enemy stunned". | `true` |
 | `shoulderHold` | In the field, LB and RB reach the game when you let go, so LB with RB (the reader) and LB with the D-pad open neither the popularity ranking nor the map. Tapped alone, they still open them. Still being tested. | testing, off |
-| `cameraTilt` | "Camera looking down" or "Camera looking up" when the camera tilts past a limit, "Camera level" when it comes back, and the camera's tilt at the end of "where am I". The limits are in `limits`. Still being tested. | testing, off |
+| `cameraTilt` | "Camera looking down" or "Camera looking up" when the camera tilts past a limit, "Camera level" when it comes back, and the camera's tilt at the end of "where am I". The limits are in `limits`. | `true` |
 | `sonar` | A short sound for each person, object and exit nearby, every two seconds: a sound of its own for each kind, on the side it is on screen, louder when nearer. It waits while the guidance beep guides or a route ping sounds. Still being tested. | testing, off |
 | `wallTones` | A low steady tone for each wall near you, ahead, behind, left and right of the screen, louder as the wall nears. Silent on maps the mod has no walking map for, which it says once. The range and volume are in `limits`. Still being tested. | testing, off |
 | `routePings` | A ping from the direction of each place the nearby list steps to: two high notes when the way is straight, two rising notes from the next corner when the way bends, one low note when there is no path. Its volume is in `limits`. Still being tested. | testing, off |

@@ -330,7 +330,7 @@ public sealed class FieldControlsTests
     [Fact]
     public void WhereAmILeavesOutTheCameraTiltWhileItIsOff()
     {
-        Tilted("{}").Keys([KeyL]);
+        Tilted("""{ "field": { "cameraTilt": false } }""").Keys([KeyL]);
 
         Assert.Equal(["Place not known yet"], Said());
     }

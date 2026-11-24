@@ -51,7 +51,7 @@ public enum FieldFeature
     ShoulderHold,
 
     /// <summary>The camera-tilt warning and the tilt line in "where am I" (#828).</summary>
-    [SettingKey("field", "cameraTilt", "Camera tilt", Testing = true, Order = 2080, Description = "\"Camera looking " +
+    [SettingKey("field", "cameraTilt", "Camera tilt", Order = 2080, Description = "\"Camera looking " +
         "down\" or \"Camera looking up\" when the camera tilts past a limit, \"Camera level\" when it comes back, and " +
         "the camera's tilt at the end of \"where am I\". The limits are in `limits`.")]
     CameraTilt,

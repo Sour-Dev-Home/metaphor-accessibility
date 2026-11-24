@@ -28,7 +28,7 @@ public enum DialogueFeature
 
     /// <summary>Button icons saying the button the screen draws on a controller, and "key" on the keyboard (#109).
     /// Separate from the dialogue while it is tested.</summary>
-    [SettingKey("speech", "buttonNames", "Button names", Testing = true, Order = 1185, Description = "A button " +
+    [SettingKey("speech", "buttonNames", "Button names", Order = 1185, Description = "A button " +
         "icon in a line said as the controller button it shows, where known, or as \"key\" after keyboard input. " +
         "Needs `termNames`.")]
     ButtonNames,
@@ -42,7 +42,7 @@ public enum DialogueFeature
 
     /// <summary>A choice's options held until the select window opens, not said at once after the prompt (#744).
     /// Separate from the dialogue while it is tested.</summary>
-    [SettingKey("speech", "choiceDelay", "Choice delay", Testing = true, Order = 1200, Description = "A reply " +
+    [SettingKey("speech", "choiceDelay", "Choice delay", Order = 1200, Description = "A reply " +
         "choice's options waiting until they are on screen, not said straight after the prompt. Needs `dialogue`.")]
     ChoiceDelay,
 

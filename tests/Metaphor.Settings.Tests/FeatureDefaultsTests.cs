@@ -81,6 +81,25 @@ public sealed class FeatureDefaultsTests
         });
     }
 
+    // Passed by ear in the 2026-11-23 evening session, so they ship on.
+    [Fact]
+    public void AFeatureThatPassedTheThirdByEarCheckIsOnByDefault()
+    {
+        Enum[] passed =
+        [
+            MenusFeature.ReturnToTitleQuestion, DialogueFeature.ChoiceDelay, DialogueFeature.ButtonNames,
+            MenusFeature.NameReadBack, FieldFeature.CameraTilt, MenusFeature.BattleOrderMenu,
+            MenusFeature.BattleListViews, MenusFeature.ItemMenu, MenusFeature.QuestList, MenusFeature.FollowerList,
+            BattleFeature.BattleStart, BattleFeature.BattleBanners,
+        ];
+
+        Assert.All(passed, feature =>
+        {
+            Assert.False(SettingKey.Of(feature).Testing);
+            Assert.True(ModSettings.Defaults.IsOn(feature));
+        });
+    }
+
     [Fact]
     public void AFeatureIsOffInANormalInstallExactlyWhenItsKeyMarksItTesting()
     {
