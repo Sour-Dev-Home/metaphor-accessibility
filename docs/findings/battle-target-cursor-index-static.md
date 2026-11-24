@@ -82,3 +82,16 @@ queries):
    (`0xf69000` long, characteristics `0x40000040`).
 
 Nothing in `.text1`, `.xcode` or `.xtext` was decompiled.
+
+## In memory, 2026-11-24
+
+Same build, Debug mod build `fe67a150`, by-ear session setup. The swap first failed to install: every check above
+matched in memory (locator `0x14248cfa0`, slot 4 `0x140f26ec0`, class `.?AVUUIC_Battle_TargetCursor@ui@app@@`, image
+base `0x140000000`), then `WriteProcessMemory` returned false with error 998 (`ERROR_NOACCESS`). `VirtualQueryEx` gave
+the slot's page `PAGE_READONLY` (`0x2`), image memory. Making the page writable with `VirtualProtect` for the write
+and putting `PAGE_READONLY` back (#253) installs it; the game ran on with no fault.
+
+7. `scripts/dev/session.ps1 inspect base`, `read 0x142250278 0x30`, `read 0x14248cfa0 0x18`, `read 0x142bb9488 0x30`.
+8. `VirtualQueryEx` on `0x1422502a0` from a separate PowerShell process (query access only).
+9. A Debug build that put the swap result and `GetLastPInvokeError` in the install error (not committed), then the fix:
+   the loader log reads `hook BattleTargetCursorHook installed at module offset 0xf26ec0`.
