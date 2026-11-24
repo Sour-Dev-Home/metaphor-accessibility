@@ -71,6 +71,12 @@ still open.
 A Debug build's `field nearby` record for an enemy adds `aiState=<u16 C+0x2e8> aiNext=<u16 C+0x2ec>
 aiPending=<byte C+0x2ee> hp=<u32>` (`src/Metaphor.Core/FieldEnemyState.cs`). It reads only, on the `N` press.
 
+With the testing setting `field.enemyAwareness` on (#649), a Debug build also reads each enemy within the nearby
+list's radius five times a second and logs every change of its state or pending request, with no key pressed:
+`enemy ai n=<enemy> state=<old>-><new> requested=<pending or -> calm=<state before it noticed> noticed=<0|1>
+at=(x,z) distance=<d>`. Its cue takes state 30 (current or requested) as "noticed" and the return to the calm state
+as "gave up"; both are guesses until such a log, beside the screen, settles them. `[NEEDS VERIFICATION]`
+
 A Debug build also reads each nearby enemy's HP ten times a second for the testing setting `fieldStrikes` (#696), which
 says "Hit" on a drop and "Defeated" at 0, and logs `strike hp=<before>-><after> distance=<d> bearing=<b> heightDiff=<h>
 stunned=<bool>` per drop: the player's reach at a hit, for #186's strike-range tick. An enemy let go within a second of

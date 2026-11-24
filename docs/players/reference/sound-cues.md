@@ -17,6 +17,9 @@ sound and what it means.
 | Sonar (testing: `sonar`) | A person, object or exit near you in the field. | One short tone at a time, cycling through what's nearby, nearest first (`field.sonarPings` in `limits` plays the nearest few in a row instead): middle for a person, high for an object, low for an exit, from the side it is on screen and louder when nearer. It waits while the guidance beep guides or a route ping sounds. Placeholder tones until the sounds are chosen. |
 | Wall tones (testing: `wallTones`) | A wall, or the edge of where you can walk, near you in the field. | A low steady tone for each side with a wall within about three steps, louder as it nears: highest ahead, lower left and right, lowest behind. Softer while the guidance beep or a route ping plays. |
 | Route ping (testing: `routePings`) | The way to the place you just stepped to in the nearby list. | One ping from the way to go: two quick high notes when it is straight, two rising notes from the next corner when the way bends, one low note when there is no path. |
+| Sound files (testing: `soundFiles`) | The sonar, wall tones and route pings, played from the mod's own sound files in `data/sounds` instead of plain tones. | For now the files sound like the tones above; they are where new sounds go. A missing or damaged file plays its plain tone. |
+| Enemy noticed (testing: `enemyAwareness`) | A field enemy near you noticed you. The mod also says "Enemy noticed you". | Two quick high notes leaping up, from the enemy's side. |
+| Enemy gave up (testing: `enemyAwareness`) | A field enemy that noticed you gave up the search. | Three lower notes falling, from the enemy's side. |
 | Mark | You pressed the mark key, F8, and the mod wrote a marker to its report log. | Two short high clicks on the same note. |
 
 A simple way to remember them: low and falling is bad news for you, high and rising is good news.

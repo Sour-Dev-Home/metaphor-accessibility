@@ -21,8 +21,8 @@ public enum SonarKind
 /// (<see cref="CameraFrame"/>, #823: the listener at the player, turned by the camera's horizontal angle, pitch ignored)
 /// from where the player stands when it sounds: plain stereo pan, and louder nearer. It plays on its own tone channel
 /// through the mod's cue output, as the guidance beep does; no new native library. The pitches are sine tones made at
-/// run time: the cue player holds only sines, so the generated sound files (#839, <c>tools/Metaphor.NavSounds</c>)
-/// render these same pitches and lengths for listening outside the game, and aren't loaded. It yields to the guidance
+/// run time, or, with <see cref="FieldFeature.SoundFiles"/> on, each kind's generated sound file (#841,
+/// <see cref="NavSamples"/>), which then also sets how long a ping lasts. It yields to the guidance
 /// beep and to a route ping (<see cref="NavFloor"/>). Debug builds log the first time each thing sounds and how far off
 /// it was, for tuning the radius.
 /// <para>The idea of a field sonar comes from Arcana, the Persona 3 Reload accessibility mod
@@ -80,6 +80,7 @@ public sealed class Sonar
     private readonly HashSet<string> heard = new(StringComparer.Ordinal);
     private readonly HashSet<string> cycled = new(StringComparer.Ordinal);
     private readonly Func<int> pings;
+    private readonly NavSamples samples;
     private int? heardMap;
     private bool swept;
     private long nextSweepAt;
@@ -92,12 +93,13 @@ public sealed class Sonar
     /// <paramref name="on"/> says so, and writes each thing's first ping to <paramref name="log"/> when there is one
     /// (Debug builds). It holds its sweeps while <paramref name="floor"/> says another sound has the floor, and reads
     /// how many things a sweep pings from <paramref name="pings"/> on each sweep (<see cref="PingsPerSweep"/>'s default
-    /// when not given).</summary>
+    /// when not given). Each ping plays its kind's sound from <paramref name="samples"/> when it gives one.</summary>
     public Sonar(
         IFieldReads field, ICuePlayer cues, Func<long> milliseconds, Func<bool> on, Action<string>? log = null,
-        NamesTable? names = null, NavFloor? floor = null, Func<int>? pings = null)
+        NamesTable? names = null, NavFloor? floor = null, Func<int>? pings = null, NavSamples? samples = null)
     {
         this.floor = floor;
+        this.samples = samples ?? NavSamples.None;
         this.pings = pings ?? (() => PingsPerSweep.Default);
         ArgumentNullException.ThrowIfNull(field);
         ArgumentNullException.ThrowIfNull(cues);
@@ -244,10 +246,11 @@ public sealed class Sonar
         var dx = unit.X - pose.X;
         var dz = unit.Z - pose.Z;
         var distance = Math.Sqrt(dx * dx + dz * dz);
+        var sample = samples.For(kind);
         cues.Hold(ToneChannel.Sonar,
-            new HeldTone(Hertz(kind), CameraFrame.Pan(CameraFrame.Bearing(pose, unit.X, unit.Z)), Volume(distance)));
+            new HeldTone(Hertz(kind), CameraFrame.Pan(CameraFrame.Bearing(pose, unit.X, unit.Z)), Volume(distance), sample));
         sounding = true;
-        pingEndsAt = now + PingMilliseconds;
+        pingEndsAt = now + (sample?.Milliseconds ?? PingMilliseconds);
         if (log is not null && heard.Add(Key(unit)))
         {
             log(string.Create(CultureInfo.InvariantCulture,

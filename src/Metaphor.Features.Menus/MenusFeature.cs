@@ -36,6 +36,11 @@ public enum MenusFeature
         "`battleLists`.")]
     BattleListViews,
 
+    /// <summary>The battle item list's tab names (#851). Separate from the battle lists while it is tested.</summary>
+    [SettingKey("speech", "battleItemTabs", "Battle item tabs", Testing = true, Order = 1046, Description =
+        "The tab's name when the battle item list opens or you switch tabs with LB or RB. Needs `battleLists`.")]
+    BattleItemTabs,
+
     /// <summary>Battle's Order menu and its Tactics submenu (#771). Separate from the menus while it is tested.</summary>
     [SettingKey("speech", "battleOrderMenu", "Battle order menu", Order = 1047, Description =
         "Battle's Order menu, opened with LB, and its Tactics submenu.")]
@@ -61,6 +66,20 @@ public enum MenusFeature
     [SettingKey("speech", "followerList", "Follower list", Order = 1067, Description = "Each " +
         "follower's name and archetype on the Followers list. Needs `menus`.")]
     FollowerList,
+
+    /// <summary>The Archetype Tree's character pick and each archetype its cursor reaches (#220). Separate from the
+    /// menus while it is tested; off, the pick says positions only.</summary>
+    [SettingKey("speech", "archetypeTree", "Archetype Tree", Testing = true, Order = 1068, Description =
+        "On the Archetype Tree, each character on the pick, then each archetype the cursor reaches, with its line " +
+        "and rank. Needs `menus`.")]
+    ArchetypeTree,
+
+    /// <summary>The level-up point screen's stats (#624). Separate from the menus while it is tested; off, the screen
+    /// says positions only.</summary>
+    [SettingKey("speech", "levelUpPoints", "Level-up points", Testing = true, Order = 1069, Description =
+        "The level-up screen where you spend points: its heading and each stat's name, and the stat's description on " +
+        "the details key. Needs `menus`.")]
+    LevelUpPoints,
 
     /// <summary>The save and load screens' slots (#622). Separate from the menus.</summary>
     [SettingKey("speech", "saveSlots", "Save slots", Order = 1080, Description = "The save and load screens' slots.")]

@@ -221,7 +221,8 @@ internal sealed record HookServices
             TypedNameRead = modLog is null ? null : modLog.Scrubber.AddName,
         };
         // Game terms and icons (#108, #109): a skill or condition named by its place in its file as build 548ddc95
-        // compiles it, anything else said as a stand-in for its kind, logged in Debug builds (#83). The battle banners'
+        // compiles it (and, while "more term names" is tested, an Archetype, enemy or Royal Virtue), anything else said
+        // as a stand-in for its kind, logged in Debug builds (#83). The battle banners'
         // situation file (#692) is kept by the same store: one "file + position" key.
         var filePositions = new MessageFilePositions([.. GameTerms.Steam18330018, BattleBanners.Steam18330018]);
         // The game's own glyph device names the device when it can (#778); the mod's reads are the fallback. Button
@@ -230,7 +231,8 @@ internal sealed record HookServices
         var lastDevice = new LastInputDevice(inputDevice.Value);
         var terms = new GameTerms(
             filePositions, log is null ? null : log.PlaceholderMissing, unknowns,
-            () => settings.Current.IsOn(DialogueFeature.ButtonNames) ? lastDevice.Current : null);
+            () => settings.Current.IsOn(DialogueFeature.ButtonNames) ? lastDevice.Current : null,
+            () => settings.Current.IsOn(DialogueFeature.MoreTermNames));
         Action<string, string>? nameMissing = log is null ? null : log.PlaceholderMissing;
         var cleaner = new TextCleaner(
             GameNames.Rules.With(GameTerms.Rules),

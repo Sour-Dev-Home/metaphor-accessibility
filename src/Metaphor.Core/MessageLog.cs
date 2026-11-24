@@ -167,6 +167,11 @@ public sealed class MessageLog(TextWriter writer, Func<long> millisecondsSinceSt
     public void KeyConfigState(long choice, int at, string bytes) => Write(() => Line(
         $"{millisecondsSinceStart()} ms keyconfig-state choice=0x{choice:x} at=+0x{at:x} bytes={bytes}"));
 
+    /// <summary>A choice's fields from <paramref name="at"/> on, when they changed (<see cref="Menus.OwnerStates"/>):
+    /// its screen class and the bytes as hex. Numbers only, no game text.</summary>
+    public void OwnerState(string screenClass, long choice, int at, string bytes) => Write(() => Line(
+        $"{millisecondsSinceStart()} ms owner-state screen={screenClass} choice=0x{choice:x} at=+0x{at:x} bytes={bytes}"));
+
     /// <summary>A settings page's working copy of its values, when it changed (#560): the page's choice and the bytes
     /// from <see cref="Menus.SettingsPages.WorkingCopyOffset"/> on, as hex. Numbers only, no game text.</summary>
     public void SettingsCopy(long choice, string bytes) => Write(() => Line(

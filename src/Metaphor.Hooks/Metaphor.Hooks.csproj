@@ -51,6 +51,10 @@
     <!-- The objective guidance's map-to-world conversions and hand-written waypoints (#652), read from data/objectives/. -->
     <None Include="../../data/objectives/*.json" Link="data/objectives/%(Filename)%(Extension)"
           CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+    <!-- The generated navigation sounds (#839, #841), our own work from tools/Metaphor.NavSounds, read from
+         data/sounds/ in the mod folder. -->
+    <None Include="../../data/sounds/*.wav" Link="data/sounds/%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest"
+          CopyToPublishDirectory="PreserveNewest" />
     <None Include="../../scripts/player/check-install.ps1;../../scripts/player/install.ps1;../../scripts/player/install.cmd;../../scripts/player/uninstall.cmd;../../scripts/player/MetaphorInstall.psm1;../../scripts/player/install-pins.json"
           Link="%(Filename)%(Extension)" CopyToPublishDirectory="PreserveNewest" />
   </ItemGroup>

@@ -241,16 +241,20 @@ internal sealed class FieldMemory(
             }
             var (name, raw, id) = Identify(kind, unit);
             var stunned = kind == FieldKind.Enemy && EnemyStunned(unit);
-            int? hp = null;
+            int? aiState = null, aiRequested = null, hp = null;
 #if DEBUG
-            // Debug builds only (#696), as the log record below: the strike callouts are tested in by-ear sessions,
-            // which run Debug builds, until a session shows a strike lowers this HP.
+            // Debug builds only (#649, #696), as the log record below: the awareness cue and the strike callouts are
+            // tested in by-ear sessions, which run Debug builds, until a session settles which states are which and
+            // shows a strike lowers this HP.
             if (kind == FieldKind.Enemy)
             {
+                (aiState, aiRequested) = FieldEnemyState.Ai(unit, address => ModuleMemoryReader.ReadPointer((nint)address),
+                    address => ModuleMemoryReader.ReadInt32((nint)address));
                 hp = EnemyHp(unit);
             }
 #endif
-            units.Add(new FieldUnit(kind, at.X, at.Y, at.Z, name, raw, id, Stunned: stunned, Hp: hp));
+            units.Add(new FieldUnit(kind, at.X, at.Y, at.Z, name, raw, id, Stunned: stunned, AiState: aiState,
+                AiRequested: aiRequested, Hp: hp));
         }
     }
 

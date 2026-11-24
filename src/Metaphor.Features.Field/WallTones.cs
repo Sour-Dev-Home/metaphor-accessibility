@@ -94,6 +94,8 @@ public sealed class WallTones
     private readonly Action<string>? log;
     private readonly FreeRoamGate roam;
     private readonly int[] playing = new int[Directions.Length];
+    private readonly CueSample?[] sounds = new CueSample?[Directions.Length];
+    private readonly NavSamples samples;
     private readonly HashSet<int> saidNone = [];
     private int? loggedMap;
     private bool probed;
@@ -105,12 +107,14 @@ public sealed class WallTones
     /// speak through <paramref name="announcer"/>, keep time by <paramref name="milliseconds"/>, play only while
     /// <paramref name="on"/> says so, read <paramref name="limits"/> on each probe, take each map's navmesh from
     /// <paramref name="edges"/>, give way as <paramref name="floor"/> says when there is one, and write each map's
-    /// navmesh outcome to <paramref name="log"/> when there is one (Debug builds).</summary>
+    /// navmesh outcome to <paramref name="log"/> when there is one (Debug builds). Each direction loops its sound from
+    /// <paramref name="samples"/> in place of its tone when it gives one (#841).</summary>
     public WallTones(
         IFieldReads field, ICuePlayer cues, IAnnouncer announcer, Func<long> milliseconds, Func<bool> on,
         Func<WallLimits> limits, Func<int, Task<NavEdges?>> edges, NavFloor? floor = null,
-        Action<string>? log = null)
+        Action<string>? log = null, NavSamples? samples = null)
     {
+        this.samples = samples ?? NavSamples.None;
         ArgumentNullException.ThrowIfNull(field);
         ArgumentNullException.ThrowIfNull(cues);
         ArgumentNullException.ThrowIfNull(announcer);
@@ -273,15 +277,17 @@ public sealed class WallTones
     private void Set(WallDirection direction, int volume)
     {
         var i = (int)direction;
-        if (playing[i] == volume)
+        var sample = volume > 0 ? samples.For(direction) : null;
+        if (playing[i] == volume && sounds[i] == sample)
         {
             return;
         }
         playing[i] = volume;
+        sounds[i] = sample;
         if (volume > 0)
         {
             cues.Hold(Channel(direction),
-                new HeldTone(Hertz(direction), CameraFrame.Pan(Bearing(direction)), volume));
+                new HeldTone(Hertz(direction), CameraFrame.Pan(Bearing(direction)), volume, sample, Loops: true));
         }
         else
         {

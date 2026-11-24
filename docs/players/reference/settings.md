@@ -61,6 +61,7 @@ Each is `true` to speak or `false` to stay quiet, inside a `speech` object: `{ "
 | `skipSceneQuestion` | The question and its two buttons when the Menu button opens the skip menu in a cutscene. Still being tested. | testing, off |
 | `battleHits` | Each battle hit as it lands, the battle status key and the enemy HP keys. Off also leaves those keys to the game. | `true` |
 | `battleOutcomes` | "Knocked out", "defeated" or "revived" after a battle hit's number. Needs `battleHits`. | `true` |
+| `battleTargetSpeech` | As the target cursor moves to an enemy, says it with its HP: "Second enemy, 840 of 1320, 2 of 3". Needs `battleHits` and `battleEnemyList`. Still being tested. | testing, off |
 | `battleHitNumbers` | Each battle hit says only its number, and the hit sound plays from the left for the first enemy or party member through to the right for the last, so an attack on every enemy stays short. Needs `battleHits`. Still being tested. | testing, off |
 | `battleEnemyTarget` | After the target cursor moves to an enemy, `K` or `J` says that enemy first, then steps on from it, and `L` starts from it. Needs `battleEnemyList`. Still being tested. | testing, off |
 | `battleEnemyList` | Numbers a battle's enemies from its start, so the first hit already says "Second enemy", and `K`, `J` and `L` take in every enemy, hit or not. Needs `battleHits`. Still being tested. | testing, off |
@@ -71,11 +72,14 @@ Each is `true` to speak or `false` to stay quiet, inside a `speech` object: `{ "
 | `battleHpMp` | In a battle, `M` says each party member's HP and MP. Needs `battleHits`. Still being tested. | testing, off |
 | `battleLists` | Battle's skill and item lists, row by row. Separate from `menus`. | `true` |
 | `battleListViews` | Names the rows of battle's skill and item lists after a wrap to the bottom, not only their positions. Needs `battleLists`. | `true` |
+| `battleItemTabs` | The tab's name when the battle item list opens or you switch tabs with LB or RB. Needs `battleLists`. Still being tested. | testing, off |
 | `battleOrderMenu` | Battle's Order menu, opened with LB, and its Tactics submenu. | `true` |
 | `itemMenu` | The Item screen's rows and its party-member list. | `true` |
 | `calendar` | The Calendar's day grid. | `true` |
 | `questList` | Each quest's name on the quest list, and an opened quest's name and description. Needs `menus`. | `true` |
 | `followerList` | Each follower's name and archetype on the Followers list. Needs `menus`. | `true` |
+| `archetypeTree` | On the Archetype Tree, each character on the pick, then each archetype the cursor reaches, with its line and rank. Needs `menus`. Still being tested. | testing, off |
+| `levelUpPoints` | The level-up screen where you spend points: its heading and each stat's name, and the stat's description on the details key. Needs `menus`. Still being tested. | testing, off |
 | `battleBanners` | The short banner during a battle turn: a boss warning, a stat change. | `true` |
 | `battleTurnLine` | Says "Your turn" with the actions left, or "Enemy turn", as each side's turn starts in a battle. Still being tested. | testing, off |
 | `battleStart` | Says "Ambushed" when a battle starts with the enemy striking first. | `true` |
@@ -92,6 +96,7 @@ Each is `true` to speak or `false` to stay quiet, inside a `speech` object: `{ "
 | `updateNotice` | The title screen's notice of a newer version. The request itself is `checkForUpdates`. | `true` |
 | `tutorials` | Tutorial pop-ups: the title, the page count and each page. Off also leaves the repeat key to repeat dialogue, not the pop-up's page. | `true` |
 | `termNames` | The skill and condition names a line's tags stand for. Off says the tag's stand-in. | `true` |
+| `moreTermNames` | The Archetype, enemy and Royal Virtue names a line's tags stand for. Off, an Archetype says its stand-in and the others are left out. Needs `termNames`. Still being tested. | testing, off |
 | `nameStandIn` | A name a line's tag stands for that the mod can't read said as "name", rather than left out. Still being tested. | testing, off |
 | `buttonNames` | A button icon in a line said as the controller button it shows, where known, or as "key" after keyboard input. Needs `termNames`. | `true` |
 | `choiceCount` | A reply choice saying how many options there are, with each option said as the focus moves, rather than every option up front. Needs `dialogue`. | `true` |
@@ -120,6 +125,8 @@ the game.
 | `sonar` | A short sound for the people, objects and exits nearby, one at a time, nearest first (`field.sonarPings` for more): a sound of its own for each kind, on the side it is on screen, louder when nearer. It waits while the guidance beep guides or a route ping sounds. Still being tested. | testing, off |
 | `wallTones` | A low steady tone for each wall near you, ahead, behind, left and right of the screen, louder as the wall nears. Silent on maps the mod has no walking map for, which it says once. The range and volume are in `limits`. Still being tested. | testing, off |
 | `routePings` | A ping from the direction of each place the nearby list steps to: two high notes when the way is straight, two rising notes from the next corner when the way bends, one low note when there is no path. Its volume is in `limits`. Still being tested. | testing, off |
+| `soundFiles` | The sonar, wall tones and route pings play the mod's own sound files, in `data/sounds` in the mod folder, instead of plain tones. A missing or damaged file plays its plain tone. Still being tested. | testing, off |
+| `enemyAwareness` | A sharp sound from the enemy's side and "Enemy noticed you" when a field enemy near you notices you, and a softer falling sound when it gives up the search. Each sound has its own key in `sounds`. Still being tested. | testing, off |
 | `objectiveGuidance` | O starts the guidance beep toward the current objective's marker on this map, or a waypoint the mod's data gives; G stops it. Says "Objective guidance isn't ready for this area" where the mod can't place the marker yet, which for now is everywhere. Still being tested. | testing, off |
 | `fieldStrikes` | "Hit" when a strike of yours takes HP from a field enemy near you, and "Defeated" when it takes the last. Still being tested. | testing, off |
 
@@ -148,6 +155,8 @@ from 0 to 100 that is a share of `soundCueVolume`: 50 plays it at half the sound
 | `allyHit` | Someone in your party was hit. | on, volume 100 |
 | `enemyHit` | An enemy was hit. | on, volume 100 |
 | `mark` | The mark key wrote a marker. | on, volume 100 |
+| `enemyNoticed` | A field enemy noticed you, from its side. Needs `field.enemyAwareness`. | on, volume 100 |
+| `enemyGaveUp` | A field enemy gave up the search, from its side. Needs `field.enemyAwareness`. | on, volume 100 |
 
 ## Limits
 

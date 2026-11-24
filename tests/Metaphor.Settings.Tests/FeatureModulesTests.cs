@@ -40,6 +40,8 @@ public sealed class FeatureModulesTests
         Assert.NotNull(context.Find<IPadWatcher>());
         Assert.NotNull(context.Find<IBattleHitObserver>());
         Assert.NotNull(context.Find<BattleBanners>());
+        // The target cursor's one observer passes each report on to the target line (#253).
+        Assert.IsType<TargetLine>(Assert.IsType<TargetedEnemy>(context.Find<IBattleTargetObserver>()).Then);
         Assert.NotNull(context.Find<FieldPlace>());
         Assert.NotNull(context.Find<FieldTablesSource>());
     }
@@ -56,11 +58,12 @@ public sealed class FeatureModulesTests
         // since the enemy HP keys split into the keyboard's and the pad's, each its own testing feature (#767). Nine
         // since the name entry's read-back (#585), gated, before the field. Ten since the battle's HP and MP key (#692),
         // gated, before the enemy HP keys. Twelve since the help key (#868) and the settings menu (#754), gated, right
-        // after the mark key.
-        Assert.Equal(12, controls.Count);
+        // after the mark key. Thirteen since the enemy awareness cues (#649), after the field; they only watch the reads.
+        Assert.Equal(13, controls.Count);
         Assert.IsType<MarkKey>(controls[0]);
-        Assert.IsType<FieldControls>(controls[^1]);
-        Assert.Equal(11, Register(withReport: false).Controls.Count);
+        Assert.IsType<FieldControls>(controls[^2]);
+        Assert.IsType<EnemyAwareness>(controls[^1]);
+        Assert.Equal(12, Register(withReport: false).Controls.Count);
     }
 
     // #754: the settings menu blocks the game's input through the frame, and holds the triggers for its chord only

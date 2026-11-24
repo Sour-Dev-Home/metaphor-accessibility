@@ -49,5 +49,22 @@ public static class FieldEnemyState
             $"aiState={Text(current)} aiNext={Text(next)} aiPending={Text(pending)} hp={Text(hp)}");
     }
 
+    /// <summary>The enemy at <paramref name="enemy"/>'s current AI state index, and the requested one while its pending
+    /// byte is set (#649's awareness cue); each null when unreadable or, for the request, not pending.</summary>
+    public static (int? State, int? Requested) Ai(long enemy, Func<long, long?> readPointer, Func<long, int?> readInt32)
+    {
+        ArgumentNullException.ThrowIfNull(readPointer);
+        ArgumentNullException.ThrowIfNull(readInt32);
+        if (readPointer(enemy + ControllerOffset) is not { } controller || controller == 0)
+        {
+            return (null, null);
+        }
+        var current = readInt32(controller + CurrentStateOffset) & 0xffff;
+        var requested = readInt32(controller + RequestedStateOffset) is { } value && ((value >> 16) & 0xff) != 0
+            ? value & 0xffff
+            : (int?)null;
+        return (current, requested);
+    }
+
     private static string Text(int? value) => value?.ToString(CultureInfo.InvariantCulture) ?? "?";
 }

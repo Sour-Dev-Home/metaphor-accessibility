@@ -185,12 +185,19 @@ public sealed class BattleEnemyHp
 
     // An enemy not yet hit has the HP its record holds, which the hit popup's getter reads for every target
     // (docs/findings/battle-hit-result-hp-left-static.md); for enemies that is [NEEDS VERIFICATION] by ear.
-    private string Hp(ListedEnemy enemy) => (enemy.Hp ?? Units?.Hp(enemy.Target), enemy.HpMax) switch
-    {
-        ({ } hp, { } max) when SayMaxHp() => string.Create(CultureInfo.InvariantCulture, $"{enemy.Label}, {hp} of {max}"),
-        ({ } hp, _) => string.Create(CultureInfo.InvariantCulture, $"{enemy.Label}, {hp} left"),
-        _ => $"{enemy.Label}, not hit yet",
-    };
+    private string Hp(ListedEnemy enemy) => Line(enemy, Units, SayMaxHp());
+
+    /// <summary>An enemy's HP line: "Second enemy, 840 of 1200", "Second enemy, 50 left" without the maximum or with
+    /// <paramref name="sayMax"/> off, or "Second enemy, not hit yet"; <paramref name="units"/> reads the HP of one not
+    /// yet hit.</summary>
+    internal static string Line(ListedEnemy enemy, IBattleUnits? units, bool sayMax) =>
+        (enemy.Hp ?? units?.Hp(enemy.Target), enemy.HpMax) switch
+        {
+            ({ } hp, { } max) when sayMax =>
+                string.Create(CultureInfo.InvariantCulture, $"{enemy.Label}, {hp} of {max}"),
+            ({ } hp, _) => string.Create(CultureInfo.InvariantCulture, $"{enemy.Label}, {hp} left"),
+            _ => $"{enemy.Label}, not hit yet",
+        };
 
     private void Say(string text) => announcer.Announce(new Announcement(text, Interrupt: true));
 }

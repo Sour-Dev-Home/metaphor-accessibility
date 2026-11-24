@@ -220,6 +220,28 @@ public sealed class CuePlayerTests
     }
 
     [Fact]
+    public void ASampleThatDoesntLoopPlaysOnceForEachHold()
+    {
+        var device = new FakeWaveDevice { Instant = true };
+        var player = new CuePlayer(device, () => ModSettings.Defaults, logged.Add);
+        // One buffer's worth, so each play is one write.
+        var sample = TestWav.Sample([.. Enumerable.Repeat((short)1000, CueMixer.FramesPerSlot)]);
+
+        player.Hold(ToneChannel.Sonar, new HeldTone(440, 0, 100, sample));
+        Assert.True(device.Writes.Wait(Wait));
+        // Another channel's tone makes the player go over the sonar's held sound again: it doesn't start over.
+        player.Hold(ToneChannel.Guidance, new HeldTone(440, 0, 100));
+        Assert.True(device.Writes.Wait(Wait));
+        var sonar = device.Opened[0];
+        Assert.Single(sonar.Buffers);
+        player.Hold(ToneChannel.Sonar, new HeldTone(440, 0, 100, sample));
+        Assert.True(SpinWait.SpinUntil(() => sonar.Buffers.Count == 2, Wait));
+        player.Dispose();
+
+        Assert.Equal(2, sonar.Buffers.Count);
+    }
+
+    [Fact]
     public void DisposingFadesOutAHeldToneAndClosesItsChannel()
     {
         var device = new FakeWaveDevice { Instant = true };

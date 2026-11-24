@@ -295,6 +295,7 @@ Describe 'the package' {
         $project | Should -Match ([regex]::Escape('<None Include="prism.json" CopyToPublishDirectory'))
         $project | Should -Match ([regex]::Escape('<None Include="../../data/names/*.json" Link="data/names/%(Filename)%(Extension)"'))
         $project | Should -Match ([regex]::Escape('<None Include="../../data/objectives/*.json" Link="data/objectives/%(Filename)%(Extension)"'))
+        $project | Should -Match ([regex]::Escape('<None Include="../../data/sounds/*.wav" Link="data/sounds/%(Filename)%(Extension)"'))
         $project | Should -Not -Match 'scripts/dev/ReloadedDev\.psm1'
     }
 
