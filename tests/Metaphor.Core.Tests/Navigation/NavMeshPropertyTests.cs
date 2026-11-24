@@ -62,6 +62,8 @@ public sealed class NavMeshPropertyTests
                     Assert.True(graph.IsWalkable(next));
                 }
                 _ = graph.DistanceToEdge(graph.Centre(new NavCell(i, 0, 0)), new(1, 1), 100);
+                _ = graph.DistanceToWall(graph.Centre(new NavCell(i, 0, 0)) - new System.Numerics.Vector3(7, 0, 7),
+                    new(1, 1), 100);
             }
         }));
 

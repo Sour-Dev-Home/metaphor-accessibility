@@ -195,6 +195,33 @@ public sealed class WalkGraphTests
         Assert.Null(TwoTiles.DistanceToEdge(new(15, 0, 15), new(1, 0), -1));
     }
 
+    // The test file's agent radius is 5 (NavBytes.File), cells 10: the walls stand 5 outside the cells, at x -5 and 85.
+    [Theory]
+    [InlineData(15, 1, 0, 70)]
+    [InlineData(15, -1, 0, 20)]
+    [InlineData(-3, 1, 0, 88)]
+    [InlineData(-3, -1, 0, 2)]
+    public void TheWallIsOneRadiusPastTheEdgeEvenFromTheErodedBorder(float x, float hx, float hz, float expected) =>
+        Assert.Equal(expected, TwoTiles.DistanceToWall(new(x, 0, 15), new(hx, hz), 1000)!.Value, 3);
+
+    [Fact]
+    public void InTheErodedBorderTheEdgeAloneFindsNoCellButTheWallStartDoes()
+    {
+        Assert.Null(TwoTiles.DistanceToEdge(new(-3, 0, 15), new(-1, 0), 1000));
+        Assert.Equal(new NavCell(0, 0, 1), TwoTiles.WallStart(new(-3, 0, 15)));
+    }
+
+    [Fact]
+    public void TheWallDistanceKeepsItsLimitsAndNeedsAStartCell()
+    {
+        Assert.Equal(10, TwoTiles.DistanceToWall(new(15, 0, 15), new(1, 0), 10));
+        Assert.InRange(TwoTiles.DistanceToWall(new(-4.9f, 0, 15), new(-1, 0), 1000)!.Value, 0f, 0.2f);
+        Assert.Equal(0, TwoTiles.DistanceToWall(new(-8, 0, 15), new(-1, 0), 1000));
+        Assert.Null(TwoTiles.DistanceToWall(new(-50, 0, 15), new(1, 0), 100));
+        Assert.Null(TwoTiles.DistanceToWall(new(15, 0, 15), Vector2.Zero, 100));
+        Assert.Null(TwoTiles.DistanceToWall(new(15, 0, 15), new(1, 0), -1));
+    }
+
     [Fact]
     public void TheNearestCellIsFoundWhenThePositionIsOnABlockedOne()
     {

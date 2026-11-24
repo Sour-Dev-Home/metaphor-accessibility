@@ -369,7 +369,7 @@ public sealed class FieldControlsTests
         var routeCues = new ChannelCues();
         var routePings = new RoutePings(field, routeCues, () => now, () => true, () => RoutePingLimits.Default);
         var walls = new WallTones(field, routeCues, announcer, () => now, () => true, () => WallLimits.Default,
-            _ => Task.FromResult<EdgeDistance?>((_, _, _) => 10));
+            _ => Task.FromResult<NavEdges?>(new((_, _, _) => 10, _ => null)));
         var withPings = new FieldControls(
             FieldBindings.Default, field, place, announcer, cues, () => now, walls: walls, routePings: routePings);
 

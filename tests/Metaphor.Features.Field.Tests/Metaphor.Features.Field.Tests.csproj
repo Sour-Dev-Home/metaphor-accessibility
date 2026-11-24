@@ -16,6 +16,11 @@
   </ItemGroup>
 
   <ItemGroup>
+    <!-- The core tests' made-up .NAV files, so the wall tones run on a real walk graph (#830). -->
+    <Compile Include="..\Metaphor.Core.Tests\Navigation\NavBytes.cs" Link="NavBytes.cs" />
+  </ItemGroup>
+
+  <ItemGroup>
     <ProjectReference Include="..\..\src\Metaphor.Features.Field\Metaphor.Features.Field.csproj" />
     <!-- The navigation sounds' generator (#839): its tests check data/sounds/ is what it writes. -->
     <ProjectReference Include="..\..\tools\Metaphor.NavSounds\Metaphor.NavSounds.csproj" />

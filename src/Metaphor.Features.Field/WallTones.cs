@@ -40,9 +40,10 @@ public readonly record struct WallLimits(int RangeUnits, int Volume)
 /// on its own tone channel, louder as its wall nears and silent beyond the range. Directions are the shared frame's
 /// (<see cref="CameraFrame"/>, #823: the listener at the player, turned by the camera's horizontal angle, pitch
 /// ignored): plain stereo pan, ahead higher than the sides and the sides higher than behind, since stereo alone can't
-/// tell ahead from behind. The distance is the map's navmesh, <see cref="Core.Navigation.WalkGraph.DistanceToEdge"/>
-/// (docs/findings/field-wall-probe-raycast-static.md): no hook and no game call. Its edges also mark ledges and drops,
-/// sit about one agent radius inside the wall, and miss doors and people. Where the map has no navmesh the tones are
+/// tell ahead from behind. The distance is the map's navmesh, <see cref="Core.Navigation.WalkGraph.DistanceToWall"/>
+/// (docs/findings/field-wall-probe-raycast-static.md): no hook and no game call. It starts from the nearest cell, since
+/// the player stands in the eroded border along a wall, and adds the agent radius the cells are shrunk by (#830). Its
+/// edges also mark ledges and drops, and miss doors and people. Where the map has no navmesh the tones are
 /// silent, said once per map and written to the Debug log.
 /// <para>The idea of wall tones comes from Arcana, the Persona 3 Reload accessibility mod
 /// (https://github.com/ChipsAhoiMcCoy/arcana, ChipsAhoiMcCoy, Zlib); idea only, no code copied (CREDITS.md).</para>
@@ -54,6 +55,9 @@ public sealed class WallTones
 {
     /// <summary>The least time between two probes: ten a second.</summary>
     public const long ProbeMilliseconds = 100;
+
+    /// <summary>The least time between two probe lines in the Debug log: one a second.</summary>
+    public const long LogProbeMilliseconds = 1000;
 
     /// <summary>How long free roam must have held before the tones play again, as the sonar.</summary>
     public const long FreeRoamSettleMilliseconds = 1000;
@@ -70,7 +74,7 @@ public sealed class WallTones
     private readonly Func<long> milliseconds;
     private readonly Func<bool> on;
     private readonly Func<WallLimits> limits;
-    private readonly Func<int, Task<EdgeDistance?>> edges;
+    private readonly Func<int, Task<NavEdges?>> edges;
     private readonly NavFloor? floor;
     private readonly Action<string>? log;
     private readonly FreeRoamGate roam;
@@ -79,6 +83,8 @@ public sealed class WallTones
     private int? loggedMap;
     private bool probed;
     private long probedAt;
+    private bool probeLogged;
+    private long probeLoggedAt;
 
     /// <summary>Wall tones that read <paramref name="field"/>, play on <paramref name="cues"/>' four wall channels,
     /// speak through <paramref name="announcer"/>, keep time by <paramref name="milliseconds"/>, play only while
@@ -87,7 +93,7 @@ public sealed class WallTones
     /// navmesh outcome to <paramref name="log"/> when there is one (Debug builds).</summary>
     public WallTones(
         IFieldReads field, ICuePlayer cues, IAnnouncer announcer, Func<long> milliseconds, Func<bool> on,
-        Func<WallLimits> limits, Func<int, Task<EdgeDistance?>> edges, NavFloor? floor = null,
+        Func<WallLimits> limits, Func<int, Task<NavEdges?>> edges, NavFloor? floor = null,
         Action<string>? log = null)
     {
         ArgumentNullException.ThrowIfNull(field);
@@ -200,7 +206,7 @@ public sealed class WallTones
             Quiet();
             return null;
         }
-        if (found is not { IsCompletedSuccessfully: true, Result: { } distance })
+        if (found is not { IsCompletedSuccessfully: true, Result: { } walls })
         {
             Quiet();
             Log(map, "none");
@@ -216,14 +222,36 @@ public sealed class WallTones
         var share = floor?.WallPercent() ?? 100;
         var ahead = CameraFrame.Ahead(pose);
         var position = new Vector3(pose.X, pose.Y, pose.Z);
+        var distances = new float?[Directions.Length];
         foreach (var direction in Directions)
         {
             var heading = ahead + Bearing(direction);
-            var edge = distance(position, new Vector2((float)Math.Sin(heading), (float)Math.Cos(heading)),
+            var edge = walls.Distance(position, new Vector2((float)Math.Sin(heading), (float)Math.Cos(heading)),
                 limit.RangeUnits);
+            distances[(int)direction] = edge;
             Set(direction, edge is { } far ? Volume(far, limit) * share / 100 : 0);
         }
+        LogProbe(map, walls, position, distances);
         return null;
+    }
+
+    // Writes what a probe found, at most once per LogProbeMilliseconds (#830): the map, the start cell and the four
+    // distances, ahead, behind, left, right, "-" for none.
+    private void LogProbe(int map, NavEdges walls, Vector3 position, float?[] distances)
+    {
+        var now = milliseconds();
+        if (log is null || (probeLogged && now - probeLoggedAt < LogProbeMilliseconds))
+        {
+            return;
+        }
+        probeLogged = true;
+        probeLoggedAt = now;
+        var start = walls.Start(position) is { } cell
+            ? string.Create(CultureInfo.InvariantCulture, $"{cell.Tile}/{cell.X},{cell.Y}")
+            : "none";
+        var each = string.Join(' ', distances.Select(d => d is { } v ? v.ToString("0", CultureInfo.InvariantCulture) : "-"));
+        log(string.Create(CultureInfo.InvariantCulture,
+            $"wall probe map={map} at={position.X:0},{position.Y:0},{position.Z:0} start={start} ahead/behind/left/right={each}"));
     }
 
     // Holds a direction's tone at a volume, or silences it at 0; only a change reaches the cue player.

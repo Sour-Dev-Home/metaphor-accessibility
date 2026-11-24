@@ -141,6 +141,25 @@ public sealed class CursorEvents
         }
     }
 
+    /// <summary>Whether a cursor of any class <paramref name="screenClass"/> matches was called less than
+    /// <see cref="QuietMilliseconds"/> ago, as <see cref="CalledRecently"/>.</summary>
+    public bool AnyCalledRecently(Func<string, bool> screenClass)
+    {
+        ArgumentNullException.ThrowIfNull(screenClass);
+        var now = millisecondsNow();
+        lock (gate)
+        {
+            foreach (var (name, calledAt) in lastByClass)
+            {
+                if (now - calledAt < QuietMilliseconds && screenClass(name))
+                {
+                    return true;
+                }
+            }
+            return false;
+        }
+    }
+
     [SuppressMessage("Design", "CA1031", Justification = "One observer's failure must not keep the input from the others, or reach the game.")]
     private static void TellEach(ICursorObserver[] observers, CursorInput input)
     {

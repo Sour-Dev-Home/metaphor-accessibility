@@ -280,6 +280,49 @@ public sealed class WalkGraph
         return limit;
     }
 
+    /// <summary>The cell <see cref="DistanceToWall"/> starts from: the one under <paramref name="position"/>, or failing
+    /// that the nearest within the agent's radius and a cell more (<see cref="NavMeshFile.WalkableRadius"/>, or
+    /// <see cref="NavRoutePlanner.StartRadiusCells"/> when the file gives none), or null. The player stands in the eroded border
+    /// along every wall, where <see cref="CellAt"/> finds nothing (#830).</summary>
+    public NavCell? WallStart(Vector3 position) => NearestCell(position, MaxVertical(), WallStartRadiusCells());
+
+    /// <summary>How far, in world units, from <paramref name="position"/> along <paramref name="heading"/> (x, z) the
+    /// wall is: <see cref="DistanceToEdge"/> from <see cref="WallStart"/>'s cell, plus the agent's radius that the
+    /// cells are shrunk by, less how far the position stands past that cell's centre along the heading. At most
+    /// <paramref name="maxDistance"/> and never below 0; null when there is no start cell or the heading is zero. That
+    /// the wall is one radius past the edge is Recast's erosion, not measured in game [NEEDS VERIFICATION: by ear].
+    /// </summary>
+    public float? DistanceToWall(Vector3 position, Vector2 heading, float maxDistance)
+    {
+        var length = heading.Length();
+        if (!float.IsFinite(length) || length < 1e-6f || !float.IsFinite(maxDistance) || maxDistance < 0)
+        {
+            return null;
+        }
+        if (CellAt(position, MaxVertical()) is not null)
+        {
+            return DistanceToEdge(position, heading, maxDistance) is { } edge
+                ? Math.Min(edge + Radius(), Math.Min(maxDistance, MaxEdgeDistance))
+                : null;
+        }
+        if (WallStart(position) is not { } start)
+        {
+            return null;
+        }
+        var centre = Centre(start);
+        var past = Vector2.Dot(new(position.X - centre.X, position.Z - centre.Z), heading / length);
+        var limit = Math.Min(maxDistance, MaxEdgeDistance);
+        return DistanceToEdge(centre, heading, limit + Math.Max(past, 0)) is { } far
+            ? Math.Clamp(far + Radius() - past, 0, limit)
+            : null;
+    }
+
+    private float Radius() => float.IsFinite(file.WalkableRadius) && file.WalkableRadius > 0 ? file.WalkableRadius : 0;
+
+    private int WallStartRadiusCells() => Radius() > 0 && file.CellSize > 0
+        ? (int)Math.Min(Math.Ceiling((double)Radius() / file.CellSize) + 1, 32)
+        : NavRoutePlanner.StartRadiusCells;
+
     private (Reachability Outcome, Dictionary<NavCell, NavCell> Parents) Search(NavCell from, NavCell to, int maxVisited)
     {
         var parents = new Dictionary<NavCell, NavCell>();

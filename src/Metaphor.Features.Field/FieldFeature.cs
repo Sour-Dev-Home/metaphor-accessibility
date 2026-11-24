@@ -57,9 +57,10 @@ public enum FieldFeature
     CameraTilt,
 
     /// <summary>The sonar's pings for nearby people, objects and exits (#827).</summary>
-    [SettingKey("field", "sonar", "Sonar", Testing = true, Order = 2090, Description = "A short sound for each " +
-        "person, object and exit nearby, every two seconds: a sound of its own for each kind, on the side it is on " +
-        "screen, louder when nearer. It waits while the guidance beep guides or a route ping sounds.")]
+    [SettingKey("field", "sonar", "Sonar", Testing = true, Order = 2090, Description = "A short sound for the " +
+        "people, objects and exits nearby, one at a time, nearest first (`field.sonarPings` for more): a sound of its " +
+        "own for each kind, on the side it is on screen, louder when nearer. It waits while the guidance beep guides " +
+        "or a route ping sounds.")]
     Sonar,
 
     /// <summary>The wall tones ahead, behind, left and right of the camera (#830).</summary>

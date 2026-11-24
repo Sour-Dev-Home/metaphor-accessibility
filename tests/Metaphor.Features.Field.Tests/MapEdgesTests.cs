@@ -9,7 +9,7 @@ public sealed class MapEdgesTests
 {
     private readonly List<int> named = [];
     private readonly List<(int A, int B)> loaded = [];
-    private readonly List<Func<Task<EdgeDistance?>>> queued = [];
+    private readonly List<Func<Task<NavEdges?>>> queued = [];
 
     [Fact]
     public void NothingIsReadUntilTheRunnerRunsIt()
@@ -59,7 +59,7 @@ public sealed class MapEdgesTests
 
     private MapEdges Make((int A, int B)? file) => new(
         id => { named.Add(id); return file; }, Load,
-        work => { queued.Add(work); return new TaskCompletionSource<EdgeDistance?>().Task; });
+        work => { queued.Add(work); return new TaskCompletionSource<NavEdges?>().Task; });
 
     private Task<WalkGraph?>? Load(int a, int b)
     {

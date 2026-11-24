@@ -1,26 +1,28 @@
 using Metaphor.Core.Announcements;
 using Metaphor.Core.Input;
-using Metaphor.Core.Menus;
 using Metaphor.Core.Settings;
 
 namespace Metaphor.Features.Menus;
 
 /// <summary>The "Skip?" menu the Menu button opens in a 2D cutscene (#809): it has no cursor and fetches no message the
-/// mod sees, so its layout's open animation is what tells it is up, and it says the question and its two buttons for
-/// the device the game draws glyphs for (#778).</summary>
-/// <remarks>On build 548ddc95 (Steam 18330018; by-ear session 2026-11-23, mod 0c122d3, F8 mark 19): the menu opened with
-/// the <c>ui-anim</c> record <c>class=MoviePauseLayout@ui@app anim=4768</c>, then cue 4; confirm played cue 2107 and
-/// skipped the scene. The words are the mod's own: which message, if any, the layout draws is
-/// <c>[NEEDS VERIFICATION]</c>. Confirm is A on a pad or Space on the keyboard, as on the game-over screen (#623);
-/// B and Escape for back are <c>[NEEDS VERIFICATION]</c> by ear.</remarks>
+/// mod sees, so <see cref="Opened"/> says the question and its two buttons for the device the game draws glyphs for
+/// (#778) once something tells it the menu is up. Nothing does yet: its layout's one animation is the close, and the
+/// open shows none, so the question is no longer said as the player leaves.</summary>
+/// <remarks>On build 548ddc95 (Steam 18330018; by-ear session 2026-11-23 evening, mod 4d936b2): every
+/// <c>ui-anim class=MoviePauseLayout@ui@app anim=4768</c> landed on the same millisecond as a back press (pad B, or
+/// Escape), and each open was a Start press then cue 4 with no <c>ui-anim</c>. Cue 4 is the game's shared menu sound
+/// (62 calls from one caller that session), and the cue hook is development-only, so neither is an open signal a
+/// Release build has. The words are the mod's own: which message, if any, the layout draws is
+/// <c>[NEEDS VERIFICATION]</c>. Confirm is A on a pad or Space on the keyboard, as on the game-over screen (#623); B,
+/// Escape and C all go back (heard 2026-11-23).</remarks>
 [FeatureSetting<MenusFeature>(MenusFeature.SkipSceneQuestion)]
-public sealed class SkipSceneQuestion : ILayoutAnimationObserver
+public sealed class SkipSceneQuestion
 {
     /// <summary>The skip menu's layout class.</summary>
     public const string Layout = "MoviePauseLayout@ui@app";
 
-    /// <summary>The animation the layout starts as the menu opens.</summary>
-    public const int OpenAnimation = 4768;
+    /// <summary>The animation the layout starts as the menu closes, not as it opens.</summary>
+    public const int CloseAnimation = 4768;
 
     private readonly IAnnouncer announcer;
     private readonly LastInputDevice device;
@@ -35,17 +37,9 @@ public sealed class SkipSceneQuestion : ILayoutAnimationObserver
         this.device = device;
     }
 
-    /// <inheritdoc/>
-    public IReadOnlyCollection<string> Layouts { get; } = [Layout];
-
-    /// <summary>Says the question when the menu opens; the layout's other animations say nothing.</summary>
-    public void Played(LayoutAnimation played)
+    /// <summary>Says the question, for when the menu opens.</summary>
+    public void Opened()
     {
-        ArgumentNullException.ThrowIfNull(played);
-        if (played.Layout != Layout || played.Animation != OpenAnimation)
-        {
-            return;
-        }
         var (confirm, back) = device.Current == InputDevice.Keyboard ? ("Space", "Escape") : ("A", "B");
         announcer.Announce(new Announcement($"Skip scene? {confirm} to skip, {back} to keep watching.", Interrupt: true));
     }
