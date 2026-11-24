@@ -112,6 +112,11 @@ public enum BattleFeature
         "row.")]
     BattleFormation,
 
+    /// <summary>The skill a move banner shows, by name (#954), from the game's skill tables.</summary>
+    [SettingKey("speech", "battleMoveNames", "Battle move names", Testing = true, Order = 1073, Description = "Says " +
+        "the skill a battle's move banner shows as it is used, such as an enemy's spell, before its hits.")]
+    BattleMoveNames,
+
     /// <summary>The in-turn situation banner: a boss warning, a stat change (#692, #661).</summary>
     [SettingKey("speech", "battleBanners", "Battle banners", Order = 1070, Description = "The short " +
         "banner during a battle turn: a boss warning, a stat change.")]

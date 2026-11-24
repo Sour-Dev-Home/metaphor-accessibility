@@ -93,6 +93,7 @@ Each is `true` to speak or `false` to stay quiet, inside a `speech` object: `{ "
 | `battleBanners` | The short banner during a battle turn: a boss warning, a stat change. | `true` |
 | `battleBannerNames` | Says who a battle banner is about: "Bow Scourge Malmorta cannot move due to Stun!". Off leaves the name out. Needs `battleBanners`. | `true` |
 | `battleTurnLine` | Says "Your turn" with the actions left, or "Enemy turn", as each side's turn starts in a battle. Still being tested. | testing, off |
+| `battleMoveNames` | Says the skill a battle's move banner shows as it is used, such as an enemy's spell, before its hits. Still being tested. | testing, off |
 | `battleStart` | Says "Ambushed" when a battle starts with the enemy striking first. | `true` |
 | `battleEnd` | Says "Victory", "Escaped" or "Defeated" as a battle ends. Still being tested. | testing, off |
 | `battleRewards` | After a won battle, says the money and MAG it gained: "Gained 240 money and 30 MAG". Still being tested. | testing, off |
