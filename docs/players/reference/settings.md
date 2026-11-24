@@ -111,6 +111,8 @@ Each is `true` to speak or `false` to stay quiet, inside a `speech` object: `{ "
 | `autosaveNotice` | "Autosaving" when the game autosaves in the field, after the dialogue or line before it. | `true` |
 | `updateNotice` | The title screen's notice of a newer version. The request itself is `checkForUpdates`. | `true` |
 | `tutorials` | Tutorial pop-ups: the title, the page count and each page. Off also leaves the repeat key to repeat dialogue, not the pop-up's page. | `true` |
+| `tutorialList` | Each tutorial's title on the System menu's Tutorials list. Needs `menus`. Still being tested. | testing, off |
+| `tutorialKeyHint` | After a tutorial pop-up's last page, how to hear the mod's keys for where you are, since a tutorial may ask for a button the mod changes. Needs `tutorials` and `keyHelp`. Still being tested. | testing, off |
 | `termNames` | The skill and condition names a line's tags stand for. Off says the tag's stand-in. | `true` |
 | `moreTermNames` | The Archetype, enemy and Royal Virtue names a line's tags stand for. Off, an Archetype says its stand-in and the others are left out. Needs `termNames`. Still being tested. | testing, off |
 | `nameStandIn` | A name a line's tag stands for that the mod can't read said as "name", rather than left out. Still being tested. | testing, off |

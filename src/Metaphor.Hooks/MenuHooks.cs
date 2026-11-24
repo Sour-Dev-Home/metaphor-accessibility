@@ -43,7 +43,8 @@ internal sealed class MenusOpenRead : IReadsGlobal
 /// Each input carries its screen class from <see cref="ScreenClassLookup"/> (#208), its list's item count (#289) and its
 /// owner's mode for a choice that serves two lists (#210), each null when unreadable, and on the grid cursor class its
 /// cell (#563), whose index is that class's own getter's, on Key Configuration whether its OK button has the focus
-/// (#589), and on a settings page its values (#96).</summary>
+/// (#589), on a settings page its values (#96), and on the System tutorial list the focused row's tutorial number
+/// (#806).</summary>
 [GameHook(GameBuilds.Steam18330018)]
 internal sealed class MenuCursorHook : IGameHook, IObserves4WithResult
 {
@@ -108,7 +109,8 @@ internal sealed class MenuCursorHook : IGameHook, IObserves4WithResult
             screenClass, ModuleMemoryReader.ReadInt32(manager + CountOffset), screenClasses.ModeOf(manager, screenClass),
             grid ? ReadGrid(manager) : null,
             grid && screenClass == SettingsPages.KeyConfigClass ? KeyConfigOnButton(manager) : null,
-            copy is { } read ? SettingValues.Of(read.Bytes) : null));
+            copy is { } read ? SettingValues.Of(read.Bytes) : null,
+            screenClass == TutorialList.ScreenClass && !grid ? ReadTutorialNumber(manager, top + row) : null));
         LogSettingsCopy(copy);
         LogKeyConfigState(manager, screenClass);
         LogOwnerStates(manager, screenClass);
@@ -136,6 +138,16 @@ internal sealed class MenuCursorHook : IGameHook, IObserves4WithResult
             }
         }
     }
+
+    // The System tutorial list's focused row's tutorial number (#806): the owner's row count, then that row's number
+    // only when the count holds the row (TutorialList). Two bounded 32-bit reads through ModuleMemoryReader, which fails
+    // instead of faulting; null when the owner is unknown or a read fails.
+    private int? ReadTutorialNumber(nint manager, int row) =>
+        screenClasses.Owners.OwnerOf(manager) is { } owner
+            && TutorialList.NumberOffset(row, ModuleMemoryReader.ReadInt32((nint)(owner + TutorialList.CountOffset)))
+                is { } offset
+            ? ModuleMemoryReader.ReadInt32((nint)(owner + offset))
+            : null;
 
     // A settings page's working copy (#560), read so the page's rows can say their values (#96): only on one of the four
     // pages' classes, null on any other, when the owner is unknown or the read fails. One bounded read through
