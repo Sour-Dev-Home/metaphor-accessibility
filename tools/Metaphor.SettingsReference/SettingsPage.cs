@@ -142,7 +142,7 @@ public static class SettingsPage
         | `menus.nameReadBackKey` | With Ctrl held, reads back the name you typed, on the name entry screen. | `"R"` |
         | `menus.detailsButtons` | The same on the pad. | `"RS"` |
         | `battle.statusKey` | In a battle, says each party member's HP and the enemies hit so far. | `"H"` |
-        | `battle.statusButtons` | The same on the pad. | `"LS"` |
+        | `battle.statusButtons` | The same on the pad, held; a tap reaches the game (Retry on `LS`). | `"LS"` |
         | `battle.enemyNextKey` | In a battle, steps to the next enemy hit so far and says its HP (`battleEnemyKeys`). | `"K"` |
         | `battle.enemyPreviousKey` | The enemy before. | `"J"` |
         | `battle.enemyHpKey` | In a battle, says the HP of every enemy hit so far, in one line. | `"L"` |

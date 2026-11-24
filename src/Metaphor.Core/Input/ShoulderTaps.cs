@@ -17,7 +17,8 @@ namespace Metaphor.Core.Input;
 /// keeps its own state (Steam Input's second pad reads apart, #225), and a read the game reports as not made changes
 /// nothing. LT and RT work the same way for the settings menu's chord (#754, <see cref="Triggers"/>), but are held back
 /// in menus too, since that menu opens anywhere; a trigger the game wants held then reaches it only as a tap on release,
-/// a by-ear question on #754. Safe to call from any of the game's threads; the holds are asked under its lock, so they
+/// a by-ear question on #754. L3 works the same way for the battle's status read (#925, <see cref="LeftThumb"/>),
+/// whose hold lets a long press go as the mod's by saying nothing at the release. Safe to call from any of the game's threads; the holds are asked under its lock, so they
 /// must not call back into it.</summary>
 /// <remarks>How many reads the game needs to see a button down to act on it is <c>[NEEDS VERIFICATION]</c>: the pad is
 /// read about once a frame (docs/raw-sources/input-route-2026-11-16.md, itself unverified), and a tap of three reads and
@@ -40,9 +41,14 @@ public sealed class ShoulderTaps
     /// </summary>
     public const int Triggers = 0x0100 | 0x0200;
 
+    /// <summary>L3 in the game's pad mask, <c>0x0002</c>, same source. Held back the same way for the battle's status
+    /// read (#925, the maintainer's decision of 2026-11-24: "L3 tap goes to the game (Retry); L3 hold goes to the mod"),
+    /// on every screen while its hold says so, menus included.</summary>
+    public const int LeftThumb = 0x0002;
+
     /// <summary>The only buttons held back for a hold; another is kept from the game only when it makes a chord with
     /// one.</summary>
-    public const int Holdable = Shoulders | Triggers;
+    public const int Holdable = Shoulders | Triggers | LeftThumb;
 
     /// <summary>The fewest reads a tap is held down for.</summary>
     public const int TapReads = 3;

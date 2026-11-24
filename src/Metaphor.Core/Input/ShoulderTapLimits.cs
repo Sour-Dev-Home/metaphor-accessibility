@@ -14,7 +14,8 @@ public readonly record struct ShoulderTapLimits(int TapMilliseconds)
         Spoken = "Shoulder tap length",
         Description = "How long, in milliseconds, a lone `LB` or `RB` press holds the button down for the game when " +
             "you let go, in the field (`shoulderHold`) and in a battle, where the mod keeps a held shoulder for its " +
-            "chords, and a lone `LT` or `RT` press while `settingsMenu` or `keyHelp` holds them for its chord. Raise " +
+            "chords, a lone `LT` or `RT` press while `settingsMenu` or `keyHelp` holds them for its chord, and an `L3` " +
+            "tap in a battle while `battleHits` holds it for its status read. Raise " +
             "it if the game misses taps.",
         Order = 70,
     };
