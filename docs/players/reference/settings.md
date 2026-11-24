@@ -82,7 +82,7 @@ Each is `true` to speak or `false` to stay quiet, inside a `speech` object: `{ "
 | `battleItemTabs` | The tab's name when the battle item list opens or you switch tabs with LB or RB. Needs `battleLists`. | `true` |
 | `battleOrderMenu` | Battle's Order menu, opened with LB, and its Tactics submenu. | `true` |
 | `battleConfirms` | Battle's Retry and confirm prompts: the question, then Yes or No. Still being tested. | testing, off |
-| `battlePartyScreen` | On the battle Order menu's Party screen, says each member's name, HP and MP with their position. Still being tested. | testing, off |
+| `battlePartyScreen` | On the battle Order menu's Party screen, says each member's name, HP and MP with their position, and the name of each reserve ally you can swap in. Still being tested. | testing, off |
 | `itemMenu` | The Item screen's rows and its party-member list. | `true` |
 | `gearDescriptions` | The description of the focused row on the Item screen, and of the gear worn in a slot on the Equipment screen, on the details key (F, or R3 on the pad). Needs `menus`. Still being tested. | testing, off |
 | `calendar` | The Calendar's day grid. | `true` |
@@ -93,12 +93,15 @@ Each is `true` to speak or `false` to stay quiet, inside a `speech` object: `{ "
 | `battleBanners` | The short banner during a battle turn: a boss warning, a stat change. | `true` |
 | `battleBannerNames` | Says who a battle banner is about: "Bow Scourge Malmorta cannot move due to Stun!". Off leaves the name out. Needs `battleBanners`. | `true` |
 | `battleTurnLine` | Says "Your turn" with the actions left, or "Enemy turn", as each side's turn starts in a battle. Still being tested. | testing, off |
+| `battleMoveNames` | Says the skill a battle's move banner shows as it is used, such as an enemy's spell, before its hits. Still being tested. | testing, off |
 | `battleStart` | Says "Ambushed" when a battle starts with the enemy striking first. | `true` |
+| `battleStartStun` | As a battle starts, says how many enemies are stunned: "All 3 enemies stunned" or "1 of 3 enemies stunned". Still being tested. | testing, off |
 | `battleEnd` | Says "Victory", "Escaped" or "Defeated" as a battle ends. Still being tested. | testing, off |
 | `battleRewards` | After a won battle, says the money and MAG it gained: "Gained 240 money and 30 MAG". Still being tested. | testing, off |
 | `battleFormation` | In a battle, says "row changed" with the member when a party member moves between the front and back row. Still being tested. | testing, off |
-| `battleRewardExp` | Adds the EXP and archetype EXP of the enemies you beat, from the game's enemy tables, to the rewards line: "Gained 240 money, 30 MAG, 160 EXP and 60 archetype EXP". Needs `battleRewards`. Still being tested. | testing, off |
+| `battleRewardExp` | As a battle is won, says the EXP and archetype EXP of the enemies you beat, from the game's enemy tables: "Gained 160 EXP and 60 archetype EXP". Needs `battleRewards`. Still being tested. | testing, off |
 | `saveSlots` | The save and load screens' slots. | `true` |
+| `saveSlotDetails` | Each save and load slot's date and playtime, read from its save file; the details key adds the weekday and time of day. Still being tested. | testing, off |
 | `learnedSettingValues` | The System rows whose setting the mod has not pinned saying their value on change, learned as you change them. Needs `menus`. | `true` |
 | `settingsHelp` | The game's help line for the focused row on a Settings page, on the details key (F, or R3 on the pad). The line is the one the game fetched for the row, so a row you have not moved to yet says no more. Needs `menus`. | `true` |
 | `nameEntry` | The name entry screen: its title, each letter you type, and when a name is refused. | `true` |
@@ -206,6 +209,7 @@ Some features have a limit you can move, inside a `limits` object, then the feat
 | `field.wallVolume` | How loud a wall tone is right at the wall. 0 to 100, in steps of 5. | `50` |
 | `field.routePingVolume` | How loud a route ping is from a place in reach (`routePings`); farther places are quieter. 0 to 100, in steps of 5. | `90` |
 | `shoulders.tapLength` | How long, in milliseconds, a lone `LB` or `RB` press holds the button down for the game when you let go, in the field (`shoulderHold`) and in a battle, where the mod keeps a held shoulder for its chords, a lone `LT` or `RT` press while `settingsMenu` or `keyHelp` holds them for its chord, and an `L3` tap in a battle while `battleHits` holds it for its status read. Raise it if the game misses taps. 20 to 200, in steps of 10. | `50` |
+| `battle.statusHold` | How long, in milliseconds, `L3` is held alone in a battle before it says the party's HP (`battleHits`) instead of reaching the game as a tap (Retry). Raise it if a quick press says the status. 100 to 1000, in steps of 50. | `300` |
 | `cues.sonarVolume` | How loud the field sonar's pings are, as a share of `soundCueVolume` (the master). Wall tones and route pings have their own, `field.wallVolume` and `field.routePingVolume`. 0 to 100, in steps of 5. | `100` |
 | `field.sonarPings` | How many things the field sonar (`sonar`) pings at a time. 1 plays one at a time, cycling through what's nearby, nearest first; more plays the nearest few in a row. 1 to 6, in steps of 1. | `1` |
 | `cues.guidanceVolume` | How loud the guidance beep is, as a share of `soundCueVolume`. 0 to 100, in steps of 5. | `100` |

@@ -46,6 +46,20 @@ public sealed class MessageSerialsTests
         Assert.Equal("Test_Menu_02", serials.FindBySerial(502)?.Label);
     }
 
+    // #954: the move banner's skill name is found by its label's hash.
+    [Fact]
+    public void ALabelsHashFindsItsSerialInItsFileOnly()
+    {
+        var serials = Serials();
+        var hash = MessageLibrary.LabelHash("Test_Menu_02");
+        Assert.Null(serials.FindByLabelHash("message/system/Test_Menu.msg", hash));
+        serials.Observe(new MessageFileCompiled(Menu, 6, MenuSource));
+
+        Assert.Equal(502, serials.FindByLabelHash("message/system/Test_Menu.msg", hash.ToLowerInvariant()));
+        Assert.Null(serials.FindByLabelHash("message/system/Other.msg", hash));
+        Assert.Null(serials.FindByLabelHash("message/system/Test_Menu.msg", MessageLibrary.LabelHash("Test_Menu_03")));
+    }
+
     [Fact]
     public void ASerialOutsideEveryKnownFileFindsNothing()
     {

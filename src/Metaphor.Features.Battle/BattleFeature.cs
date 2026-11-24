@@ -103,7 +103,8 @@ public enum BattleFeature
 
     /// <summary>The Order menu's Party screen (#258): each battle member's name, HP and MP.</summary>
     [SettingKey("speech", "battlePartyScreen", "Battle party screen", Testing = true, Order = 1049, Description =
-        "On the battle Order menu's Party screen, says each member's name, HP and MP with their position.")]
+        "On the battle Order menu's Party screen, says each member's name, HP and MP with their position, and the " +
+        "name of each reserve ally you can swap in.")]
     BattlePartyScreen,
 
     /// <summary>"Row changed" when a party member's Formation row changes in battle (#259).</summary>
@@ -111,6 +112,11 @@ public enum BattleFeature
         "In a battle, says \"row changed\" with the member when a party member moves between the front and back " +
         "row.")]
     BattleFormation,
+
+    /// <summary>The skill a move banner shows, by name (#954), from the game's skill tables.</summary>
+    [SettingKey("speech", "battleMoveNames", "Battle move names", Testing = true, Order = 1073, Description = "Says " +
+        "the skill a battle's move banner shows as it is used, such as an enemy's spell, before its hits.")]
+    BattleMoveNames,
 
     /// <summary>The in-turn situation banner: a boss warning, a stat change (#692, #661).</summary>
     [SettingKey("speech", "battleBanners", "Battle banners", Order = 1070, Description = "The short " +
@@ -144,10 +150,17 @@ public enum BattleFeature
         "won battle, says the money and MAG it gained: \"Gained 240 money and 30 MAG\".")]
     BattleRewards,
 
-    /// <summary>The EXP and archetype EXP of the defeated enemies by the game's enemy tables, added to the rewards line
-    /// (#166). Whether the results screen scales them is <c>[NEEDS VERIFICATION]</c>.</summary>
-    [SettingKey("speech", "battleRewardExp", "Battle reward EXP", Testing = true, Order = 1079, Description = "Adds " +
-        "the EXP and archetype EXP of the enemies you beat, from the game's enemy tables, to the rewards line: " +
-        "\"Gained 240 money, 30 MAG, 160 EXP and 60 archetype EXP\". Needs `battleRewards`.")]
+    /// <summary>The EXP and archetype EXP of the defeated enemies by the game's enemy tables, said as "Victory" plays
+    /// (#166, #921). Whether the results screen scales them is <c>[NEEDS VERIFICATION]</c>.</summary>
+    [SettingKey("speech", "battleRewardExp", "Battle reward EXP", Testing = true, Order = 1079, Description = "As " +
+        "a battle is won, says the EXP and archetype EXP of the enemies you beat, from the game's enemy tables: " +
+        "\"Gained 160 EXP and 60 archetype EXP\". Needs `battleRewards`.")]
     BattleRewardExp,
+
+    /// <summary>How many enemies start a battle stunned (#772, #626), from their condition bits as the start wipe
+    /// plays.</summary>
+    [SettingKey("speech", "battleStartStun", "Battle start stun", Testing = true, Order = 1075, Description = "As " +
+        "a battle starts, says how many enemies are stunned: \"All 3 enemies stunned\" or \"1 of 3 enemies " +
+        "stunned\".")]
+    BattleStartStun,
 }

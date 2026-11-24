@@ -84,6 +84,17 @@ public sealed class SkillCostsTests
         Assert.Equal(1, costs.CostRecords);
     }
 
+    // #954: a move banner names its skill by id, and the record's name hash finds the name.
+    [Fact]
+    public void EachSkillIdGivesItsNameLabelsHash()
+    {
+        var costs = SkillCosts.Parse(Skills("SkillName_Spark_01", "SkillName_Passive_01"), Costs((SkillCost.Mp, 0, 4, 0)));
+
+        Assert.Equal(Hash("SkillName_Passive_01"), costs!.LabelHashOf(1), ignoreCase: true);
+        Assert.Null(costs.LabelHashOf(2));
+        Assert.Null(costs.LabelHashOf(-1));
+    }
+
     [Theory]
     [InlineData(1, 0)]
     [InlineData(0, 1)]

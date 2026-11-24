@@ -34,6 +34,11 @@ internal sealed class BattlePartyMemory(GameDataRead data) : IBattleParty, IBatt
     // The flags word whose bit 22 FormationSet (0xf03f20) and FormationGet (0xf32ed0) write and read (#259,
     // docs/findings/battle-party-swap-and-formation-static.md, build 548ddc95…). Read only.
     private const int FlagsAt = 0x0;
+    // An enemy record's Enemy.TBL row id (#921), from the 2026-11-24 Debug log
+    // (docs/findings/battle-enemy-record-table-id-and-start-stun.md). Read only.
+    private const int TableIdAt = 0x8;
+    // The condition bits (#772, docs/findings/enemy-stun-break-and-battle-condition-static.md). Read only.
+    private const int ConditionsAt = 0x1C;
 
     private readonly ConcurrentDictionary<long, int> maxByUnit = new();
 
@@ -55,6 +60,11 @@ internal sealed class BattlePartyMemory(GameDataRead data) : IBattleParty, IBatt
     public int? Hp(long record) => record == 0 ? null : ModuleMemoryReader.ReadInt32((nint)record + HpAt);
 
     public int? Mp(long record) => record == 0 ? null : ModuleMemoryReader.ReadInt32((nint)record + MpAt);
+
+    public int? TableId(long record) => record == 0 ? null : ModuleMemoryReader.ReadInt32((nint)record + TableIdAt);
+
+    public int? Conditions(long record) =>
+        record == 0 ? null : ModuleMemoryReader.ReadInt32((nint)record + ConditionsAt);
 
     /// <summary>The party slot and unit number whose unit is at <paramref name="record"/>, or null for none.</summary>
     public (int Slot, int Unit)? Find(long record)

@@ -24,6 +24,7 @@ speech.questList | Quest list | on | done
 speech.quickMenuHelp | Quick menu help | off | testing
 speech.quickMenuHelpOnFocus | Quick menu help on focus | off | testing
 speech.returnToTitleQuestion | Return to title question | on | done
+speech.saveSlotDetails | Save slot details | off | testing
 speech.saveSlots | Save slots | on | done
 speech.settingsHelp | Settings help | on | done
 speech.settingsMenu | Settings menu | on | done

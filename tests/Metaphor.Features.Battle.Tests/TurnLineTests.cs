@@ -74,7 +74,7 @@ public sealed class TurnLineTests
         icons.Now = new TurnIcons(0, 2, 5);
         Frames(TurnLine.SettleMilliseconds + 100);
 
-        Assert.Equal(["Your turn, 3 actions, 2 half", "2 actions, 5 half"], Said());
+        Assert.Equal(["Your turn, 3 actions, 2 half actions", "2 actions, 5 half actions"], Said());
         Assert.False(announcer.Said[^1].Interrupt);
     }
 
@@ -88,7 +88,7 @@ public sealed class TurnLineTests
         icons.Now = new TurnIcons(0, 3, 1);
         Frames(TurnLine.SettleMilliseconds + 100);
 
-        Assert.Equal(["Your turn, 3 actions, 1 half"], Said());
+        Assert.Equal(["Your turn, 3 actions, 1 half action"], Said());
     }
 
     [Fact]
@@ -104,8 +104,10 @@ public sealed class TurnLineTests
 
     [Theory]
     [InlineData(1, 0, "1 action")]
-    [InlineData(3, 3, "3 actions, 3 half")]
-    [InlineData(0, 2, "0 actions, 2 half")]
+    [InlineData(3, 3, "3 actions, 3 half actions")]
+    [InlineData(0, 2, "0 actions, 2 half actions")]
+    [InlineData(0, 1, "0 actions, 1 half action")]
+    [InlineData(2, 1, "2 actions, 1 half action")]
     public void TheCountSaysActionsThenHalves(int full, int half, string expected) =>
         Assert.Equal(expected, TurnLine.Count(new TurnIcons(0, full, half)));
 
@@ -154,7 +156,8 @@ public sealed class TurnLineTests
     [Theory]
     [InlineData(0, 4, 0, "Your turn, 4 actions")]
     [InlineData(0, 1, 0, "Your turn, 1 action")]
-    [InlineData(0, 3, 1, "Your turn, 3 actions, 1 half")]
+    [InlineData(0, 3, 1, "Your turn, 3 actions, 1 half action")]
+    [InlineData(0, 0, 3, "Your turn, 0 actions, 3 half actions")]
     [InlineData(1, 3, 0, "Enemy turn")]
     public void EachTurnSaysItsSideAndActions(int side, int full, int half, string expected) =>
         Assert.Equal(expected, TurnLine.Says(new TurnIcons(side, full, half)));

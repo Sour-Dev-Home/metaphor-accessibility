@@ -114,9 +114,9 @@ public sealed class EnemyTableLoad(EnemyTableSource source) : IInputControls
     }
 }
 
-/// <summary>Starts reading the skill tables (#692 (b)) on the first input read it gets, which only a game the hooks went
-/// into sends; every read reaches the game unchanged.</summary>
-[FeatureSetting<BattleFeature>(BattleFeature.BattleSkillCosts)]
+/// <summary>Starts reading the skill tables (#692 (b), #954) on the first input read it gets, which only a game the hooks
+/// went into sends; every read reaches the game unchanged.</summary>
+[FeatureSetting<BattleFeature>(BattleFeature.BattleSkillCosts, BattleFeature.BattleMoveNames)]
 public sealed class SkillCostLoad(SkillCostSource source) : IInputControls
 {
     private int started;
