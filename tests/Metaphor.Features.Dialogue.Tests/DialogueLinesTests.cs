@@ -130,7 +130,7 @@ public sealed class DialogueLinesTests
         Assert.Single(announcer.Said);
     }
 
-    // Kind 2 (subtitles and narration) stays silent: what it shows is unverified.
+    // Kind 2 stays silent unless the narration setting is on (#908, NarrationLinesTests).
     [Fact]
     public void ASubtitleShownSaysNothing()
     {

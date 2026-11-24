@@ -1,4 +1,5 @@
 using Metaphor.Core.Messages;
+using Metaphor.Core.Settings;
 
 namespace Metaphor.Features.Dialogue;
 
@@ -7,6 +8,7 @@ namespace Metaphor.Features.Dialogue;
 /// label is shown right after, in the same call, so it is spoken once; so is a choice's prompt, which
 /// <see cref="DialogueChoices"/> speaks as the choice opens and the window shows next (#541,
 /// docs/findings/reply-choice-routes-static.md).</summary>
+[FeatureSetting<DialogueFeature>(DialogueFeature.Narration)]
 public sealed class DialogueLines : ILineRequestObserver, ILineShownObserver, IChoiceRequestObserver
 {
     private readonly IMessageLookup messages;
@@ -24,13 +26,22 @@ public sealed class DialogueLines : ILineRequestObserver, ILineShownObserver, IC
     /// 37 to 100 ms apart), not a second reading.</summary>
     private static readonly TimeSpan RepeatWindow = TimeSpan.FromMilliseconds(300);
 
-    public DialogueLines(IMessageLookup messages, DialogueAnnouncer dialogue, TimeProvider? time = null)
+    // Kind 2 is read only while this says so (the narration setting, #908); off, it stays silent as before.
+    private readonly Func<bool> narrationOn;
+
+    /// <summary>The game-over lines are kind 2 too; <see cref="GameOverScreen"/> speaks them with the screen's words,
+    /// so they are left to it.</summary>
+    private const string GameOverPrefix = "MES_GAMEOVER_";
+
+    public DialogueLines(
+        IMessageLookup messages, DialogueAnnouncer dialogue, TimeProvider? time = null, Func<bool>? narrationOn = null)
     {
         ArgumentNullException.ThrowIfNull(messages);
         ArgumentNullException.ThrowIfNull(dialogue);
         this.messages = messages;
         this.dialogue = dialogue;
         this.time = time ?? TimeProvider.System;
+        this.narrationOn = narrationOn ?? (() => false);
     }
 
     /// <summary>Speaks the message with the line's label; says nothing when there is none.</summary>
@@ -66,11 +77,16 @@ public sealed class DialogueLines : ILineRequestObserver, ILineShownObserver, IC
     /// <summary>Speaks the message whose label hashes to the shown line's, unless it is the line just requested, which
     /// was spoken then, or the game's immediate repeat of the line just shown (#740); says nothing when there is none.
     /// Kind 0, as for requests, and kind 1, the system messages: the save screen's "Save complete" pop-up is one, shown
-    /// with no request (#622, docs/raw-sources/save-complete-popup-session-2026-11-22.md). Kind 2 stays silent.</summary>
+    /// with no request (#622, docs/raw-sources/save-complete-popup-session-2026-11-22.md). Kind 2, the day count and
+    /// the arrival narration (#908, docs/findings/chapter1-silent-text-audit-logged.md), is spoken with no speaker, queued
+    /// behind what is being said, when the narration setting is on; the game-over lines in it are left to
+    /// <see cref="GameOverScreen"/>.</summary>
     public void Observe(LineShown line)
     {
         ArgumentNullException.ThrowIfNull(line);
-        if (line.Kind is not (0 or 1) || messages.FindByLabelHash(line.LabelHash) is not { } message)
+        if (line.Kind is not (0 or 1 or 2) || (line.Kind == 2 && !narrationOn())
+            || messages.FindByLabelHash(line.LabelHash) is not { } message
+            || (line.Kind == 2 && message.Label.StartsWith(GameOverPrefix, StringComparison.Ordinal)))
         {
             return;
         }
@@ -86,6 +102,11 @@ public sealed class DialogueLines : ILineRequestObserver, ILineShownObserver, IC
             {
                 return;
             }
+        }
+        if (line.Kind == 2)
+        {
+            dialogue.Show(null, message.Text, interrupt: false);
+            return;
         }
         dialogue.Show(message.Speaker, message.Text);
     }
