@@ -79,6 +79,7 @@ public sealed class RoutePings
     private readonly NavFloor? floor;
     private readonly Action<string>? log;
     private readonly FreeRoamGate roam;
+    private readonly NavSamples samples;
     private FieldUnit? place;
     private Task<RoutePlan>? plan;
     private Vector3 plannedFrom;
@@ -88,17 +89,20 @@ public sealed class RoutePings
     private long stepEndsAt;
     private double pan;
     private int volume;
+    private CueSample? sample;
 
     /// <summary>Route pings that read <paramref name="field"/>, play on <paramref name="cues"/>' route channel, keep time
     /// by <paramref name="milliseconds"/>, play only while <paramref name="on"/> says so, read <paramref name="limits"/>
     /// on each ping, plan with <paramref name="routes"/> when given, inside <paramref name="run"/> (the thread pool
     /// unless given), take the floor through <paramref name="floor"/> when there is one, and write each ping to
-    /// <paramref name="log"/> when there is one (Debug builds).</summary>
+    /// <paramref name="log"/> when there is one (Debug builds). Each ping plays its kind's sound from
+    /// <paramref name="samples"/> in place of its notes when it gives one (#841).</summary>
     public RoutePings(
         IFieldReads field, ICuePlayer cues, Func<long> milliseconds, Func<bool> on, Func<RoutePingLimits> limits,
         IRoutePlanner? routes = null, Func<Func<RoutePlan>, Task<RoutePlan>>? run = null, NavFloor? floor = null,
-        Action<string>? log = null)
+        Action<string>? log = null, NavSamples? samples = null)
     {
+        this.samples = samples ?? NavSamples.None;
         ArgumentNullException.ThrowIfNull(field);
         ArgumentNullException.ThrowIfNull(cues);
         ArgumentNullException.ThrowIfNull(milliseconds);
@@ -225,7 +229,9 @@ public sealed class RoutePings
         var dx = unit.X - pose.X;
         var dz = unit.Z - pose.Z;
         var distance = Math.Sqrt((dx * dx) + (dz * dz));
-        steps = Steps(kind);
+        // A sound file plays whole as one note, its own gaps in it (#841).
+        sample = samples.For(kind);
+        steps = sample is null ? Steps(kind) : [new ToneStep(Steps(kind)[0].Hertz, sample.Milliseconds)];
         step = -1;
         stepEndsAt = now;
         pan = CameraFrame.Pan(CameraFrame.Bearing(pose, aim.X, aim.Z));
@@ -256,7 +262,7 @@ public sealed class RoutePings
         }
         else
         {
-            cues.Hold(ToneChannel.Route, new HeldTone(note.Hertz, pan, volume));
+            cues.Hold(ToneChannel.Route, new HeldTone(note.Hertz, pan, volume, sample));
         }
     }
 

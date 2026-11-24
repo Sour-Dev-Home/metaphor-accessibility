@@ -209,11 +209,11 @@ public sealed class MissionLineTests
         set.Add(0x11fb);
         set.Add(0x11fd);
 
-        Assert.Equal("The Test Battle: End the test's madness", line.Current);
+        Assert.Equal("The Test Battle. End the test's madness", line.Current);
 
         set.Remove(0x11fd);
 
-        Assert.Equal("The Test Battle: Head to the mock inn", line.Current);
+        Assert.Equal("The Test Battle. Head to the mock inn", line.Current);
     }
 
     [Fact]
@@ -225,7 +225,7 @@ public sealed class MissionLineTests
         set.Add(0x11fd);
         now += MissionLine.PollMilliseconds;
 
-        Assert.Equal("Mission: The Test Battle: End the test's madness", line.Poll());
+        Assert.Equal("Mission: The Test Battle. End the test's madness", line.Poll());
     }
 
     private sealed class RoamField : IFieldReads

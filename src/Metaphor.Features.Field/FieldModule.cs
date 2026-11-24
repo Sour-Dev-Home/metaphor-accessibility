@@ -54,16 +54,21 @@ public sealed class FieldModule : IFeatureModule
         // duck under them. The controls, made below, say whether the beep guides.
         FieldControls? controls = null;
         var floor = new NavFloor(() => Environment.TickCount64, () => controls?.Guiding == true);
+        // The generated navigation sounds (#841) ship as data/sounds/*.wav in the mod folder and are read once; a bad
+        // file is left out (said in the dev log) and its feature plays the tone instead. Testing.
+        var samples = new NavSamples(
+            SoundBank.Load(Path.Combine(context.ModFolder, "data", "sounds"), problem => log?.FieldRead("sounds: " + problem)),
+            () => settings.Current.IsOn(FieldFeature.SoundFiles));
         // The wall tones (#830) and route pings (#831), testing; their limits are read on each probe and ping.
         var edges = new MapEdges(navFiles, navMeshes.Load);
         var walls = new WallTones(
             field, context.Cues, settings.Speech(FieldFeature.WallTones, context.Announcer),
             () => Environment.TickCount64, () => settings.Current.IsOn(FieldFeature.WallTones),
-            () => WallLimits.From(settings.Current), edges.For, floor, log is null ? null : log.FieldRead);
+            () => WallLimits.From(settings.Current), edges.For, floor, log is null ? null : log.FieldRead, samples);
         var routePings = new RoutePings(
             field, context.Cues, () => Environment.TickCount64, () => settings.Current.IsOn(FieldFeature.RoutePings),
             () => RoutePingLimits.From(settings.Current), routes, floor: floor,
-            log: log is null ? null : log.FieldRead);
+            log: log is null ? null : log.FieldRead, samples: samples);
         // Its settings, the nearby list, its categories, "where am I" and guidance, are read on each read (#661).
         // Debug builds only: the "where am I" record lists the main-mission flags (#658).
         controls = new FieldControls(
@@ -82,9 +87,15 @@ public sealed class FieldModule : IFeatureModule
             new Sonar(
                 field, context.Cues, () => Environment.TickCount64, () => settings.Current.IsOn(FieldFeature.Sonar),
                 log is null ? null : log.FieldRead, nearbyNames, floor,
-                () => Sonar.PingsPerSweep.From(settings.Current)),
+                () => Sonar.PingsPerSweep.From(settings.Current), samples),
             walls, routePings);
         context.AddControls(controls);
+        // The enemy awareness cues (#649), testing: their sounds through their own keys, the line through the setting's
+        // gate; each enemy's AI state changes go to the Debug log.
+        context.AddControls(new EnemyAwareness(
+            field, context.Cues, settings.Speech(FieldFeature.EnemyAwareness, context.Announcer),
+            () => Environment.TickCount64, () => settings.Current.IsOn(FieldFeature.EnemyAwareness),
+            log is null ? null : log.FieldRead));
         context.AddKeys(FieldKeys.All);
         // LB and RB held back in free roam until let go, so the reader's and the list's chords open no screen (#811),
         // testing.
