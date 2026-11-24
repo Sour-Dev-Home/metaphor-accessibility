@@ -103,6 +103,9 @@ district by district [NEEDS VERIFICATION]. Rows with no point in chapter 1: 1 ("
 
 ### The 2D-to-world conversion is open
 
+Since settled from the data: [`minimap-data-converts-map-points-to-world.md`](minimap-data-converts-map-points-to-world.md)
+(`x = Ox − s × px`, `z = Oz − s × py`, the record picked by `MiniMap_SetData.bin`). What follows is the earlier reading.
+
 `COMMON/ui/map/MiniMap_Data.bin` is a `0x40`-byte header and 1,500 records of 14 bytes (`u16` id equal to the index,
 then three floats), 262 of them not `(0, 0, 1)`: record 1 is `(18807, 21899, 18)`, record 6 `(988, 31786, 18)`,
 record 11 `(-5347, 51380, 18)`. An origin plus a scale per 2D map fits, but which record a field uses and the formula
