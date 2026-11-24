@@ -206,6 +206,12 @@ public sealed class BattleModule : IFeatureModule
         };
         context.Screens.Observe(partyScreen);
         context.Events.ObserveSerials(partyScreen);
+        // The reserve list it swaps from (#922), with the same setting.
+        var reserveScreen = new ReserveScreenFocus(
+            serials, context.Cleaner, settings.Speech(BattleFeature.BattlePartyScreen, context.Reader),
+            () => Environment.TickCount64);
+        context.Screens.Observe(reserveScreen);
+        context.Events.ObserveSerials(reserveScreen);
         context.AddControls(settings.Input(
             BattleFeature.BattleFormation,
             new FormationWatch(

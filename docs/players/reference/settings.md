@@ -82,7 +82,7 @@ Each is `true` to speak or `false` to stay quiet, inside a `speech` object: `{ "
 | `battleItemTabs` | The tab's name when the battle item list opens or you switch tabs with LB or RB. Needs `battleLists`. | `true` |
 | `battleOrderMenu` | Battle's Order menu, opened with LB, and its Tactics submenu. | `true` |
 | `battleConfirms` | Battle's Retry and confirm prompts: the question, then Yes or No. Still being tested. | testing, off |
-| `battlePartyScreen` | On the battle Order menu's Party screen, says each member's name, HP and MP with their position. Still being tested. | testing, off |
+| `battlePartyScreen` | On the battle Order menu's Party screen, says each member's name, HP and MP with their position, and the name of each reserve ally you can swap in. Still being tested. | testing, off |
 | `itemMenu` | The Item screen's rows and its party-member list. | `true` |
 | `gearDescriptions` | The description of the focused row on the Item screen, and of the gear worn in a slot on the Equipment screen, on the details key (F, or R3 on the pad). Needs `menus`. Still being tested. | testing, off |
 | `calendar` | The Calendar's day grid. | `true` |
