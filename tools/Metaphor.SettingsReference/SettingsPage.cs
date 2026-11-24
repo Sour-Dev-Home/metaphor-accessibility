@@ -1,8 +1,6 @@
 using System.Text;
 using Metaphor.Core.Cues;
-using Metaphor.Core.Input;
 using Metaphor.Core.Settings;
-using Metaphor.Features.Field;
 
 namespace Metaphor.SettingsReference;
 
@@ -165,6 +163,11 @@ public static class SettingsPage
         | `field.categoryButton` | With the held button: the next nearby category. | `"none"` |
         | `field.identifyKey` | Debug builds only: logs the nearest thing for the names table. | `"I"` |
         | `report.markKey` | Writes a marker to the report log. Keyboard only for now. | `"F8"` |
+        | `menus.settingsMenuKey` | Opens or closes the mod's settings menu (testing: `settingsMenu`). | `"F2"` |
+        | `menus.chordButtons` | Held on the pad for the settings menu's and the help's buttons. | `"LT+RT"` |
+        | `menus.settingsMenuButton` | With the held buttons: opens the settings menu. | `"Back"` |
+        | `menus.helpKey` | Says the mod's keys that work where you are (testing: `keyHelp`). | `"F1"` |
+        | `menus.helpButton` | With the held buttons: the same. | `"Y"` |
 
         A key the game also uses still reaches the game whenever the mod isn't using it, so choose one the game leaves free
         where you'll press it.
@@ -181,37 +184,14 @@ public static class SettingsPage
 
         | Setting | What it does | Default |
         |---|---|---|
-        | `field.cameraDownDegrees` | How far down the camera tilts, from level, before "Camera looking down" (`cameraTilt`). 1 to 89. | `40` |
-        | `field.cameraUpDegrees` | How far up before "Camera looking up". 1 to 89. | `20` |
-        | `field.cameraMarginDegrees` | How far back inside a limit the camera comes before "Camera level". 0 to 30. | `5` |
-        | `field.wallRange` | How near a wall comes before its tone starts (`wallTones`), in the game's units, about 100 a step. 50 to 2000. | `300` |
-        | `field.wallVolume` | How loud a wall tone is right at the wall. 0 to 100. | `50` |
-        | `field.routePingVolume` | How loud a route ping is from a place in reach (`routePings`); farther places are quieter. 0 to 100. | `90` |
         """;
 
-    // The limits made for a slider (#835), each with what it does; the range, step and default come from the limit.
-    private static readonly (SliderLimit Limit, string Description)[] Sliders =
-    [
-        (ShoulderTapLimits.TapLength,
-            "How long, in milliseconds, a lone `LB` or `RB` press holds the button down for the game when you let go, "
-            + "in the field (`shoulderHold`) and in a battle, where the mod keeps a held shoulder for its chords. "
-            + "Raise it if the game misses taps."),
-        (CueVolumes.Sonar,
-            "How loud the field sonar's pings are, as a share of `soundCueVolume` (the master). Wall tones and route "
-            + "pings have their own, `field.wallVolume` and `field.routePingVolume`."),
-        (Sonar.PingsPerSweep,
-            "How many things the field sonar (`sonar`) pings at a time. 1 plays one at a time, cycling through what's "
-            + "nearby, nearest first; more plays the nearest few in a row."),
-        (CueVolumes.Guidance, "How loud the guidance beep is, as a share of `soundCueVolume`."),
-        (CueVolumes.Other, "How loud the one-shot sounds are (hits and the mark sound), as a share of `soundCueVolume`."),
-    ];
-
-    /// <summary>A slider limit's row: its range and step after its description.</summary>
-    public static string Row(SliderLimit limit, string description)
+    /// <summary>A slider limit's row (#835): its description, then its range and step.</summary>
+    public static string Row(SliderLimit limit)
     {
         ArgumentNullException.ThrowIfNull(limit);
-        return $"| `{limit.Group}.{limit.Name}` | {description} {limit.Min} to {limit.Max}, in steps of {limit.Step}. "
-            + $"| `{limit.Default}` |";
+        return $"| `{limit.Group}.{limit.Name}` | {limit.Description} {limit.Min} to {limit.Max}, in steps of "
+            + $"{limit.Step}. | `{limit.Default}` |";
     }
 
     /// <summary>The page for <paramref name="features"/>, with Unix line ends and a final one. A feature in a group
@@ -231,7 +211,7 @@ public static class SettingsPage
             Block(page, section, keys.Where(key => key.Group == group).Select(Row));
         }
         Block(page, SoundsSection, Enum.GetValues<Cue>().Select(cue => Sound(SettingKey.Of(cue))));
-        Block(page, LimitsSection, Sliders.Select(slider => Row(slider.Limit, slider.Description)));
+        Block(page, LimitsSection, features.Limits.Select(Row));
         Block(page, Tail);
         return page.ToString().TrimEnd('\n') + "\n";
     }

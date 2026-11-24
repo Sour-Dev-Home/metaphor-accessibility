@@ -1,3 +1,4 @@
+using System.Numerics;
 using Metaphor.Core.Menus;
 
 namespace Metaphor.Core.Input;
@@ -13,9 +14,11 @@ namespace Metaphor.Core.Input;
 /// never handed to the game while held, however long it's held alone (#835, the maintainer's decision of 2026-11-23),
 /// so it can stay down while a chord's other button is pressed again and again. The holds are asked at the press, which
 /// decides, and again at the release, so a tap is dropped rather than handed to a screen it wasn't pressed on. Each pad
-/// keeps its own state
-/// (Steam Input's second pad reads apart, #225), and a read the game reports as not made changes nothing. Safe to call
-/// from any of the game's threads; the holds are asked under its lock, so they must not call back into it.</summary>
+/// keeps its own state (Steam Input's second pad reads apart, #225), and a read the game reports as not made changes
+/// nothing. LT and RT work the same way for the settings menu's chord (#754, <see cref="Triggers"/>), but are held back
+/// in menus too, since that menu opens anywhere; a trigger the game wants held then reaches it only as a tap on release,
+/// a by-ear question on #754. Safe to call from any of the game's threads; the holds are asked under its lock, so they
+/// must not call back into it.</summary>
 /// <remarks>How many reads the game needs to see a button down to act on it is <c>[NEEDS VERIFICATION]</c>: the pad is
 /// read about once a frame (docs/raw-sources/input-route-2026-11-16.md, itself unverified), and a tap of three reads and
 /// 50 ms (three frames at 60 fps, about a quick press by hand) is the guess the by-ear check on #811 settles.</remarks>
@@ -28,9 +31,18 @@ public sealed class ShoulderTaps
     /// <summary>RB in the game's pad mask, <c>0x0800</c>, same source.</summary>
     public const int RightShoulder = 0x0800;
 
+    /// <summary>LB and RB, which pass at once while a menu is open (#835).</summary>
+    public const int Shoulders = LeftShoulder | RightShoulder;
+
+    /// <summary>LT and RT in the game's pad mask, <c>0x0100</c> and <c>0x0200</c> (each counts as held past 30), same
+    /// source. Held back the same way for the settings menu's chord (#754, the maintainer's decision of 2026-11-23:
+    /// "triggers held back while the chord forms; a lone tap passes through"), on every screen, menus included.
+    /// </summary>
+    public const int Triggers = 0x0100 | 0x0200;
+
     /// <summary>The only buttons held back for a hold; another is kept from the game only when it makes a chord with
     /// one.</summary>
-    public const int Shoulders = LeftShoulder | RightShoulder;
+    public const int Holdable = Shoulders | Triggers;
 
     /// <summary>The fewest reads a tap is held down for.</summary>
     public const int TapReads = 3;
@@ -135,16 +147,21 @@ public sealed class ShoulderTaps
         }
         // A chord's other button is kept from the game until it is let go, even after the shoulder (#811).
         state.Swallowed &= buttons;
-        var shouldersDown = down & Shoulders;
+        var shouldersDown = down & Holdable;
         if (state.Held == 0)
         {
-            var back = shouldersDown == 0 || menuOpen() ? 0 : shouldersDown & Holds();
+            var back = shouldersDown == 0 ? 0 : shouldersDown & Holds();
+            if ((back & Shoulders) != 0 && menuOpen())
+            {
+                back &= ~Shoulders;
+            }
             if (back != 0)
             {
                 state.Held = back;
                 state.Pressed = back;
-                // Both shoulders at once, or another button on the same read, is a chord already.
-                state.Chord = back != down || back == Shoulders;
+                // Two held buttons at once (both shoulders, both triggers), or another button on the same read, is a
+                // chord already.
+                state.Chord = back != down || BitOperations.PopCount((uint)back) > 1;
                 state.Swallowed |= down & ~Shoulders;
             }
         }
@@ -188,7 +205,7 @@ public sealed class ShoulderTaps
         {
             held |= hold();
         }
-        return held & Shoulders;
+        return held & Holdable;
     }
 
     private sealed class PadState

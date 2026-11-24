@@ -40,6 +40,8 @@ public sealed class FeatureModulesTests
         Assert.NotNull(context.Find<IPadWatcher>());
         Assert.NotNull(context.Find<IBattleHitObserver>());
         Assert.NotNull(context.Find<BattleBanners>());
+        // The target cursor's one observer passes each report on to the target line (#253).
+        Assert.IsType<TargetLine>(Assert.IsType<TargetedEnemy>(context.Find<IBattleTargetObserver>()).Then);
         Assert.NotNull(context.Find<FieldPlace>());
         Assert.NotNull(context.Find<FieldTablesSource>());
     }
@@ -55,17 +57,69 @@ public sealed class FeatureModulesTests
         // Seven since the battle's end check (#750), gated, before the battle keys; it only watches the reads. Eight
         // since the enemy HP keys split into the keyboard's and the pad's, each its own testing feature (#767). Nine
         // since the name entry's read-back (#585), gated, before the field. Ten since the battle's HP and MP key (#692),
-        // gated, before the enemy HP keys.
-        Assert.Equal(10, controls.Count);
+        // gated, before the enemy HP keys. Twelve since the help key (#868) and the settings menu (#754), gated, right
+        // after the mark key.
+        Assert.Equal(12, controls.Count);
         Assert.IsType<MarkKey>(controls[0]);
         Assert.IsType<FieldControls>(controls[^1]);
-        Assert.Equal(9, Register(withReport: false).Controls.Count);
+        Assert.Equal(11, Register(withReport: false).Controls.Count);
+    }
+
+    // #754: the settings menu blocks the game's input through the frame, and holds the triggers for its chord only
+    // while it, or the help, is on.
+    [Fact]
+    public void TheSettingsMenuIsTheInputBlockAndHoldsTheTriggersOnlyWhenOn()
+    {
+        var context = Register(withReport: false);
+
+        Assert.IsType<SettingsMenu>(context.Find<IInputBlock>());
+        var holds = () => context.ShoulderHolds.Aggregate(0, (held, hold) => held | hold());
+        Assert.Equal(0, holds() & ShoulderTaps.Triggers);
+        context.Settings.Load("""{ "speech": { "settingsMenu": true } }""");
+        Assert.Equal(ShoulderTaps.Triggers, holds() & ShoulderTaps.Triggers);
+    }
+
+    // #868: in each place, the help says every listed key that works there, as bound now.
+    [Theory]
+    [InlineData(KeyPlaces.Dialogue)]
+    [InlineData(KeyPlaces.Menu)]
+    [InlineData(KeyPlaces.Field)]
+    [InlineData(KeyPlaces.Battle)]
+    [InlineData(KeyPlaces.SettingsMenu)]
+    public void TheHelpSaysEveryKeyOfEachPlace(KeyPlaces place)
+    {
+        var context = Register(withReport: true);
+        var testing = context.Settings.Current.WithTesting(true);
+        var help = new KeyHelp(
+            context.Keys, () => testing, new RecordingAnnouncer(), () => SettingsMenuBindings.Default, () => place);
+        var where = place == KeyPlaces.SettingsMenu ? place : place | KeyPlaces.Anywhere;
+
+        var line = help.Line(where);
+
+        var expected = context.Keys.Where(entry => (entry.Places & where) != 0 && !entry.Key.Hidden).ToList();
+        Assert.NotEmpty(expected);
+        foreach (var entry in expected)
+        {
+            Assert.Contains(entry.Key.Said(testing)!, line, StringComparison.Ordinal);
+        }
+    }
+
+    // #868: every module lists its keys, so the help says each project's.
+    [Fact]
+    public void EveryModuleListsItsKeysForTheHelp()
+    {
+        var keys = Register(withReport: false).Keys.SelectMany(entry => entry.Key.Bindings).Select(key => key.Group)
+            .ToHashSet();
+
+        Assert.Superset(new HashSet<string> { "menus", "report", "dialogue", "battle", "field" }, keys);
     }
 
     // #166: with the hook layer's purse, the battle's rewards take the reads as a clock, gated.
     [Fact]
     public void ThePurseAddsTheBattleRewardsControls() =>
-        Assert.Equal(11, Register(withReport: true, purse: new NoPurse()).Controls.Count);
+        Assert.Equal(
+            Register(withReport: true).Controls.Count + 1,
+            Register(withReport: true, purse: new NoPurse()).Controls.Count);
 
     // #809, by ear 2026-11-23 evening: the skip menu's animation 4768 is its close, so the question was said as the
     // player left. Nothing asks for that layout's animations; the question hears the component's show request instead.

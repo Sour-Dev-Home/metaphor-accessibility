@@ -37,6 +37,12 @@ public enum BattleFeature
         "from it, and `L` starts from it. Needs `battleEnemyList`.")]
     BattleEnemyTarget,
 
+    /// <summary>The enemy the target cursor moves to said with its HP (#253), from the cursor's vtable slot.</summary>
+    [SettingKey("speech", "battleTargetSpeech", "Battle target cursor", Testing = true, Order = 1031, Description =
+        "As the target cursor moves to an enemy, says it with its HP: \"Second enemy, 840 of 1320, 2 of 3\". Needs " +
+        "`battleHits` and `battleEnemyList`.")]
+    BattleTargetSpeech,
+
     /// <summary>Enemy numbering started afresh when a battle ends (#750). Separate from the hits while it is tested.
     /// </summary>
     [SettingKey("speech", "battleNumberReset", "Battle number reset", Testing = true, Order = 1035, Description =

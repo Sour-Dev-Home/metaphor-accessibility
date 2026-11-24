@@ -155,7 +155,8 @@ public sealed class ModEntryPoint : IMod
             // ADR 0019).
             cues = new CuePlayer(new WaveOutDevice(), () => settings.Current, log.ErrorsFor(LogArea.Sounds));
             log.Result(settings.Current.SoundCues ? "sounds: on" : "sounds: off in the settings");
-            var services = HookServices.Speaking(modules, announcer, cues, settings, report, messageLog, folder, log);
+            var services = HookServices.Speaking(
+                modules, announcer, cues, settings, report, messageLog, folder, log, store: file);
             // Before the hooks, so the title screen's first events reach it; its outcome is logged in Debug builds only.
 #if DEBUG
             var updateLog = log.For(LogArea.Updates);

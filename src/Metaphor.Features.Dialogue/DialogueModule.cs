@@ -73,5 +73,6 @@ public sealed class DialogueModule : IFeatureModule
         // The input frame (#301) hands the controls each read and, with it, the dialogue window's message pointer
         // (#232).
         context.AddControls(settings.Input(DialogueFeature.Dialogue, controls));
+        context.AddKeys(DialogueKeys.All);
     }
 }
