@@ -87,6 +87,20 @@ public enum BattleFeature
         "`battleLists`.")]
     BattleSynthesis,
 
+    /// <summary>An enemy's found affinities after its line on the enemy keys and the target cursor (#164, #255), from
+    /// the game's enemy tables.</summary>
+    [SettingKey("speech", "battleAffinities", "Battle affinities", Testing = true, Order = 1043, Description =
+        "After an enemy's HP on `K`, `J` and the target cursor, says the affinities you have found by hitting it " +
+        "with a skill: \"weak to Fire, resists Ice\". Needs `battleEnemyKeys` or `battleTargetSpeech`.")]
+    BattleAffinities,
+
+    /// <summary>Only the affinities found in play, as the screen shows them (the maintainer's decision of 2026-11-24 on
+    /// #164). Off says every affinity in the game's tables, found or not.</summary>
+    [SettingKey("speech", "battleAffinitiesFoundOnly", "Battle affinities found only", Order = 1044, Description =
+        "The affinities line says only what you have found in play this session. Off reveals every affinity from " +
+        "the game's tables, found or not. Needs `battleAffinities`.")]
+    BattleAffinitiesFoundOnly,
+
     /// <summary>The Order menu's Party screen (#258): each battle member's name, HP and MP.</summary>
     [SettingKey("speech", "battlePartyScreen", "Battle party screen", Testing = true, Order = 1049, Description =
         "On the battle Order menu's Party screen, says each member's name, HP and MP with their position.")]
@@ -129,4 +143,11 @@ public enum BattleFeature
     [SettingKey("speech", "battleRewards", "Battle rewards", Testing = true, Order = 1077, Description = "After a " +
         "won battle, says the money and MAG it gained: \"Gained 240 money and 30 MAG\".")]
     BattleRewards,
+
+    /// <summary>The EXP and archetype EXP of the defeated enemies by the game's enemy tables, added to the rewards line
+    /// (#166). Whether the results screen scales them is <c>[NEEDS VERIFICATION]</c>.</summary>
+    [SettingKey("speech", "battleRewardExp", "Battle reward EXP", Testing = true, Order = 1079, Description = "Adds " +
+        "the EXP and archetype EXP of the enemies you beat, from the game's enemy tables, to the rewards line: " +
+        "\"Gained 240 money, 30 MAG, 160 EXP and 60 archetype EXP\". Needs `battleRewards`.")]
+    BattleRewardExp,
 }

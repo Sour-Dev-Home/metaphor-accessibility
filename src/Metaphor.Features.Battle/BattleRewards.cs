@@ -10,7 +10,8 @@ namespace Metaphor.Features.Battle;
 /// <summary>Says a won battle's money and MAG (#166): "Gained 240 money and 30 MAG". The purse is read as the battle's
 /// start wipe plays and again after "Victory"; what rose is said, queued, once both have held for
 /// <see cref="SettleMilliseconds"/>. The results screen's numbers aren't drawn through anything the mod reads (the
-/// 2026-11-23 review on #166), so the purse stands in for them. EXP and spoils aren't read yet. Takes each input read
+/// 2026-11-23 review on #166), so the purse stands in for them. With <see cref="ExpOn"/> the defeated enemies' table EXP and archetype EXP
+/// join the line (<see cref="TableRewards"/>); spoils aren't read yet. Takes each input read
 /// only as a clock, at most once every <see cref="ReadEveryMilliseconds"/>, and only for
 /// <see cref="WaitMilliseconds"/> after a win. Every read reaches the game unchanged. Safe to call from several
 /// threads.</summary>
@@ -19,7 +20,7 @@ namespace Metaphor.Features.Battle;
 /// docs/findings/menu-values-party-unit-static.md); the start wipe and victory animations are in
 /// docs/findings/battle-turn-side-start-and-end-layouts-logged.md. When the game adds the rewards, before or after the
 /// results screen, is <c>[NEEDS VERIFICATION]</c> by ear (docs/findings/battle-results-rewards-static.md).</remarks>
-[FeatureSetting<BattleFeature>(BattleFeature.BattleRewards)]
+[FeatureSetting<BattleFeature>(BattleFeature.BattleRewards, BattleFeature.BattleRewardExp)]
 public sealed class BattleRewards : ILayoutAnimationObserver, IInputControls
 {
     /// <summary>The least time between two reads of the purse after a win.</summary>
@@ -36,6 +37,7 @@ public sealed class BattleRewards : ILayoutAnimationObserver, IInputControls
     private readonly TimeProvider time;
     private readonly Lock gate = new();
     private (int Money, int Mag)? atStart;
+    private (int Exp, int ArchetypeExp, int Money, int Magla)? atVictory;
     private long? wonAt;
     private long lastRead = long.MinValue / 2;
     private (int Money, int Mag)? changed;
@@ -74,13 +76,28 @@ public sealed class BattleRewards : ILayoutAnimationObserver, IInputControls
             played.Animation is BattleEndLine.VictoryAnimation or BattleEndLine.EscapedAnimation
                 or BattleEndLine.DefeatedAnimation)
         {
+            var won = played.Animation == BattleEndLine.VictoryAnimation;
+            // The defeated enemies' table values, taken as "Victory" plays, before the battle's enemies are forgotten.
+            var table = won && ExpOn() ? TableRewards?.Invoke() : null;
             lock (gate)
             {
-                wonAt = played.Animation == BattleEndLine.VictoryAnimation && atStart is not null ? Now() : null;
+                wonAt = won && atStart is not null ? Now() : null;
                 changed = null;
+                atVictory = table;
             }
         }
     }
+
+    /// <summary>The defeated enemies' EXP, archetype EXP, money and magla by the enemy tables (#166), or null when
+    /// unknown; none when unset.</summary>
+    public Func<(int Exp, int ArchetypeExp, int Money, int Magla)?>? TableRewards { get; init; }
+
+    /// <summary>Whether the table's EXP is said (<see cref="BattleFeature.BattleRewardExp"/>); off when unset.</summary>
+    public Func<bool> ExpOn { get; init; } = () => false;
+
+    /// <summary>Hears the table's values beside the purse's (Debug builds), to check whether the results screen scales
+    /// them; none when null.</summary>
+    public Action<string>? Log { get; init; }
 
     public int Pad(int pad, int buttons, bool made)
     {
@@ -94,8 +111,9 @@ public sealed class BattleRewards : ILayoutAnimationObserver, IInputControls
         return keys;
     }
 
-    /// <summary>What a rise in the purse says, or null when nothing rose.</summary>
-    public static string? Says(int money, int mag)
+    /// <summary>What a rise in the purse says, with the table's EXP and archetype EXP when above 0, or null when nothing
+    /// rose.</summary>
+    public static string? Says(int money, int mag, int exp = 0, int archetypeExp = 0)
     {
         var parts = new List<string>();
         if (money > 0)
@@ -106,13 +124,28 @@ public sealed class BattleRewards : ILayoutAnimationObserver, IInputControls
         {
             parts.Add(string.Create(CultureInfo.InvariantCulture, $"{mag} MAG"));
         }
-        return parts.Count == 0 ? null : "Gained " + string.Join(" and ", parts);
+        if (parts.Count == 0)
+        {
+            return null;
+        }
+        if (exp > 0)
+        {
+            parts.Add(string.Create(CultureInfo.InvariantCulture, $"{exp} EXP"));
+        }
+        if (archetypeExp > 0)
+        {
+            parts.Add(string.Create(CultureInfo.InvariantCulture, $"{archetypeExp} archetype EXP"));
+        }
+        return "Gained " + (parts.Count == 1
+            ? parts[0]
+            : string.Join(", ", parts.Take(parts.Count - 1)) + " and " + parts[^1]);
     }
 
     private void Tick()
     {
         var now = Now();
         string? said = null;
+        string? logged = null;
         lock (gate)
         {
             if (wonAt is not { } won || atStart is not { } start || now - lastRead < ReadEveryMilliseconds)
@@ -140,10 +173,18 @@ public sealed class BattleRewards : ILayoutAnimationObserver, IInputControls
             {
                 return;
             }
-            said = Says(current.Money - start.Money, current.Mag - start.Mag);
+            var table = atVictory;
+            said = Says(current.Money - start.Money, current.Mag - start.Mag, table?.Exp ?? 0, table?.ArchetypeExp ?? 0);
+            logged = string.Create(CultureInfo.InvariantCulture,
+                $"purse money={current.Money - start.Money} mag={current.Mag - start.Mag} table exp={table?.Exp} aexp={table?.ArchetypeExp} money={table?.Money} magla={table?.Magla}");
             wonAt = null;
             atStart = null;
             changed = null;
+            atVictory = null;
+        }
+        if (logged is not null)
+        {
+            Log?.Invoke(logged);
         }
         if (said is not null)
         {
