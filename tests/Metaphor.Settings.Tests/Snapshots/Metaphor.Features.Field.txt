@@ -8,6 +8,7 @@ field.guidancePause | Guidance pause | on | done
 field.heightPan | Height pan | off | testing
 field.nearby | Nearby list | on | done
 field.nearbyCategories | Nearby categories | on | done
+field.nearbyHeight | Nearby height | off | testing
 field.objectiveGuidance | Objective guidance | on | done
 field.reach | Reach callouts | on | done
 field.routePings | Route pings | off | testing

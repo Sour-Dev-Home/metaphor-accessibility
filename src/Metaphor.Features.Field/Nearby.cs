@@ -9,14 +9,20 @@ namespace Metaphor.Features.Field;
 /// <param name="Bearing">Its direction from the camera's heading, or the player's facing when the camera isn't read, in
 /// radians, left positive, from −π to π.</param>
 /// <param name="InReach">Whether the game's own reach test for its kind passes, from the player's facing.</param>
-public sealed record NearbyThing(FieldUnit Unit, double Distance, double Bearing, bool InReach)
+/// <param name="Height">Its height above the player, in the game's units, up positive (#650).</param>
+public sealed record NearbyThing(FieldUnit Unit, double Distance, double Bearing, bool InReach, double Height = 0)
 {
-    /// <summary>"Chest, 4 steps ahead-left, in reach": its name or kind, distance and direction.</summary>
-    public string Text()
+    /// <summary>"Chest, 4 steps ahead-left, in reach": its name or kind, distance and direction, and with
+    /// <paramref name="sayHeight"/> "above" or "below" past <see cref="Nearby.HeightThreshold"/> (#650).</summary>
+    public string Text(bool sayHeight = false)
     {
         var steps = Nearby.Steps(Distance);
         var text = string.Create(CultureInfo.InvariantCulture,
             $"{Unit.Name ?? Nearby.KindWord(Unit.Says)}, {steps} {(steps == 1 ? "step" : "steps")} {Nearby.Direction(Bearing)}");
+        if (sayHeight && Nearby.HeightWord(Height) is { } height)
+        {
+            text += ", " + height;
+        }
         return InReach ? text + ", in reach" : text;
     }
 }
@@ -74,6 +80,16 @@ public static class Nearby
     private const double FarReach = 300;
     private const double HeightReach = 300;
     private const double FacingReach = Math.PI / 2;
+
+    /// <summary>How far above or below the player a thing is said as "above" or "below" (#650): the game's own reach
+    /// height above, past which it never offers a door or chest, so it reads as another level. The mod's choice of
+    /// threshold; [NEEDS VERIFICATION] by ear on stairs and slopes.</summary>
+    public const double HeightThreshold = HeightReach;
+
+    /// <summary>"above" or "below" for a thing <paramref name="height"/> units above the player, or null within
+    /// <see cref="HeightThreshold"/> (#650).</summary>
+    public static string? HeightWord(double height) =>
+        height >= HeightThreshold ? "above" : height <= -HeightThreshold ? "below" : null;
 
     /// <summary>The things of <paramref name="view"/> within <paramref name="radius"/> (<see cref="Radius"/> when null),
     /// in game units, nearest first, at most <see cref="MaxThings"/>.</summary>
@@ -235,7 +251,7 @@ public static class Nearby
     {
         var pose = view.Pose;
         var (distance, _, inReach) = Measure(pose, unit, view.DoorReachValue, slack, facingSlack, rangeScale);
-        return new(unit, distance, CameraFrame.Bearing(pose, unit.X, unit.Z), inReach);
+        return new(unit, distance, CameraFrame.Bearing(pose, unit.X, unit.Z), inReach, unit.Y - pose.Y);
     }
 
     /// <summary><paramref name="angle"/> wrapped into (−π, π], as <see cref="CameraFrame.Normalised"/>.</summary>
