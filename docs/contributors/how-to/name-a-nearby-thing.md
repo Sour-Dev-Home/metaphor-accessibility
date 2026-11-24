@@ -39,6 +39,9 @@ Open `data/names/<map>.json`, or create it, named for the map id:
 Nothing else is allowed in the file. The kinds file into categories: `person` under People, `door` and `exit` under
 Doors and exits, `chest` and `item` under Chests and items, `enemy` under Enemies, `examine` under Examine.
 
+Name an `exit` after where it leads. Exits with the same name are one row, the nearest, said as "Dorm, 2 ways, nearest
+3 steps ahead" (#956), so give two exits the same name only when they lead to the same place.
+
 ## 3. Check it
 
 `bash scripts/check.sh full` runs the field tests, which refuse a file outside the schema and say why
