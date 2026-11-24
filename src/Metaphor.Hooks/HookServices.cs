@@ -322,7 +322,7 @@ internal sealed record HookServices
                 ? null
                 : new ShoulderTaps(
                     context.ShoulderHolds, () => Environment.TickCount64,
-                    () => ShoulderTapLimits.From(context.Settings.Current)),
+                    () => ShoulderTapLimits.From(context.Settings.Current), ShoulderTaps.MenuOpen(screens, cursors)),
             TravelMap = context.Find<TravelMapDestination>() ?? throw Missing(nameof(TravelMapDestination)),
             FieldMapName = context.Find<FieldMapName>() ?? throw Missing(nameof(FieldMapName)),
             DialogueHistory = history,

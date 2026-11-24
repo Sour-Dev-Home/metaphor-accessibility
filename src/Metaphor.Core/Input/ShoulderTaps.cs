@@ -1,10 +1,14 @@
+using Metaphor.Core.Menus;
+
 namespace Metaphor.Core.Input;
 
 /// <summary>LB and RB hold-or-tap (#811, the maintainer's design of 2026-11-23). The game acts on a shoulder button as
 /// it goes down (LB opens Tactics in a battle and the popularity ranking in the field, RB the map), before a mod chord
 /// on it can form. So while a hold (each feature's, <see cref="Features.FeatureContext.AddShoulderHold"/>) says the
-/// mod's chords use a shoulder, that shoulder is kept from the game from the read it goes down. Another button going
-/// down while it's held, the other shoulder too, makes it the mod's chord, and the game never sees the shoulder. Let go
+/// mod's chords use a shoulder, that shoulder is kept from the game from the read it goes down, unless a menu is open,
+/// where the shoulders page the game's tabs and reach it at once (#835). Another button going down while it's held, the
+/// other shoulder too, makes it the mod's chord: the game never sees the shoulder, nor that button until it is let go
+/// (#811), and the shoulder is never handed over however long it's held (#835). Let go
 /// with no chord, it reaches the game as a tap: held down from the release read for at least <see cref="TapReads"/>
 /// reads and the tap length, then let go. Held alone for the hold delay (#835, both in <see cref="ShoulderTapLimits"/>),
 /// it is handed to the game as a hold from that read until let go, so the game's held paging works; from then the
@@ -25,15 +29,35 @@ public sealed class ShoulderTaps
     /// <summary>RB in the game's pad mask, <c>0x0800</c>, same source.</summary>
     public const int RightShoulder = 0x0800;
 
-    /// <summary>The only buttons ever held back.</summary>
+    /// <summary>The only buttons held back for a hold; another is kept from the game only when it makes a chord with
+    /// one.</summary>
     public const int Shoulders = LeftShoulder | RightShoulder;
 
     /// <summary>The fewest reads a tap is held down for.</summary>
     public const int TapReads = 3;
 
+    /// <summary>What a battle menu's cursor class starts with: each command's screen is a <c>BTL_</c> list
+    /// (<c>BTL_SkillSelect</c>, <c>BTL_ItemSelect</c>, <c>BTL_OrderTop</c>), while the command buttons themselves have no
+    /// shared cursor, on build 548ddc95… (docs/findings/battle-command-panel-static.md). That every battle menu's class
+    /// starts so is <c>[NEEDS VERIFICATION]</c>; the by-ear log of 2026-11-23 showed no other in a battle.</summary>
+    public const string BattleMenuPrefix = "BTL_";
+
+    /// <summary>Whether a menu is open for the shoulders (#835): the game's menus read open
+    /// (<see cref="MenuScreens.MenusOpen"/>), or a battle menu's cursor was called just now
+    /// (<see cref="CursorEvents.AnyCalledRecently"/>, <see cref="BattleMenuPrefix"/>), as battle's menus show while the
+    /// menus read closed.</summary>
+    public static Func<bool> MenuOpen(MenuScreens screens, CursorEvents cursors)
+    {
+        ArgumentNullException.ThrowIfNull(screens);
+        ArgumentNullException.ThrowIfNull(cursors);
+        return () => screens.MenusOpen ||
+            cursors.AnyCalledRecently(screenClass => screenClass.StartsWith(BattleMenuPrefix, StringComparison.Ordinal));
+    }
+
     private readonly Func<int>[] holds;
     private readonly Func<long> milliseconds;
     private readonly Func<ShoulderTapLimits> limits;
+    private readonly Func<bool> menuOpen;
     private readonly Lock gate = new();
     private readonly Dictionary<int, PadState> pads = [];
 
@@ -46,13 +70,24 @@ public sealed class ShoulderTaps
 
     /// <summary>Taps as above, timed by the <paramref name="limits"/> in force, read on each pad read (#835).</summary>
     public ShoulderTaps(IEnumerable<Func<int>> holds, Func<long> milliseconds, Func<ShoulderTapLimits> limits)
+        : this(holds, milliseconds, limits, () => false)
+    {
+    }
+
+    /// <summary>Taps as above that hold nothing back while <paramref name="menuOpen"/> says a menu is open, asked at
+    /// each shoulder press: there LB and RB page the game's tabs, so they reach it at once (#835, the maintainer's
+    /// decision of 2026-11-23).</summary>
+    public ShoulderTaps(
+        IEnumerable<Func<int>> holds, Func<long> milliseconds, Func<ShoulderTapLimits> limits, Func<bool> menuOpen)
     {
         ArgumentNullException.ThrowIfNull(holds);
         ArgumentNullException.ThrowIfNull(milliseconds);
         ArgumentNullException.ThrowIfNull(limits);
+        ArgumentNullException.ThrowIfNull(menuOpen);
         this.holds = [.. holds];
         this.milliseconds = milliseconds;
         this.limits = limits;
+        this.menuOpen = menuOpen;
     }
 
     /// <summary>Takes one read of <paramref name="pad"/>: <paramref name="buttons"/> as the game read them and
@@ -99,16 +134,18 @@ public sealed class ShoulderTaps
                 state.TapReads++;
             }
         }
-        // A handed-over shoulder is the game's until let go, and while one is, so is every other press.
+        // A handed-over shoulder is the game's until let go, and while one is, so is every other press. A chord's other
+        // button is kept from the game until it is let go, even after the shoulder (#811).
         state.Over &= buttons;
+        state.Swallowed &= buttons;
         var shouldersDown = down & Shoulders;
         if (state.Over != 0)
         {
-            return new(0, state.Tap | state.Over, state.Over);
+            return new(state.Swallowed, state.Tap | state.Over, state.Over);
         }
         if (state.Held == 0)
         {
-            var back = shouldersDown == 0 ? 0 : shouldersDown & Holds();
+            var back = shouldersDown == 0 || menuOpen() ? 0 : shouldersDown & Holds();
             if (back != 0)
             {
                 state.Held = back;
@@ -116,13 +153,18 @@ public sealed class ShoulderTaps
                 state.HeldFrom = now;
                 // Both shoulders at once, or another button on the same read, is a chord already.
                 state.Chord = back != down || back == Shoulders;
+                state.Swallowed |= down & ~Shoulders;
             }
         }
         else
         {
             if (down != 0)
             {
+                // A chord: from here the shoulder is never handed over until it is let go, however long it's held
+                // (#835), and the button that made it never reaches the game (#811): the game would act on the D-pad
+                // alone (quick save, the memorandum).
                 state.Chord = true;
+                state.Swallowed |= down & ~Shoulders;
             }
             var more = shouldersDown & ~state.Held;
             if (more != 0)
@@ -154,10 +196,10 @@ public sealed class ShoulderTaps
                 state.Over = over;
                 state.Held = 0;
                 state.Pressed = 0;
-                return new(0, state.Tap | over, over);
+                return new(state.Swallowed, state.Tap | over, over);
             }
         }
-        return new(state.Held, state.Tap, 0);
+        return new(state.Held | state.Swallowed, state.Tap, 0);
     }
 
     private int Holds()
@@ -189,11 +231,13 @@ public sealed class ShoulderTaps
         public long HeldFrom { get; set; }
 
         public int Over { get; set; }
+
+        public int Swallowed { get; set; }
     }
 }
 
-/// <summary>What one pad read of <see cref="ShoulderTaps"/> decided: the shoulders kept from the game
-/// (<see cref="HeldBack"/>), those put in for it (<see cref="Added"/>: a tap being replayed, or a shoulder handed over
+/// <summary>What one pad read of <see cref="ShoulderTaps"/> decided: the buttons kept from the game
+/// (<see cref="HeldBack"/>: a held shoulder, and a chord's other button, #811), those put in for it (<see cref="Added"/>: a tap being replayed, or a shoulder handed over
 /// as a hold), and those handed over (<see cref="HandedOver"/>), which the controls no longer see, so no chord forms on
 /// them (#835).</summary>
 public readonly record struct ShoulderRead(int HeldBack, int Added, int HandedOver)

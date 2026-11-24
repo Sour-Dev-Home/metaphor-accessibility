@@ -61,6 +61,16 @@ public sealed class FeatureModulesTests
         Assert.Equal(8, Register(withReport: false).Controls.Count);
     }
 
+    // #809, by ear 2026-11-23 evening: the skip menu's animation 4768 is its close, so the question was said as the
+    // player left. Nothing asks for that layout's animations until an open signal is found.
+    [Fact]
+    public void NoFeatureHearsTheSkipMenusClose()
+    {
+        var context = Register(withReport: false);
+
+        Assert.False(context.Layouts.Wants(SkipSceneQuestion.Layout));
+    }
+
     [Fact]
     public void OnePortOfEachTypeAndNoneUntilProvided()
     {

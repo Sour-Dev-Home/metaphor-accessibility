@@ -45,7 +45,83 @@ public sealed class ShoulderTapsTests
     {
         Assert.Equal(0, Read(LB));
         Assert.Equal(0, Read(LB));
-        Assert.Equal(A, Read(LB | A));
+    }
+
+    // #811, by ear 2026-11-23: LB with the D-pad still reached the game as a D-pad press (quick save, the memorandum).
+    // The chord's other button is kept from the game until let go, even when no control hid it, and even past the
+    // shoulder's release; pressed again on its own, it reaches the game.
+    [Fact]
+    public void AChordsOtherButtonIsKeptFromTheGameUntilLetGo()
+    {
+        Assert.Equal(0, Read(LB));
+        Assert.Equal(0, Read(LB | Down));
+        Assert.Equal(0, Read(Down));
+        Assert.Equal(0, Read(Down));
+
+        Assert.Equal(0, Read(0));
+        Assert.Equal(Down, Read(Down));
+    }
+
+    [Fact]
+    public void AButtonPressedOnTheShouldersReadIsKeptFromTheGameToo()
+    {
+        Assert.Equal(0, Read(LB | Down));
+        Assert.Equal(0, Read(Down));
+        Assert.Equal(0, Read(0));
+    }
+
+    // #835, the maintainer's decision of 2026-11-23: while a menu is open (battle Items, where LB and RB page the tabs),
+    // the shoulders reach the game at once, with no hold and no delay.
+    [Fact]
+    public void WhileAMenuIsOpenTheShouldersReachTheGameAtOnce()
+    {
+        var menu = true;
+        var inMenu = new ShoulderTaps([() => held], () => now, () => limits, () => menu);
+
+        Assert.Equal(LB, inMenu.Pad(0, LB, LB, made: true));
+        Assert.Equal(LB | Down, inMenu.Pad(0, LB | Down, LB | Down, made: true));
+        Assert.Equal(0, inMenu.Pad(0, 0, 0, made: true));
+
+        menu = false;
+        Assert.Equal(0, inMenu.Pad(0, LB, LB, made: true));
+    }
+
+    // A battle menu shows while the game's menus read closed; its cursor, called every frame, says it is open, and it
+    // closes once the cursor goes quiet. The battle's command buttons have no cursor, so there the shoulders are held.
+    [Fact]
+    public void AMenuIsOpenWhileTheMenusReadOpenOrABattleMenusCursorIsCalled()
+    {
+        var screens = new MenuScreens([]);
+        var cursors = new CursorEvents(() => now);
+        var menuOpen = ShoulderTaps.MenuOpen(screens, cursors);
+        Assert.False(menuOpen());
+
+        cursors.Handled(new CursorInput(0xa0, 0x100, 1, 1, 0, 0, 0x46, "BTL_ItemSelect@ope@ui@app"));
+        Assert.True(menuOpen());
+        now += CursorEvents.QuietMilliseconds;
+        Assert.False(menuOpen());
+
+        cursors.Handled(new CursorInput(0xb0, 0x100, 1, 1, 0, 0, 0x46, "YesNoChoiceSample@ope@ui@app"));
+        Assert.False(menuOpen());
+        screens.MenusRead(true);
+        Assert.True(menuOpen());
+    }
+
+    // #835: once a chord has formed, the shoulder is never handed over until it's let go, however long it's held, so
+    // LB can stay down while the D-pad steps through the enemies.
+    [Fact]
+    public void AChordIsNeverHandedOverHoweverLongItsHeld()
+    {
+        ReadAt(1000, LB);
+        ReadAt(1100, LB | Down);
+        var handed = new List<int>();
+        for (var at = 1200L; at < 5000; at += 100)
+        {
+            handed.Add(ReadAt(at, (at / 100) % 4 == 0 ? LB | Down : LB));
+        }
+
+        Assert.All(handed, buttons => Assert.Equal(0, buttons));
+        Assert.Equal([0, 0, 0, 0], [ReadAt(5000, 0), ReadAt(5016, 0), ReadAt(5032, 0), ReadAt(5048, 0)]);
     }
 
     [Fact]

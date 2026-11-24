@@ -2,6 +2,7 @@ using System.Text;
 using Metaphor.Core.Cues;
 using Metaphor.Core.Input;
 using Metaphor.Core.Settings;
+using Metaphor.Features.Field;
 
 namespace Metaphor.SettingsReference;
 
@@ -199,6 +200,9 @@ public static class SettingsPage
         (CueVolumes.Sonar,
             "How loud the field sonar's pings are, as a share of `soundCueVolume` (the master). Wall tones and route "
             + "pings have their own, `field.wallVolume` and `field.routePingVolume`."),
+        (Sonar.PingsPerSweep,
+            "How many things the field sonar (`sonar`) pings at a time. 1 plays one at a time, cycling through what's "
+            + "nearby, nearest first; more plays the nearest few in a row."),
         (CueVolumes.Guidance, "How loud the guidance beep is, as a share of `soundCueVolume`."),
         (CueVolumes.Other, "How loud the one-shot sounds are (hits and the mark sound), as a share of `soundCueVolume`."),
     ];

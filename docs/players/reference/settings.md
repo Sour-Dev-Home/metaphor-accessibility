@@ -58,7 +58,7 @@ Each is `true` to speak or `false` to stay quiet, inside a `speech` object: `{ "
 | `dialogue` | Dialogue lines and reply choices. Off also leaves the repeat and reader keys to the game in dialogue. | `true` |
 | `menus` | The title menu, the main menu, the quick menu, Settings, the difficulty list, yes or no questions and any other menu. Off also leaves the details key to the game. | `true` |
 | `returnToTitleQuestion` | The question the quick menu's Return to title asks before Yes and No. Needs `menus`. | `true` |
-| `skipSceneQuestion` | The question and its two buttons when the Menu button opens the skip menu in a cutscene. Still being tested. | testing, off |
+| `skipSceneQuestion` | The question and its two buttons when the Menu button opens the skip menu in a cutscene. Silent for now: the mod can't yet tell when that menu opens. Still being tested. | testing, off |
 | `battleHits` | Each battle hit as it lands, the battle status key and the enemy HP keys. Off also leaves those keys to the game. | `true` |
 | `battleOutcomes` | "Knocked out", "defeated" or "revived" after a battle hit's number. Needs `battleHits`. | `true` |
 | `battleNumberReset` | Numbers each battle's enemies from "First enemy", not on from the battle before. Needs `battleHits`. Still being tested. | testing, off |
@@ -111,7 +111,7 @@ the game.
 | `stunCallouts` | The callout when a field enemy near you is stunned: "Enemy stunned". | `true` |
 | `shoulderHold` | In the field, LB and RB reach the game when you let go, so LB with RB (the reader) and LB with the D-pad open neither the popularity ranking nor the map. Tapped alone, they still open them. Still being tested. | testing, off |
 | `cameraTilt` | "Camera looking down" or "Camera looking up" when the camera tilts past a limit, "Camera level" when it comes back, and the camera's tilt at the end of "where am I". The limits are in `limits`. | `true` |
-| `sonar` | A short sound for each person, object and exit nearby, every two seconds: a sound of its own for each kind, on the side it is on screen, louder when nearer. It waits while the guidance beep guides or a route ping sounds. Still being tested. | testing, off |
+| `sonar` | A short sound for the people, objects and exits nearby, one at a time, nearest first (`field.sonarPings` for more): a sound of its own for each kind, on the side it is on screen, louder when nearer. It waits while the guidance beep guides or a route ping sounds. Still being tested. | testing, off |
 | `wallTones` | A low steady tone for each wall near you, ahead, behind, left and right of the screen, louder as the wall nears. Silent on maps the mod has no walking map for, which it says once. The range and volume are in `limits`. Still being tested. | testing, off |
 | `routePings` | A ping from the direction of each place the nearby list steps to: two high notes when the way is straight, two rising notes from the next corner when the way bends, one low note when there is no path. Its volume is in `limits`. Still being tested. | testing, off |
 
@@ -160,6 +160,7 @@ Some features have a limit you can move, inside a `limits` object, then the feat
 | `shoulders.holdDelay` | How long, in milliseconds, `LB` or `RB` held alone waits for a chord before the game gets it as a held button, in the field (`shoulderHold`) and in a battle. A shorter press reaches the game as a tap when you let go. 100 to 1000, in steps of 50. | `300` |
 | `shoulders.tapLength` | How long, in milliseconds, that tap holds the button down for the game. Raise it if the game misses taps. 20 to 200, in steps of 10. | `50` |
 | `cues.sonarVolume` | How loud the field sonar's pings are, as a share of `soundCueVolume` (the master). Wall tones and route pings have their own, `field.wallVolume` and `field.routePingVolume`. 0 to 100, in steps of 5. | `100` |
+| `field.sonarPings` | How many things the field sonar (`sonar`) pings at a time. 1 plays one at a time, cycling through what's nearby, nearest first; more plays the nearest few in a row. 1 to 6, in steps of 1. | `1` |
 | `cues.guidanceVolume` | How loud the guidance beep is, as a share of `soundCueVolume`. 0 to 100, in steps of 5. | `100` |
 | `cues.otherVolume` | How loud the one-shot sounds are (hits and the mark sound), as a share of `soundCueVolume`. 0 to 100, in steps of 5. | `100` |
 

@@ -13,9 +13,11 @@ public enum SonarKind
     Exits,
 }
 
-/// <summary>The field sonar (#827): every <see cref="SweepMilliseconds"/> it reads the nearby list's data and plays one
-/// short ping for each person, object and exit within the list's radius, nearest first, at most
-/// <see cref="MaxPings"/>, each with its kind's pitch. Each ping is placed in the camera-relative frame
+/// <summary>The field sonar (#827): it reads the nearby list's data and plays short pings for the people, objects and
+/// exits within the list's radius, each with its kind's pitch. By default it plays one at a time, every
+/// <see cref="OneAtATimeMilliseconds"/>, cycling through what's nearby nearest first, so many people at once never ping
+/// together (the maintainer's pick after the 2026-11-23 by-ear session). <see cref="PingsPerSweep"/> above 1 plays the
+/// nearest few in a row instead, every <see cref="SweepMilliseconds"/>, at most <see cref="MaxPings"/>. Each ping is placed in the camera-relative frame
 /// (<see cref="CameraFrame"/>, #823: the listener at the player, turned by the camera's horizontal angle, pitch ignored)
 /// from where the player stands when it sounds: plain stereo pan, and louder nearer. It plays on its own tone channel
 /// through the mod's cue output, as the guidance beep does; no new native library. The pitches are sine tones made at
@@ -31,8 +33,15 @@ public enum SonarKind
 [FeatureSetting<FieldFeature>(FieldFeature.Sonar)]
 public sealed class Sonar
 {
-    /// <summary>How often a sweep starts.</summary>
+    /// <summary>How often a sweep of the nearest few starts.</summary>
     public const long SweepMilliseconds = 2000;
+
+    /// <summary>The gap between two pings one at a time. A guess until a by-ear session tunes it.</summary>
+    public const long OneAtATimeMilliseconds = 700;
+
+    /// <summary>The settings file's <c>limits.field.sonarPings</c>: how many things a sweep pings. 1, the default, is one
+    /// at a time, cycling through what's nearby.</summary>
+    public static SliderLimit PingsPerSweep { get; } = new("field", "sonarPings", 1, 1, MaxPings, 1);
 
     /// <summary>The gap between the starts of two pings in a sweep.</summary>
     public const long PingGapMilliseconds = 200;
@@ -63,6 +72,8 @@ public sealed class Sonar
     private readonly NavFloor? floor;
     private readonly Queue<FieldUnit> queue = new();
     private readonly HashSet<string> heard = new(StringComparer.Ordinal);
+    private readonly HashSet<string> cycled = new(StringComparer.Ordinal);
+    private readonly Func<int> pings;
     private int? heardMap;
     private bool swept;
     private long nextSweepAt;
@@ -73,12 +84,15 @@ public sealed class Sonar
     /// <summary>A sonar that reads <paramref name="field"/>, names things by <paramref name="names"/>, plays on
     /// <paramref name="cues"/>' sonar channel, keeps time by <paramref name="milliseconds"/>, plays only while
     /// <paramref name="on"/> says so, and writes each thing's first ping to <paramref name="log"/> when there is one
-    /// (Debug builds). It holds its sweeps while <paramref name="floor"/> says another sound has the floor.</summary>
+    /// (Debug builds). It holds its sweeps while <paramref name="floor"/> says another sound has the floor, and reads
+    /// how many things a sweep pings from <paramref name="pings"/> on each sweep (<see cref="PingsPerSweep"/>'s default
+    /// when not given).</summary>
     public Sonar(
         IFieldReads field, ICuePlayer cues, Func<long> milliseconds, Func<bool> on, Action<string>? log = null,
-        NamesTable? names = null, NavFloor? floor = null)
+        NamesTable? names = null, NavFloor? floor = null, Func<int>? pings = null)
     {
         this.floor = floor;
+        this.pings = pings ?? (() => PingsPerSweep.Default);
         ArgumentNullException.ThrowIfNull(field);
         ArgumentNullException.ThrowIfNull(cues);
         ArgumentNullException.ThrowIfNull(milliseconds);
@@ -158,8 +172,9 @@ public sealed class Sonar
     // Reads the field and queues this sweep's things. Called under the gate.
     private void Sweep(long now)
     {
+        var count = Math.Clamp(pings(), 1, MaxPings);
         swept = true;
-        nextSweepAt = now + SweepMilliseconds;
+        nextSweepAt = now + (count == 1 ? OneAtATimeMilliseconds : SweepMilliseconds);
         nextPingAt = now;
         if (field.Read() is not { } read)
         {
@@ -170,15 +185,47 @@ public sealed class Sonar
         {
             heardMap = view.MapId;
             heard.Clear();
+            cycled.Clear();
         }
-        foreach (var unit in Nearby.List(view)
+        var things = Nearby.List(view)
             .Where(thing => KindOf(thing.Unit.Says) is not null)
             .Take(MaxPings)
-            .Select(thing => thing.Unit))
+            .Select(thing => thing.Unit)
+            .ToList();
+        if (count > 1)
         {
-            queue.Enqueue(unit);
+            foreach (var unit in things.Take(count))
+            {
+                queue.Enqueue(unit);
+            }
+        }
+        else if (NextInCycle(things) is { } next)
+        {
+            queue.Enqueue(next);
         }
     }
+
+    // The nearest thing not yet pinged in this cycle; when every thing nearby has been, a new cycle starts from the
+    // nearest. Called under the gate.
+    private FieldUnit? NextInCycle(List<FieldUnit> things)
+    {
+        if (things.Count == 0)
+        {
+            return null;
+        }
+        var next = things.FirstOrDefault(unit => !cycled.Contains(Key(unit)));
+        if (next is null)
+        {
+            cycled.Clear();
+            next = things[0];
+        }
+        cycled.Add(Key(next));
+        return next;
+    }
+
+    // What tells one thing from another between sweeps: its id, or its kind and where it stands.
+    private static string Key(FieldUnit unit) =>
+        unit.Id ?? string.Create(CultureInfo.InvariantCulture, $"{unit.Kind}@{Math.Round(unit.X)},{Math.Round(unit.Z)}");
 
     // Plays one ping from where the player stands now. Called under the gate.
     private void Ping(FieldUnit unit, long now)
@@ -195,8 +242,7 @@ public sealed class Sonar
             new HeldTone(Hertz(kind), CameraFrame.Pan(CameraFrame.Bearing(pose, unit.X, unit.Z)), Volume(distance)));
         sounding = true;
         pingEndsAt = now + PingMilliseconds;
-        if (log is not null && heard.Add(unit.Id ?? string.Create(CultureInfo.InvariantCulture,
-                $"{unit.Kind}@{Math.Round(unit.X)},{Math.Round(unit.Z)}")))
+        if (log is not null && heard.Add(Key(unit)))
         {
             log(string.Create(CultureInfo.InvariantCulture,
                 $"sonar first kind={kind} id={unit.Id ?? "?"} distance={distance:0.#} at=({unit.X:0.#},{unit.Y:0.#},{unit.Z:0.#})"));

@@ -1,7 +1,9 @@
 using System.Numerics;
 using Metaphor.Core.Announcements;
 using Metaphor.Core.Cues;
+using Metaphor.Core.Navigation;
 using Metaphor.Core.Settings;
+using Metaphor.Core.Tests.Navigation;
 
 namespace Metaphor.Features.Field.Tests;
 
@@ -23,7 +25,7 @@ public sealed class WallTonesTests
     private readonly ChannelCues cues = new();
     private readonly SaidList announcer = new();
     private readonly List<string> logged = [];
-    private Task<EdgeDistance?> edges = Task.FromResult<EdgeDistance?>(Box);
+    private Task<NavEdges?> edges = Task.FromResult<NavEdges?>(new(Box, _ => new NavCell(0, 1, 2)));
     private bool on = true;
     private bool guiding;
     private long now = 1000;
@@ -109,7 +111,7 @@ public sealed class WallTonesTests
     [Fact]
     public void NoNavMeshIsSilentAndSaidOncePerMap()
     {
-        edges = Task.FromResult<EdgeDistance?>(null);
+        edges = Task.FromResult<NavEdges?>(null);
 
         for (var i = 0; i < 5; i++)
         {
@@ -130,7 +132,7 @@ public sealed class WallTonesTests
     [Fact]
     public void AStillLoadingNavMeshIsSilentAndSaysNothing()
     {
-        edges = new TaskCompletionSource<EdgeDistance?>().Task;
+        edges = new TaskCompletionSource<NavEdges?>().Task;
 
         walls.Tick();
 
@@ -173,6 +175,39 @@ public sealed class WallTonesTests
 
         Assert.Equal(WallTones.Volume(50, Limits) * NavFloor.DuckedPercent / 100,
             cues.Now(ToneChannel.Wall)!.Value.Volume);
+    }
+
+    [Fact]
+    public void APlayerInTheErodedBorderAlongAWallHearsIt()
+    {
+        // A real walk graph (two 4 × 4 tiles of 10-unit cells, x 0 to 80, agent radius 5): the player stands at x -3,
+        // off every cell, up against the wall at x -5. The camera looks along +z, so -x is on the right.
+        var graph = new WalkGraph(NavMeshFile.Parse(NavBytes.File(
+            [NavBytes.Layer.Open(0, 0).Entry(), NavBytes.Layer.Open(1, 0).Entry()], climb: 2))!);
+        edges = Task.FromResult<NavEdges?>(NavEdges.Of(graph));
+        field.Pose = new FieldPose(-3, 0, 15, 0, CameraHeading: 0);
+
+        walls.Tick();
+
+        Assert.Equal(WallTones.Volume(2, Limits), cues.Now(ToneChannel.WallRight)!.Value.Volume);
+        Assert.Contains(logged, line => line.StartsWith("wall probe map=1 at=-3,0,15 start=0/0,1 ", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void TheProbeIsLoggedAtMostOnceASecond()
+    {
+        for (var i = 0; i < 10; i++)
+        {
+            walls.Tick();
+            now += WallTones.ProbeMilliseconds;
+        }
+        walls.Tick();
+
+        Assert.Equal(
+            ["wall tones map=1 navmesh=loaded",
+                "wall probe map=1 at=0,0,0 start=0/1,2 ahead/behind/left/right=50 250 200 100",
+                "wall probe map=1 at=0,0,0 start=0/1,2 ahead/behind/left/right=50 250 200 100"],
+            logged);
     }
 
     [Fact]

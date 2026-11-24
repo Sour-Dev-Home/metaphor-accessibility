@@ -1,36 +1,25 @@
 using Metaphor.Core.Announcements;
 using Metaphor.Core.Input;
-using Metaphor.Core.Menus;
 
 namespace Metaphor.Features.Menus.Tests;
 
-/// <summary>The cutscene's "Skip?" menu says its question and buttons as its layout opens (#809): heard silent on
-/// 2026-11-23, its open logged only as <c>MoviePauseLayout@ui@app</c>'s animation 4768. Animations in, announcements
-/// out, through the same channel the hook hands them to.</summary>
+/// <summary>The cutscene's "Skip?" menu's question and buttons (#809), said once the menu opens. Its layout's animation
+/// 4768 turned out to be the close (by ear, 2026-11-23 evening), so nothing wires it until an open signal is found;
+/// <c>FeatureModulesTests</c> checks that the close no longer reaches it.</summary>
 [Trait("Category", "Unit")]
 public sealed class SkipSceneQuestionTests
 {
     private readonly RecordingAnnouncer announcer = new();
-    private readonly LayoutAnimations layouts = new();
     private int? glyphDevice;
 
-    public SkipSceneQuestionTests() =>
-        layouts.Observe(new SkipSceneQuestion(announcer, new LastInputDevice(() => glyphDevice)));
-
-    private void Played(string layout, int animation)
-    {
-        if (layouts.Wants(layout))
-        {
-            layouts.Played(new LayoutAnimation(layout, animation));
-        }
-    }
+    private SkipSceneQuestion Question() => new(announcer, new LastInputDevice(() => glyphDevice));
 
     [Fact]
     public void TheOpenSaysTheQuestionWithPadButtons()
     {
         glyphDevice = 0;
 
-        Played("MoviePauseLayout@ui@app", 4768);
+        Question().Opened();
 
         var said = Assert.Single(announcer.Said);
         Assert.Equal("Skip scene? A to skip, B to keep watching.", said.Text);
@@ -42,23 +31,8 @@ public sealed class SkipSceneQuestionTests
     {
         glyphDevice = 2;
 
-        Played("MoviePauseLayout@ui@app", 4768);
+        Question().Opened();
 
         Assert.Equal("Skip scene? Space to skip, Escape to keep watching.", Assert.Single(announcer.Said).Text);
-    }
-
-    [Fact]
-    public void TheLayoutsOtherAnimationsSayNothing()
-    {
-        Played("MoviePauseLayout@ui@app", 4769);
-
-        Assert.Empty(announcer.Said);
-    }
-
-    [Fact]
-    public void AnotherLayoutIsNotAskedFor()
-    {
-        Assert.False(layouts.Wants("AutoSavingLayout@ui@app"));
-        Assert.True(layouts.Wants("MoviePauseLayout@ui@app"));
     }
 }

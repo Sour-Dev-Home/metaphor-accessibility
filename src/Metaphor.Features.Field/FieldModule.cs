@@ -73,7 +73,8 @@ public sealed class FieldModule : IFeatureModule
                 () => TiltLimits.From(settings.Current), () => context.LastDevice.Current),
             new Sonar(
                 field, context.Cues, () => Environment.TickCount64, () => settings.Current.IsOn(FieldFeature.Sonar),
-                log is null ? null : log.FieldRead, nearbyNames, floor),
+                log is null ? null : log.FieldRead, nearbyNames, floor,
+                () => Sonar.PingsPerSweep.From(settings.Current)),
             walls, routePings);
         context.AddControls(controls);
         // LB and RB held back in free roam until let go, so the reader's and the list's chords open no screen (#811),

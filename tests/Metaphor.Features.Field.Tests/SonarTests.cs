@@ -12,9 +12,11 @@ public sealed class SonarTests
     private readonly List<string> logged = [];
     private bool on = true;
     private long now = 1000;
+    private int pings = Sonar.MaxPings;
     private readonly Sonar sonar;
 
-    public SonarTests() => sonar = new Sonar(field, cues, () => now, () => on, logged.Add);
+    // The nearest-few mode unless a test sets pings to 1, the default, one at a time.
+    public SonarTests() => sonar = new Sonar(field, cues, () => now, () => on, logged.Add, pings: () => pings);
 
     // Ticks every 10 ms for the given time, as the keyboard reads do.
     private void Run(long milliseconds)
@@ -82,6 +84,79 @@ public sealed class SonarTests
             });
         Assert.True(cues.Silenced >= 3);
         Assert.All(cues.Channels, channel => Assert.Equal(ToneChannel.Sonar, channel));
+    }
+
+    [Fact]
+    public void OneAtATimeIsTheDefaultAndCyclesThroughWhatIsNearbyNearestFirst()
+    {
+        var byDefault = new ToneLog();
+        var sonarByDefault = new Sonar(field, byDefault, () => now, () => on);
+        field.Units =
+        [
+            new FieldUnit(FieldKind.Door, -1000, 0, 0, Id: "door"),
+            new FieldUnit(FieldKind.Person, 300, 0, 0, Id: "person"),
+            new FieldUnit(FieldKind.Chest, 0, 0, 600, Id: "chest"),
+        ];
+
+        for (var end = now + (Sonar.OneAtATimeMilliseconds * 5) - 10; now < end; now += 10)
+        {
+            sonarByDefault.Tick();
+        }
+
+        Assert.Equal(1, Sonar.PingsPerSweep.Default);
+        Assert.Equal(
+            [Sonar.Hertz(SonarKind.People), Sonar.Hertz(SonarKind.Objects), Sonar.Hertz(SonarKind.Exits),
+                Sonar.Hertz(SonarKind.People), Sonar.Hertz(SonarKind.Objects)],
+            byDefault.Held.Select(tone => tone.Hertz));
+    }
+
+    [Fact]
+    public void OneAtATimeNeverSoundsTwoPingsTogether()
+    {
+        pings = 1;
+        field.Units = [.. Enumerable.Range(1, 6).Select(i => new FieldUnit(FieldKind.Person, 100 * i, 0, 0, Id: $"p{i}"))];
+
+        Run(Sonar.SweepMilliseconds);
+
+        Assert.Equal((int)Math.Ceiling((double)Sonar.SweepMilliseconds / Sonar.OneAtATimeMilliseconds), cues.Held.Count);
+    }
+
+    [Fact]
+    public void ACycleStartsAgainFromTheNearestWhenSomethingNewComesNear()
+    {
+        pings = 1;
+        field.Units = [new FieldUnit(FieldKind.Person, 300, 0, 0, Id: "a"), new FieldUnit(FieldKind.Chest, 600, 0, 0, Id: "b")];
+        Run(Sonar.OneAtATimeMilliseconds);
+        field.Units = [.. field.Units, new FieldUnit(FieldKind.Door, 100, 0, 0, Id: "c")];
+
+        Run(Sonar.OneAtATimeMilliseconds * 3);
+
+        // a, then the door that came nearest (not yet heard), then b, then a new cycle from the door.
+        Assert.Equal(
+            [Sonar.Hertz(SonarKind.People), Sonar.Hertz(SonarKind.Exits), Sonar.Hertz(SonarKind.Objects),
+                Sonar.Hertz(SonarKind.Exits)],
+            cues.Held.Select(tone => tone.Hertz));
+    }
+
+    [Fact]
+    public void TheNearestFewModePingsOnlyThatMany()
+    {
+        pings = 2;
+        field.Units = [.. Enumerable.Range(1, 5).Select(i => new FieldUnit(FieldKind.Person, 100 * i, 0, 0))];
+
+        Run(Sonar.SweepMilliseconds - 10);
+
+        Assert.Equal(2, cues.Held.Count);
+    }
+
+    [Fact]
+    public void TheModeComesFromTheSettingsFileWithinRange()
+    {
+        var parsed = Core.Settings.ModSettings.Parse("""{ "limits": { "field": { "sonarPings": 40 } } }""",
+            Core.Settings.SettingCatalogue.Empty, _ => { });
+
+        Assert.Equal(Sonar.MaxPings, Sonar.PingsPerSweep.From(parsed));
+        Assert.Equal(1, Sonar.PingsPerSweep.From(Core.Settings.ModSettings.Defaults));
     }
 
     [Fact]
