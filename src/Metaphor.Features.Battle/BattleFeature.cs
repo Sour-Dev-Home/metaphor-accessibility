@@ -37,7 +37,7 @@ public enum BattleFeature
     BattleEnemyPad,
 
     /// <summary>The in-turn situation banner: a boss warning, a stat change, "Not enough MP!" (#692, #661).</summary>
-    [SettingKey("speech", "battleBanners", "Battle banners", Testing = true, Order = 1070, Description = "The short " +
+    [SettingKey("speech", "battleBanners", "Battle banners", Order = 1070, Description = "The short " +
         "banner during a battle turn: a boss warning, a stat change, \"Not enough MP!\".")]
     BattleBanners,
 
@@ -47,7 +47,7 @@ public enum BattleFeature
     BattleTurnLine,
 
     /// <summary>"Ambushed" when the enemy strikes first (#626).</summary>
-    [SettingKey("speech", "battleStart", "Battle start", Testing = true, Order = 1074, Description = "Says " +
+    [SettingKey("speech", "battleStart", "Battle start", Order = 1074, Description = "Says " +
         "\"Ambushed\" when a battle starts with the enemy striking first.")]
     BattleStart,
 

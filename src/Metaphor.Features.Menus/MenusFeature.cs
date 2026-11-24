@@ -14,7 +14,7 @@ public enum MenusFeature
 
     /// <summary>The Return to title dialog's question, before its Yes and No (#810). Separate from the menus while it
     /// is tested.</summary>
-    [SettingKey("speech", "returnToTitleQuestion", "Return to title question", Testing = true, Order = 1013,
+    [SettingKey("speech", "returnToTitleQuestion", "Return to title question", Order = 1013,
         Description = "The question the quick menu's Return to title asks before Yes and No. Needs `menus`.")]
     ReturnToTitleQuestion,
 
@@ -31,18 +31,18 @@ public enum MenusFeature
 
     /// <summary>Battle lists' rows named from a whole view the game fetched again, as after a wrap (#737). Separate
     /// from the battle lists while it is tested.</summary>
-    [SettingKey("speech", "battleListViews", "Battle list views", Testing = true, Order = 1045, Description =
+    [SettingKey("speech", "battleListViews", "Battle list views", Order = 1045, Description =
         "Names the rows of battle's skill and item lists after a wrap to the bottom, not only their positions. Needs " +
         "`battleLists`.")]
     BattleListViews,
 
     /// <summary>Battle's Order menu and its Tactics submenu (#771). Separate from the menus while it is tested.</summary>
-    [SettingKey("speech", "battleOrderMenu", "Battle order menu", Testing = true, Order = 1047, Description =
+    [SettingKey("speech", "battleOrderMenu", "Battle order menu", Order = 1047, Description =
         "Battle's Order menu, opened with LB, and its Tactics submenu.")]
     BattleOrderMenu,
 
     /// <summary>The Item screen's focus (#216). Separate from the menus while it is tested.</summary>
-    [SettingKey("speech", "itemMenu", "Item menu", Testing = true, Order = 1050, Description = "The Item screen's " +
+    [SettingKey("speech", "itemMenu", "Item menu", Order = 1050, Description = "The Item screen's " +
         "rows and its party-member list.")]
     ItemMenu,
 
@@ -52,13 +52,13 @@ public enum MenusFeature
 
     /// <summary>The quest list's names and an opened quest's description (#194). Separate from the menus while it is
     /// tested; off, the list says positions only.</summary>
-    [SettingKey("speech", "questList", "Quest list", Testing = true, Order = 1065, Description = "Each quest's name " +
+    [SettingKey("speech", "questList", "Quest list", Order = 1065, Description = "Each quest's name " +
         "on the quest list, and an opened quest's name and description. Needs `menus`.")]
     QuestList,
 
     /// <summary>The Followers list's names (#199). Separate from the menus while it is tested; off, the list says
     /// positions only.</summary>
-    [SettingKey("speech", "followerList", "Follower list", Testing = true, Order = 1067, Description = "Each " +
+    [SettingKey("speech", "followerList", "Follower list", Order = 1067, Description = "Each " +
         "follower's name and archetype on the Followers list. Needs `menus`.")]
     FollowerList,
 
@@ -79,7 +79,7 @@ public enum MenusFeature
     NameEntry,
 
     /// <summary>The name entry's read-back key (#585). Separate from the name entry while it is tested.</summary>
-    [SettingKey("speech", "nameReadBack", "Name read-back", Testing = true, Order = 1105, Description = "On the " +
+    [SettingKey("speech", "nameReadBack", "Name read-back", Order = 1105, Description = "On the " +
         "name entry screen, the details button (R3) saying the name typed so far. Needs `nameEntry`.")]
     NameReadBack,
 
