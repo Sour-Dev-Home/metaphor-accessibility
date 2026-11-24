@@ -132,6 +132,20 @@ public sealed class ShoulderTaps
         }
     }
 
+    /// <summary>Makes <paramref name="pad"/>'s held shoulders a chord, as another button pressed with them would: an input
+    /// that isn't a button, such as a stick the scan took (#701), so none is tapped to the game on release. Does nothing
+    /// while no shoulder is held back.</summary>
+    public void Chord(int pad)
+    {
+        lock (gate)
+        {
+            if (pads.TryGetValue(pad, out var state) && state.Held != 0)
+            {
+                state.Chord = true;
+            }
+        }
+    }
+
     private ShoulderRead Step(PadState state, int buttons)
     {
         var down = buttons & ~state.Previous;

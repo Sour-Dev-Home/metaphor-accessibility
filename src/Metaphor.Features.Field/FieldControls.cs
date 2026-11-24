@@ -342,6 +342,9 @@ public sealed class FieldControls : IInputControls
     /// <summary>Whether the beacon is guiding.</summary>
     public bool Guiding => beacon.Active;
 
+    /// <summary>Where the beacon points, as <see cref="Beacon.Bearing"/>: what auto-walk steers by (#184).</summary>
+    public double? GuideBearing => beacon.Bearing;
+
     /// <summary>The field as read, named by the names table.</summary>
     private FieldView? ReadNamed() => field.Read() is { } view ? names.Apply(view) : null;
 

@@ -24,6 +24,8 @@ public sealed class FeatureSettingRuleTests
         {
             public interface IInputControls { int Pad(int pad, int buttons, bool made); }
             public interface IKeyWatcher { void Keys(System.Collections.Generic.IReadOnlyList<int> keys); }
+            public readonly record struct PadSticks(int RightX, int RightY, int LeftX, int LeftY);
+            public interface IStickControls { PadSticks Sticks(int pad, int buttons, PadSticks sticks); }
         }
         namespace Metaphor.Core.Settings
         {
@@ -94,6 +96,7 @@ public sealed class FeatureSettingRuleTests
     [Theory]
     [InlineData("public sealed class Bell : IInputControls { public int Pad(int pad, int buttons, bool made) => buttons; }")]
     [InlineData("public sealed class Bell : IKeyWatcher { public void Keys(System.Collections.Generic.IReadOnlyList<int> keys) { } }")]
+    [InlineData("public sealed class Bell : IStickControls { public PadSticks Sticks(int pad, int buttons, PadSticks sticks) => sticks; }")]
     public void AFeatureThatTakesKeysWithoutASettingIsAViolation(string source)
     {
         Assert.Contains("Bell takes keys", Assert.Single(Check(source)), StringComparison.Ordinal);

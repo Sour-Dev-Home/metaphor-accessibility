@@ -40,6 +40,21 @@ public sealed class ShoulderTapsTests
         return taps.Pad(pad, buttons, buttons, made: true);
     }
 
+    // #701: a chord made outside the buttons (a stick the scan took) taps nothing on release; with nothing held it does
+    // nothing, so a later lone tap still reaches the game.
+    [Fact]
+    public void AChordFromOutsideTheButtonsTapsNothing()
+    {
+        taps.Chord(0);
+        Assert.Equal(0, Read(LB));
+        taps.Chord(0);
+        Assert.Equal(0, Read(0));
+        Assert.Equal(0, Read(0));
+
+        Assert.Equal(0, Read(LB));
+        Assert.Equal(LB, Read(0));
+    }
+
     [Fact]
     public void AHeldShoulderIsKeptFromTheGameWhileHeld()
     {

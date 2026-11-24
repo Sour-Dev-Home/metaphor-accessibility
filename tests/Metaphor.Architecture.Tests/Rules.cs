@@ -269,7 +269,8 @@ internal static class Rules
     private const string AnnouncerInterface = "Metaphor.Core.Announcements.IAnnouncer";
     private const string CuePlayerInterface = "Metaphor.Core.Cues.ICuePlayer";
     private const string FeatureSettingAttribute = "Metaphor.Core.Settings.FeatureSettingAttribute`1";
-    private static readonly string[] KeyInterfaces = ["Metaphor.Core.Input.IInputControls", "Metaphor.Core.Input.IKeyWatcher"];
+    private static readonly string[] KeyInterfaces =
+        ["Metaphor.Core.Input.IInputControls", "Metaphor.Core.Input.IKeyWatcher", "Metaphor.Core.Input.IStickControls"];
 
     /// <summary>
     /// Rule 18 (#661): a feature class that speaks (calls <c>Announce</c> on an announcer), plays a cue (calls the cue

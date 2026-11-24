@@ -20,7 +20,9 @@ namespace Metaphor.Hooks;
 // WriteProcessMemory on this process into the state the original has just filled, and the frame's answer only clears
 // bits or drops keys from it (while the settings menu is open, #754, all of them, the keyboard's fixed-key mask at +0
 // too), but for a shoulder tap (#811): LB or RB set for a few pad reads after the player let go
-// of it, in the same 16-bit mask. WriteProcessMemory fails instead of faulting, but it also writes through read-only pages,
+// of it, in the same 16-bit mask. The pad hook also hands the frame the sticks the original wrote after the mask, and
+// writes back the ones a stick control changed (#701, #184): a stick at rest, or the left stick pushed for auto-walk,
+// each axis within the original's 0 to 255. WriteProcessMemory fails instead of faulting, but it also writes through read-only pages,
 // so it is safe only on memory known to be the game's own writable data, never on an arbitrary pointer. In Debug builds
 // each change of a read is logged, as #58's input spike did (numbers only, no game text). The functions, their arguments
 // and the names (ours) are in docs/raw-sources/input-route-2026-11-16.md; the layout of what they write is in
@@ -97,12 +99,17 @@ internal sealed class PadReadHook : IGameHook, IChangesBehaviour
                 // A zero al is taken as "no read made" (#225): Steam Input's virtual pad 1 returns it while holding
                 // leftover bits (tests/fixtures/sessions/steam-input-pad1-noise.txt). What the return means is
                 // [NEEDS VERIFICATION], pending capture evening #229 (likely "pad not connected").
-                var answer = frame.Pad((int)pad, buttons, made: (result & 0xFF) != 0);
+                var made = (result & 0xFF) != 0;
+                var answer = frame.Pad((int)pad, buttons, made);
                 if (answer.Buttons != buttons)
                 {
                     var mask = new byte[2];
                     BinaryPrimitives.WriteUInt16LittleEndian(mask, (ushort)answer.Buttons);
                     WriteProcessMemory(CurrentProcess, state, mask, (nuint)mask.Length, out _);
+                }
+                if (made)
+                {
+                    Sticks(state, (int)pad, buttons);
                 }
                 if (log is not null)
                 {
@@ -115,6 +122,48 @@ internal sealed class PadReadHook : IGameHook, IChangesBehaviour
         }
         return result;
     }
+
+    // The sticks the original just wrote after the mask (#701, #184): four 16-bit values at +2 to +9, the right stick's x
+    // and y, then the left's (docs/findings/pad-sticks-in-pad-state-static.md). Handed to the frame on a made read and
+    // written back only when a control changed them, so with no stick control on nothing is written. A changed stick
+    // is the frame's PadSticks, each axis within 0 to 255, as the original writes.
+    private const int SticksOffset = 2;
+
+    private void Sticks(nint state, int pad, int buttons)
+    {
+        var raw = new byte[8];
+        if (!ModuleMemoryReader.ReadBytes(state + SticksOffset, raw))
+        {
+            return;
+        }
+        var read = new PadSticks(
+            BinaryPrimitives.ReadUInt16LittleEndian(raw), BinaryPrimitives.ReadUInt16LittleEndian(raw.AsSpan(2)),
+            BinaryPrimitives.ReadUInt16LittleEndian(raw.AsSpan(4)), BinaryPrimitives.ReadUInt16LittleEndian(raw.AsSpan(6)));
+        var handed = frame.Sticks(pad, buttons, read, made: true);
+        if (handed == read)
+        {
+            return;
+        }
+        var bytes = new byte[8];
+        BinaryPrimitives.WriteUInt16LittleEndian(bytes, Axis(handed.RightX));
+        BinaryPrimitives.WriteUInt16LittleEndian(bytes.AsSpan(2), Axis(handed.RightY));
+        BinaryPrimitives.WriteUInt16LittleEndian(bytes.AsSpan(4), Axis(handed.LeftX));
+        BinaryPrimitives.WriteUInt16LittleEndian(bytes.AsSpan(6), Axis(handed.LeftY));
+        WriteProcessMemory(CurrentProcess, state + SticksOffset, bytes, (nuint)bytes.Length, out _);
+        if (log is not null)
+        {
+            var source = string.Create(CultureInfo.InvariantCulture, $"pad{pad}sticks");
+            var text = string.Create(CultureInfo.InvariantCulture,
+                $"right=({read.RightX},{read.RightY})->({handed.RightX},{handed.RightY}) left=({read.LeftX},{read.LeftY})->({handed.LeftX},{handed.LeftY})");
+            if (changes.Changed(source, text))
+            {
+                log.InputChanged(source, text);
+            }
+        }
+    }
+
+    // Never more than the original writes for an axis.
+    private static ushort Axis(int value) => (ushort)Math.Clamp(value, 0, 0xFF);
 
     private void Log(long? window, int pad, int buttons, int handed, nint result)
     {

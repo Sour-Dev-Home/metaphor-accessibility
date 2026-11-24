@@ -79,10 +79,13 @@ public sealed class FeatureModulesTests
             controls);
         // The menus' module starts with the mark key, which is not gated, so before every other control.
         Assert.IsType<MarkKey>(registered.Added[typeof(MenusModule)][0]);
-        // The field's controls end the field module's, with the enemy awareness cues, which only watch the reads,
-        // after them; the field takes its read after the mark key.
+        // The field's controls end the field module's, then the stick scan and auto-walk (#701, #184), which take the
+        // pad what the field's chords leave, then the enemy awareness cues, which only watch the reads; the field takes
+        // its read after the mark key.
         var field = registered.Added[typeof(FieldModule)];
-        Assert.IsType<FieldControls>(field[^2]);
+        Assert.IsType<FieldControls>(field[^4]);
+        Assert.IsType<StickScan>(field[^3]);
+        Assert.IsType<AutoWalk>(field[^2]);
         Assert.IsType<EnemyAwareness>(field[^1]);
         Assert.True(controls.ToList().FindIndex(control => control is MarkKey)
             < controls.ToList().FindIndex(control => control is FieldControls));

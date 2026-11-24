@@ -139,6 +139,20 @@ public static class Nearby
         return rows;
     }
 
+    /// <summary>The nearest thing of <paramref name="view"/> within <paramref name="radius"/> whose bearing from the
+    /// screen's facing is within <paramref name="halfCone"/> of <paramref name="bearing"/> (left positive), however
+    /// many others are nearer elsewhere; null when there is none (#701).</summary>
+    public static NearbyThing? Toward(FieldView view, double bearing, double halfCone, double? radius = null)
+    {
+        ArgumentNullException.ThrowIfNull(view);
+        var within = radius ?? Radius;
+        return view.Units
+            .Select(unit => Place(view, unit))
+            .Where(thing => thing.Distance <= within && Math.Abs(Normalised(thing.Bearing - bearing)) <= halfCone)
+            .OrderBy(thing => thing.Distance)
+            .FirstOrDefault();
+    }
+
     /// <summary>The things of <paramref name="view"/> the game's reach test passes for, nearest first, however many and
     /// whatever else is nearer (#644).</summary>
     public static IReadOnlyList<NearbyThing> InReach(FieldView view)

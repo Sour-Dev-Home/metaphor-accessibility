@@ -134,4 +134,17 @@ public enum FieldFeature
         "list says compass points, such as \"north-east\", from the map's own axes instead of directions from the " +
         "screen, so they stay the same however the camera turns. North is the top of the game's map.")]
     Compass,
+
+    /// <summary>Scan by direction: RB and the right stick, or the scan key (#701).</summary>
+    [SettingKey("field", "stickScan", "Scan by direction", Testing = true, Order = 2220, Description = "Hold RB " +
+        "and push the right stick: the nearest thing that way is said, such as \"Left: Chest, 3 steps left\", and " +
+        "the camera stays still. U says the nearest thing ahead, left, right and behind.")]
+    StickScan,
+
+    /// <summary>Auto-walk toward the guidance beep (#184).</summary>
+    [SettingKey("field", "autoWalk", "Auto-walk", Testing = true, Order = 2230, Description = "While the " +
+        "guidance beep guides, H, or LB with Y on the pad, walks you toward it by pushing the left stick for you. " +
+        "Any button, key or stick you press stops it, and so does arriving, a line, a menu, a battle or a new area. " +
+        "Needs a controller connected.")]
+    AutoWalk,
 }

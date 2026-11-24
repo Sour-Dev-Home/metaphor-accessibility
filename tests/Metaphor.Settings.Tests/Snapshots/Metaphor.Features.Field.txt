@@ -1,3 +1,4 @@
+field.autoWalk | Auto-walk | off | testing
 field.behindMuffle | Behind muffle | off | testing
 field.cameraTilt | Camera tilt | on | done
 field.compass | Compass directions | off | testing
@@ -16,6 +17,7 @@ field.routePings | Route pings | off | testing
 field.shoulderHold | Shoulder hold or tap | on | done
 field.sonar | Sonar | off | testing
 field.soundFiles | Navigation sound files | off | testing
+field.stickScan | Scan by direction | off | testing
 field.stunCallouts | Stun callouts | on | done
 field.turnPings | Turn pings | off | testing
 field.wallTones | Wall tones | on | done

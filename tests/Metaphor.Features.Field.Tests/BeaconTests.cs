@@ -81,6 +81,21 @@ public sealed class BeaconTests
         Assert.Equal(Beacon.Volume, tone.Volume);
     }
 
+    // #184: auto-walk steers by where the beep points, which is unknown before its first read and after it ends.
+    [Fact]
+    public void ItsBearingIsKnownOnlyWhileItGuides()
+    {
+        Assert.Null(beacon.Bearing);
+        beacon.Start(Person(1000, 0));
+        Assert.Null(beacon.Bearing);
+
+        beacon.Tick();
+        Assert.Equal(Math.PI / 2, beacon.Bearing!.Value, 6);
+
+        beacon.Stop();
+        Assert.Null(beacon.Bearing);
+    }
+
     [Fact]
     public void EachPulseEndsThenTheNextComesAfterTheInterval()
     {

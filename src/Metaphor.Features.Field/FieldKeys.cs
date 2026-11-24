@@ -3,11 +3,13 @@ using Metaphor.Core.Settings;
 namespace Metaphor.Features.Field;
 
 /// <summary>The field project's keys, for the help key and the settings menu's key list (#868, #754). Every binding
-/// <see cref="FieldBindings.From"/> reads is here, with its default from <see cref="FieldBindings.Default"/>; a test
+/// <see cref="FieldBindings.From"/> and <see cref="StickBindings.From"/> read is here, with its default from <see cref="FieldBindings.Default"/>; a test
 /// fails when one isn't.</summary>
 public static class FieldKeys
 {
     private static readonly FieldBindings Defaults = FieldBindings.Default;
+
+    private static readonly StickBindings Sticks = StickBindings.Default;
 
     private static readonly BoundKey Hold = new("field", "holdButtons", Defaults.HoldButtons);
 
@@ -38,6 +40,11 @@ public static class FieldKeys
         new(KeyPlaces.Field, FieldFeature.ObjectiveGuidance, new(
             "Guide me to the objective", new("field", "objectiveKey", Defaults.ObjectiveKey),
             new("field", "objectiveButton", Defaults.ObjectiveButton), Hold)),
+        new(KeyPlaces.Field, FieldFeature.StickScan, new(
+            "Say the nearest thing ahead, left, right and behind", new("field", "scanKey", Sticks.ScanKey))),
+        new(KeyPlaces.Field, FieldFeature.AutoWalk, new(
+            "Start or stop auto-walk toward the guidance beep", new("field", "walkKey", Sticks.WalkKey),
+            new("field", "walkButton", Sticks.WalkButton), Hold)),
         new(KeyPlaces.Field, FieldFeature.Nearby, new(
             "Log the nearest thing for the names table", new("field", "identifyKey", Defaults.IdentifyKey))
         {

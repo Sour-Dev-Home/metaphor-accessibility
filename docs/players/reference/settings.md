@@ -161,6 +161,8 @@ the game.
 | `heightPan` | The sonar, route pings and guidance beep sit nearer the centre the farther above or below you their source is. Still being tested. | testing, off |
 | `nearbyHeight` | The nearby list says "above" or "below" after the direction of a thing well above or below you, such as on another floor. Still being tested. | testing, off |
 | `compass` | The nearby list says compass points, such as "north-east", from the map's own axes instead of directions from the screen, so they stay the same however the camera turns. North is the top of the game's map. Still being tested. | testing, off |
+| `stickScan` | Hold RB and push the right stick: the nearest thing that way is said, such as "Left: Chest, 3 steps left", and the camera stays still. U says the nearest thing ahead, left, right and behind. Still being tested. | testing, off |
+| `autoWalk` | While the guidance beep guides, H, or LB with Y on the pad, walks you toward it by pushing the left stick for you. Any button, key or stick you press stops it, and so does arriving, a line, a menu, a battle or a new area. Needs a controller connected. Still being tested. | testing, off |
 
 ## Report
 
@@ -268,6 +270,9 @@ DpadUp, DpadDown, DpadLeft and DpadRight.
 | `field.categoryButton` | With the held button: the next nearby category. | `"none"` |
 | `field.objectiveKey` | Starts the guidance beep toward the current objective (testing: `objectiveGuidance`). | `"O"` |
 | `field.objectiveButton` | With the held button: the same. | `"none"` |
+| `field.scanKey` | Says the nearest thing ahead, left, right and behind (testing: `stickScan`). | `"U"` |
+| `field.walkKey` | Starts or stops auto-walk toward the guidance beep (testing: `autoWalk`). | `"H"` |
+| `field.walkButton` | With the held button: the same. | `"Y"` |
 | `field.identifyKey` | Debug builds only: logs the nearest thing for the names table. | `"I"` |
 | `report.markKey` | Writes a marker to the report log. Keyboard only for now. | `"F8"` |
 | `menus.settingsMenuKey` | Opens or closes the mod's settings menu (testing: `settingsMenu`). | `"F2"` |
