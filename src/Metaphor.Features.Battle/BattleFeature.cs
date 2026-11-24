@@ -119,7 +119,7 @@ public enum BattleFeature
 
     /// <summary>The name in a banner such as "Bow Scourge Malmorta cannot move due to Stun!" (#739), from message
     /// variable slot 0.</summary>
-    [SettingKey("speech", "battleBannerNames", "Battle banner names", Testing = true, Order = 1071, Description =
+    [SettingKey("speech", "battleBannerNames", "Battle banner names", Order = 1071, Description =
         "Says who a battle banner is about: \"Bow Scourge Malmorta cannot move due to Stun!\". Off leaves the name " +
         "out. Needs `battleBanners`.")]
     BattleBannerNames,
