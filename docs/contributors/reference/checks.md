@@ -72,7 +72,10 @@ it in their names.
   reproducibly. Beside the build, `pester-varied-setup` runs every Pester file once under a German culture, from a
   checkout and temporary folder whose paths hold a space and non-ASCII characters (#459), and `scripts` waits for it
   too. It runs only when `scripts/player/`, `scripts/setup/`, `scripts/release/` (the script that builds what players install), `tests/pester/` or its runners change, and nightly on
-  `main` whatever changed (#655); `scripts` fails if it was skipped anywhere but a pull request. On `main`, `attest`
+  `main` whatever changed (#655); `scripts` fails if it was skipped anywhere but a pull request. `pre-push-hook` does
+  the same for the pre-push hook when `scripts/`, `tests/` or the workflows change: it pushes the change to a scratch
+  remote with `git push` (`scripts/ci/pre-push-hook.sh`), so the hook runs in git's own environment, which the other
+  jobs never see (#672's bug passed them and failed every local push). On `main`, `attest`
   signs the zip ([Check a download](../../players/how-to/check-a-download.md)). The
   path-by-path detail is in [how a change reaches main](../explanation/how-a-change-reaches-main.md) and
   [ADR 0008](../../adr/0008-ci-fast-path-and-windows-gate.md).

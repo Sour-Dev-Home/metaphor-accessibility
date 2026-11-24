@@ -264,6 +264,15 @@ job "varied setup: a push to main's docs change skips it" false varied-setup pus
 job "varied setup: a push to main's installer change runs it" true varied-setup push scripts/player/install.cmd
 job "varied setup: the nightly run takes everything" true varied-setup schedule docs/a.md
 job "varied setup: a run by hand takes everything" true varied-setup workflow_dispatch docs/a.md
+# pre-push-hook (#655): scripts/, tests/ and the workflows, in the merge queue and on main; nightly everything.
+job "pre-push hook: a docs-only change skips it" false pre-push-hook merge_group docs/a.md
+job "pre-push hook: a source-only change skips it" false pre-push-hook merge_group src/Metaphor.Core/a.cs
+job "pre-push hook: a script change runs it" true pre-push-hook merge_group scripts/dev/session.ps1
+job "pre-push hook: a .NET test change runs it" true pre-push-hook merge_group tests/Metaphor.Core.Tests/a.cs
+job "pre-push hook: a Pester test change runs it" true pre-push-hook merge_group tests/pester/run-pester.Tests.ps1
+job "pre-push hook: a workflow change runs it" true pre-push-hook push .github/workflows/slow.yml
+job "pre-push hook: a push to main's docs change skips it" false pre-push-hook push docs/a.md
+job "pre-push hook: the nightly run takes everything" true pre-push-hook schedule docs/a.md
 out="$(cd "$jobs_repo" && EVENT_NAME=merge_group GITHUB_OUTPUT='' bash "$ROOT/scripts/ci/what-runs.sh" --job varied-setup '' '')"
 check "varied setup: a merge-queue run with no diff runs it" [ "$out" = run=true ]
 out="$(sel scripts/player/install.ps1)"

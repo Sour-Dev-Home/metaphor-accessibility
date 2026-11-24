@@ -92,7 +92,7 @@ check "no record, no comment" [ -z "$out" ]
 # The workflows. job_block FILE JOB: the job's lines, up to the next job.
 job_block() { awk -v job="  $2:" '$0 == job { on = 1; print; next } on && /^  [A-Za-z0-9_-]+:[[:space:]]*$/ { exit } on' "$1"; }
 CI=.github/workflows/ci.yml
-for job in pester pester-varied-setup repo-rules; do
+for job in pester pester-varied-setup pre-push-hook repo-rules; do
   block="$(job_block "$CI" "$job")"
   check "$job's test step retries through retry-test.sh" grep -qF 'bash scripts/ci/retry-test.sh' <<< "$block"
   check "$job uploads its flake record" grep -qE 'name: flake-\$\{\{ github\.job \}\}' <<< "$block"

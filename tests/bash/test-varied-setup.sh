@@ -33,8 +33,9 @@ done
 # The aggregator, run as CI runs it, for each event and result.
 gate="$(job_block scripts | awk '/^        run: \|/ { on = 1; next } on && /^        [^ ]/ { exit } on { sub(/^          /, ""); print }')"
 check "the scripts job's script was found" [ -n "$gate" ]
-scripts_gate() { # scripts_gate EVENT PESTER VARIED: exit 0 when `scripts` passes
-  EVENT_NAME="$1" RESULT="$2" VARIED="$3" bash -c "$gate" > /dev/null 2>&1
+scripts_gate() { # scripts_gate EVENT PESTER VARIED: exit 0 when `scripts` passes (the pre-push hook passed: its
+  # cases are in tests/bash/test-pre-push-ci.sh)
+  EVENT_NAME="$1" RESULT="$2" VARIED="$3" HOOK=success bash -c "$gate" > /dev/null 2>&1
 }
 passes() { check "scripts passes: $*" scripts_gate "$@"; }
 scripts_gate_fails() { ! scripts_gate "$@"; }
