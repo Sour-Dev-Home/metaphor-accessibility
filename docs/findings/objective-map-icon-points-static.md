@@ -142,6 +142,11 @@ kind-4 point of that district on its navmesh within a few metres.
    same key `(field, row)`.
 3. **Variants.** Until what picks `_001` over `_000` is known, take `_000` and log when `_001` exists for the map.
 
+Steps 1 to 3 are built ahead of the checklist (#652, testing `objectiveGuidance`): the conversion is per-field values
+in `data/objectives/map-to-world.json`, empty, so every field says it isn't ready. A Debug build logs an
+`objective place` or `objective key` record on `L` and `O` with what the checklist needs
+([fit the objective markers](../contributors/how-to/fit-objective-markers.md)).
+
 ## Steps
 
 1. `Find-MetaphorGame` (`scripts/player/MetaphorInstall.psm1`) for the install; the exe's SHA-256 matches the build

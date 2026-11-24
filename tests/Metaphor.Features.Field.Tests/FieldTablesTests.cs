@@ -91,6 +91,23 @@ public sealed class FieldTablesTests
         Assert.Equal("field tables: 2 maps, no objectives", tables.Describe());
     }
 
+    // #652: the same row's file numbers name the map's field, f_<a>_<b>, for its icon points.
+    [Fact]
+    public void EachMapsFieldComesFromItsRowsFileNumbers()
+    {
+        var row = MapRow("Map_Test_01");
+        BitConverter.GetBytes((ushort)1).CopyTo(row, 0x8);
+        BitConverter.GetBytes((ushort)3).CopyTo(row, 0xa);
+        var files = new Dictionary<string, byte[]> { [FieldTables.MapDataPath] = [.. Header("MAPD", 2), .. MapRow(""), .. row] };
+
+        var tables = FieldTables.From(path => files.GetValueOrDefault(path));
+
+        Assert.Equal((1, 3), tables.FileOf(1));
+        Assert.Null(tables.FileOf(0));
+        Assert.Null(tables.FileOf(2));
+        Assert.Null(new FieldTablesSource().FileOf(1));
+    }
+
     [Fact]
     public async Task ALoadSaysWhatItReadAndHowLongItTook()
     {

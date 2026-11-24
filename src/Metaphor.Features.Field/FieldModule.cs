@@ -64,6 +64,15 @@ public sealed class FieldModule : IFeatureModule
             field, context.Cues, () => Environment.TickCount64, () => settings.Current.IsOn(FieldFeature.RoutePings),
             () => RoutePingLimits.From(settings.Current), routes, floor: floor,
             log: log is null ? null : log.FieldRead);
+        // "Guide me to the objective" (#652), testing: the field's icon points read from the archive per field, off the
+        // game's thread; the map-to-world conversion and the hand-written waypoints ship as data/objectives/*.json,
+        // both empty until a marker walk fits them (a bad file is left out, said in the dev log).
+        var objectiveData = ObjectiveData.Load(
+            Path.Combine(context.ModFolder, "data", "objectives"), problem => log?.FieldRead("objectives: " + problem));
+        var objective = new ObjectiveGuide(
+            context.StoryFlag, () => fieldTables.Objectives, fieldTables.FileOf,
+            MapIconPointSource.FromArchive(context.OpenArchive, navLog), objectiveData.Conversions,
+            objectiveData.Waypoints);
         // Its settings, the nearby list, its categories, "where am I" and guidance, are read on each read (#661).
         // Debug builds only: the "where am I" record lists the main-mission flags (#658).
         controls = new FieldControls(
@@ -83,7 +92,11 @@ public sealed class FieldModule : IFeatureModule
                 field, context.Cues, () => Environment.TickCount64, () => settings.Current.IsOn(FieldFeature.Sonar),
                 log is null ? null : log.FieldRead, nearbyNames, floor,
                 () => Sonar.PingsPerSweep.From(settings.Current)),
-            walls, routePings);
+            walls, routePings, objective,
+            // Field strike callouts (#696), testing: said through their own setting's gate.
+            new FieldStrikes(
+                field, settings.Speech(FieldFeature.FieldStrikes, context.Announcer), () => Environment.TickCount64,
+                log is null ? null : log.FieldRead));
         context.AddControls(controls);
         context.AddKeys(FieldKeys.All);
         // LB and RB held back in free roam until let go, so the reader's and the list's chords open no screen (#811),

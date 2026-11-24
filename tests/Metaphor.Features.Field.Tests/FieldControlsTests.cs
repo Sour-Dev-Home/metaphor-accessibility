@@ -838,4 +838,65 @@ public sealed class FieldControlsTests
         Assert.Equal([KeyI], release.Keys([KeyI]));
         Assert.Empty(announcer.Said);
     }
+
+    private const int KeyO = 0x4F;
+
+    // #652: map 3 is field f_0001_001; flag 0x1166 is set, so the objective is row 1.
+    private static ObjectiveGuide Objective(IReadOnlyList<ObjectiveWaypoint> waypoints, byte[]? points = null) => new(
+        flag => flag == 0x1166, () => [new(0x1165, "A0"), new(0x1166, "A1")], map => map == 3 ? (1, 1) : null,
+        new MapIconPointSource(path => path.EndsWith("_000.dat", StringComparison.Ordinal) ? points : null, _ => { },
+            MapIconPointsTests.Inline),
+        FittedMapToWorld.Empty, waypoints);
+
+    private FieldControls WithObjective(ObjectiveGuide objective, bool on = true) => new(
+        () => FieldBindings.Default, feature => feature != FieldFeature.ObjectiveGuidance || on, field, place, announcer,
+        cues, () => now, log.Add, objective: objective);
+
+    [Fact]
+    public void OStartsTheBeaconTowardTheObjectiveAndIsHiddenFromTheGame()
+    {
+        var guided = WithObjective(Objective([new("f_0001_001", 1, 0, 2000)]));
+
+        Assert.Equal([], guided.Keys([KeyO]));
+
+        Assert.True(guided.Guiding);
+        Assert.Equal(["Guiding to the objective"], Said());
+    }
+
+    [Fact]
+    public void OWithAMarkerButNoConversionSaysItIsntReady()
+    {
+        var guided = WithObjective(Objective([], MapIconPointsTests.File((100, 100, 4, 1))));
+
+        guided.Keys([KeyO]);
+
+        Assert.False(guided.Guiding);
+        Assert.Equal([ObjectiveGuide.NotReadyText], Said());
+    }
+
+    [Fact]
+    public void ObjectiveGuidanceTurnedOffLeavesOToTheGame()
+    {
+        var guided = WithObjective(Objective([new("f_0001_001", 1, 0, 2000)]), on: false);
+
+        Assert.Equal([KeyO], guided.Keys([KeyO]));
+
+        Assert.False(guided.Guiding);
+        Assert.Empty(Said());
+    }
+
+    [Fact]
+    public void WhereAmIAndOLogTheMarkerWalksRecord()
+    {
+        var guided = WithObjective(Objective([], MapIconPointsTests.File((1478, 1025, 4, 1))));
+
+        guided.Keys([KeyL]);
+        guided.Keys([]);
+        guided.Keys([KeyO]);
+
+        Assert.Contains(log, line => line.StartsWith(
+            "objective place map=3 field=f_0001_001 player=(0,0,0) row=1 flag=0x1166 ", StringComparison.Ordinal) &&
+            line.EndsWith("points=(1478,1025 k=4 i=1)", StringComparison.Ordinal));
+        Assert.Contains(log, line => line.StartsWith("objective key map=3 ", StringComparison.Ordinal));
+    }
 }

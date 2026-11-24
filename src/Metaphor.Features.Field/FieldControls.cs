@@ -26,11 +26,18 @@ namespace Metaphor.Features.Field;
 /// <param name="CategoryButton">With <paramref name="CategoryHoldButtons"/>: the next category, or 0 for none.</param>
 /// <param name="IdentifyKey">In Debug builds, the key that logs the nearest thing's map, id, kind fields and position
 /// (#687).</param>
+/// <param name="ObjectiveKey">The key that starts the beacon toward the current objective (#652).</param>
+/// <param name="ObjectiveButton">With <paramref name="HoldButtons"/>: as <paramref name="ObjectiveKey"/>, or 0 for none.
+/// </param>
 public sealed record FieldBindings(
     int NearbyKey, int PlaceKey, int HoldButtons, int NextButton, int PreviousButton, int PlaceButton, int GuideKey,
     int GuideButton, int NextKey, int PreviousKey, int CategoryNextKey = 0xDD, int CategoryPreviousKey = 0xDB,
-    int CategoryHoldButtons = 0, int CategoryButton = 0, int IdentifyKey = 0x49)
+    int CategoryHoldButtons = 0, int CategoryButton = 0, int IdentifyKey = 0x49, int ObjectiveKey = 0x4F,
+    int ObjectiveButton = 0)
 {
+    // O (0x4F) for the objective key (#652): free among the mod's keys, and within the game's keyboard read of 8 to
+    // 0xEF (docs/raw-sources/pad-and-keyboard-state-2026-11-16.md); whether the game's keyboard map uses O is
+    // [NEEDS VERIFICATION], as for J and K. The LB chord's four D-pad buttons are taken, so the pad has none by default.
     // The category keys, the maintainer's decision of 2026-11-22 on #697: [ (VK_OEM_4, 0xDB) and ] (VK_OEM_6, 0xDD) on
     // a US layout, within the game's keyboard read of 8 to 0xEF (docs/raw-sources/pad-and-keyboard-state-2026-11-16.md).
     // The pad's RB + Y (0x0800 and 0x1000 in the game's mask, same source) waits for the RB layer (#688) and the live
@@ -69,7 +76,9 @@ public sealed record FieldBindings(
             settings.Binding("field", "categoryPreviousKey", Default.CategoryPreviousKey),
             settings.Binding("field", "categoryHoldButtons", Default.CategoryHoldButtons),
             settings.Binding("field", "categoryButton", Default.CategoryButton),
-            settings.Binding("field", "identifyKey", Default.IdentifyKey));
+            settings.Binding("field", "identifyKey", Default.IdentifyKey),
+            settings.Binding("field", "objectiveKey", Default.ObjectiveKey),
+            settings.Binding("field", "objectiveButton", Default.ObjectiveButton));
     }
 }
 
@@ -88,7 +97,7 @@ public sealed record FieldBindings(
 /// own setting (#661), read on each input read: one turned off leaves its keys and chords to the game.</summary>
 [FeatureSetting<FieldFeature>(
     FieldFeature.Nearby, FieldFeature.NearbyCategories, FieldFeature.WhereAmI, FieldFeature.Guidance,
-    FieldFeature.GuidancePause, FieldFeature.CameraTilt)]
+    FieldFeature.GuidancePause, FieldFeature.CameraTilt, FieldFeature.ObjectiveGuidance)]
 public sealed class FieldControls : IInputControls
 {
     /// <summary>How long the pad's place on the list lasts after a step; the next step after that starts again at the
@@ -113,6 +122,9 @@ public sealed class FieldControls : IInputControls
     private readonly Sonar? sonar;
     private readonly WallTones? walls;
     private readonly RoutePings? routePings;
+    private readonly ObjectiveGuide? objective;
+    private readonly FieldStrikes? strikes;
+    private readonly Binding toObjective = new();
     private readonly Binding nearby = new();
     private readonly Binding next = new();
     private readonly Binding previous = new();
@@ -143,9 +155,9 @@ public sealed class FieldControls : IInputControls
         Func<long> milliseconds, Action<string>? log = null, NamesTable? names = null, ReachCallouts? reach = null,
         MissionLine? mission = null, Func<int, bool?>? storyFlag = null, IRoutePlanner? routes = null,
         StunCallouts? stuns = null, TiltWarning? tilt = null, Sonar? sonar = null, WallTones? walls = null,
-        RoutePings? routePings = null)
+        RoutePings? routePings = null, ObjectiveGuide? objective = null, FieldStrikes? strikes = null)
         : this(() => bindings, _ => true, field, place, announcer, cues, milliseconds, log, names, reach, mission,
-            storyFlag, routes, stuns, tilt, sonar, walls, routePings)
+            storyFlag, routes, stuns, tilt, sonar, walls, routePings, objective, strikes)
     {
         ArgumentNullException.ThrowIfNull(bindings);
     }
@@ -156,14 +168,19 @@ public sealed class FieldControls : IInputControls
     /// <paramref name="tilt"/>'s check and <paramref name="sonar"/>'s tick run on each keyboard read when there are ones
     /// (#828, #827), and "where am I" ends with the tilt's line while <see cref="FieldFeature.CameraTilt"/> is on.
     /// <paramref name="walls"/> tick on each keyboard read too (#830), and <paramref name="routePings"/> ping each place
-    /// the list steps to (#831).</summary>
+    /// the list steps to (#831). The objective key starts the beacon toward <paramref name="objective"/>'s answer
+    /// (#652) while <see cref="FieldFeature.ObjectiveGuidance"/> is on, and with a log "where am I" also writes its
+    /// record. <paramref name="strikes"/>' check runs on each keyboard read when there is one (#696).</summary>
     public FieldControls(
         Func<FieldBindings> bindings, Func<FieldFeature, bool> isOn, IFieldReads field, FieldPlace place,
         IAnnouncer announcer, ICuePlayer cues, Func<long> milliseconds, Action<string>? log = null,
         NamesTable? names = null, ReachCallouts? reach = null, MissionLine? mission = null,
         Func<int, bool?>? storyFlag = null, IRoutePlanner? routes = null, StunCallouts? stuns = null,
-        TiltWarning? tilt = null, Sonar? sonar = null, WallTones? walls = null, RoutePings? routePings = null)
+        TiltWarning? tilt = null, Sonar? sonar = null, WallTones? walls = null, RoutePings? routePings = null,
+        ObjectiveGuide? objective = null, FieldStrikes? strikes = null)
     {
+        this.objective = objective;
+        this.strikes = strikes;
         this.tilt = tilt;
         this.sonar = sonar;
         this.walls = walls;
@@ -202,6 +219,7 @@ public sealed class FieldControls : IInputControls
         CategoryNext,
         CategoryPrevious,
         Identify,
+        Objective,
     }
 
     /// <summary>Takes one read of <paramref name="pad"/>'s buttons, made or not (#225), acts on a press, moves the
@@ -224,7 +242,9 @@ public sealed class FieldControls : IInputControls
         var guideHeld = holding && isOn(FieldFeature.Guidance) && Holds(buttons, bindings.GuideButton);
         var categoryHeld = isOn(FieldFeature.NearbyCategories) && bindings.CategoryButton != 0 &&
             Holds(buttons, bindings.CategoryHoldButtons) && Holds(buttons, bindings.CategoryButton);
-        var roaming = (nextHeld || previousHeld || placeHeld || guideHeld || categoryHeld) && roam.Open();
+        var objectiveHeld = holding && ObjectiveOn() && Holds(buttons, bindings.ObjectiveButton);
+        var roaming = (nextHeld || previousHeld || placeHeld || guideHeld || categoryHeld || objectiveHeld) &&
+            roam.Open();
         Press press;
         lock (gate)
         {
@@ -233,8 +253,10 @@ public sealed class FieldControls : IInputControls
             var placePressed = where.Update(pad, placeHeld && roaming);
             var guidePressed = guide.Update(pad, guideHeld && roaming);
             var categoryPressed = categoryNext.Update(pad, categoryHeld && roaming);
+            var objectivePressed = toObjective.Update(pad, objectiveHeld && roaming);
             press = nextPressed ? Press.Next : previousPressed ? Press.Previous : placePressed ? Press.Place :
-                guidePressed ? Press.Guide : categoryPressed ? Press.CategoryNext : Press.None;
+                guidePressed ? Press.Guide : categoryPressed ? Press.CategoryNext :
+                objectivePressed ? Press.Objective : Press.None;
         }
         Act(press);
         beacon.Tick();
@@ -244,7 +266,7 @@ public sealed class FieldControls : IInputControls
         }
         return buttons & ~((nextHeld ? bindings.NextButton : 0) | (previousHeld ? bindings.PreviousButton : 0) |
             (placeHeld ? bindings.PlaceButton : 0) | (guideHeld ? bindings.GuideButton : 0) |
-            (categoryHeld ? bindings.CategoryButton : 0));
+            (categoryHeld ? bindings.CategoryButton : 0) | (objectiveHeld ? bindings.ObjectiveButton : 0));
     }
 
     /// <summary>Takes one read of the keys held down, acts on a press, moves the beacon on, and returns the keys to hand
@@ -259,6 +281,8 @@ public sealed class FieldControls : IInputControls
         sonar?.Tick();
         walls?.Tick();
         routePings?.Tick();
+        strikes?.Check();
+        PollObjective();
         var bindings = liveBindings();
         var listOn = isOn(FieldFeature.Nearby);
         var categoriesOn = isOn(FieldFeature.NearbyCategories);
@@ -270,8 +294,9 @@ public sealed class FieldControls : IInputControls
         var categoryNextHeld = categoriesOn && keys.Contains(bindings.CategoryNextKey);
         var categoryPreviousHeld = categoriesOn && keys.Contains(bindings.CategoryPreviousKey);
         var identifyHeld = log is not null && keys.Contains(bindings.IdentifyKey);
+        var objectiveHeld = ObjectiveOn() && keys.Contains(bindings.ObjectiveKey);
         var roaming = (listHeld || placeHeld || guideHeld || nextHeld || previousHeld || categoryNextHeld ||
-            categoryPreviousHeld || identifyHeld) && roam.Open();
+            categoryPreviousHeld || identifyHeld || objectiveHeld) && roam.Open();
         Press press;
         lock (gate)
         {
@@ -283,10 +308,11 @@ public sealed class FieldControls : IInputControls
             var categoryNextPressed = categoryNext.Update(KeyboardSource, categoryNextHeld && roaming);
             var categoryPreviousPressed = categoryPrevious.Update(KeyboardSource, categoryPreviousHeld && roaming);
             var identifyPressed = identify.Update(KeyboardSource, identifyHeld && roaming);
+            var objectivePressed = toObjective.Update(KeyboardSource, objectiveHeld && roaming);
             press = listPressed ? Press.List : placePressed ? Press.Place : guidePressed ? Press.Guide :
                 nextPressed ? Press.Next : previousPressed ? Press.Previous :
                 categoryNextPressed ? Press.CategoryNext : categoryPreviousPressed ? Press.CategoryPrevious :
-                identifyPressed ? Press.Identify : Press.None;
+                identifyPressed ? Press.Identify : objectivePressed ? Press.Objective : Press.None;
         }
         Act(press);
         beacon.Tick();
@@ -298,7 +324,7 @@ public sealed class FieldControls : IInputControls
                 (previousHeld && key == bindings.PreviousKey) ||
                 (categoryNextHeld && key == bindings.CategoryNextKey) ||
                 (categoryPreviousHeld && key == bindings.CategoryPreviousKey) ||
-                (identifyHeld && key == bindings.IdentifyKey)))]
+                (identifyHeld && key == bindings.IdentifyKey) || (objectiveHeld && key == bindings.ObjectiveKey)))]
             : keys;
     }
 
@@ -330,6 +356,11 @@ public sealed class FieldControls : IInputControls
         if (press == Press.Guide)
         {
             Guide();
+            return;
+        }
+        if (press == Press.Objective)
+        {
+            GuideToObjective();
             return;
         }
         string text;
@@ -427,6 +458,59 @@ public sealed class FieldControls : IInputControls
         return new BeaconTarget(unreached.Unit, view.DoorReachValue);
     }
 
+    private bool ObjectiveOn() => objective is not null && isOn(FieldFeature.ObjectiveGuidance);
+
+    /// <summary>Starts reading the current map's markers ahead of a press (#652). A read that throws does nothing.
+    /// </summary>
+    [SuppressMessage("Design", "CA1031", Justification = "A failed read must never reach the game; it does nothing.")]
+    private void PollObjective()
+    {
+        if (!ObjectiveOn())
+        {
+            return;
+        }
+        try
+        {
+            objective!.Poll(field.MapId, milliseconds());
+        }
+        catch (Exception)
+        {
+        }
+    }
+
+    /// <summary>Starts the beacon toward the current objective's nearest marker or waypoint (#652), in place of any
+    /// target before, or says why there is none; with a log, writes the marker walk's record first. A read that throws
+    /// starts nothing and says nothing.</summary>
+    [SuppressMessage("Design", "CA1031", Justification = "A failed read must never reach the game; it says nothing.")]
+    private void GuideToObjective()
+    {
+        ObjectiveAnswer answer;
+        try
+        {
+            var map = field.MapId();
+            var pose = field.ReadPose();
+            log?.Invoke(objective!.Describe("key", map, pose));
+            if (pose is not { } at)
+            {
+                announcer.Announce(new Announcement("Can't read the field", Interrupt: true));
+                return;
+            }
+            answer = objective!.Find(map, at);
+        }
+        catch (Exception)
+        {
+            return;
+        }
+        if (answer.Target is { } target)
+        {
+            beacon.Start(target);
+        }
+        else if (answer.Text is { } text)
+        {
+            announcer.Announce(new Announcement(text, Interrupt: true));
+        }
+    }
+
     private void AlreadyNextTo(FieldUnit unit) => announcer.Announce(new Announcement(
         $"Already next to {unit.Name ?? Nearby.KindWord(unit.Says)}", Interrupt: true));
 
@@ -486,6 +570,11 @@ public sealed class FieldControls : IInputControls
                 : " mainFlags=" + MainMissionFlags.Describe(MainMissionFlags.Highest(storyFlag, 4));
             log(string.Create(CultureInfo.InvariantCulture,
                 $"place map={Number(map)} known={name is not null} mission={current is not null}{flags}"));
+            // #652: the marker walk's record, so "where am I" on a marker fits the map-to-world conversion.
+            if (objective is not null)
+            {
+                log(objective.Describe("place", map, field.ReadPose()));
+            }
         }
         var said = name ?? "Place not known yet";
         var line = current is null ? said : $"{said}. {MissionLine.Spoken(current)}";

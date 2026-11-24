@@ -42,18 +42,24 @@ public static class MainMissionFlags
     /// <summary>The row of the current main mission, as the game's read <c>0x724130</c> picks it: the highest flag in
     /// the range that is set and has a row in <paramref name="rows"/>; null when none does or a flag can't be read. The
     /// game's fallback to earlier flags is left out [NEEDS VERIFICATION]: when it applies.</summary>
-    public static MainMissionRow? Current(Func<int, bool?> storyFlag, IReadOnlyList<MainMissionRow> rows)
+    public static MainMissionRow? Current(Func<int, bool?> storyFlag, IReadOnlyList<MainMissionRow> rows) =>
+        CurrentIndex(storyFlag, rows) is { } index ? rows[index] : null;
+
+    /// <summary>As <see cref="Current"/>, the row's position in <paramref name="rows"/> from 0, the first row with its
+    /// flag: the field objective table's row that its icon points name (#652,
+    /// docs/findings/objective-map-icon-points-static.md).</summary>
+    public static int? CurrentIndex(Func<int, bool?> storyFlag, IReadOnlyList<MainMissionRow> rows)
     {
         ArgumentNullException.ThrowIfNull(storyFlag);
         ArgumentNullException.ThrowIfNull(rows);
-        var byFlag = new Dictionary<int, MainMissionRow>();
-        foreach (var row in rows)
+        var byFlag = new Dictionary<int, int>();
+        for (var i = 0; i < rows.Count; i++)
         {
-            byFlag.TryAdd(row.Flag, row);
+            byFlag.TryAdd(rows[i].Flag, i);
         }
         for (var flag = Last; flag >= First; flag--)
         {
-            if (!byFlag.TryGetValue(flag, out var row))
+            if (!byFlag.TryGetValue(flag, out var index))
             {
                 continue;
             }
@@ -62,7 +68,7 @@ public static class MainMissionFlags
                 case null:
                     return null;
                 case true:
-                    return row;
+                    return index;
             }
         }
         return null;

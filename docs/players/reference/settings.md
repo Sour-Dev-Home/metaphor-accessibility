@@ -120,6 +120,8 @@ the game.
 | `sonar` | A short sound for the people, objects and exits nearby, one at a time, nearest first (`field.sonarPings` for more): a sound of its own for each kind, on the side it is on screen, louder when nearer. It waits while the guidance beep guides or a route ping sounds. Still being tested. | testing, off |
 | `wallTones` | A low steady tone for each wall near you, ahead, behind, left and right of the screen, louder as the wall nears. Silent on maps the mod has no walking map for, which it says once. The range and volume are in `limits`. Still being tested. | testing, off |
 | `routePings` | A ping from the direction of each place the nearby list steps to: two high notes when the way is straight, two rising notes from the next corner when the way bends, one low note when there is no path. Its volume is in `limits`. Still being tested. | testing, off |
+| `objectiveGuidance` | O starts the guidance beep toward the current objective's marker on this map, or a waypoint the mod's data gives; G stops it. Says "Objective guidance isn't ready for this area" where the mod can't place the marker yet, which for now is everywhere. Still being tested. | testing, off |
+| `fieldStrikes` | "Hit" when a strike of yours takes HP from a field enemy near you, and "Defeated" when it takes the last. Still being tested. | testing, off |
 
 ## Report
 
@@ -215,6 +217,8 @@ DpadUp, DpadDown, DpadLeft and DpadRight.
 | `field.categoryPreviousKey` | The category before. | `"["` |
 | `field.categoryHoldButtons` | Held for the pad's category chord. | `"none"` |
 | `field.categoryButton` | With the held button: the next nearby category. | `"none"` |
+| `field.objectiveKey` | Starts the guidance beep toward the current objective (testing: `objectiveGuidance`). | `"O"` |
+| `field.objectiveButton` | With the held button: the same. | `"none"` |
 | `field.identifyKey` | Debug builds only: logs the nearest thing for the names table. | `"I"` |
 | `report.markKey` | Writes a marker to the report log. Keyboard only for now. | `"F8"` |
 | `menus.settingsMenuKey` | Opens or closes the mod's settings menu (testing: `settingsMenu`). | `"F2"` |

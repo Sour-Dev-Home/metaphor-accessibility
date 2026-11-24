@@ -24,9 +24,12 @@ public enum FieldKind
 /// <param name="Stunned">For an enemy, whether it is stunned (#772): its break byte, which the game's
 /// <c>FldEnemyIsBreak</c> returns (docs/findings/enemy-stun-break-and-battle-condition-static.md); false when unread.
 /// </param>
+/// <param name="Hp">For an enemy, its current HP (#696): the <c>u32</c> at <c>[enemy+0x34e0]+0xc</c>, which
+/// <c>FldEnemyIsDead</c> tests against 0 (docs/findings/field-enemy-strikes-and-notice-static.md, high confidence in
+/// code, unread live); null when unread, and always in a Release build, which doesn't read it yet.</param>
 public sealed record FieldUnit(
     FieldKind Kind, float X, float Y, float Z, string? Name = null, string Raw = "", string? Id = null,
-    NearbyKind? Called = null, bool Stunned = false)
+    NearbyKind? Called = null, bool Stunned = false, int? Hp = null)
 {
     /// <summary>The kind it is spoken and sorted as: the names table's, or its list's.</summary>
     public NearbyKind Says => Called ?? Nearby.KindOf(Kind);

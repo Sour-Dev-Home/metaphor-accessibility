@@ -4,6 +4,7 @@ using System.Globalization;
 using Metaphor.Core;
 using Metaphor.Core.Logging;
 using Metaphor.Core.Messages;
+using Metaphor.Core.Navigation;
 
 namespace Metaphor.Features.Field;
 
@@ -40,11 +41,18 @@ public sealed class FieldTables
 
     private readonly IReadOnlyList<string?>? maps;
 
-    private FieldTables(IReadOnlyList<string?>? maps, IReadOnlyList<MainMissionRow>? objectives)
+    private readonly NavMapFiles? files;
+
+    private FieldTables(IReadOnlyList<string?>? maps, IReadOnlyList<MainMissionRow>? objectives, NavMapFiles? files)
     {
         this.maps = maps;
         Objectives = objectives;
+        this.files = files;
     }
+
+    /// <summary>Map <paramref name="map"/>'s field file numbers, <c>f_&lt;a&gt;_&lt;b&gt;</c>, as the same table's row
+    /// gives them (<see cref="NavMapFiles"/>, #652), or null when it names none.</summary>
+    public (int A, int B)? FileOf(int map) => files?.FileOf(map);
 
     /// <summary>The field objectives, or null when their table couldn't be read.</summary>
     public IReadOnlyList<MainMissionRow>? Objectives { get; }
@@ -63,9 +71,11 @@ public sealed class FieldTables
     public static FieldTables From(Func<string, byte[]?> file)
     {
         ArgumentNullException.ThrowIfNull(file);
+        var map = file(MapDataPath);
         return new(
-            file(MapDataPath) is { } map ? ParseMaps(map) : null,
-            file(ObjectivesPath) is { } objectives ? ParseObjectives(objectives) : null);
+            map is null ? null : ParseMaps(map),
+            file(ObjectivesPath) is { } objectives ? ParseObjectives(objectives) : null,
+            map is null ? null : NavMapFiles.Parse(map));
     }
 
     /// <summary>Each map id's own name hash (null for an empty one), or null when <paramref name="bytes"/> aren't the
@@ -128,6 +138,9 @@ public sealed class FieldTablesSource
 
     /// <summary>Whether the map table has loaded: until it has, every map id reads as unknown (#843).</summary>
     public bool MapsLoaded => tables?.HasMaps == true;
+
+    /// <summary>As <see cref="FieldTables.FileOf"/>, or null while the tables load.</summary>
+    public (int A, int B)? FileOf(int map) => tables?.FileOf(map);
 
     /// <summary>Reads the tables from the archive <paramref name="open"/> opens, on the thread pool, and tells
     /// <paramref name="done"/> what came of it: a line for the log naming no folder. A load that failed (the archive
