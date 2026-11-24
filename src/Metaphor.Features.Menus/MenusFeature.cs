@@ -104,7 +104,7 @@ public enum MenusFeature
     /// menus while it is tested; off, the pick says positions only.</summary>
     [SettingKey("speech", "archetypeTree", "Archetype Tree", Order = 1068, Description =
         "On the Archetype Tree, each character on the pick, then each archetype the cursor reaches, with its line " +
-        "and rank. Needs `menus`.")]
+        "and rank; the details key (F, or R3 on the pad) says whether it is studied or what it needs. Needs `menus`.")]
     ArchetypeTree,
 
     /// <summary>The level-up point screen's stats (#624). Separate from the menus while it is tested; off, the screen

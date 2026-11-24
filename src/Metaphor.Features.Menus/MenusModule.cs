@@ -202,7 +202,8 @@ public sealed class MenusModule : IFeatureModule
         // The level-up screen's details are its stat's description (#624).
         // The Item and Equipment screens', the quick menu's and the settings pages' are the row's description or help line
         // the game fetched (#907, #560).
-        IScreenDetails[] details = [.. battleLists, levelUp, itemFocus, equipmentFocus, quickHelp, settingsHelp];
+        // The Archetype Tree's are the focused archetype's study state (#933).
+        IScreenDetails[] details = [.. battleLists, levelUp, itemFocus, equipmentFocus, quickHelp, settingsHelp, archetypeTree];
         var menuControls = new MenuControls(menuBindings, screens, reader, details, context.Cursors.CalledRecently);
         screens.Observe(menuControls);
         context.Cursors.Observe(slots);

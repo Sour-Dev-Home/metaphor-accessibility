@@ -88,7 +88,7 @@ Each is `true` to speak or `false` to stay quiet, inside a `speech` object: `{ "
 | `calendar` | The Calendar's day grid. | `true` |
 | `questList` | Each quest's name on the quest list, and an opened quest's name and description. Needs `menus`. | `true` |
 | `followerList` | Each follower's name and archetype on the Followers list. Needs `menus`. | `true` |
-| `archetypeTree` | On the Archetype Tree, each character on the pick, then each archetype the cursor reaches, with its line and rank. Needs `menus`. | `true` |
+| `archetypeTree` | On the Archetype Tree, each character on the pick, then each archetype the cursor reaches, with its line and rank; the details key (F, or R3 on the pad) says whether it is studied or what it needs. Needs `menus`. | `true` |
 | `levelUpPoints` | The level-up screen where you spend points: its heading and each stat's name, and the stat's description on the details key. Needs `menus`. Still being tested. | testing, off |
 | `battleBanners` | The short banner during a battle turn: a boss warning, a stat change. | `true` |
 | `battleBannerNames` | Says who a battle banner is about: "Bow Scourge Malmorta cannot move due to Stun!". Off leaves the name out. Needs `battleBanners`. Still being tested. | testing, off |

@@ -22,9 +22,15 @@ public sealed class ArchetypeTreeFocusTests
     private const int Unused = FirstClass + 2;
     private const int Brute = FirstClass + 3;
 
+    private const int FirstSystem = 1600;
+    private const int Requirement = FirstSystem;
+    private const int Studied = FirstSystem + 1;
+    private static readonly ScreenEvent PickFocus = new(ScreenChange.FocusMoved, ArchetypeTreeFocus.CharacterPick, PickClass, 0, 7);
+
     private readonly RecordingAnnouncer announcer = new();
     private readonly CursorEvents cursors = new();
     private readonly MessageEvents messages = new();
+    private readonly ArchetypeTreeFocus focus;
     private bool on = true;
 
     public ArchetypeTreeFocusTests()
@@ -33,8 +39,11 @@ public sealed class ArchetypeTreeFocusTests
             new SerialRange(MessageSerials.CharacterNames, 0, 3),
             new SerialRange(MessageSerials.ArchetypeNames, FirstLine, 3),
             new SerialRange(MessageSerials.ClassNames, FirstClass, 4),
+            new SerialRange("message/system/System_Message.msg", FirstSystem, 2),
         ]);
         messages.ObserveFiles(serials);
+        messages.Compiled(new MessageFileCompiled("EN/message/system/System_Message.msg", 21, string.Join("\n\n",
+            Entry("System_Academy_02", "Requires"), Entry("System_Academy_24", "Studied"))));
         messages.Compiled(new MessageFileCompiled("EN/message/CharaName.msg", 1, string.Join("\n\n",
             Entry("CharaName_PC01_Hero", "Hero"), Entry("CharaName_PC02_Stroll", "Strohl"),
             Entry("CharaName_PC03_Hulkenberg", "Hulkenberg"))));
@@ -45,7 +54,7 @@ public sealed class ArchetypeTreeFocusTests
             Entry("ClassName_01_04", "@ClassName_01_04"), Entry("ClassName_03_02", "Brute"))));
         var screens = new MenuScreens(KnownScreens.All);
         screens.MenusRead(open: true);
-        var focus = new ArchetypeTreeFocus(serials, announcer, new TextCleaner(TextCleanerRules.None), () => on)
+        focus = new ArchetypeTreeFocus(serials, announcer, new TextCleaner(TextCleanerRules.None), () => on)
         {
             ProtagonistName = () => "Will",
         };
@@ -140,4 +149,50 @@ public sealed class ArchetypeTreeFocusTests
 
     [Fact]
     public void ThePickIsAKnownScreen() => Assert.Contains(ArchetypeTreeFocus.CharacterPick, KnownScreens.All);
+
+    // #933: the details key on the tree said "No more details".
+    [Fact]
+    public void TheDetailsOfAStudiedNodeSayStudied()
+    {
+        OpenPick();
+        Node(Hacker);
+        messages.Resolved(new SerialResolved(Studied, 6));
+
+        Assert.Equal("Studied", focus.Details(PickFocus));
+    }
+
+    [Fact]
+    public void TheDetailsOfANodeNotStudiedSayTheRequirementAndTheArchetypesItNeeds()
+    {
+        OpenPick();
+        Node(Hacker);
+        messages.Resolved(new SerialResolved(Studied, 6));
+        Node(Brute);
+        messages.Resolved(new SerialResolved(Requirement, 6));
+        messages.Resolved(new SerialResolved(Hacker, ArchetypeTreeFocus.MemberFlags));
+
+        Assert.Equal("Requires, Hacker", focus.Details(PickFocus));
+    }
+
+    [Fact]
+    public void ACursorInputEndsTheNodesDetails()
+    {
+        OpenPick();
+        Node(Hacker);
+        messages.Resolved(new SerialResolved(Studied, 6));
+        Cursor(PickClass, 1);
+
+        Assert.Null(focus.Details(PickFocus));
+    }
+
+    [Fact]
+    public void OffTheTreeHasNoDetails()
+    {
+        OpenPick();
+        Node(Hacker);
+        messages.Resolved(new SerialResolved(Studied, 6));
+        on = false;
+
+        Assert.Null(focus.Details(PickFocus));
+    }
 }
