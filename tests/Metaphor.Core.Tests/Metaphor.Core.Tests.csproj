@@ -19,6 +19,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\src\Metaphor.Core\Metaphor.Core.csproj" />
+    <ProjectReference Include="..\..\tools\Metaphor.CpkExtract\Metaphor.CpkExtract.csproj" />
   </ItemGroup>
 
 </Project>

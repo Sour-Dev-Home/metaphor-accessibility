@@ -12,6 +12,9 @@ executable's SHA-256 (see **Game build** in [`GLOSSARY.md`](../../GLOSSARY.md)):
 
 `scripts/check.sh` fails a note without one.
 
+To read a file out of the game's archives for a finding, use the committed tool, not a throwaway program:
+[read game data for findings](../contributors/how-to/read-game-data-for-findings.md).
+
 ## Template
 
 Copy this into `docs/findings/<topic>.md`. The method names a row of the table in
