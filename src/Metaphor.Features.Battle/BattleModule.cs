@@ -1,5 +1,6 @@
 using Metaphor.Core.Battle;
 using Metaphor.Core.Features;
+using Metaphor.Core.Messages;
 using Metaphor.Core.Settings;
 
 namespace Metaphor.Features.Battle;
@@ -33,9 +34,18 @@ public sealed class BattleModule : IFeatureModule
         context.Provide<IBattleEnemyObserver>(hitLines);
         var units = context.Find<IBattleUnits>();
         // The in-turn situation banner, queued behind the hit lines (#692), behind `speech.battleBanners` (#661).
+        // The banner's subject (#739), testing: a party member's or enemy's name serial, or a name's text.
+        var serials = context.Serials;
         context.Provide(new BattleBanners(
             context.FilePositions, settings.Speech(BattleFeature.BattleBanners, reader), context.Cleaner,
-            () => Environment.TickCount64));
+            () => Environment.TickCount64)
+        {
+            SerialName = serial =>
+                serials.InFile(serial, MessageSerials.CharacterNames) || serials.InFile(serial, MessageSerials.EnemyNames)
+                    ? serials.TextOf(serial, context.Cleaner)
+                    : null,
+            NamesOn = () => settings.Current.IsOn(BattleFeature.BattleBannerNames),
+        });
         // The turn line (#252), polled on each input read from the game data's turn icons, and the ambushed start
         // (#626) and the battle's end (#166) from the layouts' animations, each its own testing setting.
         if (context.Find<IBattleTurnIcons>() is { } turnIcons)
@@ -43,10 +53,22 @@ public sealed class BattleModule : IFeatureModule
             context.AddControls(settings.Input(
                 BattleFeature.BattleTurnLine,
                 new TurnLine(turnIcons, context.BattleScene, settings.Speech(BattleFeature.BattleTurnLine, reader),
-                    TimeProvider.System)));
+                    TimeProvider.System)
+                {
+                    // A Debug build logs each icon change read, for #254's unsaid mid-turn gain.
+                    Log = log is null ? null : text => log.Requested("BattleTurnIcons", text),
+                }));
         }
         context.Layouts.Observe(new BattleStartLine(settings.Speech(BattleFeature.BattleStart, reader)));
         context.Layouts.Observe(new BattleEndLine(settings.Speech(BattleFeature.BattleEnd, reader)));
+        // The money and MAG a won battle gave (#166), testing, from the purse at its start and end.
+        if (context.Find<IBattlePurse>() is { } purse)
+        {
+            var rewards = new BattleRewards(
+                purse, settings.Speech(BattleFeature.BattleRewards, reader), TimeProvider.System);
+            context.Layouts.Observe(rewards);
+            context.AddControls(settings.Input(BattleFeature.BattleRewards, rewards));
+        }
         // Leaving the battle scene ends the battle, so the next one numbers its enemies afresh (#750).
         context.AddControls(settings.Input(
             BattleFeature.BattleNumberReset, new BattleEnds(hitLines, context.BattleScene, TimeProvider.System)));

@@ -2,6 +2,7 @@ using System.Collections.Concurrent;
 using System.Globalization;
 using Metaphor.Core;
 using Metaphor.Core.Battle;
+using Metaphor.Features.Battle;
 
 namespace Metaphor.Hooks;
 
@@ -10,6 +11,15 @@ namespace Metaphor.Hooks;
 internal sealed class BattleTurnIconsMemory(GameDataRead data) : IBattleTurnIcons
 {
     public TurnIcons? Read() => data.TurnIcons();
+}
+
+/// <summary>The party's money and MAG as the game data block holds them (#166), read through
+/// <see cref="GameDataRead"/> only.</summary>
+internal sealed class BattlePurseMemory(GameDataRead data) : IBattlePurse
+{
+    public int? Money() => data.Money();
+
+    public int? Mag() => data.Mag();
 }
 
 /// <summary>The party as the game data block holds it (#247): each slot's unit and its HP at unit <c>+0x0C</c>, the
@@ -81,6 +91,11 @@ internal sealed class BattleHitResultHook : IGameHook, IObserves6WithResult
     private const int KindAt = 0x304;
     private const int UnitHolderAt = 0x18;
     private const int RecordAt = 0x8;
+    // One 0x20-byte row per target from result+0, its condition bits at +0xC; a unit's conditions at record +0x1c
+    // (docs/findings/battle-hit-result-hp-left-static.md, docs/findings/menu-values-party-unit-static.md).
+    private const int RowLength = 0x20;
+    private const int RowConditionsAt = 0xC;
+    private const int UnitConditionsAt = 0x1C;
 
     private readonly IBattleHitObserver hits;
     private readonly BattlePartyMemory party;
@@ -117,8 +132,10 @@ internal sealed class BattleHitResultHook : IGameHook, IObserves6WithResult
         {
             party.Saw(seen, max);
         }
+        // Debug builds also log the row's condition bits and the unit's, to pin each condition's bit by ear (#164,
+        // docs/findings/enemy-stun-break-and-battle-condition-static.md).
         log?.Requested(SignatureName, string.Create(CultureInfo.InvariantCulture,
-            $"target=0x{target:x} record=0x{record ?? 0:x} side={side} slot={member?.Slot} unit={member?.Unit} index={index & 0xFFFF} mode={(int)mode} kind=0x{kind:x} sub=0x{(kindAndSub >> 16) & 0xFFFF:x} flags=0x{ModuleMemoryReader.ReadInt32(result + FlagsAt) ?? 0:x} hp={hpChange} hpLeft={hpLeft} hpMax={hpMax} mp={ModuleMemoryReader.ReadInt32(request + MpChangeAt)} mpLeft={ModuleMemoryReader.ReadInt32(request + MpLeftAt)}"));
+            $"target=0x{target:x} record=0x{record ?? 0:x} side={side} slot={member?.Slot} unit={member?.Unit} index={index & 0xFFFF} mode={(int)mode} kind=0x{kind:x} sub=0x{(kindAndSub >> 16) & 0xFFFF:x} flags=0x{ModuleMemoryReader.ReadInt32(result + FlagsAt) ?? 0:x} hp={hpChange} hpLeft={hpLeft} hpMax={hpMax} mp={ModuleMemoryReader.ReadInt32(request + MpChangeAt)} mpLeft={ModuleMemoryReader.ReadInt32(request + MpLeftAt)} cond=0x{ModuleMemoryReader.ReadInt32(result + ((index & 0xFFFF) * RowLength) + RowConditionsAt) ?? 0:x} unitCond=0x{(record is { } unitRecord and not 0 ? ModuleMemoryReader.ReadInt32((nint)unitRecord + UnitConditionsAt) ?? 0 : 0):x}"));
         hits.Observe(new BattleHit(record is { } identity and not 0 ? identity : target, hpChange, hpLeft, kind, side,
             member?.Slot, hpMax, member?.Unit));
     }
@@ -157,14 +174,22 @@ internal sealed class BattlePackageUpdateHook : IGameHook, IObserves2WithDouble
     private sealed class LoggedEnemies(IBattleEnemyObserver next, IBattleUnits units, MessageLog log, string function)
         : IBattleEnemyObserver
     {
+        private const int HeadLength = 0x60;
+
         public void Enemies(long package, IReadOnlyList<long> records)
         {
             log.Requested(function, string.Create(CultureInfo.InvariantCulture,
                 $"package=0x{package:x} enemies={records.Count}"));
             for (var i = 0; i < records.Count; i++)
             {
+                // The record's first bytes too, to find its enemy id (EnemyName serial minus 122, #739) and the
+                // conditions at +0x1c offline (#164, #255).
+                var head = new byte[HeadLength];
+                var bytes = records[i] != 0 && ModuleMemoryReader.ReadBytes((nint)records[i], head)
+                    ? Convert.ToHexString(head)
+                    : "unread";
                 log.Requested(function, string.Create(CultureInfo.InvariantCulture,
-                    $"enemy index={i} record=0x{records[i]:x} hp={units.Hp(records[i])} mp={units.Mp(records[i])}"));
+                    $"enemy index={i} record=0x{records[i]:x} hp={units.Hp(records[i])} mp={units.Mp(records[i])} head={bytes}"));
             }
             next.Enemies(package, records);
         }
@@ -181,7 +206,12 @@ internal static class BattleBannerListening
     private const int KindAt = 0x4;
     private const int PairLength = 0x8;
 
-    public static void Shown(HookServices services, string function, nint pair, string? probe = null)
+    /// <summary>Hands the banner at <paramref name="pair"/> to the feature. With <paramref name="readSubject"/>, a
+    /// situation banner's subject goes with it: message variable slot 0, which the banner queue <c>0x326e70</c> fills
+    /// just before it calls <c>BattleMessageShow</c>, read as the show is called, before the original runs
+    /// (docs/findings/battle-banner-name-variable-static.md, #739). A Debug build logs the slot as
+    /// <see cref="BannerNameSlot"/> says it, and the name's text.</summary>
+    public static void Shown(HookServices services, string function, nint pair, bool readSubject)
     {
         var bytes = new byte[PairLength];
         if (pair == 0 || !ModuleMemoryReader.ReadBytes(pair, bytes))
@@ -190,23 +220,24 @@ internal static class BattleBannerListening
         }
         var id = BitConverter.ToInt32(bytes, 0);
         var kind = bytes[KindAt];
-        var said = services.BattleBanners?.Shown(kind, id);
+        var slot = new byte[BannerNameSlot.Length];
+        var slotRead = readSubject && kind == BattleBanners.SituationKind &&
+            services.DialogueWindow.ReadMessageVariable(0, slot);
+        var subject = slotRead ? BannerNameSlot.Name(slot, ReadName) : null;
+        var said = services.BattleBanners?.Shown(kind, id, subject);
+        var probe = !readSubject || services.Log is null
+            ? ""
+            : BannerNameSlot.Describe(slotRead ? slot : []) +
+              (subject?.Text is { } text ? $" text=\"{LogText.Escaped(text)}\"" : "");
         services.Log?.Requested(function, string.Create(CultureInfo.InvariantCulture,
             $"kind={kind} id={id} said={(said is null ? "no" : "yes")}{probe}"));
     }
 
-    /// <summary>A Debug build's probe of a banner's name (#739): message variable slot 0, which the banner queue
-    /// <c>0x326e70</c> fills just before it calls <c>BattleMessageShow</c>, read as the show is called, before the
-    /// original runs (docs/findings/battle-banner-name-variable-static.md), as <see cref="BannerNameSlot"/> says it.
-    /// Empty when there is no log.</summary>
-    public static string NameSlot(HookServices services)
+    // A tag 3 name longer than a std::string's inline buffer: its bytes behind the slot's pointer.
+    private static byte[]? ReadName(long address, int length)
     {
-        if (services.Log is null)
-        {
-            return "";
-        }
-        var slot = new byte[BannerNameSlot.Read];
-        return BannerNameSlot.Describe(services.DialogueWindow.ReadMessageVariable(0, slot) ? slot : []);
+        var buffer = new byte[length];
+        return address != 0 && ModuleMemoryReader.ReadBytes((nint)address, buffer) ? buffer : null;
     }
 }
 
@@ -222,11 +253,7 @@ internal sealed class BattleMessageShowHook(HookServices services) : IGameHook, 
     public string SignatureName => "BattleMessageShow";
 
     public void Observe(nint component, nint pair, double seconds, nint unused) =>
-#if DEBUG
-        BattleBannerListening.Shown(services, SignatureName, pair, BattleBannerListening.NameSlot(services));
-#else
-        BattleBannerListening.Shown(services, SignatureName, pair);
-#endif
+        BattleBannerListening.Shown(services, SignatureName, pair, readSubject: true);
 }
 
 /// <summary>The banner's other show, <c>0xf185d0</c>: <c>void (component*, const request*)</c> in <c>.ecode</c>, which
@@ -239,5 +266,5 @@ internal sealed class BattleMessageRequestShowHook(HookServices services) : IGam
     public string SignatureName => "BattleMessageRequestShow";
 
     public void Observe(nint component, nint request, nint unused) =>
-        BattleBannerListening.Shown(services, SignatureName, request);
+        BattleBannerListening.Shown(services, SignatureName, request, readSubject: false);
 }

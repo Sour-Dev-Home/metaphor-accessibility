@@ -115,6 +115,13 @@ public sealed class FeatureModulesTests
         Assert.Superset(new HashSet<string> { "menus", "report", "dialogue", "battle", "field" }, keys);
     }
 
+    // #166: with the hook layer's purse, the battle's rewards take the reads as a clock, gated.
+    [Fact]
+    public void ThePurseAddsTheBattleRewardsControls() =>
+        Assert.Equal(
+            Register(withReport: true).Controls.Count + 1,
+            Register(withReport: true, purse: new NoPurse()).Controls.Count);
+
     // #809, by ear 2026-11-23 evening: the skip menu's animation 4768 is its close, so the question was said as the
     // player left. Nothing asks for that layout's animations; the question hears the component's show request instead.
     [Fact]
@@ -153,7 +160,7 @@ public sealed class FeatureModulesTests
         Assert.Equal(SettingsReference.AllFeatures.Modules().Select(module => module.GetType()), listed);
     }
 
-    private static FeatureContext Register(bool withReport)
+    private static FeatureContext Register(bool withReport, IBattlePurse? purse = null)
     {
         var announcer = new RecordingAnnouncer();
         var library = new MessageLibrary();
@@ -188,6 +195,10 @@ public sealed class FeatureModulesTests
         };
         context.Provide<IFieldReads>(new NoField());
         context.Provide(new MissionRows(() => null));
+        if (purse is not null)
+        {
+            context.Provide(purse);
+        }
         foreach (var module in InHookOrder())
         {
             module.Register(context);
@@ -214,6 +225,13 @@ public sealed class FeatureModulesTests
     private sealed class NoParty : IBattleParty
     {
         public IReadOnlyList<PartyMember> Members() => [];
+    }
+
+    private sealed class NoPurse : IBattlePurse
+    {
+        public int? Money() => null;
+
+        public int? Mag() => null;
     }
 
     private sealed class NoBattle : IBattleScene

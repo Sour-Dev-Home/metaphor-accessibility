@@ -32,10 +32,12 @@ public sealed class MessageSerials : IMessageBySerial, IMessageFileObserver
     /// character and archetype name files' ranges are read from the same table and match their compiled counts in a
     /// Debug log (docs/findings/equipment-character-archetype-serials-static.md), as do the quest files'
     /// (docs/findings/quest-message-serials-static.md). The class names' and battle commands' ranges are from their
-    /// compiled counts and their neighbours' ranges (docs/findings/class-name-and-battle-item-tab-serials.md).</summary>
+    /// compiled counts and their neighbours' ranges (docs/findings/class-name-and-battle-item-tab-serials.md); the
+    /// enemy names' range the same way (docs/findings/battle-banner-enemy-name-serials-static.md).</summary>
     public static IReadOnlyList<SerialRange> Steam18330018 { get; } =
     [
         new(CharacterNames, 0, 122),
+        new(EnemyNames, 122, 421),
         new(ClassNames, 1082, 60),
         new("message/system/System_Message.msg", 1142, 790),
         new(BattleCommandMessages, 1932, 159),
@@ -54,6 +56,9 @@ public sealed class MessageSerials : IMessageBySerial, IMessageFileObserver
     /// <summary>The character names file: the Item and Equipment screens fetch party members' names from it (#216,
     /// #217).</summary>
     public const string CharacterNames = "message/CharaName.msg";
+
+    /// <summary>The enemy names file: a battle banner names an enemy by a serial in it (#739).</summary>
+    public const string EnemyNames = "message/EnemyName.msg";
 
     /// <summary>The weapon, armour, gear and accessory names file (#216, #217, #736).</summary>
     public const string EquipmentNames = "message/system/Equip_Message_1.msg";

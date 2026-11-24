@@ -120,6 +120,46 @@ public sealed class BattleBannersTests
         Assert.Equal(new MessageFileShape("message/system/jyokyo_help_Message.msg", 259), BattleBanners.Steam18330018);
     }
 
+    private BattleBanners Named(bool on = true) => new(files, announcer, new TextCleaner(TextCleanerRules.None), () => now)
+    {
+        SerialName = serial => serial == 0xa7 ? "Bow Tester" : null,
+        NamesOn = () => on,
+    };
+
+    [Fact]
+    public void ANameSerialInSlot0IsSaidInPlaceOfTheNameTag()
+    {
+        // #739: the stun banner's <V 0> is the subject's name serial, slot 0 of the message variables.
+        Assert.Equal("Bow Tester is testing up!", Named().Shown(Situation, 1, new(0xa7, null)));
+    }
+
+    [Fact]
+    public void ANameTextInSlot0IsSaidAsItIs()
+    {
+        Assert.Equal("Will is testing up!", Named().Shown(Situation, 1, new(null, "Will")));
+    }
+
+    [Fact]
+    public void AnUnknownSerialNoNameOrNamesOffKeepTheLineWithoutTheName()
+    {
+        Assert.Equal("is testing up!", Named().Shown(Situation, 1, new(0x97, null)));
+        now += BattleBanners.RepeatMilliseconds;
+        Assert.Equal("is testing up!", Named().Shown(Situation, 1));
+        now += BattleBanners.RepeatMilliseconds;
+        Assert.Equal("is testing up!", Named(on: false).Shown(Situation, 1, new(0xa7, null)));
+    }
+
+    [Fact]
+    public void TheSameBannerForAnotherSubjectIsSaidAgainAtOnce()
+    {
+        var named = Named();
+        named.Shown(Situation, 1, new(0xa7, null));
+        named.Shown(Situation, 1, new(null, "Will"));
+        named.Shown(Situation, 1, new(null, "Will"));
+
+        Assert.Equal(["Bow Tester is testing up!", "Will is testing up!"], Said());
+    }
+
     [Fact]
     public void BannersOffSaysNothing()
     {

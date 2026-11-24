@@ -1,5 +1,6 @@
 using System.Text.RegularExpressions;
 using Metaphor.Core.Announcements;
+using Metaphor.Core.Battle;
 using Metaphor.Core.Messages;
 using Metaphor.Core.Settings;
 
@@ -8,8 +9,10 @@ namespace Metaphor.Features.Battle;
 /// <summary>Says the battle's in-turn situation banner (#692): boss warnings, stat changes, waiting and fleeing, "Not
 /// enough MP!", turn icons gained or lost. A banner of <see cref="SituationKind"/> is the message at its id's position
 /// in <see cref="SituationFile"/>; it is said queued, after the hit lines already waiting, and the same banner shown
-/// again within <see cref="RepeatMilliseconds"/> is not said again. Other kinds say nothing. A name the banner fills in
-/// (<c>&lt;V 0&gt;</c>) is left out, as no read of it is known. Safe to call from several threads.</summary>
+/// again within <see cref="RepeatMilliseconds"/> for the same subject is not said again. Other kinds say nothing. The
+/// subject's name the banner fills in (<c>&lt;V 0&gt;</c>, #739) is said when <see cref="NamesOn"/> and the hook read
+/// it from message variable slot 0, as a serial <see cref="SerialName"/> knows or as text; otherwise it is left out, as
+/// is any other <c>&lt;V n&gt;</c>. Safe to call from several threads.</summary>
 /// <remarks>
 /// <para>On build 548ddc95… (Steam build 18330018) the banner component's two show functions map kind 2 to message-file
 /// table entry 9, <c>message/system/jyokyo_help_Message.msg</c>, at position id
@@ -36,10 +39,19 @@ public sealed partial class BattleBanners
     /// <summary>How long the same banner stays unsaid after it was last shown.</summary>
     public const long RepeatMilliseconds = 1000;
 
-    // What <V n> holds is [NEEDS VERIFICATION], and the shared cleaner would say "value" for it (#739), so it is dropped
-    // before cleaning.
+    // The shared cleaner would say "value" for <V n> (#739), so each is named or dropped before cleaning. Only <V 0> is
+    // known to be the subject's name (docs/findings/battle-banner-name-variable-static.md).
     [GeneratedRegex(@"<V(?: [^>]*)?>")]
     private static partial Regex NameTag();
+
+    [GeneratedRegex(@"<V 0>")]
+    private static partial Regex SubjectTag();
+
+    /// <summary>A name serial's text, or null when it isn't a name the mod knows. None, when not set.</summary>
+    public Func<int, string?> SerialName { get; init; } = _ => null;
+
+    /// <summary>Whether the subject's name is said (#739, testing). Off, when not set.</summary>
+    public Func<bool> NamesOn { get; init; } = () => false;
 
     private readonly MessageFilePositions messages;
     private readonly IAnnouncer announcer;
@@ -47,7 +59,7 @@ public sealed partial class BattleBanners
     private readonly Func<long> clock;
     private readonly Func<bool> enabled;
     private readonly Lock gate = new();
-    private (int Kind, int Id)? last;
+    private (int Kind, int Id, string? Name)? last;
     private long lastAt;
 
     /// <summary>Banners said through <paramref name="announcer"/> while <paramref name="enabled"/> (always, when not
@@ -66,27 +78,37 @@ public sealed partial class BattleBanners
         this.enabled = enabled ?? (() => true);
     }
 
-    /// <summary>The banner component showed a banner of <paramref name="kind"/> and <paramref name="id"/>. Returns what
-    /// was said, or null.</summary>
-    public string? Shown(int kind, int id)
+    /// <summary>The banner component showed a banner of <paramref name="kind"/> and <paramref name="id"/>, with
+    /// <paramref name="subject"/> in message variable slot 0 when the hook read one. Returns what was said, or null.
+    /// </summary>
+    public string? Shown(int kind, int id, BannerName? subject = null)
     {
         if (kind != SituationKind || !enabled())
         {
             return null;
         }
+        var name = subject is { } read && NamesOn()
+            ? read.Text ?? (read.Serial is { } serial ? SerialName(serial) : null)
+            : null;
         var now = clock();
         lock (gate)
         {
-            var repeat = last == (kind, id) && now - lastAt < RepeatMilliseconds;
-            last = (kind, id);
+            var repeat = last == (kind, id, name) && now - lastAt < RepeatMilliseconds;
+            last = (kind, id, name);
             lastAt = now;
             if (repeat)
             {
                 return null;
             }
         }
-        if (messages.Find(SituationFile, id) is not { } message ||
-            cleaner.Clean(NameTag().Replace(message.Text, "")).Trim() is not { Length: > 0 } said)
+        if (messages.Find(SituationFile, id) is not { } message)
+        {
+            return null;
+        }
+        var text = name is null
+            ? message.Text
+            : SubjectTag().Replace(message.Text, name.Replace("$", "$$", StringComparison.Ordinal));
+        if (cleaner.Clean(NameTag().Replace(text, "")).Trim() is not { Length: > 0 } said)
         {
             return null;
         }

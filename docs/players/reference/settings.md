@@ -81,9 +81,11 @@ Each is `true` to speak or `false` to stay quiet, inside a `speech` object: `{ "
 | `archetypeTree` | On the Archetype Tree, each character on the pick, then each archetype the cursor reaches, with its line and rank. Needs `menus`. Still being tested. | testing, off |
 | `levelUpPoints` | The level-up screen where you spend points: its heading and each stat's name, and the stat's description on the details key. Needs `menus`. Still being tested. | testing, off |
 | `battleBanners` | The short banner during a battle turn: a boss warning, a stat change. | `true` |
+| `battleBannerNames` | Says who a battle banner is about: "Bow Scourge Malmorta cannot move due to Stun!". Off leaves the name out. Needs `battleBanners`. Still being tested. | testing, off |
 | `battleTurnLine` | Says "Your turn" with the actions left, or "Enemy turn", as each side's turn starts in a battle. Still being tested. | testing, off |
 | `battleStart` | Says "Ambushed" when a battle starts with the enemy striking first. | `true` |
 | `battleEnd` | Says "Victory", "Escaped" or "Defeated" as a battle ends. Still being tested. | testing, off |
+| `battleRewards` | After a won battle, says the money and MAG it gained: "Gained 240 money and 30 MAG". Still being tested. | testing, off |
 | `saveSlots` | The save and load screens' slots. | `true` |
 | `learnedSettingValues` | The System rows whose setting the mod has not pinned saying their value on change, learned as you change them. Needs `menus`. | `true` |
 | `nameEntry` | The name entry screen: its title, each letter you type, and when a name is refused. | `true` |

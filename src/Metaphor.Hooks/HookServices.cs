@@ -295,6 +295,7 @@ internal sealed record HookServices
         };
         context.Provide<IFieldReads>(field);
         context.Provide<IBattleTurnIcons>(new BattleTurnIconsMemory(gameData));
+        context.Provide<IBattlePurse>(new BattlePurseMemory(gameData));
         context.Provide<IBattleUnits>(party);
         context.Provide(new MissionRows(missionTable.Rows));
         // Each module builds its features, in the list's order: their observers hear each event, and their controls
