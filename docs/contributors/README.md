@@ -220,13 +220,15 @@ How-tos: [set up a clone](how-to/set-up-a-clone.md), [add a hook](how-to/add-a-h
 Reference: [checks](reference/checks.md), every check stage and how CI runs them;
 [security review](reference/security-review.md), the stamp, the label gate and the deny rules;
 [commit messages](reference/commit-messages.md); [supply chain](reference/supply-chain.md);
-[branch rules](reference/branch-rules.md), the ruleset and the merge queue.
+[branch rules](reference/branch-rules.md), the ruleset and the merge queue;
+[the mod's text](reference/mod-strings-inventory.md), its own words and the game's.
 
 Explanation: [how a change reaches main](explanation/how-a-change-reaches-main.md), a diagram of the hooks, CI and the
 merge queue; [security model](explanation/security-model.md), each security decision and what it protects;
 [TLOU2's accessibility options](explanation/tlou2-accessibility-feasibility.md), which of them this mod can have;
 [installer exe options](explanation/installer-exe-options.md), the ways to build the installer exe, compared;
-[height and front/back cues](explanation/elevation-and-front-back-cues.md), what to try before HRTF.
+[height and front/back cues](explanation/elevation-and-front-back-cues.md), what to try before HRTF;
+[offline narration voice](explanation/offline-narration-voice.md), which text-to-speech model can pre-render cutscene clips.
 
 Notes on the game go in [`findings/`](../findings/README.md), citing sources saved in
 [`raw-sources/`](../raw-sources/README.md); decisions in [`adr/`](../adr/); terms in [`GLOSSARY.md`](../../GLOSSARY.md).

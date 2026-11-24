@@ -196,9 +196,15 @@ public enum MenusFeature
     /// <summary>The mod's own spoken settings menu (#754).</summary>
     [SettingKey("speech", "settingsMenu", "Settings menu", Order = 1230, Description = "The mod's " +
         "own settings menu, opened with F2, or LT and RT held then View on the pad, on any screen. Up and Down move, " +
-        "Left and Right change the setting and save it at once, F or R3 says what it does, and Escape or B closes. " +
+        "Left and Right change the setting and save it at once, Left for off or less and Right for on or more, Enter " +
+        "or A turns a setting over, F or R3 says what it does, and Escape or B closes. " +
         "While it is open the game gets no keys or buttons.")]
     SettingsMenu,
+
+    /// <summary>The settings menu's layout line as it opens (#927).</summary>
+    [SettingKey("speech", "settingsMenuIntro", "Settings menu layout", Testing = true, Order = 1235, Description =
+        "As the mod's settings menu opens, its sections and the keys that move between them. Needs `settingsMenu`.")]
+    SettingsMenuIntro,
 
     /// <summary>The help key, which says the mod's keys for where the player is (#868).</summary>
     [SettingKey("speech", "keyHelp", "Key help", Order = 1240, Description = "The help key, F1, or " +

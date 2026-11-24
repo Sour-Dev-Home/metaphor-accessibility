@@ -156,6 +156,33 @@ public sealed class NearbyTests
         Assert.Equal("Chest, 2 steps behind, in reach", Nearby.List(ahead).Single().Text());
     }
 
+    // #956: two exits a names-table row gives the same name lead to the same place, so they are one row, the nearest.
+    [Fact]
+    public void ExitsWithOneNameAreOneRowAtTheNearest()
+    {
+        var view = Facing(0,
+            new FieldUnit(FieldKind.Door, 0, 0, (float)(9 * Step), "Test Dorm", Called: NearbyKind.Exit),
+            new FieldUnit(FieldKind.Door, 0, 0, (float)(3 * Step), "Test Dorm", Called: NearbyKind.Exit),
+            At(FieldKind.Chest, 0, 5 * Step));
+
+        var texts = Nearby.List(view).Select(thing => thing.Text());
+
+        Assert.Equal(["Test Dorm, 2 ways, nearest 3 steps ahead", "Chest, 5 steps ahead"], texts);
+    }
+
+    // Nameless doors may lead anywhere, and two people may share a name, so neither is merged.
+    [Fact]
+    public void NamelessDoorsAndNamedPeopleAreNeverMerged()
+    {
+        var view = Facing(0,
+            At(FieldKind.Door, 0, 3 * Step),
+            At(FieldKind.Door, 0, 4 * Step),
+            At(FieldKind.Person, 0, 5 * Step, name: "Guard"),
+            At(FieldKind.Person, 0, 6 * Step, name: "Guard"));
+
+        Assert.Equal(4, Nearby.List(view).Count);
+    }
+
     [Fact]
     public void ANamedThingSaysItsNameAndOneStepIsSingular()
     {

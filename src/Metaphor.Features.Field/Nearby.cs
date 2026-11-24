@@ -10,20 +10,23 @@ namespace Metaphor.Features.Field;
 /// radians, left positive, from −π to π.</param>
 /// <param name="InReach">Whether the game's own reach test for its kind passes, from the player's facing.</param>
 /// <param name="Height">Its height above the player, in the game's units, up positive (#650).</param>
+/// <param name="Ways">How many listed exits it stands for, the nearest of them (#956); 1 for anything else.</param>
 /// <param name="Ahead">The ground heading <paramref name="Bearing"/> is taken from (#700), so
 /// <c>Bearing + Ahead</c> is its heading on the map's own axes.</param>
 public sealed record NearbyThing(
-    FieldUnit Unit, double Distance, double Bearing, bool InReach, double Height = 0, double Ahead = 0)
+    FieldUnit Unit, double Distance, double Bearing, bool InReach, double Height = 0, int Ways = 1, double Ahead = 0)
 {
     /// <summary>"Chest, 4 steps ahead-left, in reach": its name or kind, distance and direction, and with
-    /// <paramref name="sayHeight"/> "above" or "below" past <see cref="Nearby.HeightThreshold"/> (#650). With
+    /// <paramref name="sayHeight"/> "above" or "below" past <see cref="Nearby.HeightThreshold"/> (#650). Exits merged
+    /// into one row say how many ways there are: "Dorm, 2 ways, nearest 3 steps ahead" (#956). With
     /// <paramref name="compass"/> the direction is a compass point instead (#700, <see cref="Nearby.Compass"/>).</summary>
     public string Text(bool sayHeight = false, bool compass = false)
     {
         var steps = Nearby.Steps(Distance);
+        var ways = Ways > 1 ? string.Create(CultureInfo.InvariantCulture, $" {Ways} ways, nearest") : "";
         var direction = compass ? Nearby.Compass(Bearing + Ahead) : Nearby.Direction(Bearing);
         var text = string.Create(CultureInfo.InvariantCulture,
-            $"{Unit.Name ?? Nearby.KindWord(Unit.Says)}, {steps} {(steps == 1 ? "step" : "steps")} {direction}");
+            $"{Unit.Name ?? Nearby.KindWord(Unit.Says)},{ways} {steps} {(steps == 1 ? "step" : "steps")} {direction}");
         if (sayHeight && Nearby.HeightWord(Height) is { } height)
         {
             text += ", " + height;
@@ -97,18 +100,43 @@ public static class Nearby
         height >= HeightThreshold ? "above" : height <= -HeightThreshold ? "below" : null;
 
     /// <summary>The things of <paramref name="view"/> within <paramref name="radius"/> (<see cref="Radius"/> when null),
-    /// in game units, nearest first, at most <see cref="MaxThings"/>.</summary>
+    /// in game units, nearest first, at most <see cref="MaxThings"/>. Exits a names-table row gives the same name lead
+    /// to the same place, so they are one row at the nearest (#956); nameless doors and people never merge.</summary>
     public static IReadOnlyList<NearbyThing> List(
         FieldView view, NearbyCategory category = NearbyCategory.Everything, double? radius = null)
     {
         ArgumentNullException.ThrowIfNull(view);
         var within = radius ?? Radius;
-        return [.. view.Units
+        var near = view.Units
             .Where(unit => category == NearbyCategory.Everything || CategoryOf(unit.Says) == category)
             .Select(unit => Place(view, unit))
             .Where(thing => thing.Distance <= within)
-            .OrderBy(thing => thing.Distance)
-            .Take(MaxThings)];
+            .OrderBy(thing => thing.Distance);
+        return [.. MergeExits(near).Take(MaxThings)];
+    }
+
+    // Nearest first in, nearest first out: each named exit's first row stands for the later ones with its name. The
+    // idea comes from Arcana's players (ChipsAhoiMcCoy/arcana, Zlib; audiogames.net, 2026-11), no code seen (CREDITS.md).
+    private static List<NearbyThing> MergeExits(IEnumerable<NearbyThing> nearestFirst)
+    {
+        var rows = new List<NearbyThing>();
+        var byName = new Dictionary<string, int>(StringComparer.Ordinal);
+        foreach (var thing in nearestFirst)
+        {
+            if (thing.Unit is not { Name: { } name, Says: NearbyKind.Exit })
+            {
+                rows.Add(thing);
+                continue;
+            }
+            if (byName.TryGetValue(name, out var at))
+            {
+                rows[at] = rows[at] with { Ways = rows[at].Ways + 1 };
+                continue;
+            }
+            byName[name] = rows.Count;
+            rows.Add(thing);
+        }
+        return rows;
     }
 
     /// <summary>The things of <paramref name="view"/> the game's reach test passes for, nearest first, however many and
@@ -280,7 +308,7 @@ public static class Nearby
         var pose = view.Pose;
         var (distance, _, inReach) = Measure(pose, unit, view.DoorReachValue, slack, facingSlack, rangeScale);
         return new(unit, distance, CameraFrame.Bearing(pose, unit.X, unit.Z), inReach, unit.Y - pose.Y,
-            CameraFrame.Ahead(pose));
+            Ahead: CameraFrame.Ahead(pose));
     }
 
     /// <summary><paramref name="angle"/> wrapped into (−π, π], as <see cref="CameraFrame.Normalised"/>.</summary>

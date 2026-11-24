@@ -24,6 +24,8 @@ public sealed class SettingsMenuTests
     private const int View = 0x0001;
     private const int PadB = 0x2000;
     private const int PadDown = 0x0040;
+    private const int PadA = 0x4000;
+    private const int Enter = 0x0D;
 
     private readonly RecordingAnnouncer said = new();
     private readonly SettingsReloader settings =
@@ -42,7 +44,12 @@ public sealed class SettingsMenuTests
             new KeySetting(PlayerSettings.Keys, "Repeat the last line", _ => "R"),
         ],
         () => settings.Current, new SettingsEditor(store, settings).Set, said,
-        () => SettingsMenuBindings.Default, () => MenuBindings.Default, () => true, () => positions);
+        () => SettingsMenuBindings.Default, () => MenuBindings.Default, () => true, () => positions)
+    {
+        SayIntro = () => sayIntro,
+    };
+
+    private bool sayIntro;
 
     private string Last => said.Said[^1].Text;
 
@@ -115,29 +122,97 @@ public sealed class SettingsMenuTests
     }
 
     [Fact]
-    public void RightTurnsAToggleOverSavesItAndSaysSo()
+    public void LeftTurnsAToggleOffSavesItAndSaysSo()
     {
         Press(F2);
         Press(PageDown);
 
-        Press(Right);
+        Press(Left);
 
         Assert.Equal("off, saved.", Last);
         Assert.False(settings.Current.IsOn(MenusFeature.Menus));
         Assert.Equal("{ \"speech\": { \"menus\": false } }" + Environment.NewLine, store.Text);
     }
 
+    // #959: Off on the left, On on the right; at its end a toggle says its value and saves nothing.
     [Fact]
-    public void AChoiceStepsRoundAndSaves()
+    public void RightOnAToggleAlreadyOnSaysOnAndSavesNothing()
+    {
+        Press(F2);
+        Press(PageDown);
+
+        Press(Right);
+
+        Assert.Equal("on", Last);
+        Assert.Equal(0, store.Writes);
+    }
+
+    [Fact]
+    public void EnterOrATurnsAToggleOver()
+    {
+        Press(F2);
+        Press(PageDown);
+
+        Press(Enter);
+        Assert.Equal("off, saved.", Last);
+        Menu.Pad(0, PadA, made: true);
+        Menu.Pad(0, 0, made: true);
+        Assert.Equal("on, saved.", Last);
+        Assert.True(settings.Current.IsOn(MenusFeature.Menus));
+    }
+
+    [Fact]
+    public void AChoiceStepsAndStopsAtItsEnds()
     {
         Press(F2);
 
+        Press(Left);
+        Assert.Equal("auto", Last);
         Press(Right);
         Assert.Equal("name only, saved.", Last);
-        Press(Left);
-        Press(Left);
+        Press(Right);
+        Press(Right);
         Assert.Equal("nothing, saved.", Last);
+        Press(Right);
+        Assert.Equal("nothing", Last);
         Assert.Equal(VoicedLinesMode.Nothing, settings.Current.VoicedLines);
+    }
+
+    // #959: Escape, or B, goes back out of the menu from every row of every section.
+    [Fact]
+    public void EscapeOrBClosesItFromEveryRow()
+    {
+        for (var row = 0; row < 7; row++)
+        {
+            Press(F2);
+            for (var down = 0; down < row; down++)
+            {
+                Press(Down);
+            }
+            Press(Escape);
+            Assert.False(Menu.IsOpen);
+            Assert.Equal("Settings closed.", Last);
+
+            Press(F2);
+            Menu.Pad(0, PadB, made: true);
+            Menu.Pad(0, 0, made: true);
+            Assert.False(Menu.IsOpen);
+        }
+    }
+
+    // #927: the layout line, while its setting is on.
+    [Fact]
+    public void WithTheLayoutOnOpeningSaysTheSectionsAndTheirKeys()
+    {
+        sayIntro = true;
+
+        Press(F2);
+
+        Assert.Equal(
+            "Mod settings. 3 sections: General, Speech, Keys. Page Down and Page Up, or RB and LB, move between " +
+            "them. Up and Down move, Left is off or less, Right is on or more, Escape or B closes. General. Voiced " +
+            "lines, auto, 1 of 4",
+            Last);
     }
 
     [Fact]
