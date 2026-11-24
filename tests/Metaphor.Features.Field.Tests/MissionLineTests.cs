@@ -228,6 +228,48 @@ public sealed class MissionLineTests
         Assert.Equal("Mission: The Test Battle. End the test's madness", line.Poll());
     }
 
+    // The by-ear session of 2026-11-24 heard no mission change: the box's objective moves on under the same main mission
+    // (#658), so a new objective is a change too.
+    [Fact]
+    public void ANewObjectiveUnderTheSameMissionIsSpokenOnce()
+    {
+        IReadOnlyList<MainMissionRow> objectives =
+        [
+            new(0x11fb, MessageLibrary.LabelHash("MissionText_Field_Test_01")),
+            new(0x11fc, MessageLibrary.LabelHash("MissionText_Field_Test_02")),
+        ];
+        var line = Chapter(() => objectives);
+        set.Add(0x11fb);
+        Assert.Null(line.Poll());
+
+        set.Add(0x11fc);
+        now += MissionLine.PollMilliseconds;
+
+        Assert.Equal("Mission: The Test Battle. End the test's madness", line.Poll());
+        now += MissionLine.PollMilliseconds;
+        Assert.Null(line.Poll());
+        Assert.Single(Said());
+    }
+
+    // The objective table loads from the archive after the first look; finding the objective then is not a change.
+    [Fact]
+    public void TheObjectiveTableLoadingLateIsNotAChange()
+    {
+        IReadOnlyList<MainMissionRow>? objectives = null;
+        var line = Chapter(() => objectives);
+        set.Add(0x11fb);
+        Assert.Null(line.Poll());
+
+        objectives = [new(0x11fb, MessageLibrary.LabelHash("MissionText_Field_Test_01"))];
+        now += MissionLine.PollMilliseconds;
+        Assert.Null(line.Poll());
+
+        objectives = null;
+        now += MissionLine.PollMilliseconds;
+        Assert.Null(line.Poll());
+        Assert.Empty(Said());
+    }
+
     private sealed class RoamField : IFieldReads
     {
         public bool Roaming { get; set; } = true;
