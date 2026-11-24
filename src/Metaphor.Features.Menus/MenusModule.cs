@@ -163,8 +163,12 @@ public sealed class MenusModule : IFeatureModule
         // from the prompts the serial hook hands MessageEvents (2026-11-22 review, finding 5).
         var slots = new SlotScreens(screens);
         events.ObserveSerials(slots);
-        screens.Observe(new SaveSlotFocus(
-            library, settings.Speech(MenusFeature.SaveSlots, reader), cleaner, log is null ? null : log.MenuNote));
+        // Each slot's details come from its save file, read-only (#773, maintainer's decision of 2026-11-24).
+        var saveSlots = new SaveSlotFocus(
+            library, settings.Speech(MenusFeature.SaveSlots, reader), cleaner, SaveSlotFiles.FromEnvironment(),
+            () => settings.Current.IsOn(MenusFeature.SaveSlots) && settings.Current.IsOn(MenusFeature.SaveSlotDetails),
+            log is null ? null : log.MenuNote);
+        screens.Observe(saveSlots);
         // Battle's skill and item lists say each row by the name the game fetched for it by serial (#247), through
         // their own setting, not the menus' (#661).
         var battleListSpeech = settings.Speech(MenusFeature.BattleLists, reader);
@@ -204,7 +208,7 @@ public sealed class MenusModule : IFeatureModule
         // The Item and Equipment screens', the quick menu's and the settings pages' are the row's description or help line
         // the game fetched (#907, #560).
         // The Archetype Tree's are the focused archetype's study state (#933).
-        IScreenDetails[] details = [.. battleLists, levelUp, itemFocus, equipmentFocus, quickHelp, settingsHelp, archetypeTree];
+        IScreenDetails[] details = [.. battleLists, levelUp, itemFocus, equipmentFocus, quickHelp, settingsHelp, archetypeTree, saveSlots];
         var menuControls = new MenuControls(menuBindings, screens, reader, details, context.Cursors.CalledRecently);
         screens.Observe(menuControls);
         context.Cursors.Observe(slots);

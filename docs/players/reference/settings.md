@@ -99,6 +99,7 @@ Each is `true` to speak or `false` to stay quiet, inside a `speech` object: `{ "
 | `battleFormation` | In a battle, says "row changed" with the member when a party member moves between the front and back row. Still being tested. | testing, off |
 | `battleRewardExp` | Adds the EXP and archetype EXP of the enemies you beat, from the game's enemy tables, to the rewards line: "Gained 240 money, 30 MAG, 160 EXP and 60 archetype EXP". Needs `battleRewards`. Still being tested. | testing, off |
 | `saveSlots` | The save and load screens' slots. | `true` |
+| `saveSlotDetails` | Each save and load slot's date and playtime, read from its save file; the details key adds the weekday and time of day. Still being tested. | testing, off |
 | `learnedSettingValues` | The System rows whose setting the mod has not pinned saying their value on change, learned as you change them. Needs `menus`. | `true` |
 | `settingsHelp` | The game's help line for the focused row on a Settings page, on the details key (F, or R3 on the pad). The line is the one the game fetched for the row, so a row you have not moved to yet says no more. Needs `menus`. | `true` |
 | `nameEntry` | The name entry screen: its title, each letter you type, and when a name is refused. | `true` |
