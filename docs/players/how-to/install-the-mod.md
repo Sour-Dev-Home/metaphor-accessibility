@@ -1,6 +1,6 @@
 # Install the mod
 
-> **Draft for testers.** The newest download is the pre-release `v0.0.1-unstable.4`; there is no stable release yet.
+> **Draft for testers.** The newest download is the pre-release `v0.0.1-unstable.5`; there is no stable release yet.
 > Some details have not been checked by ear with a screen reader yet; they are listed in
 > [Not checked by ear yet](#not-checked-by-ear-yet). If a step is wrong, say so in an issue.
 
