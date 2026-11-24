@@ -118,6 +118,12 @@ public enum MenusFeature
     [SettingKey("speech", "saveSlots", "Save slots", Order = 1080, Description = "The save and load screens' slots.")]
     SaveSlots,
 
+    /// <summary>Each save slot's date and playtime, read from its save file, and the details key's weekday and time of
+    /// day (#773, #934). Separate from the slots while it is tested.</summary>
+    [SettingKey("speech", "saveSlotDetails", "Save slot details", Testing = true, Order = 1081, Description =
+        "Each save and load slot's date and playtime, read from its save file; the details key adds the weekday and time of day.")]
+    SaveSlotDetails,
+
     /// <summary>The System rows with no pinned setting ID saying their value, by the ID learned at run time (#770).
     /// Separate from the menus while it is tested.</summary>
     [SettingKey("speech", "learnedSettingValues", "Learned setting values", Order = 1090,
