@@ -80,7 +80,8 @@ yourself (the maintainer's standing choice, 2026-11-24):
    committed (#169). Report any other failure.
 3. Run the `security-reviewer` agent in the foreground on the staged tree, once per tree. Stay in your turn and poll
    `bash scripts/ci/security-stamp.sh stamped` every minute until it stamps; the stamp is the reviewer's last step, so
-   only a turn that waits gets it. Fix what it finds, restage, and review again.
+   only a turn that waits gets it, and a `SubagentStop` hook refuses the hand-back until then
+   ([hand-backs](../contributors/reference/security-review.md#the-stamp)). Fix what it finds, restage, and review again.
 4. Commit with the stamp, then [deliver](#deliver) as any PR, auto-merge included.
 
 ## A feature that needs a by-ear check

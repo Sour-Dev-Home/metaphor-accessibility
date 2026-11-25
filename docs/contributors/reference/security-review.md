@@ -37,6 +37,13 @@ A [clean merge](../../../GLOSSARY.md#review-and-ci) from `main` needs no stamp, 
 no trailer. A scope conflict you resolve, a file git merges from both sides' changes, and a side kept over the other's
 change (`-s ours`, `checkout --ours` or `--theirs`) all need a stamp.
 
+**Hand-backs (#999).** A `SubagentStop` hook in [`.claude/settings.json`](../../../.claude/settings.json) runs
+`scripts/dev/require-stamp-before-handback.sh` in the subagent's working tree. While staged changes touch the scope and
+`security-stamp.sh stamped` says no, it blocks the hand-back and tells the agent to keep polling the stamp, or to
+unstage and say so. `security-reviewer` and the read-only agents (`Explore`, `Plan`, `claude-code-guide`, `web-fetch`,
+`statusline-setup`) always pass. Claude Code runs the copy in the session's starting checkout
+(`$CLAUDE_PROJECT_DIR`).
+
 **Override (maintainer only).** `SECURITY_REVIEW_SKIP="<reason>" git commit ...` lets the commit through and records
 `Security-Review-Skipped: <reason>`, which CI accepts. Agents are denied it.
 
