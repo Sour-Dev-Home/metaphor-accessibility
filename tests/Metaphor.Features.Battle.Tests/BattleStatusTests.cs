@@ -6,7 +6,7 @@ using Metaphor.Core.Settings;
 
 namespace Metaphor.Features.Battle.Tests;
 
-/// <summary>The status key (#631): in a battle, H pressed alone, or L3 held alone (#925), says the party's HP, then the
+/// <summary>The status key (#631): in a battle, B pressed alone, or L3 held alone (#925), says the party's HP, then the
 /// enemies this battle has hit, and is hidden from the game; an L3 tap reaches the game (Retry), and anything else, and
 /// the key outside a battle, reaches it. The pad reads go through an input frame with the shoulder taps, as in the
 /// game. Made-up party and numbers only.</summary>
@@ -38,7 +38,7 @@ public sealed class BattleStatusTests
     private List<string> Said() => [.. announcer.Said.Select(said => said.Text)];
 
     [Fact]
-    public void OutsideABattleL3AndHReachTheGameAtOnceAndSayNothing()
+    public void OutsideABattleL3AndBReachTheGameAtOnceAndSayNothing()
     {
         scene.On = false;
         party.Now = [new PartyMember(0, 3, 89, 120)];
@@ -46,7 +46,7 @@ public sealed class BattleStatusTests
         Assert.Equal(L3, Game(L3));
         time.Advance(Hold);
         Assert.Equal(L3, Game(L3));
-        Assert.Equal([BattleStatus.KeyH], status.Keys([BattleStatus.KeyH]));
+        Assert.Equal([BattleStatus.KeyB], status.Keys([BattleStatus.KeyB]));
 
         Assert.Empty(announcer.Said);
     }
@@ -165,13 +165,45 @@ public sealed class BattleStatusTests
     }
 
     [Fact]
-    public void HAloneSaysItAtOnce()
+    public void BAloneSaysItAtOnce()
     {
         party.Now = [new PartyMember(0, 3, 89, 120)];
 
-        Assert.Empty(status.Keys([BattleStatus.KeyH]));
+        Assert.Empty(status.Keys([BattleStatus.KeyB]));
 
         Assert.Equal(["Rowan 89 of 120"], Said());
+    }
+
+    // #1007: H is the game's Raise Defences (Guard), so in a battle it reaches the game on the default bindings, and
+    // no default battle key takes it.
+    [Fact]
+    public void InABattleHReachesTheGameOnTheDefaultsAndSaysNothing()
+    {
+        const int keyH = 0x48;
+        party.Now = [new PartyMember(0, 3, 89, 120)];
+        var defaults = BattleBindings.Default;
+
+        Assert.Equal([keyH], status.Keys([keyH]));
+        Assert.Empty(announcer.Said);
+        Assert.DoesNotContain(
+            keyH,
+            new[]
+            {
+                defaults.StatusKey, defaults.EnemyHpKey, defaults.EnemyNextKey, defaults.EnemyPreviousKey,
+                defaults.HpMpKey, defaults.EnemyLookKey, defaults.CommandWheelKey,
+            });
+    }
+
+    // The status key is clear of the game's battle keys read aloud on 2026-11-22 (Q, H, F, E, Tab, N, T, 1 to 5) and
+    // of the mod's other battle keys (K, J, L, M, I, C), the menus' details key F, the reader key T and the repeat R.
+    [Fact]
+    public void TheDefaultStatusKeyIsBClearOfTheGamesAndTheModsBattleKeys()
+    {
+        int[] taken = [0x51, 0x48, 0x46, 0x45, 0x09, 0x4E, 0x54, 0x31, 0x32, 0x33, 0x34, 0x35, 0x4B, 0x4A, 0x4C, 0x4D,
+            0x49, 0x43, 0x52];
+
+        Assert.Equal(0x42, BattleBindings.Default.StatusKey);
+        Assert.DoesNotContain(BattleBindings.Default.StatusKey, taken);
     }
 
     [Fact]
@@ -180,7 +212,7 @@ public sealed class BattleStatusTests
         Game(L3 | A);
         time.Advance(Hold);
         Game(L3 | A);
-        Assert.Equal([BattleStatus.KeyH, 0x41], status.Keys([BattleStatus.KeyH, 0x41]));
+        Assert.Equal([BattleStatus.KeyB, 0x41], status.Keys([BattleStatus.KeyB, 0x41]));
 
         Assert.Empty(announcer.Said);
     }
@@ -217,7 +249,7 @@ public sealed class BattleStatusTests
     [Fact]
     public void WithNothingReadItSaysSo()
     {
-        status.Keys([BattleStatus.KeyH]);
+        status.Keys([BattleStatus.KeyB]);
 
         Assert.Equal(["No party status"], Said());
     }

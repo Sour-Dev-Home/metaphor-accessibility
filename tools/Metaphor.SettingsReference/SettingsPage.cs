@@ -141,14 +141,14 @@ public static class SettingsPage
         | `menus.detailsKey` | Reads the rest of the focused menu item's details. | `"F"` |
         | `menus.nameReadBackKey` | With Ctrl held, reads back the name you typed, on the name entry screen. | `"R"` |
         | `menus.detailsButtons` | The same on the pad. | `"RS"` |
-        | `battle.statusKey` | In a battle, says each party member's HP and the enemies hit so far. | `"H"` |
+        | `battle.statusKey` | In a battle, says each party member's HP and the enemies hit so far. | `"B"` |
         | `battle.statusButtons` | The same on the pad, held; a tap reaches the game (Retry on `LS`). | `"LS"` |
         | `battle.enemyNextKey` | In a battle, steps to the next enemy hit so far and says its HP (`battleEnemyKeys`). | `"K"` |
         | `battle.enemyPreviousKey` | The enemy before. | `"J"` |
         | `battle.enemyHpKey` | In a battle, says the HP of every enemy hit so far, in one line. | `"L"` |
         | `battle.enemyHoldButtons` | Held for the battle's enemy chords (testing: `battleEnemyPad`). | `"LB"` |
         | `battle.enemyNextButton` | With the held button: the next enemy. | `"DpadDown"` |
-        | `battle.enemyPreviousButton` | With the held button: the enemy before. | `"DpadUp"` |
+        | `battle.enemyPreviousButton` | With the held button: the enemy before. | `"none"` |
         | `battle.enemyHpButton` | With the held button: every enemy's HP. | `"DpadLeft"` |
         | `battle.hpMpKey` | In a battle, says each party member's HP and MP (testing: `battleHpMp`). No pad button yet. | `"M"` |
         | `field.nearbyKey` | Speaks the whole nearby list. | `"N"` |
