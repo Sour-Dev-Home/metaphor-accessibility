@@ -7,10 +7,10 @@
   [`voice-language-persisted-in-system-save.md`](voice-language-persisted-in-system-save.md) and
   [`voice-language-values.md`](voice-language-values.md)
 - **Functions:**
-  - MsgVoiceCommand | 0x9fa010 | .ecode | Dialogue | known only | Finds a line's voice command, takes its clip name and plays it; sets `0x27b5930`.
-  - VoicePlayByName | 0x7c3a00 | .ecode | Dialogue | known only | Stops a playing voice, then plays the clip named by its `std::string` argument.
-  - VoicePlayCue | 0x7c3d00 | .ecode | Dialogue | known only | Starts the cue (CRI play at `0x1493f00`) and the lip-sync controller.
-  - LipSyncIsActive | 0x102e3e0 | .ecode | Dialogue | known only | Returns the byte at `+0x50` of the controller at `0x2ee89b0`.
+  - MsgVoiceCommand | 0x9fa010 | .ecode | Dialogue | known only | Finds a line's voice command, takes its clip name and plays it; sets `0x27b5930`. | finding
+  - VoicePlayByName | 0x7c3a00 | .ecode | Dialogue | known only | Stops a playing voice, then plays the clip named by its `std::string` argument. | finding
+  - VoicePlayCue | 0x7c3d00 | .ecode | Dialogue | known only | Starts the cue (CRI play at `0x1493f00`) and the lip-sync controller. | finding
+  - LipSyncIsActive | 0x102e3e0 | .ecode | Dialogue | known only | Returns the byte at `+0x50` of the controller at `0x2ee89b0`. | finding
 
 For #57. A line is tied to its clip by its `<VOICE "clip">` tag, which compiles to a command in the line; a line has a
 clip exactly when it carries that tag (already the mod's rule, `VoiceClips`). When the line shows, `0x9fa010` finds the

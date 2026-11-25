@@ -5,9 +5,9 @@
 - **Sources:** [`squirrel-script-functions-all-2026-11-16.md`](../raw-sources/squirrel-script-functions-all-2026-11-16.md)
   (the script names and addresses)
 - **Functions:**
-  - LearnClass | 0x140389c70 | .ecode | Menus | known only | Stores a class record in the first free of a member's 60 archetype slots, or returns the one already there.
-  - AcquireClass | 0x140903550 | .ecode | Menus | known only | Script function: finds the class record for a member and calls LearnClass.
-  - SetPartyMemberAwakened | 0x140910610 | .ecode | Menus | known only | Script function: sets or clears game flag 0x1121 + member through `0x3c85e0`, inverting its second argument.
+  - LearnClass | 0x140389c70 | .ecode | Menus | hooked | Stores a class record in the first free of a member's 60 archetype slots, or returns the one already there. | finding; src/Metaphor.Hooks/LearnClassListener.cs
+  - AcquireClass | 0x140903550 | .ecode | Menus | known only | Script function: finds the class record for a member and calls LearnClass. | finding
+  - SetPartyMemberAwakened | 0x140910610 | .ecode | Menus | known only | Script function: sets or clears game flag 0x1121 + member through `0x3c85e0`, inverting its second argument. | finding
 
 For #625. Every path that gives a member an archetype found in analysed code goes through `LearnClass` (`0x389c70`):
 the script function `AcquireClass`, the Akademeia learn path (`0xf5ac20`) and the New Game Plus carry-over

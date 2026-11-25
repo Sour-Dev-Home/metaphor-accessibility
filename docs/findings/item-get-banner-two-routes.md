@@ -7,9 +7,9 @@
   [`ui-component-open-points-static.md`](ui-component-open-points-static.md) and
   [`item-skill-message-serials-static.md`](item-skill-message-serials-static.md)
 - **Functions:**
-  - EventItemGetOpen | 0xf560d0 | .ecode | Field | known only | Opens the item-get window: copies up to three item id and count pairs into the `ItemGetNoticeLayout` list.
-  - ItemGetNoticeLayout::vf20 | 0xd212f0 | .ecode | Field | known only | Opens the item-get layout with animation 818 through the shared start-an-animation wrapper.
-  - UUIC_Field_Reward::vf5 | 0xfcb860 | .ecode | Field | known only | The field reward component's request handler; hands the request on to an object a `.text1` thunk returns.
+  - EventItemGetOpen | 0xf560d0 | .ecode | Field | hooked | Opens the item-get window: copies up to three item id and count pairs into the `ItemGetNoticeLayout` list. | finding; src/Metaphor.Hooks/UiComponentListeners.cs
+  - ItemGetNoticeLayout::vf20 | 0xd212f0 | .ecode | Field | known only | Opens the item-get layout with animation 818 through the shared start-an-animation wrapper. | finding
+  - UUIC_Field_Reward::vf5 | 0xfcb860 | .ecode | Field | known only | The field reward component's request handler; hands the request on to an object a `.text1` thunk returns. | finding
 
 For #542. **Two routes, one of them buildable.** The script and post-battle item window (`UUIC_Common_EventItemGet`)
 opens through `EventItemGetOpen` (`0xf560d0`, `.ecode`, today a development-only hook), and the item's name and

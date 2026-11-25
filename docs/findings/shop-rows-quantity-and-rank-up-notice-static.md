@@ -9,12 +9,12 @@
   [`squirrel-script-functions-all-2026-11-16.md`](../raw-sources/squirrel-script-functions-all-2026-11-16.md),
   [`shop-buy-sell-resolves-session-c-2026-11-22.md`](../raw-sources/shop-buy-sell-resolves-session-c-2026-11-22.md)
 - **Functions:**
-  - ItemShopChoice vtable | 0x2200938 | .udata | Menus | known only | The shop screen's choice; its focused row comes from `ChoiceGetCursor`.
-  - ChoiceGetCursor | 0xd4ab90 | .ecode | Menus | hooked | Slot 11: returns the cursor manager whose focused row the shop logs.
-  - PurchaseNumSelectChoice vtable | 0x2201b90 | .udata | Menus | known only | The buy-quantity widget.
-  - GetMoney | 0x90a510 | .ecode | Menus | known only | Script function that returns the money `int` at `G+0x22c58`.
-  - UUIC_Common_FollowerRankUp vtable | 0x2252508 | .udata | Menus | known only | The rank-up notice, a UI part holding the follower and the new rank.
-  - GetFollowerID_OnRankUpScript | 0x907980 | .ecode | Menus | known only | Script function that reads the rank-up part's follower ID.
+  - ItemShopChoice vtable | 0x2200938 | .udata | Menus | known only | The shop screen's choice; its focused row comes from `ChoiceGetCursor`. | finding; docs/findings/battle-target-cursor-index-static.md
+  - ChoiceGetCursor | 0xd4ab90 | .ecode | Menus | hooked | Slot 11: returns the cursor manager whose focused row the shop logs. | finding; src/Metaphor.Hooks/ScreenClassHooks.cs
+  - PurchaseNumSelectChoice vtable | 0x2201b90 | .udata | Menus | known only | The buy-quantity widget. | finding; docs/findings/battle-target-cursor-index-static.md
+  - GetMoney | 0x90a510 | .ecode | Menus | known only | Script function that returns the money `int` at `G+0x22c58`. | finding; docs/findings/battle-target-cursor-index-static.md
+  - UUIC_Common_FollowerRankUp vtable | 0x2252508 | .udata | Menus | known only | The rank-up notice, a UI part holding the follower and the new rank. | finding; docs/findings/battle-target-cursor-index-static.md
+  - GetFollowerID_OnRankUpScript | 0x907980 | .ecode | Menus | known only | Script function that reads the rank-up part's follower ID. | finding; docs/findings/battle-target-cursor-index-static.md
 
 The #196 spike for the decided wording: shop rows `<item>, <price>, you have <n>`, `Buy how many? 1`,
 `Total <price>, <money> left`, and the rank-up `<follower>, rank <n>` plus the unlock line. It builds on the

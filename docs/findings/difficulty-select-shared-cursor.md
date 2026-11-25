@@ -7,9 +7,9 @@
   [`screen-class-session-2026-11-17.md`](../raw-sources/screen-class-session-2026-11-17.md); corrects
   [`difficulty-select-own-input-static.md`](difficulty-select-own-input-static.md)
 - **Functions:**
-  - DifficultySelectUpdate | 0xf50130 | .ecode | Menus | hooked | `UUIC_Common_DifficultySelect::vf13`, the list's update.
-  - CursorManagerInput | 0xe98770 | .ecode | Menus | hooked | Slot 4 of `app::ui::ope::CursorManager`, the hooked cursor input.
-  - app::ui::ope::CursorManager vtable | 0x22045e8 | .udata | Menus | known only | The shared cursor manager the difficulty list moves.
+  - DifficultySelectUpdate | 0xf50130 | .ecode | Menus | hooked | `UUIC_Common_DifficultySelect::vf13`, the list's update. | finding; src/Metaphor.Core/hook-signatures.json; src/Metaphor.Hooks/ScreenClassHooks.cs
+  - CursorManagerInput | 0xe98770 | .ecode | Menus | hooked | Slot 4 of `app::ui::ope::CursorManager`, the hooked cursor input. | finding; src/Metaphor.Hooks/MenuHooks.cs
+  - app::ui::ope::CursorManager vtable | 0x22045e8 | .udata | Menus | known only | The shared cursor manager the difficulty list moves. | finding; docs/findings/battle-target-cursor-index-static.md
 
 New Game's difficulty list (`UUIC_Common_DifficultySelect`, #540) reads its input through the shared
 `CursorManager` held at its `+0x28`, so every move reaches `CursorManagerInput` and the menu cursor hook. The static

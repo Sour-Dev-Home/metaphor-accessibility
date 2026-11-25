@@ -9,8 +9,8 @@
   [`mission-box-text-source-static.md`](mission-box-text-source-static.md),
   [`field-route-query-for-path-pings-static.md`](field-route-query-for-path-pings-static.md)
 - **Functions:**
-  - FldMapIconUpdateParam | 0x8e0090 | .ecode | Field | known only | Script function; thunk to `0x6d11f0`, which re-evaluates each map icon's condition strings.
-  - MapIconManager | 0x2ee7700 | .debug | Field | known only | Global singleton (`0x120` bytes, made in `0x5ee590`) that `0x6d11f0` and about 20 `.ecode` functions read; presumably `fldMapIcon`.
+  - FldMapIconUpdateParam | 0x8e0090 | .ecode | Field | known only | Script function; thunk to `0x6d11f0`, which re-evaluates each map icon's condition strings. | finding
+  - MapIconManager | 0x2ee7700 | .debug | Field | known only | Global singleton (`0x120` bytes, made in `0x5ee590`) that `0x6d11f0` and about 20 `.ecode` functions read; presumably `fldMapIcon`. | finding
 
 Spike for #652. **Found, as data the mod can read offline with no hook.** `base.cpk` holds one file per field map and
 variant, `COMMON/field/source/layout/map_icon_point/mip_<a>_<b>_<c>.dat` (133 of them, listed in `exist_mipoint.dat`).

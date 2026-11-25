@@ -6,9 +6,9 @@
   [`battle-inventory-2026-11-17.md`](../raw-sources/battle-inventory-2026-11-17.md),
   [`menu-values-session5-2026-11-17.md`](../raw-sources/menu-values-session5-2026-11-17.md)
 - **Functions:**
-  - GetPlayerUnitID | 0x90a9f0 | .ecode | Battle | known only | Script function that jumps to the party unit getter.
-  - UUIC_Battle_PressTurnIcon open | 0xf1bc10 | .ecode | Battle | known only | Stores the turn-icon side and computes the icon total.
-  - UUIC_Battle_PressTurnIcon refresh | 0xf1bcc0 | .ecode | Battle | known only | Refreshes the turn icons from the same fields as the open.
+  - GetPlayerUnitID | 0x90a9f0 | .ecode | Battle | known only | Script function that jumps to the party unit getter. | finding; docs/findings/battle-target-cursor-index-static.md
+  - UUIC_Battle_PressTurnIcon open | 0xf1bc10 | .ecode | Battle | known only | Stores the turn-icon side and computes the icon total. | finding; docs/findings/battle-target-cursor-index-static.md
+  - UUIC_Battle_PressTurnIcon refresh | 0xf1bcc0 | .ecode | Battle | known only | Refreshes the turn icons from the same fields as the open. | finding; docs/findings/battle-target-cursor-index-static.md
 
 Static prep for #287, read in Ghidra only; nothing here has run against the game yet, so every meaning below is a
 candidate for tonight's inspector session. `Package@btl` itself has **no static pointer path**: its owner is the

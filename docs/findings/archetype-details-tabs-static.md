@@ -5,8 +5,8 @@
 - **Sources:** [`archetype-screen-classes-session5-2026-11-17.md`](../raw-sources/archetype-screen-classes-session5-2026-11-17.md),
   [`screen-class-link-2026-11-17.md`](../raw-sources/screen-class-link-2026-11-17.md)
 - **Functions:**
-  - ClassDetailBase<CampArchetypeDetailLayout>::vf17 | 0xd926e0 | .ecode | Menus | known only | The setup shared by the three details classes; appends the tab kinds 0, 2, 1.
-  - ClassDetailBase<CampArchetypeDetailLayout>::vf11 | 0xd976f0 | .ecode | Menus | known only | The tabbed getter: returns the manager at `+0x1740`, `+0x1750` or `+0x1760` by the kind at the tab index.
+  - ClassDetailBase<CampArchetypeDetailLayout>::vf17 | 0xd926e0 | .ecode | Menus | known only | The setup shared by the three details classes; appends the tab kinds 0, 2, 1. | finding; docs/findings/battle-target-cursor-index-static.md
+  - ClassDetailBase<CampArchetypeDetailLayout>::vf11 | 0xd976f0 | .ecode | Menus | known only | The tabbed getter: returns the manager at `+0x1740`, `+0x1750` or `+0x1760` by the kind at the tab index. | finding; docs/findings/archetype-tree-scene-and-choice-static.md; docs/findings/battle-target-cursor-index-static.md
 
 Static prep (#493) for game session 2 (#497), stop 5, for #227. Read in Ghidra only, not yet run against the game.
 The [tree note](archetype-tree-scene-and-choice-static.md) found that the tabbed getter `0xd976f0` returns the manager

@@ -6,9 +6,9 @@
   [`battle-party-swap-and-formation-static.md`](battle-party-swap-and-formation-static.md) and
   [`pad-icon-glyph-tables-static.md`](pad-icon-glyph-tables-static.md)
 - **Functions:**
-  - UnitFormationBit | 0x1403e8230 | .ecode | Battle | known only | Returns a unit's `+0x0` bit 22, the Formation bit.
-  - SkillRowAllows | 0x1403d3fc0 | .ecode | Battle | known only | For skill IDs 1 to 999, whether a skill's row flags allow it with the Formation bit given.
-  - SkillUsableCheck | 0x140f31eb0 | .ecode | Battle | known only | A skill-usability check that returns 3 when the row rule refuses the skill.
+  - UnitFormationBit | 0x1403e8230 | .ecode | Battle | known only | Returns a unit's `+0x0` bit 22, the Formation bit. | finding
+  - SkillRowAllows | 0x1403d3fc0 | .ecode | Battle | known only | For skill IDs 1 to 999, whether a skill's row flags allow it with the Formation bit given. | finding
+  - SkillUsableCheck | 0x140f31eb0 | .ecode | Battle | known only | A skill-usability check that returns 3 when the row rule refuses the skill. | finding
 
 For #259. Which value of the Formation bit is the back row is still not pinned, but two readers narrow it. A skill's
 table entry has two row flags in its byte 2: `0x4` allows it with the bit clear and `0x8` with the bit set; with

@@ -6,7 +6,7 @@
   [`battle-turn-icons-and-ui-components-static.md`](battle-turn-icons-and-ui-components-static.md) and
   [`battle-state-session6-2026-11-17.md`](../raw-sources/battle-state-session6-2026-11-17.md)
 - **Functions:**
-  - BattleHitResult | 0x3231a0 | .ecode | Battle | hooked | Runs once per target of a resolved action and sends the damage popup.
+  - BattleHitResult | 0x3231a0 | .ecode | Battle | hooked | Runs once per target of a resolved action and sends the damage popup. | finding; src/Metaphor.Hooks/BattleHooks.cs
 
 `0x3231a0` (`BattleHitResult`, our name) runs once per target of a resolved action and sends the damage popup. Before
 it sends, it writes into its first argument the HP and MP change and the HP and MP the target has left, clamped to

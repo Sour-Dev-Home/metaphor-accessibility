@@ -6,10 +6,10 @@
   [`field-navmesh-file-from-map-data.md`](field-navmesh-file-from-map-data.md),
   [`field-player-frame-hook-static.md`](field-player-frame-hook-static.md)
 - **Functions:**
-  - FieldRaycastMask30 | 0x13e2530 | .ecode | Field | known only | Casts a ray from a start to an end point with filter word 0x30 and returns hit or miss, the hit point and normal.
-  - FieldRaycast | 0x13e21e0 | .ecode | Field | known only | The raycast every masked wrapper calls: locks the scene, casts into a raycast hit buffer, unlocks.
-  - FieldSweep | 0x13e2b80 | .ecode | Field | known only | The sweep counterpart, into a sweep hit buffer; used by the follower and character control code.
-  - FieldPhysicsWorld | 0x2ee72d8 | .debug | Field | known only | Global pointer to the physics singleton every field raycast passes as its first argument.
+  - FieldRaycastMask30 | 0x13e2530 | .ecode | Field | known only | Casts a ray from a start to an end point with filter word 0x30 and returns hit or miss, the hit point and normal. | finding
+  - FieldRaycast | 0x13e21e0 | .ecode | Field | known only | The raycast every masked wrapper calls: locks the scene, casts into a raycast hit buffer, unlocks. | finding
+  - FieldSweep | 0x13e2b80 | .ecode | Field | known only | The sweep counterpart, into a sweep hit buffer; used by the follower and character control code. | finding
+  - FieldPhysicsWorld | 0x2ee72d8 | .debug | Field | known only | Global pointer to the physics singleton every field raycast passes as its first argument. | finding
 
 Issue #829, for wall tones (#830). **Two Release-safe probes, in order.** (1) On a map with a `.NAV` file, the mod's
 own `WalkGraph.DistanceToEdge` (`src/Metaphor.Core/Navigation/WalkGraph.cs`) already answers "how far can I walk

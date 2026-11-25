@@ -7,11 +7,11 @@
   [`field-state-and-map-2026-11-16.md`](../raw-sources/field-state-and-map-2026-11-16.md),
   [`squirrel-script-functions-all-2026-11-16.md`](../raw-sources/squirrel-script-functions-all-2026-11-16.md)
 - **Functions:**
-  - fldWorld | 0x2ee7510 | .debug | Field | read | The global holding the field world, read for the player's position and facing.
-  - fldScene_Root | 0x2ee7348 | .debug | Field | read | The global holding the field's scene root.
-  - fldDatabase | 0x2ee7368 | .debug | Field | read | The global holding the field database, with the map id at `+0x48`.
-  - MapData.bin | 0x2eebc48 | .debug | Field | read | The map table, rows of `0x2c` bytes; the zone is the `u16` at row `+0x6`.
-  - resrcInit loader | 0x8994a0 | .ecode | Field | known only | Loads the init tables by file name into globals.
+  - fldWorld | 0x2ee7510 | .debug | Field | read | The global holding the field world, read for the player's position and facing. | finding; docs/raw-sources/field-position-2026-11-16.md; src/Metaphor.Hooks/FieldReads.cs
+  - fldScene_Root | 0x2ee7348 | .debug | Field | read | The global holding the field's scene root. | finding; src/Metaphor.Hooks/FieldReads.cs; docs/findings/battle-turn-icons-and-ui-components-static.md; docs/raw-sources/dialogue-window-flag-2026-11-16.md
+  - fldDatabase | 0x2ee7368 | .debug | Field | read | The global holding the field database, with the map id at `+0x48`. | finding; src/Metaphor.Hooks/FieldReads.cs; docs/findings/battle-turn-icons-and-ui-components-static.md; docs/raw-sources/dialogue-window-flag-2026-11-16.md
+  - MapData.bin | 0x2eebc48 | .debug | Field | known only | The map table, rows of `0x2c` bytes; the zone is the `u16` at row `+0x6`. | finding; docs/findings/battle-turn-icons-and-ui-components-static.md; docs/raw-sources/dialogue-window-flag-2026-11-16.md
+  - ResrcInitLoad | 0x8994a0 | .ecode | Field | known only | Loads the init tables by file name into globals. | finding; docs/findings/enemy-tables-affinities-exp-drops.md
 
 Static prep (#495) for #181, restating #177's and #180's session-6 results as inspector commands so game session 4
 (#499) reads them beside the units, and adding the map-name tables. Position, facing, camera, scene and map id were

@@ -10,8 +10,8 @@
   [`menu-hook-counts-2026-11-17.md`](../raw-sources/menu-hook-counts-2026-11-17.md),
   [`settings-pages-resolves-by-ear-2026-11-20.md`](../raw-sources/settings-pages-resolves-by-ear-2026-11-20.md)
 - **Functions:**
-  - MultiLineCursorManager vtable | 0x22046a8 | .udata | Settings | known only | The grid cursor that Calendar and key configuration use.
-  - app::ui::ope::CursorManager vtable | 0x22045e8 | .udata | Settings | known only | The shared cursor the four settings pages use.
+  - MultiLineCursorManager vtable | 0x22046a8 | .udata | Settings | known only | The grid cursor that Calendar and key configuration use. | finding; docs/findings/battle-target-cursor-index-static.md
+  - app::ui::ope::CursorManager vtable | 0x22045e8 | .udata | Settings | known only | The shared cursor the four settings pages use. | finding; docs/findings/difficulty-select-shared-cursor.md; docs/findings/battle-target-cursor-index-static.md
 
 Static prep for #96, as #492 did for the title. Settings opens on a five-row category list, and each row opens a page
 with its own screen class. The System, Sound, Graphics and Display pages use the shared cursor class `0x22045e8`. Key

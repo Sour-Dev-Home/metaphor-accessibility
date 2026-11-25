@@ -6,12 +6,12 @@
   [`field-nearby-session6-2026-11-17.md`](../raw-sources/field-nearby-session6-2026-11-17.md),
   [`squirrel-script-functions-all-2026-11-16.md`](../raw-sources/squirrel-script-functions-all-2026-11-16.md)
 - **Functions:**
-  - fldCharaCtrl_Enemy::vf3 | 0x6567b0 | .ecode | Field | known only | Builds the enemy controller's 40 AI state objects on its stack.
-  - fldCharaCtrl_Enemy::vf4 | 0x658bc0 | .ecode | Field | known only | Reads the current state index and calls that state's callback.
-  - FldEnemySetAIState_Discover | 0x8dcb10 | .ecode | Field | known only | The discovery request: finds the enemy and sets its discover state.
-  - FldPlayerGetDegToEnemy | 0x8e5070 | .ecode | Field | known only | Script function giving the angle from the player to an enemy.
-  - FldEnemyGetDegToPlayer | 0x8dbe70 | .ecode | Field | known only | Script function giving the angle from an enemy to the player.
-  - FldEnemyIsDamageBackAttack | 0x8dc1b0 | .ecode | Field | known only | Script function that tells a back attack on an enemy.
+  - fldCharaCtrl_Enemy::vf3 | 0x6567b0 | .ecode | Field | known only | Builds the enemy controller's 40 AI state objects on its stack. | finding
+  - fldCharaCtrl_Enemy::vf4 | 0x658bc0 | .ecode | Field | known only | Reads the current state index and calls that state's callback. | finding
+  - FldEnemySetAIState_Discover | 0x8dcb10 | .ecode | Field | known only | The discovery request: finds the enemy and sets its discover state. | finding
+  - FldPlayerGetDegToEnemy | 0x8e5070 | .ecode | Field | known only | Script function giving the angle from the player to an enemy. | finding
+  - FldEnemyGetDegToPlayer | 0x8dbe70 | .ecode | Field | known only | Script function giving the angle from an enemy to the player. | finding
+  - FldEnemyIsDamageBackAttack | 0x8dc1b0 | .ecode | Field | known only | Script function that tells a back attack on an enemy. | finding
 
 For #186 through #178. Each `fldEnemy` (list `M+0x18`/`+0x20`) points to its controller `C = [enemy+0x3110]`, a
 `fldCharaCtrl_Enemy` whose `+0x50` points back to the enemy. The controller's setup builds 40 states of `0x100` bytes

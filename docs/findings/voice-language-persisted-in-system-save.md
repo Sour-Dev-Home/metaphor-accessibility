@@ -7,9 +7,9 @@
   [`title-names-voice-tutorials-static.md`](title-names-voice-tutorials-static.md) (section 4) and
   [`voice-language-getter-2026-11-20.md`](../raw-sources/voice-language-getter-2026-11-20.md)
 - **Functions:**
-  - AppChangeVoiceLanguage | 0x7bb010 | .ecode | Settings | known only | Stores the new voice language, then applies it.
-  - VoiceLanguageSetter | 0x7bc6d0 | .ecode | Settings | known only | Writes the voice language as set.
-  - VoiceLanguageGetter | 0x3dc620 | .ecode | Settings | read | Returns the applied voice language, `base+0x2dff8e4`.
+  - AppChangeVoiceLanguage | 0x7bb010 | .ecode | Settings | known only | Stores the new voice language, then applies it. | finding
+  - VoiceLanguageSetter | 0x7bc6d0 | .ecode | Settings | known only | Writes the voice language as set. | finding
+  - VoiceLanguageGetter | 0x3dc620 | .ecode | Settings | read | Returns the applied voice language, `base+0x2dff8e4`. | finding
 
 For #103 question 3 and #57. The answer for the mod is the one #538 already ships: read the applied voice language in
 memory (`base+0x2dff8e4`, 1 Japanese, 2 English) through `VoiceLanguageGetter`, after the build check

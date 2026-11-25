@@ -6,10 +6,10 @@
   [`archetype-tree-class-session6-2026-11-17.md`](../raw-sources/archetype-tree-class-session6-2026-11-17.md),
   [`menus-open-session6-2026-11-17.md`](../raw-sources/menus-open-session6-2026-11-17.md)
 - **Functions:**
-  - MenusHandleGetter | 0x51fab0 | .ecode | Menus | known only | Reads the menus' handle and returns the pointer to the scene vector at `+0x48`.
-  - AcademiaLearnTalk_GetCharaID | 0x903140 | .ecode | Menus | known only | Script function of `fclAcademiaTree` that reads the character ID at `+0xcb8`.
-  - AcademiaClassSelectChoice vtable | 0x21f7130 | .udata | Menus | known only | The Archetype Tree's likely choice, a `SingleChoiceBase_WithLayout` of `0xad8` bytes.
-  - ClassDetailBase<CampArchetypeDetailLayout>::vf11 | 0xd976f0 | .ecode | Menus | known only | The tabbed getter shared by the details choices.
+  - unnamed, at 0x51fab0 | 0x51fab0 | .ecode | Menus | known only | Reads the menus' handle and returns the pointer to the scene vector at `+0x48`. | finding; docs/findings/battle-target-cursor-index-static.md
+  - AcademiaLearnTalk_GetCharaID | 0x903140 | .ecode | Menus | known only | Script function of `fclAcademiaTree` that reads the character ID at `+0xcb8`. | finding; docs/findings/battle-target-cursor-index-static.md
+  - AcademiaClassSelectChoice vtable | 0x21f7130 | .udata | Menus | known only | The Archetype Tree's likely choice, a `SingleChoiceBase_WithLayout` of `0xad8` bytes. | finding; docs/findings/battle-target-cursor-index-static.md
+  - ClassDetailBase<CampArchetypeDetailLayout>::vf11 | 0xd976f0 | .ecode | Menus | known only | The tabbed getter shared by the details choices. | finding; docs/findings/battle-target-cursor-index-static.md
 
 Static prep for #227, read in Ghidra only and not yet run against the game. Session 6 left two candidates for the
 tree: `Tree@tree@academia@layout@ui@app` and `fclAcademiaTree@fcl@app`. The code says `fclAcademiaTree` is the

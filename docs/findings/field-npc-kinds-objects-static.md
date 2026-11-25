@@ -4,8 +4,8 @@
 - **Method:** Opening the shipped executable in a disassembler as-is, accepting that protected parts may be unreadable
 - **Sources:** [`field-actors-2026-11-16.md`](../raw-sources/field-actors-2026-11-16.md), and Steps
 - **Functions:**
-  - fldNpc::vf5 | 0x67b9e0 | .ecode | Field | known only | Sets the NPC's kind from its creation flags.
-  - FldNpcGetNpcID body | 0x67a650 | .ecode | Field | known only | Returns the NpcID index, or `0xffff` for kinds 2, 3 and 4.
+  - fldNpc::vf5 | 0x67b9e0 | .ecode | Field | known only | Sets the NPC's kind from its creation flags. | finding; docs/findings/battle-target-cursor-index-static.md
+  - FldNpcGetNpcID body | 0x67a650 | .ecode | Field | known only | Returns the NpcID index, or `0xffff` for kinds 2, 3 and 4. | finding; docs/findings/battle-target-cursor-index-static.md
 
 Every unit on the people list is an `fldNpc`, so the nearby list can't tell a person from an object that talks, such
 as a display case (#687). The kind at `npc+0x3630` says which table made the unit: kinds 0, 1, 5, 6 and 7 come from a

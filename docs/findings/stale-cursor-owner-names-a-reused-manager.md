@@ -7,7 +7,7 @@
 - **Sources:** none, see Steps; builds on [`save-load-slot-screens.md`](save-load-slot-screens.md) and
   [`screen-class-link-2026-11-17.md`](../raw-sources/screen-class-link-2026-11-17.md)
 - **Functions:**
-  - SystemMenuChoice::vf2 | 0xe03340 | .ecode | Menus | known only | The choice's deleting destructor: restores its base vtables, calls the base destructor in `.text1`, frees `0x478` bytes.
+  - SystemMenuChoice::vf2 | 0xe03340 | .ecode | Menus | known only | The choice's deleting destructor: restores its base vtables, calls the base destructor in `.text1`, frees `0x478` bytes. | finding
 
 For #732 and #622. The load list that said "x of 17" got the class `SingleChoiceBase@ope@ui@app` because its new
 manager was allocated at the address of the System menu's earlier manager. The mod's `CursorOwners` still mapped that

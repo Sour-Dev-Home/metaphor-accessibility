@@ -7,10 +7,10 @@
   [`battle-situation-banner-text-static.md`](battle-situation-banner-text-static.md) and
   [`battle-turn-side-start-and-end-layouts-logged.md`](battle-turn-side-start-and-end-layouts-logged.md)
 - **Functions:**
-  - BTL_RewindComfirm vtable | 0x21c69f8 | .udata | Battle | known only | The Retry prompt's choice: `YesNoChoiceBase<RewindConfirmLayout>`, slot 11 the shared `ChoiceGetCursor`.
-  - BTL_Comfirm vtable | 0x21c7308 | .udata | Battle | known only | The battle's other yes/no prompts: `YesNoChoiceBase<BattleConfirmLayout>`, slot 11 the shared `ChoiceGetCursor`.
-  - btl::phase::Rewind vtable | 0x17db688 | .udata | Battle | known only | A battle phase class named for the retry; three slots.
-  - btl::phase::AllyEscape vtable | 0x17db538 | .udata | Battle | known only | A battle phase class named for the party's escape.
+  - BTL_RewindComfirm vtable | 0x21c69f8 | .udata | Battle | known only | The Retry prompt's choice: `YesNoChoiceBase<RewindConfirmLayout>`, slot 11 the shared `ChoiceGetCursor`. | finding
+  - BTL_Comfirm vtable | 0x21c7308 | .udata | Battle | known only | The battle's other yes/no prompts: `YesNoChoiceBase<BattleConfirmLayout>`, slot 11 the shared `ChoiceGetCursor`. | finding
+  - btl::phase::Rewind vtable | 0x17db688 | .udata | Battle | known only | A battle phase class named for the retry; three slots. | finding
+  - btl::phase::AllyEscape vtable | 0x17db538 | .udata | Battle | known only | A battle phase class named for the party's escape. | finding
 
 For #256, #261, #262 and #257. Choosing Escape and Pass shows a situation banner (kind 2) the mod already says:
 position 149 of `jyokyo_help_Message.msg` ("Escape") and 210 ("Pass to next ally"); a failed or impossible escape

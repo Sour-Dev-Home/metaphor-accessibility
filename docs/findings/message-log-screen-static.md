@@ -5,10 +5,10 @@
   our own Reloaded-II mod's Debug message log from the maintainer's sessions (kept local, read with grep)
 - **Sources:** none, see Steps
 - **Functions:**
-  - UUIC_Common_MessageLog::vf13 | 0x140f6e300 | .ecode | Dialogue | hooked | The log's update: opens, runs and closes it as a four-state machine at `+0x18`.
-  - UUIC_Common_MessageLog row build | 0x140f6da40 | .ecode | Dialogue | known only | Builds the log's 30 rows from the game's log entries and hands them to the layout.
-  - MessageLogLayout row copy | 0x140ad68c0 | .ecode | Dialogue | known only | Copies the 30 rows into the layout at `+0x28e20`.
-  - Message log entry getter | 0x14a644840 | .text1 | Dialogue | known only | Returns log entry `n` (0 to 29); its body is in `.text1`, so unread.
+  - UUIC_Common_MessageLog::vf13 | 0x140f6e300 | .ecode | Dialogue | hooked | The log's update: opens, runs and closes it as a four-state machine at `+0x18`. | finding
+  - UUIC_Common_MessageLog row build | 0x140f6da40 | .ecode | Dialogue | known only | Builds the log's 30 rows from the game's log entries and hands them to the layout. | finding
+  - MessageLogLayout row copy | 0x140ad68c0 | .ecode | Dialogue | known only | Copies the 30 rows into the layout at `+0x28e20`. | finding
+  - Message log entry getter | 0x14a644840 | .text1 | Dialogue | known only | Returns log entry `n` (0 to 29); its body is in `.text1`, so unread. | finding
 
 The game's message log (the backlog, #685) is the class `app::ui::UUIC_Common_MessageLog` (vtable `0x2253e08`,
 type `.?AVUUIC_Common_MessageLog@ui@app@@`). It moves the shared `CursorManager` whose pointer is at its `+0x30`, so

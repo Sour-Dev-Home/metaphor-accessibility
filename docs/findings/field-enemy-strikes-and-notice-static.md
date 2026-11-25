@@ -7,12 +7,12 @@
   [`battle-inventory-2026-11-17.md`](../raw-sources/battle-inventory-2026-11-17.md) ("Real-time field combat"),
   [`squirrel-script-functions-all-2026-11-16.md`](../raw-sources/squirrel-script-functions-all-2026-11-16.md)
 - **Functions:**
-  - fldChara::vf14 | 0x645110 | .ecode | Field | known only | Loads the enemy's HP block at `+0x34e0`; the HP is the `u32` at `+0xc`.
-  - fldChara::vf12 | 0x6453f0 | .ecode | Field | known only | Max HP and set HP on the same block.
-  - FldEnemyIsDead | 0x8dc240 | .ecode | Field | known only | Script function: dead when `vf14` returns 0.
-  - fldCharaCtrl_Enemy::vf3 | 0x6567b0 | .ecode | Field | known only | Builds the 40 state objects of the AI state table.
-  - FldEntryEnemyDiscoverScript_Register | 0x8dd830 | .ecode | Field | known only | Registers the enemy discovery script.
-  - FldEntryEnemyDamageScript_Register | 0x8dd800 | .ecode | Field | known only | Registers the enemy damage script.
+  - fldChara::vf14 | 0x645110 | .ecode | Field | known only | Loads the enemy's HP block at `+0x34e0`; the HP is the `u32` at `+0xc`. | finding
+  - fldChara::vf12 | 0x6453f0 | .ecode | Field | known only | Max HP and set HP on the same block. | finding
+  - FldEnemyIsDead | 0x8dc240 | .ecode | Field | known only | Script function: dead when `vf14` returns 0. | finding
+  - fldCharaCtrl_Enemy::vf3 | 0x6567b0 | .ecode | Field | known only | Builds the 40 state objects of the AI state table. | finding; docs/findings/field-enemy-awareness-static.md
+  - FldEntryEnemyDiscoverScript_Register | 0x8dd830 | .ecode | Field | known only | Registers the enemy discovery script. | finding
+  - FldEntryEnemyDamageScript_Register | 0x8dd800 | .ecode | Field | known only | Registers the enemy damage script. | finding; docs/raw-sources/squirrel-script-functions-all-2026-11-16.md; docs/findings/battle-target-cursor-index-static.md
 
 For #186, #649 and #696. In code: an enemy's HP is the `u32` at `[enemy+0x34e0]+0xc`, `fldEnemy::vf58` (`0x65d7a0`)
 is its field-damage handler, it is defeated when that HP reaches 0, a stagger count in it requests AI state `0x24`,

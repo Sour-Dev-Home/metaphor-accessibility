@@ -6,8 +6,8 @@
   builds on [`battle-move-banner-text-reference-static.md`](battle-move-banner-text-reference-static.md) and
   [`enemy-tables-affinities-exp-drops.md`](enemy-tables-affinities-exp-drops.md)
 - **Functions:**
-  - SkillRecord | 0x3e14f0 | .ecode | Battle | known only | Returns skill `id`'s 0x22-byte `Skill.TBL` record, a fixed record for id 0.
-  - ActionLabel | 0x3bd020 | .ecode | Battle | known only | Picks a name getter by an action id's top 4 bits (its item kind).
+  - SkillRecord | 0x3e14f0 | .ecode | Battle | known only | Returns skill `id`'s 0x22-byte `Skill.TBL` record, a fixed record for id 0. | finding
+  - ActionLabel | 0x3bd020 | .ecode | Battle | known only | Picks a name getter by an action id's top 4 bits (its item kind). | finding
 
 For #164 and #255. Where the game keeps the affinities a player has found is **not located**; the mod tracks them
 itself instead. `BattleMessageShow`'s kind 0 banner, id not 0, takes its label from `0x3e14f0(id) + 2`, and

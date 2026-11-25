@@ -7,7 +7,7 @@
 - **Sources:** none, see Steps; follows [`objective-map-icon-points-static.md`](objective-map-icon-points-static.md)
   and [`field-navmesh-file-from-map-data.md`](field-navmesh-file-from-map-data.md)
 - **Functions:**
-  - FieldLayoutLoad | 0x835fa0 | .ecode | Field | known only | Loads a field's optional layout files by kind (`pos`, `enemy`, `tbox`, `minimap_bb`, `mission`, ...) from `f_%04d_%03d`.
+  - FieldLayoutLoad | 0x835fa0 | .ecode | Field | known only | Loads a field's optional layout files by kind (`pos`, `enemy`, `tbox`, `minimap_bb`, `mission`, ...) from `f_%04d_%03d`. | finding
 
 For #652. **The conversion is data, not a fit.** `MiniMap_SetData.bin`'s row whose id is the map id lists that map's
 `MiniMap_Data.bin` records, one per floor; a record holds `(Ox, Oz, s)`, and an icon point `(px, py)` from the map's

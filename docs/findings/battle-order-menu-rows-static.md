@@ -4,10 +4,10 @@
 - **Method:** Opening the shipped executable in a disassembler as-is, accepting that protected parts may be unreadable
 - **Sources:** none, see Steps; the screen class and its count of 3 are from #771's by-ear session (2026-11-22, "c")
 - **Functions:**
-  - BTL_OrderTop constructor | 0x140d75820 | .ecode | Battle | known only | Sets `BTL_OrderTop`'s vtables and empties its three arrays: row items, order IDs and flags, each of capacity 3.
-  - BTL_OrderTop::vf14 | 0x140d92550 | .ecode | Battle | known only | Rebuilds the row items from the order-ID array, one row per ID, in array order.
-  - OrderRowName | 0x140b15af0 | .ecode | Battle | known only | Fetches a row's name by serial: order ID 0, 1, 2 to serial 0x814, 0x815, 0x816.
-  - OrderRowDraw | 0x140b1bea0 | .ecode | Battle | known only | Sets a drawn row's text from the same serials, and its icon (0x1412, 0x1413, 0x1411).
+  - BTL_OrderTop constructor | 0x140d75820 | .ecode | Battle | known only | Sets `BTL_OrderTop`'s vtables and empties its three arrays: row items, order IDs and flags, each of capacity 3. | finding
+  - BTL_OrderTop::vf14 | 0x140d92550 | .ecode | Battle | known only | Rebuilds the row items from the order-ID array, one row per ID, in array order. | finding
+  - OrderRowName | 0x140b15af0 | .ecode | Battle | known only | Fetches a row's name by serial: order ID 0, 1, 2 to serial 0x814, 0x815, 0x816. | finding
+  - OrderRowDraw | 0x140b1bea0 | .ecode | Battle | known only | Sets a drawn row's text from the same serials, and its icon (0x1412, 0x1413, 0x1411). | finding
 
 For #771. `BTL_OrderTop@ope@ui@app` (vtable `0x21ccb30`) is a `SingleChoiceBase_WithLayout<CommandBattleOrderMenuLayout>`
 whose rows are `COMMAND_ORDER_ID`s. Its layout names each row with `GetMessageBySerial` at serial `0x814 + id`

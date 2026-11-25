@@ -7,9 +7,9 @@
   [`battle-situation-banner-text-static.md`](battle-situation-banner-text-static.md) and
   [`battle-move-banner-text-reference-static.md`](battle-move-banner-text-reference-static.md)
 - **Functions:**
-  - OrderTopDecideCheck | 0xd8c440 | .ecode | Battle | known only | Tactics menu's refusal: buzzer, and for reason 2 the banner kind 2 id 29.
-  - ItemDecideCheck | 0xd8cd60 | .ecode | Battle | known only | A list's refusal: buzzer, variable 0 = reason flags, message window id `0x8b1`.
-  - TextRefResolveStub | 0xa67aa0 | .ecode | Messages and Text | known only | Jump stub into `.text1` (`0xabd3380`) that resolves a layout's text reference.
+  - OrderTopDecideCheck | 0xd8c440 | .ecode | Battle | known only | Tactics menu's refusal: buzzer, and for reason 2 the banner kind 2 id 29. | finding
+  - ItemDecideCheck | 0xd8cd60 | .ecode | Battle | known only | A list's refusal: buzzer, variable 0 = reason flags, message window id `0x8b1`. | finding
+  - TextRefResolveStub | 0xa67aa0 | .ecode | Messages and Text | known only | Jump stub into `.text1` (`0xabd3380`) that resolves a layout's text reference. | finding
 
 For #692. Message 74 of `jyokyo_help_Message.msg` (`jyokyo_helpText_FUSOKU_MP`) is not shown by either banner show
 the mod hooks, by the message lookups it hooks, or by any analysed code that asks for the situation file. The skill

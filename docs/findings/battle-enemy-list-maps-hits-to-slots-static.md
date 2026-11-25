@@ -6,10 +6,10 @@
   [`battle-hit-result-hp-left-static.md`](battle-hit-result-hp-left-static.md) and
   [`battle-turn-icons-and-ui-components-static.md`](battle-turn-icons-and-ui-components-static.md)
 - **Functions:**
-  - BattlePackageInit | 0x20b3c0 | .ecode | Battle | known only | Builds `Package@btl` and its four unit lists.
-  - BattleAddEnemy | 0x2100a0 | .ecode | Battle | known only | Adds an action to the enemy list once.
-  - SmartPointerCopy | 0x144100 | .ecode | Battle | known only | Links one intrusive smart pointer to another's object.
-  - PointerListAppend | 0x144340 | .ecode | Battle | known only | Appends a smart pointer at a list's tail.
+  - BattlePackageInit | 0x20b3c0 | .ecode | Battle | known only | Builds `Package@btl` and its four unit lists. | finding
+  - BattleAddEnemy | 0x2100a0 | .ecode | Battle | known only | Adds an action to the enemy list once. | finding
+  - SmartPointerCopy | 0x144100 | .ecode | Battle | known only | Links one intrusive smart pointer to another's object. | finding
+  - PointerListAppend | 0x144340 | .ecode | Battle | known only | Appends a smart pointer at a list's tail. | finding
 
 For #750. Package `+0x140`, the enemy count session 6 logged, is the count of a linked list at package `+0x128`. Each
 node holds an enemy's action, the action holds its `btl::Unit`, and the unit's `+0x8` is the unit record

@@ -7,8 +7,8 @@
   [`arcana-v0.1.0-alpha.3-2026-11-16.md`](../raw-sources/arcana-v0.1.0-alpha.3-2026-11-16.md) (Arcana swallows these
   calls in Persona 3)
 - **Functions:**
-  - GameWindowProc | 0x10c2880 | .ecode | Settings | known only | The game window's message handler; on `WM_ACTIVATE` and `WM_DESTROY` it sets the Sticky, Toggle and Filter Keys settings.
-  - SavedStickyKeys | 0x2f13eac | .debug | Settings | known only | The `STICKYKEYS` the game restores; `0x2f13eb4` (`TOGGLEKEYS`) and `0x2f13ebc` (`FILTERKEYS`) follow it.
+  - GameWindowProc | 0x10c2880 | .ecode | Settings | known only | The game window's message handler; on `WM_ACTIVATE` and `WM_DESTROY` it sets the Sticky, Toggle and Filter Keys settings. | finding
+  - SavedStickyKeys | 0x2f13eac | .debug | Settings | known only | The `STICKYKEYS` the game restores; `0x2f13eb4` (`TOGGLEKEYS`) and `0x2f13ebc` (`FILTERKEYS`) follow it. | finding
 
 `METAPHOR.exe` imports `SystemParametersInfoA` (not `W`) and, in analysed code, calls it from one function, its window
 procedure, with only `SPI_SETSTICKYKEYS` (`0x3B`), `SPI_SETTOGGLEKEYS` (`0x35`) and `SPI_SETFILTERKEYS` (`0x33`). It

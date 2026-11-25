@@ -6,9 +6,9 @@
   [`battle-turn-icons-and-ui-components-static.md`](battle-turn-icons-and-ui-components-static.md) and
   [`battle-hit-result-hp-left-static.md`](battle-hit-result-hp-left-static.md)
 - **Functions:**
-  - StoryFlagTest | 0x3b0ab0 | .ecode | Field | read | The story-flag test; it loads the game data block pointer `G`.
-  - Party slot getter | 0x3b0e30 | .ecode | Battle | known only | Returns the unit number held by party slot `s`.
-  - Party unit getter | 0x3b0eb0 | .ecode | Battle | known only | Returns the address of party unit `n` in the game data block.
+  - StoryFlagTest | 0x3b0ab0 | .ecode | Field | read | The story-flag test; it loads the game data block pointer `G`. | finding; src/Metaphor.Hooks/GameNameReads.cs; src/Metaphor.Core/hook-signatures.json
+  - unnamed, at 0x3b0e30 | 0x3b0e30 | .ecode | Battle | known only | Returns the unit number held by party slot `s`. | finding; docs/findings/battle-target-cursor-index-static.md
+  - unnamed, at 0x3b0eb0 | 0x3b0eb0 | .ecode | Battle | known only | Returns the address of party unit `n` in the game data block. | finding; docs/findings/battle-target-cursor-index-static.md
 
 Party slot `s` holds a unit number at `G+0x1c748 + s × 4`, 0 for an empty slot. Unit `n` is at `G+0x228 + n × 0x16A8`.
 `G` is the same block the mod's story-flag read already uses. So a hit's target is a party member exactly when its unit

@@ -12,8 +12,8 @@
   [`battle-results-rewards-static.md`](battle-results-rewards-static.md) and
   [`skill-cost-from-skill-tables.md`](skill-cost-from-skill-tables.md)
 - **Functions:**
-  - BattleTableLoad | 0x3dd7b0 | .ecode | Battle | known only | Loads the battle tables by path, `Enemy.TBL` and `EnemyAffinity.TBL` among them (also `SkillNormal.TBL`).
-  - ResrcInitLoad | 0x8994a0 | .ecode | Battle | known only | Loads the init tables by path, `EnemyID.bin` among them.
+  - BattleTableLoad | 0x3dd7b0 | .ecode | Battle | known only | Loads the battle tables by path, `Enemy.TBL` and `EnemyAffinity.TBL` among them (also `SkillNormal.TBL`). | finding
+  - ResrcInitLoad | 0x8994a0 | .ecode | Battle | known only | Loads the init tables by path, `EnemyID.bin` among them. | finding
 
 For #164, #255 and #166. **Found, as data with no hook.** The enemy id is a row index shared by three files in the
 player's `base.cpk`, all stored uncompressed: `Enemy.TBL` (level, HP, EXP, money, drops), `EnemyAffinity.TBL` (the 19

@@ -8,10 +8,10 @@
   [`voice-cues-session5-2026-11-17.md`](../raw-sources/voice-cues-session5-2026-11-17.md),
   [`squirrel-script-functions-all-2026-11-16.md`](../raw-sources/squirrel-script-functions-all-2026-11-16.md)
 - **Functions:**
-  - ChoiceGetCursor | 0xd4ab90 | .ecode | Menus | hooked | Returns the cursor manager of a choice, used for the title's submenu.
-  - fldNpc::vf34 | 0x679880 | .ecode | Field | known only | A caller that resolves the field's name labels.
-  - fldMember::vf3 | 0x674150 | .ecode | Field | known only | A caller that resolves the field's name labels.
-  - resrcInit loader | 0x8994a0 | .ecode | Field | known only | Fills the CharaID and NpcID tables from `COMMON/init/data`.
+  - ChoiceGetCursor | 0xd4ab90 | .ecode | Menus | hooked | Returns the cursor manager of a choice, used for the title's submenu. | finding; src/Metaphor.Hooks/ScreenClassHooks.cs
+  - fldNpc::vf34 | 0x679880 | .ecode | Field | known only | A caller that resolves the field's name labels. | finding
+  - fldMember::vf3 | 0x674150 | .ecode | Field | known only | A caller that resolves the field's name labels. | finding
+  - ResrcInitLoad | 0x8994a0 | .ecode | Field | known only | Fills the CharaID and NpcID tables from `COMMON/init/data`. | finding; docs/findings/enemy-tables-affinities-exp-drops.md
 
 Static prep (#492) for game session 1 (#496), read in Ghidra and the exe's bytes only, not yet run against the game.
 Every behaviour below is `[NEEDS VERIFICATION]` until the session's reads agree. The batch files for each stop are in

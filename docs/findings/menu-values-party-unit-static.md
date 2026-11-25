@@ -7,8 +7,8 @@
   [`metaphor-010-templates-tables-2026-11-17.md`](../raw-sources/metaphor-010-templates-tables-2026-11-17.md),
   [`squirrel-script-functions-all-2026-11-16.md`](../raw-sources/squirrel-script-functions-all-2026-11-16.md)
 - **Functions:**
-  - Party unit getter | 0x3b0eb0 | .ecode | Menus | known only | Returns the address of party unit `n` in the game data block.
-  - btl::phase::Finalize::vf2 | 0x229420 | .ecode | Battle | known only | Loops over the party at the battle's end and sets each unit's HP and MP.
+  - unnamed, at 0x3b0eb0 | 0x3b0eb0 | .ecode | Menus | known only | Returns the address of party unit `n` in the game data block. | finding; docs/findings/battle-target-cursor-index-static.md
+  - btl::phase::Finalize::vf2 | 0x229420 | .ecode | Battle | known only | Loops over the party at the battle's end and sets each unit's HP and MP. | finding; docs/findings/battle-target-cursor-index-static.md
 
 Static prep (#493) for game session 2 (#497), for the values #155 still lacks after session 5. Read in Ghidra and the
 exe's bytes only, not yet run against the game: every meaning below is `[NEEDS VERIFICATION]` until the session's reads

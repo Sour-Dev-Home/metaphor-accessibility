@@ -6,10 +6,10 @@
   [`field-notices-and-map-travel-static.md`](field-notices-and-map-travel-static.md),
   [`menu-hook-counts-2026-11-17.md`](../raw-sources/menu-hook-counts-2026-11-17.md)
 - **Functions:**
-  - field::map::Name vtable | 0x21a9c08 | .udata | Field | known only | The field map's name strip layout class.
-  - Name strip id setter | 0xc93070 | .ecode | Field | known only | Stores a map id in the layout at `+0x7e8`.
-  - Name strip text composer | 0xc94130 | .ecode | Field | known only | Turns the stored id into a text object through the region and area name list.
-  - Name serial list builder | 0xefe180 | .ecode | Field | known only | Builds the list of three message serials: region, separator and area name.
+  - field::map::Name vtable | 0x21a9c08 | .udata | Field | known only | The field map's name strip layout class. | finding; docs/findings/battle-target-cursor-index-static.md
+  - FieldMapNameSetId | 0xc93070 | .ecode | Field | hooked | Stores a map id in the layout at `+0x7e8`; a Debug-only listener. | finding; src/Metaphor.Hooks/MapNameHooks.cs; src/Metaphor.Core/hook-signatures.json; docs/findings/battle-target-cursor-index-static.md
+  - unnamed, at 0xc94130 | 0xc94130 | .ecode | Field | known only | Turns the stored id into a text object through the region and area name list. | finding; docs/findings/battle-target-cursor-index-static.md
+  - FieldMapNameCompose | 0xefe180 | .ecode | Field | hooked | Builds the list of three message serials: region, separator and area name; a Debug-only listener. | finding; src/Metaphor.Hooks/MapNameHooks.cs; src/Metaphor.Core/hook-signatures.json; docs/findings/battle-target-cursor-index-static.md
 
 Static prep for #586, also for "where am I" (#181, #192). The field map's name strip is the layout
 `app::ui::layout::field::map::Name`, which `FieldMapNameLayout` extends. `0xc93070` stores an id in the layout at

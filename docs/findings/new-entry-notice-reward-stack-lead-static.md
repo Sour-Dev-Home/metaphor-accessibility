@@ -6,8 +6,8 @@
 - **Sources:** none, see Steps; follows [`field-notices-and-map-travel-static.md`](field-notices-and-map-travel-static.md)
   and [`item-get-banner-two-routes.md`](item-get-banner-two-routes.md)
 - **Functions:**
-  - UUIC_Field_Reward::vf5 | 0xfcb860 | .ecode | Field | known only | The field reward component's request handler; hands the request on to an object a `.text1` thunk returns.
-  - QuestNotice::vf20 | 0xc7d8e0 | .ecode | Field | known only | Opens a reward-stack quest notice with animation `0xc2b` through `.text1`.
+  - UUIC_Field_Reward::vf5 | 0xfcb860 | .ecode | Field | known only | The field reward component's request handler; hands the request on to an object a `.text1` thunk returns. | finding
+  - QuestNotice::vf20 | 0xc7d8e0 | .ecode | Field | known only | Opens a reward-stack quest notice with animation `0xc2b` through `.text1`. | finding
 
 For #544. **Not found, with a lead.** The left-side notice that appears and vanishes ("New: Memorandum", and the
 small box after a pickup) left no record in any hook: no `resolve`, no `ui-anim`, no text pane. The best candidate is

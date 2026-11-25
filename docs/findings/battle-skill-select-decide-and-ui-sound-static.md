@@ -5,9 +5,9 @@
 - **Sources:** none, see Steps; builds on
   [`battle-not-enough-mp-path-static.md`](battle-not-enough-mp-path-static.md)
 - **Functions:**
-  - UiSoundPlay | 0x92e3e0 | .ecode | Battle | known only | Plays a UI sound effect by its id; the buzzer is id 3.
-  - SkillSelectDecide | 0xd77810 | .ecode | Battle | known only | `BTL_SkillSelect`'s confirm handler: posts the focused row's skill id to the UI flow.
-  - BTL_SkillSelect::vf64 | 0xd96990 | .ecode | Battle | known only | Hands the list a callback whose body (`0xd8c000`) calls `SkillSelectDecide`.
+  - UiSoundPlay | 0x92e3e0 | .ecode | Battle | known only | Plays a UI sound effect by its id; the buzzer is id 3. | finding
+  - SkillSelectDecide | 0xd77810 | .ecode | Battle | known only | `BTL_SkillSelect`'s confirm handler: posts the focused row's skill id to the UI flow. | finding
+  - BTL_SkillSelect::vf64 | 0xd96990 | .ecode | Battle | known only | Hands the list a callback whose body (`0xd8c000`) calls `SkillSelectDecide`. | finding
 
 For #692. Two `.ecode` functions, neither in `.text1` nor a jump stub into it, together tell an unaffordable-skill
 refusal from other buzzers: `SkillSelectDecide` (`0xd77810`) runs on each confirm in `BTL_SkillSelect` with the
