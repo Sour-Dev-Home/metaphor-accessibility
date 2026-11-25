@@ -20,7 +20,8 @@ folder and a `.cjs` or `.mjs` one runs code.
 A commit touching the scope needs a [stamp](../../../GLOSSARY.md#review-and-ci):
 
 1. Stage the change, then run the `security-reviewer` agent. When it finds nothing critical or important, its last step
-   runs `scripts/ci/security-stamp.sh`, which hashes the staged scope into a stamp under `.git/`.
+   runs `scripts/ci/security-stamp.sh stamp`, which hashes the staged scope into a stamp under `.git/`. With no
+   command the script prints its usage and exits 2; `stamped` checks the stamp against the staged scope.
 2. Commit. The pre-commit hook refuses the commit unless the stamp matches the staged scope, so any edit after the
    review needs a new one. The commit-msg hook appends `Security-Review: <hash>`. The stamp is single-use: the
    post-commit and post-merge hooks remove it once a commit carries its trailer, or commits the stamped scope without
@@ -35,6 +36,13 @@ A commit touching the scope needs a [stamp](../../../GLOSSARY.md#review-and-ci):
 A [clean merge](../../../GLOSSARY.md#review-and-ci) from `main` needs no stamp, and the commit-msg hook says so and adds
 no trailer. A scope conflict you resolve, a file git merges from both sides' changes, and a side kept over the other's
 change (`-s ours`, `checkout --ours` or `--theirs`) all need a stamp.
+
+**Hand-backs (#999).** A `SubagentStop` hook in [`.claude/settings.json`](../../../.claude/settings.json) runs
+`scripts/dev/require-stamp-before-handback.sh` in the subagent's working tree. While staged changes touch the scope and
+`security-stamp.sh stamped` says no, it blocks the hand-back and tells the agent to keep polling the stamp, or to
+unstage and say so. `security-reviewer` and the read-only agents (`Explore`, `Plan`, `claude-code-guide`, `web-fetch`,
+`statusline-setup`) always pass. Claude Code runs the copy in the session's starting checkout
+(`$CLAUDE_PROJECT_DIR`).
 
 **Override (maintainer only).** `SECURITY_REVIEW_SKIP="<reason>" git commit ...` lets the commit through and records
 `Security-Review-Skipped: <reason>`, which CI accepts. Agents are denied it.

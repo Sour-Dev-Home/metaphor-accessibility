@@ -90,6 +90,6 @@ A commit touching the [security-review scope](../../AGENTS.md#claude-code-setup)
 `scripts/ci/security-stamp.sh`) needs your stamp, or the pre-commit hook refuses it. The stamp covers the staged scope, so
 review what `git diff --cached` shows for it, and say if unstaged changes to it differ.
 
-As your last step, only when you found nothing critical or important, run `bash scripts/ci/security-stamp.sh` and put the
-hash it prints in your report. Never stamp after any critical or important finding, after a review you couldn't finish,
+As your last step, only when you found nothing critical or important, run `bash scripts/ci/security-stamp.sh stamp` and put
+the hash it prints in your report. Never stamp after any critical or important finding, after a review you couldn't finish,
 or when the scope isn't staged. Never set `SECURITY_REVIEW_SKIP`; that override is the maintainer's.

@@ -7,7 +7,8 @@ from claim to report, is in [`workflow.md`](workflow.md).
   reviewing docs-only or test-only changes; Opus for reverse engineering, hooks, security, design and any change to
   the guards (the check scripts, git hooks, check-script tests and CI gates), perf work on them included.
 - Hand-back review, scaled to risk (a review round costs about as much as the implementation):
-  - `security-reviewer` on every change to the security-review scope, as required.
+  - `security-reviewer` on every change to the security-review scope, run by the implementer in its own turn
+    ([workflow](workflow.md#hook-loading-install-or-update-code-and-the-guards)).
   - The `code-review` skill's Spec axis, on Opus, for changes to hooks, guards or security; it checks the change against
     the issue's acceptance criteria. `full` and the security review both passed #331, which still failed CI.
   - Its Standards axis, on Sonnet, only for such changes over about 100 changed lines; it checks
