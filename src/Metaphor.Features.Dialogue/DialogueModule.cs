@@ -26,7 +26,8 @@ public sealed class DialogueModule : IFeatureModule
         // Auto follows the game's voice language, read on each line (#538); unknown speaks the full line.
         // The window's lines, choices and repeat stop when the window closes (#676), while still the last thing said.
         var windowSpeech = context.Stoppable.Source();
-        var dialogueSpeech = settings.Speech(DialogueFeature.Dialogue, reader);
+        var dialogueOutput = context.Output(DialogueFeature.Dialogue);
+        var dialogueSpeech = dialogueOutput.Reader;
         // The line on screen, recorded spoken or not, for the context keys (#879).
         var shown = new ShownLine();
         var dialogue = new DialogueAnnouncer(
@@ -41,7 +42,7 @@ public sealed class DialogueModule : IFeatureModule
         var dialogueBindings = settings.Live(DialogueBindings.From);
         var popup = context.Find<PopupOnScreen>();
         var controls = new DialogueControls(
-            dialogueBindings, history, reader, windowSpeech.Through(context.Announcer),
+            dialogueBindings, history, reader, windowSpeech.Through(dialogueOutput.Now),
             () =>
             {
                 dialogue.EndConversation();
@@ -69,7 +70,7 @@ public sealed class DialogueModule : IFeatureModule
         events.ObserveChoices(choices);
         // A choice's count waits for its first option, when the options are on screen (#814).
         var choiceFocus = new ChoiceFocus(
-            library, settings.Speech(DialogueFeature.Dialogue, context.Announcer), cleaner, dialogue.Release)
+            library, dialogueOutput.Now, cleaner, dialogue.Release)
         {
             SayPositions = () => settings.Current.IsOn(SpokenDetail.Positions),
         };
@@ -84,7 +85,7 @@ public sealed class DialogueModule : IFeatureModule
         events.ObserveSelects(choices);
         context.Cursors.Observe(choiceFocus);
         // The game's message log, by position until its lines' words are found (#685).
-        context.Cursors.Observe(new MessageLogFocus(settings.Speech(DialogueFeature.MessageLog, context.Announcer)));
+        context.Cursors.Observe(new MessageLogFocus(context.Output(DialogueFeature.MessageLog).Now));
         // The input frame (#301) hands the controls each read and, with it, the dialogue window's message pointer
         // (#232).
         context.AddControls(settings.Input(DialogueFeature.Dialogue, controls));
@@ -93,7 +94,8 @@ public sealed class DialogueModule : IFeatureModule
         context.AddControls(settings.Input(
             DialogueFeature.DialogueKeys,
             new DialogueContextKeys(
-                settings.Live(DialogueKeyBindings.From), shown, context.Announcer, context.Stoppable.StopAll)));
+                settings.Live(DialogueKeyBindings.From), shown, context.Output(DialogueFeature.DialogueKeys).Now,
+                context.Stoppable.StopAll)));
         context.AddKeys(DialogueKeys.All);
     }
 }

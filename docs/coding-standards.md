@@ -108,9 +108,11 @@ each rule on every assembly built from `src/`. Each test plants a violation to p
 18. **Every feature can be turned off.** A feature class that speaks, plays a cue or takes a key is marked
     `[FeatureSetting<TFeature>(TFeature.X)]`, so a player with some sight can use less of the mod (#661). `TFeature` is
     its project's feature enum, whose `[SettingKey]` names its key in the settings file, its order and its description;
-    the project's feature module puts the class behind `settings.Speech(TFeature.X, ...)` or
-    `settings.Input(TFeature.X, ...)` ([ADR 0022](adr/0022-features-register-their-own-wiring-and-settings.md)),
-    which read the setting at each announcement and input read, so a changed file applies at once. A cue gets its own
+    the project's feature module hands the class its announcers and cue player from `context.Output(TFeature.X)`, the
+    speech factory (#723), and puts its controls behind `settings.Input(TFeature.X, ...)`
+    ([ADR 0022](adr/0022-features-register-their-own-wiring-and-settings.md)), which read the setting at each
+    announcement, cue and input read, so a changed file applies at once. A module never builds its own speech gate or
+    reads the context's ungated announcer or cue player; an architecture test fails one that does. A cue gets its own
     `[SettingKey]` on its `Cue` member. Every default is on: a blind player never has to configure anything. The one exception is a feature still waiting
     for its by-ear check, marked `Testing = true` on its `[SettingKey]`: off until a flip PR removes the mark
     ([workflow](agents/workflow.md#a-feature-that-needs-a-by-ear-check), #783). Each

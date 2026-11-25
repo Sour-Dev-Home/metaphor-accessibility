@@ -317,11 +317,41 @@ internal static class Rules
                     $"{type.FullName} {string.Join(" and ", does)} but has no setting. Add a member to its project's " +
                     "feature enum with its [SettingKey(\"group\", \"name\", \"Spoken name\", Order = ..., Description = " +
                     $"\"...\")], mark {type.Name} [FeatureSetting<TheFeatureEnum>(TheFeatureEnum.YourFeature)], gate it " +
-                    "in the project's feature module through settings.Speech(...) or settings.Input(...), and run " +
+                    "in the project's feature module through context.Output(...) or settings.Input(...), and run " +
                     "tools/Metaphor.SettingsReference to list it in docs/players/reference/settings.md");
             }
         }
         return violations;
+    }
+
+    private static readonly (string Type, string Method)[] UngatedOutputs =
+    [
+        ("Metaphor.Core.Settings.SettingsReloader", "Speech"),
+        ("Metaphor.Core.Features.FeatureContext", "get_Announcer"),
+        ("Metaphor.Core.Features.FeatureContext", "get_Cues"),
+    ];
+
+    /// <summary>
+    /// Rule 18 by construction (#723): a feature project takes every announcer and cue player it hands a feature class
+    /// from the speech factory (<c>FeatureContext.Output</c>, <c>FeatureOutputs.For</c>), already behind the feature's
+    /// setting. It never builds its own speech gate (<c>SettingsReloader.Speech</c>) or reads the context's ungated
+    /// announcer or cue player.
+    /// </summary>
+    public static IReadOnlyList<string> FeaturesTakeOutputsFromTheFactory(AssemblyDefinition assembly)
+    {
+        if (!assembly.Name.Name.StartsWith(FeaturePrefix, StringComparison.Ordinal))
+        {
+            return [];
+        }
+        return [.. assembly.Modules.SelectMany(module => module.Types).SelectMany(WithNested)
+            .SelectMany(type => type.Methods).Where(method => method.HasBody)
+            .SelectMany(method => method.Body.Instructions
+                .Select(instruction => instruction.Operand as MethodReference).OfType<MethodReference>()
+                .Where(call => UngatedOutputs.Contains((call.DeclaringType.FullName, call.Name)))
+                .Select(call =>
+                    $"{method.DeclaringType.FullName}.{method.Name} calls {call.DeclaringType.Name}.{call.Name}: take " +
+                    "the feature's outputs from context.Output(TheFeature) instead (#723)"))
+            .Distinct()];
     }
 
     private const string FeatureModuleInterface = "Metaphor.Core.Features.IFeatureModule";

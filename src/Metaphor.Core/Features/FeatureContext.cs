@@ -23,6 +23,7 @@ public sealed class FeatureContext
     private readonly List<Func<int>> shoulderHolds = [];
     private readonly List<KeyEntry> keys = [];
     private readonly Dictionary<Type, object> ports = [];
+    private FeatureOutputs? outputs;
 
     /// <summary>The settings in force, and the gates each feature speaks and takes keys through (#661).</summary>
     public required SettingsReloader Settings { get; init; }
@@ -155,6 +156,13 @@ public sealed class FeatureContext
         ArgumentNullException.ThrowIfNull(held);
         shoulderHolds.Add(held);
     }
+
+    /// <summary>The outputs of a feature class that serves <paramref name="features"/> (#723): its speech, through
+    /// the reader switch or straight away, and its cue player, each behind those features' settings
+    /// (<see cref="FeatureOutputs.For"/>). A module takes every announcer and cue player it hands a feature from here.
+    /// </summary>
+    public FeatureOutput Output(params Enum[] features) =>
+        (outputs ??= new FeatureOutputs(Settings, Announcer, Reader, Cues)).For(features);
 
     /// <summary>Leaves <paramref name="port"/> for whoever asks for a <typeparamref name="T"/>. A second one of the
     /// same type is a wiring mistake and throws.</summary>

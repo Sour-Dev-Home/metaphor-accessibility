@@ -39,11 +39,11 @@ public sealed class MenusModule : IFeatureModule
         // until the pad layer (#688). None unless the report log is open.
         if (context.Report is { } report)
         {
-            context.AddControls(new MarkKey(() => settings.Current, context.Cues, report));
+            context.AddControls(new MarkKey(() => settings.Current, context.Output(MenusFeature.MarkKey).Cues, report));
         }
         RegisterSettingsMenu(context);
         // Menus speak through the reader (#214), and their controls toggle it with the dialogue's binding.
-        var menuSpeech = settings.Speech(MenusFeature.Menus, reader);
+        var menuSpeech = context.Output(MenusFeature.Menus).Through(reader);
         screens.Observe(new TitleMenuFocus(library, menuSpeech, cleaner));
         screens.Observe(new MainMenuFocus(menuSpeech));
         // A yes/no dialog hears each scripted choice and each select window too, to say the text of one opened outside
@@ -69,22 +69,24 @@ public sealed class MenusModule : IFeatureModule
         // The cutscene's skip menu (#809) says its question on its component's show request, not on its layout's one
         // animation, which is the close, while tested.
         context.MoviePause.Observe(new SkipSceneQuestion(
-            settings.Speech(MenusFeature.SkipSceneQuestion, reader), context.LastDevice),
+            context.Output(MenusFeature.SkipSceneQuestion).Through(reader), context.LastDevice),
             () => settings.Current.IsOn(MenusFeature.SkipSceneQuestion));
         // The field's autosave notice (#543) is its layout's show animation, while tested.
-        context.Layouts.Observe(new AutosaveNotice(settings.Speech(MenusFeature.AutosaveNotice, reader)));
+        context.Layouts.Observe(new AutosaveNotice(context.Output(MenusFeature.AutosaveNotice).Through(reader)));
         screens.Observe(new DifficultyFocus(library, menuSpeech, cleaner));
         screens.Observe(new SettingsFocus(library, menuSpeech, cleaner)
         {
             LearnRowIds = () => settings.Current.IsOn(MenusFeature.LearnedSettingValues),
         });
         screens.Observe(new QuickMenuFocus(library, menuSpeech, cleaner));
-        screens.Observe(new SystemMenuFocus(serials, settings.Speech(MenusFeature.SystemMenu, reader), cleaner));
-        screens.Observe(new BattleOrderFocus(serials, settings.Speech(MenusFeature.BattleOrderMenu, reader), cleaner));
-        screens.Observe(new BattleConfirmFocus(library, settings.Speech(MenusFeature.BattleConfirms, reader), cleaner));
+        screens.Observe(new SystemMenuFocus(serials, context.Output(MenusFeature.SystemMenu).Through(reader), cleaner));
+        screens.Observe(
+            new BattleOrderFocus(serials, context.Output(MenusFeature.BattleOrderMenu).Through(reader), cleaner));
+        screens.Observe(
+            new BattleConfirmFocus(library, context.Output(MenusFeature.BattleConfirms).Through(reader), cleaner));
         // The shop's top menu and its Buy and Sell lists, each row by the name the game fetched for it (#736, #197).
         bool SayPositions() => settings.Current.IsOn(SpokenDetail.Positions);
-        var shopFocus = new ShopFocus(serials, settings.Speech(MenusFeature.ShopMenu, reader), cleaner)
+        var shopFocus = new ShopFocus(serials, context.Output(MenusFeature.ShopMenu).Through(reader), cleaner)
         {
             SayPositions = SayPositions,
         };
@@ -93,7 +95,7 @@ public sealed class MenusModule : IFeatureModule
         // The protagonist's name is typed, not a message: the <HERO_NAME> field, read when said (#216).
         var names = context.Names;
         string? Protagonist() => names.Typed(TypedName.Hero);
-        var itemFocus = new ItemFocus(serials, settings.Speech(MenusFeature.ItemMenu, reader), cleaner)
+        var itemFocus = new ItemFocus(serials, context.Output(MenusFeature.ItemMenu).Through(reader), cleaner)
         {
             ProtagonistName = Protagonist,
             SayPositions = SayPositions,
@@ -102,7 +104,7 @@ public sealed class MenusModule : IFeatureModule
         screens.Observe(itemFocus);
         events.ObserveSerials(itemFocus);
         // The quick menu's help lines, on the details key, or after each row with the on-focus setting (#907).
-        var quickHelp = new QuickMenuHelp(serials, settings.Speech(MenusFeature.QuickMenuHelp, reader), cleaner)
+        var quickHelp = new QuickMenuHelp(serials, context.Output(MenusFeature.QuickMenuHelp).Through(reader), cleaner)
         {
             On = () => settings.Current.IsOn(MenusFeature.QuickMenuHelp),
             SayOnFocus = () => settings.Current.IsOn(MenusFeature.QuickMenuHelpOnFocus),
@@ -145,10 +147,10 @@ public sealed class MenusModule : IFeatureModule
         context.Cursors.Observe(settingsHelp);
         context.Cursors.Observe(questFocus);
         context.Cursors.Observe(followerFocus);
-        screens.Observe(new CalendarFocus(settings.Speech(MenusFeature.Calendar, reader)));
+        screens.Observe(new CalendarFocus(context.Output(MenusFeature.Calendar).Through(reader)));
         // The Equipment screens name their rows from the block of names the game fetches for the focused character (#217).
         // Each cursor record ends the block (#216).
-        var equipmentFocus = new EquipmentFocus(serials, settings.Speech(MenusFeature.EquipmentMenu, reader), cleaner)
+        var equipmentFocus = new EquipmentFocus(serials, context.Output(MenusFeature.EquipmentMenu).Through(reader), cleaner)
         {
             ProtagonistName = Protagonist,
             DescriptionsOn = () => settings.Current.IsOn(MenusFeature.GearDescriptions),
@@ -158,20 +160,20 @@ public sealed class MenusModule : IFeatureModule
         context.Cursors.Observe(equipmentFocus);
         // A sub-screen's prompt queues after its screen's own line, so it is heard after the Item and Equipment
         // screens' focus (#907).
-        screens.Observe(new SubScreenPrompts(library, settings.Speech(MenusFeature.MenuPrompts, reader.Prompts), cleaner));
+        screens.Observe(new SubScreenPrompts(library, context.Output(MenusFeature.MenuPrompts).Through(reader.Prompts), cleaner));
         // The save and load slots (#622): their lists come unnamed, so the slot screens name them before the screens,
         // from the prompts the serial hook hands MessageEvents (2026-11-22 review, finding 5).
         var slots = new SlotScreens(screens);
         events.ObserveSerials(slots);
         // Each slot's details come from its save file, read-only (#773, maintainer's decision of 2026-11-24).
         var saveSlots = new SaveSlotFocus(
-            library, settings.Speech(MenusFeature.SaveSlots, reader), cleaner, SaveSlotFiles.FromEnvironment(),
+            library, context.Output(MenusFeature.SaveSlots).Through(reader), cleaner, SaveSlotFiles.FromEnvironment(),
             () => settings.Current.IsOn(MenusFeature.SaveSlots) && settings.Current.IsOn(MenusFeature.SaveSlotDetails),
             log is null ? null : log.MenuNote);
         screens.Observe(saveSlots);
         // Battle's skill and item lists say each row by the name the game fetched for it by serial (#247), through
         // their own setting, not the menus' (#661).
-        var battleListSpeech = settings.Speech(MenusFeature.BattleLists, reader);
+        var battleListSpeech = context.Output(MenusFeature.BattleLists).Through(reader);
         // A whole view fetched again, as after a wrap, names its rows behind its own setting while tested (#737).
         bool ListViewsOn() => settings.Current.IsOn(MenusFeature.BattleListViews);
         // The battle module, after this one, adds each skill's cost (#692 (b)) and the Synthesis list's setting (#260),
@@ -219,7 +221,7 @@ public sealed class MenusModule : IFeatureModule
         var tutorials = context.Tutorials;
         // A pop-up's last page names the help key, while tested and while that key is on (#806).
         var tutorialPopups = new TutorialPopups(
-            library, settings.Speech(MenusFeature.Tutorials, reader), cleaner, () => tutorials.Table)
+            library, context.Output(MenusFeature.Tutorials).Through(reader), cleaner, () => tutorials.Table)
         {
             KeyHint = () => settings.Current is var now && now.IsOn(MenusFeature.TutorialKeyHint)
                 && now.IsOn(MenusFeature.KeyHelp)
@@ -234,8 +236,9 @@ public sealed class MenusModule : IFeatureModule
             () => settings.Current.IsOn(MenusFeature.Tutorials) ? tutorialPopups.OnScreen : null));
         context.Provide<IPadWatcher>(settingsQuestion);
         context.Provide(new TravelMapDestination(
-            context.FilesById, settings.Speech(MenusFeature.TravelMap, reader), cleaner, () => Environment.TickCount64));
-        context.Provide(new FieldMapName(settings.Speech(MenusFeature.PlaceNames, reader), cleaner));
+            context.FilesById, context.Output(MenusFeature.TravelMap).Through(reader), cleaner,
+            () => Environment.TickCount64));
+        context.Provide(new FieldMapName(context.Output(MenusFeature.PlaceNames).Through(reader), cleaner));
     }
 
     // The mod's settings menu (#754) and the help key (#868), while tested, after the mark key: the help first, so it
@@ -252,7 +255,7 @@ public sealed class MenusModule : IFeatureModule
             () => PlayerSettings.Rows(
                 settings.Catalogue, SettingsMenu.KeyRows(context.Keys),
                 feature => feature is MenusFeature.SettingsMenu),
-            () => settings.Current, editor.Set, settings.Speech(MenusFeature.SettingsMenu, context.Announcer),
+            () => settings.Current, editor.Set, context.Output(MenusFeature.SettingsMenu).Now,
             menuKeys, settings.Live(now => MenuBindings.From(now, 0, 0)),
             () => settings.Current.IsOn(MenusFeature.SettingsMenu),
             () => settings.Current.IsOn(SpokenDetail.Positions))
@@ -266,7 +269,7 @@ public sealed class MenusModule : IFeatureModule
         var menuOpen = ShoulderTaps.MenuOpen(context.Screens, context.Cursors);
         var battle = context.BattleScene;
         var help = new KeyHelp(
-            context.Keys, () => settings.Current, settings.Speech(MenusFeature.KeyHelp, context.Announcer), menuKeys,
+            context.Keys, () => settings.Current, context.Output(MenusFeature.KeyHelp).Now, menuKeys,
             () => settingsMenu.IsOpen
                 ? KeyPlaces.SettingsMenu
                 : (menuOpen() ? KeyPlaces.Menu : KeyPlaces.None) | (battle.InBattle() ? KeyPlaces.Battle : KeyPlaces.None));
@@ -291,7 +294,7 @@ public sealed class NameEntryModule : IFeatureModule
     public void Register(FeatureContext context)
     {
         ArgumentNullException.ThrowIfNull(context);
-        var speech = context.Settings.Speech(MenusFeature.NameEntry, context.Reader);
+        var speech = context.Output(MenusFeature.NameEntry).Reader;
         var nameEntry = new NameEntrySpeech(context.Library, speech, context.Cleaner, () => Environment.TickCount64);
         context.Events.ObserveShownLines(nameEntry);
         context.Provide(nameEntry);

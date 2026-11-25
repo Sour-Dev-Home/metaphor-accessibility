@@ -37,7 +37,8 @@ public sealed class FieldModule : IFeatureModule
         // The current main mission (#658): the top story flag's row in the mission table names its title's label, whose
         // text the library holds. Spoken through the reader like the other automatic field speech.
         var mission = new MissionLine(
-            context.StoryFlag, missionRows.Read, context.Library, cleaner, context.Reader, () => Environment.TickCount64,
+            context.StoryFlag, missionRows.Read, context.Library, cleaner, context.Output(FieldFeature.WhereAmI).Reader,
+            () => Environment.TickCount64,
             new FreeRoamGate(field), log is null ? null : log.FieldRead, () => fieldTables.Objectives,
             () => settings.Current.IsOn(FieldFeature.WhereAmI));
         // The names table (#687) ships as data/names/<map>.json in the mod folder; the checks keep each file to the
@@ -70,12 +71,13 @@ public sealed class FieldModule : IFeatureModule
         // The wall tones (#830) and route pings (#831), testing; their limits are read on each probe and ping.
         var edges = new MapEdges(navFiles, navMeshes.Load);
         var walls = new WallTones(
-            field, context.Cues, settings.Speech(FieldFeature.WallTones, context.Announcer),
+            field, context.Output(FieldFeature.WallTones).Cues, context.Output(FieldFeature.WallTones).Now,
             () => Environment.TickCount64, () => settings.Current.IsOn(FieldFeature.WallTones),
             () => WallLimits.From(settings.Current), edges.For, floor, log is null ? null : log.FieldRead, samples,
             placement);
         var routePings = new RoutePings(
-            field, context.Cues, () => Environment.TickCount64, () => settings.Current.IsOn(FieldFeature.RoutePings),
+            field, context.Output(FieldFeature.RoutePings).Cues, () => Environment.TickCount64,
+            () => settings.Current.IsOn(FieldFeature.RoutePings),
             () => RoutePingLimits.From(settings.Current), routes, floor: floor,
             log: log is null ? null : log.FieldRead, samples: samples, placement: placement, turnDegrees: turnDegrees);
         // "Guide me to the objective" (#652), testing: the field's icon points read from the archive per field, and the
@@ -89,35 +91,38 @@ public sealed class FieldModule : IFeatureModule
             MapIconPointSource.FromArchive(context.OpenArchive, navLog),
             new OverriddenMapToWorld(objectiveData.Conversions, MiniMapFrameSource.FromArchive(context.OpenArchive, navLog)),
             objectiveData.Waypoints, navMeshes.Get);
-        // Its settings, the nearby list, its categories, "where am I" and guidance, are read on each read (#661).
+        // Its settings, the nearby list, its categories, "where am I" and guidance, are read on each read (#661); its
+        // outputs are on while any field feature is (#723), as it checks each of its own.
         // Debug builds only: the "where am I" record lists the main-mission flags (#658).
+        var controlsOutput = context.Output([.. Enum.GetValues<FieldFeature>().Select(feature => (Enum)feature)]);
         controls = new FieldControls(
             settings.Live(FieldBindings.From), feature => settings.Current.IsOn(feature), field, place,
-            context.Announcer, context.Cues, () => Environment.TickCount64, log is null ? null : log.FieldRead,
+            controlsOutput.Now, controlsOutput.Cues, () => Environment.TickCount64, log is null ? null : log.FieldRead,
             nearbyNames,
-            new ReachCallouts(field, settings.Speech(FieldFeature.Reach, context.Announcer), () => Environment.TickCount64),
+            new ReachCallouts(field, context.Output(FieldFeature.Reach).Now, () => Environment.TickCount64),
             mission, log is null ? null : context.StoryFlag, routes,
             // Stun callouts (#772), testing: said through their own setting's gate.
             new StunCallouts(
-                field, settings.Speech(FieldFeature.StunCallouts, context.Announcer), () => Environment.TickCount64),
+                field, context.Output(FieldFeature.StunCallouts).Now, () => Environment.TickCount64),
             // The camera-tilt warning (#828) and the sonar (#827), testing; the limits are read on each check.
             new TiltWarning(
-                field, settings.Speech(FieldFeature.CameraTilt, context.Announcer), () => Environment.TickCount64,
+                field, context.Output(FieldFeature.CameraTilt).Now, () => Environment.TickCount64,
                 () => TiltLimits.From(settings.Current), () => context.LastDevice.Current),
             new Sonar(
-                field, context.Cues, () => Environment.TickCount64, () => settings.Current.IsOn(FieldFeature.Sonar),
+                field, context.Output(FieldFeature.Sonar).Cues, () => Environment.TickCount64,
+                () => settings.Current.IsOn(FieldFeature.Sonar),
                 log is null ? null : log.FieldRead, nearbyNames, floor,
                 () => Sonar.PingsPerSweep.From(settings.Current), samples, placement, turnDegrees),
             walls, routePings, objective,
             // Field strike callouts (#696), testing: said through their own setting's gate.
             new FieldStrikes(
-                field, settings.Speech(FieldFeature.FieldStrikes, context.Announcer), () => Environment.TickCount64,
+                field, context.Output(FieldFeature.FieldStrikes).Now, () => Environment.TickCount64,
                 log is null ? null : log.FieldRead),
             placement, () => Nearby.RadiusFrom(settings.Current));
         // The corner advice (#587), testing: the report-open hook finds it by type and hands it each open's key; a
         // line opened outside free roam is said on a later input read, so it takes the read before the field's.
         var cornerAdvice = new CornerAdvice(
-            context.Library, cleaner, settings.Speech(FieldFeature.CornerAdvice, context.Reader), new FreeRoamGate(field),
+            context.Library, cleaner, context.Output(FieldFeature.CornerAdvice).Reader, new FreeRoamGate(field),
             () => Environment.TickCount64, log is null ? null : log.FieldRead)
         {
             Wanted = () => settings.Current.IsOn(FieldFeature.CornerAdvice),
@@ -129,7 +134,7 @@ public sealed class FieldModule : IFeatureModule
         // tones' does, and the icon points as the objective guidance's.
         var bookmarks = MapBookmarks.Load(context.ConfigFolder, problem => log?.FieldRead(problem));
         var mapCursor = new MapCursor(
-            field, settings.Speech(FieldFeature.MapCursor, context.Announcer),
+            field, context.Output(FieldFeature.MapCursor).Now,
             () => settings.Current.IsOn(FieldFeature.MapCursor), settings.Live(CursorBindings.From),
             settings.Live(FieldBindings.From), bookmarks,
             map => edges.For(map) is { IsCompletedSuccessfully: true } loaded ? loaded.Result : null,
@@ -141,17 +146,17 @@ public sealed class FieldModule : IFeatureModule
         var stickKeys = settings.Live(StickBindings.From);
         var fieldKeys = settings.Live(FieldBindings.From);
         context.AddControls(new StickScan(
-            field, settings.Speech(FieldFeature.StickScan, context.Announcer), feature => settings.Current.IsOn(feature),
+            field, context.Output(FieldFeature.StickScan).Now, feature => settings.Current.IsOn(feature),
             () => stickKeys().ScanKey, () => Nearby.RadiusFrom(settings.Current), nearbyNames));
         var guide = controls;
         context.AddControls(new AutoWalk(
-            field, () => guide.GuideBearing, settings.Speech(FieldFeature.AutoWalk, context.Announcer),
+            field, () => guide.GuideBearing, context.Output(FieldFeature.AutoWalk).Now,
             () => settings.Current.IsOn(FieldFeature.AutoWalk),
             () => new WalkBindings(stickKeys().WalkKey, fieldKeys().HoldButtons, stickKeys().WalkButton)));
         // The enemy awareness cues (#649), testing: their sounds through their own keys, the line through the setting's
         // gate; each enemy's AI state changes go to the Debug log.
         context.AddControls(new EnemyAwareness(
-            field, context.Cues, settings.Speech(FieldFeature.EnemyAwareness, context.Announcer),
+            field, context.Output(FieldFeature.EnemyAwareness).Cues, context.Output(FieldFeature.EnemyAwareness).Now,
             () => Environment.TickCount64, () => settings.Current.IsOn(FieldFeature.EnemyAwareness),
             log is null ? null : log.FieldRead));
         context.AddKeys(FieldKeys.All);
