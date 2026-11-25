@@ -2,7 +2,7 @@ using Mono.Cecil;
 
 namespace Metaphor.Architecture.Tests;
 
-/// <summary>The hook layer's explicit list of feature modules (#784, ADR 0022) names every module, once, in the order
+/// <summary>The composition's explicit list of feature modules (#784, ADR 0022, ADR 0026) names every module, once, in the order
 /// that keeps each input read and each event where it was before the move.</summary>
 [Trait("Category", "Unit")]
 public sealed class FeatureModuleListRuleTests
@@ -19,8 +19,8 @@ public sealed class FeatureModuleListRuleTests
         public sealed class ChimesModule : Metaphor.Core.Features.IFeatureModule { }
         """, references: Core);
 
-    private static AssemblyDefinition Hooks(string modules) => Plant.Compile("Metaphor.Hooks", $$"""
-        namespace Metaphor.Hooks
+    private static AssemblyDefinition Hooks(string modules) => Plant.Compile("Metaphor.Composition", $$"""
+        namespace Metaphor.Composition
         {
             internal static class FeatureModules
             {
@@ -34,7 +34,7 @@ public sealed class FeatureModuleListRuleTests
     {
         var violation = Assert.Single(Rules.ModulesAreListed(Hooks("new BellsModule()"), [Bells]));
 
-        Assert.Contains("ChimesModule is not in Metaphor.Hooks.FeatureModules.Create", violation, StringComparison.Ordinal);
+        Assert.Contains("ChimesModule is not in Metaphor.Composition.FeatureModules.Create", violation, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -43,7 +43,7 @@ public sealed class FeatureModuleListRuleTests
         var violations = Rules.ModulesAreListed(
             Hooks("new BellsModule(), new ChimesModule(), new BellsModule()"), [Bells]);
 
-        Assert.Contains("BellsModule is in Metaphor.Hooks.FeatureModules.Create more than once", Assert.Single(violations),
+        Assert.Contains("BellsModule is in Metaphor.Composition.FeatureModules.Create more than once", Assert.Single(violations),
             StringComparison.Ordinal);
     }
 
@@ -54,7 +54,7 @@ public sealed class FeatureModuleListRuleTests
     [Fact]
     public void TheRealListNamesEveryModule()
     {
-        var hooks = Scanned.Load("Metaphor.Hooks");
+        var hooks = Scanned.Load("Metaphor.Composition");
         var features = Scanned.AssemblyNames.Where(name => name.StartsWith(Rules.FeaturePrefix, StringComparison.Ordinal))
             .Select(Scanned.Load).ToList();
 
@@ -73,5 +73,5 @@ public sealed class FeatureModuleListRuleTests
                 "Metaphor.Features.Dialogue.DialogueModule", "Metaphor.Features.Menus.NameEntryModule",
                 "Metaphor.Features.Field.FieldModule", "Metaphor.Features.Updates.UpdatesModule",
             ],
-            Rules.ListedModules(Scanned.Load("Metaphor.Hooks")));
+            Rules.ListedModules(Scanned.Load("Metaphor.Composition")));
 }

@@ -8,6 +8,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\Metaphor.Core\Metaphor.Core.csproj" />
+    <ProjectReference Include="..\Metaphor.Composition\Metaphor.Composition.csproj" />
     <ProjectReference Include="..\Metaphor.Features.Dialogue\Metaphor.Features.Dialogue.csproj" />
     <ProjectReference Include="..\Metaphor.Features.Field\Metaphor.Features.Field.csproj" />
     <ProjectReference Include="..\Metaphor.Features.Menus\Metaphor.Features.Menus.csproj" />

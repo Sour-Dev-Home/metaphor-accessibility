@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
+using Metaphor.Composition;
 using Metaphor.Core;
 using Metaphor.Core.Announcements;
 using Metaphor.Core.Audio;

@@ -45,7 +45,8 @@ This is a public repository.
 The [start-here map](docs/contributors/README.md) has the full layout, the
 [tool stack](docs/contributors/README.md#tool-stack), the environment variables and the workflow.
 
-- `src/`: the mod. `Metaphor.Core` and `Metaphor.Features.*` are plain libraries; `Metaphor.Hooks` is the hook layer.
+- `src/`: the mod. `Metaphor.Core`, `Metaphor.Features.*` and `Metaphor.Composition` (which wires them, ADR 0026)
+  are plain libraries; `Metaphor.Hooks` is the hook layer.
 - `installer/`: the installer exe (ADR 0020), a .NET Framework 4.8 launcher that runs the zip's installer; not the mod.
 - `tests/`: xUnit projects, `pester/` for the PowerShell scripts, `bash/` and `check/` for the check scripts.
 - `scripts/`: `check.sh` and `check/`, `githooks/`, `ci/`, `release/`, `player/` (what the zip ships), `dev/`, `setup/`.

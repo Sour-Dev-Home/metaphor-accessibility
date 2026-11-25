@@ -1,11 +1,12 @@
 ---
-status: proposed
+status: accepted
 ---
 
 # A plain composition project wires the features; HookServices hands over game services only
 
 Proposed for [#726](https://github.com/Sour-Dev-Home/metaphor-accessibility/issues/726) (finding 1 of the
-[codebase review](../contributors/explanation/codebase-review-2026-11-22.md)). It waits for the maintainer's decision.
+[codebase review](../contributors/explanation/codebase-review-2026-11-22.md)). Accepted by the maintainer on
+2026-11-24 (on #726), after the speech factory (#723).
 
 [ADR 0022](0022-features-register-their-own-wiring-and-settings.md) moved each feature's wiring into its own module.
 The shared composition is still in the hook layer: `HookServices.Speaking` builds the message stores, the name and term

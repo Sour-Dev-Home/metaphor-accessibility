@@ -1,0 +1,19 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- The mod's composition (ADR 0026, #726): the feature modules in their order and the services they share, built
+       over the game reads the hook layer hands in. A plain library: it references Core and the features, never
+       Reloaded-II or the hook layer, so a feature's wiring changes outside the security-review scope. -->
+  <PropertyGroup>
+    <TargetFramework>net9.0</TargetFramework>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Metaphor.Core\Metaphor.Core.csproj" />
+    <ProjectReference Include="..\Metaphor.Features.Battle\Metaphor.Features.Battle.csproj" />
+    <ProjectReference Include="..\Metaphor.Features.Dialogue\Metaphor.Features.Dialogue.csproj" />
+    <ProjectReference Include="..\Metaphor.Features.Field\Metaphor.Features.Field.csproj" />
+    <ProjectReference Include="..\Metaphor.Features.Menus\Metaphor.Features.Menus.csproj" />
+    <ProjectReference Include="..\Metaphor.Features.Updates\Metaphor.Features.Updates.csproj" />
+  </ItemGroup>
+
+</Project>

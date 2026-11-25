@@ -1,0 +1,40 @@
+{
+  "version": 2,
+  "dependencies": {
+    "net9.0": {
+      "metaphor.core": {
+        "type": "Project"
+      },
+      "metaphor.features.battle": {
+        "type": "Project",
+        "dependencies": {
+          "Metaphor.Core": "[1.0.0, )"
+        }
+      },
+      "metaphor.features.dialogue": {
+        "type": "Project",
+        "dependencies": {
+          "Metaphor.Core": "[1.0.0, )"
+        }
+      },
+      "metaphor.features.field": {
+        "type": "Project",
+        "dependencies": {
+          "Metaphor.Core": "[1.0.0, )"
+        }
+      },
+      "metaphor.features.menus": {
+        "type": "Project",
+        "dependencies": {
+          "Metaphor.Core": "[1.0.0, )"
+        }
+      },
+      "metaphor.features.updates": {
+        "type": "Project",
+        "dependencies": {
+          "Metaphor.Core": "[1.0.0, )"
+        }
+      }
+    }
+  }
+}
