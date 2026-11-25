@@ -30,7 +30,8 @@ set -uo pipefail
 # downloaded code on players' PCs, ADR 0020), every script (those that
 # deploy, launch, package or fetch native code, and the guards (#306): everything the checks, the git hooks and CI
 # run, transitively, plus what they read to decide), the reviewer's own prompt, and the project's Claude Code settings,
-# whose hooks and deny rules enforce the review and the hand-back stamp (#1004). tests/check/test-check.sh fails when a script the gate runs falls outside it. The last line is
+# whose hooks and deny rules enforce the review and the hand-back stamp (#1004), with the hook scripts they run on
+# every shell call (#1023). tests/check/test-check.sh fails when a script the gate runs falls outside it. The last line is
 # what decides dotnet restore, and so the lock files the security job's vulnerability audit reads, in any folder (#322,
 # #324): MSBuild's auto-imported files, the SDK pin and the package sources, whose targets or feeds could hide a
 # vulnerable package. Entries are git pathspecs, where * also matches /; noglob keeps bash from expanding them, and
@@ -38,7 +39,7 @@ set -uo pipefail
 set -f
 scope=(scripts/ src/Metaphor.Hooks/ src/Metaphor.Features.Updates/ installer/ .github/workflows/ tests/check/ tests/bash/
   tools/docs/ tools/slow/ tools/Metaphor.CpkExtract/ .config/dotnet-tools.json .claude/agents/security-reviewer.md
-  .claude/settings.json *Directory.Build.* *Directory.Packages.props *Directory.Solution.* *.sln.targets *global.json
+  .claude/settings.json .claude/hooks/ *Directory.Build.* *Directory.Packages.props *Directory.Solution.* *.sln.targets *global.json
   *nuget.config *NuGet.config *NuGet.Config)
 set +f
 # Every pathspec here matches in any case: Windows puts a file staged as Scripts/x.ps1 in scripts/ (#432).

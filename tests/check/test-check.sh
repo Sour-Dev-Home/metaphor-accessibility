@@ -2350,6 +2350,7 @@ GUARD_FILES=(scripts/check.sh scripts/check/report.sh scripts/check/run.sh scrip
   scripts/githooks/commit-msg scripts/githooks/post-commit scripts/githooks/post-merge scripts/githooks/pre-merge-commit
   scripts/ci/security-stamp.sh scripts/ci/github-outage.sh scripts/ci/vuln-audit.sh .github/workflows/ci.yml
   .github/workflows/slow.yml .github/workflows/a-new-one.yml .claude/agents/security-reviewer.md .claude/settings.json
+  .claude/hooks/refuse-log-polling.sh .claude/hooks/a-new-hook.sh
   tests/check/test-check.sh tests/bash/test-anything.sh tools/slow/survivors.mjs tools/docs/package-lock.json
   tools/Metaphor.CpkExtract/OutputGuard.cs tools/Metaphor.CpkExtract/Program.cs
   .config/dotnet-tools.json scripts/dev/session.ps1 scripts/setup/onboard.ps1 scripts/player/MetaphorInstall.psm1
