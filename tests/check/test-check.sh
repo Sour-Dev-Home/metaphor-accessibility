@@ -1612,7 +1612,7 @@ test_review_refuses_a_scope_commit_without_a_stamp() {
 test_review_passes_a_stamped_scope_commit_and_adds_its_trailer() {
   local hash
   review_repo scripts/dev/session.ps1
-  bash "$STAMP" > /dev/null
+  bash "$STAMP" stamp > /dev/null
   hash="$(bash "$STAMP" hash)"
   commit "feat: reviewed session script"
   expect 0
@@ -1623,7 +1623,7 @@ test_review_passes_a_stamped_scope_commit_and_adds_its_trailer() {
 
 test_review_refuses_an_edit_after_stamping() {
   review_repo
-  bash "$STAMP" > /dev/null
+  bash "$STAMP" stamp > /dev/null
   stage_file src/Metaphor.Hooks/Hooks/Speech.ps1 "changed after the review"
   commit "feat: hook changed after review"
   expect 1 "no matching stamp"
@@ -1640,12 +1640,12 @@ expect_stamp() {
 # A stamp is single-use: the post-commit hook spends it on the commit carrying its trailer (#246).
 test_stamp_is_spent_by_the_commit_it_reviewed() {
   review_repo docs/notes.txt
-  bash "$STAMP" > /dev/null
+  bash "$STAMP" stamp > /dev/null
   commit "docs: unscoped first" # carries no trailer, so the stamp stays
   expect 0
   expect_stamp present
   stage_file "$SPEECH"
-  bash "$STAMP" > /dev/null
+  bash "$STAMP" stamp > /dev/null
   commit "feat: reviewed hook"
   expect 0
   expect_stamp absent
@@ -1658,7 +1658,7 @@ test_stamp_is_spent_by_the_commit_it_reviewed() {
 # records the stamped scope spends the stamp, so a later merge can't pass as stamped on it.
 test_stamp_is_spent_by_a_scope_commit_without_its_trailer() {
   review_repo
-  bash "$STAMP" > /dev/null
+  bash "$STAMP" stamp > /dev/null
   git commit -q --no-verify -m "feat: hook, hooks bypassed"
   expect_stamp absent
 }
@@ -1667,7 +1667,7 @@ test_stamp_is_spent_by_a_scope_commit_without_its_trailer() {
 test_stamp_is_spent_by_a_merge_that_commits_itself() {
   merge_repo "$SPEECH" "main${LINES#1}" "$SPEECH" "${LINES%9}branch" # both sides' hunks: needs a stamp
   git merge -q --no-commit origin/main > /dev/null 2>&1
-  bash "$STAMP" > /dev/null # reviews the result the merge below reproduces
+  bash "$STAMP" stamp > /dev/null # reviews the result the merge below reproduces
   git merge --abort
   merge_main
   expect 0
@@ -1682,7 +1682,7 @@ test_stamp_survives_a_fast_forward() {
   stage_file docs/more.txt
   commit "docs: more"
   git switch -q -
-  bash "$STAMP" > /dev/null
+  bash "$STAMP" stamp > /dev/null
   out="$(git merge -q --ff-only ahead 2>&1)"
   code=$?
   expect 0
@@ -1691,7 +1691,7 @@ test_stamp_survives_a_fast_forward() {
 
 test_stamp_survives_a_commit_refused_at_its_message() {
   review_repo
-  bash "$STAMP" > /dev/null
+  bash "$STAMP" stamp > /dev/null
   commit "not typed"
   expect 1 "subject needs a type prefix"
   expect_stamp present
@@ -1726,7 +1726,7 @@ test_review_leaves_commits_outside_the_scope_alone() {
 
 test_review_replaces_a_hand_written_trailer() {
   review_repo
-  bash "$STAMP" > /dev/null
+  bash "$STAMP" stamp > /dev/null
   commit $'feat: reviewed hook\n\nSecurity-Review-Skipped: written by hand'
   expect 0
   expect_message "Security-Review: $(bash "$STAMP" hash HEAD)"
@@ -1738,7 +1738,7 @@ test_review_replaces_a_hand_written_trailer() {
 
 test_review_message_keeps_its_shape_with_the_trailer() {
   review_repo
-  bash "$STAMP" > /dev/null
+  bash "$STAMP" stamp > /dev/null
   commit $'feat: reviewed hook\n\nWhy.\n\nCo-Authored-By: Someone <someone@example.com>'
   expect 0
   run_check commits HEAD~1..HEAD
@@ -1767,7 +1767,7 @@ test_commits_stage_passes_reviewed_skipped_and_unscoped_commits() {
   local base
   review_repo
   base="$(git rev-parse HEAD)"
-  bash "$STAMP" > /dev/null
+  bash "$STAMP" stamp > /dev/null
   commit "feat: reviewed"
   stage_file scripts/dev/session.ps1
   SECURITY_REVIEW_SKIP="by hand" git commit -q -m "fix: skipped" > /dev/null 2>&1
@@ -1799,7 +1799,7 @@ merge_repo() {
   git update-ref refs/remotes/origin/main "$main"
   git switch -q -c feature HEAD~1
   stage_file "${3:-$SPEECH}" "${4:-speech from the branch}"
-  bash "$STAMP" > /dev/null
+  bash "$STAMP" stamp > /dev/null
   commit "feat: reviewed speech change" # spends the stamp, so the merges below are judged without it
   expect 0
 }
@@ -1860,7 +1860,7 @@ test_review_passes_a_stamped_scope_conflict_resolution() {
   merge_repo "$SPEECH" "speech from main"
   git merge -q origin/main > /dev/null 2>&1
   stage_file "$SPEECH" "both, resolved by hand"
-  bash "$STAMP" > /dev/null
+  bash "$STAMP" stamp > /dev/null
   commit "chore: merge main"
   expect 0
   expect_message "Security-Review: $(bash "$STAMP" hash HEAD)"
@@ -1939,7 +1939,7 @@ test_commits_stage_ignores_old_trailerless_merges_below_a_reviewed_head() {
   stage_file "$SPEECH" "resolved before the rule"
   git commit -q --no-verify -m "chore: merge main"
   stage_file "$SPEECH" "reviewed since"
-  bash "$STAMP" > /dev/null
+  bash "$STAMP" stamp > /dev/null
   commit "feat: reviewed on top"
   run_check commits "$main..HEAD"
   expect 0
@@ -1986,7 +1986,7 @@ chmod +x "$FAKE_BIN/gh"
 outside_repo() {
   review_repo "${1:-src/Metaphor.Hooks/Hooks/Speech.ps1}"
   base="$(git rev-parse HEAD)" # review_repo staged the change; review and commit it here
-  bash "$STAMP" > /dev/null
+  bash "$STAMP" stamp > /dev/null
   git commit -q -m "feat: reviewed change" > /dev/null 2>&1 || out="could not commit the reviewed change" code=1
 }
 
@@ -2543,6 +2543,28 @@ test_stamp_script_rejects_unknown_arguments() {
   out="$(bash "$STAMP" nope 2>&1)"
   code=$?
   expect 2 "usage: scripts/ci/security-stamp.sh"
+}
+
+# A bare run, meant as a check, once wrote a stamp (#998): it prints the usage and writes nothing.
+test_stamp_script_with_no_command_prints_usage_and_writes_no_stamp() {
+  review_repo
+  out="$(bash "$STAMP" 2>&1)"
+  code=$?
+  expect 2 "usage: scripts/ci/security-stamp.sh stamp"
+  out="$(ls "$(git rev-parse --absolute-git-dir)")"
+  code=0
+  [[ "$out" != *security-review-stamp* ]] || code=1
+  expect 0
+}
+
+test_stamp_script_stamp_writes_a_stamp_that_matches() {
+  review_repo
+  out="$(bash "$STAMP" stamp 2>&1)"
+  code=$?
+  expect 0 "security review stamped: $(bash "$STAMP" hash)"
+  bash "$STAMP" stamped
+  code=$?
+  expect 0
 }
 
 # --- The batched file scan (issue #297) ---

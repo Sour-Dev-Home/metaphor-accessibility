@@ -20,7 +20,8 @@ folder and a `.cjs` or `.mjs` one runs code.
 A commit touching the scope needs a [stamp](../../../GLOSSARY.md#review-and-ci):
 
 1. Stage the change, then run the `security-reviewer` agent. When it finds nothing critical or important, its last step
-   runs `scripts/ci/security-stamp.sh`, which hashes the staged scope into a stamp under `.git/`.
+   runs `scripts/ci/security-stamp.sh stamp`, which hashes the staged scope into a stamp under `.git/`. With no
+   command the script prints its usage and exits 2; `stamped` checks the stamp against the staged scope.
 2. Commit. The pre-commit hook refuses the commit unless the stamp matches the staged scope, so any edit after the
    review needs a new one. The commit-msg hook appends `Security-Review: <hash>`. The stamp is single-use: the
    post-commit and post-merge hooks remove it once a commit carries its trailer, or commits the stamped scope without
