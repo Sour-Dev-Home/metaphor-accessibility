@@ -53,6 +53,10 @@ public sealed class FeatureContext
     /// <summary>The mod's folder, where its data files ship (#687).</summary>
     public required string ModFolder { get; init; }
 
+    /// <summary>The mod's config folder, where the settings file lives and a feature keeps the player's own data, such
+    /// as the map bookmarks (#877); null when there is none, so nothing is kept.</summary>
+    public string? ConfigFolder { get; init; }
+
     /// <summary>What the message hooks report (#86).</summary>
     public required MessageEvents Events { get; init; }
 

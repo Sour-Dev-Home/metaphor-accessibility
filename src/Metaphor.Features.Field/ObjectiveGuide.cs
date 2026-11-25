@@ -195,6 +195,30 @@ public sealed class ObjectiveGuide
         return entries.Count == 0 ? "none" : string.Join(' ', entries);
     }
 
+    /// <summary>Every icon point of map <paramref name="map"/>'s field that converts to world from a player at height
+    /// <paramref name="height"/>, for the map cursor (#877): its ground position and whether it is a marker of the
+    /// current objective. Empty while the field's points or its conversion load, or for an unknown map. Only kind 4's
+    /// meaning is known (docs/findings/objective-map-icon-points-static.md); the other kinds are
+    /// <c>[NEEDS VERIFICATION]</c>.</summary>
+    public IReadOnlyList<(float X, float Z, bool Objective)> Marks(int? map, float height)
+    {
+        if (map is not { } id || fieldOf(id) is not { } file || points.For(file.A, file.B) is not { } loaded)
+        {
+            return [];
+        }
+        var row = objectives() is { } table ? MainMissionFlags.CurrentIndex(storyFlag, table) : null;
+        var spot = new MapSpot(id, MapIconPoints.FieldName(file.A, file.B), height);
+        var marks = new List<(float X, float Z, bool Objective)>();
+        foreach (var point in loaded.Points)
+        {
+            if (toWorld.ToWorld(spot, point.X, point.Y) is { } world)
+            {
+                marks.Add((world.X, world.Z, point.Kind == MapIconPoints.MissionKind && point.Index == row));
+            }
+        }
+        return marks;
+    }
+
     private static IEnumerable<MapIconPoint> Markers(FieldIconPoints? loaded, int row) =>
         loaded is null ? [] : loaded.Points.Where(point => point.Kind == MapIconPoints.MissionKind && point.Index == row);
 

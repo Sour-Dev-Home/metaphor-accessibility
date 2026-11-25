@@ -124,6 +124,17 @@ public sealed class FieldModule : IFeatureModule
         };
         context.AddControls(settings.Input(FieldFeature.CornerAdvice, cornerAdvice));
         context.Provide(cornerAdvice);
+        // The map cursor with bookmarks (#877), testing: before the field's controls, so while it is out its keys and
+        // chords are its own. The bookmarks file is in the mod's config folder; the walking map loads as the wall
+        // tones' does, and the icon points as the objective guidance's.
+        var bookmarks = MapBookmarks.Load(context.ConfigFolder, problem => log?.FieldRead(problem));
+        var mapCursor = new MapCursor(
+            field, settings.Speech(FieldFeature.MapCursor, context.Announcer),
+            () => settings.Current.IsOn(FieldFeature.MapCursor), settings.Live(CursorBindings.From),
+            settings.Live(FieldBindings.From), bookmarks,
+            map => edges.For(map) is { IsCompletedSuccessfully: true } loaded ? loaded.Result : null,
+            objective.Marks, controls.GuideTo, nearbyNames);
+        context.AddControls(mapCursor);
         context.AddControls(controls);
         // Scan by direction (#701) and auto-walk (#184), testing: the only controls that take the pad's sticks. Each
         // reads its setting on every read, as the stick reads skip settings.Input's gate.

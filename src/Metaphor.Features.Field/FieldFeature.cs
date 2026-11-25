@@ -147,4 +147,13 @@ public enum FieldFeature
         "Any button, key or stick you press stops it, and so does arriving, a line, a menu, a battle or a new area. " +
         "Needs a controller connected.")]
     AutoWalk,
+
+    /// <summary>The map cursor with bookmarks (#877): a cursor the player moves over the map to hear what is where.
+    /// </summary>
+    [SettingKey("field", "mapCursor", "Map cursor", Testing = true, Order = 2240, Description = "Hold V and use " +
+        "the arrow keys, or hold LB and push the right stick, to move a cursor over the map 5 steps at a time: it " +
+        "says what is there, open floor or wall, and how far and which way it is from you. Let go and it is back on " +
+        "you. While it is out, B (LB with R3) bookmarks the spot for this map, K and J (LB with D-pad Down and Up) " +
+        "jump to this map's bookmarks, and G (LB with D-pad Right) guides you there with the beep.")]
+    MapCursor,
 }

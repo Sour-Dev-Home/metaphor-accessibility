@@ -8,14 +8,16 @@ namespace Metaphor.Features.Field;
 public delegate float? EdgeDistance(Vector3 position, Vector2 heading, float maxDistance);
 
 /// <summary>One map's walls: the <paramref name="Distance"/> to them and the cell a probe at a position starts from
-/// (<paramref name="Start"/>, as <see cref="WalkGraph.WallStart"/>), for the Debug log.</summary>
-public sealed record NavEdges(EdgeDistance Distance, Func<Vector3, NavCell?> Start)
+/// (<paramref name="Start"/>, as <see cref="WalkGraph.WallStart"/>), for the Debug log; and whether a ground point is
+/// open floor (<paramref name="Open"/>, for the map cursor, #877), null when not known.</summary>
+public sealed record NavEdges(EdgeDistance Distance, Func<Vector3, NavCell?> Start, Func<Vector3, bool>? Open = null)
 {
-    /// <summary>The walls of <paramref name="graph"/>.</summary>
+    /// <summary>The walls of <paramref name="graph"/>; a point is open when a walkable cell lies under it on any floor
+    /// (<see cref="WalkGraph.CellAt"/>), so the eroded border along a wall counts as wall.</summary>
     public static NavEdges Of(WalkGraph graph)
     {
         ArgumentNullException.ThrowIfNull(graph);
-        return new(graph.DistanceToWall, graph.WallStart);
+        return new(graph.DistanceToWall, graph.WallStart, point => graph.CellAt(point, float.PositiveInfinity) is not null);
     }
 }
 
