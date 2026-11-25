@@ -21,11 +21,14 @@ public static class ModStartup
     /// <remarks><c>installHooks</c> installs the hooks for the running game build and returns how many it installed
     /// (#39), with the state of each dev opt-in (#223). It's called only when the build is known (ground rule 2). <c>beforeHooks</c> gets the game build before
     /// any hook installs, so it sees the game's own code (the signature spike, #92). <c>announcer</c> then speaks the
-    /// <see cref="LoadMessage"/> for the final status (#187).</remarks>
+    /// <see cref="LoadMessage"/> for the final status (#187). While <c>successLineOn</c> says no, a plain success is
+    /// not said; a refusal, a failure or a degraded start always is (#661, the maintainer's decision of 2026-11-24).
+    /// </remarks>
     [SuppressMessage("Design", "CA1031", Justification = "Any failure must refuse rather than reach the game.")]
     public static ModStatus CheckAndReport(
         string modId, string gameExe, string modFolder, Func<IReadOnlyList<GameBuild>> knownBuilds, int hooksExpected,
-        Func<string, InstalledHooks>? installHooks = null, Action<string>? beforeHooks = null, IAnnouncer? announcer = null)
+        Func<string, InstalledHooks>? installHooks = null, Action<string>? beforeHooks = null, IAnnouncer? announcer = null,
+        Func<bool>? successLineOn = null)
     {
         var status = Check(modId, gameExe, knownBuilds, hooksExpected);
         try
@@ -48,7 +51,10 @@ public static class ModStartup
         {
             // Nothing else to tell the smoke test with; the caller logs the returned status.
         }
-        announcer?.Announce(LoadMessage.For(status));
+        if (!LoadMessage.IsPlainSuccess(status) || successLineOn?.Invoke() != false)
+        {
+            announcer?.Announce(LoadMessage.For(status));
+        }
         return status;
     }
 

@@ -15,6 +15,7 @@ speech.itemMenu | Item menu | on | done
 speech.keyHelp | Key help | on | done
 speech.learnedSettingValues | Learned setting values | on | done
 speech.levelUpPoints | Level-up points | off | testing
+speech.loadMessage | Load message | on | done
 speech.menuPrompts | Menu prompts | off | testing
 speech.menus | Menus | on | done
 speech.nameEntry | Name entry | on | done

@@ -194,6 +194,14 @@ public enum MenusFeature
         "button the mod changes. Needs `tutorials` and `keyHelp`.")]
     TutorialKeyHint,
 
+    /// <summary>The load message's success line (#661, the maintainer's decision of 2026-11-24): "Metaphor
+    /// accessibility loaded" as the game starts. Said from start-up, not a feature module; a refusal or a failure is
+    /// said whatever this is.</summary>
+    [SettingKey("speech", "loadMessage", "Load message", Order = 1219, Description = "\"Metaphor accessibility " +
+        "loaded\" as the game starts. Off leaves it out; a line saying the mod is off, or that part of it couldn't " +
+        "start, is always said.")]
+    LoadMessage,
+
     /// <summary>The first-launch welcome (#617). Whether it has been said is <c>welcomed</c>.</summary>
     [SettingKey("speech", "welcome", "Welcome", Order = 1220, Description = "The welcome on the title screen the " +
         "first time the game starts with the mod: the mod's version and the field keys.")]

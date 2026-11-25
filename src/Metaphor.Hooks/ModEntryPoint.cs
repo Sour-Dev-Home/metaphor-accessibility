@@ -202,7 +202,9 @@ public sealed class ModEntryPoint : IMod
                     }
                 },
                 build => ScanIfRequested(folder, build, log.For(LogArea.Scan), log.ErrorsFor(LogArea.Scan)),
-                announcer);
+                announcer,
+                // Only the success line can be turned off; a refusal or failure always speaks (#661).
+                () => settings.Current.IsOn(MenusFeature.LoadMessage));
             // The load message is spoken (#187); the log repeats it for when speech didn't start. A reason means
             // something went wrong, so it's written as an error.
             (status.Reason is null ? log.For(LogArea.Startup) : log.ErrorsFor(LogArea.Startup))(
