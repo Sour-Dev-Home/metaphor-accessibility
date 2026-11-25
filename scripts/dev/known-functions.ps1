@@ -12,11 +12,17 @@ finding lists get a table of their own, and so do findings without a block (the 
 The page is private for now: the collected names of the game's own identifiers are the reason. It goes to a git-ignored
 file, by default out/known-functions.md, and the script refuses to write anywhere git would track. Never hand-edit it.
 
+Every entry cites its source (#997): `finding`, a file under docs/ or src/, or [NEEDS VERIFICATION] (rule 1). With
+-Check it only checks the blocks and writes nothing; check.sh's rules step runs it that way.
+
 Ends with one line, "ok: ..." or "failed: ...". Exit codes: 0 ok, 1 a finding's block is malformed (each problem is
 listed with its file and line), 2 the output can't be written.
 
 .EXAMPLE
 pwsh scripts/dev/known-functions.ps1
+
+.EXAMPLE
+pwsh scripts/dev/known-functions.ps1 -Check
 #>
 #Requires -Version 7
 [CmdletBinding()]
@@ -24,7 +30,9 @@ param(
     # The repository root; the default is this script's.
     [string] $Root = (Join-Path $PSScriptRoot '../..'),
     # Where the page goes; it must be git-ignored.
-    [string] $OutFile = ''
+    [string] $OutFile = '',
+    # Check the blocks only; write no page.
+    [switch] $Check
 )
 $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version Latest
@@ -56,15 +64,17 @@ foreach ($path in $findingsDir, $signaturesFile, $buildsFile) {
     if (-not (Test-Path -LiteralPath $path)) { Write-Failed "$path is missing; is -Root the repository?" 2 }
 }
 
-# Refuse a path git would track: the page never enters the repository.
+# Refuse a path git would track: the page never enters the repository. -Check writes nothing, so it skips this.
 $outDir = Split-Path -Parent $OutFile
-if (-not (Get-Command git -CommandType Application -ErrorAction SilentlyContinue)) {
-    Write-Failed 'git is not on PATH, so whether the output is git-ignored cannot be checked' 2
-}
-# Without --no-index, a file already tracked (force-added) counts as not ignored, so it is refused too.
-& git -C $Root check-ignore -q -- $OutFile 2>$null
-if ($LASTEXITCODE -ne 0) {
-    Write-Failed "$OutFile is not git-ignored here, or git already tracks it; write it under out/, untracked" 2
+if (-not $Check) {
+    if (-not (Get-Command git -CommandType Application -ErrorAction SilentlyContinue)) {
+        Write-Failed 'git is not on PATH, so whether the output is git-ignored cannot be checked' 2
+    }
+    # Without --no-index, a file already tracked (force-added) counts as not ignored, so it is refused too.
+    & git -C $Root check-ignore -q -- $OutFile 2>$null
+    if ($LASTEXITCODE -ne 0) {
+        Write-Failed "$OutFile is not git-ignored here, or git already tracks it; write it under out/, untracked" 2
+    }
 }
 
 $builds = @(Get-Content -LiteralPath $buildsFile -Raw -Encoding utf8 | ConvertFrom-Json)
@@ -98,8 +108,21 @@ foreach ($finding in $findings) {
     for ($i = $block + 1; $i -lt $lines.Count -and $lines[$i] -match '^  - (.*)$'; $i++) {
         $at = "${relative}:$($i + 1)"
         $fields = $Matches[1] -split ' \| '
-        if ($fields.Count -ne 6) { $problems.Add("${at}: needs six fields separated by ' | ', has $($fields.Count)"); continue }
-        $name, $address, $section, $area, $use, $summary = $fields | ForEach-Object { $_.Trim() }
+        $noSource = "${at}: cites no source; end it with ' | finding', a file under docs/ or src/, or [NEEDS VERIFICATION]"
+        if ($fields.Count -eq 6) { $problems.Add($noSource); continue }
+        if ($fields.Count -ne 7) { $problems.Add("${at}: needs seven fields separated by ' | ', has $($fields.Count)"); continue }
+        $name, $address, $section, $area, $use, $summary, $source = $fields | ForEach-Object { $_.Trim() }
+        if (-not $source) { $problems.Add($noSource) }
+        foreach ($part in @($source -split ';' | ForEach-Object { $_.Trim() } | Where-Object { $_ })) {
+            if ($part -ceq 'finding' -or $part.StartsWith('[NEEDS VERIFICATION]', [StringComparison]::Ordinal)) { continue }
+            if ($part -match '^(docs|src)/[^\s\\]+$' -and $part -notmatch '(^|/)\.\.(/|$)') {
+                if (-not (Test-Path -LiteralPath (Join-Path $Root $part) -PathType Leaf)) {
+                    $problems.Add("${at}: the source '$part' isn't a file in the repository")
+                }
+                continue
+            }
+            $problems.Add("${at}: the source '$part' isn't 'finding', a file under docs/ or src/, or [NEEDS VERIFICATION]")
+        }
         if (-not $name) { $problems.Add("${at}: the name is empty") }
         if ($address -notmatch '^0x[0-9A-Fa-f]+$') { $problems.Add("${at}: the address '$address' isn't hex like 0x140123456") }
         if ($section -notmatch '^\.[A-Za-z0-9_]+$') { $problems.Add("${at}: the section '$section' isn't like .text") }
@@ -109,13 +132,17 @@ foreach ($finding in $findings) {
         if (-not $build) { $problems.Add("${at}: the finding's header names no game build") }
         $rows.Add([pscustomobject]@{
                 Name = $name; Address = $address; Section = $section; Area = $area; Use = $use; Summary = $summary
-                Build = $build; Finding = $finding.FullName
+                Source = $source; Build = $build; Finding = $finding.FullName
             })
     }
 }
 if ($problems.Count) {
     $problems | ForEach-Object { Write-Output $_ }
     Write-Failed "$($problems.Count) problem(s) in the findings' functions blocks, listed above" 1
+}
+if ($Check) {
+    Write-Output "ok: $($rows.Count) functions entries, each with a source, in $($findings.Count - $withoutBlock.Count) findings"
+    exit 0
 }
 
 $signed = @{}
@@ -140,11 +167,11 @@ foreach ($area in $Areas) {
     [void] $page.AppendLine()
     [void] $page.AppendLine("## $area")
     [void] $page.AppendLine()
-    [void] $page.AppendLine('| Name | Address | Game build | Section | Use | Summary | Finding | Signature |')
-    [void] $page.AppendLine('| --- | --- | --- | --- | --- | --- | --- | --- |')
+    [void] $page.AppendLine('| Name | Address | Game build | Section | Use | Summary | Source | Finding | Signature |')
+    [void] $page.AppendLine('| --- | --- | --- | --- | --- | --- | --- | --- | --- |')
     foreach ($row in $inArea) {
         $signature = if ($signed.ContainsKey($row.Name)) { 'yes' } else { 'no' }
-        $cells = $row.Name, $row.Address, (Format-Build $row.Build $newest), $row.Section, $row.Use, $row.Summary
+        $cells = $row.Name, $row.Address, (Format-Build $row.Build $newest), $row.Section, $row.Use, $row.Summary, $row.Source
         [void] $page.AppendLine("| $(($cells | ForEach-Object { Format-Cell $_ }) -join ' | ') | $(Get-Link $row.Finding) | $signature |")
     }
 }

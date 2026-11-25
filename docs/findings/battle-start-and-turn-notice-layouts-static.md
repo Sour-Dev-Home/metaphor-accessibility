@@ -6,9 +6,9 @@
   [ui-component-open-points-static.md](ui-component-open-points-static.md) and
   [battle-turn-icons-and-ui-components-static.md](battle-turn-icons-and-ui-components-static.md)
 - **Functions:**
-  - BattleNoticeLayout::vf20 | 0x140aea030 | .ecode | Battle | known only | Opens the notice: animation 0xa66 or 0xa6d by a flag at `+0x470`, plus 1 when the turn side is 1.
-  - TurnInfoLayout::vf20 | 0x140aea7c0 | .ecode | Battle | known only | Opens the turn panel: animation 0xa0a, 0xa0b, 0xa0c, 0xa23, 0xa24 or 0xa25 by flags at `+0x8d40`, `+0x8d43`, `+0x8d78`.
-  - btl::phase::Beginning::vf2 | 0x140227b60 | .ecode | Battle | known only | Starts each round: counts a player turn when the side is 0, an enemy turn otherwise, then moves to `Fight`.
+  - BattleNoticeLayout::vf20 | 0x140aea030 | .ecode | Battle | known only | Opens the notice: animation 0xa66 or 0xa6d by a flag at `+0x470`, plus 1 when the turn side is 1. | finding
+  - TurnInfoLayout::vf20 | 0x140aea7c0 | .ecode | Battle | known only | Opens the turn panel: animation 0xa0a, 0xa0b, 0xa0c, 0xa23, 0xa24 or 0xa25 by flags at `+0x8d40`, `+0x8d43`, `+0x8d78`. | finding
+  - btl::phase::Beginning::vf2 | 0x140227b60 | .ecode | Battle | known only | Starts each round: counts a player turn when the side is 0, an enemy turn otherwise, then moves to `Fight`. | finding
 
 For #626. The pre-emptive and enemy-turn banners are not `UUIC_Battle_Message` banners, so #692's kind-2 reading (and
 issues #251 and #254) don't cover them. They are layouts that open through the shared start-an-animation `0xa6ffd0`, which the

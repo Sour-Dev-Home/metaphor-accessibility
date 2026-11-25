@@ -4,9 +4,9 @@
 - **Method:** Opening the shipped executable in a disassembler as-is, accepting that protected parts may be unreadable
 - **Sources:** none, see Steps; builds on [battle-turn-icons-and-ui-components-static.md](battle-turn-icons-and-ui-components-static.md)
 - **Functions:**
-  - btl::action::Participate::vf19 | 0x1401e95b0 | .ecode | Battle | known only | Spends or converts turn icons after an action, through the three setters.
-  - SetTurnIconsA | 0x1403b4170 | .ecode | Battle | known only | Writes the `short` at `G+0x25464`.
-  - SetTurnIconsB | 0x1403b4130 | .ecode | Battle | known only | Writes the `short` at `G+0x25466`.
+  - btl::action::Participate::vf19 | 0x1401e95b0 | .ecode | Battle | known only | Spends or converts turn icons after an action, through the three setters. | finding
+  - SetTurnIconsA | 0x1403b4170 | .ecode | Battle | known only | Writes the `short` at `G+0x25464`. | finding
+  - SetTurnIconsB | 0x1403b4130 | .ecode | Battle | known only | Writes the `short` at `G+0x25466`. | finding
 
 For #695. The counts the turn-icon UI shows (A at `G+0x25464`, B at `G+0x25466`, C at `G+0x25468` or `+0x2546a` by
 side) change during an action in one place, `Participate::vf19`, by three steps: A − 1 with B + 1, B − 1, and

@@ -9,8 +9,8 @@
   [`skill-cost-from-skill-tables.md`](skill-cost-from-skill-tables.md) and
   [`battle-inventory-2026-11-17.md`](../raw-sources/battle-inventory-2026-11-17.md) (rows 29, 35, 77)
 - **Functions:**
-  - SynthesisDecide | 0xd7aae0 | .ecode | Battle | known only | `BTL_SyentesisSkillList`'s confirm handler: posts the focused row's skill id to the UI flow.
-  - BTL_SyentesisSkillList::vf14 | 0xd926c0 | .ecode | Battle | known only | Rebuilds the list's rows (`0xd84380`, then `0xd85580`).
+  - SynthesisDecide | 0xd7aae0 | .ecode | Battle | known only | `BTL_SyentesisSkillList`'s confirm handler: posts the focused row's skill id to the UI flow. | finding
+  - BTL_SyentesisSkillList::vf14 | 0xd926c0 | .ecode | Battle | known only | Rebuilds the list's rows (`0xd84380`, then `0xd85580`). | finding
 
 For #260. The Synthesis list is `BTL_SyentesisSkillList@ope@ui@app` (vtable `0x21cfea0`), and its cursor already
 reaches the mod with that class (count 4 in the 2026-11-22 session). As it opens it fetches each row's skill name with

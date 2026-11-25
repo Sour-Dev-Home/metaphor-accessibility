@@ -5,9 +5,9 @@
 - **Sources:** none, see Steps; builds on [movie-pause-open-static.md](movie-pause-open-static.md) and
   [ui-component-open-points-static.md](ui-component-open-points-static.md)
 - **Functions:**
-  - LayoutStartAnimation | 0x140a6ffd0 | .ecode | Menus | known only | The shared start-an-animation most layouts' open and close (vf20) call; passes straight to 0xa70010
-  - LayoutPlayAnimation | 0x140a70010 | .ecode | Menus | known only | Hands the animation to an ss::Player through two calls into protected code
-  - FrameDelta | 0x141070ef0 | .ecode | Menus | known only | Returns the float global at 0x2f0d548, the frame time the keyboard repeat counts down by
+  - LayoutStartAnimation | 0x140a6ffd0 | .ecode | Menus | known only | The shared start-an-animation most layouts' open and close (vf20) call; passes straight to 0xa70010 | finding
+  - LayoutPlayAnimation | 0x140a70010 | .ecode | Menus | known only | Hands the animation to an ss::Player through two calls into protected code | finding
+  - FrameDelta | 0x141070ef0 | .ecode | Menus | known only | Returns the float global at 0x2f0d548, the frame time the keyboard repeat counts down by | finding
 
 For #958: speeding up menu animations can't be built safely from what is readable. Every layout's open and close
 animation starts through one function (`0xa6ffd0`), which only hands the animation to a SpriteStudio player

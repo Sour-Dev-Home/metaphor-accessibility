@@ -8,7 +8,7 @@
   follows [`menu-values-party-unit-static.md`](menu-values-party-unit-static.md) and
   [`item-skill-message-serials-static.md`](item-skill-message-serials-static.md)
 - **Functions:**
-  - SkillSelectDecide | 0xd77810 | .ecode | Battle | known only | Reads the focused row's skill id from the component.
+  - SkillSelectDecide | 0xd77810 | .ecode | Battle | known only | Reads the focused row's skill id from the component. | finding; docs/findings/battle-skill-select-decide-and-ui-sound-static.md
 
 For #692 (b). **Found, as data with no hook.** The battle skill list already names each row by the serial it fetches
 from `Skill_Message_1.msg` (#247). That serial's label (`SkillName_FireMagic_01`), hashed with MD5, equals the 16 bytes

@@ -6,10 +6,10 @@
   [`battle-enemy-list-maps-hits-to-slots-static.md`](battle-enemy-list-maps-hits-to-slots-static.md) and
   [`battle-state-session6-2026-11-17.md`](../raw-sources/battle-state-session6-2026-11-17.md)
 - **Functions:**
-  - BattlePackageUpdate | 0x21e1c0 | .ecode | Battle | hooked | The battle package's once-a-frame update; its first argument is the package.
-  - BattleLoadPhase | 0x239ea0 | .ecode | Battle | known only | `btl::phase::Load::vf1`: creates the units and fills the enemy list.
-  - EncounterRecord | 0x3dd5a0 | .ecode | Battle | known only | Returns the encounter table's `0x1c`-byte record for an encounter id.
-  - EncounterTable | 0x2dff9b8 | .debug | Battle | known only | Pointer to the encounter table that `EncounterRecord` indexes.
+  - BattlePackageUpdate | 0x21e1c0 | .ecode | Battle | hooked | The battle package's once-a-frame update; its first argument is the package. | finding
+  - BattleLoadPhase | 0x239ea0 | .ecode | Battle | known only | `btl::phase::Load::vf1`: creates the units and fills the enemy list. | finding
+  - EncounterRecord | 0x3dd5a0 | .ecode | Battle | known only | Returns the encounter table's `0x1c`-byte record for an encounter id. | finding
+  - EncounterTable | 0x2dff9b8 | .debug | Battle | known only | Pointer to the encounter table that `EncounterRecord` indexes. | finding
 
 For #750. The package's enemy list (`+0x128`) is filled in the order of the encounter record's six enemy-id slots,
 skipping empty ones. No field on the enemy's action or unit records a screen position or formation slot on the paths

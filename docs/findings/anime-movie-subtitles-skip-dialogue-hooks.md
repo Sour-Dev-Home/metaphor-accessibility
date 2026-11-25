@@ -8,7 +8,7 @@
   [`event-scene-lines-skip-msgrequest.md`](event-scene-lines-skip-msgrequest.md) and the scene list in
   [`chapter1-interaction-inventory-2026-11-20.md`](../raw-sources/chapter1-interaction-inventory-2026-11-20.md)
 - **Functions:**
-  - AnimeMovieSubtitleMessageLayout vtable | 0x1421bab20 | .rdata | Dialogue | known only | The animated cutscenes' subtitle layout; its own slots jump into `.text1`.
+  - AnimeMovieSubtitleMessageLayout vtable | 0x1421bab20 | .rdata | Dialogue | known only | The animated cutscenes' subtitle layout; its own slots jump into `.text1`. | finding
 
 For #659. The animated (anime) cutscenes show their subtitles in `app::ui::AnimeMovieSubtitleMessageLayout`, from an
 event message file compiled before the movie, and request none of their lines through `MsgRequestByName`,

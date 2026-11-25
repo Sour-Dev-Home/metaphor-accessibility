@@ -7,12 +7,12 @@
   [`message-serials-from-file-positions.md`](message-serials-from-file-positions.md) and
   [`global-query-finds-the-reader-loads.md`](global-query-finds-the-reader-loads.md)
 - **Functions:**
-  - MsgManagerCreate | 0x9eb670 | .ecode | Messages and Text | known only | Creates `app::msg::Manager` and stores it at `0x2f04960`.
-  - MsgManagerCtor | 0x9dfd00 | .ecode | Messages and Text | known only | Builds the manager; its `+0x210` is a 5-slot variable buffer.
-  - MsgVariableSetInt | 0xd72360 | .ecode | Messages and Text | known only | Sets variable slot n to an int (tag 1).
-  - MsgVariableSetSerial | 0xa02550 | .ecode | Messages and Text | known only | Sets variable slot n to a message serial (tag 2).
-  - MsgVariableSetString | 0xa025b0 | .ecode | Messages and Text | known only | Sets variable slot n to a string (tag 3).
-  - BattleBannerQueueStep | 0x326e70 | .ecode | Battle | known only | Fills slots 0 to 2 from a queued banner, then calls `BattleMessageShow` kind 2.
+  - MsgManagerCreate | 0x9eb670 | .ecode | Messages and Text | known only | Creates `app::msg::Manager` and stores it at `0x2f04960`. | finding
+  - MsgManagerCtor | 0x9dfd00 | .ecode | Messages and Text | known only | Builds the manager; its `+0x210` is a 5-slot variable buffer. | finding
+  - MsgVariableSetInt | 0xd72360 | .ecode | Messages and Text | known only | Sets variable slot n to an int (tag 1). | finding
+  - MsgVariableSetSerial | 0xa02550 | .ecode | Messages and Text | known only | Sets variable slot n to a message serial (tag 2). | finding
+  - MsgVariableSetString | 0xa025b0 | .ecode | Messages and Text | known only | Sets variable slot n to a string (tag 3). | finding
+  - BattleBannerQueueStep | 0x326e70 | .ecode | Battle | known only | Fills slots 0 to 2 from a queued banner, then calls `BattleMessageShow` kind 2. | finding
 
 For #739. The `<V n>` tags in a banner's text are the message variables: five 0x28-byte slots inside the message
 manager, at `[base+0x2f04960] + 0x220 + n*0x28`. The battle banner queue writes the unit's name into slot 0 just before

@@ -5,15 +5,15 @@
 - **Sources:** [`field-enemy-awareness-static.md`](field-enemy-awareness-static.md),
   [`field-enemy-strikes-and-notice-static.md`](field-enemy-strikes-and-notice-static.md)
 - **Functions:**
-  - FldEnemyGetDegToPlayer | 0x1408dbe70 | .ecode | Field | known only | Script function: the world angle from an enemy to the player, in degrees; not its facing.
-  - EnemyPerceives | 0x140650070 | .ecode | Field | known only | The perception test: the zone tests and the line-of-sight test, true when the enemy sees the player.
-  - EnemySightZones | 0x14064c7d0 | .ecode | Field | known only | Tests the player against zone 1 or zone 2 by height difference; stores the result at controller +0x280.
-  - EnemyLineOfSight | 0x14064c560 | .ecode | Field | known only | A ray between the enemy's and the player's nodes; true when nothing blocks it.
-  - EnemyNearZone | 0x14064c660 | .ecode | Field | known only | Tests the player against zone 3; stores the result at controller +0x281.
-  - SectorContains | 0x1413eb400 | .ecode | Field | known only | Whether a point lies in a sector: within a radius of an axis and an angle of a forward direction.
-  - EnemySightZonesUpdate | 0x140659350 | .ecode | Field | known only | Moves the three zones to the enemy's position and its flattened forward direction.
-  - EnemyChooseState | 0x140653770 | .ecode | Field | known only | A state's next-state choice: asks for state 0x1f when the perception test passes.
-  - EnemyParams | 0x140637ef0 | .ecode | Field | known only | The enemy's parameter row: row u32 +0xb4 of 0xb8-byte rows in the field database's table at +0x108.
+  - FldEnemyGetDegToPlayer | 0x1408dbe70 | .ecode | Field | known only | Script function: the world angle from an enemy to the player, in degrees; not its facing. | finding
+  - EnemyPerceives | 0x140650070 | .ecode | Field | known only | The perception test: the zone tests and the line-of-sight test, true when the enemy sees the player. | finding
+  - EnemySightZones | 0x14064c7d0 | .ecode | Field | known only | Tests the player against zone 1 or zone 2 by height difference; stores the result at controller +0x280. | finding
+  - EnemyLineOfSight | 0x14064c560 | .ecode | Field | known only | A ray between the enemy's and the player's nodes; true when nothing blocks it. | finding
+  - EnemyNearZone | 0x14064c660 | .ecode | Field | known only | Tests the player against zone 3; stores the result at controller +0x281. | finding
+  - SectorContains | 0x1413eb400 | .ecode | Field | known only | Whether a point lies in a sector: within a radius of an axis and an angle of a forward direction. | finding
+  - EnemySightZonesUpdate | 0x140659350 | .ecode | Field | known only | Moves the three zones to the enemy's position and its flattened forward direction. | finding
+  - EnemyChooseState | 0x140653770 | .ecode | Field | known only | A state's next-state choice: asks for state 0x1f when the perception test passes. | finding
+  - EnemyParams | 0x140637ef0 | .ecode | Field | known only | The enemy's parameter row: row u32 +0xb4 of 0xb8-byte rows in the field database's table at +0x108. | finding
 
 For #948 (and #693, #649). An enemy's sight is three sector zones held on its controller `C = [enemy+0x3110]`
 (`fldCharaCtrl_Enemy`), at `C+0x1c0`, `C+0x200` and `C+0x240`. Every update (`fldCharaCtrl_Enemy::vf4`, `0x658bc0`)

@@ -9,10 +9,10 @@
   [`menu-values-party-unit-static.md`](menu-values-party-unit-static.md) and
   [`battle-inventory-2026-11-17.md`](../raw-sources/battle-inventory-2026-11-17.md) (rows 34 to 36, 82, 83)
 - **Functions:**
-  - FormationSet | 0xf03f20 | .ecode | Battle | known only | Sets or clears a character's back-row bit (unit `+0x0` bit 22) by character ID, for IDs 1 to 19.
-  - FormationGet | 0xf32ed0 | .ecode | Battle | known only | Returns a character's unit `+0x0` bit 22 by character ID.
-  - ChoiceFocusedValue | 0x4ad2c0 | .ecode | Menus | known only | Returns the value of a choice's focused row; on the Party screens a character ID.
-  - BTL_OrderPartyReserve formation lambda | 0xd8c8b0 | .ecode | Battle | known only | Button 10 on the screen: flips the focused member's row bit, then redraws the rows.
+  - FormationSet | 0xf03f20 | .ecode | Battle | known only | Sets or clears a character's back-row bit (unit `+0x0` bit 22) by character ID, for IDs 1 to 19. | finding
+  - FormationGet | 0xf32ed0 | .ecode | Battle | known only | Returns a character's unit `+0x0` bit 22 by character ID. | finding
+  - ChoiceFocusedValue | 0x4ad2c0 | .ecode | Menus | known only | Returns the value of a choice's focused row; on the Party screens a character ID. | finding
+  - BTL_OrderPartyReserve formation lambda | 0xd8c8b0 | .ecode | Battle | known only | Button 10 on the screen: flips the focused member's row bit, then redraws the rows. | finding
 
 For #258 and #259. The Order menu's Party row opens `BTL_OrderPartyBattleMember@ope@ui@app` (vtable `0x21cec28`),
 whose cursor already reaches the mod with that class and a count of 4: registering it as a `Screen` is enough to get

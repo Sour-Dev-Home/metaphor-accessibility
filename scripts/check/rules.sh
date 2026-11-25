@@ -1,6 +1,7 @@
 # shellcheck shell=bash
 # check.sh's repository rules (ADR 0013): the file listing and the file scan, which fast, pre-commit, rules and full
-# run: personal information (general and private patterns), game content (folders, extensions, size and known hashes)
+# run, and, for rules and full, the findings' functions blocks' sources (functions_block_check):
+# personal information (general and private patterns), game content (folders, extensions, size and known hashes)
 # and the raw-source and finding headers. Sourced by scripts/check.sh only; it uses report and die from report.sh.
 #
 # Run globals: list_entries reads `stage` and `tmp`, and sets `scan_scope`, which main resets; scan_files reads `stage`,
@@ -160,6 +161,36 @@ emit() {
     report "${rest%%$'\n'*}"
     rest="${rest#*$'\n'}"
   done
+}
+
+# functions_block_check: every entry in the findings' functions blocks cites a source (#997), by
+# scripts/dev/known-functions.ps1 -Check in the tree being checked. A tree without that script has no blocks to check.
+# It needs PowerShell: CI fails without it, and a local run warns.
+functions_block_check() {
+  local script="$root/scripts/dev/known-functions.ps1" result line status
+  [ -f "$script" ] || return 0
+  if ! command -v pwsh > /dev/null; then
+    if [ "${GITHUB_ACTIONS:-}" = true ]; then
+      report "functions blocks: pwsh isn't on PATH, so the findings' functions blocks weren't checked"
+    else
+      warn "pwsh isn't on PATH, so the findings' functions blocks weren't checked (pwsh scripts/dev/known-functions.ps1 -Check)"
+    fi
+    return 0
+  fi
+  result="$(pwsh -NoProfile -NonInteractive -File "$script" -Root "$root" -Check 2>&1)"
+  status=$?
+  [ "$status" -eq 0 ] && return 0
+  # Exit 1 lists each entry's problem, then a "failed:" summary; any other failure is the script's own (a missing input,
+  # say), and still fails the run, so the blocks never go unchecked in silence.
+  while IFS= read -r line; do
+    [ -n "$line" ] || continue
+    if [[ "$line" == failed:* ]]; then
+      [ "$status" -eq 1 ] || report "functions blocks: known-functions.ps1 -Check exited $status: ${line#failed: }"
+    else
+      report "functions block: $line"
+    fi
+  done <<< "$result"
+  [[ "$result" == *failed:* ]] || report "functions blocks: known-functions.ps1 -Check exited $status without saying why"
 }
 
 # scan_files: the file rules on the entries list_entries wrote to $tmp/entries.

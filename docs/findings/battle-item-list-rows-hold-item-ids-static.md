@@ -5,8 +5,8 @@
 - **Sources:** none, see Steps; builds on [`battle-item-list-tab-index-static.md`](battle-item-list-tab-index-static.md)
   and [`money-follower-rank-and-shop-static.md`](money-follower-rank-and-shop-static.md)
 - **Functions:**
-  - BattleItemTabRows | 0x140d837d0 | .ecode | Battle | known only | Fills a `BTL_ItemSelect` tab's row list from a tab code, through a thunk into `.text1`.
-  - BattleItemRowsBuild | 0x140d91e50 | .ecode | Battle | known only | `BTL_ItemSelect::vf14`: makes one `UiParts_ItemSelector` per row and hands it the row's item ID as `ItemID`.
+  - BattleItemTabRows | 0x140d837d0 | .ecode | Battle | known only | Fills a `BTL_ItemSelect` tab's row list from a tab code, through a thunk into `.text1`. | finding
+  - BattleItemRowsBuild | 0x140d91e50 | .ecode | Battle | known only | `BTL_ItemSelect::vf14`: makes one `UiParts_ItemSelector` per row and hands it the row's item ID as `ItemID`. | finding
 
 For #937. A `BTL_ItemSelect` row is an 8-byte entry in the list at choice `+0x23e8` (count `+0x23f0`) whose first
 `int` is the row's item ID. The rows are filled inside `.text1`, and each row's part is given only that ID, so the

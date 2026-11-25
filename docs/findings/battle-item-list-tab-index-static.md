@@ -5,9 +5,9 @@
 - **Sources:** none, see Steps; the classes and counts are from the by-ear sessions of 2026-11-23
   ([`class-name-and-battle-item-tab-serials.md`](class-name-and-battle-item-tab-serials.md))
 - **Functions:**
-  - BTL_ItemSelect::vf17 | 0x140d932c0 | .ecode | Battle | known only | Sets up the item list: picks the tab holding the last used item, else the first tab with items.
-  - SystemTutorialChoice::vf17 | 0x140e0c220 | .ecode | Menus | known only | Builds the tutorial list per category 0 to 5 and enables the category switch when more than one has rows.
-  - TutorialsOfCategory | 0x140e06750 | .ecode | Menus | known only | Fills a list with the tutorial IDs whose category equals the one asked for.
+  - BTL_ItemSelect::vf17 | 0x140d932c0 | .ecode | Battle | known only | Sets up the item list: picks the tab holding the last used item, else the first tab with items. | finding
+  - SystemTutorialChoice::vf17 | 0x140e0c220 | .ecode | Menus | known only | Builds the tutorial list per category 0 to 5 and enables the category switch when more than one has rows. | finding
+  - TutorialsOfCategory | 0x140e06750 | .ecode | Menus | known only | Fills a list with the tutorial IDs whose category equals the one asked for. | finding
 
 For #851 and #806. `BTL_ItemSelect`'s tab index is the `int` at choice `+0x44b8`: its setup writes it, and wraps it
 modulo the tab count at `+0x4458`. That tab `n` is `CommandBattle_IT_CATEGORY_0<n+1>` is `[NEEDS VERIFICATION]`: the

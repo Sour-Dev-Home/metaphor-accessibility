@@ -5,11 +5,11 @@
 - **Sources:** none, see Steps; the class, `count=5` and the stat names' labels are from #624's by-ear session
   (2026-11-22)
 - **Functions:**
-  - ResultDistributionPointChoice::vf73 | 0x140dbf260 | .ecode | Menus | known only | Sets the screen up: the member, the five stat values and the points to spend.
-  - ResultDistributionPointChoice::vf72 | 0x140dbfe60 | .ecode | Menus | known only | Hands the five values and the cursor to the layout (`0xc22770`).
-  - ResultDistributionPointChoice::vf16 | 0x140dbd1b0 | .ecode | Menus | known only | Per-member branch on the member's ID (voice cue name built with `snprintf`).
-  - UnitStatGrowthSum | 0x1403c7c00 | .ecode | Menus | known only | Sums a member's five per-level stat gains from level 1 to n, each capped at 99.
-  - UnitStat | 0x1403e6630 | .ecode | Menus | known only | Returns stat `i` of a party unit: the byte at unit `+0x2a + i`, clamped to 1..99.
+  - ResultDistributionPointChoice::vf73 | 0x140dbf260 | .ecode | Menus | known only | Sets the screen up: the member, the five stat values and the points to spend. | finding
+  - ResultDistributionPointChoice::vf72 | 0x140dbfe60 | .ecode | Menus | known only | Hands the five values and the cursor to the layout (`0xc22770`). | finding
+  - ResultDistributionPointChoice::vf16 | 0x140dbd1b0 | .ecode | Menus | known only | Per-member branch on the member's ID (voice cue name built with `snprintf`). | finding
+  - UnitStatGrowthSum | 0x1403c7c00 | .ecode | Menus | known only | Sums a member's five per-level stat gains from level 1 to n, each capped at 99. | finding
+  - UnitStat | 0x1403e6630 | .ecode | Menus | known only | Returns stat `i` of a party unit: the byte at unit `+0x2a + i`, clamped to 1..99. | finding
 
 For #624. The screen is `ResultDistributionPointChoice@ope@ui@app` (vtable `0x21d9540`, constructor `0xdba3c0`), five
 rows, one per stat in the order of `System_General_05` to `_09`. Its state is in the choice, so a focus class can read

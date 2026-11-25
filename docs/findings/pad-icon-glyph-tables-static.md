@@ -9,11 +9,11 @@
   [`title-menu-item-images-2026-11-20.md`](../raw-sources/title-menu-item-images-2026-11-20.md),
   [`cri-cpk-table-layout-2026-11-21.md`](../raw-sources/cri-cpk-table-layout-2026-11-21.md)
 - **Functions:**
-  - ActionButtonGlyph | 0x140a7d710 | .ecode | Messages and Text | known only | Texture of the glyph for an input action: its key's glyph after keyboard or mouse input, else its pad button's glyph for the chosen device.
-  - PadMaskGlyph | 0x140a7cd40 | .ecode | Messages and Text | known only | Texture of the glyph for a pad-mask bit, from the device set that setting `0x1d` picks.
-  - KeyGlyph | 0x140a7de10 | .ecode | Messages and Text | known only | Texture of the glyph for a Windows virtual-key code (`keyboard/key_<vk>`).
-  - PadGlyphSetFromSteam | 0x140a7aed0 | .ecode | Messages and Text | known only | Picks the auto-detect glyph set from the connected controller's Steam Input type.
-  - GetActionBinding | 0x1407ade80 | .ecode | Settings | known only | Copies an action's binding (pad mask at `+0x14`, key at `+0x1c`) out of the map at `0x142ee85d0`.
+  - ActionButtonGlyph | 0x140a7d710 | .ecode | Messages and Text | known only | Texture of the glyph for an input action: its key's glyph after keyboard or mouse input, else its pad button's glyph for the chosen device. | finding
+  - PadMaskGlyph | 0x140a7cd40 | .ecode | Messages and Text | known only | Texture of the glyph for a pad-mask bit, from the device set that setting `0x1d` picks. | finding
+  - KeyGlyph | 0x140a7de10 | .ecode | Messages and Text | known only | Texture of the glyph for a Windows virtual-key code (`keyboard/key_<vk>`). | finding
+  - PadGlyphSetFromSteam | 0x140a7aed0 | .ecode | Messages and Text | known only | Picks the auto-detect glyph set from the connected controller's Steam Input type. | finding
+  - GetActionBinding | 0x1407ade80 | .ecode | Settings | known only | Copies an action's binding (pad mask at `+0x14`, key at `+0x1c`) out of the map at `0x142ee85d0`. | finding
 
 For #109: the game draws a button prompt from a pad-mask bit through one table per controller family, or from a
 virtual-key code when the keyboard or mouse was used last. The pad-mask-to-glyph tables are static and listed below.

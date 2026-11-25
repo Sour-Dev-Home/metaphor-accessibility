@@ -601,6 +601,43 @@ test_passes_finding_naming_a_game_build_by_sha() {
   expect 0
 }
 
+# A finding whose functions entry cites no source fails rules (#997), through known-functions.ps1 -Check; without
+# PowerShell, as in the WSL suite, a local run warns that the blocks went unchecked.
+test_rules_check_each_functions_entry_cites_a_source() {
+  new_repo
+  mkdir -p scripts/dev src/Metaphor.Core
+  cp "$ROOT/scripts/dev/known-functions.ps1" scripts/dev/
+  printf '[]\n' > src/Metaphor.Core/hook-signatures.json
+  printf '[{"sha256":"%s"}]\n' "$build_sha" > src/Metaphor.Core/known-game-builds.json
+  git add scripts src
+  finding docs/findings/format.md "- **Game build:** $build_sha
+- **Functions:**
+  - Guessed | 0x1 | .ecode | Menus | known only | A guess."
+  run_check rules
+  if command -v pwsh > /dev/null; then
+    expect 1 "functions block: docs/findings/format.md:5: cites no source"
+  else
+    expect 0 "pwsh isn't on PATH, so the findings' functions blocks weren't checked"
+  fi
+}
+
+# The script failing on its own (here a missing input, exit 2) fails rules too, so the blocks never go unchecked.
+test_rules_fail_when_the_functions_check_cannot_run() {
+  new_repo
+  mkdir -p scripts/dev src/Metaphor.Core
+  cp "$ROOT/scripts/dev/known-functions.ps1" scripts/dev/
+  printf '[]\n' > src/Metaphor.Core/hook-signatures.json
+  git add scripts src
+  finding docs/findings/format.md "- **Game build:** $build_sha
+- **Functions:** none"
+  run_check rules
+  if command -v pwsh > /dev/null; then
+    expect 1 "functions blocks: known-functions.ps1 -Check exited 2:" "known-game-builds.json is missing"
+  else
+    expect 0 "pwsh isn't on PATH, so the findings' functions blocks weren't checked"
+  fi
+}
+
 test_passes_header_values_in_code_quotes() {
   new_repo
   note docs/raw-sources/p.md '- **Source:** `gh api`' '- **Saved:** 2026-11-13' "- **Game build:** \`$build_sha\` (SHA-256)"

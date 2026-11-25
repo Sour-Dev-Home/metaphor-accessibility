@@ -5,9 +5,9 @@
 - **Sources:** [`field-state-and-map-2026-11-16.md`](../raw-sources/field-state-and-map-2026-11-16.md),
   [`squirrel-script-functions-all-2026-11-16.md`](../raw-sources/squirrel-script-functions-all-2026-11-16.md)
 - **Functions:**
-  - FldPlayerSetIsForceDash | 0x1408e7fd0 | .ecode | Field | known only | Script function: sets or clears bit 0x800 of the player's action flags at +0x34c8.
-  - FldPlayerSetAndWalkToPos | 0x1408e5f40 | .ecode | Field | known only | Script function: a scripted walk of the player to a point, through 0x8d9bb0.
-  - FldPlayerSetAndRunToPos | 0x1408e5eb0 | .ecode | Field | known only | Script function: a scripted run of the player to a point, through 0x8d9a00.
+  - FldPlayerSetIsForceDash | 0x1408e7fd0 | .ecode | Field | known only | Script function: sets or clears bit 0x800 of the player's action flags at +0x34c8. | finding
+  - FldPlayerSetAndWalkToPos | 0x1408e5f40 | .ecode | Field | known only | Script function: a scripted walk of the player to a point, through 0x8d9bb0. | finding
+  - FldPlayerSetAndRunToPos | 0x1408e5eb0 | .ecode | Field | known only | Script function: a scripted run of the player to a point, through 0x8d9a00. | finding
 
 For #957. The game has separate walk and run moves for the player, at least for scripted moves: the script list names
 `FldPlayerSetAndWalkToPos` and `FldPlayerSetAndRunToPos`, which call two different movers (`0x8d9bb0`, `0x8d9a00`) on

@@ -8,7 +8,7 @@
   [`field-map-and-objective-tables-static.md`](field-map-and-objective-tables-static.md) and
   [`field-wall-probe-raycast-static.md`](field-wall-probe-raycast-static.md)
 - **Functions:**
-  - FieldRaycastMask30 | 0x13e2530 | .ecode | Field | known only | The field's own raycast, left alone until after v0.1.0 since the navmesh covers the maps.
+  - FieldRaycastMask30 | 0x13e2530 | .ecode | Field | known only | The field's own raycast, left alone until after v0.1.0 since the navmesh covers the maps. | finding; docs/findings/field-wall-probe-raycast-static.md
 
 For #546 and the navigation kit (#823). Of the 32 `MapData.bin` rows in the regions chapter 1 plays in (Grand Trad,
 the study, the desert, the fort, the Nord mine), 31 name a `.NAV` file the archive has. The one without is map 4,

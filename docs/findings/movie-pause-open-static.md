@@ -5,8 +5,8 @@
 - **Sources:** none, see Steps; the by-ear evidence is the maintainer's report on #809 (session of 2026-11-23 evening,
   mod 4d936b2 Debug)
 - **Functions:**
-  - MoviePauseRequest | 0x140f737c0 | .ecode | Menus | hooked | UUIC_Common_MoviePause::vf5: shows the skip menu's layout on a request of 1, else closes a shown one
-  - MoviePauseLayout::vf20 | 0x140d08510 | .ecode | Menus | known only | The skip menu layout's close: starts animation 4768 through the shared start-an-animation
+  - MoviePauseRequest | 0x140f737c0 | .ecode | Menus | hooked | UUIC_Common_MoviePause::vf5: shows the skip menu's layout on a request of 1, else closes a shown one | finding
+  - MoviePauseLayout::vf20 | 0x140d08510 | .ecode | Menus | known only | The skip menu layout's close: starts animation 4768 through the shared start-an-animation | finding
 
 The "Skip?" menu a 2D cutscene opens on Start or Menu is shown by its component's request handler,
 `UUIC_Common_MoviePause::vf5` (`0xf737c0`, `.ecode`, a whole function, not a jump stub): on a request holding the byte 1

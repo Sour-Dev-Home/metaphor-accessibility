@@ -9,10 +9,10 @@
   [`message-serials-from-file-positions.md`](message-serials-from-file-positions.md),
   [`squirrel-script-functions-all-2026-11-16.md`](../raw-sources/squirrel-script-functions-all-2026-11-16.md)
 - **Functions:**
-  - FldEnemyGetEnemyID | 0x8dbf20 | .ecode | Field | known only | Script function that finds the unit by its `+0x9f8` id and returns its enemy id.
-  - FldEnemyIdOf | 0x65f8c0 | .ecode | Field | known only | Reads the enemy's `u16` at `+0x3634` and returns the enemy table row's id.
-  - FldEnemyGetTier | 0x8dbfa0 | .ecode | Field | known only | Script function of the same walker shape as `FldEnemyGetEnemyID`.
-  - FldEnemyIsDark | 0x8dc200 | .ecode | Field | known only | Script function of the same walker shape as `FldEnemyGetEnemyID`.
+  - FldEnemyGetEnemyID | 0x8dbf20 | .ecode | Field | known only | Script function that finds the unit by its `+0x9f8` id and returns its enemy id. | finding; docs/findings/battle-target-cursor-index-static.md
+  - FldEnemyIdOf | 0x65f8c0 | .ecode | Field | known only | Reads the enemy's `u16` at `+0x3634` and returns the enemy table row's id. | finding; docs/findings/battle-target-cursor-index-static.md
+  - FldEnemyGetTier | 0x8dbfa0 | .ecode | Field | known only | Script function of the same walker shape as `FldEnemyGetEnemyID`. | finding; docs/findings/battle-target-cursor-index-static.md
+  - FldEnemyIsDark | 0x8dc200 | .ecode | Field | known only | Script function of the same walker shape as `FldEnemyGetEnemyID`. | finding; docs/findings/battle-target-cursor-index-static.md
 
 For #178 and #181. The unit manager `M = [[base+0x2ee7510]+0x20]` holds every unit of the map in 21 lists, one class
 per list (session 6), so a unit's kind is the list it came from and its position is `+0x80`. This note adds the name

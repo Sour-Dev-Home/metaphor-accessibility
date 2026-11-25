@@ -7,14 +7,14 @@
   [`field-nearby-session6-2026-11-17.md`](../raw-sources/field-nearby-session6-2026-11-17.md),
   [`game-names-static-2026-11-20.md`](../raw-sources/game-names-static-2026-11-20.md)
 - **Functions:**
-  - FldGatherSetIsAcquired | 0x1408de550 | .ecode | Field | known only | Finds a gather point by id in the list at manager +0x1d8 and sets its taken state.
-  - GatherSetTaken | 0x14069b5c0 | .ecode | Field | known only | Sets a gather point's taken bit in bank +0x1f8, or acts on its linked object.
-  - FldGmcIsActivated | 0x1408defc0 | .ecode | Field | known only | Finds a gimmick by id in the list at manager +0x218 and tests its activated bit.
-  - GimmickIsActivated | 0x14069ffb0 | .ecode | Field | known only | Tests a gimmick's bit in bank +0x348, its row from the database table at +0x10710.
-  - FlagBankSet | 0x14070cf20 | .ecode | Field | known only | Sets or clears bit n of the byte array at bank +0xa0.
-  - FlagBankTest | 0x14070d3f0 | .ecode | Field | known only | Tests bit n of the byte array at bank +0xa0.
-  - FlagBanks | 0x1403b0b20 | .ecode | Field | known only | Returns the pointer at game data +0xac368.
-  - DatabaseRow | 0x14058e2f0 | .ecode | Field | known only | Returns row n of a database table (+0x8 array), or its +0x58 default for -1.
+  - FldGatherSetIsAcquired | 0x1408de550 | .ecode | Field | known only | Finds a gather point by id in the list at manager +0x1d8 and sets its taken state. | finding
+  - GatherSetTaken | 0x14069b5c0 | .ecode | Field | known only | Sets a gather point's taken bit in bank +0x1f8, or acts on its linked object. | finding
+  - FldGmcIsActivated | 0x1408defc0 | .ecode | Field | known only | Finds a gimmick by id in the list at manager +0x218 and tests its activated bit. | finding
+  - GimmickIsActivated | 0x14069ffb0 | .ecode | Field | known only | Tests a gimmick's bit in bank +0x348, its row from the database table at +0x10710. | finding
+  - FlagBankSet | 0x14070cf20 | .ecode | Field | known only | Sets or clears bit n of the byte array at bank +0xa0. | finding
+  - FlagBankTest | 0x14070d3f0 | .ecode | Field | known only | Tests bit n of the byte array at bank +0xa0. | finding
+  - FlagBanks | 0x1403b0b20 | .ecode | Field | known only | Returns the pointer at game data +0xac368. | finding
+  - DatabaseRow | 0x14058e2f0 | .ecode | Field | known only | Returns row n of a database table (+0x8 array), or its +0x58 default for -1. | finding
 
 For #949 and #950. The nearby list already reads the game afresh on every press (`FieldControls.ReadNamed` calls
 `IFieldReads.Read`, which walks the game's lists each time), so nothing is cached on the mod's side. Two gaps remain,

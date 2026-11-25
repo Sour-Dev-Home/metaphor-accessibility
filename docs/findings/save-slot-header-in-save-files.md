@@ -7,7 +7,7 @@
   ([#707](https://github.com/Sour-Dev-Home/metaphor-accessibility/pull/707)'s branch), [`calendar-date-time-and-quests-static.md`](calendar-date-time-and-quests-static.md) and
   [`chapter1-opening-inventory-own-capture-2026-11-20.md`](../raw-sources/chapter1-opening-inventory-own-capture-2026-11-20.md)
 - **Functions:**
-  - SaveDataHeaderArrayDtor | 0x394a70 | .ecode | Menus | known only | Frees the 18-header array, 0x26e0 bytes.
+  - SaveDataHeaderArrayDtor | 0x394a70 | .ecode | Menus | known only | Frees the 18-header array, 0x26e0 bytes. | finding
 
 For #773. Each save slot `n` (0 to 16) is the file `save%04d.sav` of `n`, whose header names `n` itself, and the load
 list's row `n` is file `n` (rows 0 and 4 match below). The file's first 0x228 bytes are the slot's header: the in-game

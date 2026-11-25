@@ -6,10 +6,10 @@
 - **Sources:** [`squirrel-script-functions-all-2026-11-16.md`](../raw-sources/squirrel-script-functions-all-2026-11-16.md);
   otherwise none, see Steps
 - **Functions:**
-  - ReportMessageOpen | 0xf81cd0 | .ecode | Messages and Text | known only | Queues or shows one report (corner advice) line: `(component, key*, ?, int*, int*, int*)`, the key a label or its hash.
-  - UUIC_Common_ReportMessage::vf13 | 0xf82bc0 | .ecode | Field | known only | The corner component's update: pops its queue of `0x28`-byte entries on a timer and shows the next through `.text1`.
-  - ReportLabelToIndex | 0x9e81e0 | .ecode | Messages and Text | known only | Hashes a label key and looks up its message file id and label index.
-  - ReportHashToIndex | 0x9e8250 | .ecode | Messages and Text | known only | Looks up a 16-byte label hash's message file id and label index.
+  - ReportMessageOpen | 0xf81cd0 | .ecode | Messages and Text | hooked | Queues or shows one report (corner advice) line: `(component, key*, ?, int*, int*, int*)`, the key a label or its hash. | finding; src/Metaphor.Hooks/ReportMessageHooks.cs
+  - UUIC_Common_ReportMessage::vf13 | 0xf82bc0 | .ecode | Field | known only | The corner component's update: pops its queue of `0x28`-byte entries on a timer and shows the next through `.text1`. | finding
+  - ReportLabelToIndex | 0x9e81e0 | .ecode | Messages and Text | known only | Hashes a label key and looks up its message file id and label index. | finding
+  - ReportHashToIndex | 0x9e8250 | .ecode | Messages and Text | known only | Looks up a 16-byte label hash's message file id and label index. | finding
 
 For #587. **Found.** Gallica's top-left advice, and the same corner's lines from Junah and Heismay, are "report"
 messages: entries of `message/report/*.msg` with a `<REPORT …>` tag, shown by `UUIC_Common_ReportMessage` and

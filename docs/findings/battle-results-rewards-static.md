@@ -7,9 +7,9 @@
   [`menu-values-party-unit-static.md`](menu-values-party-unit-static.md) and
   [`enemy-stun-break-and-battle-condition-static.md`](enemy-stun-break-and-battle-condition-static.md)
 - **Functions:**
-  - BattleResultDataDelete | 0x20b060 | .ecode | Battle | known only | `app::btl::ResultData::vf0`, frees a 0x18-byte object.
-  - BattleResultUpdate | 0xf1ee00 | .ecode | Battle | known only | `UUIC_Battle_Result::vf13`, the results component's state machine.
-  - AffinityTableParts | 0xbde390 | .ecode | Battle | known only | `AffinityTable::vf17`, binds the nine `parts_resist_table_status_n` parts.
+  - BattleResultDataDelete | 0x20b060 | .ecode | Battle | known only | `app::btl::ResultData::vf0`, frees a 0x18-byte object. | finding
+  - BattleResultUpdate | 0xf1ee00 | .ecode | Battle | known only | `UUIC_Battle_Result::vf13`, the results component's state machine. | finding
+  - AffinityTableParts | 0xbde390 | .ecode | Battle | known only | `AffinityTable::vf17`, binds the nine `parts_resist_table_status_n` parts. | finding
 
 For #166, #164 and #255, a static spike: no `.ecode` code was found that holds a battle's EXP, money or spoils, or an
 enemy's affinities, in a field the mod could read. So the mod reads the party's money and MAG at the battle's start and

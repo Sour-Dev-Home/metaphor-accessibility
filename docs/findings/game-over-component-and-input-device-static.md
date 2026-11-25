@@ -5,11 +5,11 @@
 - **Sources:** [`squirrel-script-functions-all-2026-11-16.md`](../raw-sources/squirrel-script-functions-all-2026-11-16.md)
   (`Gameover_CreateUI`, `Gameover_Open`); builds on [pad-icon-glyph-tables-static.md](pad-icon-glyph-tables-static.md)
 - **Functions:**
-  - Gameover_CreateUI | 0x140907690 | .ecode | Dialogue | known only | Script function: finds or makes `UUIC_Common_GameOver` in the UI registry.
-  - Gameover_Open | 0x1409077f0 | .ecode | Dialogue | known only | Script function: opens the component through `0xf5eb40`.
-  - UUIC_Common_GameOver::vf13 | 0x140f5eea0 | .ecode | Dialogue | known only | The screen's update: its message, then the wait for input.
-  - InputDeviceGet | 0x1407adec0 | .ecode | Settings | known only | Returns the input-device global at `0x1427a8bc0`.
-  - ConfirmInputRead | 0x1407ad220 | .ecode | Settings | known only | Reads the decide inputs and sets the input-device global to 0, 1 or 2 by which device gave them.
+  - Gameover_CreateUI | 0x140907690 | .ecode | Dialogue | known only | Script function: finds or makes `UUIC_Common_GameOver` in the UI registry. | finding
+  - Gameover_Open | 0x1409077f0 | .ecode | Dialogue | known only | Script function: opens the component through `0xf5eb40`. | finding
+  - UUIC_Common_GameOver::vf13 | 0x140f5eea0 | .ecode | Dialogue | known only | The screen's update: its message, then the wait for input. | finding
+  - InputDeviceGet | 0x1407adec0 | .ecode | Settings | read | Returns the input-device global at `0x1427a8bc0`. | finding; src/Metaphor.Hooks/InputDeviceRead.cs
+  - ConfirmInputRead | 0x1407ad220 | .ecode | Settings | known only | Reads the decide inputs and sets the input-device global to 0, 1 or 2 by which device gave them. | finding
 
 For #778. The screen is the UI component `UUIC_Common_GameOver@ui@app` (vtable `0x2252e48`) with the layout
 `GameOverLayout@ui@app` (vtable `0x21ae498`). The game picks keyboard or pad glyphs from one global, `0x27a8bc0`: 0

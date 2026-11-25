@@ -7,8 +7,8 @@
   [`field-navmesh-reader-decodes-every-file.md`](field-navmesh-reader-decodes-every-file.md),
   [`field-wall-probe-raycast-static.md`](field-wall-probe-raycast-static.md)
 - **Functions:**
-  - FieldNavFindPath | 0x13f19b0 | .ecode | Field | known only | Detour nearest-poly, findPath and findStraightPath from a start to an end point into a caller's corner buffer.
-  - FieldNavRaycast | 0x13eeac0 | .ecode | Field | known only | Detour walk-line test: how far a straight walk from A to B gets on the navmesh.
+  - FieldNavFindPath | 0x13f19b0 | .ecode | Field | known only | Detour nearest-poly, findPath and findStraightPath from a start to an end point into a caller's corner buffer. | finding
+  - FieldNavRaycast | 0x13eeac0 | .ecode | Field | known only | Detour walk-line test: how far a straight walk from A to B gets on the navmesh. | finding
 
 Issue #832, for path pings (#823). **Found, and it needs no game call.** The mod already plans a route from the
 player to a place over the map's navmesh, in plain C#. The beacon does it today (#690): `NavRoutePlanner`

@@ -5,9 +5,9 @@
   our own Reloaded-II mod reading the running game's memory
 - **Sources:** [`game-session-1-2026-11-20.md`](../raw-sources/game-session-1-2026-11-20.md)
 - **Functions:**
-  - MenusHandleGetter | 0x51fab0 | .ecode | Menus | known only | Returns `[H+0x48]`, a pointer to the vector of scenes, or 0 when the menus' handle is null.
-  - Menus handle | 0x2ee7338 | .debug | Menus | read | The global `H` holding the menus' handle.
-  - fclTitle vtable | 0x17f7fb0 | .udata | Menus | known only | The title scene, `0xa8` bytes.
+  - unnamed, at 0x51fab0 | 0x51fab0 | .ecode | Menus | known only | Returns `[H+0x48]`, a pointer to the vector of scenes, or 0 when the menus' handle is null. | finding; docs/findings/battle-target-cursor-index-static.md
+  - Menus handle | 0x2ee7338 | .debug | Menus | read | The global `H` holding the menus' handle. | finding; src/Metaphor.Hooks/MenuHooks.cs; docs/findings/battle-turn-icons-and-ui-components-static.md; docs/raw-sources/dialogue-window-flag-2026-11-16.md
+  - fclTitle vtable | 0x17f7fb0 | .udata | Menus | known only | The title scene, `0xa8` bytes. | finding; docs/findings/battle-target-cursor-index-static.md
 
 `0x51fab0` returns `[H+0x48]`, a pointer to a vector `{begin, end}`, not the vector itself. The map `M` is
 `[[[[base+0x2ee7338]+0x48]]]+0x8`, so the inspector chain is `follow base+0x2ee7338 0x48 0x0 0x0 0x8 …`. The batches

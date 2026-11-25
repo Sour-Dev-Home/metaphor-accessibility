@@ -7,13 +7,13 @@
   [`community-survey-calendar-quests-shops-followers-2026-11-19.md`](../raw-sources/community-survey-calendar-quests-shops-followers-2026-11-19.md),
   [`metaphor-010-templates-shop-follower-quest-2026-11-19.md`](../raw-sources/metaphor-010-templates-shop-follower-quest-2026-11-19.md)
 - **Functions:**
-  - GetCalendarDay | 0x907840 | .ecode | Field | known only | Script function that returns the day count, the `int` at `G+0x311e8`.
-  - GetCalendarDow | 0x907850 | .ecode | Field | known only | Returns the weekday, the day count mod 5.
-  - GetMonth | 0x90a520 | .ecode | Field | known only | Script function that computes the month from the day count.
-  - GetDay | 0x907920 | .ecode | Field | known only | Script function that computes the day of the month from the day count.
-  - GetYear | 0x90aa90 | .ecode | Field | known only | Script function that computes the year from the day count.
-  - SetDay | 0x910450 | .ecode | Field | known only | Rebuilds the day count from a new day of the month.
-  - SetMonth | 0x9104a0 | .ecode | Field | known only | Rebuilds the day count from a new month.
+  - GetCalendarDay | 0x907840 | .ecode | Field | known only | Script function that returns the day count, the `int` at `G+0x311e8`. | finding; docs/findings/battle-target-cursor-index-static.md
+  - GetCalendarDow | 0x907850 | .ecode | Field | known only | Returns the weekday, the day count mod 5. | finding; docs/findings/battle-target-cursor-index-static.md
+  - GetMonth | 0x90a520 | .ecode | Field | known only | Script function that computes the month from the day count. | finding; docs/findings/battle-target-cursor-index-static.md
+  - GetDay | 0x907920 | .ecode | Field | known only | Script function that computes the day of the month from the day count. | finding; docs/findings/battle-target-cursor-index-static.md
+  - GetYear | 0x90aa90 | .ecode | Field | known only | Script function that computes the year from the day count. | finding; docs/findings/battle-target-cursor-index-static.md
+  - SetDay | 0x910450 | .ecode | Field | known only | Rebuilds the day count from a new day of the month. | finding; docs/findings/battle-target-cursor-index-static.md
+  - SetMonth | 0x9104a0 | .ecode | Field | known only | Rebuilds the day count from a new month. | finding; docs/findings/battle-target-cursor-index-static.md
 
 Static prep (#494) for #191 and game session 3 (#498). Read in Ghidra only, not yet run against the game: every meaning
 below is `[NEEDS VERIFICATION]` until the session's reads agree. `G` is the game-data block at `base+0x2ca66f0`

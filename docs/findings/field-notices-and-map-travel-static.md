@@ -8,10 +8,10 @@
   [`field-inventory-2026-11-17.md`](../raw-sources/field-inventory-2026-11-17.md),
   [`title-names-voice-tutorials-static.md`](title-names-voice-tutorials-static.md)
 - **Functions:**
-  - UUIC_Common_EventItemGet vtable | 0x2251f10 | .udata | Field | known only | The loot banner component; its list type is `ItemGetNotice`.
-  - UUIC_Common_Saving vtable | 0x2255948 | .udata | Field | known only | The autosave label component.
-  - ItemGetWindowEventOpen | 0x90b4b0 | .ecode | Field | known only | Script function that packs up to three item id and count pairs for the loot banner.
-  - ItemGetWindowIsEnd | 0x90b660 | .ecode | Field | known only | Script function that waits for the loot banner to end.
+  - UUIC_Common_EventItemGet vtable | 0x2251f10 | .udata | Field | known only | The loot banner component; its list type is `ItemGetNotice`. | finding
+  - UUIC_Common_Saving vtable | 0x2255948 | .udata | Field | known only | The autosave label component. | finding
+  - ItemGetWindowEventOpen | 0x90b4b0 | .ecode | Field | known only | Script function that packs up to three item id and count pairs for the loot banner. | finding; docs/findings/battle-target-cursor-index-static.md
+  - ItemGetWindowIsEnd | 0x90b660 | .ecode | Field | known only | Script function that waits for the loot banner to end. | finding; docs/findings/battle-target-cursor-index-static.md
 
 Static prep for #542 to #545. Only the travel map has a route a release hook already sees: Gallica's "That's …" line
 is a `MsgRequestByName` request. The other three go through UI components no release hook watches. The labels that

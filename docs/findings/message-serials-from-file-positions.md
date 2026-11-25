@@ -8,8 +8,8 @@
   [`settings-category-labels-session1-2026-11-20.md`](../raw-sources/settings-category-labels-session1-2026-11-20.md);
   the range tests are in [`settings-screens-inventory-static.md`](settings-screens-inventory-static.md)
 - **Functions:**
-  - GetMessageBySerial | 0x9e3d30 | .ecode | Messages and Text | hooked | Returns a message built for the flags it was asked with, from the manager at a global.
-  - MessageSerialOfFile | 0x9e8dd0 | .ecode | Messages and Text | known only | Adds a label index to a file's first serial.
+  - GetMessageBySerial | 0x9e3d30 | .ecode | Messages and Text | hooked | Returns a message built for the flags it was asked with, from the manager at a global. | finding; src/Metaphor.Hooks/NameLookupListeners.cs
+  - MessageSerialOfFile | 0x9e8dd0 | .ecode | Messages and Text | known only | Adds a label index to a file's first serial. | finding; docs/findings/battle-target-cursor-index-static.md
 
 For #584. `GetMessageBySerial` (`0x9e3d30`) returns a message it builds for the flags it was asked with, so the mod
 doesn't read it. Each message file owns a run of serials that starts at a number the exe fixes, one per message in file

@@ -7,9 +7,9 @@
   [`field-position-camera-session6-2026-11-17.md`](../raw-sources/field-position-camera-session6-2026-11-17.md),
   [`input-route-2026-11-16.md`](../raw-sources/input-route-2026-11-16.md)
 - **Functions:**
-  - fldScene_Idle::vf3 | 0x5f0310 | .ecode | Field | known only | The free-roam frame update, slot 3 of the `fldScene_Idle` vtable.
-  - FieldNavmeshSnap | 0x576410 | .ecode | Field | read | Called from `vf3` with the player and navmesh in hand; snaps the player to the navmesh.
-  - fldScene_Idle vtable | 0x1801d28 | .udata | Field | known only | The free-roam scene's vtable, with `vf3` in slot 3.
+  - fldScene_Idle::vf3 | 0x5f0310 | .ecode | Field | known only | The free-roam frame update, slot 3 of the `fldScene_Idle` vtable. | finding
+  - FieldNavmeshSnap | 0x576410 | .ecode | Field | read | Called from `vf3` with the player and navmesh in hand; snaps the player to the navmesh. | finding; src/Metaphor.Core/hook-signatures.json; src/Metaphor.Hooks/FieldReads.cs
+  - fldScene_Idle vtable | 0x1801d28 | .udata | Field | known only | The free-roam scene's vtable, with `vf3` in slot 3. | finding; docs/findings/battle-target-cursor-index-static.md
 
 For #178 and #181. The player is `P = [[[base+0x2ee7510]+0x20]+0x0]` (`fldWorld`, its unit manager, the manager's first
 qword); position floats at `P+0x80`, facing quaternion at `P+0x90`, as session 6 read them

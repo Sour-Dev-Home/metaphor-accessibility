@@ -9,9 +9,9 @@
   [`menu-values-party-unit-static.md`](menu-values-party-unit-static.md) and
   [`placeholder-tags-name-file-positions.md`](placeholder-tags-name-file-positions.md)
 - **Functions:**
-  - FldEnemyIsBreak | 0x8dc160 | .ecode | Field | known only | Script function: returns the byte `+0x36d0` of the field enemy with the given id.
-  - FieldEnemySetBreak | 0x662af0 | .ecode | Field | known only | Our name: writes `+0x36d0`; on clear, refills the stun gauge.
-  - FieldEnemyBreakUpdate | 0x6646a0 | .ecode | Field | known only | Our name: per-enemy update that ends the break after a time and refills the gauge.
+  - FldEnemyIsBreak | 0x8dc160 | .ecode | Field | known only | Script function: returns the byte `+0x36d0` of the field enemy with the given id. | finding
+  - FieldEnemySetBreak | 0x662af0 | .ecode | Field | known only | Our name: writes `+0x36d0`; on clear, refills the stun gauge. | finding
+  - FieldEnemyBreakUpdate | 0x6646a0 | .ecode | Field | known only | Our name: per-enemy update that ends the break after a time and refills the gauge. | finding
 
 For #772. In the field, a stunned enemy is one whose byte `enemy+0x36d0` is 1, the value the game's own script function
 `FldEnemyIsBreak` returns. It is set when a strike empties the enemy's stun gauge (`int enemy+0x36e0`) and cleared when

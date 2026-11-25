@@ -7,8 +7,8 @@
   [`battle-state-session6-2026-11-17.md`](../raw-sources/battle-state-session6-2026-11-17.md),
   [`menu-values-session5-2026-11-17.md`](../raw-sources/menu-values-session5-2026-11-17.md)
 - **Functions:**
-  - BattleTargetCursorFocus | 0xf26ec0 | .ecode | Battle | hooked | `UUIC_Battle_TargetCursor` slot 4: focuses target slot `index`.
-  - UUIC_Battle_TargetCursor vtable | 0x2250280 | .udata | Battle | hooked | 14 slots; slot 4 at `+0x20` is swapped (#253).
+  - BattleTargetCursorFocus | 0xf26ec0 | .ecode | Battle | hooked | `UUIC_Battle_TargetCursor` slot 4: focuses target slot `index`. | finding
+  - UUIC_Battle_TargetCursor vtable | 0x2250280 | .udata | Battle | hooked | 14 slots; slot 4 at `+0x20` is swapped (#253). | finding
 
 `UUIC_Battle_TargetCursor` (vtable `0x2250280`) holds no `CursorManager`, so the shared cursor hook never sees it
 (#247, 2026-11-20). Its slot 4, `0xf26ec0` (`BattleTargetCursorFocus`, our name), takes `(this, uint index)` and

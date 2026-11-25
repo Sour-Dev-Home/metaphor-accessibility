@@ -6,8 +6,8 @@
 - **Sources:** none, see Steps; follows [`field-notices-and-map-travel-static.md`](field-notices-and-map-travel-static.md)
   and [`ui-component-open-points-static.md`](ui-component-open-points-static.md)
 - **Functions:**
-  - UUIC_Common_Saving::vf5 | 0xf8a6f0 | .ecode | Field | known only | The saving component's request handler: closes or opens its layout through the layout's slots 21 and 20.
-  - AutoSavingLayout::vf20 | 0xd1e250 | .ecode | Field | known only | Opens the autosave notice through the shared start-an-animation wrapper `0xa6ffd0`.
+  - UUIC_Common_Saving::vf5 | 0xf8a6f0 | .ecode | Field | known only | The saving component's request handler: closes or opens its layout through the layout's slots 21 and 20. | finding
+  - AutoSavingLayout::vf20 | 0xd1e250 | .ecode | Field | known only | Opens the autosave notice through the shared start-an-animation wrapper `0xa6ffd0`. | finding
 
 For #543. The bottom-left autosave notice has no text fetch any hook sees, but it opens through the shared
 start-an-animation (`LayoutAnimationPlay`, `0xa70010`), a Release hook since #820: every field autosave in four Debug

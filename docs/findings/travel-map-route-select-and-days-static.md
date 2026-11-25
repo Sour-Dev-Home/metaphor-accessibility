@@ -6,10 +6,10 @@
   [`travel-map-destination-text-static.md`](travel-map-destination-text-static.md),
   [`squirrel-script-functions-all-2026-11-16.md`](../raw-sources/squirrel-script-functions-all-2026-11-16.md)
 - **Functions:**
-  - SortieMapPointerStep | 0xcd4670 | .ecode | Menus | known only | Each frame: hit-tests the pin against the map's points and, on a change, shows the new point (`0xcd05f0`) and plays UI sound 8.
-  - SortieTownMapState | 0x4dfc80 | .ecode | Menus | known only | Returns the object the UI registry (global `0x2ca3248`) holds for `UUIC_Common_SortieTownMap`, or 0.
-  - SortieMapUI_GetPathNeedDay | 0x911480 | .ecode | Menus | known only | Script function: that object's `+0x34`, clamped to 1 to 3.
-  - SortieMapUI_GetRouteNum | 0x9117a0 | .ecode | Menus | known only | Script function: that object's byte `+0x3c`, or 0 when there is none.
+  - SortieMapPointerStep | 0xcd4670 | .ecode | Menus | known only | Each frame: hit-tests the pin against the map's points and, on a change, shows the new point (`0xcd05f0`) and plays UI sound 8. | finding
+  - SortieTownMapState | 0x4dfc80 | .ecode | Menus | known only | Returns the object the UI registry (global `0x2ca3248`) holds for `UUIC_Common_SortieTownMap`, or 0. | finding
+  - SortieMapUI_GetPathNeedDay | 0x911480 | .ecode | Menus | known only | Script function: that object's `+0x34`, clamped to 1 to 3. | finding
+  - SortieMapUI_GetRouteNum | 0x9117a0 | .ecode | Menus | known only | Script function: that object's byte `+0x3c`, or 0 when there is none. | finding
 
 For #545. The destination panel is already spoken (#633, the `TravelMapPanelShow` hook on `0xcccf50`), and that is
 the selection itself: the pin is not a list. `0xcd4670` moves a pointer, finds the map point under it in the point
