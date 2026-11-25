@@ -31,6 +31,9 @@ public static class BattleKeys
             "Enemy before", Button: new("battle", "enemyPreviousButton", Defaults.EnemyPreviousButton), Hold: Hold)),
         new(KeyPlaces.Battle, BattleFeature.BattleEnemyPad, new(
             "Every enemy's HP", Button: new("battle", "enemyHpButton", Defaults.EnemyHpButton), Hold: Hold)),
+        new(KeyPlaces.Battle, BattleFeature.BattleCommandWheel, new(
+            "Say the command wheel's commands and their keys", new("battle", "commandWheelKey", Defaults.CommandWheelKey),
+            new("battle", "commandWheelButton", Defaults.CommandWheelButton), Hold)),
     ];
 
     private static BoundKey Hold => new("battle", "enemyHoldButtons", Defaults.EnemyHoldButtons);

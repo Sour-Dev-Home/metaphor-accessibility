@@ -2,12 +2,13 @@ speech.battleAffinities | Battle affinities | on | done
 speech.battleAffinitiesFoundOnly | Battle affinities found only | on | done
 speech.battleBannerNames | Battle banner names | on | done
 speech.battleBanners | Battle banners | on | done
+speech.battleCommandWheel | Battle command wheel | off | testing
 speech.battleEnd | Battle end | off | testing
 speech.battleEnemyKeys | Battle enemy keys | on | done
 speech.battleEnemyList | Battle enemy list | off | testing
 speech.battleEnemyLooks | Battle enemy looks | off | testing
 speech.battleEnemyMaxHp | Battle enemy max HP | on | done
-speech.battleEnemyPad | Battle enemy pad chords | off | testing
+speech.battleEnemyPad | Battle enemy pad chords | on | done
 speech.battleEnemyTarget | Battle targeted enemy first | off | testing
 speech.battleFormation | Battle formation | off | testing
 speech.battleHitNumbers | Battle hit numbers only | off | testing

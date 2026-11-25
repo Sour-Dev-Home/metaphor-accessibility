@@ -63,8 +63,10 @@ public sealed class BattleEnemyHpTests
         var keys = BattleBindings.Default;
 
         Assert.Equal((KeyK, KeyJ, KeyL), (keys.EnemyNextKey, keys.EnemyPreviousKey, keys.EnemyHpKey));
+        // D-pad Up with LB is the command wheel's (#252, the maintainer's decision of 2026-11-24), so the enemy before
+        // has no chord by default.
         Assert.Equal(
-            (LB, DpadDown, DpadUp, DpadLeft),
+            (LB, DpadDown, 0, DpadLeft),
             (keys.EnemyHoldButtons, keys.EnemyNextButton, keys.EnemyPreviousButton, keys.EnemyHpButton));
         // The game's battle keys read aloud on 2026-11-22 (Q, H, F, E, Tab, N, T, 1 to 5), the status key H, the
         // menus' details key F, the reader key T and the repeat key R.
@@ -74,14 +76,14 @@ public sealed class BattleEnemyHpTests
         Assert.DoesNotContain(keys.EnemyHpKey, taken);
     }
 
-    // Neither is heard by ear yet, so both ship off: a normal install leaves K, J, L and LB with the D-pad to the game.
+    // Both passed by ear (the pad chords on 2026-11-24, build 2fdf9f63, #811), so both ship on.
     [Fact]
-    public void TheKeysAreOnAndThePadChordsAreStillTesting()
+    public void TheKeysAndThePadChordsAreOn()
     {
         Assert.False(SettingKey.Of(BattleFeature.BattleEnemyKeys).Testing);
-        Assert.True(SettingKey.Of(BattleFeature.BattleEnemyPad).Testing);
+        Assert.False(SettingKey.Of(BattleFeature.BattleEnemyPad).Testing);
         Assert.True(ModSettings.Defaults.IsOn(BattleFeature.BattleEnemyKeys));
-        Assert.False(ModSettings.Defaults.IsOn(BattleFeature.BattleEnemyPad));
+        Assert.True(ModSettings.Defaults.IsOn(BattleFeature.BattleEnemyPad));
     }
 
     [Fact]
@@ -220,8 +222,10 @@ public sealed class BattleEnemyHpTests
         Assert.Equal(LB, enemies.Pad.Pad(0, LB, made: true));
         Assert.Equal(LB, enemies.Pad.Pad(0, LB | DpadDown, made: true));
         Assert.Equal(LB, enemies.Pad.Pad(0, LB, made: true));
-        Chord(DpadUp);
+        Chord(DpadDown);
         Chord(DpadLeft);
+        // Up is the command wheel's by default (#252), not the enemy keys'.
+        Assert.Equal(LB | DpadUp, enemies.Pad.Pad(0, LB | DpadUp, made: true));
 
         Assert.Equal(
             ["First enemy, 840 of 1200", "Second enemy, 50 left", "First enemy, 840 of 1200. Second enemy, 50 left"],

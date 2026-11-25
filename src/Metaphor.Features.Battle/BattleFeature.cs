@@ -56,12 +56,21 @@ public enum BattleFeature
         "`battleHits`.")]
     BattleEnemyKeys,
 
-    /// <summary>The pad's enemy HP chords (#767): LB held with D-pad Down, Up or Left, as <see cref="BattleEnemyKeys"/>.
-    /// LB opens Tactics as it goes down, so it reaches the game only when let go with no chord (#811).</summary>
-    [SettingKey("speech", "battleEnemyPad", "Battle enemy pad chords", Testing = true, Order = 1037, Description =
-        "In a battle, `LB` held with D-pad `Down`, `Up` or `Left` does what `K`, `J` and `L` do. `LB` tapped alone " +
-        "opens Tactics when you let go. Needs `battleHits`.")]
+    /// <summary>The pad's enemy HP chords (#767): LB held with D-pad Down or Left, as <see cref="BattleEnemyKeys"/>'s K
+    /// and L; D-pad Up went to the command wheel (#252), so J has no chord by default. LB opens Tactics as it goes down,
+    /// so it reaches the game only when let go with no chord (#811). Passed by ear on 2026-11-24 (build 2fdf9f63).
+    /// </summary>
+    [SettingKey("speech", "battleEnemyPad", "Battle enemy pad chords", Order = 1037, Description =
+        "In a battle, `LB` held with D-pad `Down` or `Left` does what `K` and `L` do. `LB` tapped alone opens " +
+        "Tactics when you let go. Needs `battleHits`.")]
     BattleEnemyPad,
+
+    /// <summary>The command wheel read aloud (#252, the maintainer's decision of 2026-11-24): its commands and the
+    /// button or key for each, on <c>C</c> or LB held with D-pad Up.</summary>
+    [SettingKey("speech", "battleCommandWheel", "Battle command wheel", Testing = true, Order = 1083, Description =
+        "In a battle, `C`, or `LB` held with D-pad `Up`, says the command wheel's commands with the key or button " +
+        "for each: the keyboard's keys on `C`, the controller's buttons on the chord. Needs `battleHits`.")]
+    BattleCommandWheel,
 
     /// <summary>The "of &lt;max HP&gt;" in an enemy's HP line ("840 of 1200") when a hit has shown the maximum (#854).
     /// Off says the current HP alone, "840".</summary>

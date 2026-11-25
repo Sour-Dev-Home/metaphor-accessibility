@@ -25,11 +25,12 @@ usual job in the game.
 | Guide you to a nearby thing with a beep | `G` | `LB` held, then D-pad `Right` | Walking in the field |
 | Next or previous nearby category | `]` and `[` | none yet | Walking in the field |
 | Read more of the focused menu entry | `F` | Right stick press (`R3`) | A menu is open |
-| Step to the next enemy and say its HP (testing) | `K` | `LB` held, then D-pad `Down` | In a battle |
-| Step to the previous enemy (testing) | `J` | `LB` held, then D-pad `Up` | In a battle |
-| Say every enemy's HP in one line (testing) | `L` | `LB` held, then D-pad `Left` | In a battle |
+| Step to the next enemy and say its HP | `K` | `LB` held, then D-pad `Down` | In a battle |
+| Step to the previous enemy | `J` | none | In a battle |
+| Say every enemy's HP in one line | `L` | `LB` held, then D-pad `Left` | In a battle |
 | Say the party's HP and MP (testing) | `M` | none yet | In a battle |
 | Say what the enemy looks like (testing) | `I` | none yet | In a battle |
+| Say the command wheel's commands and their keys (testing) | `C` | `LB` held, then D-pad `Up` | In a battle |
 | Note a moment for your report ([mark key](#mark-key-note-a-moment-for-your-report)) | `F8` | none | Anywhere in the game |
 | Open or close the mod's settings ([settings menu](#settings-menu-change-a-setting-by-ear), testing) | `F2` | `LT` and `RT` held, then `View` | Anywhere in the game |
 | Say the mod's keys that work here (testing) | `F1` | `LT` and `RT` held, then `Y` | Anywhere in the game |
@@ -105,12 +106,14 @@ open, the game gets none of your keys or buttons. `[NEEDS VERIFICATION]` By ear 
 
 ### In a battle
 
-- The enemy HP keys `K`, `J` and `L` are on (`battleEnemyKeys`). The pad's `LB` chords are still being tested: turn
-  on `battleEnemyPad` for them ([settings](settings.md)). They know only the enemies hit so far in this battle, numbered by the
-  order they were first hit.
-- `K` and `J`, or `LB` with D-pad `Down` and `Up`, step to the next or previous enemy and say it, such as "Second
+- The enemy HP keys `K`, `J` and `L` are on (`battleEnemyKeys`), and so are the pad's `LB` chords
+  (`battleEnemyPad`, [settings](settings.md)). `LB` tapped alone opens Tactics when you let go. They know only the
+  enemies hit so far in this battle, numbered by the order they were first hit.
+- `K` and `J`, or `LB` with D-pad `Down` for the next, step to the next or previous enemy and say it, such as "Second
   enemy, 50 of 300", or "50 left" when its full HP isn't known. With `battleEnemyMaxHp` off they say only the number,
   "Second enemy, 50". With no enemy hit yet: "No enemy hit yet".
+- Testing, with `battleCommandWheel` on: `C` says the command wheel's commands with the keyboard key for each,
+  "Archetype E, Melee F, Guard H, ...", and `LB` with D-pad `Up` says them with the controller's buttons.
 - `L`, or `LB` with D-pad `Left`, says every enemy's HP in one line.
 - Testing, with `battleEnemyList` on: the keys know every enemy in the battle from its start, hit or not, and a step
   ends with its place, such as "First enemy, 840 of 1320, 1 of 3". An enemy not hit yet says the HP the game holds for
@@ -121,7 +124,8 @@ open, the game gets none of your keys or buttons. `[NEEDS VERIFICATION]` By ear 
 - Testing, with `battleEnemyLooks` on: `I` says what the enemy the keys are on looks like, from descriptions written
   for the mod. None is written yet, so for now it says the enemy's name and "no description yet".
 - In a battle the game keeps `F` (Wield Arms) and the right stick press (auto-battle).
-- `[NEEDS VERIFICATION]` By ear, and whether holding `LB` in a battle does the game's own `LB` action first.
+- `[NEEDS VERIFICATION]` By ear: the command wheel's line, and the controller buttons for Item and Pass, which it says
+  by name alone.
 
 ### Menus
 

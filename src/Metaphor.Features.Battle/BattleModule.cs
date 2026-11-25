@@ -170,13 +170,17 @@ public sealed class BattleModule : IFeatureModule
             SayPositions = () => settings.Current.IsOn(SpokenDetail.Positions),
             Units = units,
             Affinities = affinities.Says,
-            // What the enemy looks like (#699), testing: its table row's name, then the mod's description of it.
-            Looks = enemy => looks.Line(
-                enemy.Label,
-                affinities.TableIdOf(enemy) is { } id && enemyTables.Tables?.NameHashOf(id) is { } hash &&
-                serials.FindByLabelHash(MessageSerials.EnemyNames, hash) is { } serial
-                    ? serials.TextOf(serial, context.Cleaner)
-                    : null),
+            // What the enemy looks like (#699), testing: its table row's name, then the mod's description of it, the
+            // row's own by id when it has one.
+            Looks = enemy =>
+            {
+                var id = affinities.TableIdOf(enemy);
+                var name = id is { } row && enemyTables.Tables?.NameHashOf(row) is { } hash &&
+                    serials.FindByLabelHash(MessageSerials.EnemyNames, hash) is { } serial
+                        ? serials.TextOf(serial, context.Cleaner)
+                        : null;
+                return looks.Line(enemy.Label, name, id);
+            },
         };
         context.AddControls(settings.Input(
             BattleFeature.BattleHits, settings.Input(BattleFeature.BattleEnemyLooks, enemyHp.Look)));
@@ -184,12 +188,20 @@ public sealed class BattleModule : IFeatureModule
             BattleFeature.BattleHits, settings.Input(BattleFeature.BattleEnemyKeys, enemyHp.Keyboard)));
         context.AddControls(settings.Input(
             BattleFeature.BattleHits, settings.Input(BattleFeature.BattleEnemyPad, enemyHp.Pad)));
+        // The command wheel read aloud on C and LB with D-pad Up (#252), testing, on top of the hits.
+        var wheel = new CommandWheel(context.BattleScene, battleSpeech, battleBindings);
+        context.AddControls(settings.Input(
+            BattleFeature.BattleHits, settings.Input(BattleFeature.BattleCommandWheel, wheel)));
         RegisterListsAndParty(context, hitLines, costSource, costLoad);
         context.AddKeys(BattleKeys.All);
         // The chords' LB is held back until it's let go, then tapped to the game if no chord came (#811).
         context.AddShoulderHold(() =>
             settings.Current.IsOn(BattleFeature.BattleHits) && settings.Current.IsOn(BattleFeature.BattleEnemyPad)
                 ? enemyHp.HeldShoulders()
+                : 0);
+        context.AddShoulderHold(() =>
+            settings.Current.IsOn(BattleFeature.BattleHits) && settings.Current.IsOn(BattleFeature.BattleCommandWheel)
+                ? wheel.HeldShoulders()
                 : 0);
     }
 
