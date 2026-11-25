@@ -112,7 +112,10 @@ each rule on every assembly built from `src/`. Each test plants a violation to p
     speech factory (#723), and puts its controls behind `settings.Input(TFeature.X, ...)`
     ([ADR 0022](adr/0022-features-register-their-own-wiring-and-settings.md)), which read the setting at each
     announcement, cue and input read, so a changed file applies at once. A module never builds its own speech gate or
-    reads the context's ungated announcer or cue player; an architecture test fails one that does. A cue gets its own
+    reads the context's ungated announcer or cue player; an architecture test fails one that does, and
+    `EveryFeatureOffTests` composes each module with every setting off, feeds it every kind of event and fails on any
+    line or cue. Speech from start-up counts too: only the load message's success line can be turned off (#661).
+    A cue gets its own
     `[SettingKey]` on its `Cue` member. Every default is on: a blind player never has to configure anything. The one exception is a feature still waiting
     for its by-ear check, marked `Testing = true` on its `[SettingKey]`: off until a flip PR removes the mark
     ([workflow](agents/workflow.md#a-feature-that-needs-a-by-ear-check), #783). Each

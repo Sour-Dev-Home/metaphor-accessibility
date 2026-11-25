@@ -24,6 +24,16 @@ public static class LoadMessage
         return new(text, Interrupt: true);
     }
 
+    /// <summary>Whether <paramref name="status"/> is a plain success: the mod is ready, every game global was found and
+    /// every dev opt-in asked for is active. Only that line can be turned off (#661, the maintainer's decision of
+    /// 2026-11-24); a refusal, or a start that left something off, always speaks, so no one is left unaware.</summary>
+    public static bool IsPlainSuccess(ModStatus status)
+    {
+        ArgumentNullException.ThrowIfNull(status);
+        return status.State == ModState.Ready && status.MissingGlobals.Count == 0 &&
+            status.OptIns.All(optIn => optIn.Active);
+    }
+
     private static string OptIns(IReadOnlyList<OptInState> optIns) =>
         optIns.Count == 0 ? ""
             : ", dev opt-ins: " + string.Join(", ", optIns.Select(o => o.Active ? o.Name : $"{o.Name} not active"));

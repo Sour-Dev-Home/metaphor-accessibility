@@ -131,6 +131,44 @@ public sealed class ModStartupTests : IDisposable
         Assert.Equal([new Announcement("Metaphor accessibility loaded", Interrupt: true)], announcer.Said);
     }
 
+    // #661: only the success line can be turned off.
+    [Fact]
+    public void WithTheSuccessLineOffAPlainLoadSaysNothing()
+    {
+        var announcer = new RecordingAnnouncer();
+
+        ModStartup.CheckAndReport(
+            ModId, _gameExe, _folder.FullName, () => [Build(GameBuild)], hooksExpected: 1, installHooks: _ => new(1, []),
+            announcer: announcer, successLineOn: () => false);
+
+        Assert.Empty(announcer.Said);
+    }
+
+    // #661: a refusal or a failure always speaks, whatever the setting.
+    [Fact]
+    public void WithTheSuccessLineOffARefusalOrAFailureIsStillSaid()
+    {
+        var unknown = new RecordingAnnouncer();
+        var failed = new RecordingAnnouncer();
+        var inactive = new RecordingAnnouncer();
+
+        ModStartup.CheckAndReport(
+            ModId, _gameExe, _folder.FullName, () => [Build(new string('0', 64))], hooksExpected: 1,
+            announcer: unknown, successLineOn: () => false);
+        ModStartup.CheckAndReport(
+            ModId, _gameExe, _folder.FullName, () => [Build(GameBuild)], hooksExpected: 1,
+            installHooks: _ => throw new InvalidOperationException("hooks failed"), announcer: failed,
+            successLineOn: () => false);
+        ModStartup.CheckAndReport(
+            ModId, _gameExe, _folder.FullName, () => [Build(GameBuild)], hooksExpected: 1,
+            installHooks: _ => new InstalledHooks(1, [new OptInState("text panes", false)]), announcer: inactive,
+            successLineOn: () => false);
+
+        Assert.Equal([LoadMessage.Unsupported], unknown.Said.Select(said => said.Text));
+        Assert.Equal([LoadMessage.CouldNotStart], failed.Said.Select(said => said.Text));
+        Assert.Single(inactive.Said);
+    }
+
     // #223: the maintainer hears which dev opt-ins took effect before playing, not from the log afterwards.
     [Fact]
     public void ThePlayerHearsEachDevOptInWhoseHooksWentIn()
