@@ -141,11 +141,16 @@ public sealed class FeatureModulesTests
 
         var line = help.Line(where);
 
-        var expected = context.Keys.Where(entry => (entry.Places & where) != 0 && !entry.Key.Hidden).ToList();
+        // A key unbound by default, such as the enemy before's pad chord since #252, has nothing to say.
+        var expected = context.Keys
+            .Where(entry => (entry.Places & where) != 0 && !entry.Key.Hidden)
+            .Select(entry => entry.Key.Said(testing))
+            .OfType<string>()
+            .ToList();
         Assert.NotEmpty(expected);
-        foreach (var entry in expected)
+        foreach (var said in expected)
         {
-            Assert.Contains(entry.Key.Said(testing)!, line, StringComparison.Ordinal);
+            Assert.Contains(said, line, StringComparison.Ordinal);
         }
     }
 

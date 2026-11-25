@@ -121,6 +121,14 @@ public sealed class FeatureDefaultsTests
         });
     }
 
+    // LB with the D-pad passed by ear on 2026-11-24 (build 2fdf9f63, #811), so the enemy pad chords ship on.
+    [Fact]
+    public void TheEnemyPadChordsPassedByEarAndAreOnByDefault()
+    {
+        Assert.False(SettingKey.Of(BattleFeature.BattleEnemyPad).Testing);
+        Assert.True(ModSettings.Defaults.IsOn(BattleFeature.BattleEnemyPad));
+    }
+
     [Fact]
     public void AFeatureIsOffInANormalInstallExactlyWhenItsKeyMarksItTesting()
     {

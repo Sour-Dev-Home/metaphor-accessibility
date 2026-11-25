@@ -70,7 +70,7 @@ Each is `true` to speak or `false` to stay quiet, inside a `speech` object: `{ "
 | `battleEnemyList` | Numbers a battle's enemies from its start, so the first hit already says "Second enemy", and `K`, `J` and `L` take in every enemy, hit or not. Needs `battleHits`. Still being tested. | testing, off |
 | `battleNumberReset` | Numbers each battle's enemies from "First enemy", not on from the battle before. Needs `battleHits`. Still being tested. | testing, off |
 | `battleEnemyKeys` | In a battle, `K` and `J` step to the next or previous enemy hit and say its HP; `L` says every one's. Needs `battleHits`. | `true` |
-| `battleEnemyPad` | In a battle, `LB` held with D-pad `Down`, `Up` or `Left` does what `K`, `J` and `L` do. `LB` tapped alone opens Tactics when you let go. Needs `battleHits`. Still being tested. | testing, off |
+| `battleEnemyPad` | In a battle, `LB` held with D-pad `Down` or `Left` does what `K` and `L` do. `LB` tapped alone opens Tactics when you let go. Needs `battleHits`. | `true` |
 | `battleEnemyMaxHp` | The "of max HP" in an enemy's HP line: "840 of 1200". Off says only the number, "840". Needs `battleEnemyKeys`. | `true` |
 | `battleHpMp` | In a battle, `M` says each party member's HP and MP. Needs `battleHits`. Still being tested. | testing, off |
 | `battleLists` | Battle's skill and item lists, row by row. Separate from `menus`. | `true` |
@@ -103,6 +103,7 @@ Each is `true` to speak or `false` to stay quiet, inside a `speech` object: `{ "
 | `saveSlots` | The save and load screens' slots. | `true` |
 | `saveSlotDetails` | Each save and load slot's date and playtime, read from its save file; the details key adds the weekday and time of day. Still being tested. | testing, off |
 | `battleEnemyLooks` | In a battle, `I` says what the enemy the enemy keys are on looks like, from descriptions written for the mod. An enemy with none yet says so. Needs `battleHits`. Still being tested. | testing, off |
+| `battleCommandWheel` | In a battle, `C`, or `LB` held with D-pad `Up`, says the command wheel's commands with the key or button for each: the keyboard's keys on `C`, the controller's buttons on the chord. Needs `battleHits`. Still being tested. | testing, off |
 | `learnedSettingValues` | The System rows whose setting the mod has not pinned saying their value on change, learned as you change them. Needs `menus`. | `true` |
 | `settingsHelp` | The game's help line for the focused row on a Settings page, on the details key (F, or R3 on the pad). The line is the one the game fetched for the row, so a row you have not moved to yet says no more. Needs `menus`. | `true` |
 | `nameEntry` | The name entry screen: its title, each letter you type, and when a name is refused. | `true` |
