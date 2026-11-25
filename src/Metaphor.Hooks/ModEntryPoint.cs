@@ -165,7 +165,8 @@ public sealed class ModEntryPoint : IMod
             gameVolume = new VolumeThread(
                 new VolumeDuck(new GameSessionVolume(), configFolder), log.ErrorsFor(LogArea.Sounds));
             var services = HookServices.Speaking(
-                modules, announcer, cues, settings, report, messageLog, folder, log, store: file, gameVolume: gameVolume);
+                modules, announcer, cues, settings, report, messageLog, folder, log, store: file, gameVolume: gameVolume,
+                configFolder: configFolder);
             // Before the hooks, so the title screen's first events reach it; its outcome is logged in Debug builds only.
 #if DEBUG
             var updateLog = log.For(LogArea.Updates);

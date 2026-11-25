@@ -55,6 +55,20 @@ public sealed class ObjectiveGuideTests
     }
 
     [Fact]
+    public void TheMapCursorGetsEveryIconPointInWorldWithTheCurrentObjectivesMarked()
+    {
+        // #877: every kind, not only the objective's; row 1 is the current one.
+        Points((100, 100, 4, 1), (110, 110, 4, 2), (120, 120, 5, 1));
+        conversion = Fit(0, 0, 10, 10);
+
+        var marks = Guide().Marks(Map, 10);
+
+        Assert.Equal([(1000f, 1000f, true), (1100f, 1100f, false), (1200f, 1200f, false)], marks);
+        Assert.Empty(Guide().Marks(Map + 1, 10));
+        Assert.Empty(Guide().Marks(null, 10));
+    }
+
+    [Fact]
     public void AMarkerWithNoConversionIsNotReady()
     {
         Points((100, 100, 4, 1));

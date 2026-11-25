@@ -24,6 +24,8 @@ usual job in the game.
 | Say where you are | `L` | `LB` held, then D-pad `Left` | Walking in the field |
 | Guide you to a nearby thing with a beep | `G` | `LB` held, then D-pad `Right` | Walking in the field |
 | Next or previous nearby category | `]` and `[` | none yet | Walking in the field |
+| Move the map cursor (testing) | `V` held, then the arrow keys | `LB` held, then the right stick | Walking in the field |
+| With the map cursor out: bookmark its spot, jump to a bookmark, guide there (testing) | `B`; `K` and `J`; `G` | `R3`; D-pad `Down` and `Up`; D-pad `Right`, with `LB` held | Walking in the field |
 | Read more of the focused menu entry | `F` | Right stick press (`R3`) | A menu is open |
 | Step to the next enemy and say its HP | `K` | `LB` held, then D-pad `Down` | In a battle |
 | Step to the previous enemy | `J` | none | In a battle |
@@ -103,6 +105,11 @@ open, the game gets none of your keys or buttons. `[NEEDS VERIFICATION]` By ear 
 - With no key: walking up to a door or chest says "Door, in reach" or "Chest, in reach" once, after anything being
   said. Move away or turn, then come back, and it says it again. People aren't said this way yet.
 - Distances are rough steps: treat them as near or far.
+- Testing, with `mapCursor` on: holding `V` says "Map cursor" and puts a cursor on you. Each arrow key moves it 5
+  steps, up being ahead on screen, and says what is there, such as "Door, open, 5 steps ahead" or "Wall, 10 steps
+  left": a bookmark, a map icon or the objective's marker, the nearest thing, and open floor or wall once the area's
+  walking map has loaded. Let go and it is back on you. Bookmarks are kept per area in `map-bookmarks.json`, beside
+  the settings file. `[NEEDS VERIFICATION]` By ear, and whether the game uses `V`, `B` or the arrows in the field.
 
 ### In a battle
 

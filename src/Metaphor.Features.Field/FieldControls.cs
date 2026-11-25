@@ -345,6 +345,19 @@ public sealed class FieldControls : IInputControls
     /// <summary>Where the beacon points, as <see cref="Beacon.Bearing"/>: what auto-walk steers by (#184).</summary>
     public double? GuideBearing => beacon.Bearing;
 
+    /// <summary>Starts the beacon toward <paramref name="target"/>, in place of any target before, as the guide key
+    /// does: the map cursor's spot or a bookmark (#877). Does nothing, and returns false, with guidance off.</summary>
+    public bool GuideTo(BeaconTarget target)
+    {
+        ArgumentNullException.ThrowIfNull(target);
+        if (!isOn(FieldFeature.Guidance))
+        {
+            return false;
+        }
+        beacon.Start(target);
+        return true;
+    }
+
     /// <summary>The field as read, named by the names table.</summary>
     private FieldView? ReadNamed() => field.Read() is { } view ? names.Apply(view) : null;
 

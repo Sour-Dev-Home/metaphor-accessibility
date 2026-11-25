@@ -166,6 +166,7 @@ the game.
 | `compass` | The nearby list says compass points, such as "north-east", from the map's own axes instead of directions from the screen, so they stay the same however the camera turns. North is the top of the game's map. Still being tested. | testing, off |
 | `stickScan` | Hold RB and push the right stick: the nearest thing that way is said, such as "Left: Chest, 3 steps left", and the camera stays still. U says the nearest thing ahead, left, right and behind. Still being tested. | testing, off |
 | `autoWalk` | While the guidance beep guides, H, or LB with Y on the pad, walks you toward it by pushing the left stick for you. Any button, key or stick you press stops it, and so does arriving, a line, a menu, a battle or a new area. Needs a controller connected. Still being tested. | testing, off |
+| `mapCursor` | Hold V and use the arrow keys, or hold LB and push the right stick, to move a cursor over the map 5 steps at a time: it says what is there, open floor or wall, and how far and which way it is from you. Let go and it is back on you. While it is out, B (LB with R3) bookmarks the spot for this map, K and J (LB with D-pad Down and Up) jump to this map's bookmarks, and G (LB with D-pad Right) guides you there with the beep. Still being tested. | testing, off |
 
 ## Report
 

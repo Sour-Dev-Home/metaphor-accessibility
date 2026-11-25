@@ -1,4 +1,5 @@
 using Metaphor.Core.Navigation;
+using Metaphor.Core.Tests.Navigation;
 
 namespace Metaphor.Features.Field.Tests;
 
@@ -55,6 +56,19 @@ public sealed class MapEdgesTests
         edges.For(8);
 
         Assert.Equal([7, 8], named);
+    }
+
+    [Fact]
+    public void APointOverTheWalkingMapIsOpenAndOneOffItIsWall()
+    {
+        // #877's map cursor: two 4 x 4 tiles of 10-unit cells, x 0 to 80, z 0 to 40, at any height.
+        var graph = new WalkGraph(NavMeshFile.Parse(NavBytes.File(
+            [NavBytes.Layer.Open(0, 0).Entry(), NavBytes.Layer.Open(1, 0).Entry()], climb: 2))!);
+
+        var open = NavEdges.Of(graph).Open!;
+
+        Assert.True(open(new System.Numerics.Vector3(35, 100, 15)));
+        Assert.False(open(new System.Numerics.Vector3(500, 0, 500)));
     }
 
     private MapEdges Make((int A, int B)? file) => new(

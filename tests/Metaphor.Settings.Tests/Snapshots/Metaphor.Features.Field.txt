@@ -8,6 +8,7 @@ field.fieldStrikes | Field strike callouts | on | done
 field.guidance | Guidance beep | on | done
 field.guidancePause | Guidance pause | on | done
 field.heightPan | Height pan | off | testing
+field.mapCursor | Map cursor | off | testing
 field.nearby | Nearby list | on | done
 field.nearbyCategories | Nearby categories | on | done
 field.nearbyHeight | Nearby height | off | testing

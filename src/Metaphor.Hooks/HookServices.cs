@@ -195,7 +195,7 @@ internal sealed record HookServices
     public static HookServices Speaking(
         IReadOnlyList<IFeatureModule> modules, StoppableAnnouncer stoppable, ICuePlayer cues, SettingsReloader settings,
         ReportLog? report, MessageLog? log, string modFolder, ModLog? modLog = null, ISettingsStore? store = null,
-        IVolumeDuck? gameVolume = null)
+        IVolumeDuck? gameVolume = null, string? configFolder = null)
     {
         // Each unmapped value is written once a session, and each typed name read is cleaned from the logs (#824).
         var unknowns = modLog?.Unknowns ?? UnknownValues.None;
@@ -279,6 +279,7 @@ internal sealed record HookServices
             Unknowns = unknowns,
             Log = log,
             ModFolder = modFolder,
+            ConfigFolder = configFolder,
             Events = events,
             Cursors = cursors,
             Screens = screens,

@@ -3,13 +3,15 @@ using Metaphor.Core.Settings;
 namespace Metaphor.Features.Field;
 
 /// <summary>The field project's keys, for the help key and the settings menu's key list (#868, #754). Every binding
-/// <see cref="FieldBindings.From"/> and <see cref="StickBindings.From"/> read is here, with its default from <see cref="FieldBindings.Default"/>; a test
+/// <see cref="FieldBindings.From"/>, <see cref="StickBindings.From"/> and <see cref="CursorBindings.From"/> read is here, with its default from <see cref="FieldBindings.Default"/>; a test
 /// fails when one isn't.</summary>
 public static class FieldKeys
 {
     private static readonly FieldBindings Defaults = FieldBindings.Default;
 
     private static readonly StickBindings Sticks = StickBindings.Default;
+
+    private static readonly CursorBindings Cursor = CursorBindings.Default;
 
     private static readonly BoundKey Hold = new("field", "holdButtons", Defaults.HoldButtons);
 
@@ -45,6 +47,12 @@ public static class FieldKeys
         new(KeyPlaces.Field, FieldFeature.AutoWalk, new(
             "Start or stop auto-walk toward the guidance beep", new("field", "walkKey", Sticks.WalkKey),
             new("field", "walkButton", Sticks.WalkButton), Hold)),
+        new(KeyPlaces.Field, FieldFeature.MapCursor, new(
+            "Hold to move the map cursor with the arrows or the right stick",
+            new("field", "cursorKey", Cursor.CursorKey))),
+        new(KeyPlaces.Field, FieldFeature.MapCursor, new(
+            "With the map cursor out, bookmark its spot", new("field", "bookmarkKey", Cursor.BookmarkKey),
+            new("field", "bookmarkButton", Cursor.BookmarkButton), Hold)),
         new(KeyPlaces.Field, FieldFeature.Nearby, new(
             "Log the nearest thing for the names table", new("field", "identifyKey", Defaults.IdentifyKey))
         {
