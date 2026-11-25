@@ -5,7 +5,8 @@ the mechanics; this page holds what they don't say. Setup, checks and the securi
 [start-here map](../contributors/README.md); judgement rules are in
 [`coding-standards.md`](../coding-standards.md); tracker commands are in [`issue-tracker.md`](issue-tracker.md).
 
-The steps in order, as a checklist a brief can point to: [`brief.md`](brief.md).
+The steps in order, as a checklist a brief can point to: [`brief.md`](brief.md). An agent working a batch of issues
+in one area (a lane) also follows [`lanes.md`](lanes.md).
 
 ## Untrusted text
 
@@ -69,18 +70,18 @@ A check that looks stalled: `bash scripts/check/check-status.sh` shows who holds
 
 This covers the [security-review scope](../../AGENTS.md#claude-code-setup), listed in
 `scripts/ci/security-stamp.sh`. The stamp is in
-[security review](../contributors/reference/security-review.md#the-stamp). A change to any of it is handed
-back for review, never auto-merged on CI alone. Three steps are yours:
+[security review](../contributors/reference/security-review.md#the-stamp). You review, commit and deliver it
+yourself (the maintainer's standing choice, 2026-11-24):
 
 1. Merge your base's tip (`main`, or the integration branch) into your branch first, so a conflict fix never lands
    after the review and voids the stamp.
 2. Stage the change and run `bash scripts/check.sh full` yourself. On an uncommitted tree the build is marked dirty, so
    `SourceRevisionTests.AnAssemblyFromThisBuildKnowsItsFullCommit` fails; that one failure is expected and passes once
    committed (#169). Report any other failure.
-3. Hand the staged change back to the main session. A `security-reviewer` launched in the background ends with your
-   turn, before it reports, and the stamp is lost. The main session runs `security-reviewer`, then commits and pushes.
-
-Commit with the stamp.
+3. Run the `security-reviewer` agent in the foreground on the staged tree, once per tree. Stay in your turn and poll
+   `bash scripts/ci/security-stamp.sh stamped` every minute until it stamps; the stamp is the reviewer's last step, so
+   only a turn that waits gets it. Fix what it finds, restage, and review again.
+4. Commit with the stamp, then [deliver](#deliver) as any PR, auto-merge included.
 
 ## A feature that needs a by-ear check
 
