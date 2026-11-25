@@ -77,9 +77,9 @@ The rules are in [security review](../reference/security-review.md).
   directs an agent. [Ground rule 8](../../../AGENTS.md#ground-rules)
 - **Deny rules block what can't be undone:** force-pushes, skipping git hooks, skipping review, printing the private
   pattern file, and writing into the game's folders.
-- **The agent that wrote a change never approves it.** Implementers hand back staged; the main session runs the
-  security review and a spec and standards review, then commits with the stamp.
-  [Workflow](../../agents/workflow.md)
+- **A separate agent approves every change in scope.** The implementer runs `security-reviewer` on its staged change
+  and commits with that agent's stamp; the main session adds a spec and standards review where
+  [its policy](../../agents/main-session.md) asks. [Workflow](../../agents/workflow.md#hook-loading-install-or-update-code-and-the-guards)
 
 ## Known limits
 
