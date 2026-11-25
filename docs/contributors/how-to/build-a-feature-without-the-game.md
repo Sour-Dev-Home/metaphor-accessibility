@@ -75,10 +75,11 @@ Every feature can be turned off ([architecture rule 18](../../coding-standards.m
 ## 4. Wire it in the module
 
 The project's module (`MenusModule.Register`, [ADR 0022](../../adr/0022-features-register-their-own-wiring-and-settings.md))
-builds the feature and hands it to the event source the hook layer feeds. The settings gate wraps its announcer:
+builds the feature and hands it to the event source the hook layer feeds. Its announcer comes from the speech
+factory, behind its setting (#723); the menus route theirs through the prompt hold, `reader`:
 
 ```csharp
-context.Layouts.Observe(new AutosaveNotice(settings.Speech(MenusFeature.AutosaveNotice, reader)));
+context.Layouts.Observe(new AutosaveNotice(context.Output(MenusFeature.AutosaveNotice).Through(reader)));
 ```
 
 `tests/Metaphor.Settings.Tests/FeatureModulesTests.cs` registers the real modules with no game and checks what they

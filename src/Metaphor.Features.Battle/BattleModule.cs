@@ -18,11 +18,10 @@ public sealed class BattleModule : IFeatureModule
     {
         ArgumentNullException.ThrowIfNull(context);
         var settings = context.Settings;
-        var reader = context.Reader;
         var log = context.Log;
         // Each hit is spoken through the reader, queued, with a summary after each action (#247, #631). No safe read
         // of a party member's name is known yet, so each is named by its slot.
-        var battleSpeech = settings.Speech(BattleFeature.BattleHits, reader);
+        var battleSpeech = context.Output(BattleFeature.BattleHits).Reader;
         // The enemy list from the battle's start (#750) and numbers-only hits with a placed sound (#855), each testing.
         var hitLines = new HitLines(
             battleSpeech, TimeProvider.System, _ => null,
@@ -30,7 +29,8 @@ public sealed class BattleModule : IFeatureModule
         {
             ListOn = () => settings.Current.IsOn(BattleFeature.BattleEnemyList),
             NumbersOnly = () => settings.Current.IsOn(BattleFeature.BattleHitNumbers),
-            SlotCue = new PlacedHitCue(context.Cues).Play,
+            // Played only with numbers only on, as the hit lines ask for it.
+            SlotCue = new PlacedHitCue(context.Output(BattleFeature.BattleHitNumbers).Cues).Play,
         };
         var units = context.Find<IBattleUnits>();
         // The enemy tables from the player's own archive (#164, #166), read off the game's thread on the first input
@@ -58,7 +58,7 @@ public sealed class BattleModule : IFeatureModule
         if (units is not null)
         {
             var startStun = new BattleStartStun(
-                units, settings.Speech(BattleFeature.BattleStartStun, reader), () => Environment.TickCount64);
+                units, context.Output(BattleFeature.BattleStartStun).Reader, () => Environment.TickCount64);
             context.Layouts.Observe(startStun);
             context.Provide<IBattleEnemyObserver>(new BattleEnemyFanOut(hitLines, startStun));
         }
@@ -74,11 +74,11 @@ public sealed class BattleModule : IFeatureModule
         context.AddControls(settings.Input(BattleFeature.BattleMoveNames, costLoad));
         // The move banner's skill by name (#954), testing, queued behind the hit lines.
         var moveNames = new MoveNames(
-            costSource.LabelHashOf, serials, context.Cleaner, settings.Speech(BattleFeature.BattleMoveNames, reader));
+            costSource.LabelHashOf, serials, context.Cleaner, context.Output(BattleFeature.BattleMoveNames).Reader);
         // The in-turn situation banner, queued behind the hit lines (#692), behind `speech.battleBanners` (#661).
         // The banner's subject (#739), testing: a party member's or enemy's name serial, or a name's text.
         context.Provide(new BattleBanners(
-            context.FilePositions, settings.Speech(BattleFeature.BattleBanners, reader), context.Cleaner,
+            context.FilePositions, context.Output(BattleFeature.BattleBanners).Reader, context.Cleaner,
             () => Environment.TickCount64)
         {
             SerialName = serial =>
@@ -99,20 +99,20 @@ public sealed class BattleModule : IFeatureModule
         {
             context.AddControls(settings.Input(
                 BattleFeature.BattleTurnLine,
-                new TurnLine(turnIcons, context.BattleScene, settings.Speech(BattleFeature.BattleTurnLine, reader),
+                new TurnLine(turnIcons, context.BattleScene, context.Output(BattleFeature.BattleTurnLine).Reader,
                     TimeProvider.System)
                 {
                     // A Debug build logs each icon change read, for #254's unsaid mid-turn gain.
                     Log = log is null ? null : text => log.Requested("BattleTurnIcons", text),
                 }));
         }
-        context.Layouts.Observe(new BattleStartLine(settings.Speech(BattleFeature.BattleStart, reader)));
-        context.Layouts.Observe(new BattleEndLine(settings.Speech(BattleFeature.BattleEnd, reader)));
+        context.Layouts.Observe(new BattleStartLine(context.Output(BattleFeature.BattleStart).Reader));
+        context.Layouts.Observe(new BattleEndLine(context.Output(BattleFeature.BattleEnd).Reader));
         // The money and MAG a won battle gave (#166), testing, from the purse at its start and end.
         if (context.Find<IBattlePurse>() is { } purse)
         {
             var rewards = new BattleRewards(
-                purse, settings.Speech(BattleFeature.BattleRewards, reader), TimeProvider.System)
+                purse, context.Output(BattleFeature.BattleRewards).Reader, TimeProvider.System)
             {
                 TableRewards = () => affinities.Rewards(hitLines.AllEnemies()),
                 ExpOn = () => settings.Current.IsOn(BattleFeature.BattleRewardExp),
@@ -147,7 +147,7 @@ public sealed class BattleModule : IFeatureModule
         // The target cursor's enemy (#253), testing, which the keys start from.
         // The enemy it moves to is said (#253), testing, from the same reports: no other write to the game.
         var targetLine = new TargetLine(
-            hitLines, settings.Speech(BattleFeature.BattleTargetSpeech, battleSpeech), TimeProvider.System)
+            hitLines, context.Output(BattleFeature.BattleTargetSpeech).Through(battleSpeech), TimeProvider.System)
         {
             On = () => settings.Current.IsOn(BattleFeature.BattleHits) &&
                 settings.Current.IsOn(BattleFeature.BattleEnemyList) &&
@@ -244,7 +244,7 @@ public sealed class BattleModule : IFeatureModule
             costs.CostOf, () => settings.Current.IsOn(BattleFeature.BattleSynthesis));
         var partyScreen = new PartyScreenFocus(
             serials, context.Cleaner, context.BattleParty,
-            settings.Speech(BattleFeature.BattlePartyScreen, context.Reader), () => Environment.TickCount64)
+            context.Output(BattleFeature.BattlePartyScreen).Reader, () => Environment.TickCount64)
         {
             ProtagonistName = () => context.Names.Typed(TypedName.Hero),
             Log = log is null ? null : text => log.Requested("BattlePartyScreen", text),
@@ -253,7 +253,7 @@ public sealed class BattleModule : IFeatureModule
         context.Events.ObserveSerials(partyScreen);
         // The reserve list it swaps from (#922), with the same setting.
         var reserveScreen = new ReserveScreenFocus(
-            serials, context.Cleaner, settings.Speech(BattleFeature.BattlePartyScreen, context.Reader),
+            serials, context.Cleaner, context.Output(BattleFeature.BattlePartyScreen).Reader,
             () => Environment.TickCount64);
         context.Screens.Observe(reserveScreen);
         context.Events.ObserveSerials(reserveScreen);
@@ -261,7 +261,7 @@ public sealed class BattleModule : IFeatureModule
             BattleFeature.BattleFormation,
             new FormationWatch(
                 context.BattleParty, context.BattleScene,
-                settings.Speech(BattleFeature.BattleFormation, context.Reader), TimeProvider.System,
+                context.Output(BattleFeature.BattleFormation).Reader, TimeProvider.System,
                 (slot, unit, rest) => partyScreen.NameOf(unit) is { } name
                     ? $"{name}, {rest}"
                     : hitLines.MemberSays(slot, unit, rest))
