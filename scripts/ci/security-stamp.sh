@@ -4,7 +4,9 @@
 # it needs the security-reviewer agent's stamp.
 #
 # Commands (scripts/ci/security-stamp.sh COMMAND):
-#   (none)                         stamp the staged scope (the security-reviewer agent's last step)
+#   stamp                          stamp the staged scope (the security-reviewer agent's last step). With no command,
+#                                  the script prints its usage and writes nothing: a bare run once stamped by
+#                                  mistake (#998).
 #   hash [COMMIT]                  print the scope hash of the index, or of COMMIT's tree
 #   accepted COMMIT                print each hash a Security-Review trailer on COMMIT may carry
 #   touches [COMMIT | BASE..HEAD]  exit 0 when the staged changes (or COMMIT, against each parent, or the range
@@ -206,7 +208,7 @@ stamp_file="$git_dir/security-review-stamp"
 cd "$root" || die "could not enter $root" # git lists paths relative to the current folder
 
 case "${1:-}" in
-  "")
+  stamp)
     hash="$(scope_hash)" || exit 2
     printf '%s\n' "$hash" > "$stamp_file" || die "could not write $stamp_file"
     echo "security review stamped: $hash" ;;
@@ -247,6 +249,6 @@ case "${1:-}" in
     elif touches HEAD && [ "$(scope_hash HEAD)" = "$hash" ]; then
       rm -f "$stamp_file" || die "could not remove $stamp_file"
     fi ;;
-  *) echo "usage: scripts/ci/security-stamp.sh [hash [COMMIT] | accepted COMMIT | touches [COMMIT | BASE..HEAD] | stamped | clean-merge [COMMIT] | spend]" >&2
+  *) echo "usage: scripts/ci/security-stamp.sh stamp | hash [COMMIT] | accepted COMMIT | touches [COMMIT | BASE..HEAD] | stamped | clean-merge [COMMIT] | spend" >&2
      exit 2 ;;
 esac
