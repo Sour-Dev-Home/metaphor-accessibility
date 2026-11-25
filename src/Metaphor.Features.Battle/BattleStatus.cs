@@ -6,18 +6,18 @@ using Metaphor.Core.Settings;
 
 namespace Metaphor.Features.Battle;
 
-/// <summary>The status key (#631, the maintainer's choice of 2026-11-21): in a battle, H on the keyboard pressed alone,
+/// <summary>The status key (#631, the maintainer's choice of 2026-11-21): in a battle, B on the keyboard pressed alone,
 /// or L3 on the pad held alone for <see cref="HoldMilliseconds"/>, says every party member "name HP of max" ("of max"
 /// once a hit has shown it), then the enemies this battle has hit, as <see cref="HitLines"/> labels them, with the HP
 /// each had left, and the press is hidden from the game. An L3 tap reaches the game (#925, the maintainer's decision of
 /// 2026-11-24: Retry is on L3): the shoulder taps (<see cref="ShoulderTaps"/>, #811) hold L3 back while
 /// <see cref="HeldButtons"/> says so and hand it on as a tap on release, of the shoulders' tap length, unless the hold
 /// spoke. Outside a battle the key does nothing and reaches the game: L3 recentres the world map's cursor (heard by the
-/// maintainer, 2026-11-21). Any other read, a chord with H or L3 included, says nothing. A press is an up-to-down edge
+/// maintainer, 2026-11-21). Any other read, a chord with B or L3 included, says nothing. A press is an up-to-down edge
 /// on any pad or the keyboard, so a mirroring second pad can't fire it again; whether a battle is on is asked once, at
 /// that edge, and holds until every source lets go. A status button the taps can't hold back (not L3, a shoulder or a
 /// trigger) speaks as it goes down instead. Safe to call from any of the game's threads.</summary>
-/// <remarks>L3 is the game's mask bit <c>0x0002</c>, XInput's left thumb, and H is key code <c>0x48</c>, on build
+/// <remarks>L3 is the game's mask bit <c>0x0002</c>, XInput's left thumb, and B is key code <c>0x42</c>, on build
 /// 548ddc95… (docs/raw-sources/pad-and-keyboard-state-2026-11-16.md). The game uses L3 in a battle for Retry, heard on
 /// that build in the by-ear session of 2026-11-24 (docs/findings/battle-retry-is-on-l3.md). The hold relies on the
 /// input frame asking the taps before the controls on each read (<see cref="InputFrame.Pad"/>), so a release after the
@@ -28,8 +28,8 @@ public sealed class BattleStatus : IInputControls
     /// <summary>L3 in the game's pad mask, the default status button.</summary>
     public const int LeftThumb = BattleBindings.LeftThumb;
 
-    /// <summary>The H key, the default status key.</summary>
-    public const int KeyH = BattleBindings.KeyH;
+    /// <summary>The B key, the default status key (#1007).</summary>
+    public const int KeyB = BattleBindings.KeyB;
 
     /// <summary>How long L3 is held alone before it speaks rather than tap the game, by default: 300 ms, the shoulders'
     /// old hold delay (#835), whose setting went with #863. A guess the by-ear check on #925 tunes.</summary>
@@ -62,7 +62,7 @@ public sealed class BattleStatus : IInputControls
     private bool chord;
     private bool spoke;
 
-    /// <summary>The status key on the default bindings, H and L3.</summary>
+    /// <summary>The status key on the default bindings, B and L3.</summary>
     public BattleStatus(IBattleParty party, HitLines hits, IBattleScene scene, IAnnouncer announcer)
         : this(party, hits, scene, announcer, () => BattleBindings.Default)
     {

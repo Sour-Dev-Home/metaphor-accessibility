@@ -39,14 +39,17 @@ public sealed record BattleBindings(
     /// (docs/raw-sources/pad-and-keyboard-state-2026-11-16.md).</summary>
     public const int LeftThumb = 0x0002;
 
-    /// <summary>The H key, code <c>0x48</c>.</summary>
-    public const int KeyH = 0x48;
+    /// <summary>The B key, code <c>0x42</c>: the status key since #1007, free of the game's battle keys read aloud on
+    /// 2026-11-22 (docs/raw-sources/battle-key-bindings-2026-11-22.md) and of the mod's. It was H, the game's Raise
+    /// Defences (Guard), which the status key hid from the game in a battle.</summary>
+    public const int KeyB = 0x42;
 
     /// <summary>The M key, code <c>0x4D</c>: the HP and MP key (#692), free of the game's battle keys read aloud on
     /// 2026-11-22 (below) and of the mod's.</summary>
     public const int KeyM = 0x4D;
 
-    /// <summary>The status key is H and L3, the maintainer's choice of 2026-11-21. The enemy HP keys are K, J and L,
+    /// <summary>The status key is B and L3: L3 the maintainer's choice of 2026-11-21, B since H, the game's Guard, moved
+    /// off it (the maintainer's decision of 2026-11-24 on #1007). The enemy HP keys are K, J and L,
     /// and LB held with D-pad Down, Up and Left, the maintainer's decision of 2026-11-23 on #767, mirroring the field
     /// list's: the game's battle keys, read aloud on 2026-11-22, are Q, H, F, E, Tab, N, T and 1 to 5, so F (its
     /// keyboard melee) and R3 (its auto-battle toggle) stay with the game. The codes: K <c>0x4B</c>, J <c>0x4A</c>,
@@ -55,7 +58,7 @@ public sealed record BattleBindings(
     /// ear, session of 2026-11-23, build 0c122d3 Debug, Steam 18330018, #811), so the chords hold it back until it's let
     /// go (<see cref="BattleEnemyHp.HeldShoulders"/>). D-pad Up with LB is the command wheel's since #252, so the
     /// enemy before has no chord by default.</summary>
-    public static BattleBindings Default { get; } = new(LeftThumb, KeyH, 0x4C, 0x4B, 0x4A, 0x0400, 0x0080, 0x0040, 0, KeyM);
+    public static BattleBindings Default { get; } = new(LeftThumb, KeyB, 0x4C, 0x4B, 0x4A, 0x0400, 0x0080, 0x0040, 0, KeyM);
 
     /// <summary>The bindings the settings file's <c>keys.battle</c> object names, each missing or unusable one the
     /// default.</summary>

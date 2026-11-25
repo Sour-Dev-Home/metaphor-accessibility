@@ -68,9 +68,9 @@ public sealed class BattleEnemyHpTests
         Assert.Equal(
             (LB, DpadDown, 0, DpadLeft),
             (keys.EnemyHoldButtons, keys.EnemyNextButton, keys.EnemyPreviousButton, keys.EnemyHpButton));
-        // The game's battle keys read aloud on 2026-11-22 (Q, H, F, E, Tab, N, T, 1 to 5), the status key H, the
+        // The game's battle keys read aloud on 2026-11-22 (Q, H, F, E, Tab, N, T, 1 to 5), the status key B, the
         // menus' details key F, the reader key T and the repeat key R.
-        int[] taken = [0x51, 0x48, KeyF, 0x45, 0x09, 0x4E, 0x54, 0x31, 0x32, 0x33, 0x34, 0x35, 0x52];
+        int[] taken = [0x51, 0x48, KeyF, 0x45, 0x09, 0x4E, 0x54, 0x31, 0x32, 0x33, 0x34, 0x35, 0x52, 0x42];
         Assert.DoesNotContain(keys.EnemyNextKey, taken);
         Assert.DoesNotContain(keys.EnemyPreviousKey, taken);
         Assert.DoesNotContain(keys.EnemyHpKey, taken);
