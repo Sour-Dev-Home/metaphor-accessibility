@@ -31,8 +31,9 @@ public sealed class CommandWheelTests
         Assert.Equal(Up, defaults.CommandWheelButton);
         Assert.Equal(Lb, defaults.EnemyHoldButtons);
         Assert.DoesNotContain(defaults.CommandWheelButton, new[] { defaults.EnemyNextButton, defaults.EnemyHpButton });
-        // Up was the enemy before's chord; the wheel took it, so J has no chord by default.
-        Assert.Equal(0, defaults.EnemyPreviousButton);
+        // Up was the enemy before's chord; the wheel took it, and the enemy before moved to Left (#1007).
+        Assert.Equal(0x0080, defaults.EnemyPreviousButton);
+        Assert.DoesNotContain(defaults.CommandWheelButton, new[] { defaults.EnemyPreviousButton });
     }
 
     [Fact]

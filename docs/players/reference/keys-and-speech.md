@@ -28,8 +28,8 @@ usual job in the game.
 | With the map cursor out: bookmark its spot, jump to a bookmark, guide there (testing) | `B`; `K` and `J`; `G` | `R3`; D-pad `Down` and `Up`; D-pad `Right`, with `LB` held | Walking in the field |
 | Read more of the focused menu entry | `F` | Right stick press (`R3`) | A menu is open |
 | Step to the next enemy and say its HP | `K` | `LB` held, then D-pad `Down` | In a battle |
-| Step to the previous enemy | `J` | none | In a battle |
-| Say every enemy's HP in one line | `L` | `LB` held, then D-pad `Left` | In a battle |
+| Step to the previous enemy | `J` | `LB` held, then D-pad `Left` | In a battle |
+| Say every enemy's HP in one line | `L` | `LB` held, then D-pad `Right` | In a battle |
 | Say the party's HP and MP (testing) | `M` | none yet | In a battle |
 | Say what the enemy looks like (testing) | `I` | none yet | In a battle |
 | Say the command wheel's commands and their keys (testing) | `C` | `LB` held, then D-pad `Up` | In a battle |
