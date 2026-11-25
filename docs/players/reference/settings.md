@@ -70,7 +70,7 @@ Each is `true` to speak or `false` to stay quiet, inside a `speech` object: `{ "
 | `battleEnemyList` | Numbers a battle's enemies from its start, so the first hit already says "Second enemy", and `K`, `J` and `L` take in every enemy, hit or not. Needs `battleHits`. Still being tested. | testing, off |
 | `battleNumberReset` | Numbers each battle's enemies from "First enemy", not on from the battle before. Needs `battleHits`. Still being tested. | testing, off |
 | `battleEnemyKeys` | In a battle, `K` and `J` step to the next or previous enemy hit and say its HP; `L` says every one's. Needs `battleHits`. | `true` |
-| `battleEnemyPad` | In a battle, `LB` held with D-pad `Down` or `Left` does what `K` and `L` do. `LB` tapped alone opens Tactics when you let go. Needs `battleHits`. | `true` |
+| `battleEnemyPad` | In a battle, `LB` held with D-pad `Down`, `Left` or `Right` does what `K`, `J` and `L` do. `LB` tapped alone opens Tactics when you let go. Needs `battleHits`. | `true` |
 | `battleEnemyMaxHp` | The "of max HP" in an enemy's HP line: "840 of 1200". Off says only the number, "840". Needs `battleEnemyKeys`. | `true` |
 | `battleHpMp` | In a battle, `M` says each party member's HP and MP. Needs `battleHits`. Still being tested. | testing, off |
 | `battleLists` | Battle's skill and item lists, row by row. Separate from `menus`. | `true` |
@@ -255,8 +255,8 @@ DpadUp, DpadDown, DpadLeft and DpadRight.
 | `battle.enemyHpKey` | In a battle, says the HP of every enemy hit so far, in one line. | `"L"` |
 | `battle.enemyHoldButtons` | Held for the battle's enemy chords (testing: `battleEnemyPad`). | `"LB"` |
 | `battle.enemyNextButton` | With the held button: the next enemy. | `"DpadDown"` |
-| `battle.enemyPreviousButton` | With the held button: the enemy before. | `"none"` |
-| `battle.enemyHpButton` | With the held button: every enemy's HP. | `"DpadLeft"` |
+| `battle.enemyPreviousButton` | With the held button: the enemy before. | `"DpadLeft"` |
+| `battle.enemyHpButton` | With the held button: every enemy's HP. | `"DpadRight"` |
 | `battle.hpMpKey` | In a battle, says each party member's HP and MP (testing: `battleHpMp`). No pad button yet. | `"M"` |
 | `field.nearbyKey` | Speaks the whole nearby list. | `"N"` |
 | `field.placeKey` | Says where you are. | `"L"` |

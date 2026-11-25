@@ -22,6 +22,7 @@ public sealed class BattleEnemyHpTests
     private const int DpadUp = 0x0010;
     private const int DpadDown = 0x0040;
     private const int DpadLeft = 0x0080;
+    private const int DpadRight = 0x0020;
 
     private readonly RecordingAnnouncer announcer = new();
     private readonly ManualTime time = new();
@@ -63,10 +64,10 @@ public sealed class BattleEnemyHpTests
         var keys = BattleBindings.Default;
 
         Assert.Equal((KeyK, KeyJ, KeyL), (keys.EnemyNextKey, keys.EnemyPreviousKey, keys.EnemyHpKey));
-        // D-pad Up with LB is the command wheel's (#252, the maintainer's decision of 2026-11-24), so the enemy before
-        // has no chord by default.
+        // D-pad Up with LB is the command wheel's (#252, the maintainer's decision of 2026-11-24); the enemy before is
+        // on Left and every enemy's HP on Right (#1007, the maintainer's decision of 2026-11-24).
         Assert.Equal(
-            (LB, DpadDown, 0, DpadLeft),
+            (LB, DpadDown, DpadLeft, DpadRight),
             (keys.EnemyHoldButtons, keys.EnemyNextButton, keys.EnemyPreviousButton, keys.EnemyHpButton));
         // The game's battle keys read aloud on 2026-11-22 (Q, H, F, E, Tab, N, T, 1 to 5), the status key B, the
         // menus' details key F, the reader key T and the repeat key R.
@@ -223,12 +224,17 @@ public sealed class BattleEnemyHpTests
         Assert.Equal(LB, enemies.Pad.Pad(0, LB | DpadDown, made: true));
         Assert.Equal(LB, enemies.Pad.Pad(0, LB, made: true));
         Chord(DpadDown);
+        // The enemy before on Left and every enemy's HP on Right (#1007).
         Chord(DpadLeft);
+        Chord(DpadRight);
         // Up is the command wheel's by default (#252), not the enemy keys'.
         Assert.Equal(LB | DpadUp, enemies.Pad.Pad(0, LB | DpadUp, made: true));
 
         Assert.Equal(
-            ["First enemy, 840 of 1200", "Second enemy, 50 left", "First enemy, 840 of 1200. Second enemy, 50 left"],
+            [
+                "First enemy, 840 of 1200", "Second enemy, 50 left", "First enemy, 840 of 1200",
+                "First enemy, 840 of 1200. Second enemy, 50 left",
+            ],
             Said());
     }
 

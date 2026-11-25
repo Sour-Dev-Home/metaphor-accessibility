@@ -148,8 +148,8 @@ public static class SettingsPage
         | `battle.enemyHpKey` | In a battle, says the HP of every enemy hit so far, in one line. | `"L"` |
         | `battle.enemyHoldButtons` | Held for the battle's enemy chords (testing: `battleEnemyPad`). | `"LB"` |
         | `battle.enemyNextButton` | With the held button: the next enemy. | `"DpadDown"` |
-        | `battle.enemyPreviousButton` | With the held button: the enemy before. | `"none"` |
-        | `battle.enemyHpButton` | With the held button: every enemy's HP. | `"DpadLeft"` |
+        | `battle.enemyPreviousButton` | With the held button: the enemy before. | `"DpadLeft"` |
+        | `battle.enemyHpButton` | With the held button: every enemy's HP. | `"DpadRight"` |
         | `battle.hpMpKey` | In a battle, says each party member's HP and MP (testing: `battleHpMp`). No pad button yet. | `"M"` |
         | `field.nearbyKey` | Speaks the whole nearby list. | `"N"` |
         | `field.placeKey` | Says where you are. | `"L"` |

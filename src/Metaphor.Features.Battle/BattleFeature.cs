@@ -56,12 +56,13 @@ public enum BattleFeature
         "`battleHits`.")]
     BattleEnemyKeys,
 
-    /// <summary>The pad's enemy HP chords (#767): LB held with D-pad Down or Left, as <see cref="BattleEnemyKeys"/>'s K
-    /// and L; D-pad Up went to the command wheel (#252), so J has no chord by default. LB opens Tactics as it goes down,
+    /// <summary>The pad's enemy HP chords (#767): LB held with D-pad Down, Left or Right, as
+    /// <see cref="BattleEnemyKeys"/>'s K, J and L (#1007); D-pad Up went to the command wheel (#252). LB opens Tactics as it goes down,
     /// so it reaches the game only when let go with no chord (#811). Passed by ear on 2026-11-24 (build 2fdf9f63).
     /// </summary>
     [SettingKey("speech", "battleEnemyPad", "Battle enemy pad chords", Order = 1037, Description =
-        "In a battle, `LB` held with D-pad `Down` or `Left` does what `K` and `L` do. `LB` tapped alone opens " +
+        "In a battle, `LB` held with D-pad `Down`, `Left` or `Right` does what `K`, `J` and `L` do. `LB` tapped " +
+        "alone opens " +
         "Tactics when you let go. Needs `battleHits`.")]
     BattleEnemyPad,
 

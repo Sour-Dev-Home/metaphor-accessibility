@@ -31,8 +31,8 @@ public sealed record BattleBindings(
 
     /// <summary>D-pad Up in the game's pad mask, <c>0x0010</c> on build 548ddc95…
     /// (docs/raw-sources/pad-and-keyboard-state-2026-11-16.md): held with <see cref="EnemyHoldButtons"/> (LB), the
-    /// command wheel's chord, the maintainer's decision of 2026-11-24 on #252. It was the enemy before's chord, which has
-    /// none by default since.</summary>
+    /// command wheel's chord, the maintainer's decision of 2026-11-24 on #252. It was the enemy before's chord, which is
+    /// on D-pad Left since #1007.</summary>
     public const int DpadUp = 0x0010;
 
     /// <summary>L3 in the game's pad mask: XInput's left thumb, <c>0x0002</c> on build 548ddc95…
@@ -56,9 +56,22 @@ public sealed record BattleBindings(
     /// L <c>0x4C</c>; LB <c>0x0400</c>, D-pad Down <c>0x0040</c>, Up <c>0x0010</c>, Left <c>0x0080</c> on game build
     /// 548ddc95… (docs/raw-sources/pad-and-keyboard-state-2026-11-16.md). LB going down in a battle opens Tactics (by
     /// ear, session of 2026-11-23, build 0c122d3 Debug, Steam 18330018, #811), so the chords hold it back until it's let
-    /// go (<see cref="BattleEnemyHp.HeldShoulders"/>). D-pad Up with LB is the command wheel's since #252, so the
-    /// enemy before has no chord by default.</summary>
-    public static BattleBindings Default { get; } = new(LeftThumb, KeyB, 0x4C, 0x4B, 0x4A, 0x0400, 0x0080, 0x0040, 0, KeyM);
+    /// go (<see cref="BattleEnemyHp.HeldShoulders"/>). D-pad Up with LB is the command wheel's since #252; the enemy
+    /// before is LB with D-pad Left and every enemy's HP LB with D-pad Right (<c>0x0020</c>, same source), the
+    /// maintainer's decision of 2026-11-24 on #1007.</summary>
+    public static BattleBindings Default { get; } =
+        new(LeftThumb, KeyB, 0x4C, 0x4B, 0x4A, 0x0400, DpadRight, DpadDown, DpadLeft, KeyM);
+
+    /// <summary>D-pad Down, Left and Right in the game's pad mask, <c>0x0040</c>, <c>0x0080</c> and <c>0x0020</c> on
+    /// build 548ddc95… (docs/raw-sources/pad-and-keyboard-state-2026-11-16.md): with LB, the next enemy, the enemy
+    /// before and every enemy's HP.</summary>
+    public const int DpadDown = 0x0040;
+
+    /// <inheritdoc cref="DpadDown"/>
+    public const int DpadLeft = 0x0080;
+
+    /// <inheritdoc cref="DpadDown"/>
+    public const int DpadRight = 0x0020;
 
     /// <summary>The bindings the settings file's <c>keys.battle</c> object names, each missing or unusable one the
     /// default.</summary>
