@@ -48,6 +48,16 @@
           }
         ]
       }
+    ],
+    "SubagentStop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash \"$CLAUDE_PROJECT_DIR/scripts/dev/require-stamp-before-handback.sh\""
+          }
+        ]
+      }
     ]
   },
   "enabledPlugins": {
