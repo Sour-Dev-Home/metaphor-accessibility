@@ -9,7 +9,8 @@ The rules for the security review, the stamp, the label gate and the deny rules.
 [`scripts/ci/security-stamp.sh`](../../../scripts/ci/security-stamp.sh), which names directories, so a new file under
 one is in scope with no edit ([ADR 0014](../../adr/0014-review-scope-by-directory.md)). Paths match in any case. It
 includes [`.claude/settings.json`](../../../.claude/settings.json), so the hand-back hook and the deny rules below
-can't be removed or weakened without a review (#1004).
+can't be removed or weakened without a review (#1004), and [`.claude/hooks/`](../../../.claude/hooks/), whose scripts
+those settings run on every shell call (#1023).
 
 Two rules sit next to it. The vulnerability audit (`scripts/ci/vuln-audit.sh`) reads only the committed
 `packages.lock.json` files, never a project, and CI's build restores in locked mode, so a lock file must match its
