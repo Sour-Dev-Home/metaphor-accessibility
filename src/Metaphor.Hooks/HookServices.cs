@@ -1,3 +1,4 @@
+using Metaphor.Composition;
 using Metaphor.Core;
 using Metaphor.Core.Announcements;
 using Metaphor.Core.Audio;
@@ -10,7 +11,6 @@ using Metaphor.Core.Menus;
 using Metaphor.Core.Messages;
 using Metaphor.Core.Settings;
 using Metaphor.Features.Battle;
-using Metaphor.Features.Dialogue;
 using Metaphor.Features.Field;
 using Metaphor.Features.Menus;
 
@@ -186,150 +186,57 @@ internal sealed record HookServices
     public required string ModFolder { get; init; }
 
     /// <summary>Services for the mod in <paramref name="modFolder"/>, speaking through <paramref name="stoppable"/>
-    /// as <paramref name="settings"/> say. This builds what the features share, the game reads and the message stores,
-    /// and hands them to <paramref name="modules"/> in their order (#784, ADR 0022); each module builds its own
-    /// features. The stores hear each compiled file first, the features each event next, and the report log (#188) and
-    /// the message log, when there are, every event last.</summary>
-    /// <remarks>Features that play sound cues (#636) are handed <paramref name="cues"/>. Each feature speaks and takes
-    /// keys through its own setting's gate (#661), read live, so a changed file applies without a restart.</remarks>
+    /// as <paramref name="settings"/> say. This builds the game reads, whose globals the loader locates (#300), and
+    /// hands them to the plain composition (<see cref="ModComposition.Compose"/>, ADR 0026), which builds what the
+    /// features share and registers <paramref name="modules"/> in their order; this copies back out what the hooks
+    /// call on.</summary>
     public static HookServices Speaking(
         IReadOnlyList<IFeatureModule> modules, StoppableAnnouncer stoppable, ICuePlayer cues, SettingsReloader settings,
         ReportLog? report, MessageLog? log, string modFolder, ModLog? modLog = null, ISettingsStore? store = null,
         IVolumeDuck? gameVolume = null, string? configFolder = null)
     {
-        // Each unmapped value is written once a session, and each typed name read is cleaned from the logs (#824).
-        var unknowns = modLog?.Unknowns ?? UnknownValues.None;
-        ArgumentNullException.ThrowIfNull(modules);
-        ArgumentNullException.ThrowIfNull(stoppable);
-        IAnnouncer announcer = stoppable;
-        ArgumentNullException.ThrowIfNull(cues);
-        ArgumentNullException.ThrowIfNull(settings);
-        // The silent screen list (#597) counts everything the features below say, so it hears each screen event after
-        // them; its entries go to the report log only.
-        var silence = report is null ? null : new SilentScreens(announcer, report, () => settings.Current);
-        announcer = (IAnnouncer?)silence ?? announcer;
-        var library = new MessageLibrary();
-        // Serials as build 548ddc95 numbers them; the message file hook that feeds it installs on that build only.
-        var serials = new MessageSerials(MessageSerials.Steam18330018);
-        var filesById = new MessageFilesById();
-        var history = new DialogueHistory();
-        var events = new MessageEvents();
-        var cursors = new CursorEvents();
-        // Speakers and name tags are named as the screen shows them (#81, #107), read from the game when a line is
-        // shown; a read that fails falls back to the file's speaker, and drops the tag as before.
+        // The game reads the features use; the loader locates what each reads (#300).
         var gameData = new GameDataRead();
         var party = new BattlePartyMemory(gameData);
         var characterTable = DataTableRead.Characters();
         var followerTable = DataTableRead.Followers();
-        var names = new GameNames(new GameNameMemory(gameData, characterTable, followerTable), library)
-        {
-            TypedNameRead = modLog is null ? null : modLog.Scrubber.AddName,
-        };
-        // Game terms and icons (#108, #109): a skill or condition named by its place in its file as build 548ddc95
-        // compiles it (and, while "more term names" is tested, an Archetype, enemy or Royal Virtue), anything else said
-        // as a stand-in for its kind, logged in Debug builds (#83). The battle banners'
-        // situation file (#692) is kept by the same store: one "file + position" key.
-        var filePositions = new MessageFilePositions([.. GameTerms.Steam18330018, BattleBanners.Steam18330018]);
-        // The game's own glyph device names the device when it can (#778); the mod's reads are the fallback. Button
-        // icons follow it (#109).
+        // The game's own glyph device names the device when it can (#778).
         var inputDevice = new InputDeviceRead();
-        var lastDevice = new LastInputDevice(inputDevice.Value);
-        var terms = new GameTerms(
-            filePositions, log is null ? null : log.PlaceholderMissing, unknowns,
-            () => settings.Current.IsOn(DialogueFeature.ButtonNames) ? lastDevice.Current : null,
-            () => settings.Current.IsOn(DialogueFeature.MoreTermNames));
-        Action<string, string>? nameMissing = log is null ? null : log.PlaceholderMissing;
-        var cleaner = new TextCleaner(
-            GameNames.Rules.With(GameTerms.Rules),
-            (key, arguments) => (settings.Current.IsOn(DialogueFeature.NameStandIn)
-                    ? names.PlaceholderOrStandIn(key, arguments, nameMissing)
-                    : names.Placeholder(key, arguments))
-                ?? (settings.Current.IsOn(DialogueFeature.TermNames) ? terms.Placeholder(key, arguments) : null));
-        // The reader switch (#58): automatic speech goes through it, and the dialogue's and the menus' reader binding
-        // toggles it (#214).
-        var reader = new DialogueReader(announcer);
         var voiceLanguage = new VoiceLanguageRead();
-        var tutorials = new TutorialTableSource();
-        var screens = new MenuScreens(KnownScreens.All, () => settings.Current.IsOn(SpokenDetail.Positions));
-        events.ObserveFiles(library);
-        events.ObserveFiles(serials);
-        events.ObserveFiles(filesById);
-        events.ObserveFiles(filePositions);
-        // The game reads the features use; the loader locates what each reads (#300).
         var menusOpen = new MenusOpenRead();
         var window = new DialogueWindowPointer();
         var fieldWorld = FieldGlobal.World();
         var fieldScene = FieldGlobal.SceneRoot();
         var fieldDatabase = FieldGlobal.Database();
         var personTable = DataTableRead.People();
-        var field = new FieldMemory(fieldWorld, fieldScene, fieldDatabase, personTable, names, menusOpen, window);
         // Debug builds only: the "where am I" record lists the main-mission flags, read through the build-checked flag
         // global (#658, docs/findings/mission-box-text-source-static.md).
         var missionTable = new MissionTableRead(log is null ? null : log.FieldRead);
         // The status key acts only in a battle (#631); a Debug build logs the scene each press read.
         var battleScene = new BattleSceneRead { Log = log };
-        var context = new FeatureContext
+        var reads = new GameReads
         {
-            Settings = settings,
-            Announcer = announcer,
-            Stoppable = stoppable,
-            Reader = reader,
-            Cues = cues,
-            Report = report,
-            Unknowns = unknowns,
-            Log = log,
-            ModFolder = modFolder,
-            ConfigFolder = configFolder,
-            Events = events,
-            Cursors = cursors,
-            Screens = screens,
-            Library = library,
-            Serials = serials,
-            FilesById = filesById,
-            FilePositions = filePositions,
-            History = history,
-            Names = names,
-            Cleaner = cleaner,
-            LastDevice = lastDevice,
-            Tutorials = tutorials,
+            Names = new GameNameMemory(gameData, characterTable, followerTable),
             BattleParty = party,
+            BattleUnits = party,
+            TurnIcons = new BattleTurnIconsMemory(gameData),
+            Purse = new BattlePurseMemory(gameData),
             BattleScene = battleScene,
+            Field = names => new FieldMemory(
+                fieldWorld, fieldScene, fieldDatabase, personTable, names, menusOpen, window),
+            MissionRows = new MissionRows(missionTable.Rows),
+            GameDevice = inputDevice.Value,
             VoiceLanguage = voiceLanguage.Read,
             StoryFlag = gameData.StoryFlag,
             OpenArchive = OpenArchive,
-            SettingsStore = store ?? new NoSettingsStore(),
-            GameVolume = gameVolume ?? NoVolumeDuck.Instance,
         };
-        context.Provide<IFieldReads>(field);
-        context.Provide<IBattleTurnIcons>(new BattleTurnIconsMemory(gameData));
-        context.Provide<IBattlePurse>(new BattlePurseMemory(gameData));
-        context.Provide<IBattleUnits>(party);
-        context.Provide(new MissionRows(missionTable.Rows));
-        // Each module builds its features, in the list's order: their observers hear each event, and their controls
-        // take each input read, in that order (#784, ADR 0022).
-        foreach (var module in modules)
-        {
-            module.Register(context);
-        }
-        if (silence is not null)
-        {
-            screens.Observe(silence);
-        }
-        if (report is not null)
-        {
-            events.ObserveFiles(report);
-            events.ObserveLines(report);
-            events.ObserveChoices(report);
-            cursors.Observe(report);
-        }
-        if (log is not null)
-        {
-            events.ObserveFiles(log);
-            events.ObserveLines(log);
-            events.ObserveChoices(log);
-            events.ObserveSelects(log);
-            cursors.Observe(log);
-        }
+        var composed = ModComposition.Compose(
+            modules, reads, stoppable, cues, settings, report, log, modFolder, modLog, store, gameVolume, configFolder);
+        var context = composed.Context;
+        var events = composed.Events;
+        var cursors = composed.Cursors;
+        var screens = composed.Screens;
+        var field = (FieldMemory)composed.Field;
         // What the hooks call on, as the modules provided it.
         var nameEntry = context.Find<NameEntrySpeech>();
         return new()
@@ -338,7 +245,7 @@ internal sealed record HookServices
             Cursors = cursors,
             Log = log,
             ModFolder = modFolder,
-            Serials = serials,
+            Serials = composed.Serials,
             BattleHits = context.Find<IBattleHitObserver>() ?? new NoBattleHits(),
             BattleEnemies = context.Find<IBattleEnemyObserver>() ?? new NoBattleEnemies(),
             BattleTarget = context.Find<IBattleTargetObserver>() ?? new NoBattleTarget(),
@@ -354,20 +261,20 @@ internal sealed record HookServices
                     () => ShoulderTapLimits.From(context.Settings.Current), ShoulderTaps.MenuOpen(screens, cursors)),
             TravelMap = context.Find<TravelMapDestination>() ?? throw Missing(nameof(TravelMapDestination)),
             FieldMapName = context.Find<FieldMapName>() ?? throw Missing(nameof(FieldMapName)),
-            DialogueHistory = history,
+            DialogueHistory = composed.History,
             MenuScreens = screens,
             Layouts = context.Layouts,
             MoviePause = context.MoviePause,
             NameEntry = (INameEntryObserver?)nameEntry ?? new NoNameEntry(),
             KeyWatcher = nameEntry,
             PadWatcher = context.Find<IPadWatcher>(),
-            LastDevice = lastDevice,
+            LastDevice = composed.LastDevice,
             NameEntryUp = nameEntry is null ? () => false : nameEntry.OnScreen,
             GameData = gameData,
             CharacterTable = characterTable,
             FollowerTable = followerTable,
             Voice = voiceLanguage,
-            Tutorials = tutorials,
+            Tutorials = composed.Tutorials,
             FieldTables = context.Find<FieldTablesSource>() ?? new(),
             CornerAdvice = context.Find<CornerAdvice>(),
             TutorialPopups = context.Find<TutorialPopups>() ?? throw Missing(nameof(TutorialPopups)),

@@ -19,6 +19,8 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\tools\Metaphor.SettingsReference\Metaphor.SettingsReference.csproj" />
+    <!-- The whole mod composed over fake game reads (ADR 0026). -->
+    <ProjectReference Include="..\..\src\Metaphor.Composition\Metaphor.Composition.csproj" />
   </ItemGroup>
 
 </Project>

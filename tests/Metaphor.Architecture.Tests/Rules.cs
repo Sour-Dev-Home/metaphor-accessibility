@@ -355,9 +355,10 @@ internal static class Rules
     }
 
     private const string FeatureModuleInterface = "Metaphor.Core.Features.IFeatureModule";
-    private const string ModuleList = "Metaphor.Hooks.FeatureModules";
+    private const string ModuleList = "Metaphor.Composition.FeatureModules";
 
-    /// <summary>The feature modules the hook layer's explicit list creates (#784, ADR 0022), in its order: the types
+    /// <summary>The feature modules the composition's explicit list creates (#784, ADR 0022, ADR 0026), in its order:
+    /// the types
     /// <c>FeatureModules.Create</c> constructs.</summary>
     public static IReadOnlyList<string> ListedModules(AssemblyDefinition hooks)
     {

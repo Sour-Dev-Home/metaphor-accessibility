@@ -43,9 +43,10 @@ A feature never patches or hooks anything ([ADR 0003](../../adr/0003-thin-hook-l
    ```
 
 6. To use the feature in the mod, add a `ProjectReference` to it in
-   [`Metaphor.Hooks.csproj`](../../../src/Metaphor.Hooks/Metaphor.Hooks.csproj), give the project a feature module
-   and add it to the hook layer's `FeatureModules` list
-   ([ADR 0022](../../adr/0022-features-register-their-own-wiring-and-settings.md)). A change to a hook is a
+   [`Metaphor.Composition.csproj`](../../../src/Metaphor.Composition/Metaphor.Composition.csproj), give the project a
+   feature module and add it to the composition's `FeatureModules` list
+   ([ADR 0022](../../adr/0022-features-register-their-own-wiring-and-settings.md),
+   [ADR 0026](../../adr/0026-a-plain-composition-project-wires-the-features.md)); neither is in the hook layer. A change to a hook is a
    [hook change](add-a-hook.md), with its review and in-game evidence. Building the features themselves needs no game:
    [build a feature without the game](build-a-feature-without-the-game.md).
 7. Run `bash scripts/check.sh full`.

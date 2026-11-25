@@ -117,7 +117,8 @@ each rule on every assembly built from `src/`. Each test plants a violation to p
     for its by-ear check, marked `Testing = true` on its `[SettingKey]`: off until a flip PR removes the mark
     ([workflow](agents/workflow.md#a-feature-that-needs-a-by-ear-check), #783). Each
     setting is listed in [the settings reference](players/reference/settings.md), generated from the keys; and every
-    feature module is in the hook layer's `FeatureModules` list, once.
+    feature module is in the composition's `FeatureModules` list
+    ([ADR 0026](adr/0026-a-plain-composition-project-wires-the-features.md)), once.
 19. **Field sounds go through the free-roam gate.** In `Metaphor.Features.Field`, every type that plays or holds a cue
     or speaks also calls `FreeRoamGate.Open`, so no field sound plays through a cutscene, dialogue, menu or scripted
     move (#702).

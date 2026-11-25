@@ -101,6 +101,17 @@
           "xunit.extensibility.core": "[2.9.2]"
         }
       },
+      "metaphor.composition": {
+        "type": "Project",
+        "dependencies": {
+          "Metaphor.Core": "[1.0.0, )",
+          "Metaphor.Features.Battle": "[1.0.0, )",
+          "Metaphor.Features.Dialogue": "[1.0.0, )",
+          "Metaphor.Features.Field": "[1.0.0, )",
+          "Metaphor.Features.Menus": "[1.0.0, )",
+          "Metaphor.Features.Updates": "[1.0.0, )"
+        }
+      },
       "metaphor.core": {
         "type": "Project"
       },
