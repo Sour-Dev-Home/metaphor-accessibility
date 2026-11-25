@@ -46,7 +46,7 @@ Copy this into `docs/findings/<topic>.md`. The method names a row of the table i
 Every finding has the line. A finding that pins functions or globals lists them in its header, one entry per line, so a
 generator can collect them into a local known-functions reference ([#716](https://github.com/Sour-Dev-Home/metaphor-accessibility/issues/716)).
 A finding that pins no function or global writes `- **Functions:** none`, so the generator can tell it from one not done
-yet. Each entry has six fields, separated by ` | `:
+yet. Each entry has seven fields, separated by ` | `:
 
 - **name:** the function or global's name, ours or the game's own.
 - **address:** its address on the game build in the header.
@@ -54,10 +54,20 @@ yet. Each entry has six fields, separated by ` | `:
 - **area:** one of Dialogue, Menus, Settings, Field, Battle, Speech, Install and Release, Messages and Text.
 - **use:** `hooked` (the mod patches it), `read` (the mod reads it) or `known only` (understood, not used).
 - **summary:** one line on what it does. No decompiled code (rule 4).
+- **source:** where the name, address, section and use come from (rule 1), as one or more of these, separated by
+  `; `:
+  - `finding`: this finding's text or its reproduction steps state them.
+  - a path from the repository root to a committed file that states them: `docs/raw-sources/<file>.md`,
+    `docs/findings/<file>.md`, or a file under `src/` (for example `src/Metaphor.Core/hook-signatures.json` for a
+    signed function's section, or the hook class for `hooked`).
+  - `[NEEDS VERIFICATION]` and the fields nobody has pinned, such as `[NEEDS VERIFICATION] section`.
+
+A function nobody has named is `unnamed, at <address>`. `scripts/dev/known-functions.ps1 -Check`, in `check.sh`'s rules
+step, fails an entry without a source in these forms, or citing a file that doesn't exist.
 
 Example, with a made-up function:
 
 ```markdown
 - **Functions:**
-  - ExampleOpenPanel | 0x140123456 | .text | Menus | known only | Opens the example panel and returns its handle.
+  - ExampleOpenPanel | 0x140123456 | .text | Menus | known only | Opens the example panel and returns its handle. | finding
 ```

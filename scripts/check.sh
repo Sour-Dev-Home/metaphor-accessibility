@@ -193,7 +193,7 @@ main() {
     fi
   fi
   scan_files
-  case "$stage" in rules | full) hooks_path_check ;; esac
+  case "$stage" in rules | full) hooks_path_check; functions_block_check ;; esac
   [ "$stage" != pre-commit ] || pre_commit_checks "$merge_hook"
   if [ "$stage" = full ]; then
     if [ -n "$merge_note" ]; then merge_checks; else full_dotnet_checks; fi

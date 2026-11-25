@@ -44,14 +44,14 @@ Describe 'known-functions' {
         $repo = New-Repo @(@{ name = 'MadeUpHook'; section = '.ecode'; gameBuilds = @($newBuild); evidence = 'made up' })
         Add-Finding $repo 'menus-thing' $newBuild @(
             '- **Functions:**',
-            '  - MadeUpHook | 0x140001000 | .ecode | Menus | hooked | Opens a made-up panel.',
-            '  - madeUpGlobal | 0x140002000 | .data | Field | read | A made-up global.')
+            '  - MadeUpHook | 0x140001000 | .ecode | Menus | hooked | Opens a made-up panel. | finding',
+            '  - madeUpGlobal | 0x140002000 | .data | Field | read | A made-up global. | finding')
         $run = Invoke-Generator $repo
         $run.Code | Should -Be 0 -Because $run.Output
         $run.Output | Should -Match '^ok: wrote 2 functions from 1 findings'
         $page = Read-Page $repo
         $page | Should -Match '(?s)## Menus.*## Field' -Because 'areas follow the declared order'
-        $page | Should -Match '\| MadeUpHook \| 0x140001000 \| bbbbbbbb \| \.ecode \| hooked \| Opens a made-up panel\. \| \[menus-thing\.md\]\(\.\./docs/findings/menus-thing\.md\) \| yes \|'
+        $page | Should -Match '\| MadeUpHook \| 0x140001000 \| bbbbbbbb \| \.ecode \| hooked \| Opens a made-up panel\. \| finding \| \[menus-thing\.md\]\(\.\./docs/findings/menus-thing\.md\) \| yes \|'
         $page | Should -Match '\| madeUpGlobal \| .* \| no \|'
         $page | Should -Not -Match 'Later' -Because 'only the header block counts'
         $page | Should -Not -Match 'Signatures no finding lists'
@@ -59,7 +59,7 @@ Describe 'known-functions' {
 
     It 'marks a row from an older build instead of dropping it' {
         $repo = New-Repo
-        Add-Finding $repo 'old' $oldBuild @('- **Functions:**', '  - OldOne | 0x140001000 | .text | Battle | known only | Old.')
+        Add-Finding $repo 'old' $oldBuild @('- **Functions:**', '  - OldOne | 0x140001000 | .text | Battle | known only | Old. | finding')
         (Invoke-Generator $repo).Code | Should -Be 0
         Read-Page $repo | Should -Match '\| OldOne \| 0x140001000 \| aaaaaaaa \(old build: re-verify\) \|'
     }
@@ -82,10 +82,10 @@ Describe 'known-functions' {
         Add-Finding $repo 'bad' $newBuild @(
             '- **Functions:**',
             '  - TooFew | 0x1 | .text',
-            '  - Bad | 140001000 | text | Shops | patched | ')
+            '  - Bad | 140001000 | text | Shops | patched |  | finding')
         $run = Invoke-Generator $repo
         $run.Code | Should -Be 1
-        $run.Output | Should -Match 'docs/findings/bad\.md:6: needs six fields'
+        $run.Output | Should -Match 'docs/findings/bad\.md:6: needs seven fields'
         $run.Output | Should -Match "bad\.md:7: the address '140001000'"
         $run.Output | Should -Match "bad\.md:7: the section 'text'"
         $run.Output | Should -Match "bad\.md:7: the area 'Shops'"
@@ -97,7 +97,7 @@ Describe 'known-functions' {
 
     It 'fails on a block in a finding with no game build' {
         $repo = New-Repo
-        Add-Finding $repo 'nobuild' 'not a build' @('- **Functions:**', '  - X | 0x1 | .text | Menus | read | x.')
+        Add-Finding $repo 'nobuild' 'not a build' @('- **Functions:**', '  - X | 0x1 | .text | Menus | read | x. | finding')
         $run = Invoke-Generator $repo
         $run.Code | Should -Be 1
         $run.Output | Should -Match 'names no game build'
@@ -126,13 +126,61 @@ Describe 'known-functions' {
 
     It 'replaces an earlier page whole' {
         $repo = New-Repo
-        Add-Finding $repo 'fine' $newBuild @('- **Functions:**', '  - First | 0x1 | .text | Speech | read | One.')
+        Add-Finding $repo 'fine' $newBuild @('- **Functions:**', '  - First | 0x1 | .text | Speech | read | One. | finding')
         (Invoke-Generator $repo).Code | Should -Be 0
-        Add-Finding $repo 'fine' $newBuild @('- **Functions:**', '  - Second | 0x2 | .text | Speech | read | Two.')
+        Add-Finding $repo 'fine' $newBuild @('- **Functions:**', '  - Second | 0x2 | .text | Speech | read | Two. | finding')
         (Invoke-Generator $repo).Code | Should -Be 0
         $page = Read-Page $repo
         $page | Should -Match '\| Second \|'
         $page | Should -Not -Match '\| First \|'
         Join-Path $repo 'out/known-functions.md.tmp' | Should -Not -Exist
+    }
+
+    Context 'sources (#997)' {
+        BeforeAll {
+            function Invoke-Check([string] $Repo) {
+                $output = & pwsh -NoProfile -File $script -Root $Repo -Check 2>&1
+                [pscustomobject]@{ Code = $LASTEXITCODE; Output = ($output -join "`n") }
+            }
+        }
+
+        It 'fails an entry that cites no source, naming its line' {
+            $repo = New-Repo
+            Add-Finding $repo 'bare' $newBuild @('- **Functions:**', '  - Guessed | 0x1 | .ecode | Menus | known only | A guess.')
+            $run = Invoke-Check $repo
+            $run.Code | Should -Be 1
+            $run.Output | Should -Match 'docs/findings/bare\.md:6: cites no source'
+        }
+
+        It 'fails an empty source, an unknown form and a cited file that does not exist' {
+            $repo = New-Repo
+            Add-Finding $repo 'bad-sources' $newBuild @(
+                '- **Functions:**',
+                '  - A | 0x1 | .text | Menus | read | a. | ',
+                '  - B | 0x2 | .text | Menus | read | b. | memory',
+                '  - C | 0x3 | .text | Menus | read | c. | docs/raw-sources/missing.md',
+                '  - D | 0x4 | .text | Menus | read | d. | finding; ../outside.md')
+            $run = Invoke-Check $repo
+            $run.Code | Should -Be 1
+            $run.Output | Should -Match 'bad-sources\.md:6: cites no source'
+            $run.Output | Should -Match "bad-sources\.md:7: the source 'memory' isn't"
+            $run.Output | Should -Match "bad-sources\.md:8: the source 'docs/raw-sources/missing\.md' isn't a file"
+            $run.Output | Should -Match "bad-sources\.md:9: the source '\.\./outside\.md' isn't"
+        }
+
+        It 'passes finding, a committed file, and [NEEDS VERIFICATION], and writes no page' {
+            $repo = New-Repo
+            New-Item -ItemType Directory -Path (Join-Path $repo 'docs/raw-sources') | Out-Null
+            Set-Content -LiteralPath (Join-Path $repo 'docs/raw-sources/a-source.md') -Value '# A source' -Encoding utf8
+            Add-Finding $repo 'sourced' $newBuild @(
+                '- **Functions:**',
+                '  - A | 0x1 | .text | Menus | read | a. | finding',
+                '  - B | 0x2 | .ecode | Menus | known only | b. | finding; docs/raw-sources/a-source.md',
+                '  - unnamed, at 0x3 | 0x3 | .ecode | Menus | known only | c. | [NEEDS VERIFICATION] section')
+            $run = Invoke-Check $repo
+            $run.Code | Should -Be 0 -Because $run.Output
+            $run.Output | Should -Match '^ok: 3 functions entries, each with a source, in 1 findings$'
+            Join-Path $repo 'out/known-functions.md' | Should -Not -Exist
+        }
     }
 }
