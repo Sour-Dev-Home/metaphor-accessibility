@@ -39,7 +39,7 @@ set -uo pipefail
 set -f
 scope=(scripts/ src/Metaphor.Hooks/ src/Metaphor.Features.Updates/ installer/ .github/workflows/ tests/check/ tests/bash/
   tools/docs/ tools/slow/ tools/Metaphor.CpkExtract/ .config/dotnet-tools.json .claude/agents/security-reviewer.md
-  .claude/settings.json .claude/hooks/ *Directory.Build.* *Directory.Packages.props *Directory.Solution.* *.sln.targets *global.json
+  .claude/settings.json .claude/hooks/ .gemini/ *Directory.Build.* *Directory.Packages.props *Directory.Solution.* *.sln.targets *global.json
   *nuget.config *NuGet.config *NuGet.Config)
 set +f
 # Every pathspec here matches in any case: Windows puts a file staged as Scripts/x.ps1 in scripts/ (#432).

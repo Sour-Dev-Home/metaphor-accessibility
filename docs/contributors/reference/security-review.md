@@ -93,6 +93,12 @@ it. Before their first PR, a collaborator's clone uses the repository's git hook
 `grep -F -f` over the patterns file stay allowed. The maintainer's private `~/.claude-metaphor/settings.json` also denies
 edits and common shell writes inside the game's install folder and its save folder.
 
+Gemini CLI gets the same rules from [`gemini-policy.toml`](../../../scripts/setup/gemini-policy.toml), which
+[`gemini.ps1`](../../../scripts/setup/gemini.ps1) installs in the user's Gemini policies folder, since Gemini CLI doesn't
+load a project's own policies yet. So the rules apply in every Gemini session on that machine, not only this repository,
+and the script replaces the file (`metaphor-accessibility.toml`) whenever it differs. A Gemini session can't run the `security-reviewer` agent, so it can't stamp: work in
+the scope goes through a Claude Code session.
+
 These rules match the command text Claude Code sees, so another spelling of the same command can slip past them. The
 stamp guards against a forgotten review, not a determined one: anyone can run the stamp script, and CI checks the
 trailer, not that a review happened. They are a strong guard, not a guarantee.
