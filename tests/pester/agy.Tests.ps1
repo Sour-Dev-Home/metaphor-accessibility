@@ -36,8 +36,11 @@ BeforeAll {
         $bin = (New-Item -ItemType Directory (Join-Path $root 'bin')).FullName
         $log = Join-Path $root 'calls.log'
         if (-not $NoAgy) {
+            # chcp 65001: cmd's echo writes the log in UTF-8, so a repository path with non-ASCII letters (the varied
+            # setup's) reads back as it is.
             Set-Content (Join-Path $bin 'agy.cmd') -Encoding ascii -Value @"
 @echo off
+chcp 65001 >nul
 if "%1"=="--version" (echo $Version& exit /b 0)
 >>"$log" echo agy %* in %CD%
 "@
@@ -105,7 +108,8 @@ Describe 'agy-settings.json' {
 Describe 'agy.ps1' {
     It 'runs agy from the repository root with the deny rules and the arguments' {
         $run = Invoke-Agy @('-p', 'hello')
-        $run.Calls | Should -Contain "agy --settings $settingsPath -p hello in $repo"
+        # Without quotes: a repository path with spaces reaches agy quoted.
+        $run.Calls -replace '"', '' | Should -Contain "agy --settings $settingsPath -p hello in $repo"
     }
 
     It 'finds agy in its install folder when it isn''t on PATH' {
