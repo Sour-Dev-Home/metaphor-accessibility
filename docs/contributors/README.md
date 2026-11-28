@@ -77,7 +77,7 @@ page type goes in which docs folder.
 | OSV-Scanner | CI's vulnerability audit | [`vuln-audit.sh`](../../scripts/ci/vuln-audit.sh) |
 | GitHub CLI (`gh`) | issues and pull requests | [`onboard.ps1`](../../scripts/setup/onboard.ps1) (winget pin) |
 | Claude Code (optional) | agents and skills | [`claude.ps1`](../../scripts/setup/claude.ps1) starts it with this project's config |
-| Gemini CLI (optional) | a second agent, outside the review scope | [`gemini.ps1`](../../scripts/setup/gemini.ps1) installs it pinned, with the deny rules |
+| Antigravity CLI (optional) | a second agent, outside the review scope | install with `irm https://antigravity.google/cli/install.ps1 \| iex` (self-updating, can't be pinned); [`agy.ps1`](../../scripts/setup/agy.ps1) starts it with the deny rules |
 
 ## Environment variables
 
