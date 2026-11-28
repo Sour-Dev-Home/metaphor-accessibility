@@ -36,14 +36,15 @@ BeforeAll {
         $bin = (New-Item -ItemType Directory (Join-Path $root 'bin')).FullName
         $log = Join-Path $root 'calls.log'
         if (-not $NoAgy) {
-            # chcp 65001: cmd's echo writes the log in UTF-8, so a repository path with non-ASCII letters (the varied
-            # setup's) reads back as it is.
-            Set-Content (Join-Path $bin 'agy.cmd') -Encoding ascii -Value @"
-@echo off
-chcp 65001 >nul
-if "%1"=="--version" (echo $Version& exit /b 0)
->>"$log" echo agy %* in %CD%
-"@
+            # In UTF-8, with chcp 65001 before any line that holds a path: the varied setup's TEMP ("Temp é") is in the
+            # log's path, and its repository path in what gets logged, and both must read back as they are. Lines
+            # joined with CRLF whatever this file's line endings: after chcp, cmd misreads a batch file with LF ones.
+            Set-Content (Join-Path $bin 'agy.cmd') -Encoding utf8NoBOM -NoNewline -Value ((
+                '@echo off',
+                'chcp 65001 >nul',
+                "if `"%1`"==`"--version`" (echo $Version& exit /b 0)",
+                ">>`"$log`" echo agy %* in %CD%",
+                '') -join "`r`n")
         }
         $old = @{ PATH = $env:PATH; LOCALAPPDATA = $env:LOCALAPPDATA }
         $env:PATH = "$bin;$env:SystemRoot\System32"
