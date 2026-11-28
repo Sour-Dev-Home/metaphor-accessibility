@@ -1,0 +1,15 @@
+{
+  "permissions": {
+    "deny": [
+      "command(git push --force)",
+      "command(git push --force-with-lease)",
+      "command(git push -f)",
+      "command(regex:.*\\bgit\\b.*\\bpush\\b.*(--force|\\s-[a-zA-Z]*f|\\s\\+).*)",
+      "command(regex:.*\\bgit\\b.*--no-verify.*)",
+      "command(regex:.*\\bgit\\b.*\\bcommit\\b[^&|;]*\\s-[a-zA-Z]*n.*)",
+      "command(regex:.*SECURITY_REVIEW_SKIP.*)",
+      "command(regex:.*\\b(cat|type|Get-Content|gc|head|tail|less|more)\\b.*pii-patterns\\.txt.*)",
+      "read_file(.claude/pii-patterns.txt)"
+    ]
+  }
+}

@@ -93,6 +93,16 @@ it. Before their first PR, a collaborator's clone uses the repository's git hook
 `grep -F -f` over the patterns file stay allowed. The maintainer's private `~/.claude-metaphor/settings.json` also denies
 edits and common shell writes inside the game's install folder and its save folder.
 
+The Antigravity CLI (`agy`) gets the same rules from [`agy-settings.json`](../../../scripts/setup/agy-settings.json),
+which [`agy.ps1`](../../../scripts/setup/agy.ps1) passes for the session only (`--settings`), so they hold only when agy
+starts through that script. Its deny rules hold in every mode, auto-approve included. Antigravity's docs read as if a
+`regex:` rule were matched one word at a time; on agy 1.5.18 (2026-11-27) a live check showed it matched against the
+whole command line, and every rule fired as intended: 11 commands denied, 5 allowed, `read_file` on the PII patterns
+denied, and each one ran with no rules set. Rerun that check after an agy update (`agy.ps1` warns):
+`bash scripts/dev/agy-check-rules.sh`. `.agents/`, where agy reads a
+workspace's hooks and MCP servers, is in the review scope. An agy session can't run the `security-reviewer` agent, so
+it can't stamp: work in the scope goes through a Claude Code session.
+
 These rules match the command text Claude Code sees, so another spelling of the same command can slip past them. The
 stamp guards against a forgotten review, not a determined one: anyone can run the stamp script, and CI checks the
 trailer, not that a review happened. They are a strong guard, not a guarantee.

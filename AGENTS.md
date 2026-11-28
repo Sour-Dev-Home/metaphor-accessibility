@@ -69,6 +69,9 @@ every script, the guards, `.claude/settings.json` and `.claude/hooks/`), listed 
 The stamp and the deny rules are in [security review](docs/contributors/reference/security-review.md). Never set
 `SECURITY_REVIEW_SKIP`, and never force-push.
 
+The Antigravity CLI (`agy`) also works here: start it with `.\scripts\setup\agy.ps1`, which adds the same deny rules. An
+agy session can't stamp, so it takes work outside the review scope; scope work goes through Claude Code.
+
 ## Agent skills
 
 Before committing or opening a PR, read `docs/agents/workflow.md`: branching, security stamp, delivery, reporting.
