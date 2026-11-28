@@ -103,6 +103,24 @@ public sealed record ModSettings
         return Bindings.Equals(other.Bindings);
     }
 
+    /// <summary>These settings with each binding in <paramref name="paths"/> (<c>group.name</c>) left unbound (<c>0</c>),
+    /// as when it clashes with an earlier action (#755).</summary>
+    public ModSettings WithoutBindings(IEnumerable<string> paths)
+    {
+        ArgumentNullException.ThrowIfNull(paths);
+        var unbound = paths.ToList();
+        if (unbound.Count == 0)
+        {
+            return this;
+        }
+        var copy = Bindings.Entries.ToDictionary(pair => pair.Key, pair => pair.Value, StringComparer.Ordinal);
+        foreach (var path in unbound)
+        {
+            copy[path] = 0;
+        }
+        return this with { Bindings = new(copy) };
+    }
+
     /// <summary>Reads the file's text; null means no file. Anything unusable, whether the whole file or one setting,
     /// gives the default and a line to <paramref name="log"/>. Keys it doesn't know are ignored, so later settings can
     /// share the file. <paramref name="features"/> are the on/off keys it reads, as the feature modules declare them

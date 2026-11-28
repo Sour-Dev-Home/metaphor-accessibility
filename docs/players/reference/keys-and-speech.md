@@ -5,9 +5,14 @@
 
 Every key and button the mod adds, and what it speaks where. The mod reads no mouse input. A press counts when the key
 goes down, not while it is held, and a key already held when a window opens does nothing. Every key and button can be
-moved, and every part of the mod turned off, in the settings file: see [the settings reference](settings.md).
-Where the mod uses a key it hides that press from the game, only in the situation named; elsewhere the key does its
-usual job in the game.
+moved, and every part of the mod turned off, in the settings file: see [the settings reference](settings.md). If two
+actions in the same place are bound to the same key or pad chord in `settings.json`, the mod says and logs the clash
+once, keeps the first action bound, and leaves the second unbound until you change it. Where the mod uses a key it hides
+that press from the game, only in the situation named; elsewhere the key does its usual job in the game.
+
+Testing, with `padSpeechStop` on in `speech`: pressing a controller button stops whatever announcement is being read
+before what that press brings up is said. Triggers (`LT` and `RT`) and held chord buttons (`LB` and `RB`) do not stop
+speech. `[NEEDS VERIFICATION]` By ear.
 
 ## Keys and buttons
 
@@ -60,7 +65,8 @@ While it is being tested, turn it on once in the settings file with `{ "speech":
 settings", the section and the first setting. `Up` and `Down` move, and each setting says its name and value. `Left`
 and `Right` change it, with `Shift` for bigger steps on a number, and the mod saves it to `settings.json` at once and
 says "saved". `F` or `R3` says what the setting does. `Page Down` and `Page Up`, or `RB` and `LB`, jump to the next or
-previous section. Keys are listed too, but are changed in the file for now. `Escape` or `B` closes the menu. While it is
+previous section. Keys are listed too, but are changed in the file for now. With `soundLibrary` on (testing), a Sound library section
+at the end plays each mod sound cue with its name and what it means. `Escape` or `B` closes the menu. While it is
 open, the game gets none of your keys or buttons. `[NEEDS VERIFICATION]` By ear in the game.
 
 ## What is spoken where

@@ -24,6 +24,10 @@ sound and what it means.
 
 A simple way to remember them: low and falling is bad news for you, high and rising is good news.
 
+Testing, with `soundLibrary` on in `speech`: the mod's settings menu (`F2`, or `LT` and `RT` held then `View`) adds a
+Sound library section at the end. Moving to a row plays that sound and says its name and what it means; `Enter` or `A`
+plays it again, and `F` or `R3` reads the full description. `[NEEDS VERIFICATION by ear]`
+
 ## Turn the sounds off or change their volume
 
 1. Find the mod's settings folder: `User\Mods\metaphor.accessibility` inside your Reloaded-II folder.

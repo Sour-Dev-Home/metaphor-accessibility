@@ -35,6 +35,8 @@ public sealed class MenusModule : IFeatureModule
         var events = context.Events;
         var serials = context.Serials;
         var log = context.Log;
+        // Watch every module's listed keys for duplicate bindings at startup and reload (#755).
+        settings.WatchKeys(context.Keys);
         // The mark key (#597) takes each read first, on every screen: its toggle and binding read live; keyboard only
         // until the pad layer (#688). None unless the report log is open.
         if (context.Report is { } report)
@@ -42,6 +44,13 @@ public sealed class MenusModule : IFeatureModule
             context.AddControls(new MarkKey(() => settings.Current, context.Output(MenusFeature.MarkKey).Cues, report));
         }
         RegisterSettingsMenu(context);
+        // Opt-in controller speech stop (#1036), after the settings menu so its own keys and close aren't cut off, and
+        // before downstream controls so whatever the press opens speaks after the stop.
+        context.AddControls(settings.Input(
+            MenusFeature.PadSpeechStop,
+            new PadSpeechStop(
+                context.Stoppable.StopAll,
+                () => ShoulderTaps.Shoulders | HeldModifiers(context.ShoulderHolds))));
         // Menus speak through the reader (#214), and their controls toggle it with the dialogue's binding.
         var menuSpeech = context.Output(MenusFeature.Menus).Through(reader);
         screens.Observe(new TitleMenuFocus(library, menuSpeech, cleaner));
@@ -251,6 +260,13 @@ public sealed class MenusModule : IFeatureModule
         context.AddKeys(MenuKeys.All);
         var menuKeys = settings.Live(SettingsMenuBindings.From);
         var editor = new SettingsEditor(context.SettingsStore, settings);
+        SoundBank? loadedBank = null;
+        var soundLibrary = new SoundLibrary(
+            context.Output(MenusFeature.SoundLibrary).Cues,
+            () => loadedBank ??= SoundBank.Load(
+                Path.Combine(context.ModFolder, "data", "sounds"),
+                problem => context.Log?.MenuNote("sound library: " + problem)));
+        var libraryRows = soundLibrary.Rows();
         var settingsMenu = new SettingsMenu(
             () => PlayerSettings.Rows(
                 settings.Catalogue, SettingsMenu.KeyRows(context.Keys),
@@ -265,6 +281,9 @@ public sealed class MenusModule : IFeatureModule
             // The game's volume lowered while open, through Windows' per-app volume, while tested (#927).
             QuietGame = () => settings.Current.IsOn(MenusFeature.SettingsMenuQuietGame),
             Volume = context.GameVolume,
+            // The sound library section (#906, #651), while tested.
+            ExtraRows = () => settings.Current.IsOn(MenusFeature.SoundLibrary) ? libraryRows : [],
+            QuietPreview = soundLibrary.Quiet,
         };
         var menuOpen = ShoulderTaps.MenuOpen(context.Screens, context.Cursors);
         var battle = context.BattleScene;
@@ -280,6 +299,16 @@ public sealed class MenusModule : IFeatureModule
             settings.Current.IsOn(MenusFeature.SettingsMenu) || settings.Current.IsOn(MenusFeature.KeyHelp)
                 ? menuKeys().ChordButtons & ShoulderTaps.Holdable
                 : 0);
+    }
+
+    private static int HeldModifiers(IReadOnlyList<Func<int>> holds)
+    {
+        var mask = 0;
+        for (var i = 0; i < holds.Count; i++)
+        {
+            mask |= holds[i]();
+        }
+        return mask;
     }
 }
 

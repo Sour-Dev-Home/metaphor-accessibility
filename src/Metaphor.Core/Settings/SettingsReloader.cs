@@ -14,13 +14,20 @@ public sealed class SettingsReloader
     private readonly Action<string> log;
     private readonly bool testingOn;
     private readonly Lock gate = new();
+    private readonly HashSet<string> reportedClashes = new(StringComparer.Ordinal);
+    private volatile IReadOnlyList<KeyEntry>? keys;
+    private volatile int checkedKeysCount;
     private volatile ModSettings current = ModSettings.Defaults;
 
     /// <param name="announcer">Where a changed value is said.</param>
     /// <param name="features">The features' on/off settings, from the feature modules (#784).</param>
     /// <param name="log">Where a file that can't be used is reported (the Debug log).</param>
     /// <param name="testingOn">Whether this is a session that turns every testing feature on (#783).</param>
-    public SettingsReloader(IAnnouncer announcer, SettingCatalogue features, Action<string> log, bool testingOn = false)
+    /// <param name="keys">The mod's listed keys, for catching duplicate bindings (#755); can also be attached through
+    /// <see cref="WatchKeys"/> as modules register.</param>
+    public SettingsReloader(
+        IAnnouncer announcer, SettingCatalogue features, Action<string> log, bool testingOn = false,
+        IReadOnlyList<KeyEntry>? keys = null)
     {
         ArgumentNullException.ThrowIfNull(announcer);
         ArgumentNullException.ThrowIfNull(features);
@@ -29,6 +36,7 @@ public sealed class SettingsReloader
         this.features = features;
         this.log = log;
         this.testingOn = testingOn;
+        this.keys = keys;
         current = current.WithTesting(testingOn);
     }
 
@@ -38,22 +46,86 @@ public sealed class SettingsReloader
     /// <summary>The features' settings and sliders the file is read for, for the settings menu (#754).</summary>
     public SettingCatalogue Catalogue => features;
 
-    /// <summary>Applies the file as read at start (null when there is none), saying nothing.</summary>
-    public void Load(string? json)
+    /// <summary>Watches <paramref name="listed"/> for duplicate key or pad-chord bindings (#755), checked once every
+    /// module has finished adding to it and on every reload.</summary>
+    public void WatchKeys(IReadOnlyList<KeyEntry> listed)
     {
+        ArgumentNullException.ThrowIfNull(listed);
         lock (gate)
         {
-            current = ModSettings.Parse(json, features, log).WithTesting(testingOn);
+            keys = listed;
+            checkedKeysCount = 0;
+        }
+    }
+
+    /// <summary>Checks the watched keys for duplicate bindings (#755) if new keys were registered since the last check,
+    /// leaving the later action unbound and speaking and logging each new clash once.</summary>
+    public void CheckKeys()
+    {
+        if (keys is not { Count: > 0 } listed || checkedKeysCount == listed.Count)
+        {
+            return;
+        }
+        IReadOnlyList<KeyClash> fresh;
+        lock (gate)
+        {
+            if (keys is not { Count: > 0 } now || checkedKeysCount == now.Count)
+            {
+                return;
+            }
+            var updated = current;
+            fresh = ApplyClashes(ref updated, now);
+            current = updated;
+            checkedKeysCount = now.Count;
+        }
+        foreach (var clash in fresh)
+        {
+            announcer.Announce(new Announcement(clash.Spoken, Interrupt: false));
+        }
+    }
+
+    /// <summary>Applies the file as read at start (null when there is none), saying nothing except any duplicate key
+    /// binding (#755).</summary>
+    public void Load(string? json)
+    {
+        IReadOnlyList<KeyClash> fresh = [];
+        lock (gate)
+        {
+            var next = ModSettings.Parse(json, features, log).WithTesting(testingOn);
+            if (keys is { Count: > 0 } listed)
+            {
+                fresh = ApplyClashes(ref next, listed);
+                checkedKeysCount = listed.Count;
+            }
+            else
+            {
+                checkedKeysCount = 0;
+            }
+            current = next;
+        }
+        foreach (var clash in fresh)
+        {
+            announcer.Announce(new Announcement(clash.Spoken, Interrupt: false));
         }
     }
 
     /// <summary>Applies the file after a change (null when it is gone) and announces each value that differs from the
-    /// one in force, in the file's documented order, each after the one before.</summary>
+    /// one in force, in the file's documented order, each after the one before, plus any new key clash (#755).</summary>
     public void Reload(string? json)
     {
         lock (gate)
         {
             var next = ModSettings.Parse(json, features, log).WithTesting(testingOn);
+            IReadOnlyList<KeyClash> fresh = [];
+            if (keys is { Count: > 0 } listed)
+            {
+                fresh = ApplyClashes(ref next, listed);
+                checkedKeysCount = listed.Count;
+            }
+            else
+            {
+                checkedKeysCount = 0;
+            }
             List<string> said = [];
             if (next.VoicedLines != current.VoicedLines)
             {
@@ -91,6 +163,7 @@ public sealed class SettingsReloader
             {
                 said.Add("Keys changed.");
             }
+            said.AddRange(fresh.Select(clash => clash.Spoken));
             current = next;
             for (var i = 0; i < said.Count; i++)
             {
@@ -133,6 +206,7 @@ public sealed class SettingsReloader
         Tuple<ModSettings, T>? made = null;
         return () =>
         {
+            CheckKeys();
             var now = current;
             if (Volatile.Read(ref made) is { } known && ReferenceEquals(known.Item1, now))
             {
@@ -142,6 +216,27 @@ public sealed class SettingsReloader
             Volatile.Write(ref made, Tuple.Create(now, value));
             return value;
         };
+    }
+
+    // Called under gate: strips clashed later bindings from settings, logs new clashes and keeps track of active ones.
+    private List<KeyClash> ApplyClashes(ref ModSettings settings, IReadOnlyList<KeyEntry> listed)
+    {
+        var clashes = KeyClashes.Find(settings, listed);
+        if (clashes.Count > 0)
+        {
+            settings = settings.WithoutBindings(clashes.Select(clash => clash.UnboundPath));
+        }
+        reportedClashes.RemoveWhere(id => clashes.All(clash => clash.Id != id));
+        List<KeyClash> fresh = [];
+        foreach (var clash in clashes)
+        {
+            if (reportedClashes.Add(clash.Id))
+            {
+                log(clash.LogLine);
+                fresh.Add(clash);
+            }
+        }
+        return fresh;
     }
 
     private static string OnOff(bool on) => on ? "on" : "off";

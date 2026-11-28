@@ -162,7 +162,7 @@ public sealed class SettingsMenu : IWindowInputControls, IInputBlock
                     Open();
                     return 0;
                 }
-                return buttons;
+                return buttons & ~padKept;
             }
             var said = details().DetailsButtons;
             if ((down & PadB) != 0)
@@ -282,16 +282,31 @@ public sealed class SettingsMenu : IWindowInputControls, IInputBlock
             .Select(key => new KeySetting(PlayerSettings.Keys, key.Does, now => key.Keys(now) ?? "none"));
     }
 
-    private IReadOnlyList<PlayerSetting> Rows => listed ??= rows();
+    private IReadOnlyList<PlayerSetting> BaseRows => listed ??= rows();
+
+    private IReadOnlyList<PlayerSetting> ActiveRows()
+    {
+        var extra = ExtraRows();
+        return extra.Count == 0 ? BaseRows : [.. BaseRows, .. extra];
+    }
+
+    /// <summary>Extra rows appended while their own setting is on, such as <see cref="SoundLibrary"/> (#906).</summary>
+    public Func<IReadOnlyList<PlayerSetting>> ExtraRows { get; init; } = () => [];
+
+    /// <summary>Silences any preview sound started by an <see cref="IPreviewRow"/> when focus moves or the menu closes
+    /// (#906).</summary>
+    public Action QuietPreview { get; init; } = () => { };
 
     private void Open()
     {
+        var active = ActiveRows();
         open = true;
-        index = Math.Clamp(index, 0, Math.Max(0, Rows.Count - 1));
+        index = Math.Clamp(index, 0, Math.Max(0, active.Count - 1));
+        Preview(active[index]);
         // A dialogue line being read is let finish: the menu's first line queues behind it.
         var reading = window is { } message && message != 0;
-        var intro = SayIntro() ? $" {Intro()}" : "";
-        Say($"{Name}.{intro} {Rows[index].Section}. {Line(index)}", interrupt: !reading);
+        var intro = SayIntro() ? $" {Intro(active)}" : "";
+        Say($"{Name}.{intro} {active[index].Section}. {Line(active, index)}", interrupt: !reading);
         if (QuietGame())
         {
             Volume.Duck();
@@ -309,9 +324,9 @@ public sealed class SettingsMenu : IWindowInputControls, IInputBlock
     public IVolumeDuck Volume { get; init; } = NoVolumeDuck.Instance;
 
     // "6 sections: General, Speech, ... Page Down and Page Up, or RB and LB, move between them. ..." (#927).
-    private string Intro()
+    private static string Intro(IReadOnlyList<PlayerSetting> active)
     {
-        var sections = Rows.Select(row => row.Section).Distinct().ToList();
+        var sections = active.Select(row => row.Section).Distinct().ToList();
         const string Keys = "Page Down and Page Up, or RB and LB, move between them. Up and Down move, Left is off " +
             "or less, Right is on or more, Escape or B closes.";
         return string.Create(
@@ -321,26 +336,33 @@ public sealed class SettingsMenu : IWindowInputControls, IInputBlock
     private void Close()
     {
         open = false;
+        QuietPreview();
         Volume.Restore();
         Say("Settings closed.");
     }
 
     private void Move(int by)
     {
-        var count = Rows.Count;
+        var active = ActiveRows();
+        var count = active.Count;
+        index = Math.Clamp(index, 0, Math.Max(0, count - 1));
         var next = (((index + by) % count) + count) % count;
-        var crossed = Rows[next].Section != Rows[index].Section;
+        var crossed = active[next].Section != active[index].Section;
         index = next;
-        Say(crossed ? $"{Rows[index].Section}. {Line(index)}" : Line(index));
+        Preview(active[index]);
+        Say(crossed ? $"{active[index].Section}. {Line(active, index)}" : Line(active, index));
     }
 
     private void Section(int by)
     {
-        var sections = Rows.Select(row => row.Section).Distinct().ToList();
-        var at = sections.IndexOf(Rows[index].Section);
+        var active = ActiveRows();
+        index = Math.Clamp(index, 0, Math.Max(0, active.Count - 1));
+        var sections = active.Select(row => row.Section).Distinct().ToList();
+        var at = sections.IndexOf(active[index].Section);
         var next = sections[(((at + by) % sections.Count) + sections.Count) % sections.Count];
-        index = Rows.ToList().FindIndex(row => row.Section == next);
-        Say($"{next}. {Line(index)}");
+        index = active.ToList().FindIndex(row => row.Section == next);
+        Preview(active[index]);
+        Say($"{next}. {Line(active, index)}");
     }
 
     private void Change(int steps) => Apply(row => row.Change(settings(), steps));
@@ -349,10 +371,18 @@ public sealed class SettingsMenu : IWindowInputControls, IInputBlock
 
     private void Apply(Func<PlayerSetting, SettingChange?> changeOf)
     {
-        var row = Rows[index];
+        var active = ActiveRows();
+        index = Math.Clamp(index, 0, Math.Max(0, active.Count - 1));
+        var row = active[index];
         if (row is KeySetting)
         {
             Say("To change a key, edit settings.json.");
+            return;
+        }
+        if (row is IPreviewRow)
+        {
+            Preview(row);
+            Say($"{row.Spoken}, {row.Value(settings())}");
             return;
         }
         if (changeOf(row) is not { } change)
@@ -365,16 +395,27 @@ public sealed class SettingsMenu : IWindowInputControls, IInputBlock
 
     private void ReadMore()
     {
-        var row = Rows[index];
+        var active = ActiveRows();
+        index = Math.Clamp(index, 0, Math.Max(0, active.Count - 1));
+        var row = active[index];
         var text = row.Description.Replace("`", "", StringComparison.Ordinal);
         Say(row.Testing ? $"{text} Still being tested." : text);
     }
 
-    // "Positions, on, 1 of 42", the position within the row's section.
-    private string Line(int at)
+    private void Preview(PlayerSetting row)
     {
-        var row = Rows[at];
-        var section = Rows.Select((each, i) => (each, i)).Where(pair => pair.each.Section == row.Section).ToList();
+        QuietPreview();
+        if (row is IPreviewRow preview)
+        {
+            preview.Preview();
+        }
+    }
+
+    // "Positions, on, 1 of 42", the position within the row's section.
+    private string Line(IReadOnlyList<PlayerSetting> active, int at)
+    {
+        var row = active[at];
+        var section = active.Select((each, i) => (each, i)).Where(pair => pair.each.Section == row.Section).ToList();
         var value = row.Testing ? $"testing, {row.Value(settings())}" : row.Value(settings());
         var line = $"{row.Spoken}, {value}";
         if (!positions())

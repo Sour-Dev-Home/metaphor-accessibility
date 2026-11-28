@@ -22,6 +22,8 @@ internal sealed class SettingMap<TKey, TValue> : IEquatable<SettingMap<TKey, TVa
 
     public static SettingMap<TKey, TValue> Empty { get; } = new(new Dictionary<TKey, TValue>());
 
+    public IReadOnlyDictionary<TKey, TValue> Entries => values;
+
     /// <summary>The file's value for <paramref name="key"/>, or <paramref name="fallback"/>.</summary>
     public TValue Get(TKey key, TValue fallback) => values.TryGetValue(key, out var value) ? value : fallback;
 

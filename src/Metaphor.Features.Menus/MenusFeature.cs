@@ -228,11 +228,23 @@ public enum MenusFeature
         "Windows volume mixer resets it. Needs `settingsMenu`.")]
     SettingsMenuQuietGame,
 
+    /// <summary>The settings menu's sound library section (#906, #651).</summary>
+    [SettingKey("speech", "soundLibrary", "Sound library", Testing = true, Order = 1238,
+        Description = "In the mod's settings menu, a Sound library section that lists every mod sound cue and plays " +
+        "it as you focus it or press Enter or A, with its name and what it means. Needs `settingsMenu`.")]
+    SoundLibrary,
+
     /// <summary>The help key, which says the mod's keys for where the player is (#868).</summary>
     [SettingKey("speech", "keyHelp", "Key help", Order = 1240, Description = "The help key, F1, or " +
         "LT and RT held then Y on the pad: says the mod's keys that work where you are now, with their current " +
         "bindings.")]
     KeyHelp,
+
+    /// <summary>Controller buttons stop ongoing speech (#1036), excluding triggers and held chord modifiers.</summary>
+    [SettingKey("speech", "padSpeechStop", "Controller buttons stop speech", Testing = true, Order = 1245,
+        Description = "Pressing a controller button stops whatever announcement is being read before what that button " +
+        "brings up is said. Triggers (LT and RT) and held chord buttons (LB and RB) do not stop speech.")]
+    PadSpeechStop,
 
     /// <summary>The mark key, which writes a marker to the report log (#597).</summary>
     [SettingKey("report", "markKey", "Mark key", Order = 3000, Description = "The mark key, F8: writes a numbered " +

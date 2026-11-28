@@ -20,6 +20,7 @@ speech.menuPrompts | Menu prompts | off | testing
 speech.menus | Menus | on | done
 speech.nameEntry | Name entry | on | done
 speech.nameReadBack | Name read-back | on | done
+speech.padSpeechStop | Controller buttons stop speech | off | testing
 speech.placeNames | Place names | on | done
 speech.questList | Quest list | on | done
 speech.quickMenuHelp | Quick menu help | off | testing
@@ -33,6 +34,7 @@ speech.settingsMenuIntro | Settings menu layout | off | testing
 speech.settingsMenuQuietGame | Settings menu quiets the game | off | testing
 speech.shopMenu | Shop menu | on | done
 speech.skipSceneQuestion | Skip scene question | off | testing
+speech.soundLibrary | Sound library | off | testing
 speech.systemMenu | System menu | on | done
 speech.travelMap | Travel map | on | done
 speech.tutorialKeyHint | Tutorial key hint | off | testing
