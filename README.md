@@ -4,7 +4,7 @@ Mods, tools and reverse-engineering notes for Metaphor: ReFantazio on PC.
 
 > **Disclaimer:** this is a non-commercial, fan-made accessibility tool for blind and visually impaired players. It is
 > not affiliated with, endorsed by or sponsored by ATLUS or SEGA.
-
+>
 > **Support:** if you'd like to support my time on this project, you can tip on [Ko-fi](https://ko-fi.com/soure).
 > Tipping is entirely optional and gets you nothing extra: no early builds, no extra features, no priority requests.
 > The mod is and stays free for everyone.

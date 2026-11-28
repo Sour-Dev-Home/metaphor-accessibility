@@ -5,8 +5,8 @@
 
 The mod runs inside your game, so check a zip before you install it. GitHub's CI builds each zip and signs it with an
 [attestation](../../../GLOSSARY.md#review-and-ci): a record, signed by GitHub, of which repository, workflow and
-branch or tag built those exact bytes ([sources](../../raw-sources/github-artifact-attestations-2026-11-18.md)). If one byte changes after the build, the
-check fails.
+branch or tag built those exact bytes ([sources](../../raw-sources/github-artifact-attestations-2026-11-18.md)). If one
+byte changes after the build, the check fails.
 
 ## Get a release
 
